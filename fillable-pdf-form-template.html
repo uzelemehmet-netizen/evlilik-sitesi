@@ -1,0 +1,644 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Endonezya Seyahat Formu</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Arial', sans-serif;
+            background: #f5f5f5;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        
+        .form-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 40px;
+            box-shadow: 0 0 20px rgba(0,0,0,0.1);
+        }
+        
+        .form-header {
+            text-align: center;
+            margin-bottom: 30px;
+            border-bottom: 3px solid #e74c3c;
+            padding-bottom: 20px;
+        }
+        
+        .form-header h1 {
+            color: #2c3e50;
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+        
+        .form-header p {
+            color: #7f8c8d;
+            font-size: 14px;
+        }
+        
+        .form-section {
+            margin-bottom: 30px;
+            padding: 20px;
+            background: #f9f9f9;
+            border-left: 4px solid #3498db;
+        }
+        
+        .form-section h2 {
+            color: #2c3e50;
+            font-size: 20px;
+            margin-bottom: 15px;
+            border-bottom: 2px solid #ecf0f1;
+            padding-bottom: 10px;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #34495e;
+            font-weight: 600;
+            font-size: 14px;
+        }
+        
+        .form-group input[type="text"],
+        .form-group input[type="email"],
+        .form-group input[type="tel"],
+        .form-group input[type="date"],
+        .form-group textarea,
+        .form-group select {
+            width: 100%;
+            max-width: 400px;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+            font-family: Arial, sans-serif;
+            transition: border-color 0.3s;
+        }
+        
+        .form-group textarea {
+            max-width: 100%;
+        }
+        
+        .form-row .form-group input,
+        .form-row .form-group select {
+            max-width: 100%;
+        }
+        
+        .form-group input:focus,
+        .form-group textarea:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #3498db;
+        }
+        
+        .form-group textarea {
+            resize: vertical;
+            min-height: 100px;
+        }
+        
+        .checkbox-group,
+        .radio-group {
+            margin-top: 10px;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+        }
+        
+        .checkbox-item,
+        .radio-item {
+            margin-bottom: 0;
+            display: flex;
+            align-items: center;
+        }
+        
+        .checkbox-item input[type="checkbox"],
+        .radio-item input[type="radio"] {
+            width: 20px;
+            height: 20px;
+            margin-right: 10px;
+            cursor: pointer;
+        }
+        
+        .checkbox-item label,
+        .radio-item label {
+            font-weight: normal;
+            cursor: pointer;
+            margin: 0;
+        }
+        
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        
+        @media (max-width: 768px) {
+            body {
+                padding: 10px;
+            }
+            
+            .form-container {
+                padding: 20px 15px;
+                max-width: 100%;
+            }
+            
+            .form-header h1 {
+                font-size: 24px;
+            }
+            
+            .form-header p {
+                font-size: 13px;
+            }
+            
+            .form-section {
+                padding: 15px;
+                margin-bottom: 20px;
+            }
+            
+            .form-section h2 {
+                font-size: 18px;
+                margin-bottom: 12px;
+            }
+            
+            .form-group {
+                margin-bottom: 18px;
+            }
+            
+            .form-group label {
+                font-size: 15px;
+                margin-bottom: 10px;
+            }
+            
+            .form-group input[type="text"],
+            .form-group input[type="email"],
+            .form-group input[type="tel"],
+            .form-group input[type="date"],
+            .form-group textarea,
+            .form-group select {
+                max-width: 100%;
+                width: 100%;
+                padding: 14px;
+                font-size: 16px; /* iOS zoom önleme için */
+                border-radius: 8px;
+            }
+            
+            .form-row {
+                grid-template-columns: 1fr;
+                gap: 15px;
+            }
+            
+            .checkbox-group,
+            .radio-group {
+                grid-template-columns: 1fr !important;
+                gap: 12px;
+                max-width: 100%;
+                overflow: hidden;
+            }
+            
+            .checkbox-item,
+            .radio-item {
+                padding: 10px;
+                background: white;
+                border-radius: 8px;
+                border: 1px solid #e0e0e0;
+                margin-bottom: 8px;
+                width: 100%;
+                box-sizing: border-box;
+                word-wrap: break-word;
+                overflow-wrap: break-word;
+            }
+            
+            .checkbox-item label,
+            .radio-item label {
+                word-wrap: break-word;
+                overflow-wrap: break-word;
+                max-width: calc(100% - 40px);
+            }
+            
+            .checkbox-item input[type="checkbox"],
+            .radio-item input[type="radio"] {
+                width: 24px;
+                height: 24px;
+                margin-right: 12px;
+            }
+            
+            .checkbox-item label,
+            .radio-item label {
+                font-size: 15px;
+                padding: 4px 0;
+            }
+            
+            .form-note {
+                padding: 12px;
+                font-size: 13px;
+            }
+        }
+        
+        .required {
+            color: #e74c3c;
+        }
+        
+        .form-note {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 15px;
+            margin-bottom: 20px;
+            font-size: 13px;
+            color: #856404;
+        }
+        
+        .signature-section {
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 2px solid #ecf0f1;
+        }
+        
+        .signature-box {
+            border: 2px dashed #bdc3c7;
+            height: 100px;
+            margin-top: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #95a5a6;
+            font-style: italic;
+        }
+    </style>
+</head>
+<body>
+    <div class="form-container">
+        <div class="form-header">
+            <h1>Endonezya Seyahat Bilgi Formu</h1>
+            <p>Lütfen tüm alanları eksiksiz doldurunuz</p>
+        </div>
+        
+        <div class="form-note">
+            <strong>Not:</strong> Bu formu doldurduktan sonra PDF olarak kaydedip WhatsApp üzerinden gönderebilirsiniz.
+            <span id="saveIndicator" style="margin-left: 15px; font-weight: normal; color: #28a745;"></span>
+        </div>
+        
+        <form id="travelForm">
+            <!-- Kişisel Bilgiler -->
+            <div class="form-section">
+                <h2>1. Kişisel Bilgiler</h2>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="firstName">Ad <span class="required">*</span></label>
+                        <input type="text" id="firstName" name="firstName" required placeholder="Adınızı giriniz">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="lastName">Soyad <span class="required">*</span></label>
+                        <input type="text" id="lastName" name="lastName" required placeholder="Soyadınızı giriniz">
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="email">E-posta <span class="required">*</span></label>
+                        <input type="email" id="email" name="email" required placeholder="ornek@email.com">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="phone">Telefon <span class="required">*</span></label>
+                        <input type="tel" id="phone" name="phone" required placeholder="+90 5XX XXX XX XX">
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="birthDate">Doğum Tarihi</label>
+                    <input type="date" id="birthDate" name="birthDate">
+                </div>
+            </div>
+            
+            <!-- Seyahat Bilgileri -->
+            <div class="form-section">
+                <h2>2. Seyahat Bilgileri</h2>
+                
+                <div class="form-group">
+                    <label>İlgilendiğiniz Ada/Şehir <span class="required">*</span></label>
+                    <div class="checkbox-group" style="grid-template-columns: repeat(3, 1fr);">
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="bali" name="islands" value="Bali">
+                            <label for="bali">Bali</label>
+                        </div>
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="java" name="islands" value="Java">
+                            <label for="java">Java</label>
+                        </div>
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="lombok" name="islands" value="Lombok">
+                            <label for="lombok">Lombok</label>
+                        </div>
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="komodo" name="islands" value="Komodo">
+                            <label for="komodo">Komodo</label>
+                        </div>
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="sulawesi" name="islands" value="Sulawesi">
+                            <label for="sulawesi">Sulawesi</label>
+                        </div>
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="sumatra" name="islands" value="Sumatra">
+                            <label for="sumatra">Sumatra</label>
+                        </div>
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="undecided" name="islands" value="Kararsızım">
+                            <label for="undecided">Kararsızım</label>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="travelDate">Planlanan Seyahat Tarihi</label>
+                        <input type="date" id="travelDate" name="travelDate">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="duration">Süre</label>
+                        <select id="duration" name="duration">
+                            <option value="">Seçiniz</option>
+                            <option value="3-5">3-5 gün</option>
+                            <option value="6-10">6-10 gün</option>
+                            <option value="11-15">11-15 gün</option>
+                            <option value="15+">15+ gün</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="travelers">Yolcu Sayısı</label>
+                    <select id="travelers" name="travelers">
+                        <option value="">Seçiniz</option>
+                        <option value="1">1 kişi</option>
+                        <option value="2">2 kişi</option>
+                        <option value="3-4">3-4 kişi</option>
+                        <option value="5+">5+ kişi</option>
+                    </select>
+                </div>
+            </div>
+            
+            <!-- Tercihler -->
+            <div class="form-section">
+                <h2>3. Tercihler</h2>
+                
+                <div class="form-group">
+                    <label>Seyahat Türü <span class="required">*</span></label>
+                    <div class="radio-group" style="grid-template-columns: repeat(3, 1fr);">
+                        <div class="radio-item">
+                            <input type="radio" id="nature" name="travelType" value="Doğa Turizmi" required>
+                            <label for="nature">Doğa Turizmi</label>
+                        </div>
+                        <div class="radio-item">
+                            <input type="radio" id="culture" name="travelType" value="Kültür Turizmi" required>
+                            <label for="culture">Kültür Turizmi</label>
+                        </div>
+                        <div class="radio-item">
+                            <input type="radio" id="entertainment" name="travelType" value="Eğlence Turizmi" required>
+                            <label for="entertainment">Eğlence Turizmi</label>
+                        </div>
+                        <div class="radio-item">
+                            <input type="radio" id="honeymoon" name="travelType" value="Balayı" required>
+                            <label for="honeymoon">Balayı</label>
+                        </div>
+                        <div class="radio-item">
+                            <input type="radio" id="family" name="travelType" value="Aile Seyahati" required>
+                            <label for="family">Aile Seyahati</label>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label>İlgi Alanlarınız</label>
+                    <div class="checkbox-group" style="grid-template-columns: repeat(3, 1fr);">
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="water-sports" name="activities" value="Su Sporları">
+                            <label for="water-sports">Su Sporları</label>
+                        </div>
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="diving" name="activities" value="Dalış">
+                            <label for="diving">Dalış</label>
+                        </div>
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="beach" name="activities" value="Plaj">
+                            <label for="beach">Plaj</label>
+                        </div>
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="coast" name="activities" value="Sahil">
+                            <label for="coast">Sahil</label>
+                        </div>
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="entertainment-act" name="activities" value="Eğlence">
+                            <label for="entertainment-act">Eğlence</label>
+                        </div>
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="nature-tours" name="activities" value="Doğa Gezileri">
+                            <label for="nature-tours">Doğa Gezileri</label>
+                        </div>
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="trekking" name="activities" value="Trekking">
+                            <label for="trekking">Trekking</label>
+                        </div>
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="temples" name="activities" value="Tapınak Gezileri">
+                            <label for="temples">Tapınak Gezileri</label>
+                        </div>
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="indonesian-culture" name="activities" value="Endonezya Kültürü">
+                            <label for="indonesian-culture">Endonezya Kültürü</label>
+                        </div>
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="local-life" name="activities" value="Yerel Yaşam Keşfi">
+                            <label for="local-life">Yerel Yaşam Keşfi</label>
+                        </div>
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="spa" name="activities" value="Spa & Wellness">
+                            <label for="spa">Spa & Wellness</label>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label>Kişi Başı Bütçe Aralığı</label>
+                    <div class="checkbox-group" style="grid-template-columns: repeat(3, 1fr); max-width: 600px;">
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="budget1" name="budget" value="1000-2000 dolar">
+                            <label for="budget1">1,000 - 2,000 Dolar</label>
+                        </div>
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="budget2" name="budget" value="2000-3500 dolar">
+                            <label for="budget2">2,000 - 3,500 Dolar</label>
+                        </div>
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="budget3" name="budget" value="3500+ dolar">
+                            <label for="budget3">3,500+ Dolar</label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Ek Bilgiler -->
+            <div class="form-section">
+                <h2>4. Ek Bilgiler</h2>
+                
+                <div class="form-group">
+                    <label for="specialRequests">Özel İstekler veya Notlar</label>
+                    <textarea id="specialRequests" name="specialRequests" placeholder="Varsa özel isteklerinizi, alerjilerinizi veya notlarınızı buraya yazabilirsiniz..."></textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label for="howDidYouHear">Bizi Nereden Duydunuz?</label>
+                    <select id="howDidYouHear" name="howDidYouHear">
+                        <option value="">Seçiniz</option>
+                        <option value="google">Google</option>
+                        <option value="youtube">YouTube</option>
+                        <option value="instagram">Instagram</option>
+                        <option value="facebook">Facebook</option>
+                        <option value="friend">Arkadaş Tavsiyesi</option>
+                        <option value="other">Diğer</option>
+                    </select>
+                </div>
+            </div>
+            
+            <!-- Onay -->
+            <div class="form-section signature-section">
+                <h2>5. Onay</h2>
+                
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="agree" name="agree" required>
+                        Form bilgilerinin doğru olduğunu ve kullanım koşullarını kabul ediyorum. <span class="required">*</span>
+                    </label>
+                </div>
+            </div>
+            
+            <!-- Bilgilendirme Notları -->
+            <div class="form-section" style="background: #e8f4f8; border-left-color: #3498db;">
+                <h2 style="color: #2c3e50; margin-bottom: 15px;">Önemli Bilgilendirmeler</h2>
+                <div style="font-size: 13px; line-height: 1.8; color: #34495e;">
+                    <p style="margin-bottom: 10px;"><strong>1.</strong> Pasaport geçerlilik süreniz en az 6 ay olmak zorundadır.</p>
+                    <p style="margin-bottom: 10px;"><strong>2.</strong> Endonezya Türk vatandaşları için vize talep etmiyor, pasaport ve kimliğinizle seyahat edebilirsiniz.</p>
+                    <p style="margin-bottom: 10px;"><strong>3.</strong> Endonezya trafik sistemi Türkiye'dekinden çok farklı olduğu için karayoluyla seyahatlerde sabırlı olmalısınız.</p>
+                    <p style="margin-bottom: 10px;"><strong>4.</strong> Endonezya yılın tüm mevsimlerinde sıcaktır ama ne zaman yağmur yağacağı belli olmaz.</p>
+                    <p style="margin-bottom: 10px;"><strong>5.</strong> Endonezya'da sağlık sistemi zayıf olduğu için seyahat sağlık sigortanızı yaptırmanızı öneririz.</p>
+                    <p style="margin-bottom: 0;"><strong>6.</strong> Sürekli kullandığınız ilaçlarınız varsa yanınızda getirmenizi tavsiye ederiz.</p>
+                </div>
+            </div>
+        </form>
+        
+        <div style="text-align: center; margin-top: 30px; padding-top: 20px; border-top: 2px solid #ecf0f1;">
+            <p style="color: #7f8c8d; font-size: 12px;">
+                Bu formu doldurduktan sonra tarayıcınızın "Yazdır" özelliğini kullanarak PDF olarak kaydedebilirsiniz.
+            </p>
+        </div>
+    </div>
+    
+    <script>
+        // Otomatik kaydetme fonksiyonu
+        const formId = 'travelForm';
+        const storageKey = 'travelFormData';
+        
+        // Form verilerini kaydet
+        function saveFormData() {
+            const form = document.getElementById(formId);
+            const formData = new FormData(form);
+            const data = {};
+            
+            // Tüm input değerlerini topla
+            form.querySelectorAll('input, select, textarea').forEach(input => {
+                if (input.type === 'checkbox' || input.type === 'radio') {
+                    if (input.checked) {
+                        const name = input.name;
+                        if (!data[name]) {
+                            data[name] = input.type === 'radio' ? input.value : [];
+                        }
+                        if (input.type === 'checkbox') {
+                            data[name].push(input.value);
+                        }
+                    }
+                } else {
+                    data[input.name] = input.value;
+                }
+            });
+            
+            localStorage.setItem(storageKey, JSON.stringify(data));
+            
+            // Kaydedildi bildirimi
+            const saveIndicator = document.getElementById('saveIndicator');
+            if (saveIndicator) {
+                saveIndicator.textContent = '✓ Otomatik kaydedildi';
+                saveIndicator.style.color = '#28a745';
+                setTimeout(() => {
+                    saveIndicator.textContent = '';
+                }, 2000);
+            }
+        }
+        
+        // Form verilerini yükle
+        function loadFormData() {
+            const savedData = localStorage.getItem(storageKey);
+            if (!savedData) return;
+            
+            try {
+                const data = JSON.parse(savedData);
+                const form = document.getElementById(formId);
+                
+                form.querySelectorAll('input, select, textarea').forEach(input => {
+                    if (input.type === 'checkbox' || input.type === 'radio') {
+                        const name = input.name;
+                        if (data[name]) {
+                            if (input.type === 'radio' && data[name] === input.value) {
+                                input.checked = true;
+                            } else if (input.type === 'checkbox' && Array.isArray(data[name]) && data[name].includes(input.value)) {
+                                input.checked = true;
+                            }
+                        }
+                    } else if (data[input.name] !== undefined) {
+                        input.value = data[input.name];
+                    }
+                });
+            } catch (e) {
+                console.error('Form verisi yüklenirken hata:', e);
+            }
+        }
+        
+        // Sayfa yüklendiğinde form verilerini yükle
+        window.addEventListener('DOMContentLoaded', function() {
+            loadFormData();
+            
+            // Form değişikliklerini dinle
+            const form = document.getElementById(formId);
+            form.addEventListener('input', function() {
+                clearTimeout(window.saveTimeout);
+                window.saveTimeout = setTimeout(saveFormData, 500);
+            });
+            
+            form.addEventListener('change', function() {
+                clearTimeout(window.saveTimeout);
+                window.saveTimeout = setTimeout(saveFormData, 300);
+            });
+        });
+        
+        // Form validasyonu
+        document.getElementById(formId).addEventListener('submit', function(e) {
+            e.preventDefault();
+            alert('Formu PDF olarak kaydetmek için tarayıcınızın "Yazdır" özelliğini kullanın (Ctrl+P veya Cmd+P)');
+        });
+    </script>
+</body>
+</html>
+

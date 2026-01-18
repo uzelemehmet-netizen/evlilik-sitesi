@@ -1,0 +1,637 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Endonezya Evlilik Formu</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Arial', sans-serif;
+            background: #f5f5f5;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        
+        .form-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 40px;
+            box-shadow: 0 0 20px rgba(0,0,0,0.1);
+        }
+        
+        .form-header {
+            text-align: center;
+            margin-bottom: 30px;
+            border-bottom: 3px solid #e74c3c;
+            padding-bottom: 20px;
+        }
+        
+        .form-header h1 {
+            color: #2c3e50;
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+        
+        .form-header p {
+            color: #7f8c8d;
+            font-size: 14px;
+        }
+        
+        .form-section {
+            margin-bottom: 30px;
+            padding: 20px;
+            background: #f9f9f9;
+            border-left: 4px solid #3498db;
+        }
+        
+        .form-section h2 {
+            color: #2c3e50;
+            font-size: 20px;
+            margin-bottom: 15px;
+            border-bottom: 2px solid #ecf0f1;
+            padding-bottom: 10px;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #34495e;
+            font-weight: 600;
+            font-size: 14px;
+        }
+        
+        .form-group input[type="text"],
+        .form-group input[type="email"],
+        .form-group input[type="tel"],
+        .form-group input[type="date"],
+        .form-group textarea,
+        .form-group select {
+            width: 100%;
+            max-width: 400px;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+            font-family: Arial, sans-serif;
+            transition: border-color 0.3s;
+        }
+        
+        .form-group textarea {
+            max-width: 100%;
+        }
+        
+        .form-row .form-group input,
+        .form-row .form-group select {
+            max-width: 100%;
+        }
+        
+        .form-group input:focus,
+        .form-group textarea:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #3498db;
+        }
+        
+        .form-group textarea {
+            resize: vertical;
+            min-height: 100px;
+        }
+        
+        .checkbox-group,
+        .radio-group {
+            margin-top: 10px;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+        }
+        
+        .checkbox-item,
+        .radio-item {
+            margin-bottom: 0;
+            display: flex;
+            align-items: center;
+        }
+        
+        .checkbox-item input[type="checkbox"],
+        .radio-item input[type="radio"] {
+            width: 20px;
+            height: 20px;
+            min-width: 20px;
+            min-height: 20px;
+            max-width: 20px;
+            max-height: 20px;
+            margin-right: 10px;
+            cursor: pointer;
+            flex-shrink: 0;
+        }
+        
+        .checkbox-item label,
+        .radio-item label {
+            font-weight: normal;
+            cursor: pointer;
+            margin: 0;
+        }
+        
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        
+        @media (max-width: 768px) {
+            body {
+                padding: 10px;
+            }
+            
+            .form-container {
+                padding: 20px 15px;
+                max-width: 100%;
+            }
+            
+            .form-header h1 {
+                font-size: 24px;
+            }
+            
+            .form-header p {
+                font-size: 13px;
+            }
+            
+            .form-section {
+                padding: 15px;
+                margin-bottom: 20px;
+            }
+            
+            .form-section h2 {
+                font-size: 18px;
+                margin-bottom: 12px;
+            }
+            
+            .form-group {
+                margin-bottom: 18px;
+            }
+            
+            .form-group label {
+                font-size: 15px;
+                margin-bottom: 10px;
+            }
+            
+            .form-group input[type="text"],
+            .form-group input[type="email"],
+            .form-group input[type="tel"],
+            .form-group input[type="date"],
+            .form-group textarea,
+            .form-group select {
+                max-width: 100%;
+                width: 100%;
+                padding: 14px;
+                font-size: 16px; /* iOS zoom önleme için */
+                border-radius: 8px;
+            }
+            
+            .form-row {
+                grid-template-columns: 1fr;
+                gap: 15px;
+            }
+            
+            .checkbox-group,
+            .radio-group {
+                grid-template-columns: 1fr !important;
+                gap: 12px;
+                max-width: 100%;
+                overflow: hidden;
+            }
+            
+            .checkbox-item,
+            .radio-item {
+                padding: 10px;
+                background: white;
+                border-radius: 8px;
+                border: 1px solid #e0e0e0;
+                margin-bottom: 8px;
+                width: 100%;
+                box-sizing: border-box;
+                word-wrap: break-word;
+                overflow-wrap: break-word;
+            }
+            
+            .checkbox-item input[type="checkbox"],
+            .radio-item input[type="radio"] {
+                width: 24px;
+                height: 24px;
+                min-width: 24px;
+                min-height: 24px;
+                max-width: 24px;
+                max-height: 24px;
+                margin-right: 12px;
+                flex-shrink: 0;
+            }
+            
+            .checkbox-item label,
+            .radio-item label {
+                font-size: 15px;
+                padding: 4px 0;
+                word-wrap: break-word;
+                overflow-wrap: break-word;
+                max-width: calc(100% - 40px);
+            }
+            
+            .form-note {
+                padding: 12px;
+                font-size: 13px;
+            }
+            
+            .form-section > div[style*="grid-template-columns"] {
+                grid-template-columns: 1fr !important;
+            }
+            
+            .form-section > div[style*="display: grid"] {
+                grid-template-columns: 1fr !important;
+            }
+        }
+        
+        .required {
+            color: #e74c3c;
+        }
+        
+        .form-note {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 15px;
+            margin-bottom: 20px;
+            font-size: 13px;
+            color: #856404;
+        }
+        
+        .signature-section {
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 2px solid #ecf0f1;
+        }
+    </style>
+</head>
+<body>
+    <div class="form-container">
+        <div class="form-header">
+            <h1>Endonezya Evlilik Bilgi Formu</h1>
+            <p>Lütfen tüm alanları eksiksiz doldurunuz</p>
+        </div>
+        
+        <div class="form-note">
+            <strong>Not:</strong> Bu formu doldurduktan sonra PDF olarak kaydedip WhatsApp üzerinden gönderebilirsiniz.
+            <span id="saveIndicator" style="margin-left: 15px; font-weight: normal; color: #28a745;"></span>
+        </div>
+        
+        <form id="weddingForm">
+            <!-- Kişisel Bilgiler -->
+            <div class="form-section">
+                <h2>1. Kişisel Bilgiler</h2>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="firstName">Ad <span class="required">*</span></label>
+                        <input type="text" id="firstName" name="firstName" required placeholder="Adınızı giriniz">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="lastName">Soyad <span class="required">*</span></label>
+                        <input type="text" id="lastName" name="lastName" required placeholder="Soyadınızı giriniz">
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="birthDate">Doğum Tarihi <span class="required">*</span></label>
+                        <input type="date" id="birthDate" name="birthDate" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="phone">Telefon Numarası <span class="required">*</span></label>
+                        <input type="tel" id="phone" name="phone" required placeholder="+90 5XX XXX XX XX">
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="city">Şehir <span class="required">*</span></label>
+                    <input type="text" id="city" name="city" required placeholder="Yaşadığınız şehir">
+                </div>
+                
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px;">
+                    <div class="form-group">
+                        <label>Medeni Hal <span class="required">*</span></label>
+                        <div class="radio-group" style="grid-template-columns: 1fr;">
+                            <div class="radio-item">
+                                <input type="radio" id="single" name="maritalStatus" value="Bekar" required>
+                                <label for="single">Bekar</label>
+                            </div>
+                            <div class="radio-item">
+                                <input type="radio" id="widowed" name="maritalStatus" value="Dul" required>
+                                <label for="widowed">Dul</label>
+                            </div>
+                            <div class="radio-item">
+                                <input type="radio" id="divorced" name="maritalStatus" value="Boşanmış" required>
+                                <label for="divorced">Boşanmış</label>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Meslek <span class="required">*</span></label>
+                        <div class="radio-group" style="grid-template-columns: 1fr;">
+                            <div class="radio-item">
+                                <input type="radio" id="retired" name="profession" value="Emekli" required>
+                                <label for="retired">Emekli</label>
+                            </div>
+                            <div class="radio-item">
+                                <input type="radio" id="employee" name="profession" value="Çalışan" required>
+                                <label for="employee">Çalışan</label>
+                            </div>
+                            <div class="radio-item">
+                                <input type="radio" id="public" name="profession" value="Kamu Personeli" required>
+                                <label for="public">Kamu Personeli</label>
+                            </div>
+                            <div class="radio-item">
+                                <input type="radio" id="business" name="profession" value="Kendi İşinin Sahibi" required>
+                                <label for="business">Kendi İşinin Sahibi</label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Evlilik Planları -->
+            <div class="form-section">
+                <h2>2. Evlilik Planları</h2>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="weddingDate">Planlanan Evlilik Tarihi <span class="required">*</span></label>
+                        <input type="date" id="weddingDate" name="weddingDate" required>
+                    </div>
+                    <div class="form-group">
+                        <!-- Boş alan - görsel denge için -->
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Eş Adayı Bilgileri -->
+            <div class="form-section">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px; align-items: start;">
+                    <div>
+                        <h2 style="margin-bottom: 20px;">3. Endonezyalı Eş Adayı Bilgileri</h2>
+                        
+                        <div class="form-group">
+                            <label for="partnerAge">Eş Adayının Yaşı <span class="required">*</span></label>
+                            <input type="text" id="partnerAge" name="partnerAge" required placeholder="Yaş">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="partnerCity">Yaşadığı Şehir <span class="required">*</span></label>
+                            <input type="text" id="partnerCity" name="partnerCity" required placeholder="Endonezya'daki şehir">
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <h2 style="margin-bottom: 20px; color: transparent;">&nbsp;</h2>
+                        
+                        <div class="form-group">
+                            <label>Eş Adayının Medeni Hali <span class="required">*</span></label>
+                            <div class="radio-group" style="grid-template-columns: 1fr;">
+                                <div class="radio-item">
+                                    <input type="radio" id="partnerSingle" name="partnerMaritalStatus" value="Bekar" required>
+                                    <label for="partnerSingle">Bekar</label>
+                                </div>
+                                <div class="radio-item">
+                                    <input type="radio" id="partnerWidowed" name="partnerMaritalStatus" value="Dul" required>
+                                    <label for="partnerWidowed">Dul</label>
+                                </div>
+                                <div class="radio-item">
+                                    <input type="radio" id="partnerDivorced" name="partnerMaritalStatus" value="Boşanmış" required>
+                                    <label for="partnerDivorced">Boşanmış</label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Yaşam Planı -->
+            <div class="form-section">
+                <h2>4. Evlilik Sonrası Yaşam Planı</h2>
+                
+                <div class="form-group">
+                    <label>Evlendikten Sonra Nerede Yaşamayı Planlıyorsunuz? <span class="required">*</span></label>
+                    <div class="radio-group" style="grid-template-columns: repeat(2, 1fr); max-width: 500px;">
+                        <div class="radio-item">
+                            <input type="radio" id="liveTurkey" name="livingPlan" value="Türkiye'de" required>
+                            <label for="liveTurkey">Türkiye'de</label>
+                        </div>
+                        <div class="radio-item">
+                            <input type="radio" id="liveIndonesia" name="livingPlan" value="Endonezya'da" required>
+                            <label for="liveIndonesia">Endonezya'da</label>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label>Nikahın Gerçekleşeceği Ülke <span class="required">*</span></label>
+                    <div class="radio-group" style="grid-template-columns: repeat(2, 1fr); max-width: 500px;">
+                        <div class="radio-item">
+                            <input type="radio" id="marriageTurkey" name="marriageCountry" value="Türkiye" required>
+                            <label for="marriageTurkey">Türkiye</label>
+                        </div>
+                        <div class="radio-item">
+                            <input type="radio" id="marriageIndonesia" name="marriageCountry" value="Endonezya" required>
+                            <label for="marriageIndonesia">Endonezya</label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- İstenilen Hizmetler -->
+            <div class="form-section">
+                <h2>5. İstenilen Hizmetler</h2>
+                
+                <div class="form-group">
+                    <label>Hangi hizmetleri almak istiyorsunuz? <span class="required">*</span></label>
+                    <p style="font-size: 13px; color: #666; margin-bottom: 10px; font-style: italic;">Not: İstediğiniz kadar seçim ekleyebilirsiniz.</p>
+                    <div class="checkbox-group" style="grid-template-columns: repeat(2, 1fr);">
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="documentTracking" name="services" value="Evrak Takibi" required>
+                            <label for="documentTracking">Evrak Takibi</label>
+                        </div>
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="marriageProcess" name="services" value="Evlilik İşlemlerini Başlatma ve Takip Etme">
+                            <label for="marriageProcess">Evlilik İşlemlerini Başlatma ve Takip Etme</label>
+                        </div>
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="flightTicket" name="services" value="Uçak Bileti">
+                            <label for="flightTicket">Uçak Bileti</label>
+                        </div>
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="transportation" name="services" value="Endonezya'da Ulaşım Hizmeti">
+                            <label for="transportation">Endonezya'da Ulaşım Hizmeti</label>
+                        </div>
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="accommodation" name="services" value="Konaklama">
+                            <label for="accommodation">Konaklama</label>
+                        </div>
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="research" name="services" value="Eş Adayı ve Ailesini Araştırma">
+                            <label for="research">Eş Adayı ve Ailesini Araştırma</label>
+                        </div>
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="communication" name="services" value="Eş Adayı ve Ailesiyle İletişim Kurma">
+                            <label for="communication">Eş Adayı ve Ailesiyle İletişim Kurma</label>
+                        </div>
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="translation" name="services" value="Endonezya'da İletişim Tercümanlığı Yapma">
+                            <label for="translation">Endonezya'da İletişim Tercümanlığı Yapma</label>
+                        </div>
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="guidance" name="services" value="Nikah ve Yasal İşlemler Bitene Kadar Rehberlik">
+                            <label for="guidance">Nikah ve Yasal İşlemler Bitene Kadar Rehberlik</label>
+                        </div>
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="allInclusive" name="services" value="Her Şey Dahil - Tüm Süreçte Yakından İlgilenme">
+                            <label for="allInclusive">Her Şey Dahil - Tüm Süreçte Yakından İlgilenme</label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Ek İstekler -->
+            <div class="form-section">
+                <h2>6. Ek İstekler</h2>
+                
+                <div class="form-group">
+                    <label for="additionalRequests">Ek İstekler veya Notlar</label>
+                    <textarea id="additionalRequests" name="additionalRequests" placeholder="Varsa ek isteklerinizi veya notlarınızı buraya yazabilirsiniz..."></textarea>
+                </div>
+            </div>
+            
+            <!-- Onay -->
+            <div class="form-section signature-section">
+                <h2>7. Onay</h2>
+                
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="agree" name="agree" required>
+                        Form bilgilerinin doğru olduğunu ve kullanım koşullarını kabul ediyorum. <span class="required">*</span>
+                    </label>
+                </div>
+            </div>
+        </form>
+        
+        <div style="text-align: center; margin-top: 30px; padding-top: 20px; border-top: 2px solid #ecf0f1;">
+            <p style="color: #7f8c8d; font-size: 12px;">
+                Bu formu doldurduktan sonra tarayıcınızın "Yazdır" özelliğini kullanarak PDF olarak kaydedebilirsiniz.
+            </p>
+        </div>
+    </div>
+    
+    <script>
+        // Otomatik kaydetme fonksiyonu
+        const formId = 'weddingForm';
+        const storageKey = 'weddingFormData';
+        
+        // Form verilerini kaydet
+        function saveFormData() {
+            const form = document.getElementById(formId);
+            const formData = new FormData(form);
+            const data = {};
+            
+            // Tüm input değerlerini topla
+            form.querySelectorAll('input, select, textarea').forEach(input => {
+                if (input.type === 'checkbox' || input.type === 'radio') {
+                    if (input.checked) {
+                        const name = input.name;
+                        if (!data[name]) {
+                            data[name] = input.type === 'radio' ? input.value : [];
+                        }
+                        if (input.type === 'checkbox') {
+                            data[name].push(input.value);
+                        }
+                    }
+                } else {
+                    data[input.name] = input.value;
+                }
+            });
+            
+            localStorage.setItem(storageKey, JSON.stringify(data));
+            
+            // Kaydedildi bildirimi
+            const saveIndicator = document.getElementById('saveIndicator');
+            if (saveIndicator) {
+                saveIndicator.textContent = '✓ Otomatik kaydedildi';
+                saveIndicator.style.color = '#28a745';
+                setTimeout(() => {
+                    saveIndicator.textContent = '';
+                }, 2000);
+            }
+        }
+        
+        // Form verilerini yükle
+        function loadFormData() {
+            const savedData = localStorage.getItem(storageKey);
+            if (!savedData) return;
+            
+            try {
+                const data = JSON.parse(savedData);
+                const form = document.getElementById(formId);
+                
+                form.querySelectorAll('input, select, textarea').forEach(input => {
+                    if (input.type === 'checkbox' || input.type === 'radio') {
+                        const name = input.name;
+                        if (data[name]) {
+                            if (input.type === 'radio' && data[name] === input.value) {
+                                input.checked = true;
+                            } else if (input.type === 'checkbox' && Array.isArray(data[name]) && data[name].includes(input.value)) {
+                                input.checked = true;
+                            }
+                        }
+                    } else if (data[input.name] !== undefined) {
+                        input.value = data[input.name];
+                    }
+                });
+            } catch (e) {
+                console.error('Form verisi yüklenirken hata:', e);
+            }
+        }
+        
+        // Sayfa yüklendiğinde form verilerini yükle
+        window.addEventListener('DOMContentLoaded', function() {
+            loadFormData();
+            
+            // Form değişikliklerini dinle
+            const form = document.getElementById(formId);
+            form.addEventListener('input', function() {
+                clearTimeout(window.saveTimeout);
+                window.saveTimeout = setTimeout(saveFormData, 500);
+            });
+            
+            form.addEventListener('change', function() {
+                clearTimeout(window.saveTimeout);
+                window.saveTimeout = setTimeout(saveFormData, 300);
+            });
+        });
+        
+        // Form validasyonu
+        document.getElementById(formId).addEventListener('submit', function(e) {
+            e.preventDefault();
+            alert('Formu PDF olarak kaydetmek için tarayıcınızın "Yazdır" özelliğini kullanın (Ctrl+P veya Cmd+P)');
+        });
+    </script>
+</body>
+</html>
+

@@ -1,0 +1,242 @@
+<!doctype html>
+<html lang="tr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Ön Kayıt Bilgi Paketi</title>
+    <style>
+      :root {
+        --ink: #0f172a;
+        --muted: #475569;
+        --border: #e2e8f0;
+        --bg: #ffffff;
+        --chip: #f1f5f9;
+        --accent: #0ea5e9;
+        --accent2: #10b981;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--ink);
+        font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+        line-height: 1.55;
+        font-size: 14px;
+      }
+      .page {
+        max-width: 920px;
+        margin: 0 auto;
+        padding: 28px 18px 54px;
+      }
+      header {
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        padding: 18px;
+        background: linear-gradient(135deg, #ecfeff 0%, #ecfdf5 55%, #ffffff 100%);
+      }
+      h1 {
+        margin: 0 0 6px;
+        font-size: 22px;
+        letter-spacing: -0.02em;
+      }
+      .sub {
+        color: var(--muted);
+        margin: 0;
+        font-size: 13px;
+      }
+      .row {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 12px;
+        margin-top: 14px;
+      }
+      @media (min-width: 860px) {
+        .row { grid-template-columns: 1.1fr 0.9fr; }
+      }
+      .card {
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        padding: 16px;
+        background: #fff;
+      }
+      h2 {
+        margin: 0 0 10px;
+        font-size: 16px;
+      }
+      h3 {
+        margin: 0 0 8px;
+        font-size: 14px;
+      }
+      p { margin: 0 0 10px; }
+      ul { margin: 0; padding-left: 18px; }
+      li { margin: 0 0 6px; }
+      .chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 10px;
+      }
+      .chip {
+        background: var(--chip);
+        border: 1px solid var(--border);
+        padding: 7px 10px;
+        border-radius: 999px;
+        font-size: 12px;
+        color: var(--muted);
+        white-space: nowrap;
+      }
+      .callout {
+        border-left: 4px solid var(--accent);
+        background: #f0f9ff;
+        padding: 10px 12px;
+        border-radius: 10px;
+        color: #0b4a6f;
+      }
+      .callout strong { color: #0b4a6f; }
+      .callout2 {
+        border-left: 4px solid var(--accent2);
+        background: #ecfdf5;
+        padding: 10px 12px;
+        border-radius: 10px;
+        color: #065f46;
+      }
+      .muted { color: var(--muted); }
+      .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+      .divider { height: 1px; background: var(--border); margin: 14px 0; }
+      .k { font-weight: 600; }
+      .grid2 { display: grid; grid-template-columns: 1fr; gap: 10px; }
+      @media (min-width: 860px) {
+        .grid2 { grid-template-columns: 1fr 1fr; }
+      }
+      .small { font-size: 12px; }
+      .foot {
+        margin-top: 18px;
+        color: var(--muted);
+        font-size: 12px;
+      }
+      @media print {
+        body { font-size: 12px; }
+        header { break-inside: avoid; }
+        .card { break-inside: avoid; }
+        a { color: inherit; text-decoration: none; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="page">
+      <header>
+        <h1>Ön Kayıt Bilgi Paketi</h1>
+        <p class="sub">Bu doküman, ücretsiz ön kayıt sonrası WhatsApp üzerinden paylaşılan bilgilendirme paketinin PDF formatıdır.</p>
+        <div class="chips">
+          <span class="chip"><span class="k">Tarih:</span> 11 Ocak 2026</span>
+          <span class="chip"><span class="k">Durum:</span> Ön kayıt (bağlayıcı değil)</span>
+          <span class="chip"><span class="k">İletişim:</span> WhatsApp</span>
+        </div>
+      </header>
+
+      <div class="row">
+        <section class="card">
+          <h2>Süreç (çok kısa)</h2>
+          <div class="grid2">
+            <div>
+              <h3>1) Ücretsiz ön kayıt</h3>
+              <ul>
+                <li>Ön kayıt ücretsizdir ve bağlayıcı değildir.</li>
+                <li>Amaç: Kontenjan ve fiyat aralığını netleştirip size yazılı bilgi iletmek.</li>
+              </ul>
+            </div>
+            <div>
+              <h3>2) Yazılı bilgi paketi (WhatsApp)</h3>
+              <ul>
+                <li>Tur programı (gün gün)</li>
+                <li>Dahil / hariç kalemler</li>
+                <li>Tur kuralları, uyarılar, süreç notları</li>
+              </ul>
+            </div>
+            <div>
+              <h3>3) Kesin kayıt öncesi yazılı teyit</h3>
+              <ul>
+                <li>Fiyat, tarih aralığı, kontenjan ve önemli koşullar size tek mesajla özetlenir.</li>
+                <li>Bu özet onayınız olmadan ödeme adımına geçilmez.</li>
+              </ul>
+            </div>
+            <div>
+              <h3>4) Sözleşme inceleme → ödeme → imza</h3>
+              <ul>
+                <li>
+                  Ödeme öncesi: <a href="/docs/on-bilgilendirme-formu.html" target="_blank" rel="noopener noreferrer">Ön Bilgilendirme Formu</a> +
+                  <a href="/docs/paket-tur-sozlesmesi.html" target="_blank" rel="noopener noreferrer">Paket Tur Sözleşmesi</a> inceleme için paylaşılır.
+                </li>
+                <li>Ödeme sonrası: İmza/onay süreci tamamlanır ve resmi onay mesajı iletilir.</li>
+              </ul>
+            </div>
+          </div>
+          <div class="divider"></div>
+          <div class="callout2">
+            <strong>Profesyonel tur organizasyonu deneyimimizi yeni organizasyon yapımızla birleştiriyoruz:</strong> Bu yüzden şeffaflık ve yazılı teyit bizim için öncelik. Sürpriz masraf ve belirsizlik bırakmamak için kapsamı, tarih aralığını ve bedeli ödeme öncesi tek bir mesajla yazılı olarak netleştiriyoruz; onayınız olmadan ödeme adımına geçmiyoruz.
+          </div>
+        </section>
+
+        <aside class="card">
+          <h2>Size soracağımız 6 bilgi</h2>
+          <p class="muted">Fiyat ve kontenjanı doğru çıkarmak için.</p>
+          <ul>
+            <li>Kaç kişi katılacaksınız?</li>
+            <li>Hangi tur / rota ile ilgileniyorsunuz?</li>
+            <li>Seçtiğiniz tur tarihi (sitede ilan edilen tarih aralığı)</li>
+            <li>Kalkış şehri (varsayılan: İstanbul; farklı kalkış şehirleri talebi ek ücret ve müsaitliğe göre değerlendirilir)</li>
+            <li>Oda paylaşımı: çift misiniz / birlikte kalacağınız bir arkadaşınız var mı? (Yoksa oda eşleştirme yapılır.)</li>
+            <li>Özel notlar (sağlık, beslenme, vb.) + size dönüş kanalı (WhatsApp / e-posta)</li>
+          </ul>
+          <div class="divider"></div>
+          <h3>Hızlı not</h3>
+          <p class="small muted">Ön kayıt yapan herkese aynı gün içinde (yoğunluk durumuna göre) yazılı dönüş yapılır.</p>
+        </aside>
+      </div>
+
+      <section class="card" style="margin-top: 12px;">
+        <h2>Dahil / hariç — nasıl okunmalı?</h2>
+        <p>Bu pakette, dahil/hariç kalemler <strong>yazılı olarak</strong> verilir. Böylece karar verirken sürpriz maliyet riski azalır.</p>
+        <div class="grid2">
+          <div class="callout">
+            <strong>Uçak bileti politikası:</strong> Gidiş-dönüş uçak bileti kişi başı <span class="mono">$750</span>'a kadar dahildir. Uçuş fiyatları değişken olduğu için limit sabitlenmiştir; limit üzeri fark ayrıca yansıtılır.
+          </div>
+          <div class="callout">
+            <strong>Konaklama notu:</strong> Standart konaklama iki kişilik paylaşımlı odadır (çiftler veya aynı odada kalmak isteyen arkadaşlar birlikte yerleştirilir). Tek kişi katılımlarda oda eşleştirme yapılır. Tek kişilik oda opsiyonu varsa ayrıca fiyatlanır.
+          </div>
+        </div>
+      </section>
+
+      <section class="card" style="margin-top: 12px;">
+        <h2>WhatsApp’ta size ileteceğimiz yazılı içerikler</h2>
+        <p class="muted">Ön kayıt sonrası tüm önemli noktaları yazılı paylaşırız; onayınız olmadan ödeme adımına geçmeyiz.</p>
+        <ul>
+          <li>Tur programı (gün gün) ve önemli uyarılar</li>
+          <li>Dahil / hariç kalemler (özellikle uçuş limit politikası gibi kritik noktalar)</li>
+          <li>Netleştirilmiş tarih aralığı, kişi sayısına göre fiyat özeti ve varsa ödeme planı</li>
+          <li>Kesin kayıt öncesi resmi dokümanlar: Ön Bilgilendirme Formu + Paket Tur Sözleşmesi</li>
+        </ul>
+        <div class="divider"></div>
+        <p class="small muted">
+          Resmi dokümanlar:
+          <a href="/docs/on-bilgilendirme-formu.html" target="_blank" rel="noopener noreferrer">Ön Bilgilendirme Formu</a>
+          •
+          <a href="/docs/paket-tur-sozlesmesi.html" target="_blank" rel="noopener noreferrer">Paket Tur Sözleşmesi</a>
+          •
+          <a href="/docs/kvkk-aydinlatma-metni.html" target="_blank" rel="noopener noreferrer">KVKK Aydınlatma Metni</a>
+        </p>
+      </section>
+
+      <section class="card" style="margin-top: 12px;">
+        <h2>İptal / değişiklik (özet)</h2>
+        <ul>
+          <li><span class="k">Ön kayıt:</span> ücretsiz ve bağlayıcı değildir.</li>
+          <li><span class="k">Kesin kayıt:</span> sözleşme/ön bilgilendirme inceleme + onay sonrası ödeme ile başlar.</li>
+          <li><span class="k">İptal/değişiklik:</span> Kesin kayıt öncesi size yazılı olarak özetlenir ve onayınız alınır. Uçuş/otel gibi tedarikçi kuralları, iade/değişiklik koşullarını etkileyebilir.</li>
+        </ul>
+      </section>
+
+      <p class="foot">Bu sayfayı PDF almak için: Tarayıcıda “Yazdır” → “PDF olarak kaydet”.</p>
+    </div>
+  </body>
+</html>

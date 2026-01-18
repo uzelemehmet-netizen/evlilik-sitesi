@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="tr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Tur Broşürleri | Endonezya Kaşifi</title>
+    <style>
+      :root { --ink:#0f172a; --muted:#475569; --border:#e2e8f0; --bg:#ffffff; --card:#ffffff; --shadow:0 14px 40px rgba(2,6,23,.08); --accent:#0ea5e9; --accent2:#10b981; }
+      *{box-sizing:border-box}
+      body{margin:0;background:var(--bg);color:var(--ink);font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;line-height:1.55;font-size:14px}
+      .page{max-width:980px;margin:0 auto;padding:26px 18px 56px}
+      header{border:1px solid var(--border);border-radius:16px;padding:16px;background:linear-gradient(135deg,#ecfeff 0%, #ecfdf5 55%, #ffffff 100%)}
+      h1{margin:0 0 6px;font-size:22px;letter-spacing:-0.02em}
+      .sub{margin:0;color:var(--muted);font-size:13px}
+      .grid{display:grid;grid-template-columns:1fr;gap:12px;margin-top:14px}
+      @media (min-width:860px){.grid{grid-template-columns:1fr 1fr 1fr}}
+      a.card{display:block;text-decoration:none;color:inherit;border:1px solid var(--border);border-radius:16px;overflow:hidden;background:var(--card);box-shadow:0 10px 24px rgba(2,6,23,.04);transition:transform .15s ease, box-shadow .15s ease}
+      a.card:hover{transform:translateY(-2px);box-shadow:var(--shadow)}
+      .thumb{height:120px;background:#0b1220;position:relative}
+      .thumb img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;filter:saturate(1.05) contrast(1.05)}
+      .thumb::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg, transparent 35%, rgba(2,6,23,.55) 100%)}
+      .tag{position:absolute;left:12px;bottom:10px;display:inline-flex;align-items:center;gap:8px;color:#fff;font-weight:700}
+      .dot{width:10px;height:10px;border-radius:999px;background:linear-gradient(135deg,var(--accent),var(--accent2));box-shadow:0 0 0 3px rgba(255,255,255,.12)}
+      .body{padding:12px}
+      .title{margin:0;font-size:14px}
+      .meta{margin:6px 0 0;color:var(--muted);font-size:12px}
+      .foot{margin-top:14px;color:var(--muted);font-size:12px}
+      @media print{a.card{box-shadow:none}a{color:inherit;text-decoration:none}}
+    </style>
+  </head>
+  <body>
+    <div class="page">
+      <header>
+        <h1>Tur Broşürleri</h1>
+        <p class="sub">Her broşürü açıp “Yazdır → PDF olarak kaydet” ile PDF alabilirsiniz. (endonezyakasifi.com, Endonezya’da kayıtlı PT MoonStar Global Indonesia şirketinin markasıdır.)</p>
+      </header>
+
+      <section class="grid">
+        <a class="card" href="/docs/tur-brosuru-bali-v2.html" target="_blank" rel="noopener noreferrer">
+          <div class="thumb"><img src="/bali-island-tropical-beach-temple.jpg" alt="" /><div class="tag"><span class="dot"></span> Bali</div></div>
+          <div class="body"><p class="title">Bali Adası</p><p class="meta">6 Gece 7 Gün • Premium tatil akışı</p></div>
+        </a>
+        <a class="card" href="/docs/tur-brosuru-lombok-v2.html" target="_blank" rel="noopener noreferrer">
+          <div class="thumb"><img src="/lombok-island-beach-waterfall.jpg" alt="" /><div class="tag"><span class="dot"></span> Lombok</div></div>
+          <div class="body"><p class="title">Lombok Adası</p><p class="meta">6 Gece 7 Gün • Sakin deniz & doğa</p></div>
+        </a>
+        <a class="card" href="/docs/tur-brosuru-java-v2.html" target="_blank" rel="noopener noreferrer">
+          <div class="thumb"><img src="/java-borobudur-temple-volcano-sunrise.jpg" alt="" /><div class="tag"><span class="dot"></span> Java</div></div>
+          <div class="body"><p class="title">Java Adası</p><p class="meta">10 Gece 11 Gün • Road trip & kültür</p></div>
+        </a>
+        <a class="card" href="/docs/tur-brosuru-sumatra-v2.html" target="_blank" rel="noopener noreferrer">
+          <div class="thumb"><img src="/sumatra-rainforest-orangutan-lake-toba.jpg" alt="" /><div class="tag"><span class="dot"></span> Sumatra</div></div>
+          <div class="body"><p class="title">Sumatra Adası</p><p class="meta">8 Gece 9 Gün • Doğa & yaban hayatı</p></div>
+        </a>
+        <a class="card" href="/docs/tur-brosuru-komodo-v2.html" target="_blank" rel="noopener noreferrer">
+          <div class="thumb"><img src="/vecteezy_luxurious-yacht-anchored-in-a-tropical-paradise-under-a-clear_73309259.jpeg" alt="" /><div class="tag"><span class="dot"></span> Komodo</div></div>
+          <div class="body"><p class="title">Komodo Adası</p><p class="meta">6 Gece 7 Gün • Tekne & şnorkel</p></div>
+        </a>
+        <a class="card" href="/docs/tur-brosuru-sulawesi-v2.html" target="_blank" rel="noopener noreferrer">
+          <div class="thumb"><img src="/22392be0-3624-49f7-ba42-3405352c5c8d.avif" alt="" /><div class="tag"><span class="dot"></span> Sulawesi</div></div>
+          <div class="body"><p class="title">Sulawesi Adası</p><p class="meta">8 Gece 9 Gün • Deniz & doğa & dalış</p></div>
+        </a>
+      </section>
+
+      <p class="foot">Not: Broşürler bilgilendirme amaçlıdır; nihai kapsam ve koşullar yazılı teklif/sözleşme ile netleşir.</p>
+    </div>
+  </body>
+</html>

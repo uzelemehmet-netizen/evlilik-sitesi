@@ -1,0 +1,31 @@
+{
+  "folders": [
+    {
+      "name": "logos",
+      "path": "public/logos"
+    },
+    {
+      "name": "logo-scripts",
+      "path": "scripts"
+    }
+  ],
+  "settings": {
+    "search.exclude": {
+      "**/node_modules/**": true,
+      "**/.next/**": true,
+      "**/dist/**": true,
+      "**/build/**": true,
+      "**/.turbo/**": true,
+      "**/.cache/**": true
+    },
+    "files.watcherExclude": {
+      "**/node_modules/**": true,
+      "**/.next/**": true,
+      "**/dist/**": true,
+      "**/build/**": true,
+      "**/.turbo/**": true,
+      "**/.cache/**": true
+    },
+    "typescript.tsserver.maxTsServerMemory": 4096
+  }
+}

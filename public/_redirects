@@ -1,0 +1,5 @@
+﻿/sitemap.xml  /sitemap.xml  200
+/robots.txt   /robots.txt   200
+/docs/*       /docs/:splat  200
+/docs/pdf/*   /docs/pdf/:splat  200
+/*           /index.html   200

@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="tr">
+  <head>
+    <meta charset="utf-8" />
+    <title>Ödeme Yöntemleri</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style>
+      body { font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; line-height: 1.6; padding: 24px; max-width: 900px; margin: 0 auto; background:#f9fafb; color:#111827; }
+      h1, h2, h3 { color:#111827; }
+      h1 { font-size: 1.8rem; margin-bottom: 0.75rem; }
+      h2 { font-size: 1.25rem; margin-top: 1.5rem; }
+      p { margin: 0.35rem 0; }
+      ul { margin: 0.35rem 0 0.75rem 1.25rem; }
+      .muted { color:#6b7280; font-size: 0.9rem; }
+      .box { background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 16px; margin-top: 12px; }
+      hr { border:0; border-top:1px solid #e5e7eb; margin:1.25rem 0; }
+      a { color:#0f766e; }
+      .grid { display: grid; grid-template-columns: 1fr; gap: 12px; }
+      @media (min-width: 720px) { .grid { grid-template-columns: 1fr 1fr; } }
+      .doc-header { display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom: 14px; padding: 12px 14px; background:#ffffff; border:1px solid #e5e7eb; border-radius: 12px; }
+      .doc-brand { display:flex; flex-direction:column; gap:2px; }
+      .doc-brand .title { font-weight: 800; font-size: 14px; letter-spacing: 0.2px; }
+      .doc-brand .subtitle { color:#6b7280; font-size: 12px; }
+      .doc-logo { width: 44px; height: 44px; object-fit: contain; }
+    </style>
+  </head>
+  <body>
+    <div class="doc-header">
+      <div class="doc-brand">
+        <div class="title">Endonezya Kaşifi</div>
+        <div class="subtitle">Satıcı: PT MoonStar Global Indonesia</div>
+      </div>
+      <img src="/logos/moonstar-mark-dark.png" alt="PT MoonStar Global Indonesia" class="doc-logo" loading="eager" decoding="async" />
+    </div>
+    <h1>Ödeme Yöntemleri</h1>
+    <p class="muted">
+      Ödemelerinizi güvenli şekilde tamamlayabilmeniz için birden fazla ödeme seçeneği sunarız. Kredi kartı ödemelerinde 3D Secure (3DS)
+      doğrulaması zorunludur.
+    </p>
+
+    <div class="box">
+      <h2>Kur ve Para Birimi Bilgilendirmesi</h2>
+      <p>
+        Paket fiyatları web sitesinde bilgilendirme amacıyla <strong>USD</strong> olarak gösterilebilir. Ödeme, işlem anındaki kur ve bankanızın
+        uyguladığı dönüşüm/komisyonlara göre <strong>IDR (Endonezya Rupiah)</strong> veya sağlayıcının desteklediği para biriminde tahsil edilebilir.
+      </p>
+      <p class="muted">
+        Kesin tahsilat para birimi ve tutar; ödeme ekranında ve/veya bankanızın işlem özetinde görünen tutardır.
+      </p>
+    </div>
+
+    <div class="box">
+      <h2>Ödeme Referansı (Önemli)</h2>
+      <p>
+        Wise/SWIFT/EFT gibi transfer yöntemlerinde, ödemenin doğru rezervasyon ile eşleştirilebilmesi için <strong>Açıklama/Reference</strong>
+        alanına mutlaka <strong>Rezervasyon No</strong> ve <strong>Ödeme Referansı</strong> bilgilerini yazmanız gerekir.
+      </p>
+      <p class="muted">Bu bilgiler, ödeme sayfasında ve panelinizde görünür.</p>
+    </div>
+
+    <div class="grid">
+      <div class="box">
+        <h2>1) Kredi Kartı (3D Secure)</h2>
+        <ul>
+          <li>Tüm kart işlemleri 3DS doğrulaması ile yapılır.</li>
+          <li>Yüksek tutarlı işlemlerde bankanız ek doğrulama isteyebilir.</li>
+          <li>Tur tarihi ileri bir tarih olduğu için, bankanızın/sağlayıcının fraud politikaları gereği ek kontrol uygulanabilir.</li>
+        </ul>
+      </div>
+
+      <div class="box">
+        <h2>2) Wise ile Ödeme</h2>
+        <p>Wise üzerinden ödeme talimatları için:</p>
+        <p><a href="/docs/wise-odeme-talimatlari.html" target="_blank" rel="noopener noreferrer">Wise Ödeme Talimatları</a></p>
+      </div>
+
+      <div class="box">
+        <h2>3) SWIFT (Banka Transferi)</h2>
+        <p>SWIFT ile banka transferi talimatları için:</p>
+        <p><a href="/docs/swift-odeme-talimatlari.html" target="_blank" rel="noopener noreferrer">SWIFT Ödeme Talimatları</a></p>
+      </div>
+
+      <div class="box">
+        <h2>4) EFT / FAST (Türkiye)</h2>
+        <p>Türkiye içi havale/EFT/FAST alternatifi gerekiyorsa:</p>
+        <p><a href="/docs/eft-fast-odeme-talimatlari.html" target="_blank" rel="noopener noreferrer">EFT/FAST Ödeme Talimatları</a></p>
+      </div>
+    </div>
+
+    <hr />
+    <p class="muted">Son güncellenme: 13.01.2026</p>
+  </body>
+</html>

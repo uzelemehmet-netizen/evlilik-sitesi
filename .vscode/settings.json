@@ -1,0 +1,83 @@
+{
+  // VS Code'da Git/GitHub arka plan aktivitelerini azaltmak için.
+  // Yeniden açmak istersen: git.enabled=true yapman yeterli.
+  "git.enabled": false,
+  "git.autofetch": false,
+  "git.decorations.enabled": false,
+  "git.showProgress": false,
+  "git.countBadge": "off",
+  "git.autoRepositoryDetection": false,
+  "git.openRepositoryInParentFolders": "never",
+
+  // Büyük klasörler VS Code'un dosya izleyicisini ve arama indeksini yorabilir.
+  // (Özellikle iki ayrı projede ayrı ayrı node_modules olduğunda.)
+  "files.watcherExclude": {
+    "**/.git/objects/**": true,
+    "**/.git/subtree-cache/**": true,
+    "**/node_modules/**": true,
+    "**/.next/**": true,
+    "**/dist/**": true,
+    "**/build/**": true,
+    "**/.turbo/**": true,
+    "**/.cache/**": true,
+    "**/.vercel/**": true,
+    "**/.vite/**": true,
+    "**/.venv/**": true,
+    "**/coverage/**": true,
+
+    // Build sırasında üretilen PDF çıktıları (çok sayıda/büyük dosya olabiliyor)
+    "**/public/docs/pdf/**": true,
+    "**/public/docs/**/*.pdf": true,
+
+    // Public altındaki büyük medya dosyaları (statik içerik) VS Code'u yorabilir
+    "**/public/**/*.jpg": true,
+    "**/public/**/*.jpeg": true,
+    "**/public/**/*.png": true,
+    "**/public/**/*.webp": true,
+    "**/public/**/*.avif": true,
+    "**/public/**/*.gif": true,
+    "**/public/**/*.mp4": true,
+    "**/public/**/*.mov": true,
+    "**/public/**/*.m4v": true
+  },
+  "search.exclude": {
+    "**/node_modules/**": true,
+    "**/.next/**": true,
+    "**/dist/**": true,
+    "**/build/**": true,
+    "**/.turbo/**": true,
+    "**/.cache/**": true,
+    "**/.vercel/**": true,
+    "**/.vite/**": true,
+    "**/.venv/**": true,
+    "**/coverage/**": true,
+
+    // Build sırasında üretilen PDF çıktıları
+    "**/public/docs/pdf/**": true,
+    "**/public/docs/**/*.pdf": true,
+
+    // Public altındaki büyük medya dosyaları
+    "**/public/**/*.jpg": true,
+    "**/public/**/*.jpeg": true,
+    "**/public/**/*.png": true,
+    "**/public/**/*.webp": true,
+    "**/public/**/*.avif": true,
+    "**/public/**/*.gif": true,
+    "**/public/**/*.mp4": true,
+    "**/public/**/*.mov": true,
+    "**/public/**/*.m4v": true
+  },
+
+  // Explorer'da gereksiz şişmeyi azalt
+  "files.exclude": {
+    "**/public/docs/pdf": true,
+    "**/public/docs/pdf/**": true,
+    "**/public/docs/**/*.pdf": true
+  },
+
+  // TS/JS projelerinde tsserver RAM'i düşük kalırsa UI gecikmesi hissedilebilir.
+  "typescript.tsserver.maxTsServerMemory": 4096,
+
+  // Arka planda type acquisition (DefinitelyTyped) bazen UI'yi yorabilir
+  "typescript.disableAutomaticTypeAcquisition": true
+}

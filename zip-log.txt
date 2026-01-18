@@ -1,0 +1,7 @@
+﻿START 2026-01-17T21:26:32.2190729+07:00
+Found processes:
+
+ZIP ERROR: Sistem dosyaya erişemiyor.
+
+ZIP MISSING
+END 2026-01-17T21:27:00.3288533+07:00

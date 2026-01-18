@@ -1,0 +1,14 @@
+node_modules/
+dist/
+.env
+.env.local
+.DS_Store
+*.log
+.vercel
+.env*.local
+
+# Large local GIS / export assets (not needed in git)
+oss/
+
+# Local Netlify folder (kullanılmıyor)
+.netlify

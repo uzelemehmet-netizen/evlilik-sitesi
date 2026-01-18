@@ -1,0 +1,307 @@
+<!doctype html>
+<html lang="tr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{{TITLE}}</title>
+    <style>
+      :root {
+        --ink: #0b1220;
+        --muted: #475569;
+        --border: #e2e8f0;
+        --bg: #ffffff;
+        --chip: #f1f5f9;
+        --accent: #0ea5e9;
+        --accent2: #10b981;
+        --shadow: 0 14px 40px rgba(2, 6, 23, 0.08);
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--ink);
+        font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+        line-height: 1.55;
+        font-size: 14px;
+      }
+      a { color: inherit; }
+      .page {
+        max-width: 980px;
+        margin: 0 auto;
+        padding: 26px 18px 56px;
+      }
+      .hero {
+        position: relative;
+        border-radius: 18px;
+        overflow: hidden;
+        border: 1px solid var(--border);
+        box-shadow: var(--shadow);
+        min-height: 260px;
+        background: #0b1220;
+      }
+      .hero img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        position: absolute;
+        inset: 0;
+        filter: saturate(1.05) contrast(1.05);
+      }
+      .hero::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background:
+          radial-gradient(1200px 360px at 20% 10%, rgba(14,165,233,0.35), transparent 55%),
+          linear-gradient(135deg, rgba(2,6,23,0.86) 0%, rgba(2,6,23,0.56) 45%, rgba(2,6,23,0.22) 100%);
+      }
+      .heroContent {
+        position: relative;
+        z-index: 1;
+        padding: 18px;
+        color: #fff;
+        display: grid;
+        gap: 10px;
+      }
+      .brand {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        font-weight: 700;
+        letter-spacing: 0.02em;
+        text-transform: uppercase;
+        font-size: 12px;
+        color: rgba(255,255,255,0.85);
+      }
+      .brandDot {
+        width: 10px;
+        height: 10px;
+        border-radius: 999px;
+        background: linear-gradient(135deg, var(--accent), var(--accent2));
+        box-shadow: 0 0 0 3px rgba(255,255,255,0.10);
+      }
+      h1 {
+        margin: 0;
+        font-size: 26px;
+        letter-spacing: -0.02em;
+        line-height: 1.15;
+      }
+      .sub {
+        margin: 0;
+        color: rgba(255,255,255,0.88);
+        max-width: 70ch;
+        font-size: 13px;
+      }
+      .chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 6px;
+      }
+      .chip {
+        background: rgba(255,255,255,0.12);
+        border: 1px solid rgba(255,255,255,0.18);
+        padding: 7px 10px;
+        border-radius: 999px;
+        font-size: 12px;
+        color: rgba(255,255,255,0.88);
+        white-space: nowrap;
+        backdrop-filter: blur(6px);
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 12px;
+        margin-top: 14px;
+      }
+      @media (min-width: 900px) {
+        .grid { grid-template-columns: 1.25fr 0.75fr; }
+      }
+      .card {
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        padding: 16px;
+        background: #fff;
+        box-shadow: 0 10px 24px rgba(2, 6, 23, 0.04);
+      }
+      h2 { margin: 0 0 10px; font-size: 16px; }
+      h3 { margin: 0 0 8px; font-size: 13px; }
+      p { margin: 0 0 10px; }
+      ul { margin: 0; padding-left: 18px; }
+      li { margin: 0 0 6px; }
+      .muted { color: var(--muted); }
+      .divider { height: 1px; background: var(--border); margin: 14px 0; }
+      .callout {
+        border-left: 4px solid var(--accent);
+        background: #f0f9ff;
+        padding: 10px 12px;
+        border-radius: 12px;
+        color: #0b4a6f;
+      }
+      .callout strong { color: #0b4a6f; }
+      .why {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 10px;
+      }
+      @media (min-width: 900px) {
+        .why { grid-template-columns: 1fr 1fr; }
+      }
+      .whyItem {
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        padding: 12px;
+        background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+      }
+      .whyItem b { display: block; margin-bottom: 4px; }
+      .gallery {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+      }
+      .tile {
+        border-radius: 14px;
+        overflow: hidden;
+        border: 1px solid var(--border);
+        background: #0b1220;
+        min-height: 120px;
+        position: relative;
+      }
+      .tile img {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+      .tile::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(180deg, transparent 40%, rgba(2,6,23,0.45) 100%);
+      }
+      .steps {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 10px;
+      }
+      @media (min-width: 900px) {
+        .steps { grid-template-columns: 1fr 1fr 1fr; }
+      }
+      .step {
+        border-radius: 14px;
+        border: 1px solid var(--border);
+        padding: 12px;
+        background: #fff;
+      }
+      .step .n {
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+        color: #0b4a6f;
+      }
+      .foot {
+        margin-top: 14px;
+        color: var(--muted);
+        font-size: 12px;
+      }
+      @media print {
+        body { font-size: 12px; }
+        .hero { box-shadow: none; }
+        .card { break-inside: avoid; box-shadow: none; }
+        .tile { break-inside: avoid; }
+        a { color: inherit; text-decoration: none; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="page">
+      <section class="hero">
+        <img src="{{HERO_IMAGE}}" alt="{{TITLE}}" />
+        <div class="heroContent">
+          <div class="brand"><span class="brandDot"></span> Endonezya Kaşifi</div>
+          <h1>{{TITLE}}</h1>
+          <p class="sub">{{SUBTITLE}}</p>
+          <div class="chips">
+            <span class="chip">{{DURATION}}</span>
+            <span class="chip">{{CONCEPT}}</span>
+            <span class="chip">Uçuş: kişi başı $750’a kadar dahil</span>
+          </div>
+        </div>
+      </section>
+
+      <div class="grid">
+        <section class="card">
+          <h2>Bu tur ne vadediyor?</h2>
+          <p class="muted">{{DESCRIPTION}}</p>
+
+          <div class="divider"></div>
+
+          <h2>Neden Endonezya Kaşifi?</h2>
+          <div class="why">
+            <div class="whyItem"><b>Aracısız organizasyon</b> Turu doğrudan biz planlar ve yönetiriz. Talep/öneri/şikayet için <b>tek muhatap</b> tur organizasyonudur.</div>
+            <div class="whyItem"><b>Uzmanlık alanımız Endonezya</b> İçeriklerimiz, rotalarımız ve marka odağımız Endonezya. “X Tur” değil; <b>Endonezya Kaşifi</b>yiz.</div>
+            <div class="whyItem"><b>Şeffaf, planlı, profesyonel</b> Yeni bir ekibiz ama geçmiş deneyimlerden güç alıyoruz. Güveni yazılı süreçle kurarız: önce bilgi paketi, sonra sözleşme inceleme.</div>
+            <div class="whyItem"><b>Memnuniyet önceliği</b> Bizim için “ödeme” kadar önemli olan şey, verdiğiniz paranın karşılığını net şekilde almanızdır.</div>
+            <div class="whyItem"><b>Yerinden ekip</b> Endonezya’da yaşayan, sahayı bilen bir ekiple tatili içeriden deneyimlersiniz.</div>
+            <div class="whyItem"><b>Tek hat, hızlı geri dönüş</b> İletişim WhatsApp üzerinden, yazılı ve takip edilebilir şekilde ilerler.</div>
+          </div>
+
+          <div class="divider"></div>
+
+          <h2>Öne çıkan deneyimler</h2>
+          <ul>
+            {{HIGHLIGHTS_LIST}}
+          </ul>
+
+          <div class="divider"></div>
+
+          <h2>Dahil / hariç</h2>
+          <div class="callout"><strong>Uçak bileti politikası:</strong> Gidiş–dönüş uçak bileti kişi başı <b>$750</b>’a kadar dahildir. Limit üzeri fark ayrıca yansıtılır.</div>
+          <div class="divider"></div>
+          <div class="why">
+            <div class="whyItem">
+              <b>Paketin dahil olduğu başlıca kalemler</b>
+              <ul>
+                {{INCLUDES_LIST}}
+              </ul>
+            </div>
+            <div class="whyItem">
+              <b>Önemli notlar</b>
+              <ul>
+                <li>Standart konaklama iki kişilik paylaşımlı odadır; tek kişi katılımlarda oda eşleştirme yapılır.</li>
+                <li>Kesin kayıt öncesi: Ön Bilgilendirme + Paket Tur Sözleşmesi inceleme için paylaşılır.</li>
+                <li>Onayınız olmadan ödeme adımına geçilmez.</li>
+              </ul>
+            </div>
+          </div>
+        </section>
+
+        <aside class="card">
+          <h2>Galeri</h2>
+          <div class="gallery">
+            <div class="tile"><img src="{{G1}}" alt="" /></div>
+            <div class="tile"><img src="{{G2}}" alt="" /></div>
+            <div class="tile"><img src="{{G3}}" alt="" /></div>
+            <div class="tile"><img src="{{G4}}" alt="" /></div>
+          </div>
+
+          <div class="divider"></div>
+
+          <h2>Süreç (3 adım)</h2>
+          <div class="steps">
+            <div class="step"><div class="n">1) Ön kayıt</div><p class="muted">Ücretsiz ve bağlayıcı değil.</p></div>
+            <div class="step"><div class="n">2) Yazılı bilgi paketi</div><p class="muted">Program + dahil/hariç + kurallar.</p></div>
+            <div class="step"><div class="n">3) Onay & ödeme</div><p class="muted">Sözleşme inceleme → ödeme → onay.</p></div>
+          </div>
+
+          <p class="foot">
+            Bu broşür bilgilendirme amaçlıdır. Nihai tarih/ücret ve koşullar, yazılı teklif ve sözleşme ekleriyle netleşir.
+            PDF almak için: Tarayıcıda “Yazdır” → “PDF olarak kaydet”.
+          </p>
+        </aside>
+      </div>
+    </div>
+  </body>
+</html>

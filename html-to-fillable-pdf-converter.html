@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HTML to Fillable PDF Converter</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+        
+        .header p {
+            opacity: 0.9;
+            font-size: 14px;
+        }
+        
+        .content {
+            padding: 30px;
+        }
+        
+        .step {
+            margin-bottom: 30px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            border-left: 4px solid #667eea;
+        }
+        
+        .step h2 {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 20px;
+        }
+        
+        .step p {
+            color: #666;
+            line-height: 1.6;
+            margin-bottom: 10px;
+        }
+        
+        .code-block {
+            background: #2d2d2d;
+            color: #f8f8f2;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            margin: 15px 0;
+        }
+        
+        .code-block code {
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        
+        .button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            margin: 10px 5px;
+        }
+        
+        .button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+        
+        .button:active {
+            transform: translateY(0);
+        }
+        
+        .button-secondary {
+            background: #6c757d;
+        }
+        
+        .button-secondary:hover {
+            box-shadow: 0 5px 15px rgba(108, 117, 125, 0.4);
+        }
+        
+        .info-box {
+            background: #e7f3ff;
+            border-left: 4px solid #2196F3;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 15px 0;
+        }
+        
+        .info-box strong {
+            color: #1976D2;
+        }
+        
+        .warning-box {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 15px 0;
+        }
+        
+        .success-box {
+            background: #d4edda;
+            border-left: 4px solid #28a745;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 15px 0;
+        }
+        
+        .tool-list {
+            list-style: none;
+            padding-left: 0;
+        }
+        
+        .tool-list li {
+            padding: 10px;
+            margin: 5px 0;
+            background: white;
+            border-radius: 5px;
+            border-left: 3px solid #667eea;
+        }
+        
+        .tool-list li strong {
+            color: #667eea;
+        }
+        
+        .link {
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 600;
+        }
+        
+        .link:hover {
+            text-decoration: underline;
+        }
+        
+        .method-card {
+            background: white;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            padding: 20px;
+            margin: 15px 0;
+            transition: border-color 0.3s;
+        }
+        
+        .method-card:hover {
+            border-color: #667eea;
+        }
+        
+        .method-card h3 {
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+        
+        .method-card ol {
+            margin-left: 20px;
+            margin-top: 10px;
+        }
+        
+        .method-card li {
+            margin: 8px 0;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚀 HTML to Fillable PDF Converter</h1>
+            <p>HTML formunuzu otomatik olarak doldurulabilir PDF'e çevirin</p>
+        </div>
+        
+        <div class="content">
+            <!-- Yöntem 1: Online Araçlar -->
+            <div class="step">
+                <h2>📌 Yöntem 1: Online Araçlar (En Hızlı - Önerilen)</h2>
+                <p>HTML formunuzu direkt olarak fillable PDF'e çeviren online araçlar:</p>
+                
+                <div class="method-card">
+                    <h3>1. Formize (En Kolay)</h3>
+                    <ol>
+                        <li><a href="https://products.formize.com/tr/create-pdf" target="_blank" class="link">Formize</a> sitesine gidin</li>
+                        <li>"Create PDF Form" butonuna tıklayın</li>
+                        <li>HTML dosyanızı yükleyin veya HTML kodunu yapıştırın</li>
+                        <li>Form alanları otomatik olarak tanınacak</li>
+                        <li>Gerekirse düzenleyin ve PDF'i indirin</li>
+                    </ol>
+                </div>
+                
+                <div class="method-card">
+                    <h3>2. PDFescape (Ücretsiz, Güvenilir)</h3>
+                    <ol>
+                        <li>Önce HTML'inizi tarayıcıda açın (Chrome/Edge)</li>
+                        <li><strong>Ctrl+P</strong> → <strong>"PDF olarak kaydet"</strong> → Kaydedin</li>
+                        <li><a href="https://www.pdfescape.com" target="_blank" class="link">PDFescape</a> sitesine gidin</li>
+                        <li>"Start Filling" → "Upload PDF to Fill"</li>
+                        <li>PDF'inizi yükleyin</li>
+                        <li>"Form Fields" → "Auto-detect form fields" (otomatik tanıma)</li>
+                        <li>Gerekirse manuel düzenleyin ve kaydedin</li>
+                    </ol>
+                </div>
+                
+                <div class="info-box">
+                    <strong>💡 İpucu:</strong> PDFescape'in "Auto-detect form fields" özelliği HTML'deki input, textarea, select elementlerini otomatik olarak tanır ve PDF form alanlarına çevirir.
+                </div>
+            </div>
+            
+            <!-- Yöntem 2: Adobe Acrobat -->
+            <div class="step">
+                <h2>📌 Yöntem 2: Adobe Acrobat Pro (En Profesyonel)</h2>
+                <p>Adobe Acrobat Pro, HTML formlarını otomatik olarak fillable PDF'e çevirebilir:</p>
+                
+                <div class="method-card">
+                    <h3>Adımlar:</h3>
+                    <ol>
+                        <li>HTML dosyanızı tarayıcıda açın</li>
+                        <li><strong>Ctrl+P</strong> → <strong>"PDF olarak kaydet"</strong> → Kaydedin</li>
+                        <li>Adobe Acrobat Pro'da PDF'i açın</li>
+                        <li><strong>Araçlar</strong> → <strong>Formları Hazırla</strong> menüsüne gidin</li>
+                        <li><strong>"Form Alanlarını Otomatik Tanımla"</strong> seçeneğini tıklayın</li>
+                        <li>Acrobat, HTML'deki form elementlerini otomatik olarak tanıyacak</li>
+                        <li>Gerekirse düzenleyin ve kaydedin</li>
+                    </ol>
+                </div>
+                
+                <div class="warning-box">
+                    <strong>⚠️ Not:</strong> Adobe Acrobat Pro ücretli bir yazılımdır. Ancak en iyi sonuçları verir.
+                </div>
+            </div>
+            
+            <!-- Yöntem 3: Programatik Çözüm -->
+            <div class="step">
+                <h2>📌 Yöntem 3: Programatik Çözüm (Geliştiriciler İçin)</h2>
+                <p>Node.js kullanarak otomatik dönüştürme yapabilirsiniz:</p>
+                
+                <div class="code-block">
+                    <code>// Gerekli paketleri yükleyin
+npm install puppeteer pdf-lib
+
+// HTML'i PDF'e çevirip form alanları ekleyen script
+// (Detaylı script aşağıda verilecek)</code>
+                </div>
+                
+                <div class="info-box">
+                    <strong>💡 Not:</strong> Bu yöntem teknik bilgi gerektirir. Basit kullanım için Yöntem 1'i öneriyoruz.
+                </div>
+            </div>
+            
+            <!-- Hızlı Başlangıç -->
+            <div class="step">
+                <h2>⚡ Hızlı Başlangıç (Önerilen Yol)</h2>
+                <div class="success-box">
+                    <strong>✅ En Hızlı Yöntem:</strong>
+                    <ol style="margin-top: 10px; margin-left: 20px;">
+                        <li>HTML dosyanızı Chrome/Edge'de açın</li>
+                        <li><strong>Ctrl+P</strong> tuşlarına basın</li>
+                        <li><strong>"PDF olarak kaydet"</strong> seçin ve kaydedin</li>
+                        <li><a href="https://www.pdfescape.com" target="_blank" class="link">PDFescape.com</a>'a gidin</li>
+                        <li>"Start Filling" → PDF'inizi yükleyin</li>
+                        <li>"Form Fields" → "Auto-detect" ile otomatik form alanları oluşturun</li>
+                        <li>İndirin ve kullanın! 🎉</li>
+                    </ol>
+                </div>
+            </div>
+            
+            <!-- Önemli Notlar -->
+            <div class="step">
+                <h2>📝 Önemli Notlar</h2>
+                
+                <div class="info-box">
+                    <strong>✅ Otomatik Tanıma İçin:</strong>
+                    <ul style="margin-top: 10px; margin-left: 20px;">
+                        <li>HTML'deki form elementlerinin <code>name</code> veya <code>id</code> attribute'ları olmalı</li>
+                        <li>Input, textarea, select elementleri düzgün etiketlenmiş olmalı</li>
+                        <li>Checkbox ve radio button'lar için <code>name</code> attribute'u aynı grup için aynı olmalı</li>
+                    </ul>
+                </div>
+                
+                <div class="warning-box">
+                    <strong>⚠️ Dikkat:</strong>
+                    <ul style="margin-top: 10px; margin-left: 20px;">
+                        <li>HTML'den direkt PDF'e çevirme, form alanlarını korumaz</li>
+                        <li>Önce PDF'e çevirip, sonra form alanları eklemek gerekir</li>
+                        <li>Mobil cihazlarda PDF doldurma sınırlı olabilir</li>
+                    </ul>
+                </div>
+            </div>
+            
+            <!-- Form Şablonlarınız -->
+            <div class="step">
+                <h2>📄 Form Şablonlarınız</h2>
+                <p>Hazırladığınız form şablonları:</p>
+                <ul class="tool-list">
+                    <li>
+                        <strong>Seyahat Formu:</strong> <code>fillable-pdf-form-template.html</code>
+                        <br>
+                        <small>Bu formu PDF'e çevirmek için yukarıdaki yöntemlerden birini kullanın.</small>
+                    </li>
+                    <li>
+                        <strong>Evlilik Formu:</strong> <code>evlilik-form-template.html</code>
+                        <br>
+                        <small>Bu formu PDF'e çevirmek için yukarıdaki yöntemlerden birini kullanın.</small>
+                    </li>
+                </ul>
+            </div>
+            
+            <!-- Sonuç -->
+            <div class="step" style="background: linear-gradient(135deg, #667eea15 0%, #764ba215 100%); border-left-color: #667eea;">
+                <h2>🎯 Sonuç</h2>
+                <p>EmailJS gibi tam otomatik bir çözüm maalesef yok, ancak yukarıdaki yöntemlerle HTML formlarınızı hızlıca fillable PDF'e çevirebilirsiniz.</p>
+                <p><strong>En pratik yol:</strong> PDFescape'in otomatik form tanıma özelliğini kullanmak. Bu, EmailJS'deki gibi "yapıştır ve hazır" deneyimine en yakın çözümdür.</p>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
+
+
+
+
+

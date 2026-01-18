@@ -1,0 +1,423 @@
+import Navigation from '../components/Navigation';
+import Footer from '../components/Footer';
+import { useState, useEffect } from 'react';
+import { Plane, MapPin, Calendar, Users, DollarSign, CheckCircle, MessageCircle, AlertCircle } from 'lucide-react';
+import emailjs from '@emailjs/browser';
+
+export default function Travel() {
+  const [formData, setFormData] = useState({
+    from_name: '',
+    from_email: '',
+    phone: '',
+    travel_dates: '',
+    number_of_people: '',
+    package_preference: '',
+    interests: '',
+    budget_range: '',
+    additional_details: '',
+    privacy_consent: false,
+  });
+  const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState(false);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    emailjs.init({
+      publicKey: '4gPu39idFW7kmAtv3',
+      blockHeadless: false,
+    });
+  }, []);
+
+  const handleChange = (e) => {
+    const { name, value, type, checked } = e.target;
+    setFormData({
+      ...formData,
+      [name]: type === 'checkbox' ? checked : value,
+    });
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    
+    if (!formData.privacy_consent) {
+      setError('Gizlilik politikasını okuduğunuzu ve kabul ettiğinizi onaylamalısınız.');
+      return;
+    }
+    
+    setLoading(true);
+    setError(null);
+
+    try {
+      const response = await emailjs.send(
+        'service_8tule5k',
+        'template_an057sw',
+        {
+          from_name: formData.from_name,
+          from_email: formData.from_email,
+          phone: formData.phone,
+          travel_dates: formData.travel_dates,
+          number_of_people: formData.number_of_people,
+          package_preference: formData.package_preference,
+          interests: formData.interests,
+          budget_range: formData.budget_range,
+          additional_details: formData.additional_details,
+          to_email: 'uzelemehmet@gmail.com'
+        }
+      );
+
+      if (response.status === 200) {
+        setSuccess(true);
+        setFormData({
+          from_name: '',
+          from_email: '',
+          phone: '',
+          travel_dates: '',
+          number_of_people: '',
+          package_preference: '',
+          interests: '',
+          budget_range: '',
+          additional_details: '',
+          privacy_consent: false,
+        });
+        setTimeout(() => setSuccess(false), 5000);
+      }
+    } catch (err) {
+      setError('Teklif gönderilirken hata oluştu. Lütfen tekrar deneyiniz.');
+      console.error('EmailJS Error:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-white">
+      <Navigation />
+
+      {/* Hero Section */}
+      <section className="pt-24 pb-16 px-4 relative overflow-hidden min-h-96" style={{
+        backgroundImage: 'linear-gradient(135deg, rgba(59, 130, 246, 0.7) 0%, rgba(34, 197, 94, 0.7) 100%), url(https://24me1z7hg7.ucarecd.net/223ab319-17c9-495b-9e8f-d2a2fcc087df/vecteezy_readyforasummeradventurebeachpreparationaccessories_47386086.jpg)',
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundRepeat: 'no-repeat',
+        backgroundAttachment: 'fixed'
+      }}>
+        <div className="absolute inset-0"></div>
+        <div className="max-w-7xl mx-auto relative z-10 text-center flex flex-col justify-center items-center min-h-96">
+          <h1 className="text-5xl md:text-6xl font-bold text-white mb-6" style={{ fontFamily: '"Poppins", sans-serif', textShadow: '0 4px 12px rgba(0,0,0,0.7)' }}>
+            Seyahat Planlaması
+          </h1>
+          <p className="text-2xl text-white mb-4" style={{ fontFamily: '"Poppins", sans-serif', textShadow: '0 2px 8px rgba(0,0,0,0.6)' }}>
+            Endonezya'da unutulmaz bir tatil deneyimi
+          </p>
+        </div>
+      </section>
+
+      {/* Alt Başlık ve Açıklama */}
+      <section className="py-16 px-4 bg-white">
+        <div className="max-w-4xl mx-auto text-center">
+          <h2 className="text-3xl font-bold text-gray-900 mb-6" style={{ fontFamily: '"Poppins", sans-serif' }}>
+            Konforlu ve Unutulmaz Bir Tatil
+          </h2>
+          <p className="text-lg text-gray-700 leading-relaxed" style={{ fontFamily: '"Poppins", sans-serif' }}>
+            Profesyonel ekibimizle ulaşım organizasyonu, konaklama düzenlemeleri, yerel rehberlik hizmetleri ve aktivite planlaması sunuyoruz. Size özel Türkçe bilen asistan tahsisi ile tatiliniz boyunca hiçbir dil sorunu yaşamayacak, Endonezya'nın büyülü atmosferini sonuna kadar keşfedeceksiniz. Seyahatinizin her adımında konfor ve güvenliğiniz ön planda tutulurken, özel turlar, kültürel etkinlikler, yerel deneyimler ve kişiye özel önerilerle unutulmaz anlar yaşamanız sağlanıyor. Ayrıca gastronomi deneyimleri, alışveriş turları ve rehber eşliğinde keşifler gibi çeşitli seçeneklerle tatilinizi tamamen size özel hâle getiriyoruz. Böylece seyahatiniz sadece bir gezi değil, hayat boyu hatırlayacağınız unutulmaz bir deneyim haline geliyor.
+          </p>
+        </div>
+      </section>
+
+      {/* Packages Section */}
+      <section className="py-20 px-4 bg-gray-50">
+        <div className="max-w-7xl mx-auto">
+          <h2 className="text-4xl font-bold text-center mb-16 text-gray-900" style={{ fontFamily: '"Poppins", sans-serif' }}>
+            Seyahat Paketlerimiz
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12">
+            <div className="bg-white p-8 rounded-xl shadow-lg">
+              <h3 className="text-2xl font-bold mb-4 text-green-600" style={{ fontFamily: '"Poppins", sans-serif' }}>Ekonomik Paket</h3>
+              <p className="text-gray-600 mb-6">5 gece 6 gün</p>
+              <ul className="space-y-3 text-gray-700">
+                <li className="flex items-start gap-2">
+                  <CheckCircle size={20} className="text-green-600 flex-shrink-0" />
+                  <span style={{ fontFamily: '"Poppins", sans-serif' }}>3 yıldızlı otel</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <CheckCircle size={20} className="text-green-600 flex-shrink-0" />
+                  <span style={{ fontFamily: '"Poppins", sans-serif' }}>1 lokasyon se�enegi</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <CheckCircle size={20} className="text-green-600 flex-shrink-0" />
+                  <span style={{ fontFamily: '"Poppins", sans-serif' }}>3 öğün yemek</span>
+                </li>
+              </ul>
+            </div>
+
+            <div className="bg-gradient-to-br from-blue-50 to-cyan-50 p-8 rounded-xl shadow-2xl border-2 border-blue-400">
+              <div className="absolute -top-4 left-1/2 transform -translate-x-1/2 bg-blue-500 text-white px-4 py-2 rounded-full text-sm font-semibold">
+                Popüler
+              </div>
+              <h3 className="text-2xl font-bold mb-4 text-blue-600" style={{ fontFamily: '"Poppins", sans-serif' }}>Standart Paket</h3>
+              <p className="text-gray-600 mb-6">9 gece 10 gün</p>
+              <ul className="space-y-3 text-gray-700">
+                <li className="flex items-start gap-2">
+                  <CheckCircle size={20} className="text-blue-600 flex-shrink-0" />
+                  <span style={{ fontFamily: '"Poppins", sans-serif' }}>4 yıldızlı otel</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <CheckCircle size={20} className="text-blue-600 flex-shrink-0" />
+                  <span style={{ fontFamily: '"Poppins", sans-serif' }}>Konforlu ulaşım</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <CheckCircle size={20} className="text-blue-600 flex-shrink-0" />
+                  <span style={{ fontFamily: '"Poppins", sans-serif' }}>Gündüz ve akşam aktiviteleri</span>
+                </li>
+              </ul>
+            </div>
+
+            <div className="bg-white p-8 rounded-xl shadow-lg">
+              <h3 className="text-2xl font-bold mb-4 text-purple-600" style={{ fontFamily: '"Poppins", sans-serif' }}>VIP Paket</h3>
+              <p className="text-gray-600 mb-6">14 gece 15 gün</p>
+              <ul className="space-y-3 text-gray-700">
+                <li className="flex items-start gap-2">
+                  <CheckCircle size={20} className="text-purple-600 flex-shrink-0" />
+                  <span style={{ fontFamily: '"Poppins", sans-serif' }}>5 yıldızlı villa</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <CheckCircle size={20} className="text-purple-600 flex-shrink-0" />
+                  <span style={{ fontFamily: '"Poppins", sans-serif' }}>7/24 Türkçe asistan</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <CheckCircle size={20} className="text-purple-600 flex-shrink-0" />
+                  <span style={{ fontFamily: '"Poppins", sans-serif' }}>Özel araç transferi</span>
+                </li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Form Section */}
+      <section id="form" className="py-20 px-4">
+        <div className="max-w-3xl mx-auto">
+          <div className="text-center mb-12">
+            <h2 className="text-4xl font-bold text-gray-900 mb-4" style={{ fontFamily: '"Poppins", sans-serif' }}>
+              Fiyat Teklifi Alın
+            </h2>
+            <p className="text-xl text-gray-600" style={{ fontFamily: '"Poppins", sans-serif' }}>
+              Formu doldurun, 24 saat içinde size özel bir teklif gönderelim
+            </p>
+          </div>
+
+          {success && (
+            <div className="mb-8 p-6 bg-emerald-50 border border-emerald-200 rounded-lg flex items-center gap-3">
+              <CheckCircle className="text-emerald-600 flex-shrink-0" size={24} />
+              <div>
+                <p className="font-semibold text-emerald-800" style={{ fontFamily: '"Poppins", sans-serif' }}>Talebiniz başarıyla gönderildi!</p>
+                <p className="text-sm text-emerald-700" style={{ fontFamily: '"Poppins", sans-serif' }}>En kısa sürede sizinle iletişime geçeceğiz.</p>
+              </div>
+            </div>
+          )}
+
+          {error && (
+            <div className="mb-8 p-6 bg-red-50 border border-red-200 rounded-lg flex items-center gap-3">
+              <AlertCircle className="text-red-600 flex-shrink-0" size={24} />
+              <p className="text-red-800" style={{ fontFamily: '"Poppins", sans-serif' }}>{error}</p>
+            </div>
+          )}
+
+          <form onSubmit={handleSubmit} className="bg-white p-8 rounded-xl shadow-lg space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label className="block text-gray-700 font-semibold mb-2" style={{ fontFamily: '"Poppins", sans-serif' }}>
+                  Ad Soyad <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  name="from_name"
+                  value={formData.from_name}
+                  onChange={handleChange}
+                  required
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  placeholder="Adınız ve soyadınız"
+                  style={{ fontFamily: '"Poppins", sans-serif' }}
+                />
+              </div>
+
+              <div>
+                <label className="block text-gray-700 font-semibold mb-2" style={{ fontFamily: '"Poppins", sans-serif' }}>
+                  E-posta <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="email"
+                  name="from_email"
+                  value={formData.from_email}
+                  onChange={handleChange}
+                  required
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  placeholder="ornek@email.com"
+                  style={{ fontFamily: '"Poppins", sans-serif' }}
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label className="block text-gray-700 font-semibold mb-2" style={{ fontFamily: '"Poppins", sans-serif' }}>
+                  Telefon <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="tel"
+                  name="phone"
+                  value={formData.phone}
+                  onChange={handleChange}
+                  required
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  placeholder="+90 555 123 4567"
+                  style={{ fontFamily: '"Poppins", sans-serif' }}
+                />
+              </div>
+
+              <div>
+                <label className="block text-gray-700 font-semibold mb-2" style={{ fontFamily: '"Poppins", sans-serif' }}>
+                  Tercih Edilen Paket
+                </label>
+                <select
+                  name="package_preference"
+                  value={formData.package_preference}
+                  onChange={handleChange}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  style={{ fontFamily: '"Poppins", sans-serif' }}
+                >
+                  <option value="">Paket Seçiniz</option>
+                  <option value="Ekonomik Paket (5 gece 6 gün)">Ekonomik Paket (5 gece 6 gün)</option>
+                  <option value="Standart Paket (9 gece 10 gün)">Standart Paket (9 gece 10 gün)</option>
+                  <option value="VIP Paket (14 gece 15 gün)">VIP Paket (14 gece 15 gün)</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label className="block text-gray-700 font-semibold mb-2" style={{ fontFamily: '"Poppins", sans-serif' }}>
+                  Seyahat Tarihleri <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  name="travel_dates"
+                  value={formData.travel_dates}
+                  onChange={handleChange}
+                  required
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  placeholder="Örn: 15-25 Haziran 2025"
+                  style={{ fontFamily: '"Poppins", sans-serif' }}
+                />
+              </div>
+
+              <div>
+                <label className="block text-gray-700 font-semibold mb-2" style={{ fontFamily: '"Poppins", sans-serif' }}>
+                  Kişi Sayısı <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="number"
+                  name="number_of_people"
+                  value={formData.number_of_people}
+                  onChange={handleChange}
+                  required
+                  min="1"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  placeholder="Kaç kişi?"
+                  style={{ fontFamily: '"Poppins", sans-serif' }}
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label className="block text-gray-700 font-semibold mb-2" style={{ fontFamily: '"Poppins", sans-serif' }}>
+                  İlgi Alanları
+                </label>
+                <input
+                  type="text"
+                  name="interests"
+                  value={formData.interests}
+                  onChange={handleChange}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  placeholder="Örn: Doğa, Plajlar, Kultur, Macera"
+                  style={{ fontFamily: '"Poppins", sans-serif' }}
+                />
+              </div>
+
+              <div>
+                <label className="block text-gray-700 font-semibold mb-2" style={{ fontFamily: '"Poppins", sans-serif' }}>
+                  Bütçe Aralığı
+                </label>
+                <select
+                  name="budget_range"
+                  value={formData.budget_range}
+                  onChange={handleChange}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  style={{ fontFamily: '"Poppins", sans-serif' }}
+                >
+                  <option value="">Bütçe Seçiniz</option>
+                  <option value="1500-2000$">1500-2000$</option>
+                  <option value="2000-2500$">2000-2500$</option>
+                  <option value="3000-4500$">3000-4500$</option>
+                  <option value="5000+$">5000+$</option>
+                </select>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-gray-700 font-semibold mb-2" style={{ fontFamily: '"Poppins", sans-serif' }}>
+                Ek Detaylar / Özel İstekler
+              </label>
+              <textarea
+                name="additional_details"
+                value={formData.additional_details}
+                onChange={handleChange}
+                rows="6"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                placeholder="Sizin için özel istekleriniz, tercifleri veya ihtiyaçlarınız nelerdir?"
+                style={{ fontFamily: '"Poppins", sans-serif' }}
+              />
+            </div>
+
+            <div className="flex items-start p-4 bg-blue-50 border border-blue-200 rounded-lg">
+              <input
+                type="checkbox"
+                id="privacy_consent"
+                name="privacy_consent"
+                checked={formData.privacy_consent}
+                onChange={handleChange}
+                required
+                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded mt-1"
+              />
+              <label htmlFor="privacy_consent" className="ml-3 text-gray-700" style={{ fontFamily: '"Poppins", sans-serif' }}>
+                <span className="font-semibold">
+                  <a href="/privacy" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                    Gizlilik Politikası
+                  </a>
+                  nı okudum ve onaylıyorum
+                </span>
+                <p className="text-sm text-gray-600 mt-1">Seyahat planlama amaçlı paylaştığınız bilgiler güvenli şekilde saklanacaktır.</p>
+              </label>
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
+              style={{ fontFamily: '"Poppins", sans-serif' }}
+            >
+              {loading ? 'Gönderiliyor...' : 'Teklif Al'}
+            </button>
+          </form>
+        </div>
+      </section>
+
+      <Footer />
+    </div>
+  );
+}
+
+
+
+

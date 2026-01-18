@@ -1,0 +1,117 @@
+﻿@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Poppins:wght@400;500;600;700;800;900&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html {
+  font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen", "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue", sans-serif;
+  /* Tüm yazı ölçeğini bir tık küçült */
+  font-size: 15px;
+}
+
+body {
+  font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen", "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue", sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  line-height: 1.6;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-weight: 500;
+  letter-spacing: 0;
+}
+
+p, span, a, div, li {
+  font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  letter-spacing: 0;
+}
+
+/* Alt başlıkları ve açıklama metinlerini bir tık daha sadeleştir */
+h2 {
+  font-size: 1.32rem;
+  font-weight: 500;
+}
+
+h3 {
+  font-size: 1.08rem;
+  font-weight: 450;
+}
+
+/* Tailwind font ağırlıklarını daha zarif olacak şekilde yumuşat */
+.font-bold {
+  font-weight: 600 !important;
+}
+
+.font-semibold {
+  font-weight: 500 !important;
+}
+
+/* Site genelinde metinleri bir kademe küçült ve daha ince göster */
+.text-base {
+  font-size: 0.9rem;
+}
+
+.text-sm {
+  font-size: 0.8rem;
+}
+
+.text-xs {
+  font-size: 0.72rem;
+}
+
+/* Büyük başlık sınıflarını bir miktar küçült - "erişilebilirlik modu" kadar iri görünmesin */
+.text-4xl {
+  font-size: 2rem;
+}
+
+.text-5xl {
+  font-size: 2.5rem;
+}
+
+.text-6xl {
+  font-size: 3rem;
+}
+
+/* Orta seviye başlık boyutlarını da bir kademe daralt */
+.text-2xl {
+  font-size: 1.35rem;
+}
+
+.text-3xl {
+  font-size: 1.7rem;
+}
+
+/* tracking-wide harf aralığını da hafif tut */
+.tracking-wide {
+  letter-spacing: 0.015em;
+}
+
+/* Tailwind line-clamp plugin'i yokken basit clamp yardımcıları */
+.line-clamp-2,
+.line-clamp-3,
+.line-clamp-4 {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.line-clamp-2 {
+  -webkit-line-clamp: 2;
+}
+
+.line-clamp-3 {
+  -webkit-line-clamp: 3;
+}
+
+.line-clamp-4 {
+  -webkit-line-clamp: 4;
+}
