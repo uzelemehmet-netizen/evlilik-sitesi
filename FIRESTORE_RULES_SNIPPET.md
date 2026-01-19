@@ -1,8 +1,8 @@
-# Firestore Rules (rezervasyon + admin panel)
+# Firestore Rules (evlilik + admin panel)
 
 Bu repo içinde `firebase.json`/deploy yoksa bile, aşağıdaki rules bloğunu Firebase Console → Firestore Database → Rules ekranına yapıştırabilirsiniz.
 
-> Admin allowlist: `uzelemehmet@gmail.com` ve `articelikkapi@gmail.com`
+> Admin allowlist: kendi admin e-postalarınızı buraya yazın.
 
 ```rules
 rules_version = '2';
@@ -18,35 +18,14 @@ service cloud.firestore {
 
     function isAdmin() {
       return isNonAnonymous() && (
-        request.auth.token.email in [
+        request.auth.token.email.lower() in [
           'uzelemehmet@gmail.com',
           'articelikkapi@gmail.com'
         ]
       );
     }
 
-    // Public read, admin write
-    match /tours/{id} {
-      allow read: if true;
-      allow write: if isAdmin();
-    }
-
-    match /imageUrls/{id} {
-      allow read: if true;
-      allow write: if isAdmin();
-    }
-
-    match /siteSettings/{id} {
-      allow read: if true;
-      allow write: if isAdmin();
-    }
-
-    // Reservations
-    match /reservations/{reservationId} {
-      allow create: if isNonAnonymous() && request.resource.data.userId == request.auth.uid;
-      allow read: if isAdmin() || (isNonAnonymous() && resource.data.userId == request.auth.uid);
-      allow update, delete: if isAdmin();
-    }
+    // Varsayılan yaklaşım: sadece aşağıdaki matchmaking koleksiyonlarına izin ver.
 
     // Matchmaking Applications (signed-in create, admin-only read)
     // Not: Profil listesi herkese açık değildir; admin panel üzerinden incelenir.
@@ -55,27 +34,59 @@ service cloud.firestore {
         && request.resource.data.userId == request.auth.uid
         && request.resource.data.consent18Plus == true
         && request.resource.data.consentPrivacy == true
+        && request.resource.data.consentTerms == true
         && request.resource.data.consentPhotoShare == true;
-      allow read, update, delete: if isAdmin();
+
+      // Kullanıcı kendi başvurusunu panelde görebilmelidir.
+      allow read: if isAdmin() || (isNonAnonymous() && resource.data.userId == request.auth.uid);
+
+      // Düzenleme/silme sadece admin (başvuru PII içerir; kullanıcı tarafında değişiklik yönetimini basit tutuyoruz).
+      allow update, delete: if isAdmin();
     }
 
     // Matchmaking Users (block / lock gibi yönetim alanları)
     match /matchmakingUsers/{userId} {
-      allow read: if isAdmin() || (isNonAnonymous() && request.auth.uid == userId);
-      allow write: if isAdmin();
+      function isSelf() {
+        return isNonAnonymous() && request.auth.uid == userId;
+      }
+
+      function isValidGenderWrite() {
+        return request.resource.data.gender in ['male', 'female'];
+      }
+
+      // Kullanıcı kendi dokümanını okuyabilir.
+      allow read: if isAdmin() || isSelf();
+
+      // Kullanıcı kayıtta sadece gender (+ timestamp) set edebilir.
+      allow create: if isSelf()
+        && request.resource.data.keys().hasOnly(['gender', 'createdAt', 'updatedAt'])
+        && isValidGenderWrite()
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.updatedAt == request.time;
+
+      // Sonradan gender değişimi kapalı: sadece ilk set (boş/null ise).
+      allow update: if isAdmin() || (isSelf()
+        && (resource.data.gender == null || resource.data.gender == '')
+        && request.resource.data.diff(resource.data).changedKeys().hasOnly(['gender', 'updatedAt'])
+        && isValidGenderWrite()
+        && request.resource.data.updatedAt == request.time
+      );
+
+      allow delete: if isAdmin();
     }
 
     // Matchmaking Matches (kullanıcıya özel eşleşme kartları)
     // Not: Kullanıcılar sadece kendi dahil oldukları eşleşmeleri okuyabilir.
     // Karar verme işlemi client'tan direkt update ile değil, server API ile yapılmalıdır.
     match /matchmakingMatches/{matchId} {
-      allow read: if isNonAnonymous() && (request.auth.uid in resource.data.userIds);
+      // Admin panel tüm eşleşmeleri listeleyebilmelidir.
+      allow read: if isAdmin() || (isNonAnonymous() && (request.auth.uid in resource.data.userIds));
       allow create, update, delete: if isAdmin();
 
       // Matchmaking Chat messages
       // Not: Mesaj yazma işlemini sadece server API ile yapın (client write kapalı).
       match /messages/{messageId} {
-        allow read: if isNonAnonymous() && (request.auth.uid in get(/databases/$(database)/documents/matchmakingMatches/$(matchId)).data.userIds);
+        allow read: if isAdmin() || (isNonAnonymous() && (request.auth.uid in get(/databases/$(database)/documents/matchmakingMatches/$(matchId)).data.userIds));
         allow create, update, delete: if false;
       }
     }
@@ -93,6 +104,38 @@ service cloud.firestore {
     // Not: Bu sayaçlar yalnızca server-side transaction ile güncellenmeli.
     match /counters/{id} {
       allow read, write: if isAdmin();
+    }
+
+    // Wedding page content (hero/galeri görselleri gibi public içerikler)
+    // Not: Herkese okuma açık; sadece admin yazabilir.
+    match /weddingContent/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Admin panel config dokümanları
+    // Not: Bazı dashboard ekranları bu dokümanları okumaya çalışır.
+    match /imageUrls/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /siteSettings/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Reservations (kullanıcı kendi rezervasyonunu oluşturur; admin hepsini görür/yönetir)
+    match /reservations/{reservationId} {
+      allow create: if isNonAnonymous()
+        && request.resource.data.userId == request.auth.uid;
+      allow read: if isAdmin() || (isNonAnonymous() && resource.data.userId == request.auth.uid);
+      allow update, delete: if isAdmin();
+    }
+
+    // Her şeyin sonu: açıkça kapat (kaza ile yeni koleksiyon açılmasın)
+    match /{document=**} {
+      allow read, write: if false;
     }
   }
 }

@@ -1,3 +1,4 @@
+import { formatProfileCode } from '../utils/profileCode';
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
@@ -40,6 +41,8 @@ export default function Panel() {
   const [chatNotifyMsgByMatchId, setChatNotifyMsgByMatchId] = useState({});
 
   const lastChatSeenMessageIdByMatchIdRef = useRef({});
+  const chatScrollElByMatchIdRef = useRef({});
+  const lastChatLenByMatchIdRef = useRef({});
 
   const [rejectAllAction, setRejectAllAction] = useState({ loading: false, error: '', success: '' });
 
@@ -63,9 +66,16 @@ export default function Panel() {
   const [receiptUpload, setReceiptUpload] = useState({ loading: false, error: '' });
 
   const showMatchmakingIntro = !!location?.state?.showMatchmakingIntro;
-  const matchmakingNext = typeof location?.state?.matchmakingNext === 'string' && location.state.matchmakingNext
-    ? location.state.matchmakingNext
-    : '/wedding/apply';
+  const matchmakingNext = '/evlilik/eslestirme-basvuru';
+
+  const [onboardingAccepted, setOnboardingAccepted] = useState(() => {
+    try {
+      return localStorage.getItem('mk_onboarding_accepted') === '1';
+    } catch (e) {
+      return false;
+    }
+  });
+  const [onboardingChecked, setOnboardingChecked] = useState(onboardingAccepted);
 
   const introPoints = useMemo(() => {
     const g = String(matchmaking?.gender || matchmakingUser?.gender || '').toLowerCase().trim();
@@ -185,11 +195,33 @@ export default function Panel() {
     return { active, eligible, blocked, windowHours, lastActiveAtMs, expiresAtMs, expired, hoursLeft };
   }, [matchmakingUser]);
 
+  const frequentCancelInfo = useMemo(() => {
+    const cb = matchmakingUser?.contactCancelBehaviour || null;
+    const events = Array.isArray(cb?.recentContactCancelMs) ? cb.recentContactCancelMs : [];
+
+    const now = Date.now();
+    const windowMs = 48 * 3600000;
+    const cutoff = now - windowMs;
+
+    const recent = events
+      .filter((ms) => typeof ms === 'number' && Number.isFinite(ms))
+      .filter((ms) => ms >= cutoff && ms <= now + 60000);
+
+    const count = recent.length;
+    const lastMs = recent.length ? Math.max(...recent) : 0;
+    const show = count >= 3 && lastMs > 0;
+    return { show, count, lastMs };
+  }, [matchmakingUser]);
+
+  const devBypassMembership = !!import.meta?.env?.DEV;
+
   const canTakeActions = useMemo(() => {
+    // Dev sunucuda (Vite dev) üyelik kapısını açık say: geliştirme/test akışını hızlandırır.
+    if (devBypassMembership) return true;
     if (myGender === 'male') return myMembership.active;
     if (myGender === 'female') return myMembership.active || (myIdentityVerified && myFreeActive.eligible);
     return myMembership.active;
-  }, [myGender, myIdentityVerified, myMembership.active, myFreeActive.eligible]);
+  }, [devBypassMembership, myGender, myIdentityVerified, myMembership.active, myFreeActive.eligible]);
 
   const canSeeFullProfiles = canTakeActions;
 
@@ -309,28 +341,85 @@ export default function Panel() {
   useEffect(() => {
     if (!user?.uid) return;
 
-    const q = query(
+    const isIndexError = (err) => {
+      const code = typeof err?.code === 'string' ? err.code : '';
+      const message = typeof err?.message === 'string' ? err.message : '';
+      return code === 'failed-precondition' && /requires an index/i.test(message);
+    };
+
+    const sortAndSet = (snap) => {
+      const items = [];
+      snap.forEach((d) => items.push({ id: d.id, ...d.data() }));
+
+      const toMs = (ts) => {
+        if (!ts) return 0;
+        if (typeof ts?.toMillis === 'function') return ts.toMillis();
+        if (typeof ts?.seconds === 'number') return ts.seconds * 1000;
+        if (typeof ts === 'number') return ts;
+        return 0;
+      };
+
+      items.sort((a, b) => toMs(b?.createdAt) - toMs(a?.createdAt));
+      setMatchmakingMatches(items.slice(0, 25));
+      setMatchmakingMatchesLoading(false);
+    };
+
+    const qPrimary = query(
       collection(db, 'matchmakingMatches'),
       where('userIds', 'array-contains', user.uid),
       orderBy('createdAt', 'desc'),
       limit(25)
     );
 
-    const unsub = onSnapshot(
-      q,
-      (snap) => {
-        const items = [];
-        snap.forEach((d) => items.push({ id: d.id, ...d.data() }));
-        setMatchmakingMatches(items);
-        setMatchmakingMatchesLoading(false);
-      },
-      (err) => {
-        console.error('Eşleşmeler yüklenemedi:', err);
-        setMatchmakingMatchesLoading(false);
-      }
+    const qFallback = query(
+      collection(db, 'matchmakingMatches'),
+      where('userIds', 'array-contains', user.uid)
     );
 
-    return unsub;
+    let usingFallback = false;
+    let unsub = () => {};
+
+    const subscribe = (q) => {
+      unsub = onSnapshot(
+        q,
+        (snap) => {
+          if (usingFallback) {
+            sortAndSet(snap);
+            return;
+          }
+
+          const items = [];
+          snap.forEach((d) => items.push({ id: d.id, ...d.data() }));
+          setMatchmakingMatches(items);
+          setMatchmakingMatchesLoading(false);
+        },
+        (err) => {
+          if (!usingFallback && isIndexError(err)) {
+            console.warn('Eşleşmeler index gerektiriyor; fallback sorguya geçiliyor.', err);
+            usingFallback = true;
+            try {
+              unsub();
+            } catch {
+              // noop
+            }
+            subscribe(qFallback);
+            return;
+          }
+
+          console.error('Eşleşmeler yüklenemedi:', err);
+          setMatchmakingMatchesLoading(false);
+        }
+      );
+    };
+
+    subscribe(qPrimary);
+    return () => {
+      try {
+        unsub();
+      } catch {
+        // noop
+      }
+    };
   }, [user?.uid]);
 
   useEffect(() => {
@@ -425,6 +514,33 @@ export default function Panel() {
 
     return items.slice(0, 3);
   }, [matchmakingMatches, lockInfo.active, lockInfo.matchId, user?.uid]);
+
+  useEffect(() => {
+    // Yeni mesaj geldikçe chat kutusunu en alta kaydır.
+    // Kullanıcı deneyimi: her zaman en güncel mesaj görünür kalsın.
+    const list = Array.isArray(activeMatches) ? activeMatches : [];
+    for (const m of list) {
+      const matchId = String(m?.id || '');
+      if (!matchId) continue;
+      if (String(m?.interactionMode || '') !== 'chat') continue;
+
+      const items = chatByMatchId?.[matchId]?.items || [];
+      const len = Array.isArray(items) ? items.length : 0;
+      const prevLen = typeof lastChatLenByMatchIdRef.current[matchId] === 'number' ? lastChatLenByMatchIdRef.current[matchId] : -1;
+
+      if (len === prevLen) continue;
+
+      lastChatLenByMatchIdRef.current[matchId] = len;
+      const el = chatScrollElByMatchIdRef.current[matchId];
+      if (!el) continue;
+
+      try {
+        el.scrollTop = el.scrollHeight;
+      } catch {
+        // noop
+      }
+    }
+  }, [activeMatches, chatByMatchId]);
 
   const newMatchQuotaInfo = useMemo(() => {
     const limit = 3;
@@ -944,7 +1060,7 @@ export default function Panel() {
                   matchmaking?.fullName ||
                   user?.displayName ||
                   (user?.email ? String(user.email).split('@')[0] : t('matchmakingPanel.account.title'));
-                const profileNo = matchmaking?.profileCode || (typeof matchmaking?.profileNo === 'number' ? matchmaking.profileNo : '');
+                const profileCode = formatProfileCode(matchmaking);
                 return (
                   <>
                     <div className="w-12 h-12 rounded-2xl border border-slate-200 bg-white overflow-hidden flex items-center justify-center">
@@ -957,9 +1073,9 @@ export default function Panel() {
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
                         <div className="font-semibold text-slate-900 truncate">{title}</div>
-                        {profileNo ? (
+                        {profileCode ? (
                           <span className="inline-flex items-center rounded-full bg-white border border-slate-200 px-2 py-0.5 text-[11px] font-semibold text-slate-700">
-                            {t('matchmakingPanel.application.profileNo')}: {profileNo}
+                            {t('matchmakingPanel.application.profileNo')}: {profileCode}
                           </span>
                         ) : null}
                       </div>
@@ -990,10 +1106,69 @@ export default function Panel() {
             {matchmakingLoading ? (
               <p className="text-sm text-slate-600 mt-1">{t('common.loading')}</p>
             ) : !matchmaking ? (
-              <p className="text-sm text-slate-600 mt-1">
-                {t('matchmakingPanel.application.empty')}{" "}
-                <Link to={matchmakingNext} className="text-sky-700 font-semibold hover:underline">{t('matchmakingPanel.application.goToForm')}</Link>
-              </p>
+              <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-4">
+                <p className="text-sm font-semibold text-slate-900">Başlamadan önce</p>
+                <p className="text-sm text-slate-700 mt-1">
+                  Bu panel, eşleştirme sürecini yönetmek içindir. Profil oluşturmak için 1 kez başvuru formunu doldurursun;
+                  profil oluşturulduktan sonra her girişinde doğrudan bu panel açılır.
+                </p>
+
+                <div className="mt-3 rounded-xl border border-slate-200 bg-white p-3">
+                  <p className="text-xs font-semibold text-slate-900">Sistem amacı ve kurallar</p>
+                  <ul className="mt-2 space-y-1 text-sm text-slate-700 list-disc pl-5">
+                    <li>Bu alan herkese açık profil gezme alanı değildir; profiller kamuya açık listelenmez.</li>
+                    <li>Bilgiler, eşleştirme ve güvenli iletişim amacıyla kullanılır.</li>
+                    <li>Uygun eşleşme varsa panelinde görüntülenir; beğen/geç ile ilerlersin.</li>
+                    <li>İletişim paylaşımı karşılıklı onay ve kurallara göre açılır.</li>
+                  </ul>
+                </div>
+
+                <label className="mt-3 inline-flex items-center gap-2 text-sm text-slate-800">
+                  <input
+                    type="checkbox"
+                    checked={onboardingChecked}
+                    onChange={(e) => setOnboardingChecked(e.target.checked)}
+                  />
+                  Açıklamaları ve kuralları okudum.
+                </label>
+
+                <div className="mt-4 flex flex-col sm:flex-row gap-3 sm:items-center">
+                  <button
+                    type="button"
+                    disabled={!onboardingChecked}
+                    onClick={() => {
+                      try {
+                        localStorage.setItem('mk_onboarding_accepted', onboardingChecked ? '1' : '0');
+                      } catch (e) {
+                        // ignore
+                      }
+                      setOnboardingAccepted(true);
+                    }}
+                    className="px-4 py-2 rounded-full bg-slate-900 text-white text-sm font-semibold hover:bg-slate-800 disabled:opacity-60"
+                  >
+                    Profil oluştur
+                  </button>
+
+                  <Link
+                    to={matchmakingNext}
+                    className={`px-4 py-2 rounded-full text-sm font-semibold text-center ${
+                      onboardingAccepted ? 'bg-emerald-600 text-white hover:bg-emerald-700' : 'bg-slate-200 text-slate-500 pointer-events-none'
+                    }`}
+                    aria-disabled={!onboardingAccepted}
+                    tabIndex={onboardingAccepted ? 0 : -1}
+                  >
+                    Eşleşme başlatmak için form doldur
+                  </Link>
+
+                  <Link to="/uniqah" className="text-sm font-semibold text-sky-700 hover:underline">
+                    Sistem nasıl çalışır?
+                  </Link>
+                </div>
+
+                <p className="mt-3 text-xs text-slate-600">
+                  Not: Profil oluşturduktan sonra formu 1 kez gönder. Sonraki girişlerde tekrar forma yönlendirilmezsin.
+                </p>
+              </div>
             ) : (
               <div className="mt-4 grid grid-cols-1 lg:grid-cols-12 gap-4">
                 <div className="lg:col-span-5 space-y-3">
@@ -1006,9 +1181,9 @@ export default function Panel() {
                             {t('matchmakingPanel.application.username')}: <span className="font-semibold">{matchmaking.username}</span>
                           </p>
                         ) : null}
-                        {matchmaking.profileCode || typeof matchmaking.profileNo === 'number' ? (
+                        {formatProfileCode(matchmaking) ? (
                           <p className="text-xs text-slate-600 mt-1">
-                            {t('matchmakingPanel.application.profileNo')}: <span className="font-semibold">{matchmaking.profileCode || matchmaking.profileNo}</span>
+                            {t('matchmakingPanel.application.profileNo')}: <span className="font-semibold">{formatProfileCode(matchmaking)}</span>
                           </p>
                         ) : null}
                         <p className="text-xs text-slate-600 mt-1">
@@ -1046,7 +1221,11 @@ export default function Panel() {
                     <button
                       type="button"
                       onClick={() => {
-                        const msg = t('matchmakingPanel.update.whatsappMessage', { applicationId: matchmaking.id });
+                        const msg = t('matchmakingPanel.update.whatsappMessage', {
+                          applicationId: matchmaking.id,
+                          fullName: String(matchmaking?.fullName || '').trim(),
+                          profileCode: formatProfileCode(matchmaking),
+                        });
                         openWhatsApp(msg);
                       }}
                       className="mt-2 px-4 py-2 rounded-full bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700"
@@ -1059,6 +1238,16 @@ export default function Panel() {
                   <div className="rounded-xl bg-white border border-slate-200 p-3">
                     <p className="text-xs font-semibold text-slate-900">{t('matchmakingPanel.membership.title')}</p>
                     <p className="text-sm text-slate-700 mt-1">{membershipStatusText}</p>
+
+                    {frequentCancelInfo.show ? (
+                      <div className="mt-3 rounded-xl border border-rose-200 bg-rose-50 p-3">
+                        <p className="text-xs font-semibold text-rose-900">Sık iptal uyarısı</p>
+                        <p className="mt-1 text-xs text-slate-700">
+                          Son 48 saat içinde <span className="font-semibold">{frequentCancelInfo.count} kez</span> eşleşme iptal ettiniz.
+                          Lütfen sadece gerçekten ilgilendiğiniz profilleri onaylayın.
+                        </p>
+                      </div>
+                    ) : null}
 
                     {(myGender === 'male' || myGender === 'female') ? (
                       <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3">
@@ -1198,6 +1387,15 @@ export default function Panel() {
                                 >
                                   {t('matchmakingPanel.verification.actions.openWhatsapp')}
                                 </a>
+                              ) : r?.whatsappMessage ? (
+                                <button
+                                  type="button"
+                                  onClick={() => openWhatsApp(String(r.whatsappMessage || ''))}
+                                  className="mt-1 inline-block text-xs font-semibold text-sky-700 hover:underline"
+                                  disabled={!whatsappNumber}
+                                >
+                                  {t('matchmakingPanel.verification.actions.openWhatsapp')}
+                                </button>
                               ) : null}
                             </div>
                           );
@@ -1391,9 +1589,9 @@ export default function Panel() {
                                     </span>
                                   ) : null}
                                 </p>
-                                {other.profileCode || typeof other.profileNo === 'number' ? (
+                                {formatProfileCode(other) ? (
                                   <p className="text-xs text-slate-600 mt-1">
-                                    {t('matchmakingPanel.matches.candidate.matchedProfile')}: <span className="font-semibold">{other.profileCode || other.profileNo}</span>
+                                    {t('matchmakingPanel.matches.candidate.matchedProfile')}: <span className="font-semibold">{formatProfileCode(other)}</span>
                                   </p>
                                 ) : null}
                                 {canSeeFullProfiles ? (
@@ -1579,7 +1777,13 @@ export default function Panel() {
                                     <div className="mt-2 text-xs text-slate-600">{t('common.loading')}</div>
                                   ) : null}
 
-                                  <div className="mt-2 max-h-56 overflow-auto rounded-lg border border-slate-200 bg-slate-50 p-2">
+                                  <div
+                                    ref={(el) => {
+                                      if (!m?.id) return;
+                                      if (el) chatScrollElByMatchIdRef.current[m.id] = el;
+                                    }}
+                                    className="mt-2 max-h-56 overflow-auto rounded-lg border border-slate-200 bg-slate-50 p-2"
+                                  >
                                     {(chatByMatchId?.[m.id]?.items || []).length === 0 ? (
                                       <div className="text-xs text-slate-600">{t('matchmakingPanel.matches.chat.empty')}</div>
                                     ) : (
@@ -1962,8 +2166,8 @@ export default function Panel() {
                             ) : null}
 
                             {m.status === 'proposed' ? (
-                              canSeeFullProfiles ? (
-                                <div className="mt-3 flex flex-col sm:flex-row gap-2">
+                              <div className="mt-3">
+                                <div className="flex flex-col sm:flex-row gap-2">
                                   <button
                                     type="button"
                                     disabled={matchmakingAction.loading || myDecision === 'accept' || !canTakeActions}
@@ -1997,32 +2201,35 @@ export default function Panel() {
                                     </div>
                                   ) : null}
                                 </div>
-                              ) : (
-                                <div className="mt-3 flex flex-col sm:flex-row gap-2">
-                                  <button
-                                    type="button"
-                                    disabled={dismissAction.loading && dismissAction.matchId === m.id}
-                                    onClick={() => dismissMatch(m.id)}
-                                    className="px-4 py-2 rounded-full bg-slate-900 text-white text-sm font-semibold hover:bg-slate-800 disabled:opacity-60"
-                                  >
-                                    {t('matchmakingPanel.actions.dismissMatch')}
-                                  </button>
-                                  <button
-                                    type="button"
-                                    disabled={requestNewAction.loading}
-                                    onClick={requestNewMatch}
-                                    className="px-4 py-2 rounded-full border border-slate-300 text-slate-900 text-sm font-semibold hover:bg-white disabled:opacity-60"
-                                  >
-                                    {requestNewAction.loading
-                                      ? t('matchmakingPanel.actions.requestingNew')
-                                      : t('matchmakingPanel.actions.requestNewWithRemaining', { remaining: newMatchQuotaInfo.remaining, limit: newMatchQuotaInfo.limit })}
-                                  </button>
 
-                                  <div className="text-xs text-slate-600">
-                                    {t('matchmakingPanel.actions.requestNewQuotaHint', { remaining: newMatchQuotaInfo.remaining, limit: newMatchQuotaInfo.limit })}
+                                {!canSeeFullProfiles ? (
+                                  <div className="mt-3">
+                                    <div className="flex flex-col sm:flex-row gap-2">
+                                      <button
+                                        type="button"
+                                        disabled={dismissAction.loading && dismissAction.matchId === m.id}
+                                        onClick={() => dismissMatch(m.id)}
+                                        className="px-4 py-2 rounded-full bg-slate-900 text-white text-sm font-semibold hover:bg-slate-800 disabled:opacity-60"
+                                      >
+                                        {t('matchmakingPanel.actions.dismissMatch')}
+                                      </button>
+                                      <button
+                                        type="button"
+                                        disabled={requestNewAction.loading}
+                                        onClick={requestNewMatch}
+                                        className="px-4 py-2 rounded-full border border-slate-300 text-slate-900 text-sm font-semibold hover:bg-white disabled:opacity-60"
+                                      >
+                                        {requestNewAction.loading
+                                          ? t('matchmakingPanel.actions.requestingNew')
+                                          : t('matchmakingPanel.actions.requestNewWithRemaining', { remaining: newMatchQuotaInfo.remaining, limit: newMatchQuotaInfo.limit })}
+                                      </button>
+                                    </div>
+                                    <div className="mt-2 text-xs text-slate-600">
+                                      {t('matchmakingPanel.actions.requestNewQuotaHint', { remaining: newMatchQuotaInfo.remaining, limit: newMatchQuotaInfo.limit })}
+                                    </div>
                                   </div>
-                                </div>
-                              )
+                                ) : null}
+                              </div>
                             ) : null}
 
                             {m.status === 'cancelled' && String(m?.cancelledReason || '') === 'rejected' && String(m?.cancelledByUserId || '') !== String(user?.uid || '') ? (

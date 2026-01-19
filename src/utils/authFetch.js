@@ -1,8 +1,36 @@
 import { auth } from '../config/firebase';
 
+function waitForAuthUser(timeoutMs = 4000) {
+  return new Promise((resolve) => {
+    let done = false;
+
+    const timer = setTimeout(() => {
+      if (done) return;
+      done = true;
+      try {
+        unsubscribe();
+      } catch {
+        // ignore
+      }
+      resolve(null);
+    }, timeoutMs);
+
+    const unsubscribe = auth.onAuthStateChanged((nextUser) => {
+      if (done) return;
+      done = true;
+      clearTimeout(timer);
+      resolve(nextUser || null);
+    });
+  });
+}
+
 export async function authFetch(url, { headers = {}, ...options } = {}) {
-  const user = auth.currentUser;
-  if (!user) throw new Error('not_authenticated');
+  let user = auth.currentUser;
+  if (!user) {
+    user = await waitForAuthUser();
+  }
+
+  if (!user || user.isAnonymous) throw new Error('not_authenticated');
 
   const token = await user.getIdToken();
 

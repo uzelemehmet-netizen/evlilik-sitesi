@@ -9,12 +9,22 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    const safety = setTimeout(() => {
+      setLoading(false);
+      // eslint-disable-next-line no-console
+      console.warn('[auth] onAuthStateChanged timeout; forcing loading=false');
+    }, 7000);
+
     const unsubscribe = onAuthStateChanged(auth, (nextUser) => {
       setUser(nextUser || null);
       setLoading(false);
+      clearTimeout(safety);
     });
 
-    return unsubscribe;
+    return () => {
+      clearTimeout(safety);
+      unsubscribe();
+    };
   }, []);
 
   const value = useMemo(() => ({ user, loading }), [user, loading]);

@@ -27,7 +27,9 @@ npm run dev:api
 
 Notlar:
 - Vite dev server, `/api` isteklerini varsayılan olarak `http://localhost:3000` adresine proxy'ler. İsterseniz `VITE_API_PROXY_TARGET` ile değiştirebilirsiniz.
-- Firestore "The query requires an index" hatası alırsanız, konsoldaki linke tıklayıp index oluşturmanız gerekir.
+- Firestore "The query requires an index" / `FAILED_PRECONDITION` hatası alırsanız, konsoldaki linke tıklayıp index oluşturmanız gerekir. Bu projede özellikle şu sorgular index ister:
+	- `matchmakingMatches`: `where('userIds','array-contains', uid)` + `orderBy('createdAt','desc')`
+	- `matchmakingMatches`: `where('status','in',[...])` + `orderBy('updatedAt','desc')`
 - "Missing or insufficient permissions" hatası Firestore Rules kaynaklıdır; daha kapsamlı snippet için [FIRESTORE_RULES_SNIPPET.md](FIRESTORE_RULES_SNIPPET.md) dosyasına bakın.
 - Firebase Storage CORS hataları için [FIREBASE_STORAGE_CORS.md](FIREBASE_STORAGE_CORS.md) adımlarını izleyin.
 

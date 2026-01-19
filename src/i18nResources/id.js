@@ -1,3 +1,156 @@
+import en from "./en";
+
+function isPlainObject(value) {
+  return (
+    value != null &&
+    typeof value === "object" &&
+    !Array.isArray(value) &&
+    Object.prototype.toString.call(value) === "[object Object]"
+  );
+}
+
+function deepMerge(base, override) {
+  if (!isPlainObject(base) || !isPlainObject(override)) {
+    return override;
+  }
+
+  const out = { ...base };
+  for (const [key, value] of Object.entries(override)) {
+    if (isPlainObject(value) && isPlainObject(base[key])) {
+      out[key] = deepMerge(base[key], value);
+    } else {
+      out[key] = value;
+    }
+  }
+  return out;
+}
+
+// Safe Indonesian translations: start from EN for full key coverage,
+// override only the key sections we maintain in Indonesian.
+const overrides = {
+  navigation: {
+    siteTitle: "Endonezya Kaşifi",
+    siteSubtitle: "PT MoonStar Global Indonesia",
+    taglineTravelOrg: "Organisasi perjalanan",
+    taglineWeddingGuidance: "Panduan pernikahan",
+    home: "Beranda",
+    about: "Tentang Kami",
+    corporate: "Perusahaan",
+    travel: "Perjalanan",
+    tours: "Paket Tur",
+    explore: "Jelajahi",
+    wedding: "Panduan Pernikahan",
+    matchmaking: "Uniqah",
+    panel: "Panel saya",
+    documents: "Dokumen",
+    youtube: "YouTube",
+    contact: "Kontak",
+  },
+
+  matchmakingHub: {
+    metaTitle: "Uniqah",
+    badge: "Proses privat & dimoderasi",
+    title: "Sistem pencocokan untuk pernikahan",
+    description:
+      "Sistem pencocokan tertutup yang mempertemukan orang-orang yang serius ingin menikah—dengan syarat yang adil dan aman. Profil tidak publik; sistem menampilkan kandidat paling cocok di panel Anda dan membantu Anda menemukan pasangan yang tepat lebih cepat.",
+    actions: {
+      apply: "Ajukan pencocokan",
+      goPanel: "Panel saya",
+      backWedding: "Kembali ke halaman pernikahan",
+      supportWhatsApp: "Dukungan WhatsApp",
+    },
+    whatsappSupportMessage:
+      "Halo, saya butuh bantuan terkait sistem pencocokan. Saya punya laporan/permintaan peninjauan.",
+    cards: {
+      private: {
+        title: "Tidak ada profil publik",
+        desc: "Profil tidak dipublikasikan; evaluasi ditangani oleh sistem.",
+      },
+      review: {
+        title: "Evaluasi sistem",
+        desc: "Saat ada kecocokan, proses berlanjut dengan aman melalui panel Anda.",
+      },
+      panel: {
+        title: "Kelola lewat panel",
+        desc: "Anda mengelola pratinjau, kecocokan, dan langkah berikutnya dari panel.",
+      },
+    },
+    how: {
+      title: "Bagaimana cara kerjanya?",
+      subtitle: "Alur dari daftar hingga komunikasi dibuat terkontrol dan jelas.",
+      steps: [
+        {
+          title: "Daftar dan buat profil",
+          desc: "Setelah daftar, Anda membuat profil dengan mengisi formulir.",
+        },
+        {
+          title: "Lihat profil yang cocok di panel",
+          desc: "Sistem menampilkan profil paling cocok (pratinjau terbatas).",
+        },
+        {
+          title: "Suka / lewati",
+          desc: "Sukai profil yang Anda minati; jika saling suka, tahap pertama selesai.",
+        },
+        {
+          title: "Pilih metode kontak",
+          desc: "Pilih “bagikan kontak saya” atau “chat di dalam situs”.",
+        },
+        {
+          title: "Mulai komunikasi",
+          desc: "Jika keduanya berbagi kontak, detail muncul; jika keduanya memilih chat, ruang chat terbuka di panel.",
+        },
+      ],
+    },
+    safety: {
+      title: "Keamanan dan kualitas",
+      subtitle:
+        "Tidak seperti platform pencarian publik, sistem ini mempersempit ruang gerak pelaku buruk.",
+      points: [
+        "Karena profil tidak publik, akses yang tidak diinginkan dan gangguan berkurang drastis.",
+        "Penipuan dan eksploitasi finansial bisa diblokir cepat lewat deteksi dan laporan.",
+        "Kirim laporan ke dukungan WhatsApp; setelah ditinjau, akun dihapus dari sistem.",
+      ],
+    },
+  },
+
+  matchmakingPage: {
+    form: {
+      consents: {
+        terms: "Saya telah membaca dan menyetujui <termsLink>Syarat & Ketentuan</termsLink>.",
+      },
+      errors: {
+        consentsRequired:
+          "Untuk mengirim, Anda harus menyetujui kotak persetujuan (18+, Kebijakan Privasi, Syarat & Ketentuan, persetujuan foto).",
+      },
+    },
+  },
+
+  authPage: {
+    title: "Masuk / Daftar",
+    context: {
+      payment: "Silakan masuk untuk melanjutkan ke pembayaran.",
+      panel: "Silakan masuk untuk melanjutkan ke panel Anda.",
+      generic: "Silakan masuk untuk melanjutkan.",
+    },
+    forceInfo:
+      "Aksi ini meminta login ulang. Silakan masuk kembali.",
+    googleCta: "Lanjut dengan Google",
+    redirecting: "Mengarahkan ke masuk Google…",
+    or: "atau",
+  },
+
+  panel: {
+    membership: {
+      title: "Syarat keanggotaan",
+      lead: "Syarat keanggotaan:",
+      freeActiveTermsTitle: "Syarat keanggotaan aktif gratis",
+    },
+  },
+};
+
+export default deepMerge(en, overrides);
+
+/*
 export default {
   navigation: {
     siteTitle: "Endonezya Kaşifi",
@@ -11,14 +164,14 @@ export default {
     tours: "Paket Tur",
     explore: "Jelajahi",
     wedding: "Panduan Pernikahan",
-    matchmaking: "Pencocokan",
+    matchmaking: "Uniqah",
     documents: "Dokumen",
     youtube: "YouTube",
     contact: "Kontak",
   },
 
   matchmakingHub: {
-    metaTitle: 'Pencocokan',
+    metaTitle: 'Uniqah',
     badge: 'Proses privat & dimoderasi',
     title: 'Sistem pencocokan untuk pernikahan',
     description:
@@ -62,13 +215,13 @@ export default {
         'Karena profil tidak publik, akses yang tidak diinginkan dan gangguan berkurang drastis.',
         'Penipuan dan eksploitasi finansial bisa diblokir cepat lewat deteksi dan laporan.',
         'Kirim laporan ke dukungan WhatsApp; setelah ditinjau, akun dihapus dari sistem.',
-      ],
+            terms: 'Saya telah membaca dan menyetujui <termsLink>Syarat & Ketentuan</termsLink>.',
     },
   },
 
   meta: {
     baseTitle: "Endonezya Kaşifi | PT MoonStar Global Indonesia",
-    baseDescription:
+            consentsRequired: 'Untuk mengirim, Anda harus menyetujui kotak persetujuan (18+, Kebijakan Privasi, Syarat & Ketentuan, persetujuan foto).',
       "Endonezya Kaşifi (PT MoonStar Global Indonesia) menyediakan layanan tur di Indonesia, perencanaan perjalanan khusus, bulan madu, serta panduan pernikahan.",
     pages: {
       home: { title: "Endonezya Kaşifi | PT MoonStar Global Indonesia" },
@@ -165,14 +318,14 @@ export default {
       {
         title: "Kami memahami Anda dan situasi Anda",
         description:
-          "Anda mengisi form; dengan informasi yang Anda berikan, kami memperjelas kebutuhan Anda.",
+        ],
       },
-      {
+    },
         title: "Kami merencanakan bersama Anda",
         description:
           "Dokumen, tanggal, dan langkah proses kami susun bersama sesuai anggaran dan harapan Anda.",
-      },
-      {
+      baseDescription:
+        "Endonezya Kaşifi (PT MoonStar Global Indonesia) menyediakan layanan tur di Indonesia, perencanaan perjalanan khusus, bulan madu, serta panduan pernikahan.",
         title: "Kami mengelola proses langkah demi langkah",
         description:
           "Dari kedatangan Anda di Indonesia hingga pernikahan selesai, kami mendampingi di setiap langkah.",
@@ -189,6 +342,7 @@ export default {
     plan: {
       title: "Sampaikan rencana pernikahan Anda kepada kami",
       subtitle:
+        explore: { title: "Jelajahi" },
         "Isi kolom di bawah; kami akan segera menghubungi Anda dengan respons yang sesuai dengan situasi Anda.",
       successTitle: "Permintaan Anda berhasil dikirim!",
       successText: "Terima kasih telah mengisi form. Kami akan menghubungi Anda dalam 24 jam.",
@@ -1901,6 +2055,7 @@ export default {
           consents: {
             age: 'Saya mengonfirmasi bahwa saya berusia 18+.',
             privacy: 'Saya telah membaca <privacyLink>Kebijakan Privasi</privacyLink> dan menyetujui pemrosesan data untuk evaluasi/komunikasi.',
+            terms: 'Saya telah membaca dan menyetujui <termsLink>Syarat & Ketentuan</termsLink>.',
             photo: 'Saya menyetujui foto saya dilihat oleh tim admin untuk evaluasi (tidak dipublikasikan secara umum).',
           },
           submit: 'Kirim Pendaftaran',
@@ -1909,9 +2064,10 @@ export default {
           errors: {
             mustLogin: 'Anda harus masuk untuk mengirim pendaftaran.',
             blocked: 'Akun Anda diblokir dari pengiriman formulir ini.',
+            consentsRequired: 'Untuk mengirim, Anda harus menyetujui kotak persetujuan (18+, Kebijakan Privasi, Syarat & Ketentuan, persetujuan foto).',
             permissionDenied: 'Gagal mengirim (kesalahan izin). Silakan masuk dengan akun yang benar atau periksa aturan Firestore.',
             honeypotTriggered: 'Gagal mengirim. Autofill browser mungkin mengisi field tersembunyi. Refresh halaman dan coba lagi dengan autofill dimatikan.',
-            photoUploadFailed: 'Gagal mengunggah foto. Di local dev biasanya karena endpoint /api tidak berjalan (tanda tangan Cloudinary) atau env Cloudinary belum di-set. Solusi: jalankan `vercel dev --listen 3000` di root project (Vite mem-proxy /api), atau set `VITE_CLOUDINARY_CLOUD_NAME` + `VITE_CLOUDINARY_UPLOAD_PRESET` di `.env.local`. (Fallback Firebase Storage bisa diaktifkan, tapi sering kena CORS/izin.)',
+            photoUploadFailed: 'Gagal mengunggah foto. Project ini memakai Cloudinary SIGNED upload secara default. Biasanya berarti `/api/cloudinary-signature` tidak jalan atau env server belum lengkap. Solusi: jalankan `npm run dev` (API + web) dan pastikan `.env.local` punya `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET`. (Upload preset unsigned hanya dipakai jika diaktifkan secara khusus.)',
             username: 'Silakan tentukan nama pengguna.',
             fullName: 'Silakan masukkan nama lengkap.',
             age: 'Silakan masukkan usia.',
@@ -2086,6 +2242,7 @@ export default {
     },
     forceInfo: 'Untuk aksi ini diminta masuk ulang. Silakan masuk kembali.',
     googleCta: 'Lanjutkan dengan Google',
+    redirecting: 'Mengalihkan ke login Google…',
     or: 'atau',
     labels: {
       email: 'Email',
@@ -2203,19 +2360,19 @@ export default {
     update: {
       title: 'Perbarui info',
       body: 'Kami tidak mengubah formulir secara online. Jika ingin memperbarui info, silakan chat via WhatsApp.',
-      whatsappMessage: 'Saya ingin memperbarui informasi pengajuan pencocokan pernikahan saya. No. Pengajuan: {{applicationId}}',
+      whatsappMessage: 'Saya ingin memperbarui informasi pengajuan pencocokan pernikahan saya.\nNama lengkap: {{fullName}}\nNo profil: {{profileCode}}\nID pengajuan: {{applicationId}}',
     },
     membership: {
-      title: 'Status keanggotaan',
+      title: 'Syarat keanggotaan',
       active: 'Keanggotaan Anda aktif.',
-      inactive: 'Keanggotaan belum aktif. Sampai aktif, Anda tidak bisa melihat detail lengkap kandidat atau mengirim keputusan setuju/tolak.',
+        lead: 'Syarat keanggotaan:',
       inactiveMale: 'Keanggotaan belum aktif. Untuk pria, keanggotaan wajib untuk menggunakan aksi pencocokan (setuju/tolak, chat/kontak).',
       inactiveFemale: 'Keanggotaan belum aktif. Pencocokan dan pratinjau tersedia tanpa keanggotaan. Untuk melakukan aksi, Anda perlu keanggotaan aktif gratis (dengan verifikasi) atau keanggotaan berbayar.',
       activeViaVerification: 'Identitas Anda terverifikasi. Untuk melakukan aksi, Anda bisa mengajukan keanggotaan aktif gratis atau membeli keanggotaan berbayar.',
       freeActiveActive: 'Keanggotaan aktif gratis Anda aktif (via verifikasi identitas).',
       freeActiveTermsTitle: 'Syarat keanggotaan aktif gratis',
       freeActiveTermsBody: 'Jika Anda mendapatkan keanggotaan aktif gratis melalui verifikasi identitas dan tidak aktif selama 48 jam, keanggotaan aktif gratis akan dibatalkan. Saat mengajukan kembali, batas waktu turun menjadi 24 jam. Jika tidak aktif lagi, Anda tidak bisa mendapatkan keanggotaan aktif gratis sampai membeli keanggotaan berbayar, dan Anda tidak bisa meminta kecocokan baru.',
-      freeActiveApply: 'Ajukan keanggotaan aktif gratis',
+        lead: 'Syarat keanggotaan:',
       freeActiveApplying: 'Mengajukan…',
       freeActiveApplied: 'Keanggotaan aktif gratis diaktifkan. Batas waktu: {{hours}} jam.',
       daysLeft_one: 'Sisa waktu: {{count}} hari.',
@@ -2496,3 +2653,4 @@ export default {
     },
   },
 };
+*/

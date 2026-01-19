@@ -9,6 +9,7 @@ import {
   signOut,
   signInWithEmailAndPassword,
   signInWithPopup,
+  signInWithRedirect,
 } from "firebase/auth";
 import { doc, getDoc, serverTimestamp, setDoc } from "firebase/firestore";
 import Navigation from "../components/Navigation";
@@ -48,15 +49,17 @@ export default function Login() {
     const existing = snap.exists() ? String((snap.data() || {})?.gender || "").toLowerCase().trim() : "";
     if (existing) return;
 
-    await setDoc(
-      ref,
-      {
-        gender,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      },
-      { merge: true }
-    );
+    const payload = {
+      gender,
+      updatedAt: serverTimestamp(),
+    };
+
+    // createdAt sadece ilk oluşturma anında set edilsin (rules tarafını ve audit'i sadeleştirir).
+    if (!snap.exists()) {
+      payload.createdAt = serverTimestamp();
+    }
+
+    await setDoc(ref, payload, { merge: true });
   };
 
   const contextMessage = useMemo(() => {
@@ -128,6 +131,39 @@ export default function Login() {
       }
       goNext();
     } catch (e) {
+      const code = String(e?.code || "").trim();
+
+      // Popup engellenirse redirect ile devam et.
+      if (code === 'auth/popup-blocked' || code === 'auth/popup-closed-by-user' || code === 'auth/cancelled-popup-request') {
+        try {
+          const provider = new GoogleAuthProvider();
+          setInfo(t('authPage.redirecting') || 'Yönlendiriliyor…');
+          await signInWithRedirect(auth, provider);
+          return;
+        } catch (e2) {
+          setError(e2?.message || t("authPage.errors.googleFailed"));
+          return;
+        }
+      }
+
+      if (code === 'auth/unauthorized-domain') {
+        const host = typeof window !== 'undefined' ? String(window.location.hostname || '') : '';
+        setError(
+          `Google ile giriş başarısız (unauthorized-domain).\n\nFirebase Console → Authentication → Settings → Authorized domains kısmına bu domain'i ekleyin: ${host || '(domain bulunamadı)'}`
+        );
+        return;
+      }
+
+      if (code === 'auth/operation-not-allowed') {
+        setError('Google ile giriş kapalı. Firebase Console → Authentication → Sign-in method → Google sağlayıcısını etkinleştirin.');
+        return;
+      }
+
+      if (code === 'auth/invalid-api-key' || code === 'auth/configuration-not-found') {
+        setError('Firebase Auth yapılandırması geçersiz. `.env.local` içindeki `VITE_FIREBASE_*` değerlerini kontrol edin.');
+        return;
+      }
+
       setError(e?.message || t("authPage.errors.googleFailed"));
     } finally {
       setBusy(false);

@@ -5,6 +5,7 @@ import { doc, getDoc } from 'firebase/firestore';
 import { storage } from '../../config/firebase';
 import { db } from '../../config/firebase';
 import { authFetch } from '../../utils/authFetch';
+import { formatProfileCode } from '../../utils/profileCode';
 
 function formatTs(ts) {
   try {
@@ -324,7 +325,7 @@ export default function MatchmakingTab({ items, newCount, onMarkAllRead }) {
   const tabLabel = (it) => {
     const name = (it?.fullName || '-').trim();
     const age = typeof it?.age === 'number' ? it.age : null;
-    const profile = it?.profileCode || (typeof it?.profileNo === 'number' ? `MK-${it.profileNo}` : '');
+    const profile = formatProfileCode(it);
     const base = age !== null ? `${name} ${age}` : name;
     return profile ? `${base} • ${profile}` : base;
   };
@@ -597,8 +598,8 @@ export default function MatchmakingTab({ items, newCount, onMarkAllRead }) {
                         </span>
                       </div>
                       <div className={`mt-1 text-xs ${activeId === it.id ? 'text-white/80' : 'text-slate-600'}`}>
-                        {(it.profileCode || (typeof it.profileNo === 'number' ? `MK-${it.profileNo}` : ''))
-                          ? `${it.profileCode || `MK-${it.profileNo}`}${it.city ? ` • ${it.city}` : ''}`
+                        {formatProfileCode(it)
+                          ? `${formatProfileCode(it)}${it.city ? ` • ${it.city}` : ''}`
                           : (it.city ? it.city : '')}
                       </div>
                     </button>
@@ -633,8 +634,8 @@ export default function MatchmakingTab({ items, newCount, onMarkAllRead }) {
                             {formatTs(activeItem.createdAt)}
                             {activeItem.city ? ` • ${activeItem.city}` : ''}
                           </p>
-                          {activeItem.profileCode || typeof activeItem.profileNo === 'number' ? (
-                            <p className="text-xs text-slate-700 mt-1">Profil No: <span className="font-semibold">{activeItem.profileCode || activeItem.profileNo}</span></p>
+                          {formatProfileCode(activeItem) ? (
+                            <p className="text-xs text-slate-700 mt-1">Profil No: <span className="font-semibold">{formatProfileCode(activeItem)}</span></p>
                           ) : null}
                         </div>
                         {activeItem.id && (

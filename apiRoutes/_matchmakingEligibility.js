@@ -29,7 +29,16 @@ function computeFreeActiveMembershipState(userDoc, now = Date.now()) {
   return { active, blocked, windowHours, lastActiveAtMs, expiresAtMs, eligible };
 }
 
+function isDevBypassEnabled() {
+  const raw = String(process.env.MATCHMAKING_DEV_BYPASS || '').toLowerCase().trim();
+  return raw === '1' || raw === 'true' || raw === 'yes';
+}
+
 function ensureEligibleOrThrow(userDoc, gender) {
+  // Local dev akışında üyelik kontrolünü bypass edebilmek için.
+  // Prod’da kapalıdır; sadece dev-api script’i bu env’i set eder.
+  if (isDevBypassEnabled()) return;
+
   const g = normalizeGender(gender);
   const member = isMembershipActive(userDoc);
 

@@ -12,8 +12,33 @@ const REQUIRED_VARS = [
   },
   {
     key: 'VITE_CLOUDINARY_UPLOAD_PRESET',
-    value: 'websitemcloudinary',
-    comment: 'Cloudinary unsigned upload preset',
+    value: 'ml_default',
+    comment: 'Cloudinary unsigned upload preset (opsiyonel; hesabınız signed-only ise kullanmayabilirsiniz)',
+  },
+  {
+    key: 'CLOUDINARY_CLOUD_NAME',
+    value: 'dj1xg1c56',
+    comment: 'Cloudinary (server-side) cloud name - signed upload için gerekir',
+    mustHaveValue: true,
+  },
+  {
+    key: 'CLOUDINARY_API_KEY',
+    value: '',
+    comment: 'Cloudinary (server-side) API key - signed upload için gerekir (gizli; VITE_ kullanmayın)',
+    mustHaveValue: true,
+  },
+  {
+    key: 'CLOUDINARY_API_SECRET',
+    value: '',
+    comment: 'Cloudinary (server-side) API secret - signed upload için gerekir (gizli; VITE_ kullanmayın)',
+    mustHaveValue: true,
+  },
+  {
+    key: 'FIREBASE_SERVICE_ACCOUNT_JSON_FILE',
+    value: '',
+    comment:
+      'Firebase Admin (server-side /api) service account JSON dosya yolu (opsiyonel ama /api matchmaking endpointleri için gerekir). Örn: C:\\...\\firebase-service-account.json',
+    mustHaveValue: false,
   },
 ];
 
@@ -30,6 +55,16 @@ const readIfExists = () => {
 const hasKey = (content, key) => {
   const re = new RegExp(`^\\s*${key}\\s*=`, 'm');
   return re.test(content);
+};
+
+const hasNonEmptyValue = (content, key) => {
+  // IMPORTANT: After '=', do NOT use \s* because it includes newlines and would
+  // accidentally capture the next line when the value is empty.
+  const re = new RegExp(`^\\s*${key}\\s*=[ \\t]*(.*)$`, 'm');
+  const m = content.match(re);
+  if (!m) return false;
+  const value = String(m[1] || '').trim();
+  return value !== '';
 };
 
 const ensureFile = () => {
@@ -51,18 +86,29 @@ const ensureFile = () => {
 
   let next = existing;
   let didChange = false;
+  const emptyRequired = [];
 
   for (const v of REQUIRED_VARS) {
     if (!hasKey(next, v.key)) {
       const suffix = (next.endsWith('\n') ? '' : '\n') + `\n# ${v.comment}\n${v.key}=${v.value}\n`;
       next += suffix;
       didChange = true;
+      continue;
+    }
+
+    if (v.mustHaveValue && !hasNonEmptyValue(next, v.key)) {
+      emptyRequired.push(v.key);
     }
   }
 
-  if (!didChange) {
+  if (!didChange && !emptyRequired.length) {
     console.log('[ensure-env] .env.local zaten gerekli değerleri içeriyor.');
     return;
+  }
+
+  if (emptyRequired.length) {
+    console.log('[ensure-env] Uyarı: bazı değişkenler var ama değeri boş:', emptyRequired.join(', '));
+    console.log('[ensure-env] Bu değerleri .env.local içinde doldurun (gizli olanları asla paylaşmayın).');
   }
 
   fs.writeFileSync(envLocalPath, next, 'utf8');

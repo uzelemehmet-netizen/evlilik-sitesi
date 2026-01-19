@@ -51,13 +51,11 @@ export default async function handler(req, res) {
 
     const patch = {
       identityVerified: status === 'verified',
-      identityVerification: {
-        status,
-        method: 'kyc',
-        provider: provider || null,
-        sessionId: sessionId || null,
-        webhookAt: FieldValue.serverTimestamp(),
-      },
+      'identityVerification.status': status,
+      'identityVerification.method': 'kyc',
+      'identityVerification.provider': provider || null,
+      'identityVerification.sessionId': sessionId || null,
+      'identityVerification.webhookAt': FieldValue.serverTimestamp(),
       updatedAt: FieldValue.serverTimestamp(),
     };
 

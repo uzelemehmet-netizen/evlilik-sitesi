@@ -1,15 +1,40 @@
 export function isCloudinaryUnsignedUploadEnabled() {
+  const forceSigned = String(import.meta?.env?.VITE_CLOUDINARY_FORCE_SIGNED || '') === '1';
+  if (forceSigned) return false;
+
+  // Güvenlik + konfig netliği: unsigned upload varsayılan olarak KAPALI.
+  // Sadece açıkça izin verildiğinde devreye girer.
+  const allowUnsigned = String(import.meta?.env?.VITE_CLOUDINARY_ALLOW_UNSIGNED || '') === '1';
+  if (!allowUnsigned) return false;
+
   const preset = import.meta?.env?.VITE_CLOUDINARY_UPLOAD_PRESET;
   const cloudName = import.meta?.env?.VITE_CLOUDINARY_CLOUD_NAME;
   return !!(preset && cloudName);
 }
 
 async function getCloudinarySignedParams({ folder = '', tags = [] } = {}) {
-  const res = await fetch('/api/cloudinary-signature', {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ folder, tags }),
-  });
+  let res;
+  try {
+    res = await fetch('/api/cloudinary-signature', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ folder, tags }),
+    });
+  } catch (e) {
+    const apiTarget = import.meta?.env?.VITE_API_PROXY_TARGET;
+    const hint = apiTarget
+      ? `Vite proxy hedefi: ${apiTarget}`
+      : 'Vite proxy varsayılan hedefi: http://localhost:3000';
+
+    const err = new Error(
+      `Cloudinary signature isteği başarısız (network). ` +
+        `Sebep: ${String(e?.message || 'Failed to fetch')}. ` +
+        `Lokal geliştirmede API + Web birlikte çalışmalı (\`npm run dev\`). ` +
+        `${hint}`
+    );
+    err.details = { cause: String(e?.message || ''), hint };
+    throw err;
+  }
 
   let data = null;
   try {
@@ -19,7 +44,9 @@ async function getCloudinarySignedParams({ folder = '', tags = [] } = {}) {
   }
 
   if (!res.ok || !data?.ok) {
-    const err = new Error('Cloudinary signature failed');
+    const serverCode = data?.error ? String(data.error) : '';
+    const hint = serverCode ? ` (${serverCode})` : '';
+    const err = new Error(`Cloudinary signature failed: HTTP ${res.status}${hint}`);
     err.details = data;
     throw err;
   }
@@ -132,13 +159,29 @@ export async function uploadImageToCloudinarySigned(file, { folder = '', tags = 
 }
 
 export async function uploadImageToCloudinaryAuto(file, { folder = '', tags = [] } = {}) {
+  const mode = import.meta?.env?.MODE || '';
+
+  // Varsayılan davranış: önce signed dene.
+  // Bu, Cloudinary hesabında unsigned kapalıysa (signed-only) en doğru akış.
+  // Signed çalışmıyorsa ve client-side preset tanımlıysa (ör. local dev), unsigned'a düş.
   try {
     return await uploadImageToCloudinarySigned(file, { folder, tags });
-  } catch (err) {
-    // Signed ortam hazır değilse unsigned'a düş (preset varsa)
-    if (isCloudinaryUnsignedUploadEnabled()) {
+  } catch (signedErr) {
+    if (!isCloudinaryUnsignedUploadEnabled()) throw signedErr;
+
+    try {
       return await uploadImageToCloudinary(file, { folder, tags });
+    } catch (unsignedErr) {
+      // Dev modda iki ihtimal de fail edebileceği için daha anlaşılır bir hata üret.
+      const signedMsg = String(signedErr?.message || 'signed_failed');
+      const unsignedMsg = String(unsignedErr?.message || 'unsigned_failed');
+      const err = new Error(
+        mode === 'development'
+          ? `Cloudinary upload failed (signed then unsigned). Signed: ${signedMsg}. Unsigned: ${unsignedMsg}`
+          : signedMsg
+      );
+      err.details = { signed: signedErr?.details, unsigned: unsignedErr?.details };
+      throw err;
     }
-    throw err;
   }
 }

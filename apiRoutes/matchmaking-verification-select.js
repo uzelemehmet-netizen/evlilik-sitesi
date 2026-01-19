@@ -83,23 +83,16 @@ export default async function handler(req, res) {
 
       if (method === 'whatsapp') {
         const wa = getWhatsappNumber();
-        if (!wa) {
-          const err = new Error('whatsapp_not_configured');
-          err.statusCode = 500;
-          throw err;
-        }
-
         whatsappMessage = `Kimlik doğrulama talebi: ${referenceCode} (uid: ${uid})`;
-        whatsappUrl = `https://wa.me/${wa}?text=${encodeURIComponent(whatsappMessage)}`;
+        // WhatsApp numarası server env'de yoksa url üretmeyiz; client kendi fallback numarasıyla mesajı açabilir.
+        whatsappUrl = wa ? `https://wa.me/${wa}?text=${encodeURIComponent(whatsappMessage)}` : '';
       }
 
       if (method === 'manual') {
         // Manuel onay: kullanıcıdan admin ile iletişime geçmesini isteriz.
         const wa = getWhatsappNumber();
-        if (wa) {
-          whatsappMessage = `Manuel kimlik doğrulama talebi: ${referenceCode} (uid: ${uid})`;
-          whatsappUrl = `https://wa.me/${wa}?text=${encodeURIComponent(whatsappMessage)}`;
-        }
+        whatsappMessage = `Manuel kimlik doğrulama talebi: ${referenceCode} (uid: ${uid})`;
+        whatsappUrl = wa ? `https://wa.me/${wa}?text=${encodeURIComponent(whatsappMessage)}` : '';
       }
 
       if (method === 'kyc') {

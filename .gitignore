@@ -7,6 +7,15 @@ dist/
 .vercel
 .env*.local
 
+# Temp / backup files
+.tmp-debug.txt
+zip-log.txt
+*.bak
+
+# Local secrets
+secrets/
+**/firebase-service-account*.json
+
 # Large local GIS / export assets (not needed in git)
 oss/
 

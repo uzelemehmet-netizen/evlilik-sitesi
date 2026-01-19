@@ -11,14 +11,15 @@ export default {
     tours: "Tur Paketleri",
     explore: "Keşfet",
     wedding: "Evlilik",
-    matchmaking: "Eşleştirme",
+    matchmaking: "Uniqah",
+    panel: "Panelim",
     documents: "Dokümanlar",
     youtube: "YouTube",
     contact: "İletişim",
   },
 
   matchmakingHub: {
-    metaTitle: 'Eşleştirme',
+    metaTitle: 'Uniqah',
     badge: 'Gizli ve kontrollü süreç',
     title: 'Evlilik eşleştirme sistemi',
     description:
@@ -314,6 +315,7 @@ export default {
       consents: {
         age: '18 yaşından büyük olduğumu onaylıyorum.',
         privacy: '<privacyLink>Gizlilik Politikası</privacyLink>’nı okudum ve verilerimin değerlendirme/iletişim amacıyla işlenmesini kabul ediyorum.',
+        terms: '<termsLink>Kullanım Sözleşmesi</termsLink>’ni okudum ve kabul ediyorum.',
         photo: 'Fotoğrafımı, değerlendirme amacıyla admin ekibinin görmesini kabul ediyorum (profil herkese açık yayınlanmaz).',
       },
       submit: 'Başvuruyu Gönder',
@@ -323,9 +325,10 @@ export default {
       errors: {
         blocked: 'Bu hesap evlilik başvurularında engellenmiş. Eğer bunun hata olduğunu düşünüyorsanız bizimle iletişime geçin.',
         mustLogin: 'Başvuruyu göndermek için giriş yapmanız gerekir.',
+        consentsRequired: 'Başvuru için onay kutularını (18+, Gizlilik Politikası, Kullanım Sözleşmesi, Fotoğraf paylaşımı) işaretlemeniz gerekir.',
         permissionDenied: 'Başvuru gönderilemedi (izin hatası). Lütfen doğru hesapla giriş yapın veya Firestore kurallarını kontrol edin.',
         honeypotTriggered: 'Form gönderilemedi. Tarayıcı otomatik doldurma (autofill) gizli alanı doldurmuş olabilir. Lütfen sayfayı yenileyin ve otomatik doldurmayı kapatıp tekrar deneyin.',
-        photoUploadFailed: 'Fotoğraf yüklenemedi. Yerelde genelde /api endpointleri çalışmadığı için Cloudinary imzası alınamaz veya Cloudinary ayarı eksiktir. Çözüm: Proje kökünde `vercel dev --listen 3000` çalıştırın (Vite /api isteklerini proxy ile yönlendirir) veya `.env.local` içine `VITE_CLOUDINARY_CLOUD_NAME` + `VITE_CLOUDINARY_UPLOAD_PRESET` ekleyin. (İsterseniz Storage fallback açılır ama CORS/izin sorunları yaşayabilir.)',
+        photoUploadFailed: 'Fotoğraf yüklenemedi. Bu projede Cloudinary yükleme varsayılan olarak SIGNED (imzalı) çalışır. Bu yüzden genelde sebep: `/api/cloudinary-signature` çalışmıyor veya server env eksik. Çözüm: Lokal geliştirmede `npm run dev` çalıştırın (API + Web birlikte) ve `.env.local` içinde `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET` tanımlı olsun. (Unsigned preset ancak özellikle açarsanız kullanılır.)',
         username: 'Lütfen kullanıcı adı belirleyin.',
         fullName: 'Lütfen ad soyad girin.',
         age: 'Lütfen yaş girin.',
@@ -1959,6 +1962,7 @@ export default {
     },
     forceInfo: 'Bu işlem için yeniden giriş yapmanız istendi. Lütfen tekrar giriş yapın.',
     googleCta: 'Google ile devam et',
+    redirecting: 'Google girişine yönlendiriliyorsunuz…',
     or: 'veya',
     labels: {
       email: 'E-posta',
@@ -2076,7 +2080,7 @@ export default {
     update: {
       title: 'Bilgi güncelleme',
       body: 'Formu online olarak değiştirmiyoruz. Bilgi güncellemek isterseniz WhatsApp’tan bize yazın.',
-      whatsappMessage: 'Evlilik eşleştirme başvurumda bilgi güncellemek istiyorum. Başvuru No: {{applicationId}}',
+      whatsappMessage: 'Evlilik eşleştirme başvurumda bilgi güncellemek istiyorum.\nAd Soyad: {{fullName}}\nProfil No: {{profileCode}}\nBaşvuru ID: {{applicationId}}',
     },
     membership: {
       title: 'Üyelik durumu',
@@ -2096,16 +2100,16 @@ export default {
       until: 'Bitiş: {{date}}.',
     },
     membershipNotice: {
-      title: 'Beğeni / detay / iletişim bilgilendirmesi',
+      title: 'Üyelik şartları',
       male: {
-        lead: 'Erkek kullanıcılar için işleyiş:',
+        lead: 'Üyelik şartları:',
         points: [
           'Eşleşme ve kısıtlı ön izleme ücretsizdir.',
           'Detaylı profil inceleme, beğeni/ret ve iletişim adımları için ücretli üyelik gerekir.',
         ],
       },
       female: {
-        lead: 'Kadın kullanıcılar için işleyiş:',
+        lead: 'Üyelik şartları:',
         points: [
           'Eşleşme ve kısıtlı ön izleme ücretsizdir.',
           'Detaylı profil inceleme, beğeni/ret ve iletişim için kimlik doğrulama + ücretsiz aktif üyelik veya ücretli üyelik gerekir.',

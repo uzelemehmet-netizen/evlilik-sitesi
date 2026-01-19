@@ -1,4 +1,4 @@
-import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, useLocation, Navigate } from 'react-router-dom';
 import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import AnalyticsTracker from './components/AnalyticsTracker';
@@ -96,7 +96,7 @@ function TitleManager() {
       pageTitle = `${t('matchmakingPage.title')} | ${base}`;
       description = t('matchmakingPage.intro');
     } else if (
-      (path === '/eslestirme' || path === '/evlilik/eslestirme') &&
+      (path === '/uniqah' || path === '/evlilik/uniqah') &&
       isFeatureEnabled('wedding')
     ) {
       pageTitle = `${t('matchmakingHub.metaTitle')} | ${base}`;
@@ -184,17 +184,46 @@ function App() {
         {isFeatureEnabled('explore') && <Route path="/kesfet/:island/:destination" element={<KesfetDestination />} />}
 
         {showWedding && <Route path="/wedding" element={<Wedding />} />}
-        {showWedding && <Route path="/eslestirme" element={<MatchmakingHub />} />}
-        {isFeatureEnabled('wedding') && <Route path="/wedding/apply" element={<MatchmakingApply />} />}
+        {showWedding && <Route path="/uniqah" element={<MatchmakingHub />} />}
+        {isFeatureEnabled('wedding') && (
+          <Route
+            path="/wedding/apply"
+            element={
+              <RequireAuth>
+                <MatchmakingApply />
+              </RequireAuth>
+            }
+          />
+        )}
+
+        {/* Legacy routes -> Uniqah */}
+        {showWedding && <Route path="/eslestirme" element={<Navigate to="/uniqah" replace />} />}
 
         {/* Google Ads / TR alias URL'ler */}
         {isFeatureEnabled('wedding') && <Route path="/evlilik" element={<Wedding />} />}
-        {isFeatureEnabled('wedding') && <Route path="/evlilik/eslestirme" element={<MatchmakingHub />} />}
+        {isFeatureEnabled('wedding') && <Route path="/evlilik/uniqah" element={<MatchmakingHub />} />}
         {isFeatureEnabled('wedding') && (
-          <Route path="/evlilik/eslestirme-basvuru" element={<MatchmakingApply />} />
+          <Route path="/evlilik/eslestirme" element={<Navigate to="/evlilik/uniqah" replace />} />
         )}
         {isFeatureEnabled('wedding') && (
-          <Route path="/evlilik/eslestirme-basvurusu" element={<MatchmakingApply />} />
+          <Route
+            path="/evlilik/eslestirme-basvuru"
+            element={
+              <RequireAuth>
+                <MatchmakingApply />
+              </RequireAuth>
+            }
+          />
+        )}
+        {isFeatureEnabled('wedding') && (
+          <Route
+            path="/evlilik/eslestirme-basvurusu"
+            element={
+              <RequireAuth>
+                <MatchmakingApply />
+              </RequireAuth>
+            }
+          />
         )}
         <Route path="/youtube" element={<YouTube />} />
         <Route path="/privacy" element={<Privacy />} />

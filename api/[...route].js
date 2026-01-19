@@ -5,6 +5,7 @@ import identityKycWebhook from '../apiRoutes/identity-kyc-webhook.js';
 import matchmakingAdminApprovePayment from '../apiRoutes/matchmaking-admin-approve-payment.js';
 import matchmakingAdminCancel from '../apiRoutes/matchmaking-admin-cancel.js';
 import matchmakingAdminConfirm from '../apiRoutes/matchmaking-admin-confirm.js';
+import matchmakingAdminCreateMatch from '../apiRoutes/matchmaking-admin-create-match.js';
 import matchmakingAdminIdentityVerify from '../apiRoutes/matchmaking-admin-identity-verify.js';
 import matchmakingAllocateProfileNo from '../apiRoutes/matchmaking-allocate-profile-no.js';
 import matchmakingChatDecision from '../apiRoutes/matchmaking-chat-decision.js';
@@ -31,6 +32,7 @@ const handlers = {
   'matchmaking-admin-approve-payment': matchmakingAdminApprovePayment,
   'matchmaking-admin-cancel': matchmakingAdminCancel,
   'matchmaking-admin-confirm': matchmakingAdminConfirm,
+  'matchmaking-admin-create-match': matchmakingAdminCreateMatch,
   'matchmaking-admin-identity-verify': matchmakingAdminIdentityVerify,
   'matchmaking-allocate-profile-no': matchmakingAllocateProfileNo,
   'matchmaking-chat-decision': matchmakingChatDecision,

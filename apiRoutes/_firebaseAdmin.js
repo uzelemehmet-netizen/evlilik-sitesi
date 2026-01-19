@@ -1,6 +1,7 @@
 import { cert, getApps, initializeApp } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
 import { FieldValue, getFirestore } from 'firebase-admin/firestore';
+import fs from 'node:fs';
 
 function parseAdminEmails() {
   const raw = process.env.ADMIN_EMAILS || process.env.VITE_ADMIN_EMAILS || '';
@@ -34,11 +35,28 @@ function getBearerToken(req) {
 
 function getServiceAccount() {
   const raw = process.env.FIREBASE_SERVICE_ACCOUNT_JSON || process.env.FIREBASE_SERVICE_ACCOUNT;
-  if (!raw) return null;
+  if (raw) {
+    try {
+      const json = JSON.parse(raw);
+      if (json?.private_key && typeof json.private_key === 'string') {
+        json.private_key = json.private_key.replace(/\\n/g, '\n');
+      }
+      return json;
+    } catch {
+      return null;
+    }
+  }
+
+  // Daha güvenli opsiyon: JSON'u env'e yapıştırmak yerine dosya yolunu verin.
+  const filePath =
+    process.env.FIREBASE_SERVICE_ACCOUNT_JSON_FILE ||
+    process.env.FIREBASE_SERVICE_ACCOUNT_FILE ||
+    '';
+  if (!filePath) return null;
 
   try {
-    const json = JSON.parse(raw);
-    // private_key genelde \n ile gelir; gerçek newline'a çevir.
+    const text = fs.readFileSync(String(filePath), 'utf8');
+    const json = JSON.parse(text);
     if (json?.private_key && typeof json.private_key === 'string') {
       json.private_key = json.private_key.replace(/\\n/g, '\n');
     }

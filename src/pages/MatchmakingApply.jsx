@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation, Trans } from 'react-i18next';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { auth, db, storage } from '../config/firebase';
-import { collection, doc, getDoc, serverTimestamp, setDoc } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs, limit, query, serverTimestamp, setDoc, where } from 'firebase/firestore';
 import { ref, uploadBytes } from 'firebase/storage';
 import {
   getRecaptchaEnterpriseToken,
@@ -85,7 +85,33 @@ export default function MatchmakingApply() {
 
   const submitFeedbackRef = useRef(null);
 
-  const isAuthGate = loading || !user || user.isAnonymous;
+  // Auth bazen (özellikle local dev / 3rd-party engeller) "loading"da takılı kalabiliyor.
+  // Bu sayfanın kilitlenmemesi için gate'i sadece gerçek auth durumuna bağlarız.
+  const isAuthGate = !user || user.isAnonymous;
+
+  // Kullanıcı zaten daha önce başvuru gönderdi ise tekrar form doldurtmayalım.
+  useEffect(() => {
+    if (!user?.uid) return;
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const q = query(collection(db, 'matchmakingApplications'), where('userId', '==', user.uid), limit(1));
+        const snap = await getDocs(q);
+        if (cancelled) return;
+        if (!snap.empty) {
+          const id = snap.docs[0]?.id;
+          navigate('/panel', { replace: true, state: { from: 'applyRedirectExisting', applicationId: id } });
+        }
+      } catch (e) {
+        // ignore (rules/index/config) - kullanıcı yine formu görebilir.
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [navigate, user?.uid]);
 
   const nationalityOptions = useMemo(
     () => [
@@ -361,6 +387,7 @@ export default function MatchmakingApply() {
     consent18Plus: false,
     consentPrivacy: false,
     consentPhotoShare: false,
+    consentTerms: false,
     hpCompany: '',
   });
 
@@ -461,6 +488,12 @@ export default function MatchmakingApply() {
       // ignore
     }
 
+    // Firestore rules, başvuru kaydı için bu onayların true olmasını bekliyor.
+    // Diğer tüm alanlar opsiyonel kalsa bile, bu 3 onay olmadan gönderim engellenir.
+    if (!form.consent18Plus || !form.consentPrivacy || !form.consentPhotoShare || !form.consentTerms) {
+      return setError(t('matchmakingPage.form.errors.consentsRequired'));
+    }
+
     let recaptchaToken = '';
     const recaptchaAction = 'matchmaking_apply_submit';
     try {
@@ -487,88 +520,29 @@ export default function MatchmakingApply() {
       }
     }
 
-    if (!form.fullName.trim()) return setError(t('matchmakingPage.form.errors.fullName'));
-    if (!String(form.username || '').trim()) return setError(t('matchmakingPage.form.errors.username'));
-    if (!String(form.age).trim()) return setError(t('matchmakingPage.form.errors.age'));
-    if (!form.city.trim()) return setError(t('matchmakingPage.form.errors.city'));
-    if (!form.country.trim()) return setError(t('matchmakingPage.form.errors.country'));
-    if (!form.whatsapp.trim()) return setError(t('matchmakingPage.form.errors.whatsapp'));
+    // Kullanıcı tekrar "zorunlu" yapmamızı istemedikçe: tüm alanlar opsiyonel.
+    // Yalnızca mantıksal doğrulamalar (girildiyse aralık/format) uygulanır.
 
-    if (!String(form.heightCm).trim()) return setError(t('matchmakingPage.form.errors.heightRequired'));
-    if (!String(form.weightKg).trim()) return setError(t('matchmakingPage.form.errors.weightRequired'));
-    if (!form.occupation) return setError(t('matchmakingPage.form.errors.occupation'));
-    if (!form.education) return setError(t('matchmakingPage.form.errors.education'));
-    if (!form.maritalStatus) return setError(t('matchmakingPage.form.errors.maritalStatus'));
-    if (!form.hasChildren) return setError(t('matchmakingPage.form.errors.hasChildren'));
-    if (!form.incomeLevel) return setError(t('matchmakingPage.form.errors.incomeLevel'));
-    if (!form.religion) return setError(t('matchmakingPage.form.errors.religion'));
-    if (!form.religiousValues.trim()) return setError(t('matchmakingPage.form.errors.religiousValues'));
-    if (!form.familyObstacle) return setError(t('matchmakingPage.form.errors.familyObstacle'));
-    if ((form.familyObstacle === 'yes' || form.familyObstacle === 'unsure') && !form.familyObstacleDetails.trim()) {
-      return setError(t('matchmakingPage.form.errors.familyObstacleDetails'));
-    }
-    if (!form.familyApprovalStatus) return setError(t('matchmakingPage.form.errors.familyApprovalStatus'));
-    if (!form.marriageTimeline) return setError(t('matchmakingPage.form.errors.marriageTimeline'));
-    if (!form.relocationWillingness) return setError(t('matchmakingPage.form.errors.relocationWillingness'));
-    if (!form.preferredLivingCountry) return setError(t('matchmakingPage.form.errors.preferredLivingCountry'));
+    if (photoFiles.photo1 && !isImageFile(photoFiles.photo1)) return setError(t('matchmakingPage.form.errors.photoType'));
+    if (photoFiles.photo2 && !isImageFile(photoFiles.photo2)) return setError(t('matchmakingPage.form.errors.photoType'));
+    if (photoFiles.photo3 && !isImageFile(photoFiles.photo3)) return setError(t('matchmakingPage.form.errors.photoType'));
 
-    if (!form.partnerHeightMinCm) return setError(t('matchmakingPage.form.errors.partnerHeightMin'));
-    if (!form.partnerHeightMaxCm) return setError(t('matchmakingPage.form.errors.partnerHeightMax'));
-    if (form.partnerAgeMaxOlderYears === '') return setError(t('matchmakingPage.form.errors.partnerAgeMaxOlderYears'));
-    if (form.partnerAgeMaxYoungerYears === '') return setError(t('matchmakingPage.form.errors.partnerAgeMaxYoungerYears'));
-    if (!form.partnerMaritalStatus) return setError(t('matchmakingPage.form.errors.partnerMaritalStatus'));
-    if (!form.partnerReligion) return setError(t('matchmakingPage.form.errors.partnerReligion'));
-
-    if (!form.nativeLanguage) return setError(t('matchmakingPage.form.errors.nativeLanguage'));
-    if (form.nativeLanguage === 'other' && !String(form.nativeLanguageOther).trim()) {
-      return setError(t('matchmakingPage.form.errors.nativeLanguageOther'));
-    }
-    if ((form.foreignLanguages || []).includes('other') && !String(form.foreignLanguageOther).trim()) {
-      return setError(t('matchmakingPage.form.errors.foreignLanguageOther'));
-    }
-    if (!form.canCommunicateWithTranslationApp) return setError(t('matchmakingPage.form.errors.translationApp'));
-    if (!form.smoking) return setError(t('matchmakingPage.form.errors.smoking'));
-    if (!form.alcohol) return setError(t('matchmakingPage.form.errors.alcohol'));
-
-    if (!form.partnerCommunicationLanguage) return setError(t('matchmakingPage.form.errors.partnerCommunicationLanguage'));
-    if (form.partnerCommunicationLanguage === 'other' && !String(form.partnerCommunicationLanguageOther).trim()) {
-      return setError(t('matchmakingPage.form.errors.partnerCommunicationLanguageOther'));
-    }
-    if (!form.partnerCanCommunicateWithTranslationApp) return setError(t('matchmakingPage.form.errors.partnerTranslationApp'));
-    if (!form.partnerLivingCountry) return setError(t('matchmakingPage.form.errors.partnerLivingCountry'));
-    if (!form.partnerSmokingPreference) return setError(t('matchmakingPage.form.errors.partnerSmokingPreference'));
-    if (!form.partnerAlcoholPreference) return setError(t('matchmakingPage.form.errors.partnerAlcoholPreference'));
-
-    if (!form.about.trim()) return setError(t('matchmakingPage.form.errors.about'));
-    if (!form.expectations.trim()) return setError(t('matchmakingPage.form.errors.expectations'));
-    if (!photoFiles.photo1) return setError(t('matchmakingPage.form.errors.photo1Required'));
-    if (!photoFiles.photo2) return setError(t('matchmakingPage.form.errors.photo2Required'));
-    if (!photoFiles.photo3) return setError(t('matchmakingPage.form.errors.photo3Required'));
-    if (!form.consent18Plus) return setError(t('matchmakingPage.form.errors.consent18Plus'));
-    if (!form.consentPrivacy) return setError(t('matchmakingPage.form.errors.consentPrivacy'));
-    if (!form.consentPhotoShare) return setError(t('matchmakingPage.form.errors.consentPhotoShare'));
-
-    if (!isImageFile(photoFiles.photo1)) return setError(t('matchmakingPage.form.errors.photoType'));
-    if (!isImageFile(photoFiles.photo2)) return setError(t('matchmakingPage.form.errors.photoType'));
-    if (!isImageFile(photoFiles.photo3)) return setError(t('matchmakingPage.form.errors.photoType'));
-
-    const ageNum = Number(form.age);
-    if (!Number.isFinite(ageNum) || ageNum < 18 || ageNum > 99) {
+    const ageStr = String(form.age ?? '').trim();
+    const ageNum = ageStr ? Number(ageStr) : null;
+    if (ageStr && (!Number.isFinite(ageNum) || ageNum < 18 || ageNum > 99)) {
       return setError(t('matchmakingPage.form.errors.ageRange'));
     }
 
-    if (form.hasChildren === 'yes') {
-      const count = toNumberOrNull(form.childrenCount);
-      if (!count || count < 1 || count > 20) {
-        return setError(t('matchmakingPage.form.errors.childrenCount'));
-      }
+    const childrenCountNum = toNumberOrNull(form.childrenCount);
+    if (childrenCountNum !== null && (childrenCountNum < 0 || childrenCountNum > 20)) {
+      return setError(t('matchmakingPage.form.errors.childrenCount'));
     }
 
     const heightNum = toNumberOrNull(form.heightCm);
-    if (!heightNum || heightNum < 120 || heightNum > 230) return setError(t('matchmakingPage.form.errors.heightRange'));
+    if (heightNum !== null && (heightNum < 120 || heightNum > 230)) return setError(t('matchmakingPage.form.errors.heightRange'));
 
     const weightNum = toNumberOrNull(form.weightKg);
-    if (!weightNum || weightNum < 35 || weightNum > 250) return setError(t('matchmakingPage.form.errors.weightRange'));
+    if (weightNum !== null && (weightNum < 35 || weightNum > 250)) return setError(t('matchmakingPage.form.errors.weightRange'));
 
     const partnerHeightMin = form.partnerHeightMinCm === 'any' ? null : toNumberOrNull(form.partnerHeightMinCm);
     const partnerHeightMax = form.partnerHeightMaxCm === 'any' ? null : toNumberOrNull(form.partnerHeightMaxCm);
@@ -579,18 +553,18 @@ export default function MatchmakingApply() {
     const partnerAgeMaxOlderYears = toNumberOrNull(form.partnerAgeMaxOlderYears);
     const partnerAgeMaxYoungerYears = toNumberOrNull(form.partnerAgeMaxYoungerYears);
     const partnerAgeMin =
-      partnerAgeMaxYoungerYears !== null ? Math.max(18, ageNum - partnerAgeMaxYoungerYears) : null;
+      ageNum !== null && partnerAgeMaxYoungerYears !== null ? Math.max(18, ageNum - partnerAgeMaxYoungerYears) : null;
     const partnerAgeMax =
-      partnerAgeMaxOlderYears !== null ? Math.min(99, ageNum + partnerAgeMaxOlderYears) : null;
+      ageNum !== null && partnerAgeMaxOlderYears !== null ? Math.min(99, ageNum + partnerAgeMaxOlderYears) : null;
 
-    const currentUser = auth.currentUser;
+    const currentUser = user || auth.currentUser;
     if (!currentUser || currentUser.isAnonymous) {
       return setError(t('matchmakingPage.form.errors.mustLogin'));
     }
 
     setSubmitting(true);
     try {
-      const uid = auth.currentUser?.uid;
+      const uid = currentUser?.uid || auth.currentUser?.uid;
       if (!uid) {
         throw new Error('Auth missing uid');
       }
@@ -628,9 +602,9 @@ export default function MatchmakingApply() {
         console.warn('profileNo allocate failed (fallback):', e);
       }
 
-      const compressed1 = await compressImageToJpeg(photoFiles.photo1);
-      const compressed2 = await compressImageToJpeg(photoFiles.photo2);
-      const compressed3 = await compressImageToJpeg(photoFiles.photo3);
+      const compressed1 = photoFiles.photo1 ? await compressImageToJpeg(photoFiles.photo1) : null;
+      const compressed2 = photoFiles.photo2 ? await compressImageToJpeg(photoFiles.photo2) : null;
+      const compressed3 = photoFiles.photo3 ? await compressImageToJpeg(photoFiles.photo3) : null;
 
       const photoPaths = [];
       const photoUrls = [];
@@ -639,17 +613,29 @@ export default function MatchmakingApply() {
       const folder = `endonezya-kasifi/matchmakingApplications/${docRef.id}`;
       const tags = ['matchmaking', 'application'];
 
-      let cloudinaryOk = false;
+      const hasAnyPhoto = !!(compressed1 || compressed2 || compressed3);
+      let cloudinaryOk = !hasAnyPhoto;
       let cloudinaryErr = null;
       try {
-        // Signed upload varsa onu, yoksa unsigned preset'i otomatik kullanır.
-        const up1 = await uploadImageToCloudinaryAuto(compressed1, { folder, tags });
-        const up2 = await uploadImageToCloudinaryAuto(compressed2, { folder, tags });
-        const up3 = await uploadImageToCloudinaryAuto(compressed3, { folder, tags });
-
-        photoUrls.push(up1.secureUrl, up2.secureUrl, up3.secureUrl);
-        photoCloudinary.push(up1, up2, up3);
-        cloudinaryOk = true;
+        if (hasAnyPhoto) {
+          // Signed upload varsa onu, yoksa unsigned preset'i otomatik kullanır.
+          if (compressed1) {
+            const up1 = await uploadImageToCloudinaryAuto(compressed1, { folder, tags });
+            photoUrls.push(up1.secureUrl);
+            photoCloudinary.push(up1);
+          }
+          if (compressed2) {
+            const up2 = await uploadImageToCloudinaryAuto(compressed2, { folder, tags });
+            photoUrls.push(up2.secureUrl);
+            photoCloudinary.push(up2);
+          }
+          if (compressed3) {
+            const up3 = await uploadImageToCloudinaryAuto(compressed3, { folder, tags });
+            photoUrls.push(up3.secureUrl);
+            photoCloudinary.push(up3);
+          }
+          cloudinaryOk = true;
+        }
       } catch (cloudErr) {
         cloudinaryErr = cloudErr;
         // Cloudinary konfigürasyonu yoksa / hata verirse (dev'de) Storage'a düş.
@@ -663,39 +649,48 @@ export default function MatchmakingApply() {
         const allowStorageFallback = String(import.meta.env.VITE_ALLOW_FIREBASE_STORAGE_FALLBACK || '') === '1';
 
         if (!allowStorageFallback) {
-          const e = new Error('Cloudinary upload failed');
+          const baseMsg = 'Cloudinary upload failed';
+          const detailMsg = typeof cloudinaryErr?.message === 'string' && cloudinaryErr.message.trim() ? cloudinaryErr.message.trim() : '';
+          const e = new Error(detailMsg || baseMsg);
           e.code = 'cloudinary/upload-failed';
           e.details = cloudinaryErr?.details;
           throw e;
         }
 
-        const storageRef1 = ref(storage, `matchmakingApplications/${docRef.id}/photo1.jpg`);
-        await uploadBytes(storageRef1, compressed1, { contentType: compressed1.type || 'image/jpeg' });
+        if (compressed1) {
+          const storageRef1 = ref(storage, `matchmakingApplications/${docRef.id}/photo1.jpg`);
+          await uploadBytes(storageRef1, compressed1, { contentType: compressed1.type || 'image/jpeg' });
+          photoPaths.push(storageRef1.fullPath);
+        }
 
-        const storageRef2 = ref(storage, `matchmakingApplications/${docRef.id}/photo2.jpg`);
-        await uploadBytes(storageRef2, compressed2, { contentType: compressed2.type || 'image/jpeg' });
+        if (compressed2) {
+          const storageRef2 = ref(storage, `matchmakingApplications/${docRef.id}/photo2.jpg`);
+          await uploadBytes(storageRef2, compressed2, { contentType: compressed2.type || 'image/jpeg' });
+          photoPaths.push(storageRef2.fullPath);
+        }
 
-        const storageRef3 = ref(storage, `matchmakingApplications/${docRef.id}/photo3.jpg`);
-        await uploadBytes(storageRef3, compressed3, { contentType: compressed3.type || 'image/jpeg' });
-
-        photoPaths.push(storageRef1.fullPath, storageRef2.fullPath, storageRef3.fullPath);
+        if (compressed3) {
+          const storageRef3 = ref(storage, `matchmakingApplications/${docRef.id}/photo3.jpg`);
+          await uploadBytes(storageRef3, compressed3, { contentType: compressed3.type || 'image/jpeg' });
+          photoPaths.push(storageRef3.fullPath);
+        }
       }
 
       const payload = {
         profileNo,
         profileCode,
         username: String(form.username || '').trim(),
-        fullName: form.fullName.trim(),
+        fullName: String(form.fullName || '').trim(),
         age: ageNum,
-        city: form.city.trim(),
-        country: form.country.trim(),
-        whatsapp: form.whatsapp.trim(),
+        city: String(form.city || '').trim(),
+        country: String(form.country || '').trim(),
+        whatsapp: String(form.whatsapp || '').trim(),
         email: (form.email || '').trim(),
         instagram: (form.instagram || '').trim(),
-        nationality: form.nationality,
-        gender: form.gender,
-        lookingForNationality: form.lookingForNationality,
-        lookingForGender: form.lookingForGender,
+        nationality: form.nationality || '',
+        gender: form.gender || '',
+        lookingForNationality: form.lookingForNationality || '',
+        lookingForGender: form.lookingForGender || '',
         details: {
           heightCm: heightNum,
           weightKg: weightNum,
@@ -703,7 +698,7 @@ export default function MatchmakingApply() {
           education: form.education || '',
           maritalStatus: form.maritalStatus || '',
           hasChildren: form.hasChildren || '',
-          childrenCount: form.hasChildren === 'yes' ? toNumberOrNull(form.childrenCount) : null,
+          childrenCount: childrenCountNum,
           incomeLevel: form.incomeLevel || '',
           religion: form.religion || '',
           religiousValues: (form.religiousValues || '').trim(),
@@ -715,7 +710,7 @@ export default function MatchmakingApply() {
           preferredLivingCountry: form.preferredLivingCountry || '',
           languages: {
             native: {
-              code: form.nativeLanguage,
+              code: form.nativeLanguage || '',
               other: form.nativeLanguage === 'other' ? String(form.nativeLanguageOther).trim() : '',
             },
             foreign: {
@@ -724,11 +719,11 @@ export default function MatchmakingApply() {
             },
           },
           // geriye dönük: eski alanlar (admin/raporlar için)
-          communicationLanguage: form.nativeLanguage,
+          communicationLanguage: form.nativeLanguage || '',
           communicationLanguageOther: form.nativeLanguage === 'other' ? String(form.nativeLanguageOther).trim() : '',
           canCommunicateWithTranslationApp: form.canCommunicateWithTranslationApp === 'yes',
-          smoking: form.smoking,
-          alcohol: form.alcohol,
+          smoking: form.smoking || '',
+          alcohol: form.alcohol || '',
         },
         partnerPreferences: {
           heightMinCm: partnerHeightMin,
@@ -739,7 +734,7 @@ export default function MatchmakingApply() {
           ageMax: partnerAgeMax,
           maritalStatus: form.partnerMaritalStatus || '',
           religion: form.partnerReligion || '',
-          communicationLanguage: form.partnerCommunicationLanguage,
+          communicationLanguage: form.partnerCommunicationLanguage || '',
           communicationLanguageOther:
             form.partnerCommunicationLanguage === 'other' ? String(form.partnerCommunicationLanguageOther).trim() : '',
           canCommunicateWithTranslationApp: form.partnerCanCommunicateWithTranslationApp === 'yes',
@@ -751,15 +746,15 @@ export default function MatchmakingApply() {
           occupationPreference: form.partnerOccupationPreference || 'doesnt_matter',
           familyValuesPreference: form.partnerFamilyValuesPreference || 'doesnt_matter',
         },
-        about: form.about.trim(),
+        about: String(form.about || '').trim(),
         expectations: (form.expectations || '').trim(),
         photoPaths,
         photoUrls,
         photoCloudinary,
         photoContentTypes: [
-          compressed1.type || 'image/jpeg',
-          compressed2.type || 'image/jpeg',
-          compressed3.type || 'image/jpeg',
+          compressed1?.type || '',
+          compressed2?.type || '',
+          compressed3?.type || '',
         ],
         photoOriginalTypes: [
           photoFiles.photo1?.type || '',
@@ -770,6 +765,7 @@ export default function MatchmakingApply() {
         consent18Plus: !!form.consent18Plus,
         consentPrivacy: !!form.consentPrivacy,
         consentPhotoShare: !!form.consentPhotoShare,
+        consentTerms: !!form.consentTerms,
         lang: (i18n.language || 'tr').split('-')[0],
         source: 'site',
         recaptchaEnterprise: {
@@ -804,7 +800,20 @@ export default function MatchmakingApply() {
       } else if (code === 'unauthenticated') {
         setError(t('matchmakingPage.form.errors.mustLogin'));
       } else if (typeof code === 'string' && (code.startsWith('storage/') || code.startsWith('cloudinary/'))) {
-        setError(t('matchmakingPage.form.errors.photoUploadFailed'));
+        const baseMsg = t('matchmakingPage.form.errors.photoUploadFailed');
+        const detail = typeof err?.message === 'string' ? err.message.trim() : '';
+        const missingCandidate =
+          (err?.details?.missing && typeof err.details.missing === 'object' ? err.details.missing : null) ||
+          (err?.details?.signed?.missing && typeof err.details.signed.missing === 'object' ? err.details.signed.missing : null);
+        const missingObj = missingCandidate;
+        const missingKeys = missingObj
+          ? Object.keys(missingObj).filter((k) => missingObj[k]).join(', ')
+          : '';
+        const missingLine = missingKeys ? `\nEksik env: ${missingKeys}` : '';
+        const withDetail = detail && detail !== 'Cloudinary upload failed'
+          ? `${baseMsg}\n\nDetay: ${detail}${missingLine}`
+          : baseMsg;
+        setError(withDetail);
       } else {
         setError(t('matchmakingPage.form.errors.submitFailed'));
       }
@@ -828,36 +837,31 @@ export default function MatchmakingApply() {
         {isAuthGate ? (
           <div className="mt-8 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
             <h2 className="text-lg font-semibold text-gray-900">{t('matchmakingPage.title')}</h2>
-            {loading ? (
-              <p className="mt-2 text-gray-600">{t('common.loading')}</p>
-            ) : (
-              <>
-                <p className="mt-2 text-gray-700">{t('matchmakingPage.authGate.message')}</p>
-                <div className="mt-5 flex flex-col gap-3 sm:flex-row">
-                  <Link
-                    className="inline-flex items-center justify-center rounded-xl bg-gray-900 px-5 py-3 text-sm font-semibold text-white hover:bg-gray-800"
-                    to="/login"
-                    state={{ from: location.pathname, fromState: null }}
-                  >
-                    {t('matchmakingPage.authGate.login')}
-                  </Link>
-                  <Link
-                    className="inline-flex items-center justify-center rounded-xl border border-gray-300 bg-white px-5 py-3 text-sm font-semibold text-gray-900 hover:bg-gray-50"
-                    to="/login?mode=signup"
-                    state={{
-                      from: '/panel',
-                      fromState: {
-                        showMatchmakingIntro: true,
-                        matchmakingNext: location.pathname,
-                      },
-                    }}
-                  >
-                    {t('matchmakingPage.authGate.signup')}
-                  </Link>
-                </div>
-                <p className="mt-4 text-sm text-gray-500">{t('matchmakingPage.authGate.note')}</p>
-              </>
-            )}
+            <p className="mt-2 text-gray-700">{t('matchmakingPage.authGate.message')}</p>
+            {loading && <p className="mt-1 text-sm text-gray-500">{t('common.loading')}</p>}
+            <div className="mt-5 flex flex-col gap-3 sm:flex-row">
+              <Link
+                className="inline-flex items-center justify-center rounded-xl bg-gray-900 px-5 py-3 text-sm font-semibold text-white hover:bg-gray-800"
+                to="/login"
+                state={{ from: location.pathname, fromState: null }}
+              >
+                {t('matchmakingPage.authGate.login')}
+              </Link>
+              <Link
+                className="inline-flex items-center justify-center rounded-xl border border-gray-300 bg-white px-5 py-3 text-sm font-semibold text-gray-900 hover:bg-gray-50"
+                to="/login?mode=signup"
+                state={{
+                  from: '/panel',
+                  fromState: {
+                    showMatchmakingIntro: true,
+                    matchmakingNext: location.pathname,
+                  },
+                }}
+              >
+                {t('matchmakingPage.authGate.signup')}
+              </Link>
+            </div>
+            <p className="mt-4 text-sm text-gray-500">{t('matchmakingPage.authGate.note')}</p>
           </div>
         ) : (
           <form onSubmit={onSubmit} className="mt-8 space-y-6">
@@ -1686,6 +1690,24 @@ export default function MatchmakingApply() {
                     privacyLink: (
                       <a
                         href="/privacy"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-sky-700 hover:underline font-semibold"
+                      />
+                    ),
+                  }}
+                />
+              </span>
+            </label>
+            <label className="flex items-start gap-3 text-sm text-slate-800">
+              <input type="checkbox" checked={form.consentTerms} onChange={onChange('consentTerms')} className="mt-1" />
+              <span>
+                <Trans
+                  i18nKey="matchmakingPage.form.consents.terms"
+                  components={{
+                    termsLink: (
+                      <a
+                        href="/docs/matchmaking-kullanim-sozlesmesi.html"
                         target="_blank"
                         rel="noopener noreferrer"
                         className="text-sky-700 hover:underline font-semibold"

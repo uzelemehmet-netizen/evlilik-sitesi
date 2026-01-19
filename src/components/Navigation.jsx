@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next";
 import { isFeatureEnabled } from "../config/siteVariant";
 
 export default function Navigation() {
+  const BRAND_LOGO_SRC = "/brand.png";
   const { t, i18n } = useTranslation();
   const location = useLocation();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -39,8 +40,9 @@ export default function Navigation() {
       ...(showTours ? [{ to: "/tours", label: t("navigation.tours"), active: isActive("/tours") }] : []),
       ...(showExplore ? [{ to: "/kesfet", label: t("navigation.explore"), active: isActive("/kesfet") }] : []),
       ...(showWedding
-        ? [{ to: "/eslestirme", label: t("navigation.matchmaking"), active: isActive("/eslestirme") }]
+        ? [{ to: "/uniqah", label: t("navigation.matchmaking"), active: isActive("/uniqah") }]
         : []),
+      ...(showWedding ? [{ to: "/panel", label: t("navigation.panel"), active: isActive("/panel") }] : []),
       ...(showWedding
         ? [{ to: "/wedding", label: t("navigation.wedding"), active: isActive("/wedding") }]
         : []),
@@ -66,8 +68,8 @@ export default function Navigation() {
             <div className="flex flex-col leading-none">
               {/* Mobile */}
               <img
-                src="/logos/endonezya-kasifi-logo.png"
-                alt="Endonezya Kaşifi"
+                src={BRAND_LOGO_SRC}
+                alt="Turk&Indo"
                 className="h-12 w-auto md:hidden"
                 loading="eager"
                 decoding="async"
@@ -75,8 +77,8 @@ export default function Navigation() {
 
               {/* Desktop */}
               <img
-                src="/logos/endonezya-kasifi-logo.png"
-                alt="Endonezya Kaşifi"
+                src={BRAND_LOGO_SRC}
+                alt="Turk&Indo"
                 className="hidden md:block h-14 lg:h-16 w-auto"
                 loading="eager"
                 decoding="async"
@@ -168,12 +170,21 @@ export default function Navigation() {
               </Link>
             )}
             {showWedding && (
-              <Link to="/eslestirme" className={`px-2 sm:px-3 py-1.5 rounded-full text-xs sm:text-sm font-medium transition-all duration-200 shadow-md hover:shadow-lg whitespace-nowrap ${
-                isActive('/eslestirme')
+              <Link to="/uniqah" className={`px-2 sm:px-3 py-1.5 rounded-full text-xs sm:text-sm font-medium transition-all duration-200 shadow-md hover:shadow-lg whitespace-nowrap ${
+                isActive('/uniqah')
                   ? 'bg-emerald-500 text-white shadow-lg'
                   : 'text-gray-700 hover:bg-emerald-500 hover:text-white'
               }`} style={{ fontFamily: '"Poppins", sans-serif' }}>
                 {t('navigation.matchmaking')}
+              </Link>
+            )}
+            {showWedding && (
+              <Link to="/panel" className={`px-2 sm:px-3 py-1.5 rounded-full text-xs sm:text-sm font-medium transition-all duration-200 shadow-md hover:shadow-lg whitespace-nowrap ${
+                isActive('/panel')
+                  ? 'bg-slate-900 text-white shadow-lg'
+                  : 'text-slate-800 hover:bg-slate-900 hover:text-white'
+              }`} style={{ fontFamily: '"Poppins", sans-serif' }}>
+                {t('navigation.panel')}
               </Link>
             )}
             {showWedding && (
@@ -226,8 +237,8 @@ export default function Navigation() {
             <div className="max-w-7xl mx-auto px-4 py-4">
               <div className="flex items-center justify-center pb-3">
                 <img
-                  src="/logos/endonezya-kasifi-logo.png"
-                  alt="Endonezya Kaşifi"
+                  src={BRAND_LOGO_SRC}
+                  alt="Turk&Indo"
                   className="h-28 w-auto"
                   loading="eager"
                   decoding="async"

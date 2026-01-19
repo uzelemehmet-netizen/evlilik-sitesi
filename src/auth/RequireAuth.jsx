@@ -10,7 +10,7 @@ export default function RequireAuth({ children }) {
     return <div className="min-h-screen flex items-center justify-center">Yükleniyor...</div>;
   }
 
-  if (!user) {
+  if (!user || user.isAnonymous) {
     return (
       <Navigate
         to="/login"

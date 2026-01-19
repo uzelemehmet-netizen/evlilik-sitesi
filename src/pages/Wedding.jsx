@@ -7,13 +7,25 @@ import { Trans, useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import emailjs from '@emailjs/browser';
 import { buildWhatsAppUrl } from '../utils/whatsapp';
+import { db } from '../config/firebase';
+import { doc, getDoc } from 'firebase/firestore';
+
+const DEFAULT_MEDIA = Object.freeze({
+  heroBackgroundUrl:
+    'https://res.cloudinary.com/dj1xg1c56/image/upload/v1767352126/ChatGPT_Image_16_Ara_2025_20_55_54_cncrpw.png',
+  introImage1Url: 'https://cvcou9szpd.ucarecd.net/84807d3a-fc15-4eb8-ab91-df06aafd02b9/-/preview/562x1000/',
+  introImage2Url: 'https://cvcou9szpd.ucarecd.net/b85878d8-0625-4881-9e5b-b36981b06970/20250917_155623.jpg',
+});
 
 export default function Wedding() {
 	const { t, i18n } = useTranslation();
+  const BRAND_LOGO_SRC = "/brand.png";
   const tArray = (key) => {
     const value = t(key, { returnObjects: true });
     return Array.isArray(value) ? value : [];
   };
+
+  const [media, setMedia] = useState(DEFAULT_MEDIA);
 
   const [formData, setFormData] = useState({
     from_name: '',
@@ -54,6 +66,31 @@ export default function Wedding() {
       publicKey: 'RD9IcpOFrg9qQ4QdV',
       blockHeadless: false,
     });
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadMedia() {
+      try {
+        const snap = await getDoc(doc(db, 'weddingContent', 'media'));
+        const data = snap.exists() ? snap.data() || {} : {};
+        if (cancelled) return;
+        setMedia({
+          heroBackgroundUrl: String(data.heroBackgroundUrl || DEFAULT_MEDIA.heroBackgroundUrl),
+          introImage1Url: String(data.introImage1Url || DEFAULT_MEDIA.introImage1Url),
+          introImage2Url: String(data.introImage2Url || DEFAULT_MEDIA.introImage2Url),
+        });
+      } catch (err) {
+        // Public sayfa: rules izin vermezse yine de sayfa çalışsın.
+        console.warn('Wedding media load failed (fallback to defaults):', err);
+      }
+    }
+
+    loadMedia();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {
@@ -166,7 +203,7 @@ export default function Wedding() {
       <section
         className="pt-20 pb-12 px-4 relative overflow-hidden min-h-80"
         style={{
-		  backgroundImage: 'url(https://res.cloudinary.com/dj1xg1c56/image/upload/v1767352126/ChatGPT_Image_16_Ara_2025_20_55_54_cncrpw.png)',
+		  backgroundImage: `url(${media.heroBackgroundUrl})`,
           backgroundSize: 'cover',
           backgroundPosition: 'center',
           backgroundRepeat: 'no-repeat',
@@ -174,6 +211,13 @@ export default function Wedding() {
         }}
       >
         <div className="max-w-7xl mx-auto relative z-10 flex flex-col items-center justify-center text-center min-h-80">
+          <img
+            src={BRAND_LOGO_SRC}
+            alt="Turk&Indo"
+            className="h-16 md:h-20 w-auto mb-4 drop-shadow-[0_10px_30px_rgba(0,0,0,0.35)]"
+            loading="eager"
+            decoding="async"
+          />
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-rose-600/80 shadow-md mb-3">
             <Heart size={18} className="text-white" />
             <span
@@ -214,7 +258,7 @@ export default function Wedding() {
             </button>
 
             <Link
-              to="/eslestirme"
+              to="/uniqah"
               className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-slate-900/95 text-white px-5 md:px-6 py-2 md:py-2.5 rounded-full font-medium text-xs md:text-sm shadow-md hover:bg-slate-900 hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200"
             >
               <MessageCircle size={18} className="text-white" />
@@ -295,14 +339,14 @@ export default function Wedding() {
             <div className="w-full max-w-md mx-auto space-y-6">
               <div className="relative rounded-3xl overflow-hidden shadow-xl h-64 md:h-72 lg:h-72">
                 <img
-                  src="https://cvcou9szpd.ucarecd.net/84807d3a-fc15-4eb8-ab91-df06aafd02b9/-/preview/562x1000/"
+				  src={media.introImage1Url}
                   alt={t('weddingPage.images.prepAlt')}
                   className="w-full h-full object-cover"
                 />
               </div>
               <div className="relative rounded-3xl overflow-hidden shadow-xl">
                 <img
-                  src="https://cvcou9szpd.ucarecd.net/b85878d8-0625-4881-9e5b-b36981b06970/20250917_155623.jpg"
+				  src={media.introImage2Url}
                   alt={t('weddingPage.images.ceremonyAlt')}
                   className="w-full h-auto object-cover"
                 />

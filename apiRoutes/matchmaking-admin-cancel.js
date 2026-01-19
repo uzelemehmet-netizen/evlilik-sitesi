@@ -1,4 +1,5 @@
 import { getAdmin, normalizeBody, requireAdmin } from './_firebaseAdmin.js';
+import { buildCancelBehaviourPatch } from './_cancelBehaviour.js';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -36,6 +37,7 @@ export default async function handler(req, res) {
     const data = snap.data() || {};
     const aUserId = String(data?.aUserId || '');
     const bUserId = String(data?.bUserId || '');
+    const prevStatus = String(data?.status || '');
 
     await ref.set(
       {
@@ -50,17 +52,41 @@ export default async function handler(req, res) {
 
     // İptal sonrası kilitleri kaldır ki kullanıcılar yeni eşleşme görebilsin.
     const batch = db.batch();
+    const shouldCountAsContactCancel = prevStatus === 'contact_unlocked';
+    const nowMs = Date.now();
+
+    // Opsiyonel: admin hangi kullanıcı iptal ettiyse sadece onu say.
+    const blamedUserId = typeof body?.cancelledByUserId === 'string' ? body.cancelledByUserId.trim() : '';
+    const countUserIds = shouldCountAsContactCancel
+      ? [blamedUserId || aUserId, blamedUserId ? '' : bUserId].filter(Boolean)
+      : [];
+
     if (aUserId) {
+      let patch = { matchmakingLock: { active: false, matchId }, updatedAt: FieldValue.serverTimestamp() };
+      if (shouldCountAsContactCancel && countUserIds.includes(aUserId)) {
+        // user doc okunamıyorsa (yoksa) boş kabul edip yine de alanları set etmekte sakınca yok.
+        const aSnap = await db.collection('matchmakingUsers').doc(aUserId).get();
+        const aDoc = aSnap.exists ? (aSnap.data() || {}) : {};
+        const { patch: cancelPatch } = buildCancelBehaviourPatch(aDoc, [nowMs], nowMs, FieldValue);
+        patch = { ...patch, ...cancelPatch };
+      }
       batch.set(
         db.collection('matchmakingUsers').doc(aUserId),
-        { matchmakingLock: { active: false, matchId }, updatedAt: FieldValue.serverTimestamp() },
+        patch,
         { merge: true }
       );
     }
     if (bUserId) {
+      let patch = { matchmakingLock: { active: false, matchId }, updatedAt: FieldValue.serverTimestamp() };
+      if (shouldCountAsContactCancel && countUserIds.includes(bUserId)) {
+        const bSnap = await db.collection('matchmakingUsers').doc(bUserId).get();
+        const bDoc = bSnap.exists ? (bSnap.data() || {}) : {};
+        const { patch: cancelPatch } = buildCancelBehaviourPatch(bDoc, [nowMs], nowMs, FieldValue);
+        patch = { ...patch, ...cancelPatch };
+      }
       batch.set(
         db.collection('matchmakingUsers').doc(bUserId),
-        { matchmakingLock: { active: false, matchId }, updatedAt: FieldValue.serverTimestamp() },
+        patch,
         { merge: true }
       );
     }

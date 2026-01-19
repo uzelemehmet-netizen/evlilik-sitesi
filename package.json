@@ -5,8 +5,12 @@
   "type": "module",
   "scripts": {
     "ensure:env": "node scripts/ensure-env-local.mjs",
-    "dev": "npm run ensure:env && vite",
-    "dev:api": "vercel dev --listen 3000",
+    "seed:matchmaking": "node scripts/seed-matchmaking.mjs",
+    "seed:matchmaking:cleanup": "node scripts/seed-matchmaking.mjs --cleanup",
+    "seed:promote-matches": "node scripts/promote-seed-matches.mjs",
+    "dev:web": "npm run ensure:env && wait-on tcp:3000 && vite",
+    "dev:api": "node scripts/dev-api.mjs",
+    "dev": "concurrently -k -n API,WEB -c cyan,magenta \"npm run dev:api\" \"npm run dev:web\"",
     "playwright:install": "playwright install chromium",
     "playwright:install:deps": "playwright install --with-deps chromium",
     "playwright:install-deps": "playwright install-deps chromium",
@@ -44,6 +48,9 @@
     "playwright": "^1.51.0",
     "postcss": "^8.4.32",
     "tailwindcss": "^3.4.0",
-    "vite": "^5.0.8"
+    "vite": "^5.0.8",
+    "vercel": "^34.3.0",
+    "concurrently": "^9.1.2",
+    "wait-on": "^7.2.0"
   }
 }

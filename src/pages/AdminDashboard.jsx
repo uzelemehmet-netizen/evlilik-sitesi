@@ -3,10 +3,16 @@ import { auth, db } from '../config/firebase';
 import { signOut } from 'firebase/auth';
 import { useNavigate } from 'react-router-dom';
 import { LogOut, Edit2, Upload } from 'lucide-react';
-import { collection, getDocs, doc, setDoc, getDoc, limit, onSnapshot, orderBy, query } from 'firebase/firestore';
+import { collection, getDocs, doc, setDoc, getDoc, limit, onSnapshot, orderBy, query, where } from 'firebase/firestore';
 import { TOURS_CONFIG } from './Tours';
 import ReservationsTab from '../components/admin/ReservationsTab';
 import MatchmakingTab from '../components/admin/MatchmakingTab';
+import WeddingMediaTab from '../components/admin/WeddingMediaTab';
+import MatchmakingIdentityTab from '../components/admin/MatchmakingIdentityTab';
+import MatchmakingPaymentsTab from '../components/admin/MatchmakingPaymentsTab';
+import MatchmakingMatchesTab from '../components/admin/MatchmakingMatchesTab';
+import MatchmakingUserToolsTab from '../components/admin/MatchmakingUserToolsTab';
+import { isFeatureEnabled } from '../config/siteVariant';
 
 // Tüm ada ve destinasyonlar
 const ISLANDS_DATA = {
@@ -109,7 +115,8 @@ const STATIC_PUBLIC_IMAGES = [
 ];
 
 export default function AdminDashboard() {
-  const [activeTab, setActiveTab] = useState('islands');
+  const weddingOnly = isFeatureEnabled('wedding') && !isFeatureEnabled('travel');
+  const [activeTab, setActiveTab] = useState(() => (weddingOnly ? 'matchmaking' : 'islands'));
   const [selectedIsland, setSelectedIsland] = useState('bali');
   const [editingId, setEditingId] = useState(null);
   const [imageUrls, setImageUrls] = useState({});
@@ -129,6 +136,9 @@ export default function AdminDashboard() {
   const [firestoreBlockedReason, setFirestoreBlockedReason] = useState('');
   const [matchmakingItems, setMatchmakingItems] = useState([]);
   const [matchmakingNewCount, setMatchmakingNewCount] = useState(0);
+  const [identityPendingCount, setIdentityPendingCount] = useState(0);
+  const [paymentsPendingCount, setPaymentsPendingCount] = useState(0);
+  const [activeMatchesCount, setActiveMatchesCount] = useState(0);
   const matchmakingInitializedRef = useRef(false);
   const lastNotifiedAtRef = useRef(0);
   const navigate = useNavigate();
@@ -144,9 +154,14 @@ export default function AdminDashboard() {
 
   const blockFirestoreIfNeeded = (err) => {
     if (!isFirestorePermissionDenied(err)) return false;
+    const u = auth?.currentUser || null;
+    const email = u?.email ? String(u.email) : '';
+    const anon = !!u?.isAnonymous;
+    const code = err?.code || err?.name || '';
+    const msg = String(err?.message || '');
     setFirestoreBlocked(true);
     setFirestoreBlockedReason(
-      'Firestore erişim izni yok (Missing or insufficient permissions). Bu panel localStorage ile çalışmaya devam edecek; Firestore kaydı için Firestore Rules güncellenmeli.'
+      `Firestore erişim izni yok (Missing or insufficient permissions). Kullanıcı: ${email || '(email yok)'}${anon ? ' (anonymous)' : ''}. Hata: ${code} ${msg}`
     );
     return true;
   };
@@ -174,14 +189,16 @@ export default function AdminDashboard() {
 
   // localStorage'dan resim URL'lerini yükle
   useEffect(() => {
+    if (weddingOnly) return;
     const saved = localStorage.getItem('imageUrls');
     if (saved) {
       setImageUrls(JSON.parse(saved));
     }
-  }, []);
+  }, [weddingOnly]);
 
   // Firestore'dan imageUrls konfigurasyonunu yükle
   useEffect(() => {
+    if (weddingOnly) return;
     const fetchImageUrls = async () => {
       if (firestoreBlocked) return;
       try {
@@ -205,10 +222,11 @@ export default function AdminDashboard() {
     };
 
     fetchImageUrls();
-  }, [firestoreBlocked]);
+  }, [firestoreBlocked, weddingOnly]);
 
   // localStorage + Firestore'dan YouTube Shorts URL'lerini yükle
   useEffect(() => {
+    if (weddingOnly) return;
     try {
       const saved = localStorage.getItem('youtubeShortUrls');
       if (saved) {
@@ -256,7 +274,7 @@ export default function AdminDashboard() {
     };
 
     fetchShorts();
-  }, [firestoreBlocked]);
+  }, [firestoreBlocked, weddingOnly]);
 
   // Matchmaking başvurularını dinle (sadece admin okuyabilir) + yeni başvuru bildirimi
   useEffect(() => {
@@ -314,8 +332,72 @@ export default function AdminDashboard() {
     return () => unsub();
   }, [firestoreBlocked]);
 
+  // Wedding-only admin sayaçları (tab badge)
+  useEffect(() => {
+    if (firestoreBlocked) return;
+    if (!weddingOnly) return;
+
+    const q = query(
+      collection(db, 'matchmakingUsers'),
+      where('identityVerification.status', '==', 'pending'),
+      limit(200)
+    );
+
+    const unsub = onSnapshot(
+      q,
+      (snap) => setIdentityPendingCount(snap.size),
+      (error) => {
+        if (blockFirestoreIfNeeded(error)) return;
+        console.error('Firestore identity pending count error:', error);
+      }
+    );
+
+    return () => unsub();
+  }, [firestoreBlocked, weddingOnly]);
+
+  useEffect(() => {
+    if (firestoreBlocked) return;
+    if (!weddingOnly) return;
+
+    const q = query(collection(db, 'matchmakingPayments'), where('status', '==', 'pending'), limit(200));
+
+    const unsub = onSnapshot(
+      q,
+      (snap) => setPaymentsPendingCount(snap.size),
+      (error) => {
+        if (blockFirestoreIfNeeded(error)) return;
+        console.error('Firestore payments pending count error:', error);
+      }
+    );
+
+    return () => unsub();
+  }, [firestoreBlocked, weddingOnly]);
+
+  useEffect(() => {
+    if (firestoreBlocked) return;
+    if (!weddingOnly) return;
+
+    const q = query(
+      collection(db, 'matchmakingMatches'),
+      where('status', 'in', ['mutual_accepted', 'contact_unlocked']),
+      limit(200)
+    );
+
+    const unsub = onSnapshot(
+      q,
+      (snap) => setActiveMatchesCount(snap.size),
+      (error) => {
+        if (blockFirestoreIfNeeded(error)) return;
+        console.error('Firestore active matches count error:', error);
+      }
+    );
+
+    return () => unsub();
+  }, [firestoreBlocked, weddingOnly]);
+
   // Firestore'dan tur tarih ve fiyatlarını yükle
   useEffect(() => {
+    if (weddingOnly) return;
     const fetchTours = async () => {
       setToursLoading(true);
       try {
@@ -382,7 +464,7 @@ export default function AdminDashboard() {
     };
 
     fetchTours();
-  }, [firestoreBlocked]);
+  }, [firestoreBlocked, weddingOnly]);
 
   const formatBytes = (bytes) => {
     if (!Number.isFinite(bytes)) return '';
@@ -748,7 +830,7 @@ export default function AdminDashboard() {
         // Cloudinary preset yoksa eski Firebase Storage yoluna düşmek yerine
         // kullanıcıyı net şekilde yönlendirelim (free planda genelde upload bloklanıyor).
         throw new Error(
-          "Cloudinary Upload Preset bulunamadı.\n\n- Lokal geliştirmede: `web-sitem-new/.env.local` (veya `.env`) içine `VITE_CLOUDINARY_UPLOAD_PRESET` ekleyin ve dev server'ı yeniden başlatın.\n- Canlı (deploy) sitede: Vite env değişkenleri build-time gömülür; Vercel proje ayarlarından Production env olarak `VITE_CLOUDINARY_UPLOAD_PRESET` ekleyin ve yeniden deploy edin.\n\nGerekirse `VITE_CLOUDINARY_CLOUD_NAME` da tanımlayın."
+          "Cloudinary Upload Preset bulunamadı.\n\n- Lokal geliştirmede: `evlilik-site/.env.local` (veya `.env`) içine `VITE_CLOUDINARY_UPLOAD_PRESET` ekleyin ve dev server'ı yeniden başlatın.\n- Canlı (deploy) sitede: Vite env değişkenleri build-time gömülür; Vercel proje ayarlarından Production env olarak `VITE_CLOUDINARY_UPLOAD_PRESET` ekleyin ve yeniden deploy edin.\n\nGerekirse `VITE_CLOUDINARY_CLOUD_NAME` da tanımlayın."
         );
       }
 
@@ -883,6 +965,44 @@ export default function AdminDashboard() {
   };
 
   const renderContent = () => {
+    if (weddingOnly) {
+      if (activeTab === 'matchmaking') {
+        return (
+          <MatchmakingTab
+            items={matchmakingItems}
+            newCount={matchmakingNewCount}
+            onMarkAllRead={markMatchmakingAllRead}
+          />
+        );
+      }
+
+      if (activeTab === 'identity') {
+        return <MatchmakingIdentityTab />;
+      }
+
+      if (activeTab === 'payments') {
+        return <MatchmakingPaymentsTab />;
+      }
+
+      if (activeTab === 'matches') {
+        return <MatchmakingMatchesTab />;
+      }
+
+      if (activeTab === 'userTools') {
+        return <MatchmakingUserToolsTab />;
+      }
+
+      if (activeTab === 'weddingMedia') {
+        return <WeddingMediaTab />;
+      }
+
+      return (
+        <div className="bg-white rounded-xl shadow p-6">
+          <p className="text-sm text-gray-700">Bu admin panelde sadece evlilik / eşleştirme yönetimi aktiftir.</p>
+        </div>
+      );
+    }
+
     if (activeTab === 'matchmaking') {
       return (
         <MatchmakingTab
@@ -1375,7 +1495,7 @@ export default function AdminDashboard() {
       {/* Header */}
       <div className="bg-white shadow">
         <div className="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
-          <h1 className="text-2xl font-bold text-gray-800">Admin Panel - Resim Yönetimi</h1>
+          <h1 className="text-2xl font-bold text-gray-800">Admin Panel — Evlilik & Eşleştirme</h1>
           <button
             onClick={handleLogout}
             className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg transition"
@@ -1400,6 +1520,98 @@ export default function AdminDashboard() {
         )}
         {/* Tabs */}
         <div className="flex gap-2 mb-8 border-b border-gray-200 overflow-x-auto">
+          {weddingOnly && (
+            <>
+              <button
+                onClick={() => setActiveTab('matchmaking')}
+                className={`px-6 py-3 font-semibold transition whitespace-nowrap ${
+                  activeTab === 'matchmaking'
+                    ? 'text-indigo-600 border-b-2 border-indigo-600'
+                    : 'text-gray-600 hover:text-gray-800'
+                }`}
+              >
+                Evlilik Başvuruları
+                {matchmakingNewCount > 0 && (
+                  <span className="ml-2 inline-flex items-center justify-center min-w-6 h-6 px-2 rounded-full bg-rose-600 text-white text-xs">
+                    {matchmakingNewCount}
+                  </span>
+                )}
+              </button>
+
+              <button
+                onClick={() => setActiveTab('identity')}
+                className={`px-6 py-3 font-semibold transition whitespace-nowrap ${
+                  activeTab === 'identity'
+                    ? 'text-indigo-600 border-b-2 border-indigo-600'
+                    : 'text-gray-600 hover:text-gray-800'
+                }`}
+              >
+                Kimlik Doğrulama
+                {identityPendingCount > 0 && (
+                  <span className="ml-2 inline-flex items-center justify-center min-w-6 h-6 px-2 rounded-full bg-amber-600 text-white text-xs">
+                    {identityPendingCount}
+                  </span>
+                )}
+              </button>
+
+              <button
+                onClick={() => setActiveTab('payments')}
+                className={`px-6 py-3 font-semibold transition whitespace-nowrap ${
+                  activeTab === 'payments'
+                    ? 'text-indigo-600 border-b-2 border-indigo-600'
+                    : 'text-gray-600 hover:text-gray-800'
+                }`}
+              >
+                Ödemeler
+                {paymentsPendingCount > 0 && (
+                  <span className="ml-2 inline-flex items-center justify-center min-w-6 h-6 px-2 rounded-full bg-rose-600 text-white text-xs">
+                    {paymentsPendingCount}
+                  </span>
+                )}
+              </button>
+
+              <button
+                onClick={() => setActiveTab('matches')}
+                className={`px-6 py-3 font-semibold transition whitespace-nowrap ${
+                  activeTab === 'matches'
+                    ? 'text-indigo-600 border-b-2 border-indigo-600'
+                    : 'text-gray-600 hover:text-gray-800'
+                }`}
+              >
+                Eşleşmeler
+                {activeMatchesCount > 0 && (
+                  <span className="ml-2 inline-flex items-center justify-center min-w-6 h-6 px-2 rounded-full bg-slate-700 text-white text-xs">
+                    {activeMatchesCount}
+                  </span>
+                )}
+              </button>
+
+              <button
+                onClick={() => setActiveTab('userTools')}
+                className={`px-6 py-3 font-semibold transition whitespace-nowrap ${
+                  activeTab === 'userTools'
+                    ? 'text-indigo-600 border-b-2 border-indigo-600'
+                    : 'text-gray-600 hover:text-gray-800'
+                }`}
+              >
+                Kullanıcı Yönetimi
+              </button>
+
+              <button
+                onClick={() => setActiveTab('weddingMedia')}
+                className={`px-6 py-3 font-semibold transition whitespace-nowrap ${
+                  activeTab === 'weddingMedia'
+                    ? 'text-indigo-600 border-b-2 border-indigo-600'
+                    : 'text-gray-600 hover:text-gray-800'
+                }`}
+              >
+                Evlilik Görselleri
+              </button>
+            </>
+          )}
+
+          {!weddingOnly && (
+            <>
           <button
             onClick={() => setActiveTab('islands')}
             className={`px-6 py-3 font-semibold transition whitespace-nowrap ${
@@ -1546,30 +1758,36 @@ export default function AdminDashboard() {
 	  >
 	    YouTube Shorts
 	  </button>
+            </>
+          )}
         </div>
         {/* Content */}
         {renderContent()}
 
         {/* Save Button */}
-        <div className="sticky bottom-0 bg-white border-t border-gray-200 p-4 mt-8">
-          <button
-            onClick={handleSave}
-            className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 rounded-lg transition"
-          >
-            Tüm Değişiklikleri Kaydet
-          </button>
-        </div>
+        {!weddingOnly && (
+          <div className="sticky bottom-0 bg-white border-t border-gray-200 p-4 mt-8">
+            <button
+              onClick={handleSave}
+              className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 rounded-lg transition"
+            >
+              Tüm Değişiklikleri Kaydet
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Info Box */}
-      <div className="bg-blue-50 border-l-4 border-blue-500 p-4 max-w-7xl mx-auto mb-8">
-        <p className="text-sm text-blue-800">
-          <strong>Dosya Yükleme:</strong> Resim dosyasını seç veya URL gir. Bu projede dosyalar Cloudinary'ye yüklenip URL Firestore'a kaydedilir. 10MB üzeri görseller otomatik sıkıştırılır ve yeni boyut gösterilir.
-        </p>
-        <p className="text-xs text-blue-700 mt-2">
-          <strong>Cloudinary durum:</strong> upload preset {cloudinaryUploadPreset ? 'OK' : 'EKSİK'} | cloud name: {cloudinaryCloudName}
-        </p>
-      </div>
+      {!weddingOnly && (
+        <div className="bg-blue-50 border-l-4 border-blue-500 p-4 max-w-7xl mx-auto mb-8">
+          <p className="text-sm text-blue-800">
+            <strong>Dosya Yükleme:</strong> Resim dosyasını seç veya URL gir. Bu projede dosyalar Cloudinary'ye yüklenip URL Firestore'a kaydedilir. 10MB üzeri görseller otomatik sıkıştırılır ve yeni boyut gösterilir.
+          </p>
+          <p className="text-xs text-blue-700 mt-2">
+            <strong>Cloudinary durum:</strong> upload preset {cloudinaryUploadPreset ? 'OK' : 'EKSİK'} | cloud name: {cloudinaryCloudName}
+          </p>
+        </div>
+      )}
     </div>
   );
 }
