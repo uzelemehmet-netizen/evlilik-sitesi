@@ -24,6 +24,22 @@ function detectFromQuerystring() {
   }
 }
 
+function detectFromStorage() {
+  try {
+    return normalizeLang(localStorage.getItem('preferred_lang'));
+  } catch {
+    return null;
+  }
+}
+
+function detectFromStorageSource() {
+  try {
+    return String(localStorage.getItem('preferred_lang_source') || '').trim();
+  } catch {
+    return '';
+  }
+}
+
 function detectFromNavigator() {
   try {
     const langs = Array.isArray(navigator.languages) ? navigator.languages : [];
@@ -54,17 +70,26 @@ const languageDetector = {
   async: false,
   init: () => {},
   detect: () => {
+    const stored = detectFromStorage();
+    const source = detectFromStorageSource();
+    const auto = detectFromTimeZone() || detectFromNavigator();
+    if (source === 'selector' || source === 'signup') {
+      return stored || auto || 'tr';
+    }
+    if (auto === 'id') return 'id';
     return (
+      stored ||
       detectFromQuerystring() ||
-      detectFromTimeZone() ||
-      detectFromNavigator() ||
+      auto ||
       "tr"
     );
   },
   cacheUserLanguage: (lng) => {
-    // Kullanıcının seçimini kalıcılaştırmıyoruz.
-    // Her yeni açılışta dil, tarayıcı ayarına (veya ?lang parametresine) göre yeniden tespit edilir.
-    void lng;
+    try {
+      localStorage.setItem('preferred_lang', normalizeLang(lng) || 'tr');
+    } catch {
+      // ignore
+    }
   },
 };
 
@@ -76,7 +101,10 @@ i18n
     supportedLngs: SUPPORTED_LANGS,
     nonExplicitSupportedLngs: true,
     load: "languageOnly",
-    fallbackLng: "tr",
+    fallbackLng: {
+      id: ["id"],
+      default: ["tr"],
+    },
     interpolation: {
       escapeValue: false,
     },
@@ -85,6 +113,7 @@ i18n
 i18n.on("languageChanged", (lng) => {
   try {
     document.documentElement.lang = normalizeLang(lng) || "tr";
+    localStorage.setItem('preferred_lang', normalizeLang(lng) || 'tr');
   } catch {
     // ignore
   }

@@ -10,8 +10,17 @@ function parseAdminEmails() {
     .map((s) => s.trim().toLowerCase())
     .filter(Boolean);
 
-  const defaults = ['uzelemehmet@gmail.com', 'articelikkapi@gmail.com'];
-  return envList.length ? envList : defaults;
+  const ruleAdmins = ['uzelemehmet@gmail.com', 'articelikkapi@gmail.com'];
+  const ruleAdminSet = new Set(ruleAdmins);
+
+  // Firestore rules ile birebir uyum: sadece kural listesi geçerli olsun.
+  // Env listesi varsa, sadece kural listesiyle kesişenleri al.
+  if (envList.length) {
+    const filtered = envList.filter((email) => ruleAdminSet.has(email));
+    return filtered.length ? filtered : ruleAdmins;
+  }
+
+  return ruleAdmins;
 }
 
 function normalizeBody(req) {

@@ -5,6 +5,7 @@ import {
   GoogleAuthProvider,
   createUserWithEmailAndPassword,
   getAdditionalUserInfo,
+  getRedirectResult,
   sendPasswordResetEmail,
   signOut,
   signInWithEmailAndPassword,
@@ -18,7 +19,7 @@ import { auth, db } from "../config/firebase";
 import { useAuth } from "../auth/AuthProvider";
 
 export default function Login() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useAuth();
@@ -35,22 +36,101 @@ export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [signupGender, setSignupGender] = useState(""); // male | female
+  const [signupNationality, setSignupNationality] = useState(""); // tr | id | other
+  const [signupNationalityOther, setSignupNationalityOther] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [info, setInfo] = useState("");
   const [forceLogin, setForceLogin] = useState(false);
 
-  const ensureGenderSaved = async (uid, gender) => {
+
+  const readStoredRedirect = () => {
+    try {
+      const raw = sessionStorage.getItem('auth_redirect_target');
+      if (!raw) return null;
+      return JSON.parse(raw);
+    } catch (e) {
+      return null;
+    }
+  };
+
+  const writeStoredRedirect = () => {
+    try {
+      sessionStorage.setItem('auth_redirect_target', JSON.stringify(redirectTarget));
+    } catch (e) {
+      // ignore
+    }
+  };
+
+  const readForcedTarget = () => {
+    try {
+      return sessionStorage.getItem('auth_force_target') || '';
+    } catch (e) {
+      return '';
+    }
+  };
+
+  const writeForcedTarget = (value) => {
+    try {
+      if (value) {
+        sessionStorage.setItem('auth_force_target', value);
+      } else {
+        sessionStorage.removeItem('auth_force_target');
+      }
+    } catch (e) {
+      // ignore
+    }
+  };
+
+  const clearStoredRedirect = () => {
+    try {
+      sessionStorage.removeItem('auth_redirect_target');
+    } catch (e) {
+      // ignore
+    }
+  };
+
+  const resolvePostAuthTarget = (isNewUser) => {
+    const forced = readForcedTarget();
+    if (forced) return forced;
+    if (isNewUser) return '/evlilik/eslestirme-basvuru';
+    const stored = readStoredRedirect();
+    return stored?.from || redirectTarget.from || '/panel';
+  };
+
+  const resolvePostAuthState = () => {
+    const stored = readStoredRedirect();
+    return stored?.fromState || redirectTarget.fromState || null;
+  };
+
+  const navigateNext = (target, state) => {
+    const finalTarget = target || redirectTarget.from || '/panel';
+    const finalState = typeof state === 'undefined' ? redirectTarget.fromState : state;
+    navigate(finalTarget, { replace: true, state: finalState });
+  };
+  const resolveAuthLanguage = (lang) => {
+    const key = String(lang || '').toLowerCase();
+    if (key.startsWith('tr')) return 'tr';
+    if (key.startsWith('id')) return 'id';
+    return 'en';
+  };
+
+  const ensureProfileSaved = async (uid, gender, nationality, nationalityOther) => {
     if (!uid) return;
     if (gender !== "male" && gender !== "female") return;
 
     const ref = doc(db, "matchmakingUsers", uid);
     const snap = await getDoc(ref);
-    const existing = snap.exists() ? String((snap.data() || {})?.gender || "").toLowerCase().trim() : "";
-    if (existing) return;
+    const data = snap.exists() ? snap.data() || {} : {};
+    const existingGender = String(data?.gender || "").toLowerCase().trim();
+    const existingNationality = String(data?.nationality || "").toLowerCase().trim();
+    const existingNationalityOther = String(data?.nationalityOther || "").trim();
+    if (existingGender && existingNationality) return;
 
     const payload = {
-      gender,
+      gender: existingGender || gender,
+      nationality: existingNationality || String(nationality || '').trim(),
+      nationalityOther: existingNationalityOther || String(nationalityOther || '').trim(),
       updatedAt: serverTimestamp(),
     };
 
@@ -89,7 +169,13 @@ export default function Login() {
   }, [location.search]);
 
   useEffect(() => {
+    writeStoredRedirect();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [redirectTarget.from, redirectTarget.fromState]);
+
+  useEffect(() => {
     if (!forceLogin) return;
+    if (user) return;
 
     // Kullanıcı daha önce giriş yapmış olsa bile, bu ekrandan "yeni giriş" istendi.
     setInfo(t("authPage.forceInfo"));
@@ -98,21 +184,80 @@ export default function Login() {
     signOut(auth).catch(() => {
       // ignore
     });
-  }, [forceLogin]);
-
-  const goNext = () => {
-    navigate(redirectTarget.from, { replace: true, state: redirectTarget.fromState });
-  };
+  }, [forceLogin, user]);
 
   useEffect(() => {
-    if (user && !forceLogin) {
-      // Zaten giriş yaptıysa direkt hedefe gönder.
-      goNext();
+    let isActive = true;
+
+    const finalizeRedirect = async () => {
+      try {
+        const result = await getRedirectResult(auth);
+        if (result?.user && isActive) {
+          const info2 = getAdditionalUserInfo(result);
+          const isNewUser = !!info2?.isNewUser;
+          const target = resolvePostAuthTarget(isNewUser);
+          const state = isNewUser ? null : resolvePostAuthState();
+          clearStoredRedirect();
+          writeForcedTarget('');
+          navigateNext(target, state);
+        }
+      } catch (e) {
+        // ignore redirect result errors
+      }
+    };
+
+    finalizeRedirect();
+    return () => {
+      isActive = false;
+    };
+  }, [navigateNext]);
+
+  useEffect(() => {
+    auth.languageCode = resolveAuthLanguage(i18n?.language);
+  }, [i18n?.language]);
+
+  useEffect(() => {
+    if (user) {
+      const target = resolvePostAuthTarget(false);
+      const state = resolvePostAuthState();
+      clearStoredRedirect();
+      writeForcedTarget('');
+      navigateNext(target, state);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, forceLogin]);
+  }, [user]);
 
-  if (user && !forceLogin) return null;
+  useEffect(() => {
+    const current = auth?.currentUser || null;
+    if (!current) return;
+    const target = resolvePostAuthTarget(false);
+    const state = resolvePostAuthState();
+    clearStoredRedirect();
+    navigateNext(target, state);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [redirectTarget.from, redirectTarget.fromState]);
+
+  if (user) return null;
+
+  const resolveLanguageFromNationality = (value) => {
+    if (value === 'tr') return 'tr';
+    if (value === 'id') return 'id';
+    return 'en';
+  };
+
+  const handleNationalityChange = (value) => {
+    setSignupNationality(value);
+    if (value !== 'other') {
+      setSignupNationalityOther('');
+    }
+    const nextLang = resolveLanguageFromNationality(value);
+    try {
+      localStorage.setItem('preferred_lang_source', 'signup');
+    } catch {
+      // ignore
+    }
+    i18n.changeLanguage(nextLang);
+  };
 
   const handleGoogle = async () => {
     setBusy(true);
@@ -123,25 +268,43 @@ export default function Login() {
         setError(t("authPage.errors.genderRequired"));
         return;
       }
+      if (mode === "signup" && !signupNationality) {
+        setError(t("authPage.errors.nationalityRequired"));
+        return;
+      }
+      if (mode === "signup" && signupNationality === 'other' && !signupNationalityOther.trim()) {
+        setError(t("authPage.errors.nationalityOtherRequired"));
+        return;
+      }
+      writeForcedTarget('/evlilik/eslestirme-basvuru');
       const provider = new GoogleAuthProvider();
       const result = await signInWithPopup(auth, provider);
       const info2 = getAdditionalUserInfo(result);
       if (mode === "signup" && info2?.isNewUser) {
-        await ensureGenderSaved(result?.user?.uid, signupGender);
+        await ensureProfileSaved(result?.user?.uid, signupGender, signupNationality, signupNationalityOther);
       }
-      goNext();
+      const target = resolvePostAuthTarget(!!info2?.isNewUser);
+      const state = info2?.isNewUser ? null : resolvePostAuthState();
+      clearStoredRedirect();
+      writeForcedTarget('');
+      navigateNext(target, state);
     } catch (e) {
       const code = String(e?.code || "").trim();
 
-      // Popup engellenirse redirect ile devam et.
-      if (code === 'auth/popup-blocked' || code === 'auth/popup-closed-by-user' || code === 'auth/cancelled-popup-request') {
+      // Popup engellenirse veya argument-error olursa redirect ile devam et.
+      if (code === 'auth/popup-blocked' || code === 'auth/popup-closed-by-user' || code === 'auth/cancelled-popup-request' || code === 'auth/argument-error') {
         try {
           const provider = new GoogleAuthProvider();
           setInfo(t('authPage.redirecting') || 'Yönlendiriliyor…');
+          writeForcedTarget('/evlilik/eslestirme-basvuru');
           await signInWithRedirect(auth, provider);
           return;
         } catch (e2) {
-          setError(e2?.message || t("authPage.errors.googleFailed"));
+          const host = typeof window !== 'undefined' ? String(window.location.hostname || '') : '';
+          setError(
+            e2?.message ||
+              `Google ile giriş başarısız (${code}).\n\nFirebase Console → Authentication → Settings → Authorized domains kısmına bu domain'i ekleyin: ${host || '(domain bulunamadı)'}\nAyrıca .env ve Vercel env'de VITE_FIREBASE_AUTH_DOMAIN değerini kontrol edin.`
+          );
           return;
         }
       }
@@ -186,15 +349,23 @@ export default function Login() {
         setError(t("authPage.errors.genderRequired"));
         return;
       }
+      if (mode === "signup" && !signupNationality) {
+        setError(t("authPage.errors.nationalityRequired"));
+        return;
+      }
+      if (mode === "signup" && signupNationality === 'other' && !signupNationalityOther.trim()) {
+        setError(t("authPage.errors.nationalityOtherRequired"));
+        return;
+      }
 
       if (mode === "signup") {
         const cred = await createUserWithEmailAndPassword(auth, email, password);
-        await ensureGenderSaved(cred?.user?.uid, signupGender);
+        await ensureProfileSaved(cred?.user?.uid, signupGender, signupNationality, signupNationalityOther);
       } else {
         await signInWithEmailAndPassword(auth, email, password);
       }
 
-      goNext();
+      navigateNext();
     } catch (e2) {
       setError(e2?.message || t("authPage.errors.loginFailed"));
     } finally {
@@ -211,6 +382,7 @@ export default function Login() {
         setError(t("authPage.errors.resetEmailRequired"));
         return;
       }
+      auth.languageCode = resolveAuthLanguage(i18n?.language);
       await sendPasswordResetEmail(auth, email);
       setInfo(t("authPage.resetSent"));
     } catch (e) {
@@ -230,6 +402,7 @@ export default function Login() {
           <p className="text-sm text-gray-600 mt-2">
             {contextMessage}
           </p>
+
 
           {error && (
             <div className="mt-4 rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-800">{error}</div>
@@ -314,6 +487,35 @@ export default function Login() {
                     <span>{t("authPage.signup.genderFemale")}</span>
                   </label>
                 </div>
+              </div>
+            )}
+
+            {mode === "signup" && (
+              <div>
+                <label className="block text-xs font-semibold text-slate-700">{t("authPage.labels.nationality")}</label>
+                <select
+                  value={signupNationality}
+                  onChange={(e) => handleNationalityChange(e.target.value)}
+                  className="mt-2 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
+                >
+                  <option value="">{t('authPage.placeholders.nationality')}</option>
+                  <option value="tr">{t('authPage.signup.nationalityTr')}</option>
+                  <option value="id">{t('authPage.signup.nationalityId')}</option>
+                  <option value="other">{t('authPage.signup.nationalityOther')}</option>
+                </select>
+              </div>
+            )}
+
+            {mode === "signup" && signupNationality === 'other' && (
+              <div>
+                <label className="block text-xs font-semibold text-slate-700">{t("authPage.labels.nationalityOther")}</label>
+                <input
+                  value={signupNationalityOther}
+                  onChange={(e) => setSignupNationalityOther(e.target.value)}
+                  type="text"
+                  className="mt-2 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
+                  placeholder={t('authPage.placeholders.nationalityOther')}
+                />
               </div>
             )}
 

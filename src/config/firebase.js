@@ -3,6 +3,7 @@ import { initializeAppCheck, ReCaptchaV3Provider } from 'firebase/app-check';
 import {
   browserLocalPersistence,
   browserSessionPersistence,
+  browserPopupRedirectResolver,
   getAuth,
   initializeAuth,
   inMemoryPersistence,
@@ -59,7 +60,7 @@ export const auth = (() => {
   try {
     // initializeAuth, persistence'i en baştan bağladığı için,
     // "önce restore edip sonra setPersistence" yarışını engeller.
-    return initializeAuth(app, { persistence: authPersistence });
+    return initializeAuth(app, { persistence: authPersistence, popupRedirectResolver: browserPopupRedirectResolver });
   } catch (e) {
     // HMR / yeniden import durumunda aynı app için auth zaten init edilmiş olabilir.
     return getAuth(app);

@@ -1065,7 +1065,7 @@ export default function Panel() {
                   <>
                     <div className="w-12 h-12 rounded-2xl border border-slate-200 bg-white overflow-hidden flex items-center justify-center">
                       {photo ? (
-                        <img src={photo} alt="Profil" className="w-full h-full object-cover" loading="lazy" />
+                        <img src={photo} alt={t('matchmakingPanel.application.photoAlt')} className="w-full h-full object-cover" loading="lazy" />
                       ) : (
                         <div className="w-full h-full bg-slate-100" />
                       )}
@@ -1107,19 +1107,18 @@ export default function Panel() {
               <p className="text-sm text-slate-600 mt-1">{t('common.loading')}</p>
             ) : !matchmaking ? (
               <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-4">
-                <p className="text-sm font-semibold text-slate-900">Başlamadan önce</p>
+                <p className="text-sm font-semibold text-slate-900">{t('matchmakingPanel.onboarding.title')}</p>
                 <p className="text-sm text-slate-700 mt-1">
-                  Bu panel, eşleştirme sürecini yönetmek içindir. Profil oluşturmak için 1 kez başvuru formunu doldurursun;
-                  profil oluşturulduktan sonra her girişinde doğrudan bu panel açılır.
+                  {t('matchmakingPanel.onboarding.intro')}
                 </p>
 
                 <div className="mt-3 rounded-xl border border-slate-200 bg-white p-3">
-                  <p className="text-xs font-semibold text-slate-900">Sistem amacı ve kurallar</p>
+                  <p className="text-xs font-semibold text-slate-900">{t('matchmakingPanel.onboarding.rulesTitle')}</p>
                   <ul className="mt-2 space-y-1 text-sm text-slate-700 list-disc pl-5">
-                    <li>Bu alan herkese açık profil gezme alanı değildir; profiller kamuya açık listelenmez.</li>
-                    <li>Bilgiler, eşleştirme ve güvenli iletişim amacıyla kullanılır.</li>
-                    <li>Uygun eşleşme varsa panelinde görüntülenir; beğen/geç ile ilerlersin.</li>
-                    <li>İletişim paylaşımı karşılıklı onay ve kurallara göre açılır.</li>
+                    <li>{t('matchmakingPanel.onboarding.rules.r1')}</li>
+                    <li>{t('matchmakingPanel.onboarding.rules.r2')}</li>
+                    <li>{t('matchmakingPanel.onboarding.rules.r3')}</li>
+                    <li>{t('matchmakingPanel.onboarding.rules.r4')}</li>
                   </ul>
                 </div>
 
@@ -1129,7 +1128,7 @@ export default function Panel() {
                     checked={onboardingChecked}
                     onChange={(e) => setOnboardingChecked(e.target.checked)}
                   />
-                  Açıklamaları ve kuralları okudum.
+                  {t('matchmakingPanel.onboarding.confirm')}
                 </label>
 
                 <div className="mt-4 flex flex-col sm:flex-row gap-3 sm:items-center">
@@ -1146,7 +1145,7 @@ export default function Panel() {
                     }}
                     className="px-4 py-2 rounded-full bg-slate-900 text-white text-sm font-semibold hover:bg-slate-800 disabled:opacity-60"
                   >
-                    Profil oluştur
+                    {t('matchmakingPanel.onboarding.createProfile')}
                   </button>
 
                   <Link
@@ -1157,16 +1156,16 @@ export default function Panel() {
                     aria-disabled={!onboardingAccepted}
                     tabIndex={onboardingAccepted ? 0 : -1}
                   >
-                    Eşleşme başlatmak için form doldur
+                    {t('matchmakingPanel.onboarding.startForm')}
                   </Link>
 
                   <Link to="/uniqah" className="text-sm font-semibold text-sky-700 hover:underline">
-                    Sistem nasıl çalışır?
+                    {t('matchmakingPanel.onboarding.howWorks')}
                   </Link>
                 </div>
 
                 <p className="mt-3 text-xs text-slate-600">
-                  Not: Profil oluşturduktan sonra formu 1 kez gönder. Sonraki girişlerde tekrar forma yönlendirilmezsin.
+                  {t('matchmakingPanel.onboarding.note')}
                 </p>
               </div>
             ) : (

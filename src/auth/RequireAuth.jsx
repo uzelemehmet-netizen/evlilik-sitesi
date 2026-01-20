@@ -6,6 +6,7 @@ export default function RequireAuth({ children }) {
   const { user, loading } = useAuth();
   const location = useLocation();
 
+
   if (loading) {
     return <div className="min-h-screen flex items-center justify-center">Yükleniyor...</div>;
   }
@@ -22,6 +23,7 @@ export default function RequireAuth({ children }) {
       />
     );
   }
+
 
   return children;
 }

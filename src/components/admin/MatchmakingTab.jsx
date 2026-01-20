@@ -560,7 +560,7 @@ export default function MatchmakingTab({ items, newCount, onMarkAllRead }) {
         </div>
 
         <div className="mt-3">
-          <label className="block text-xs font-semibold text-slate-600">Arama (Profil No / Başvuru ID / İsim)</label>
+          <label className="block text-xs font-semibold text-slate-600">Arama (Kullanıcı Adı / Başvuru ID / İsim)</label>
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
@@ -635,7 +635,7 @@ export default function MatchmakingTab({ items, newCount, onMarkAllRead }) {
                             {activeItem.city ? ` • ${activeItem.city}` : ''}
                           </p>
                           {formatProfileCode(activeItem) ? (
-                            <p className="text-xs text-slate-700 mt-1">Profil No: <span className="font-semibold">{formatProfileCode(activeItem)}</span></p>
+                            <p className="text-xs text-slate-700 mt-1">Kullanıcı Kodu: <span className="font-semibold">{formatProfileCode(activeItem)}</span></p>
                           ) : null}
                         </div>
                         {activeItem.id && (

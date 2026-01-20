@@ -255,7 +255,7 @@ export default function MatchmakingMatchesTab() {
           <section className="rounded-2xl bg-white border border-slate-200 p-4">
             <p className="text-sm font-semibold text-slate-900">Manuel eşleştir</p>
             <p className="text-xs text-slate-600 mt-1">
-              A ve B için “Application ID” veya “Profil Kodu” (örn: MK-123) girin. Bu işlem iki kullanıcı arasında bir
+              A ve B için “Application ID” veya “Kullanıcı Adı” girin. Bu işlem iki kullanıcı arasında bir
               eşleşme dokümanı oluşturur.
             </p>
 
@@ -265,7 +265,7 @@ export default function MatchmakingMatchesTab() {
                 <input
                   value={manualA}
                   onChange={(e) => setManualA(e.target.value)}
-                  placeholder="Örn: MK-101 veya applicationId"
+                  placeholder="Örn: moonstar_34 veya applicationId"
                   className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm"
                 />
               </div>
@@ -274,7 +274,7 @@ export default function MatchmakingMatchesTab() {
                 <input
                   value={manualB}
                   onChange={(e) => setManualB(e.target.value)}
-                  placeholder="Örn: MK-202 veya applicationId"
+                  placeholder="Örn: blueocean_21 veya applicationId"
                   className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm"
                 />
               </div>

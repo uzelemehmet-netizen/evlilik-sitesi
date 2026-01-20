@@ -1,13 +1,48 @@
 import Navigation from '../components/Navigation';
 import Footer from '../components/Footer';
 import { Link } from 'react-router-dom';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { CheckCircle, MessageCircle, ShieldCheck, UserCheck, Sparkles, Lock, Crown, ArrowRight } from 'lucide-react';
 import { buildWhatsAppUrl } from '../utils/whatsapp';
+import { useAuth } from '../auth/AuthProvider';
+import { collection, getDocs, limit, query, where } from 'firebase/firestore';
+import { db } from '../config/firebase';
 
 export default function MatchmakingHub() {
   const { t } = useTranslation();
+  const { user } = useAuth();
   const BRAND_LOGO_SRC = "/brand.png";
+
+  const [checkingApplication, setCheckingApplication] = useState(false);
+  const [hasApplication, setHasApplication] = useState(false);
+
+  useEffect(() => {
+    if (!user?.uid) {
+      setHasApplication(false);
+      return;
+    }
+
+    let cancelled = false;
+    setCheckingApplication(true);
+
+    (async () => {
+      try {
+        const q = query(collection(db, 'matchmakingApplications'), where('userId', '==', user.uid), limit(1));
+        const snap = await getDocs(q);
+        if (cancelled) return;
+        setHasApplication(!snap.empty);
+      } catch (e) {
+        if (!cancelled) setHasApplication(false);
+      } finally {
+        if (!cancelled) setCheckingApplication(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.uid]);
 
   const howSteps = t('matchmakingHub.how.steps', { returnObjects: true });
   const safetyPoints = t('matchmakingHub.safety.points', { returnObjects: true });
@@ -52,29 +87,33 @@ export default function MatchmakingHub() {
                   </p>
 
                   <div className="mt-6 flex flex-col sm:flex-row gap-3">
-                    <Link
-                      to="/login?force=1"
-                      state={{
-                        from: '/panel',
-                        fromState: {
-                          showMatchmakingIntro: true,
-                          matchmakingNext: '/evlilik/eslestirme-basvuru',
-                        },
-                      }}
-                      className="inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-amber-300 to-amber-500 text-slate-950 px-6 py-3 font-semibold text-sm shadow-[0_16px_40px_rgba(245,158,11,0.35)] hover:brightness-110 transition"
-                    >
-                      <Crown size={18} />
-                      {t('matchmakingHub.actions.apply')}
-                      <ArrowRight size={18} />
-                    </Link>
+                    {(!user || (!checkingApplication && !hasApplication)) && (
+                      <Link
+                        to="/login"
+                        state={{
+                          from: '/panel',
+                          fromState: {
+                            showMatchmakingIntro: true,
+                            matchmakingNext: '/evlilik/eslestirme-basvuru',
+                          },
+                        }}
+                        className="inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-amber-300 to-amber-500 text-slate-950 px-6 py-3 font-semibold text-sm shadow-[0_16px_40px_rgba(245,158,11,0.35)] hover:brightness-110 transition"
+                      >
+                        <Crown size={18} />
+                        {t('matchmakingHub.actions.apply')}
+                        <ArrowRight size={18} />
+                      </Link>
+                    )}
 
-                    <Link
-                      to="/panel"
-                      className="inline-flex items-center justify-center gap-2 rounded-full bg-white/10 border border-white/10 text-white px-6 py-3 font-semibold text-sm hover:bg-white/[0.14] transition"
-                    >
-                      <UserCheck size={18} />
-                      {t('matchmakingHub.actions.goPanel')}
-                    </Link>
+                    {user && (
+                      <Link
+                        to="/panel"
+                        className="inline-flex items-center justify-center gap-2 rounded-full bg-white/10 border border-white/10 text-white px-6 py-3 font-semibold text-sm hover:bg-white/[0.14] transition"
+                      >
+                        <UserCheck size={18} />
+                        {t('matchmakingHub.actions.goPanel')}
+                      </Link>
+                    )}
 
                     <a
                       href={buildWhatsAppUrl(t('matchmakingHub.whatsappSupportMessage'))}

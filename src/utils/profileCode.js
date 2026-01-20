@@ -1,6 +1,11 @@
 export function formatProfileCode(input) {
   if (!input) return '';
 
+  const fromUsername = (v) => {
+    const s = typeof v?.username === 'string' ? v.username.trim() : '';
+    return s;
+  };
+
   const fromString = (v) => {
     const s = typeof v === 'string' ? v.trim() : '';
     if (!s) return '';
@@ -16,6 +21,9 @@ export function formatProfileCode(input) {
 
     return s;
   };
+
+  const username = fromUsername(input);
+  if (username) return username;
 
   const code = fromString(input.profileCode);
   if (code) return code;

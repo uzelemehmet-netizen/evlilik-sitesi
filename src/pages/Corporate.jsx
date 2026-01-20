@@ -3,8 +3,10 @@ import Footer from '../components/Footer';
 import { Building2, BadgeCheck, Globe, Phone, Mail, MapPin, ExternalLink } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { COMPANY } from '../config/company';
+import { useTranslation } from 'react-i18next';
 
 export default function Corporate() {
+  const { t } = useTranslation();
   const brand = 'Endonezya Kaşifi';
   const instagram = 'https://www.instagram.com/endonezyakasifi';
   const youtube = 'https://www.youtube.com/@endonezyakasifi';
@@ -27,7 +29,7 @@ export default function Corporate() {
         <div className="max-w-7xl mx-auto relative z-10 text-center">
           <p className="inline-flex items-center gap-2 text-xs md:text-sm text-emerald-100 tracking-wide uppercase mb-2">
             <Building2 size={16} />
-            Güven & Yasal
+            {t('corporatePage.hero.badge')}
           </p>
           <h1
             className="text-3xl md:text-5xl font-semibold text-white mb-4"
@@ -39,8 +41,7 @@ export default function Corporate() {
             className="text-base md:text-lg text-white/95 max-w-3xl mx-auto"
             style={{ fontFamily: '"Poppins", sans-serif', textShadow: '0 2px 8px rgba(0,0,0,0.6)' }}
           >
-            Bu sayfa; “Bu site kime ait?”, “Ödeme/tahsilat kimin adına?”, “Sözleşmeler hangi tüzel kişiyle?” gibi sorulara net cevap veren
-            kurumsal bilgi merkezidir.
+            {t('corporatePage.hero.description')}
           </p>
         </div>
       </section>
@@ -49,8 +50,7 @@ export default function Corporate() {
         <div className="max-w-5xl mx-auto">
           <div className="mb-6 p-5 rounded-2xl border border-emerald-100 bg-emerald-50/60">
             <p className="text-sm text-gray-800" style={{ fontFamily: '"Poppins", sans-serif' }}>
-              <span className="font-semibold">{brand}</span>, Endonezya’da kayıtlı <span className="font-semibold">{COMPANY.legalName}</span> şirketinin markasıdır.
-              Sözleşme tarafı ve tahsilat süreçleri bu tüzel kişi üzerinden yürütülür.
+              <span className="font-semibold">{brand}</span> {t('corporatePage.summary.brandLine', { company: COMPANY.legalName })}
             </p>
             <div className="mt-3 flex flex-wrap gap-2">
               <Link
@@ -58,7 +58,7 @@ export default function Corporate() {
                 className="inline-flex items-center gap-2 rounded-full bg-white border border-emerald-200 px-4 py-2 text-sm hover:shadow-sm transition"
               >
                 <BadgeCheck size={16} className="text-emerald-700" />
-                Dokümanlar & Sözleşmeler
+                {t('corporatePage.summary.documents')}
               </Link>
               <a
                 href="/docs/tur-brosurleri.html"
@@ -67,7 +67,7 @@ export default function Corporate() {
                 className="inline-flex items-center gap-2 rounded-full bg-white border border-slate-200 px-4 py-2 text-sm hover:shadow-sm transition"
               >
                 <BadgeCheck size={16} className="text-slate-700" />
-                Tur broşürleri (PDF)
+                {t('corporatePage.summary.brochures')}
               </a>
             </div>
           </div>
@@ -75,31 +75,30 @@ export default function Corporate() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="p-6 rounded-2xl border border-emerald-100 bg-emerald-50/60">
               <h2 className="text-xl md:text-2xl font-semibold text-gray-900 mb-3" style={{ fontFamily: '"Poppins", sans-serif' }}>
-                Marka ve şirket bilgileri
+                {t('corporatePage.brandInfo.title')}
               </h2>
               <div className="space-y-2 text-sm text-gray-700" style={{ fontFamily: '"Poppins", sans-serif' }}>
                 <p>
-                  <span className="font-semibold">Marka:</span> {brand}
+                  <span className="font-semibold">{t('corporatePage.brandInfo.labels.brand')}:</span> {brand}
                 </p>
                 <p>
-                  <span className="font-semibold">Yasal ünvan:</span> {COMPANY.legalName}
+                  <span className="font-semibold">{t('corporatePage.brandInfo.labels.legalName')}:</span> {COMPANY.legalName}
                 </p>
                 <p>
-                  <span className="font-semibold">NPWP:</span> {COMPANY.tax}
+                  <span className="font-semibold">{t('corporatePage.brandInfo.labels.tax')}:</span> {COMPANY.tax}
                 </p>
                 <p>
-                  <span className="font-semibold">NIB:</span> {COMPANY.nib}
+                  <span className="font-semibold">{t('corporatePage.brandInfo.labels.nib')}:</span> {COMPANY.nib}
                 </p>
               </div>
               <div className="mt-4 text-sm text-gray-700" style={{ fontFamily: '"Poppins", sans-serif' }}>
-                YouTube ve Instagram hesap adlarımız <span className="font-semibold">endonezyakasifi</span> olarak kalır ve marka
-                iletişimimizi destekler.
+                {t('corporatePage.brandInfo.socialNote')}
               </div>
             </div>
 
             <div className="p-6 rounded-2xl border border-slate-200 bg-slate-50">
               <h2 className="text-xl md:text-2xl font-semibold text-gray-900 mb-3" style={{ fontFamily: '"Poppins", sans-serif' }}>
-                İletişim ve adres
+                {t('corporatePage.contact.title')}
               </h2>
               <div className="space-y-3 text-sm text-gray-700" style={{ fontFamily: '"Poppins", sans-serif' }}>
                 <div className="flex items-start gap-2">
@@ -117,14 +116,14 @@ export default function Corporate() {
                   <a className="hover:underline" href="tel:+905550343852">
                     +90 555 034 3852
                   </a>
-                  <span className="text-gray-500">(TR / WhatsApp)</span>
+                  <span className="text-gray-500">({t('corporatePage.contact.trLabel')})</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <Phone size={18} className="text-emerald-700" />
                   <a className="hover:underline" href="tel:+6285888978383">
                     {COMPANY.phoneIdDisplay}
                   </a>
-                  <span className="text-gray-500">(ID)</span>
+                  <span className="text-gray-500">({t('corporatePage.contact.idLabel')})</span>
                 </div>
                 <div className="flex flex-wrap gap-3 pt-2">
                   <a
@@ -157,7 +156,7 @@ export default function Corporate() {
             />
             <div className="flex-1">
               <p className="text-xs uppercase tracking-wide text-slate-600 mb-2" style={{ fontFamily: '"Poppins", sans-serif' }}>
-                Ana şirket
+                {t('corporatePage.parentCompany.badge')}
               </p>
               <div className="flex items-center gap-3">
                 <img
@@ -171,7 +170,7 @@ export default function Corporate() {
                     PT MoonStar Global Indonesia
                   </p>
                   <p className="text-sm text-slate-600" style={{ fontFamily: '"Poppins", sans-serif' }}>
-                    {brand} operasyonlarının yasal çatısı
+                    {t('corporatePage.parentCompany.caption', { brand })}
                   </p>
                 </div>
               </div>
@@ -180,36 +179,36 @@ export default function Corporate() {
 
           <div className="mt-10 p-6 rounded-2xl border border-slate-200 bg-white">
             <h2 className="text-xl md:text-2xl font-semibold text-gray-900 mb-4" style={{ fontFamily: '"Poppins", sans-serif' }}>
-              Ödeme, tahsilat ve sözleşmeler
+              {t('corporatePage.billing.title')}
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="p-5 rounded-2xl bg-slate-50 border border-slate-200">
                 <p className="text-xs uppercase tracking-wide text-slate-700 mb-1" style={{ fontFamily: '"Poppins", sans-serif' }}>
-                  Tahsilat
+                  {t('corporatePage.billing.items.collection.title')}
                 </p>
                 <p className="text-sm text-gray-700" style={{ fontFamily: '"Poppins", sans-serif' }}>
-                  Ödemeler, bankacılık kayıtlarında <span className="font-semibold">{COMPANY.legalName}</span> adına görünebilir.
+                  {t('corporatePage.billing.items.collection.body', { company: COMPANY.legalName })}
                 </p>
               </div>
               <div className="p-5 rounded-2xl bg-slate-50 border border-slate-200">
                 <p className="text-xs uppercase tracking-wide text-slate-700 mb-1" style={{ fontFamily: '"Poppins", sans-serif' }}>
-                  Sözleşme tarafı
+                  {t('corporatePage.billing.items.contract.title')}
                 </p>
                 <p className="text-sm text-gray-700" style={{ fontFamily: '"Poppins", sans-serif' }}>
-                  Paket tur / mesafeli satış gibi sözleşmelerde tüzel kişi olarak <span className="font-semibold">{COMPANY.legalName}</span> yer alır.
+                  {t('corporatePage.billing.items.contract.body', { company: COMPANY.legalName })}
                 </p>
               </div>
               <div className="p-5 rounded-2xl bg-emerald-50 border border-emerald-100">
                 <p className="text-xs uppercase tracking-wide text-emerald-700 mb-1" style={{ fontFamily: '"Poppins", sans-serif' }}>
-                  Doküman merkezi
+                  {t('corporatePage.documents.title')}
                 </p>
                 <p className="text-sm text-gray-700" style={{ fontFamily: '"Poppins", sans-serif' }}>
-                  Tüm güncel dokümanlar, sözleşmeler ve politikalar burada.
+                  {t('corporatePage.documents.body')}
                 </p>
                 <div className="mt-3">
                   <Link to="/dokumanlar" className="inline-flex items-center gap-2 rounded-full bg-white border border-emerald-200 px-4 py-2 text-sm hover:shadow-sm transition">
                     <BadgeCheck size={16} className="text-emerald-700" />
-                    Dokümanları aç
+                    {t('corporatePage.documents.cta')}
                   </Link>
                 </div>
               </div>
@@ -217,21 +216,24 @@ export default function Corporate() {
 
             <div className="mt-4 p-4 rounded-2xl bg-white border border-slate-200">
               <p className="text-sm text-gray-700" style={{ fontFamily: '"Poppins", sans-serif' }}>
-                Broşürleri PDF olarak indirmek isterseniz: <a className="text-emerald-700 font-semibold hover:underline" href="/docs/tur-brosurleri.html" target="_blank" rel="noopener noreferrer">Tur Broşürleri</a>
+                {t('corporatePage.documents.brochureNote')}{' '}
+                <a className="text-emerald-700 font-semibold hover:underline" href="/docs/tur-brosurleri.html" target="_blank" rel="noopener noreferrer">
+                  {t('corporatePage.documents.brochureLink')}
+                </a>
               </p>
             </div>
           </div>
 
           <div className="mt-10 p-6 rounded-2xl border border-slate-200 bg-white">
             <h2 className="text-xl md:text-2xl font-semibold text-gray-900 mb-4" style={{ fontFamily: '"Poppins", sans-serif' }}>
-              Diğer markamız
+              {t('corporatePage.otherBrand.title')}
             </h2>
             <a
               href={dameTurk}
               target="_blank"
               rel="noopener noreferrer"
               className="p-5 rounded-2xl bg-slate-50 border border-slate-200 hover:shadow-sm transition block"
-              aria-label="DaMeTurk web sitesini aç"
+              aria-label={t('corporatePage.otherBrand.aria')}
             >
               <div className="flex items-center justify-between gap-3">
                 <p className="text-xs uppercase tracking-wide text-slate-700 mb-1" style={{ fontFamily: '"Poppins", sans-serif' }}>
@@ -240,7 +242,7 @@ export default function Corporate() {
                 <ExternalLink size={16} className="text-slate-500" />
               </div>
               <p className="text-sm text-gray-700" style={{ fontFamily: '"Poppins", sans-serif' }}>
-                {COMPANY.legalName} bünyesindeki orijinal Türk dondurması markamız.
+                {t('corporatePage.otherBrand.body', { company: COMPANY.legalName })}
               </p>
               <p className="mt-2 text-sm text-emerald-700 font-semibold" style={{ fontFamily: '"Poppins", sans-serif' }}>
                 dameturk.com
@@ -250,36 +252,36 @@ export default function Corporate() {
 
           <div className="mt-10 p-6 rounded-2xl border border-slate-200 bg-slate-50">
             <h2 className="text-xl md:text-2xl font-semibold text-gray-900 mb-4" style={{ fontFamily: '"Poppins", sans-serif' }}>
-              Sık sorulan kısa sorular
+              {t('corporatePage.faq.title')}
             </h2>
             <div className="space-y-3">
               <details className="group rounded-xl bg-white border border-slate-200 p-4">
                 <summary className="cursor-pointer font-semibold text-gray-900 flex items-center gap-2">
                   <BadgeCheck size={18} className="text-emerald-700" />
-                  Bu site hangi şirkete bağlı?
+                  {t('corporatePage.faq.items.siteCompany.q')}
                 </summary>
                 <p className="mt-2 text-sm text-gray-700" style={{ fontFamily: '"Poppins", sans-serif' }}>
-                  {brand}, Endonezya’da kayıtlı {COMPANY.legalName} şirketinin markasıdır. Sözleşme ve tahsilat süreçleri bu tüzel kişi üzerinden yürütülür.
+                  {t('corporatePage.faq.items.siteCompany.a', { brand, company: COMPANY.legalName })}
                 </p>
               </details>
 
               <details className="group rounded-xl bg-white border border-slate-200 p-4">
                 <summary className="cursor-pointer font-semibold text-gray-900 flex items-center gap-2">
                   <BadgeCheck size={18} className="text-emerald-700" />
-                  Ödeme ekranında farklı bir şirket adı görürsem?
+                  {t('corporatePage.faq.items.paymentCompany.q')}
                 </summary>
                 <p className="mt-2 text-sm text-gray-700" style={{ fontFamily: '"Poppins", sans-serif' }}>
-                  Bu normaldir: tahsilat ve sözleşmeler {COMPANY.legalName} üzerinden yürütüldüğü için, ödeme kanallarında bu ünvan görünebilir.
+                  {t('corporatePage.faq.items.paymentCompany.a', { company: COMPANY.legalName })}
                 </p>
               </details>
 
               <details className="group rounded-xl bg-white border border-slate-200 p-4">
                 <summary className="cursor-pointer font-semibold text-gray-900 flex items-center gap-2">
                   <BadgeCheck size={18} className="text-emerald-700" />
-                  DaMeTurk sizin mi?
+                  {t('corporatePage.faq.items.dameturk.q')}
                 </summary>
                 <p className="mt-2 text-sm text-gray-700" style={{ fontFamily: '"Poppins", sans-serif' }}>
-                  Evet. DaMeTurk, {COMPANY.legalName} bünyesinde faaliyet gösteren markalarımızdan biridir ve kendi web sitesi üzerinden hizmet verir.
+                  {t('corporatePage.faq.items.dameturk.a', { company: COMPANY.legalName })}
                 </p>
               </details>
             </div>

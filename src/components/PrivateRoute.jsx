@@ -6,12 +6,19 @@ export default function PrivateRoute({ children }) {
   const [isAuthenticated, setIsAuthenticated] = useState(null);
   const [isAdmin, setIsAdmin] = useState(null);
 
-  const defaultAdmins = ["uzelemehmet@gmail.com", "articelikkapi@gmail.com"];
+  const ruleAdmins = ["uzelemehmet@gmail.com", "articelikkapi@gmail.com"];
+  const ruleAdminSet = new Set(ruleAdmins);
 
-  const allowedAdminEmails = (import.meta.env.VITE_ADMIN_EMAILS || "")
+  const envAdmins = (import.meta.env.VITE_ADMIN_EMAILS || "")
     .split(",")
     .map((v) => v.trim().toLowerCase())
     .filter(Boolean);
+
+  // Firestore rules ile birebir uyum: sadece kural listesinde olanlar admin sayılır.
+  // Eğer env listesi verilmişse, kural listesiyle kesişim alınır.
+  const effectiveAdmins = envAdmins.length > 0
+    ? envAdmins.filter((email) => ruleAdminSet.has(email))
+    : ruleAdmins;
 
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged((user) => {
@@ -22,13 +29,9 @@ export default function PrivateRoute({ children }) {
         return;
       }
 
-      // Eğer allowlist tanımlıysa, sadece listedekiler admin sayılır.
-      if (allowedAdminEmails.length > 0) {
-        setIsAdmin(allowedAdminEmails.includes(String(user.email || "").toLowerCase()));
-      } else {
-        // Varsayılan: sadece belirlenen admin e-postaları.
-        setIsAdmin(defaultAdmins.includes(String(user.email || "").toLowerCase()));
-      }
+      const email = String(user.email || "").toLowerCase();
+      // Kural listesi dışına admin çıkmasın.
+      setIsAdmin(effectiveAdmins.includes(email));
     });
 
     return unsubscribe;

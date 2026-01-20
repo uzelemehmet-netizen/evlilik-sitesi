@@ -420,7 +420,7 @@ export default function AdminMatchmakingDetail() {
             <div className="rounded-xl border border-slate-200 bg-white p-4">
               <p className="text-sm font-semibold text-slate-900">Başvuru</p>
               <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
-                <p><span className="font-semibold">Profil No:</span> {formatProfileCode(item) || '-'}</p>
+                <p><span className="font-semibold">Kullanıcı Kodu:</span> {formatProfileCode(item) || '-'}</p>
                 <p><span className="font-semibold">Başvuru ID:</span> {item.id}</p>
                 <p><span className="font-semibold">Tarih:</span> {formatTs(item.createdAt) || '-'}</p>
                 <p><span className="font-semibold">Durum:</span> {item.status || '-'}</p>

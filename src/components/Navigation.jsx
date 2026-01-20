@@ -113,7 +113,14 @@ export default function Navigation() {
             <div className="flex items-center gap-2 flex-nowrap overflow-x-auto min-w-0">
             <select
               value={currentLang}
-              onChange={(e) => i18n.changeLanguage(e.target.value)}
+              onChange={(e) => {
+                try {
+                  localStorage.setItem('preferred_lang_source', 'selector');
+                } catch {
+                  // ignore
+                }
+                i18n.changeLanguage(e.target.value);
+              }}
               className="px-2 py-1.5 rounded-full text-xs sm:text-sm font-semibold border border-emerald-200 bg-white text-slate-800 shadow-sm"
               aria-label="Dil seç"
             >

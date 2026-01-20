@@ -13,12 +13,6 @@ import {
 } from '../utils/recaptchaEnterprise';
 import { useAuth } from '../auth/AuthProvider';
 import { uploadImageToCloudinaryAuto } from '../utils/cloudinaryUpload';
-import { authFetch } from '../utils/authFetch';
-
-function buildFallbackProfileCode(docId) {
-  const tail = typeof docId === 'string' && docId ? docId.slice(-8).toUpperCase() : 'UNKNOWN';
-  return `MK-${tail}`;
-}
 
 function toNumberOrNull(value) {
   if (value === null || value === undefined) return null;
@@ -35,6 +29,10 @@ function getSelectedValuesFromMultiSelect(e) {
 
 function isImageFile(file) {
   return !!file && typeof file.type === 'string' && file.type.startsWith('image/');
+}
+
+function normalizeUsername(value) {
+  return String(value || '').trim().toLowerCase();
 }
 
 async function compressImageToJpeg(file, { maxWidth = 1600, maxHeight = 1600, quality = 0.82 } = {}) {
@@ -277,7 +275,7 @@ export default function MatchmakingApply() {
       { id: 'tr', label: t('matchmakingPage.form.options.commLanguage.tr') },
       { id: 'id', label: t('matchmakingPage.form.options.commLanguage.id') },
       { id: 'en', label: t('matchmakingPage.form.options.commLanguage.en') },
-      { id: 'ar', label: t('matchmakingPage.form.options.commLanguage.ar') },
+      { id: 'translation_app', label: t('matchmakingPage.form.options.commLanguage.translationApp') },
       { id: 'other', label: t('matchmakingPage.form.options.commLanguage.other') },
     ],
     [t, i18n.language]
@@ -300,16 +298,6 @@ export default function MatchmakingApply() {
       { id: '3_6', label: t('matchmakingPage.form.options.timeline.3_6') },
       { id: '6_12', label: t('matchmakingPage.form.options.timeline.6_12') },
       { id: '1_plus', label: t('matchmakingPage.form.options.timeline.1_plus') },
-    ],
-    [t, i18n.language]
-  );
-
-  const familyApprovalStatusOptions = useMemo(
-    () => [
-      { id: '', label: t('matchmakingPage.form.options.common.select') },
-      { id: 'approved', label: t('matchmakingPage.form.options.familyApproval.approved') },
-      { id: 'in_progress', label: t('matchmakingPage.form.options.familyApproval.inProgress') },
-      { id: 'problem', label: t('matchmakingPage.form.options.familyApproval.problem') },
     ],
     [t, i18n.language]
   );
@@ -350,8 +338,6 @@ export default function MatchmakingApply() {
     maritalStatus: '',
     hasChildren: '',
     childrenCount: '',
-    familyObstacle: '',
-    familyObstacleDetails: '',
     familyApprovalStatus: '',
     religion: '',
     religiousValues: '',
@@ -363,7 +349,8 @@ export default function MatchmakingApply() {
     nativeLanguageOther: '',
     foreignLanguages: [],
     foreignLanguageOther: '',
-    canCommunicateWithTranslationApp: '',
+    communicationLanguage: '',
+    communicationLanguageOther: '',
     smoking: '',
     alcohol: '',
     partnerHeightMinCm: '',
@@ -520,8 +507,86 @@ export default function MatchmakingApply() {
       }
     }
 
-    // Kullanıcı tekrar "zorunlu" yapmamızı istemedikçe: tüm alanlar opsiyonel.
-    // Yalnızca mantıksal doğrulamalar (girildiyse aralık/format) uygulanır.
+    // Kullanıcı isteği: Instagram hariç tüm alanlar zorunlu.
+    const requiredValue = (value) => String(value ?? '').trim();
+    const foreignLanguages = Array.isArray(form.foreignLanguages) ? form.foreignLanguages.filter(Boolean) : [];
+
+    const normalizedUsername = normalizeUsername(form.username);
+    if (!normalizedUsername) {
+      return setError(t('matchmakingPage.form.errors.username'));
+    }
+
+    if (!requiredValue(form.fullName)) return setError(t('matchmakingPage.form.errors.fullName'));
+    if (!requiredValue(form.age)) return setError(t('matchmakingPage.form.errors.age'));
+    if (!requiredValue(form.city)) return setError(t('matchmakingPage.form.errors.city'));
+    if (!requiredValue(form.country)) return setError(t('matchmakingPage.form.errors.country'));
+    if (!requiredValue(form.whatsapp)) return setError(t('matchmakingPage.form.errors.whatsapp'));
+    if (!requiredValue(form.email)) return setError(t('matchmakingPage.form.errors.email'));
+
+    if (!requiredValue(form.nationality)) return setError(t('matchmakingPage.form.errors.nationality'));
+    if (!requiredValue(form.gender)) return setError(t('matchmakingPage.form.errors.gender'));
+    if (!requiredValue(form.lookingForNationality)) return setError(t('matchmakingPage.form.errors.lookingForNationality'));
+    if (!requiredValue(form.lookingForGender)) return setError(t('matchmakingPage.form.errors.lookingForGender'));
+
+    if (!requiredValue(form.heightCm)) return setError(t('matchmakingPage.form.errors.heightRequired'));
+    if (!requiredValue(form.weightKg)) return setError(t('matchmakingPage.form.errors.weightRequired'));
+    if (!requiredValue(form.occupation)) return setError(t('matchmakingPage.form.errors.occupation'));
+    if (!requiredValue(form.education)) return setError(t('matchmakingPage.form.errors.education'));
+    if (!requiredValue(form.maritalStatus)) return setError(t('matchmakingPage.form.errors.maritalStatus'));
+    if (!requiredValue(form.hasChildren)) return setError(t('matchmakingPage.form.errors.hasChildren'));
+    if (form.hasChildren === 'yes' && !requiredValue(form.childrenCount)) {
+      return setError(t('matchmakingPage.form.errors.childrenCount'));
+    }
+    if (!requiredValue(form.incomeLevel)) return setError(t('matchmakingPage.form.errors.incomeLevel'));
+    if (!requiredValue(form.religion)) return setError(t('matchmakingPage.form.errors.religion'));
+    if (!requiredValue(form.religiousValues)) return setError(t('matchmakingPage.form.errors.religiousValues'));
+    if (!requiredValue(form.familyApprovalStatus)) return setError(t('matchmakingPage.form.errors.familyApprovalStatus'));
+    if (!requiredValue(form.marriageTimeline)) return setError(t('matchmakingPage.form.errors.marriageTimeline'));
+    if (!requiredValue(form.relocationWillingness)) return setError(t('matchmakingPage.form.errors.relocationWillingness'));
+    if (!requiredValue(form.preferredLivingCountry)) return setError(t('matchmakingPage.form.errors.preferredLivingCountry'));
+
+    if (!requiredValue(form.nativeLanguage)) return setError(t('matchmakingPage.form.errors.nativeLanguage'));
+    if (form.nativeLanguage === 'other' && !requiredValue(form.nativeLanguageOther)) {
+      return setError(t('matchmakingPage.form.errors.nativeLanguageOther'));
+    }
+    if (!foreignLanguages.length) return setError(t('matchmakingPage.form.errors.foreignLanguages'));
+    if (foreignLanguages.includes('other') && !requiredValue(form.foreignLanguageOther)) {
+      return setError(t('matchmakingPage.form.errors.foreignLanguageOther'));
+    }
+    if (!requiredValue(form.communicationLanguage)) return setError(t('matchmakingPage.form.errors.communicationLanguage'));
+    if (form.communicationLanguage === 'other' && !requiredValue(form.communicationLanguageOther)) {
+      return setError(t('matchmakingPage.form.errors.communicationLanguageOther'));
+    }
+    if (!requiredValue(form.smoking)) return setError(t('matchmakingPage.form.errors.smoking'));
+    if (!requiredValue(form.alcohol)) return setError(t('matchmakingPage.form.errors.alcohol'));
+
+    if (!requiredValue(form.partnerHeightMinCm)) return setError(t('matchmakingPage.form.errors.partnerHeightMin'));
+    if (!requiredValue(form.partnerHeightMaxCm)) return setError(t('matchmakingPage.form.errors.partnerHeightMax'));
+    if (!requiredValue(form.partnerAgeMaxOlderYears)) return setError(t('matchmakingPage.form.errors.partnerAgeMaxOlderYears'));
+    if (!requiredValue(form.partnerAgeMaxYoungerYears)) return setError(t('matchmakingPage.form.errors.partnerAgeMaxYoungerYears'));
+    if (!requiredValue(form.partnerMaritalStatus)) return setError(t('matchmakingPage.form.errors.partnerMaritalStatus'));
+    if (!requiredValue(form.partnerReligion)) return setError(t('matchmakingPage.form.errors.partnerReligion'));
+    if (!requiredValue(form.partnerCommunicationLanguage)) return setError(t('matchmakingPage.form.errors.partnerCommunicationLanguage'));
+    if (form.partnerCommunicationLanguage === 'other' && !requiredValue(form.partnerCommunicationLanguageOther)) {
+      return setError(t('matchmakingPage.form.errors.partnerCommunicationLanguageOther'));
+    }
+    if (!requiredValue(form.partnerCanCommunicateWithTranslationApp)) {
+      return setError(t('matchmakingPage.form.errors.partnerTranslationApp'));
+    }
+    if (!requiredValue(form.partnerLivingCountry)) return setError(t('matchmakingPage.form.errors.partnerLivingCountry'));
+    if (!requiredValue(form.partnerSmokingPreference)) return setError(t('matchmakingPage.form.errors.partnerSmokingPreference'));
+    if (!requiredValue(form.partnerAlcoholPreference)) return setError(t('matchmakingPage.form.errors.partnerAlcoholPreference'));
+    if (!requiredValue(form.partnerChildrenPreference)) return setError(t('matchmakingPage.form.errors.partnerChildrenPreference'));
+    if (!requiredValue(form.partnerEducationPreference)) return setError(t('matchmakingPage.form.errors.partnerEducationPreference'));
+    if (!requiredValue(form.partnerOccupationPreference)) return setError(t('matchmakingPage.form.errors.partnerOccupationPreference'));
+    if (!requiredValue(form.partnerFamilyValuesPreference)) return setError(t('matchmakingPage.form.errors.partnerFamilyValuesPreference'));
+
+    if (!requiredValue(form.about)) return setError(t('matchmakingPage.form.errors.about'));
+    if (!requiredValue(form.expectations)) return setError(t('matchmakingPage.form.errors.expectations'));
+
+    if (!photoFiles.photo1) return setError(t('matchmakingPage.form.errors.photo1Required'));
+    if (!photoFiles.photo2) return setError(t('matchmakingPage.form.errors.photo2Required'));
+    if (!photoFiles.photo3) return setError(t('matchmakingPage.form.errors.photo3Required'));
 
     if (photoFiles.photo1 && !isImageFile(photoFiles.photo1)) return setError(t('matchmakingPage.form.errors.photoType'));
     if (photoFiles.photo2 && !isImageFile(photoFiles.photo2)) return setError(t('matchmakingPage.form.errors.photoType'));
@@ -584,22 +649,26 @@ export default function MatchmakingApply() {
       const colRef = collection(db, 'matchmakingApplications');
       const docRef = doc(colRef);
 
-      let profileNo = null;
-      let profileCode = buildFallbackProfileCode(docRef.id);
+      // Kullanıcı adı benzersiz olmalı (case-insensitive).
       try {
-        const allocated = await authFetch('/api/matchmaking-allocate-profile-no', {
-          method: 'POST',
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({}),
-        });
-        const n = typeof allocated?.profileNo === 'number' && Number.isFinite(allocated.profileNo) ? allocated.profileNo : null;
-        if (n !== null) {
-          profileNo = n;
-          profileCode = `MK-${n}`;
+        const qLower = query(collection(db, 'matchmakingApplications'), where('usernameLower', '==', normalizedUsername), limit(1));
+        const snapLower = await getDocs(qLower);
+        if (!snapLower.empty) {
+          return setError(t('matchmakingPage.form.errors.usernameTaken'));
+        }
+
+        const exact = String(form.username || '').trim();
+        if (exact) {
+          const qExact = query(collection(db, 'matchmakingApplications'), where('username', '==', exact), limit(1));
+          const snapExact = await getDocs(qExact);
+          if (!snapExact.empty) {
+            return setError(t('matchmakingPage.form.errors.usernameTaken'));
+          }
         }
       } catch (e) {
-        // Dev ortamında /api çalışmıyorsa fallback kod ile devam.
-        console.warn('profileNo allocate failed (fallback):', e);
+        // Hata olursa, kullanıcıyı yanlış yönlendirmemek için gönderimi durdur.
+        console.error('username uniqueness check failed:', e);
+        return setError(t('matchmakingPage.form.errors.submitFailed'));
       }
 
       const compressed1 = photoFiles.photo1 ? await compressImageToJpeg(photoFiles.photo1) : null;
@@ -677,9 +746,9 @@ export default function MatchmakingApply() {
       }
 
       const payload = {
-        profileNo,
-        profileCode,
+        profileCode: String(form.username || '').trim(),
         username: String(form.username || '').trim(),
+        usernameLower: normalizedUsername,
         fullName: String(form.fullName || '').trim(),
         age: ageNum,
         city: String(form.city || '').trim(),
@@ -702,8 +771,6 @@ export default function MatchmakingApply() {
           incomeLevel: form.incomeLevel || '',
           religion: form.religion || '',
           religiousValues: (form.religiousValues || '').trim(),
-          familyObstacle: form.familyObstacle || '',
-          familyObstacleDetails: (form.familyObstacleDetails || '').trim(),
           familyApprovalStatus: form.familyApprovalStatus || '',
           marriageTimeline: form.marriageTimeline || '',
           relocationWillingness: form.relocationWillingness || '',
@@ -719,9 +786,11 @@ export default function MatchmakingApply() {
             },
           },
           // geriye dönük: eski alanlar (admin/raporlar için)
-          communicationLanguage: form.nativeLanguage || '',
-          communicationLanguageOther: form.nativeLanguage === 'other' ? String(form.nativeLanguageOther).trim() : '',
-          canCommunicateWithTranslationApp: form.canCommunicateWithTranslationApp === 'yes',
+          communicationLanguage: form.communicationLanguage || '',
+          communicationLanguageOther:
+            form.communicationLanguage === 'other' ? String(form.communicationLanguageOther).trim() : '',
+          communicationMethod: form.communicationLanguage || '',
+          canCommunicateWithTranslationApp: form.communicationLanguage === 'translation_app',
           smoking: form.smoking || '',
           alcohol: form.alcohol || '',
         },
@@ -738,6 +807,7 @@ export default function MatchmakingApply() {
           communicationLanguageOther:
             form.partnerCommunicationLanguage === 'other' ? String(form.partnerCommunicationLanguageOther).trim() : '',
           canCommunicateWithTranslationApp: form.partnerCanCommunicateWithTranslationApp === 'yes',
+          translationAppPreference: form.partnerCanCommunicateWithTranslationApp || '',
           livingCountry: form.partnerLivingCountry || '',
           smokingPreference: form.partnerSmokingPreference || '',
           alcoholPreference: form.partnerAlcoholPreference || '',
@@ -1158,19 +1228,32 @@ export default function MatchmakingApply() {
               )}
 
               <div>
-                <label className="block text-sm text-slate-700">{t('matchmakingPage.form.labels.translationApp')}</label>
+                <label className="block text-sm text-slate-700">{t('matchmakingPage.form.labels.communicationLanguages')}</label>
                 <select
-                  value={form.canCommunicateWithTranslationApp}
-                  onChange={onChange('canCommunicateWithTranslationApp')}
+                  value={form.communicationLanguage}
+                  onChange={onChange('communicationLanguage')}
                   className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
                 >
-                  {yesNoOptions.map((opt) => (
+                  <option value="">{t('matchmakingPage.form.options.common.select')}</option>
+                  {communicationLanguageOptions.map((opt) => (
                     <option key={opt.id} value={opt.id}>
                       {opt.label}
                     </option>
                   ))}
                 </select>
               </div>
+
+              {form.communicationLanguage === 'other' && (
+                <div>
+                  <label className="block text-sm text-slate-700">{t('matchmakingPage.form.labels.communicationLanguageOther')}</label>
+                  <input
+                    value={form.communicationLanguageOther}
+                    onChange={onChange('communicationLanguageOther')}
+                    className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                    placeholder={t('matchmakingPage.form.placeholders.communicationLanguageOther')}
+                  />
+                </div>
+              )}
 
               <div>
                 <label className="block text-sm text-slate-700">{t('matchmakingPage.form.labels.smoking')}</label>
@@ -1213,36 +1296,13 @@ export default function MatchmakingApply() {
               </div>
 
               <div className="md:col-span-2">
-                <label className="block text-sm text-slate-700">{t('matchmakingPage.form.labels.familyObstacle')}</label>
-                <select
-                  value={form.familyObstacle}
-                  onChange={onChange('familyObstacle')}
-                  className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
-                >
-                  {yesNoMaybeOptions.map((opt) => (
-                    <option key={opt.id} value={opt.id}>
-                      {opt.label}
-                    </option>
-                  ))}
-                </select>
-                {(form.familyObstacle === 'yes' || form.familyObstacle === 'unsure') && (
-                  <textarea
-                    value={form.familyObstacleDetails}
-                    onChange={onChange('familyObstacleDetails')}
-                    className="mt-2 w-full min-h-[80px] rounded-lg border border-slate-300 px-3 py-2 text-sm"
-                    placeholder={t('matchmakingPage.form.placeholders.familyObstacleDetails')}
-                  />
-                )}
-              </div>
-
-              <div className="md:col-span-2">
                 <label className="block text-sm text-slate-700">{t('matchmakingPage.form.labels.familyApprovalStatus')}</label>
                 <select
                   value={form.familyApprovalStatus}
                   onChange={onChange('familyApprovalStatus')}
                   className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
                 >
-                  {familyApprovalStatusOptions.map((opt) => (
+                  {yesNoMaybeOptions.map((opt) => (
                     <option key={opt.id} value={opt.id}>
                       {opt.label}
                     </option>
@@ -1553,7 +1613,7 @@ export default function MatchmakingApply() {
                   onChange={onChange('partnerCanCommunicateWithTranslationApp')}
                   className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
                 >
-                  {yesNoOptions.map((opt) => (
+                  {yesNoDoesntMatterOptions.map((opt) => (
                     <option key={opt.id} value={opt.id}>
                       {opt.label}
                     </option>
