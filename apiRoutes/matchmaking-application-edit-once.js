@@ -63,12 +63,8 @@ export default async function handler(req, res) {
 
   const photoUrls = Array.isArray(payload?.photoUrls) ? payload.photoUrls : null;
 
-  const nextUsername = safeStr(payload?.username, 80);
-  const nextUsernameLower = nextUsername ? nextUsername.toLowerCase() : '';
-
   // Whitelist: kullanıcı sadece bu alanları bir defa güncelleyebilir.
   const updates = {
-    // username alanı da 1 kez düzeltilebilir (benzersizlik kontrolü server-side yapılır)
     fullName: safeStr(payload?.fullName, 120),
     age: toNumOrNull(payload?.age, { min: 18, max: 99 }),
     city: safeStr(payload?.city, 80),
@@ -87,6 +83,7 @@ export default async function handler(req, res) {
       weightKg: toNumOrNull(details?.weightKg, { min: 35, max: 250 }),
       occupation: safeStr(details?.occupation, 80),
       education: safeStr(details?.education, 80),
+      educationDepartment: safeStr(details?.educationDepartment, 120),
       maritalStatus: safeStr(details?.maritalStatus, 40),
       hasChildren: safeStr(details?.hasChildren, 20),
       childrenCount: toNumOrNull(details?.childrenCount, { min: 0, max: 20 }),
@@ -137,12 +134,6 @@ export default async function handler(req, res) {
     },
   };
 
-  if (nextUsernameLower) {
-    updates.username = nextUsername;
-    updates.usernameLower = nextUsernameLower;
-    updates.profileCode = nextUsername;
-  }
-
   if (photoUrls) {
     updates.photoUrls = toStringArray(photoUrls, { maxItems: 6, maxLen: 400 });
   }
@@ -183,33 +174,6 @@ export default async function handler(req, res) {
     res.setHeader('content-type', 'application/json');
     res.end(JSON.stringify({ ok: false, error: 'edit_once_used' }));
     return;
-  }
-
-  // Username benzersizlik kontrolü (kendi dokümanı hariç).
-  if (nextUsernameLower) {
-    const snapLower = await db
-      .collection('matchmakingApplications')
-      .where('usernameLower', '==', nextUsernameLower)
-      .limit(1)
-      .get();
-    if (!snapLower.empty && snapLower.docs[0].id !== docRef.id) {
-      res.statusCode = 409;
-      res.setHeader('content-type', 'application/json');
-      res.end(JSON.stringify({ ok: false, error: 'username_taken' }));
-      return;
-    }
-
-    const snapExact = await db
-      .collection('matchmakingApplications')
-      .where('username', '==', nextUsername)
-      .limit(1)
-      .get();
-    if (!snapExact.empty && snapExact.docs[0].id !== docRef.id) {
-      res.statusCode = 409;
-      res.setHeader('content-type', 'application/json');
-      res.end(JSON.stringify({ ok: false, error: 'username_taken' }));
-      return;
-    }
   }
 
   await docRef.update({

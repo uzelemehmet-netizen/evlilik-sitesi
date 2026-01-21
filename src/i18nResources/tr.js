@@ -182,6 +182,7 @@ export default {
         weight: 'Kilo (kg)',
         occupation: 'Meslek',
         education: 'Tahsil / Eğitim durumu',
+        educationDepartment: 'Bölüm',
         maritalStatus: 'Medeni durum',
         hasChildren: 'Çocuğunuz var mı?',
         childrenCount: 'Varsa kaç tane?',
@@ -235,6 +236,7 @@ export default {
         instagram: 'Örn: @kullaniciadi',
         height: 'Örn: 175',
         weight: 'Örn: 72',
+        educationDepartment: 'Örn: Bilgisayar Mühendisliği',
         childrenCount: 'Örn: 1',
         religiousValues: 'Örn: Dindarım / Dengeliyim / İnançlıyım ama esneğim…',
         familyObstacleDetails: 'Kısaca açıklayın…',
@@ -243,6 +245,11 @@ export default {
         partnerCommunicationLanguageOther: 'Örn: Arapça',
         about: 'Kısaca kendinizi tanıtın (yaşam tarzı, dil, iş, aile planı vb.)',
         expectations: 'Örn: İletişim, yaşam tarzı, yaş/boy tercihi, aile değerleri…',
+      },
+
+      editOnce: {
+        usernameLocked: 'Edit modunda kullanıcı adı değiştirilemez (1 defalık düzeltme hakkı).',
+        photosLocked: 'Edit modunda fotoğraf güncelleme kapalı. Sadece form alanlarını düzeltebilirsiniz.',
       },
       options: {
         common: {
@@ -269,6 +276,7 @@ export default {
         },
         education: {
           secondary: 'Ortaöğretim',
+          highSchool: 'Lise',
           university: 'Üniversite',
           masters: 'Yüksek lisans',
           phd: 'Doktora',
@@ -380,6 +388,7 @@ export default {
         weightRequired: 'Lütfen kilo bilginizi girin.',
         occupation: 'Lütfen meslek seçin.',
         education: 'Lütfen eğitim durumu seçin.',
+        educationDepartment: 'Lütfen bölüm bilginizi yazın.',
         maritalStatus: 'Lütfen medeni durum seçin.',
         hasChildren: 'Lütfen çocuğunuz var mı seçin.',
         incomeLevel: 'Lütfen gelir durumu seçin.',

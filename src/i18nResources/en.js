@@ -1723,7 +1723,7 @@ export default {
         form: {
           applicationIdLabel: 'Application ID',
           editOnce: {
-            usernameLocked: 'In this mode, you can also fix your username (one-time).',
+            usernameLocked: 'In edit mode, the username cannot be changed (one-time fix).',
             photosLocked: 'In edit mode, photo updates are disabled. You can only fix the form fields.',
           },
           photo: {
@@ -1753,6 +1753,7 @@ export default {
             weight: 'Weight (kg)',
             occupation: 'Occupation',
             education: 'Education',
+            educationDepartment: 'Department / Major',
             maritalStatus: 'Marital status',
             hasChildren: 'Do you have children?',
             childrenCount: 'If yes, how many?',
@@ -1812,6 +1813,7 @@ export default {
             instagram: 'e.g., @username',
             height: 'e.g., 175',
             weight: 'e.g., 72',
+            educationDepartment: 'e.g., Computer Engineering',
             childrenCount: 'e.g., 1',
             religiousValues: 'e.g., Religious / balanced / flexible…',
             familyObstacleDetails: 'Briefly explain…',
@@ -1847,6 +1849,7 @@ export default {
             },
             education: {
               secondary: 'Secondary',
+              highSchool: 'High school',
               university: 'University',
               masters: "Master's",
               phd: 'PhD',
@@ -1964,6 +1967,7 @@ export default {
             weightRequired: 'Please enter your weight.',
             occupation: 'Please select an occupation.',
             education: 'Please select education.',
+            educationDepartment: 'Please enter your department/major.',
             maritalStatus: 'Please select marital status.',
             hasChildren: 'Please answer whether you have children.',
             incomeLevel: 'Please select income level.',

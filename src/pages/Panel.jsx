@@ -1469,12 +1469,25 @@ export default function Panel() {
                 {t('matchmakingPanel.actions.logout')}
               </button>
 
-              <Link
-                to="/evlilik/eslestirme-basvuru?editOnce=1"
-                className="px-4 py-2 rounded-full border border-white/10 bg-white/[0.04] text-white/85 text-sm font-semibold hover:bg-white/[0.08] transition"
-              >
-                {t('matchmakingPanel.actions.profileForm')}
-              </Link>
+              {!matchmakingLoading ? (
+                matchmaking ? (
+                  matchmaking?.userEditOnceUsedAt ? null : (
+                    <Link
+                      to="/evlilik/eslestirme-basvuru?editOnce=1"
+                      className="px-4 py-2 rounded-full border border-white/10 bg-white/[0.04] text-white/85 text-sm font-semibold hover:bg-white/[0.08] transition"
+                    >
+                      {t('matchmakingPanel.actions.profileForm')}
+                    </Link>
+                  )
+                ) : (
+                  <Link
+                    to="/evlilik/eslestirme-basvuru"
+                    className="px-4 py-2 rounded-full border border-white/10 bg-white/[0.04] text-white/85 text-sm font-semibold hover:bg-white/[0.08] transition"
+                  >
+                    {t('matchmakingPanel.actions.profileForm')}
+                  </Link>
+                )
+              ) : null}
 
               <details className="w-full max-w-[24rem]">
                 <summary className="list-none [&::-webkit-details-marker]:hidden">

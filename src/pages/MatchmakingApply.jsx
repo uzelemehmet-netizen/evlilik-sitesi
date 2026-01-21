@@ -145,6 +145,7 @@ export default function MatchmakingApply() {
               weightKg: details?.weightKg === 0 || details?.weightKg ? String(details.weightKg) : String(prev.weightKg || ''),
               occupation: String(details?.occupation || prev.occupation || ''),
               education: String(details?.education || prev.education || ''),
+              educationDepartment: String(details?.educationDepartment || prev.educationDepartment || ''),
               maritalStatus: String(details?.maritalStatus || prev.maritalStatus || ''),
               hasChildren: String(details?.hasChildren || prev.hasChildren || ''),
               childrenCount:
@@ -269,6 +270,7 @@ export default function MatchmakingApply() {
     () => [
       { id: '', label: t('matchmakingPage.form.options.common.select') },
       { id: 'secondary', label: t('matchmakingPage.form.options.education.secondary') },
+      { id: 'high_school', label: t('matchmakingPage.form.options.education.highSchool') },
       { id: 'university', label: t('matchmakingPage.form.options.education.university') },
       { id: 'masters', label: t('matchmakingPage.form.options.education.masters') },
       { id: 'phd', label: t('matchmakingPage.form.options.education.phd') },
@@ -442,6 +444,7 @@ export default function MatchmakingApply() {
     weightKg: '',
     occupation: '',
     education: '',
+    educationDepartment: '',
     maritalStatus: '',
     hasChildren: '',
     childrenCount: '',
@@ -504,6 +507,18 @@ export default function MatchmakingApply() {
   const onChange = (key) => (e) => {
     const value = e?.target?.type === 'checkbox' ? !!e.target.checked : e.target.value;
     setForm((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const onEducationChange = (e) => {
+    const value = e?.target?.value || '';
+    setForm((prev) => {
+      const needsDept = value === 'university' || value === 'masters' || value === 'phd';
+      return {
+        ...prev,
+        education: value,
+        educationDepartment: needsDept ? prev.educationDepartment : '',
+      };
+    });
   };
 
   const onNativeLanguageChange = (e) => {
@@ -636,6 +651,9 @@ export default function MatchmakingApply() {
     if (!requiredValue(form.weightKg)) return setError(t('matchmakingPage.form.errors.weightRequired'));
     if (!requiredValue(form.occupation)) return setError(t('matchmakingPage.form.errors.occupation'));
     if (!requiredValue(form.education)) return setError(t('matchmakingPage.form.errors.education'));
+    if ((form.education === 'university' || form.education === 'masters' || form.education === 'phd') && !requiredValue(form.educationDepartment)) {
+      return setError(t('matchmakingPage.form.errors.educationDepartment'));
+    }
     if (!requiredValue(form.maritalStatus)) return setError(t('matchmakingPage.form.errors.maritalStatus'));
     if (!requiredValue(form.hasChildren)) return setError(t('matchmakingPage.form.errors.hasChildren'));
     if (form.hasChildren === 'yes' && !requiredValue(form.childrenCount)) {
@@ -760,19 +778,13 @@ export default function MatchmakingApply() {
       }
 
       // Kullanıcı adı benzersiz olmalı (case-insensitive).
-      // EditOnce modunda da kullanıcı adı düzeltilebilsin; sadece değiştiyse kontrol et.
-      const existingUsernameLower = normalizeUsername(existingApplication?.usernameLower || existingApplication?.username || '');
-      const shouldCheckUsernameUniqueness = !isEditOnceMode || normalizedUsername !== existingUsernameLower;
-      if (shouldCheckUsernameUniqueness) {
+      // EditOnce modunda kullanıcı adı değiştirilemez; sadece ilk kayıtta kontrol edilir.
+      if (!isEditOnceMode) {
         try {
           const qLower = query(collection(db, 'matchmakingApplications'), where('usernameLower', '==', normalizedUsername), limit(1));
           const snapLower = await getDocs(qLower);
           if (!snapLower.empty) {
-            const foundId = snapLower.docs?.[0]?.id;
-            const isOwnDoc = isEditOnceMode && existingApplication?.id && foundId === existingApplication.id;
-            if (!isOwnDoc) {
-              return setError(t('matchmakingPage.form.errors.usernameTaken'));
-            }
+            return setError(t('matchmakingPage.form.errors.usernameTaken'));
           }
 
           const exact = String(form.username || '').trim();
@@ -780,11 +792,7 @@ export default function MatchmakingApply() {
             const qExact = query(collection(db, 'matchmakingApplications'), where('username', '==', exact), limit(1));
             const snapExact = await getDocs(qExact);
             if (!snapExact.empty) {
-              const foundId = snapExact.docs?.[0]?.id;
-              const isOwnDoc = isEditOnceMode && existingApplication?.id && foundId === existingApplication.id;
-              if (!isOwnDoc) {
-                return setError(t('matchmakingPage.form.errors.usernameTaken'));
-              }
+              return setError(t('matchmakingPage.form.errors.usernameTaken'));
             }
           }
         } catch (e) {
@@ -888,6 +896,10 @@ export default function MatchmakingApply() {
           weightKg: weightNum,
           occupation: form.occupation || '',
           education: form.education || '',
+          educationDepartment:
+            form.education === 'university' || form.education === 'masters' || form.education === 'phd'
+              ? String(form.educationDepartment || '').trim()
+              : '',
           maritalStatus: form.maritalStatus || '',
           hasChildren: form.hasChildren || '',
           childrenCount: childrenCountNum,
@@ -1162,6 +1174,7 @@ export default function MatchmakingApply() {
               <input
                 value={form.username}
                 onChange={onChange('username')}
+                disabled={isEditOnceMode}
                 className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
                 placeholder={t('matchmakingPage.form.placeholders.username')}
               />
@@ -1277,7 +1290,7 @@ export default function MatchmakingApply() {
                 <label className="block text-sm text-slate-700">{t('matchmakingPage.form.labels.education')}</label>
                 <select
                   value={form.education}
-                  onChange={onChange('education')}
+                  onChange={onEducationChange}
                   className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
                 >
                   {educationOptions.map((opt) => (
@@ -1287,6 +1300,18 @@ export default function MatchmakingApply() {
                   ))}
                 </select>
               </div>
+
+              {(form.education === 'university' || form.education === 'masters' || form.education === 'phd') && (
+                <div>
+                  <label className="block text-sm text-slate-700">{t('matchmakingPage.form.labels.educationDepartment')}</label>
+                  <input
+                    value={form.educationDepartment}
+                    onChange={onChange('educationDepartment')}
+                    className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                    placeholder={t('matchmakingPage.form.placeholders.educationDepartment')}
+                  />
+                </div>
+              )}
 
               <div>
                 <label className="block text-sm text-slate-700">{t('matchmakingPage.form.labels.maritalStatus')}</label>
