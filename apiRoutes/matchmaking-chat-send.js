@@ -119,10 +119,6 @@ export default async function handler(req, res) {
         throw err;
       }
 
-      const otherRef = db.collection('matchmakingUsers').doc(otherUid);
-      const otherSnap = await tx.get(otherRef);
-      const other = otherSnap.exists ? (otherSnap.data() || {}) : {};
-
       // Cinsiyet bazlı eligibility (match application doc'larından okunur)
       const aUid = safeStr(match?.aUserId);
       const bUid = safeStr(match?.bUserId);
@@ -135,10 +131,12 @@ export default async function handler(req, res) {
       const aGender = aAppSnap && aAppSnap.exists ? safeStr((aAppSnap.data() || {})?.gender) : '';
       const bGender = bAppSnap && bAppSnap.exists ? safeStr((bAppSnap.data() || {})?.gender) : '';
       const myGender = uid === aUid ? aGender : bGender;
-      const otherGender = uid === aUid ? bGender : aGender;
 
       ensureEligibleOrThrow(me, myGender);
-      ensureEligibleOrThrow(other, otherGender);
+      // Not: Mesaj göndermek için alıcının eligibility şartlarını zorlamıyoruz.
+      // Amaç: Diğer taraf offline/uygunsuz durumda olsa bile mesaj kuyruk gibi düşsün,
+      // karşı taraf panele girince unread/bildirim görsün.
+      // (Aksiyonlar / contact unlock gibi adımlar kendi kurallarıyla ayrıca korunur.)
 
       // Not: Bu akışta chat süre sınırı yok; iptal/evlilik kararı ile kapanır.
 
@@ -166,6 +164,15 @@ export default async function handler(req, res) {
           chatLastMessageAtMs: {
             ...(match.chatLastMessageAtMs || {}),
             [uid]: ts,
+          },
+          chatLastMessageAtMsAny: ts,
+          chatLastMessageByUid: uid,
+          chatLastMessageId: messageId,
+          chatLastMessagePreview: text.slice(0, 120),
+          chatUnreadByUid: {
+            ...(match.chatUnreadByUid || {}),
+            [uid]: 0,
+            [otherUid]: (typeof (match.chatUnreadByUid || {})?.[otherUid] === 'number' ? (match.chatUnreadByUid || {})[otherUid] : 0) + 1,
           },
           updatedAt: FieldValue.serverTimestamp(),
         },

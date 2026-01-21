@@ -84,6 +84,23 @@ console.log('[dev-api] Env check:', {
     hasEnv('FIREBASE_SERVICE_ACCOUNT_FILE'),
 });
 
+const hasFirebaseAdmin =
+  hasEnv('FIREBASE_SERVICE_ACCOUNT_JSON') ||
+  hasEnv('FIREBASE_SERVICE_ACCOUNT') ||
+  hasEnv('FIREBASE_SERVICE_ACCOUNT_JSON_FILE') ||
+  hasEnv('FIREBASE_SERVICE_ACCOUNT_FILE');
+
+if (!hasFirebaseAdmin) {
+  // eslint-disable-next-line no-console
+  console.log('[dev-api] Uyarı: Firebase Admin service account ayarlı değil.');
+  // eslint-disable-next-line no-console
+  console.log('[dev-api] /api/matchmaking-* endpointleri localde 503 (firebase_admin_not_configured) dönebilir.');
+  // eslint-disable-next-line no-console
+  console.log('[dev-api] Çözüm: .env.local içine service account dosya yolunu ekleyin:');
+  // eslint-disable-next-line no-console
+  console.log('[dev-api]   FIREBASE_SERVICE_ACCOUNT_JSON_FILE=C\\path\\to\\service-account.json');
+}
+
 const cloudinaryEnvKeys = Object.keys(process.env).filter((k) => k.toUpperCase().includes('CLOUDINARY'));
 // eslint-disable-next-line no-console
 console.log(

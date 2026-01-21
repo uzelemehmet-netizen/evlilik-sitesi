@@ -2422,6 +2422,8 @@ export default {
           notEnabled: 'Bu eşleşmede site içi konuşma aktif değil.',
           membershipRequired: 'Mesajlaşma için üyeliğiniz aktif olmalıdır.',
           verificationRequired: 'Mesajlaşma için kimlik doğrulaması gerekir.',
+          serverNotConfigured: 'Local sunucuda Firebase Admin ayarlı değil. .env.local içine FIREBASE_SERVICE_ACCOUNT_JSON_FILE ekleyip dev sürecini yeniden başlatın.',
+          authRequired: 'Mesaj göndermek için giriş yapmanız gerekir. (Anonim hesapla olmaz.)',
           sendFailed: 'Mesaj gönderilemedi.',
           decisionFailed: 'Karar kaydedilemedi.',
         },

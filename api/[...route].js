@@ -10,6 +10,7 @@ import matchmakingAdminIdentityVerify from '../apiRoutes/matchmaking-admin-ident
 import matchmakingAllocateProfileNo from '../apiRoutes/matchmaking-allocate-profile-no.js';
 import matchmakingApplicationEditOnce from '../apiRoutes/matchmaking-application-edit-once.js';
 import matchmakingChatDecision from '../apiRoutes/matchmaking-chat-decision.js';
+import matchmakingChatMarkRead from '../apiRoutes/matchmaking-chat-mark-read.js';
 import matchmakingChatSend from '../apiRoutes/matchmaking-chat-send.js';
 import matchmakingContact from '../apiRoutes/matchmaking-contact.js';
 import matchmakingDecision from '../apiRoutes/matchmaking-decision.js';
@@ -38,6 +39,7 @@ const handlers = {
   'matchmaking-allocate-profile-no': matchmakingAllocateProfileNo,
   'matchmaking-application-edit-once': matchmakingApplicationEditOnce,
   'matchmaking-chat-decision': matchmakingChatDecision,
+  'matchmaking-chat-mark-read': matchmakingChatMarkRead,
   'matchmaking-chat-send': matchmakingChatSend,
   'matchmaking-contact': matchmakingContact,
   'matchmaking-decision': matchmakingDecision,

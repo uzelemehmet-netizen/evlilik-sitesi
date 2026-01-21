@@ -27,6 +27,11 @@ npm run dev:api
 
 Notlar:
 - Vite dev server, `/api` isteklerini varsayılan olarak `http://localhost:3000` adresine proxy'ler. İsterseniz `VITE_API_PROXY_TARGET` ile değiştirebilirsiniz.
+- Localde tarayıcı konsolunda `/api/matchmaking-... 503 (firebase_admin_not_configured)` görüyorsanız, bu backend'in Firebase Admin ile Firestore/Auth'a bağlanamadığı anlamına gelir. Çözüm:
+	- Firebase Console → Project settings → Service accounts → **Generate new private key**
+	- İnen JSON dosyasının yolunu `.env.local` içine yazın:
+		- `FIREBASE_SERVICE_ACCOUNT_JSON_FILE=C:\\path\\to\\service-account.json`
+	- `npm run dev` sürecini yeniden başlatın.
 - Firestore "The query requires an index" / `FAILED_PRECONDITION` hatası alırsanız, konsoldaki linke tıklayıp index oluşturmanız gerekir. Bu projede özellikle şu sorgular index ister:
 	- `matchmakingMatches`: `where('userIds','array-contains', uid)` + `orderBy('createdAt','desc')`
 	- `matchmakingMatches`: `where('status','in',[...])` + `orderBy('updatedAt','desc')`

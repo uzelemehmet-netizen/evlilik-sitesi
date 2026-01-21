@@ -79,7 +79,9 @@ export function getAdmin() {
   if (!getApps().length) {
     const serviceAccount = getServiceAccount();
     if (!serviceAccount) {
-      throw new Error('FIREBASE_SERVICE_ACCOUNT_JSON env missing');
+      const err = new Error('firebase_admin_not_configured');
+      err.statusCode = 503;
+      throw err;
     }
 
     initializeApp({ credential: cert(serviceAccount) });

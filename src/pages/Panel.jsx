@@ -46,6 +46,7 @@ export default function Panel() {
   const lastChatSeenMessageIdByMatchIdRef = useRef({});
   const chatScrollElByMatchIdRef = useRef({});
   const lastChatLenByMatchIdRef = useRef({});
+  const chatMarkReadLastAtByMatchIdRef = useRef({});
 
   const [rejectAllAction, setRejectAllAction] = useState({ loading: false, error: '', success: '' });
 
@@ -221,7 +222,15 @@ export default function Panel() {
     return { show, count, lastMs };
   }, [matchmakingUser]);
 
-  const devBypassMembership = !!import.meta?.env?.DEV;
+  const devBypassMembership = useMemo(() => {
+    if (!!import.meta?.env?.DEV) return true;
+    try {
+      const host = typeof window !== 'undefined' ? String(window.location?.hostname || '').toLowerCase() : '';
+      return host === 'localhost' || host === '127.0.0.1';
+    } catch (e) {
+      return false;
+    }
+  }, []);
 
   const canTakeActions = useMemo(() => {
     // Dev sunucuda (Vite dev) üyelik kapısını açık say: geliştirme/test akışını hızlandırır.
@@ -931,9 +940,12 @@ export default function Panel() {
     const items = chatByMatchId?.[matchId]?.items || [];
     const sendLoading = !!chatSendByMatchId?.[matchId]?.loading;
     const sendError = chatSendByMatchId?.[matchId]?.error || '';
+    const blocked = !canTakeActions;
 
     return (
-      <>
+      <div className="mt-3 flex flex-col min-h-0 flex-1">
+        {loading ? <div className="text-xs text-white/60">{t('common.loading')}</div> : null}
+
         {canBrowserNotify ? (
           <div className="mt-2 flex flex-col sm:flex-row sm:items-center gap-2">
             {Notification.permission === 'granted' ? (
@@ -956,13 +968,11 @@ export default function Panel() {
           </div>
         ) : null}
 
-        {loading ? <div className="mt-2 text-xs text-white/60">{t('common.loading')}</div> : null}
-
         <div
           ref={(el) => {
             if (el) chatScrollElByMatchIdRef.current[matchId] = el;
           }}
-          className="mt-3 max-h-[55vh] overflow-auto p-2"
+          className="mt-3 flex-1 min-h-0 overflow-auto p-2"
         >
           {Array.isArray(items) && items.length ? (
             <div className="space-y-2">
@@ -995,6 +1005,8 @@ export default function Panel() {
               if (code === 'filtered') return t('matchmakingPanel.matches.chat.errors.filtered');
               if (code === 'rate_limited') return t('matchmakingPanel.matches.chat.errors.rateLimited');
               if (code === 'chat_not_enabled') return t('matchmakingPanel.matches.chat.errors.notEnabled');
+              if (code === 'firebase_admin_not_configured') return t('matchmakingPanel.matches.chat.errors.serverNotConfigured');
+              if (code === 'not_authenticated' || code === 'missing_auth' || code === 'invalid_auth') return t('matchmakingPanel.matches.chat.errors.authRequired');
               if (code === 'membership_required') return t('matchmakingPanel.errors.membershipRequired');
               if (code === 'free_active_membership_required') return t('matchmakingPanel.errors.freeActiveMembershipRequired');
               if (code === 'free_active_membership_blocked') return t('matchmakingPanel.errors.freeActiveMembershipBlocked');
@@ -1004,25 +1016,46 @@ export default function Panel() {
           </div>
         ) : null}
 
+        {blocked ? (
+          <div className="mt-2 text-xs text-amber-100/90">
+            {myGender === 'female'
+              ? t('matchmakingPanel.errors.membershipOrVerificationRequired')
+              : t('matchmakingPanel.errors.membershipRequired')}
+          </div>
+        ) : null}
+
         <div className="mt-3 flex flex-col sm:flex-row gap-2">
           <input
             value={chatTextByMatchId?.[matchId] || ''}
             onChange={(e) => setChatTextByMatchId((p) => ({ ...p, [matchId]: e.target.value }))}
+            onKeyDown={(e) => {
+              if (blocked) return;
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendChatMessage(matchId);
+              }
+            }}
             className="w-full rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-white/40"
-            placeholder={t('matchmakingPanel.matches.chat.placeholder')}
+            placeholder={
+              blocked
+                ? (myGender === 'female'
+                    ? t('matchmakingPanel.errors.membershipOrVerificationRequired')
+                    : t('matchmakingPanel.errors.membershipRequired'))
+                : t('matchmakingPanel.matches.chat.placeholder')
+            }
             maxLength={600}
-            disabled={!canTakeActions}
+            disabled={blocked}
           />
           <button
             type="button"
-            disabled={sendLoading || !canTakeActions}
+            disabled={sendLoading || blocked}
             onClick={() => sendChatMessage(matchId)}
             className="px-4 py-2 rounded-full bg-sky-700 text-white text-sm font-semibold hover:bg-sky-800 disabled:opacity-60"
           >
             {sendLoading ? t('matchmakingPanel.actions.sending') : t('matchmakingPanel.matches.chat.send')}
           </button>
         </div>
-      </>
+      </div>
     );
   };
 
@@ -1045,6 +1078,49 @@ export default function Panel() {
       setChatSendByMatchId((p) => ({ ...p, [matchId]: { loading: false, error: msg || 'chat_send_failed' } }));
     }
   };
+
+  const markChatRead = async (matchId) => {
+    if (!user?.uid) return;
+    const id = String(matchId || '').trim();
+    if (!id) return;
+
+    const now = Date.now();
+    const lastAt = typeof chatMarkReadLastAtByMatchIdRef.current?.[id] === 'number' ? chatMarkReadLastAtByMatchIdRef.current[id] : 0;
+    if (lastAt && now - lastAt < 2000) return;
+    chatMarkReadLastAtByMatchIdRef.current = { ...(chatMarkReadLastAtByMatchIdRef.current || {}), [id]: now };
+
+    try {
+      await authFetch('/api/matchmaking-chat-mark-read', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ matchId: id }),
+      });
+    } catch {
+      // noop
+    }
+  };
+
+  useEffect(() => {
+    if (!focusedChatMatchId) return;
+    markChatRead(focusedChatMatchId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focusedChatMatchId, user?.uid]);
+
+  useEffect(() => {
+    const matchId = String(focusedChatMatchId || '').trim();
+    if (!matchId) return;
+    const items = chatByMatchId?.[matchId]?.items || [];
+    if (!Array.isArray(items) || items.length === 0) return;
+
+    const last = items[items.length - 1] || null;
+    const fromOther = !!last?.userId && last.userId !== user?.uid;
+    const isVisible = typeof document !== 'undefined' ? !document.hidden : true;
+
+    if (fromOther && isVisible) {
+      markChatRead(matchId);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focusedChatMatchId, chatByMatchId, user?.uid]);
 
   const decideChat = async (matchId, decision) => {
     if (!matchId || !decision) return;
@@ -1206,36 +1282,7 @@ export default function Panel() {
             </div>
           ) : null}
 
-          <div className="mt-6 p-4">
-            <p className="text-sm font-semibold text-white">{t('matchmakingPanel.trust.title')}</p>
-            <p className="mt-2 text-sm text-white/75 leading-relaxed">{t('matchmakingPanel.trust.lead')}</p>
-
-            <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div className="p-3 border-l-2 border-white/10">
-                <p className="text-xs font-semibold text-amber-200">{t('matchmakingPanel.trust.cards.quality.title')}</p>
-                <p className="mt-1 text-xs text-white/70 leading-relaxed">{t('matchmakingPanel.trust.cards.quality.body')}</p>
-              </div>
-              <div className="p-3 border-l-2 border-white/10">
-                <p className="text-xs font-semibold text-sky-200">{t('matchmakingPanel.trust.cards.privacy.title')}</p>
-                <p className="mt-1 text-xs text-white/70 leading-relaxed">{t('matchmakingPanel.trust.cards.privacy.body')}</p>
-              </div>
-              <div className="p-3 border-l-2 border-white/10">
-                <p className="text-xs font-semibold text-emerald-200">{t('matchmakingPanel.trust.cards.control.title')}</p>
-                <p className="mt-1 text-xs text-white/70 leading-relaxed">{t('matchmakingPanel.trust.cards.control.body')}</p>
-              </div>
-            </div>
-
-            {trustRules.length ? (
-              <div className="mt-4 p-3 border-l-2 border-white/10">
-                <p className="text-xs font-semibold text-white">{t('matchmakingPanel.trust.rulesTitle')}</p>
-                <ul className="mt-2 space-y-1 text-sm text-white/75 list-disc pl-5">
-                  {trustRules.map((x, idx) => (
-                    <li key={idx}>{x}</li>
-                  ))}
-                </ul>
-              </div>
-            ) : null}
-          </div>
+          {/* Not: Trust/açıklama metinleri profile tabındaki inline <details> bölümüne taşındı. */}
 
           <div className="mt-6 p-4">
             <div className="flex items-center gap-4">
@@ -1389,18 +1436,20 @@ export default function Panel() {
               <div className="mt-4 grid grid-cols-1 lg:grid-cols-12 gap-4">
                 <div className="lg:col-span-5 space-y-3">
                   {dashboardTab === 'matches' ? (
-                    <div className="rounded-2xl border border-amber-300/20 bg-white/[0.06] p-4 lg:sticky lg:top-24 self-start shadow-[0_25px_80px_rgba(245,158,11,0.10)]">
+                    <div className="rounded-2xl border border-amber-300/20 bg-white/[0.06] p-4 lg:sticky lg:top-24 self-start shadow-[0_25px_80px_rgba(245,158,11,0.10)] flex flex-col h-[calc(100vh-9rem)] min-h-[28rem]">
                       <div className="flex items-start justify-between gap-3">
                         <div>
                           <p className="text-sm font-semibold text-white">Sohbet</p>
                         </div>
                       </div>
 
-                      {focusedChatMatchId ? (
-                        renderFocusedChat(focusedChatMatchId)
-                      ) : (
-                        <p className="mt-3 text-sm text-white/60">Şu an sohbet aktif değil.</p>
-                      )}
+                      <div className="flex-1 min-h-0">
+                        {focusedChatMatchId ? (
+                          renderFocusedChat(focusedChatMatchId)
+                        ) : (
+                          <p className="mt-3 text-sm text-white/60">Şu an sohbet aktif değil.</p>
+                        )}
+                      </div>
                     </div>
                   ) : null}
 
@@ -1539,6 +1588,40 @@ export default function Panel() {
                   )}
                 </div>
 
+                {/* Profilim/Açıklamalar: sağ sütun boşluğunu trust bloğu ile doldur */}
+                <div className={`${dashboardTab === 'profile' ? '' : 'hidden'} lg:col-span-7 lg:col-start-6 p-4 lg:sticky lg:top-24 self-start`}>
+                  <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
+                    <p className="text-sm font-semibold text-white">{t('matchmakingPanel.trust.title')}</p>
+                    <p className="mt-2 text-sm text-white/75 leading-relaxed">{t('matchmakingPanel.trust.lead')}</p>
+
+                    <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      <div className="p-3 border-l-2 border-white/10">
+                        <p className="text-xs font-semibold text-amber-200">{t('matchmakingPanel.trust.cards.quality.title')}</p>
+                        <p className="mt-1 text-xs text-white/70 leading-relaxed">{t('matchmakingPanel.trust.cards.quality.body')}</p>
+                      </div>
+                      <div className="p-3 border-l-2 border-white/10">
+                        <p className="text-xs font-semibold text-sky-200">{t('matchmakingPanel.trust.cards.privacy.title')}</p>
+                        <p className="mt-1 text-xs text-white/70 leading-relaxed">{t('matchmakingPanel.trust.cards.privacy.body')}</p>
+                      </div>
+                      <div className="p-3 border-l-2 border-white/10">
+                        <p className="text-xs font-semibold text-emerald-200">{t('matchmakingPanel.trust.cards.control.title')}</p>
+                        <p className="mt-1 text-xs text-white/70 leading-relaxed">{t('matchmakingPanel.trust.cards.control.body')}</p>
+                      </div>
+                    </div>
+
+                    {trustRules.length ? (
+                      <div className="mt-4 p-3 border-l-2 border-white/10">
+                        <p className="text-xs font-semibold text-white">{t('matchmakingPanel.trust.rulesTitle')}</p>
+                        <ul className="mt-2 space-y-1 text-sm text-white/75 list-disc pl-5">
+                          {trustRules.map((x, idx) => (
+                            <li key={idx}>{x}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    ) : null}
+                  </div>
+                </div>
+
                 <div className={`${dashboardTab === 'matches' ? '' : 'hidden'} lg:col-span-7 lg:col-start-6 p-4 lg:sticky lg:top-24 self-start`}>
                   <div className="flex items-start justify-between gap-3">
                     <div>
@@ -1631,6 +1714,8 @@ export default function Panel() {
                         const maritalLabel = maritalCode ? (t(`matchmakingPage.form.options.maritalStatus.${maritalCode}`) || maritalCode) : '-';
 
                         const showHeart = otherDecision === 'accept' && myDecision !== 'accept';
+                        const unreadCount =
+                          user?.uid && typeof m?.chatUnreadByUid?.[user.uid] === 'number' ? m.chatUnreadByUid[user.uid] : 0;
 
                         return (
                           <div key={m.id} className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
@@ -1638,6 +1723,11 @@ export default function Panel() {
                               <div>
                                 <p className="text-sm font-semibold text-white">
                                   {displayName}{typeof other.age === 'number' ? ` (${other.age})` : ''}
+                                  {unreadCount > 0 ? (
+                                    <span className="ml-2 inline-flex items-center rounded-full bg-rose-500/10 border border-rose-300/30 px-2 py-0.5 text-[11px] font-semibold text-rose-100">
+                                      {unreadCount}
+                                    </span>
+                                  ) : null}
                                   {other?.identityVerified ? (
                                     <span className="ml-2 inline-flex items-center rounded-full bg-emerald-500/10 border border-emerald-300/30 px-2 py-0.5 text-[11px] font-semibold text-emerald-100">
                                       {t('matchmakingPanel.matches.candidate.verifiedBadge')}
@@ -1812,10 +1902,13 @@ export default function Panel() {
                                             <div className="text-xs text-white/70">Sohbet soldaki panelde.</div>
                                             <button
                                               type="button"
-                                              onClick={() => setChatFocusMatchId(m.id)}
+                                              onClick={() => {
+                                                setChatFocusMatchId(m.id);
+                                                markChatRead(m.id);
+                                              }}
                                               className="px-3 py-2 rounded-full bg-sky-500/10 border border-sky-300/30 text-sky-100 text-xs font-semibold hover:bg-sky-500/15"
                                             >
-                                              Sohbeti aç
+                                              Sohbeti aç{unreadCount > 0 ? ` (${unreadCount})` : ''}
                                             </button>
                                           </div>
                                         </div>

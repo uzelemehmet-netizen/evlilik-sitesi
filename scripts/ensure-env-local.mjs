@@ -116,3 +116,18 @@ const ensureFile = () => {
 };
 
 ensureFile();
+
+// Ek uyarı: Matchmaking akışı /api üzerinden Firebase Admin ister.
+try {
+  const content = readIfExists() || '';
+  const hasServiceAccount = hasNonEmptyValue(content, 'FIREBASE_SERVICE_ACCOUNT_JSON_FILE') || hasNonEmptyValue(content, 'FIREBASE_SERVICE_ACCOUNT_JSON');
+  if (!hasServiceAccount) {
+    console.log('[ensure-env] Uyarı: Firebase Admin service account ayarlı değil.');
+    console.log('[ensure-env] Sonuç: /api/matchmaking-* endpointleri localde 503 (firebase_admin_not_configured) döner ve mesaj gönderme/heartbeat çalışmaz.');
+    console.log('[ensure-env] Çözüm: Firebase Console → Project settings → Service accounts → Generate new private key');
+    console.log('[ensure-env] İndirdiğiniz JSON dosyasının yolunu .env.local içine yazın:');
+    console.log('[ensure-env]   FIREBASE_SERVICE_ACCOUNT_JSON_FILE=C\\path\\to\\service-account.json');
+  }
+} catch {
+  // ignore
+}

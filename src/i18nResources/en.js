@@ -2460,6 +2460,8 @@ export default {
           notEnabled: 'In-site chat is not enabled for this match.',
           membershipRequired: 'An active membership is required to chat.',
           verificationRequired: 'Identity verification is required to chat.',
+          serverNotConfigured: 'Firebase Admin is not configured in local dev. Add FIREBASE_SERVICE_ACCOUNT_JSON_FILE to .env.local and restart the dev process.',
+          authRequired: 'You must be logged in to send messages (anonymous users are not supported).',
           sendFailed: 'Message could not be sent.',
           decisionFailed: 'Decision could not be saved.',
         },
