@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import {
@@ -23,6 +23,8 @@ export default function Login() {
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useAuth();
+
+  const hasNavigatedRef = useRef(false);
 
   const redirectTarget = useMemo(() => {
     const state = location.state || {};
@@ -104,6 +106,8 @@ export default function Login() {
   };
 
   const navigateNext = (target, state) => {
+    if (hasNavigatedRef.current) return;
+    hasNavigatedRef.current = true;
     const finalTarget = target || redirectTarget.from || '/panel';
     const finalState = typeof state === 'undefined' ? redirectTarget.fromState : state;
     navigate(finalTarget, { replace: true, state: finalState });
@@ -217,6 +221,7 @@ export default function Login() {
   }, [i18n?.language]);
 
   useEffect(() => {
+    if (hasNavigatedRef.current) return;
     if (user) {
       const target = resolvePostAuthTarget(false);
       const state = resolvePostAuthState();
@@ -228,11 +233,17 @@ export default function Login() {
   }, [user]);
 
   useEffect(() => {
+    if (hasNavigatedRef.current) return;
     const current = auth?.currentUser || null;
     if (!current) return;
-    const target = resolvePostAuthTarget(false);
+    // Eğer daha önce signup akışında hedef zorlandıysa (auth_force_target),
+    // burada tek sefer kullanıp hemen temizlemeliyiz; aksi halde kullanıcı
+    // sonraki girişlerde de sürekli forma itilir.
+    const forced = readForcedTarget();
+    const target = forced || resolvePostAuthTarget(false);
     const state = resolvePostAuthState();
     clearStoredRedirect();
+    writeForcedTarget('');
     navigateNext(target, state);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [redirectTarget.from, redirectTarget.fromState]);
@@ -276,7 +287,8 @@ export default function Login() {
         setError(t("authPage.errors.nationalityOtherRequired"));
         return;
       }
-      writeForcedTarget('/evlilik/eslestirme-basvuru');
+      // Yeni kullanıcı signup akışında form sayfasını zorla; normal login'de mevcut hedefi bozma.
+      writeForcedTarget(mode === 'signup' ? '/evlilik/eslestirme-basvuru' : '');
       const provider = new GoogleAuthProvider();
       const result = await signInWithPopup(auth, provider);
       const info2 = getAdditionalUserInfo(result);
@@ -296,7 +308,8 @@ export default function Login() {
         try {
           const provider = new GoogleAuthProvider();
           setInfo(t('authPage.redirecting') || 'Yönlendiriliyor…');
-          writeForcedTarget('/evlilik/eslestirme-basvuru');
+          // Popup fallback: sadece signup akışında form hedefini zorla.
+          writeForcedTarget(mode === 'signup' ? '/evlilik/eslestirme-basvuru' : '');
           await signInWithRedirect(auth, provider);
           return;
         } catch (e2) {
@@ -359,13 +372,16 @@ export default function Login() {
       }
 
       if (mode === "signup") {
+        // Yeni kullanıcı kaydı sonrası her zaman form sayfasına yönlendir.
+        // (Kullanıcı login'e hangi sayfadan gelmiş olursa olsun.)
+        writeForcedTarget('/evlilik/eslestirme-basvuru');
         const cred = await createUserWithEmailAndPassword(auth, email, password);
         await ensureProfileSaved(cred?.user?.uid, signupGender, signupNationality, signupNationalityOther);
       } else {
         await signInWithEmailAndPassword(auth, email, password);
       }
-
-      navigateNext();
+      // Navigasyonu burada yapmıyoruz; auth state değişince üstteki effect tek sefer yönlendirecek.
+      return;
     } catch (e2) {
       setError(e2?.message || t("authPage.errors.loginFailed"));
     } finally {

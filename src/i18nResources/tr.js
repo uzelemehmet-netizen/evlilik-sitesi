@@ -79,6 +79,33 @@ export default {
         'Dolandırıcılık, maddi çıkar, token/hediye tuzakları gibi davranışlar tespit ve şikayetle hızlıca engellenir.',
         'Şikayetler WhatsApp destek hattına iletilir; gerekli inceleme sonrası hesap sistemden kaldırılır.',
       ],
+      tagline: 'Moderasyon + şikayet hattı',
+    },
+
+    brandAlt: 'Turk&Indo',
+    miniCard: {
+      title: 'Uniqah',
+      desc: 'Kapalı sistem, kontrollü aday havuzu ve adım adım ilerleyen süreç.',
+      stats: {
+        privateTitle: 'Gizli',
+        privateSubtitle: 'profil',
+        fairTitle: 'Adil',
+        fairSubtitle: 'eşleşme',
+        safeTitle: 'Güvenli',
+        safeSubtitle: 'iletişim',
+      },
+    },
+    benefits: {
+      b1Title: 'Avantaj',
+      b1Body: 'Kamuya açık gezme yok; süreç hedefli ilerler.',
+      b2Title: 'Kontrol',
+      b2Body: 'Panel üzerinden beğen/geç ve iletişim seçimi.',
+      b3Title: 'Hız',
+      b3Body: 'Kriter uyumu odaklı eşleşme önerileri.',
+    },
+    flow: {
+      title: 'Adım adım süreç',
+      badge: 'Uniqah akışı',
     },
   },
 
@@ -124,6 +151,10 @@ export default {
     },
     form: {
       applicationIdLabel: 'Başvuru ID',
+      photo: {
+        choose: 'Dosya seç',
+        noFileChosen: 'Dosya seçilmedi',
+      },
       sections: {
         me: 'Ben',
         lookingFor: 'Aradığım',
@@ -521,6 +552,7 @@ export default {
               age: "Yaşınız",
             },
           },
+          privacyNote: 'Gizlilik notu: Başvuru bilgileri eşleştirme ve güvenlik amacıyla işlenir; profiliniz kamuya açık listelenmez. Kurallara aykırı durumlarda destek hattına delil (ekran görüntüsü vb.) ile başvurabilirsiniz.',
         },
         services: {
           title: "2. İhtiyaç Duyduğunuz Hizmetler",

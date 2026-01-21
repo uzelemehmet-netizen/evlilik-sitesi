@@ -921,7 +921,7 @@ export default function MatchmakingApply() {
                 className="inline-flex items-center justify-center rounded-xl border border-gray-300 bg-white px-5 py-3 text-sm font-semibold text-gray-900 hover:bg-gray-50"
                 to="/login?mode=signup"
                 state={{
-                  from: '/panel',
+                  from: location.pathname,
                   fromState: {
                     showMatchmakingIntro: true,
                     matchmakingNext: location.pathname,
@@ -1432,30 +1432,66 @@ export default function MatchmakingApply() {
             <div className="mt-2 space-y-3">
               <div>
                 <label className="block text-xs font-semibold text-slate-700">{t('matchmakingPage.form.labels.photo1')}</label>
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) => setPhotoFiles((p) => ({ ...p, photo1: e.target.files?.[0] || null }))}
-                  className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm bg-white"
-                />
+                <div className="mt-1 flex items-center gap-3">
+                  <input
+                    id="matchmaking-photo1"
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => setPhotoFiles((p) => ({ ...p, photo1: e.target.files?.[0] || null }))}
+                    className="sr-only"
+                  />
+                  <label
+                    htmlFor="matchmaking-photo1"
+                    className="inline-flex cursor-pointer items-center rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 hover:bg-slate-50"
+                  >
+                    {t('matchmakingPage.form.photo.choose')}
+                  </label>
+                  <span className="min-w-0 flex-1 truncate text-xs text-slate-600">
+                    {photoFiles.photo1?.name || t('matchmakingPage.form.photo.noFileChosen')}
+                  </span>
+                </div>
               </div>
               <div>
                 <label className="block text-xs font-semibold text-slate-700">{t('matchmakingPage.form.labels.photo2')}</label>
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) => setPhotoFiles((p) => ({ ...p, photo2: e.target.files?.[0] || null }))}
-                  className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm bg-white"
-                />
+                <div className="mt-1 flex items-center gap-3">
+                  <input
+                    id="matchmaking-photo2"
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => setPhotoFiles((p) => ({ ...p, photo2: e.target.files?.[0] || null }))}
+                    className="sr-only"
+                  />
+                  <label
+                    htmlFor="matchmaking-photo2"
+                    className="inline-flex cursor-pointer items-center rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 hover:bg-slate-50"
+                  >
+                    {t('matchmakingPage.form.photo.choose')}
+                  </label>
+                  <span className="min-w-0 flex-1 truncate text-xs text-slate-600">
+                    {photoFiles.photo2?.name || t('matchmakingPage.form.photo.noFileChosen')}
+                  </span>
+                </div>
               </div>
               <div>
                 <label className="block text-xs font-semibold text-slate-700">{t('matchmakingPage.form.labels.photo3')}</label>
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) => setPhotoFiles((p) => ({ ...p, photo3: e.target.files?.[0] || null }))}
-                  className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm bg-white"
-                />
+                <div className="mt-1 flex items-center gap-3">
+                  <input
+                    id="matchmaking-photo3"
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => setPhotoFiles((p) => ({ ...p, photo3: e.target.files?.[0] || null }))}
+                    className="sr-only"
+                  />
+                  <label
+                    htmlFor="matchmaking-photo3"
+                    className="inline-flex cursor-pointer items-center rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 hover:bg-slate-50"
+                  >
+                    {t('matchmakingPage.form.photo.choose')}
+                  </label>
+                  <span className="min-w-0 flex-1 truncate text-xs text-slate-600">
+                    {photoFiles.photo3?.name || t('matchmakingPage.form.photo.noFileChosen')}
+                  </span>
+                </div>
               </div>
             </div>
             <p className="mt-2 text-xs text-slate-600">{t('matchmakingPage.form.photoHint')}</p>

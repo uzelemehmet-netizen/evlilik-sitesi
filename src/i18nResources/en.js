@@ -64,6 +64,33 @@ export default {
         'Scams, financial exploitation and similar abuse can be blocked quickly via detection and reports.',
         'Send reports to WhatsApp support; after review, the account is removed from the system.',
       ],
+      tagline: 'Moderation + reporting line',
+    },
+
+    brandAlt: 'Turk&Indo',
+    miniCard: {
+      title: 'Uniqah',
+      desc: 'A closed system, a controlled candidate pool, and a step-by-step process.',
+      stats: {
+        privateTitle: 'Private',
+        privateSubtitle: 'profiles',
+        fairTitle: 'Fair',
+        fairSubtitle: 'matching',
+        safeTitle: 'Safe',
+        safeSubtitle: 'contact',
+      },
+    },
+    benefits: {
+      b1Title: 'Benefit',
+      b1Body: 'No public browsing; the process stays focused.',
+      b2Title: 'Control',
+      b2Body: 'Like/pass and contact choice from your panel.',
+      b3Title: 'Speed',
+      b3Body: 'Match suggestions focused on criteria compatibility.',
+    },
+    flow: {
+      title: 'Step-by-step process',
+      badge: 'Uniqah flow',
     },
   },
 
@@ -1695,6 +1722,10 @@ export default {
         },
         form: {
           applicationIdLabel: 'Application ID',
+          photo: {
+            choose: 'Choose file',
+            noFileChosen: 'No file chosen',
+          },
           sections: {
             me: 'Me',
             lookingFor: 'Looking for',

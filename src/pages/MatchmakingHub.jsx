@@ -154,29 +154,29 @@ export default function MatchmakingHub() {
                 <div className="flex flex-col items-center lg:items-end gap-5">
                   <img
                     src={BRAND_LOGO_SRC}
-                    alt="Turk&Indo"
+                    alt={t('matchmakingHub.brandAlt')}
                     className="h-14 md:h-16 w-auto drop-shadow-[0_20px_60px_rgba(0,0,0,0.55)]"
                     loading="eager"
                     decoding="async"
                   />
 
                   <div className="w-full max-w-sm rounded-[22px] border border-white/10 bg-white/5 p-5">
-                    <div className="text-xs font-semibold text-white/80 tracking-wide">Uniqah</div>
+                    <div className="text-xs font-semibold text-white/80 tracking-wide">{t('matchmakingHub.miniCard.title')}</div>
                     <div className="mt-2 text-sm text-white/70 leading-relaxed">
-                      Kapalı sistem, kontrollü aday havuzu ve adım adım ilerleyen süreç.
+                      {t('matchmakingHub.miniCard.desc')}
                     </div>
                     <div className="mt-4 grid grid-cols-3 gap-2">
                       <div className="rounded-xl bg-white/5 border border-white/10 p-3 text-center">
-                        <div className="text-base font-semibold text-amber-200">Gizli</div>
-                        <div className="mt-1 text-[11px] text-white/60">profil</div>
+                        <div className="text-base font-semibold text-amber-200">{t('matchmakingHub.miniCard.stats.privateTitle')}</div>
+                        <div className="mt-1 text-[11px] text-white/60">{t('matchmakingHub.miniCard.stats.privateSubtitle')}</div>
                       </div>
                       <div className="rounded-xl bg-white/5 border border-white/10 p-3 text-center">
-                        <div className="text-base font-semibold text-amber-200">Adil</div>
-                        <div className="mt-1 text-[11px] text-white/60">eşleşme</div>
+                        <div className="text-base font-semibold text-amber-200">{t('matchmakingHub.miniCard.stats.fairTitle')}</div>
+                        <div className="mt-1 text-[11px] text-white/60">{t('matchmakingHub.miniCard.stats.fairSubtitle')}</div>
                       </div>
                       <div className="rounded-xl bg-white/5 border border-white/10 p-3 text-center">
-                        <div className="text-base font-semibold text-amber-200">Güvenli</div>
-                        <div className="mt-1 text-[11px] text-white/60">iletişim</div>
+                        <div className="text-base font-semibold text-amber-200">{t('matchmakingHub.miniCard.stats.safeTitle')}</div>
+                        <div className="mt-1 text-[11px] text-white/60">{t('matchmakingHub.miniCard.stats.safeSubtitle')}</div>
                       </div>
                     </div>
                   </div>
@@ -196,16 +196,16 @@ export default function MatchmakingHub() {
 
                 <div className="mt-5 space-y-3">
                   <div className="rounded-2xl border border-white/10 bg-gradient-to-r from-white/[0.08] to-transparent p-4">
-                    <div className="text-xs font-semibold text-amber-200">Avantaj</div>
-                    <div className="mt-1 text-sm text-white/80">Kamuya açık gezme yok; süreç hedefli ilerler.</div>
+                    <div className="text-xs font-semibold text-amber-200">{t('matchmakingHub.benefits.b1Title')}</div>
+                    <div className="mt-1 text-sm text-white/80">{t('matchmakingHub.benefits.b1Body')}</div>
                   </div>
                   <div className="rounded-2xl border border-white/10 bg-gradient-to-r from-white/[0.08] to-transparent p-4">
-                    <div className="text-xs font-semibold text-amber-200">Kontrol</div>
-                    <div className="mt-1 text-sm text-white/80">Panel üzerinden beğen/geç ve iletişim seçimi.</div>
+                    <div className="text-xs font-semibold text-amber-200">{t('matchmakingHub.benefits.b2Title')}</div>
+                    <div className="mt-1 text-sm text-white/80">{t('matchmakingHub.benefits.b2Body')}</div>
                   </div>
                   <div className="rounded-2xl border border-white/10 bg-gradient-to-r from-white/[0.08] to-transparent p-4">
-                    <div className="text-xs font-semibold text-amber-200">Hız</div>
-                    <div className="mt-1 text-sm text-white/80">Kriter uyumu odaklı eşleşme önerileri.</div>
+                    <div className="text-xs font-semibold text-amber-200">{t('matchmakingHub.benefits.b3Title')}</div>
+                    <div className="mt-1 text-sm text-white/80">{t('matchmakingHub.benefits.b3Body')}</div>
                   </div>
                 </div>
               </div>
@@ -214,8 +214,8 @@ export default function MatchmakingHub() {
             <div className="lg:col-span-7">
               <div className="rounded-[26px] border border-white/10 bg-white/5 p-6 md:p-7">
                 <div className="flex items-center justify-between gap-4">
-                  <h3 className="text-base md:text-lg font-semibold">Adım adım süreç</h3>
-                  <div className="text-xs text-white/60">Uniqah akışı</div>
+                  <h3 className="text-base md:text-lg font-semibold">{t('matchmakingHub.flow.title')}</h3>
+                  <div className="text-xs text-white/60">{t('matchmakingHub.flow.badge')}</div>
                 </div>
 
                 <div className="mt-5 grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -252,7 +252,7 @@ export default function MatchmakingHub() {
               </div>
               <div className="flex items-center gap-2 text-xs text-white/60">
                 <ShieldCheck size={16} className="text-amber-300" />
-                Moderasyon + şikayet hattı
+                {t('matchmakingHub.safety.tagline')}
               </div>
             </div>
 
