@@ -41,6 +41,7 @@ export default function Panel() {
   const [chatTextByMatchId, setChatTextByMatchId] = useState({});
   const [chatDecisionByMatchId, setChatDecisionByMatchId] = useState({});
   const [chatNotifyMsgByMatchId, setChatNotifyMsgByMatchId] = useState({});
+  const [chatFocusMatchId, setChatFocusMatchId] = useState('');
 
   const lastChatSeenMessageIdByMatchIdRef = useRef({});
   const chatScrollElByMatchIdRef = useRef({});
@@ -522,6 +523,21 @@ export default function Panel() {
     return items.slice(0, 3);
   }, [matchmakingMatches, lockInfo.active, lockInfo.matchId, user?.uid]);
 
+  const focusedChatMatchId = useMemo(() => {
+    const list = Array.isArray(activeMatches) ? activeMatches : [];
+    const isChat = (m) => m?.status === 'mutual_accepted' && m?.interactionMode === 'chat' && m?.id;
+    const focused = chatFocusMatchId
+      ? list.find((m) => String(m?.id || '') === String(chatFocusMatchId) && isChat(m))
+      : null;
+    if (focused?.id) return focused.id;
+    const first = list.find(isChat);
+    return first?.id || '';
+  }, [activeMatches, chatFocusMatchId]);
+
+  useEffect(() => {
+    if (!chatFocusMatchId && focusedChatMatchId) setChatFocusMatchId(focusedChatMatchId);
+  }, [chatFocusMatchId, focusedChatMatchId]);
+
   useEffect(() => {
     // Yeni mesaj geldikçe chat kutusunu en alta kaydır.
     // Kullanıcı deneyimi: her zaman en güncel mesaj görünür kalsın.
@@ -837,14 +853,12 @@ export default function Panel() {
   useEffect(() => {
     if (!user?.uid) return;
 
-    // Sadece panelde gösterilen ve interactionMode=chat olan eşleşme için chat mesajlarını dinle.
-    const mutual = Array.isArray(activeMatches)
-      ? activeMatches.find((m) => m?.status === 'mutual_accepted' && m?.interactionMode === 'chat' && m?.id)
-      : null;
-    if (!mutual?.id) return;
+    // Sadece seçili (veya fallback) chat eşleşmesi için mesajları dinle.
+    const matchId = String(focusedChatMatchId || '');
+    if (!matchId) return;
 
     const q = query(
-      collection(db, 'matchmakingMatches', mutual.id, 'messages'),
+      collection(db, 'matchmakingMatches', matchId, 'messages'),
       orderBy('createdAt', 'asc'),
       limit(80)
     );
@@ -857,13 +871,13 @@ export default function Panel() {
 
         // İlk yüklemede bildirim spam'ini engelle.
         const seenMap = lastChatSeenMessageIdByMatchIdRef.current || {};
-        const hasSeenKey = Object.prototype.hasOwnProperty.call(seenMap, mutual.id);
+        const hasSeenKey = Object.prototype.hasOwnProperty.call(seenMap, matchId);
         const last = items.length > 0 ? items[items.length - 1] : null;
 
         if (!hasSeenKey) {
-          lastChatSeenMessageIdByMatchIdRef.current = { ...seenMap, [mutual.id]: last?.id || '' };
-        } else if (last?.id && seenMap[mutual.id] !== last.id) {
-          lastChatSeenMessageIdByMatchIdRef.current = { ...seenMap, [mutual.id]: last.id };
+          lastChatSeenMessageIdByMatchIdRef.current = { ...seenMap, [matchId]: last?.id || '' };
+        } else if (last?.id && seenMap[matchId] !== last.id) {
+          lastChatSeenMessageIdByMatchIdRef.current = { ...seenMap, [matchId]: last.id };
 
           const fromOther = !!last?.userId && last.userId !== user.uid;
           const canNotifyNow =
@@ -877,7 +891,7 @@ export default function Panel() {
             try {
               const n = new Notification(t('matchmakingPanel.matches.chat.notificationTitle'), {
                 body: t('matchmakingPanel.matches.chat.notificationBody'),
-                tag: `match-chat-${mutual.id}`,
+                tag: `match-chat-${matchId}`,
               });
               n.onclick = () => {
                 try {
@@ -897,19 +911,120 @@ export default function Panel() {
           }
         }
 
-        setChatByMatchId((prev) => ({ ...prev, [mutual.id]: { loading: false, error: '', items } }));
+        setChatByMatchId((prev) => ({ ...prev, [matchId]: { loading: false, error: '', items } }));
       },
       (err) => {
         console.error('Chat yüklenemedi:', err);
-        setChatByMatchId((prev) => ({ ...prev, [mutual.id]: { loading: false, error: 'chat_load_failed', items: [] } }));
+        setChatByMatchId((prev) => ({ ...prev, [matchId]: { loading: false, error: 'chat_load_failed', items: [] } }));
       }
     );
 
     // init loading state
-    setChatByMatchId((prev) => ({ ...prev, [mutual.id]: { loading: true, error: '', items: prev?.[mutual.id]?.items || [] } }));
+    setChatByMatchId((prev) => ({ ...prev, [matchId]: { loading: true, error: '', items: prev?.[matchId]?.items || [] } }));
 
     return unsub;
-  }, [activeMatches, user?.uid]);
+  }, [focusedChatMatchId, user?.uid]);
+
+  const renderFocusedChat = (matchId) => {
+    if (!matchId) return null;
+    const loading = !!chatByMatchId?.[matchId]?.loading;
+    const items = chatByMatchId?.[matchId]?.items || [];
+    const sendLoading = !!chatSendByMatchId?.[matchId]?.loading;
+    const sendError = chatSendByMatchId?.[matchId]?.error || '';
+
+    return (
+      <>
+        {canBrowserNotify ? (
+          <div className="mt-2 flex flex-col sm:flex-row sm:items-center gap-2">
+            {Notification.permission === 'granted' ? (
+              <div className="text-xs text-emerald-200 font-semibold">
+                {t('matchmakingPanel.matches.chat.notificationsEnabled')}
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => requestChatNotifications(matchId)}
+                className="px-3 py-2 rounded-full bg-sky-500/10 border border-sky-300/30 text-sky-100 text-xs font-semibold hover:bg-sky-500/15"
+              >
+                {t('matchmakingPanel.matches.chat.enableNotifications')}
+              </button>
+            )}
+
+            {chatNotifyMsgByMatchId?.[matchId] ? (
+              <div className="text-xs text-white/60">{chatNotifyMsgByMatchId[matchId]}</div>
+            ) : null}
+          </div>
+        ) : null}
+
+        {loading ? <div className="mt-2 text-xs text-white/60">{t('common.loading')}</div> : null}
+
+        <div
+          ref={(el) => {
+            if (el) chatScrollElByMatchIdRef.current[matchId] = el;
+          }}
+          className="mt-3 max-h-[55vh] overflow-auto p-2"
+        >
+          {Array.isArray(items) && items.length ? (
+            <div className="space-y-2">
+              {items.map((msg) => {
+                const mine = msg?.userId === user?.uid;
+                return (
+                  <div key={msg.id} className={mine ? 'text-right' : 'text-left'}>
+                    <div
+                      className={
+                        mine
+                          ? 'inline-block bg-sky-600 text-white px-3 py-2 rounded-2xl text-sm max-w-[85%]'
+                          : 'inline-block bg-white/10 border border-white/10 text-white px-3 py-2 rounded-2xl text-sm max-w-[85%]'
+                      }
+                    >
+                      {msg?.text || ''}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="text-xs text-white/60">{t('matchmakingPanel.matches.chat.empty')}</div>
+          )}
+        </div>
+
+        {sendError ? (
+          <div className="mt-2 rounded-lg border border-rose-200 bg-rose-50 p-2 text-rose-900 text-xs">
+            {(() => {
+              const code = String(sendError || '').trim();
+              if (code === 'filtered') return t('matchmakingPanel.matches.chat.errors.filtered');
+              if (code === 'rate_limited') return t('matchmakingPanel.matches.chat.errors.rateLimited');
+              if (code === 'chat_not_enabled') return t('matchmakingPanel.matches.chat.errors.notEnabled');
+              if (code === 'membership_required') return t('matchmakingPanel.errors.membershipRequired');
+              if (code === 'free_active_membership_required') return t('matchmakingPanel.errors.freeActiveMembershipRequired');
+              if (code === 'free_active_membership_blocked') return t('matchmakingPanel.errors.freeActiveMembershipBlocked');
+              if (code === 'membership_or_verification_required') return t('matchmakingPanel.errors.membershipOrVerificationRequired');
+              return t('matchmakingPanel.matches.chat.errors.sendFailed');
+            })()}
+          </div>
+        ) : null}
+
+        <div className="mt-3 flex flex-col sm:flex-row gap-2">
+          <input
+            value={chatTextByMatchId?.[matchId] || ''}
+            onChange={(e) => setChatTextByMatchId((p) => ({ ...p, [matchId]: e.target.value }))}
+            className="w-full rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-white/40"
+            placeholder={t('matchmakingPanel.matches.chat.placeholder')}
+            maxLength={600}
+            disabled={!canTakeActions}
+          />
+          <button
+            type="button"
+            disabled={sendLoading || !canTakeActions}
+            onClick={() => sendChatMessage(matchId)}
+            className="px-4 py-2 rounded-full bg-sky-700 text-white text-sm font-semibold hover:bg-sky-800 disabled:opacity-60"
+          >
+            {sendLoading ? t('matchmakingPanel.actions.sending') : t('matchmakingPanel.matches.chat.send')}
+          </button>
+        </div>
+      </>
+    );
+  };
 
   const sendChatMessage = async (matchId) => {
     const text = String(chatTextByMatchId?.[matchId] || '').trim();
@@ -1091,27 +1206,27 @@ export default function Panel() {
             </div>
           ) : null}
 
-          <div className="mt-6 rounded-2xl border border-white/10 bg-white/5 p-4">
+          <div className="mt-6 p-4">
             <p className="text-sm font-semibold text-white">{t('matchmakingPanel.trust.title')}</p>
             <p className="mt-2 text-sm text-white/75 leading-relaxed">{t('matchmakingPanel.trust.lead')}</p>
 
             <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div className="rounded-xl border border-white/10 bg-white/[0.04] p-3">
+              <div className="p-3 border-l-2 border-white/10">
                 <p className="text-xs font-semibold text-amber-200">{t('matchmakingPanel.trust.cards.quality.title')}</p>
                 <p className="mt-1 text-xs text-white/70 leading-relaxed">{t('matchmakingPanel.trust.cards.quality.body')}</p>
               </div>
-              <div className="rounded-xl border border-white/10 bg-white/[0.04] p-3">
+              <div className="p-3 border-l-2 border-white/10">
                 <p className="text-xs font-semibold text-sky-200">{t('matchmakingPanel.trust.cards.privacy.title')}</p>
                 <p className="mt-1 text-xs text-white/70 leading-relaxed">{t('matchmakingPanel.trust.cards.privacy.body')}</p>
               </div>
-              <div className="rounded-xl border border-white/10 bg-white/[0.04] p-3">
+              <div className="p-3 border-l-2 border-white/10">
                 <p className="text-xs font-semibold text-emerald-200">{t('matchmakingPanel.trust.cards.control.title')}</p>
                 <p className="mt-1 text-xs text-white/70 leading-relaxed">{t('matchmakingPanel.trust.cards.control.body')}</p>
               </div>
             </div>
 
             {trustRules.length ? (
-              <div className="mt-4 rounded-xl border border-white/10 bg-white/[0.04] p-3">
+              <div className="mt-4 p-3 border-l-2 border-white/10">
                 <p className="text-xs font-semibold text-white">{t('matchmakingPanel.trust.rulesTitle')}</p>
                 <ul className="mt-2 space-y-1 text-sm text-white/75 list-disc pl-5">
                   {trustRules.map((x, idx) => (
@@ -1122,7 +1237,7 @@ export default function Panel() {
             ) : null}
           </div>
 
-          <div className="mt-6 rounded-2xl border border-white/10 bg-white/5 p-4 shadow-[0_20px_70px_rgba(99,102,241,0.10)]">
+          <div className="mt-6 p-4">
             <div className="flex items-center gap-4">
               {(() => {
                 const photo =
@@ -1161,7 +1276,7 @@ export default function Panel() {
             </div>
           </div>
 
-          <div className="mt-6 rounded-2xl border border-white/10 bg-white/5 p-4">
+          <div className="mt-6 p-4">
             <p className="text-sm font-semibold text-white">{t('matchmakingPanel.account.title')}</p>
             <p className="text-sm text-white/75 mt-1">
               {t('matchmakingPanel.account.emailLabel')}: <span className="font-semibold">{user?.email || "-"}</span>
@@ -1174,7 +1289,7 @@ export default function Panel() {
           </div>
 
           {/* Profilim Dashboard Tabs */}
-          <div className="mt-6 rounded-2xl border border-white/10 bg-white/5 p-4">
+          <div className="mt-6">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               <button
                 type="button"
@@ -1212,18 +1327,18 @@ export default function Panel() {
             ) : null}
           </div>
 
-          <div className="mt-6 rounded-2xl border border-white/10 bg-white/5 p-4">
+          <div className="mt-6">
             <p className="text-sm font-semibold text-white">{t('matchmakingPanel.application.title')}</p>
             {matchmakingLoading ? (
               <p className="text-sm text-white/60 mt-1">{t('common.loading')}</p>
             ) : !matchmaking ? (
-              <div className="mt-3 rounded-xl border border-white/10 bg-white/[0.04] p-4">
+              <div className="mt-3">
                 <p className="text-sm font-semibold text-white">{t('matchmakingPanel.onboarding.title')}</p>
                 <p className="text-sm text-white/75 mt-1">
                   {t('matchmakingPanel.onboarding.intro')}
                 </p>
 
-                <div className="mt-3 rounded-xl border border-white/10 bg-white/5 p-3">
+                <div className="mt-3 border-t border-white/10 pt-3">
                   <p className="text-xs font-semibold text-white">{t('matchmakingPanel.onboarding.rulesTitle')}</p>
                   <ul className="mt-2 space-y-1 text-sm text-white/75 list-disc pl-5">
                     <li>{t('matchmakingPanel.onboarding.rules.r1')}</li>
@@ -1272,8 +1387,26 @@ export default function Panel() {
               </div>
             ) : (
               <div className="mt-4 grid grid-cols-1 lg:grid-cols-12 gap-4">
-                <div className={`${dashboardTab === 'matches' ? 'hidden' : 'lg:col-span-5'} space-y-3`}>
-                  <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+                <div className="lg:col-span-5 space-y-3">
+                  {dashboardTab === 'matches' ? (
+                    <div className="rounded-2xl border border-amber-300/20 bg-white/[0.06] p-4 lg:sticky lg:top-24 self-start shadow-[0_25px_80px_rgba(245,158,11,0.10)]">
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <p className="text-sm font-semibold text-white">Sohbet</p>
+                        </div>
+                      </div>
+
+                      {focusedChatMatchId ? (
+                        renderFocusedChat(focusedChatMatchId)
+                      ) : (
+                        <p className="mt-3 text-sm text-white/60">Şu an sohbet aktif değil.</p>
+                      )}
+                    </div>
+                  ) : null}
+
+                  {dashboardTab === 'matches' ? null : (
+                    <>
+                  <div className="pb-3 border-b border-white/10">
                     <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
                       <div>
                         <p className="text-sm font-semibold text-white">{matchmaking?.username || user?.displayName || t('matchmakingPanel.application.fallbackName')}</p>
@@ -1306,7 +1439,7 @@ export default function Panel() {
                   {dashboardTab === 'profile' ? (
                     <>
                       {Array.isArray(matchmaking.photoUrls) && matchmaking.photoUrls.filter(Boolean).length ? (
-                        <div className="rounded-xl bg-white/5 border border-white/10 p-3">
+                        <div className="pt-3">
                           <p className="text-xs font-semibold text-white">{t('matchmakingPanel.photos.title')}</p>
                           <p className="text-xs text-white/60 mt-1">{t('matchmakingPanel.photos.lead')}</p>
                           <div className="mt-3 grid grid-cols-2 sm:grid-cols-3 gap-2">
@@ -1318,7 +1451,7 @@ export default function Panel() {
                           </div>
                         </div>
                       ) : (
-                        <div className="rounded-xl bg-white/5 border border-white/10 p-3">
+                        <div className="pt-3">
                           <p className="text-xs font-semibold text-white">{t('matchmakingPanel.photos.title')}</p>
                           <p className="text-xs text-white/60 mt-1">{t('matchmakingPanel.photos.empty')}</p>
                         </div>
@@ -1327,11 +1460,11 @@ export default function Panel() {
                   ) : null}
 
                   {dashboardTab === 'profile' ? (
-                  <div className="rounded-xl border border-white/10 bg-white/5 p-3">
+                  <div className="pt-3">
                     <p className="text-xs font-semibold text-white">{t('matchmakingPanel.dashboard.title')}</p>
                     <p className="mt-1 text-xs text-white/60">{t('matchmakingPanel.dashboard.subtitle')}</p>
 
-                    <details className="mt-3 rounded-xl border border-white/10 bg-white/[0.04] p-3" open>
+                    <details className="mt-3 border-t border-white/10 pt-3" open>
                       <summary className="cursor-pointer text-sm font-semibold text-white">{t('matchmakingPanel.intro.title')}</summary>
                       <div className="mt-2 text-sm text-white/75">{t('matchmakingPanel.intro.body')}</div>
                       <ol className="mt-3 list-decimal pl-5 space-y-2 text-sm text-white/80">
@@ -1341,11 +1474,11 @@ export default function Panel() {
                       </ol>
                     </details>
 
-                    <details className="mt-3 rounded-xl border border-white/10 bg-white/[0.04] p-3">
+                    <details className="mt-3 border-t border-white/10 pt-3">
                       <summary className="cursor-pointer text-sm font-semibold text-white">{t('matchmakingPanel.rules.title')}</summary>
                       <div className="mt-2 text-sm text-white/60">{t('matchmakingPanel.rules.lead')}</div>
                       <div className="mt-3 space-y-4 text-sm text-white/80">
-                        <div className="rounded-xl bg-white/5 border border-white/10 p-3">
+                        <div>
                           <p className="text-xs font-semibold text-white">{t('matchmakingPanel.rules.promise.title')}</p>
                           <ul className="mt-2 list-disc pl-5 space-y-2">
                             <li><span className="font-semibold">{t('matchmakingPanel.rules.promise.p1Title')}:</span> {t('matchmakingPanel.rules.promise.p1Body')}</li>
@@ -1356,7 +1489,7 @@ export default function Panel() {
                           </ul>
                         </div>
 
-                        <div className="rounded-xl bg-white/5 border border-white/10 p-3">
+                        <div>
                           <p className="text-xs font-semibold text-white">{t('matchmakingPanel.rules.zeroTolerance.title')}</p>
                           <ul className="mt-2 list-disc pl-5 space-y-2">
                             <li><span className="font-semibold">{t('matchmakingPanel.rules.zeroTolerance.r1Title')}:</span> {t('matchmakingPanel.rules.zeroTolerance.r1Body')}</li>
@@ -1368,7 +1501,7 @@ export default function Panel() {
                           </ul>
                         </div>
 
-                        <div className="rounded-xl border border-rose-300/30 bg-rose-500/10 p-3 text-rose-100">
+                        <div className="border-l-2 border-rose-300/30 pl-3 text-rose-100">
                           <p className="text-xs font-semibold">{t('matchmakingPanel.rules.enforcement.title')}</p>
                           <ul className="mt-2 list-disc pl-5 space-y-2 text-sm">
                             <li>{t('matchmakingPanel.rules.enforcement.e1a')} <span className="font-semibold">{t('matchmakingPanel.rules.enforcement.e1b')}</span> {t('matchmakingPanel.rules.enforcement.e1c')}</li>
@@ -1378,7 +1511,7 @@ export default function Panel() {
                           </ul>
                         </div>
 
-                        <div className="rounded-xl bg-white/5 border border-white/10 p-3">
+                        <div>
                           <p className="text-xs font-semibold text-white">{t('matchmakingPanel.rules.complaint.title')}</p>
                           <p className="mt-2 text-sm text-white/75">{t('matchmakingPanel.rules.complaint.body')}</p>
                           {complaintLeadExtra ? (
@@ -1388,11 +1521,11 @@ export default function Panel() {
                       </div>
                     </details>
 
-                    <details className="mt-3 rounded-xl border border-white/10 bg-white/[0.04] p-3">
+                    <details className="mt-3 border-t border-white/10 pt-3">
                       <summary className="cursor-pointer text-sm font-semibold text-white">{t('matchmakingPanel.dashboard.faq.title')}</summary>
                       <div className="mt-3 space-y-3">
                         {dashboardFaqItems.map((it, idx) => (
-                          <div key={idx} className="rounded-xl bg-white/5 border border-white/10 p-3">
+                          <div key={idx} className="py-2 border-b border-white/10 last:border-b-0">
                             <div className="text-xs font-semibold text-white">{it?.q || ''}</div>
                             <div className="mt-1 text-sm text-white/75 whitespace-pre-wrap">{it?.a || ''}</div>
                           </div>
@@ -1401,9 +1534,12 @@ export default function Panel() {
                     </details>
                   </div>
                   ) : null}
+
+                    </>
+                  )}
                 </div>
 
-                <div className={`${dashboardTab === 'matches' ? '' : 'hidden'} lg:col-span-7 lg:col-start-6 rounded-xl border border-white/10 bg-white/5 p-4 lg:sticky lg:top-24 self-start shadow-[0_25px_80px_rgba(245,158,11,0.06)]`}>
+                <div className={`${dashboardTab === 'matches' ? '' : 'hidden'} lg:col-span-7 lg:col-start-6 p-4 lg:sticky lg:top-24 self-start`}>
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <p className="text-sm font-semibold text-white">{t('matchmakingPanel.matches.title')}</p>
@@ -1671,127 +1807,17 @@ export default function Panel() {
                                       ) : null}
 
                                       {mode === 'chat' ? (
-                                        <div className="mt-3 rounded-xl border border-sky-300/30 bg-sky-500/10 p-3">
-                                          <p className="text-xs font-semibold text-white">{t('matchmakingPanel.matches.chat.rulesTitle')}</p>
-                                          <p className="mt-1 text-xs text-white/75">{t('matchmakingPanel.matches.chat.rulesBody')}</p>
-
-                                  {canBrowserNotify ? (
-                                    <div className="mt-2 flex flex-col sm:flex-row sm:items-center gap-2">
-                                      {Notification.permission === 'granted' ? (
-                                        <div className="text-xs text-emerald-200 font-semibold">
-                                          {t('matchmakingPanel.matches.chat.notificationsEnabled')}
-                                        </div>
-                                      ) : (
-                                        <button
-                                          type="button"
-                                          onClick={() => requestChatNotifications(m.id)}
-                                          className="px-3 py-2 rounded-full bg-sky-500/10 border border-sky-300/30 text-sky-100 text-xs font-semibold hover:bg-sky-500/15"
-                                        >
-                                          {t('matchmakingPanel.matches.chat.enableNotifications')}
-                                        </button>
-                                      )}
-
-                                      {chatNotifyMsgByMatchId?.[m.id] ? (
-                                        <div className="text-xs text-white/60">{chatNotifyMsgByMatchId[m.id]}</div>
-                                      ) : null}
-                                    </div>
-                                  ) : null}
-
-                                  {chatByMatchId?.[m.id]?.loading ? (
-                                    <div className="mt-2 text-xs text-white/60">{t('common.loading')}</div>
-                                  ) : null}
-
-                                  <div
-                                    ref={(el) => {
-                                      if (!m?.id) return;
-                                      if (el) chatScrollElByMatchIdRef.current[m.id] = el;
-                                    }}
-                                    className="mt-2 max-h-56 overflow-auto rounded-lg border border-white/10 bg-white/[0.04] p-2"
-                                  >
-                                    {(chatByMatchId?.[m.id]?.items || []).length === 0 ? (
-                                      <div className="text-xs text-white/60">{t('matchmakingPanel.matches.chat.empty')}</div>
-                                    ) : (
-                                      <div className="space-y-2">
-                                        {(chatByMatchId?.[m.id]?.items || []).map((msg) => {
-                                          const mine = msg?.userId === user?.uid;
-                                          return (
-                                            <div key={msg.id} className={mine ? 'text-right' : 'text-left'}>
-                                              <div className={mine ? 'inline-block bg-sky-600 text-white px-3 py-2 rounded-2xl text-sm max-w-[85%]' : 'inline-block bg-white/10 border border-white/10 text-white px-3 py-2 rounded-2xl text-sm max-w-[85%]'}>
-                                                {msg?.text || ''}
-                                              </div>
-                                            </div>
-                                          );
-                                        })}
-                                      </div>
-                                    )}
-
-                                    {!matchmakingMatchesLoading && matchHistory.length ? (
-                                      <div className="mt-6 rounded-xl border border-white/10 bg-white/[0.04] p-3">
-                                        <p className="text-sm font-semibold text-white">Eşleşme geçmişi</p>
-                                        <p className="mt-1 text-xs text-white/60">Daha önceki iptal/bitmiş eşleşmeler.</p>
-                                        <div className="mt-3 space-y-2">
-                                          {matchHistory.map((m) => (
-                                            <div key={m.id} className="rounded-xl border border-white/10 bg-white/5 p-3">
-                                              <div className="flex items-start justify-between gap-3">
-                                                <div className="min-w-0">
-                                                  <p className="text-sm font-semibold text-white truncate">Match ID: {m.id}</p>
-                                                  <p className="mt-1 text-xs text-white/60">Durum: <span className="font-semibold text-white/80">{String(m.status || '-')}</span></p>
-                                                </div>
-                                                {typeof m?.createdAt?.toMillis === 'function' ? (
-                                                  <div className="text-xs text-white/50 whitespace-nowrap">
-                                                    {new Intl.DateTimeFormat(i18n?.language === 'id' ? 'id-ID' : i18n?.language === 'en' ? 'en-US' : 'tr-TR', { year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(m.createdAt.toMillis()))}
-                                                  </div>
-                                                ) : null}
-                                              </div>
-                                            </div>
-                                          ))}
-                                        </div>
-                                      </div>
-                                    ) : null}
-                                  </div>
-
-                                  {chatSendByMatchId?.[m.id]?.error ? (
-                                    <div className="mt-2 rounded-lg border border-rose-200 bg-rose-50 p-2 text-rose-900 text-xs">
-                                      {(() => {
-                                        const code = String(chatSendByMatchId[m.id].error || '').trim();
-                                        if (code === 'filtered') return t('matchmakingPanel.matches.chat.errors.filtered');
-                                        if (code === 'rate_limited') return t('matchmakingPanel.matches.chat.errors.rateLimited');
-                                        if (code === 'chat_not_enabled') return t('matchmakingPanel.matches.chat.errors.notEnabled');
-                                        if (code === 'membership_required') return t('matchmakingPanel.errors.membershipRequired');
-                                        if (code === 'free_active_membership_required') return t('matchmakingPanel.errors.freeActiveMembershipRequired');
-                                        if (code === 'free_active_membership_blocked') return t('matchmakingPanel.errors.freeActiveMembershipBlocked');
-                                        if (code === 'membership_or_verification_required') return t('matchmakingPanel.errors.membershipOrVerificationRequired');
-                                        return t('matchmakingPanel.matches.chat.errors.sendFailed');
-                                      })()}
-                                    </div>
-                                  ) : null}
-
-                                  <div className="mt-2 flex flex-col sm:flex-row gap-2">
-                                    <input
-                                      value={chatTextByMatchId?.[m.id] || ''}
-                                      onChange={(e) => setChatTextByMatchId((p) => ({ ...p, [m.id]: e.target.value }))}
-                                      className="w-full rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-white/40"
-                                      placeholder={t('matchmakingPanel.matches.chat.placeholder')}
-                                      maxLength={600}
-                                      disabled={!canTakeActions}
-                                    />
-                                    <button
-                                      type="button"
-                                      disabled={!!chatSendByMatchId?.[m.id]?.loading || !canTakeActions}
-                                      onClick={() => sendChatMessage(m.id)}
-                                      className="px-4 py-2 rounded-full bg-sky-700 text-white text-sm font-semibold hover:bg-sky-800 disabled:opacity-60"
-                                    >
-                                      {chatSendByMatchId?.[m.id]?.loading ? t('matchmakingPanel.actions.sending') : t('matchmakingPanel.matches.chat.send')}
-                                    </button>
-                                  </div>
-
-                                  {!canTakeActions ? (
-                                    <div className="mt-2 rounded-lg border border-amber-200 bg-amber-50 p-2 text-amber-900 text-xs">
-                                      {myGender === 'female'
-                                        ? t('matchmakingPanel.errors.membershipOrVerificationRequired')
-                                        : t('matchmakingPanel.errors.membershipRequired')}
-                                    </div>
-                                  ) : null}
+                                        <div className="mt-3 rounded-lg border border-white/10 bg-white/[0.04] p-3">
+                                          <div className="flex items-center justify-between gap-3">
+                                            <div className="text-xs text-white/70">Sohbet soldaki panelde.</div>
+                                            <button
+                                              type="button"
+                                              onClick={() => setChatFocusMatchId(m.id)}
+                                              className="px-3 py-2 rounded-full bg-sky-500/10 border border-sky-300/30 text-sky-100 text-xs font-semibold hover:bg-sky-500/15"
+                                            >
+                                              Sohbeti aç
+                                            </button>
+                                          </div>
                                         </div>
                                       ) : null}
 

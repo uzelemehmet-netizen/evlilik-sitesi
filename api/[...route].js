@@ -8,6 +8,7 @@ import matchmakingAdminConfirm from '../apiRoutes/matchmaking-admin-confirm.js';
 import matchmakingAdminCreateMatch from '../apiRoutes/matchmaking-admin-create-match.js';
 import matchmakingAdminIdentityVerify from '../apiRoutes/matchmaking-admin-identity-verify.js';
 import matchmakingAllocateProfileNo from '../apiRoutes/matchmaking-allocate-profile-no.js';
+import matchmakingApplicationEditOnce from '../apiRoutes/matchmaking-application-edit-once.js';
 import matchmakingChatDecision from '../apiRoutes/matchmaking-chat-decision.js';
 import matchmakingChatSend from '../apiRoutes/matchmaking-chat-send.js';
 import matchmakingContact from '../apiRoutes/matchmaking-contact.js';
@@ -35,6 +36,7 @@ const handlers = {
   'matchmaking-admin-create-match': matchmakingAdminCreateMatch,
   'matchmaking-admin-identity-verify': matchmakingAdminIdentityVerify,
   'matchmaking-allocate-profile-no': matchmakingAllocateProfileNo,
+  'matchmaking-application-edit-once': matchmakingApplicationEditOnce,
   'matchmaking-chat-decision': matchmakingChatDecision,
   'matchmaking-chat-send': matchmakingChatSend,
   'matchmaking-contact': matchmakingContact,
