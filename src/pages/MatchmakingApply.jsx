@@ -13,6 +13,7 @@ import {
 } from '../utils/recaptchaEnterprise';
 import { useAuth } from '../auth/AuthProvider';
 import { uploadImageToCloudinaryAuto } from '../utils/cloudinaryUpload';
+import { authFetch } from '../utils/authFetch';
 
 function toNumberOrNull(value) {
   if (value === null || value === undefined) return null;
@@ -81,6 +82,14 @@ export default function MatchmakingApply() {
   const location = useLocation();
   const navigate = useNavigate();
 
+  const isEditOnceMode = useMemo(() => {
+    try {
+      return new URLSearchParams(location.search || '').get('editOnce') === '1';
+    } catch {
+      return false;
+    }
+  }, [location.search]);
+
   const BRAND_LOGO_SRC = '/brand.png';
 
   const submitFeedbackRef = useRef(null);
@@ -100,8 +109,102 @@ export default function MatchmakingApply() {
         const snap = await getDocs(q);
         if (cancelled) return;
         if (!snap.empty) {
-          const id = snap.docs[0]?.id;
-          navigate('/profilim', { replace: true, state: { from: 'applyRedirectExisting', applicationId: id } });
+          const docSnap = snap.docs[0];
+          const id = docSnap?.id;
+          const data = docSnap?.data?.() || {};
+
+          if (!isEditOnceMode) {
+            navigate('/profilim', { replace: true, state: { from: 'applyRedirectExisting', applicationId: id } });
+            return;
+          }
+
+          // EditOnce modunda: redirect etme; formu mevcut verilerle prefill et.
+          setExistingApplication({ id, ...data });
+          setForm((prev) => {
+            const details = data?.details && typeof data.details === 'object' ? data.details : {};
+            const partner = data?.partnerPreferences && typeof data.partnerPreferences === 'object' ? data.partnerPreferences : {};
+            const languages = details?.languages && typeof details.languages === 'object' ? details.languages : {};
+            const nativeLang = languages?.native && typeof languages.native === 'object' ? languages.native : {};
+            const foreignLang = languages?.foreign && typeof languages.foreign === 'object' ? languages.foreign : {};
+
+            return {
+              ...prev,
+              username: String(data?.username || prev.username || ''),
+              fullName: String(data?.fullName || prev.fullName || ''),
+              age: data?.age === 0 || data?.age ? String(data.age) : String(prev.age || ''),
+              city: String(data?.city || prev.city || ''),
+              country: String(data?.country || prev.country || ''),
+              whatsapp: String(data?.whatsapp || prev.whatsapp || ''),
+              email: String(data?.email || prev.email || ''),
+              instagram: String(data?.instagram || prev.instagram || ''),
+              nationality: String(data?.nationality || prev.nationality || ''),
+              gender: String(data?.gender || prev.gender || ''),
+              lookingForNationality: String(data?.lookingForNationality || prev.lookingForNationality || ''),
+              lookingForGender: String(data?.lookingForGender || prev.lookingForGender || ''),
+              heightCm: details?.heightCm === 0 || details?.heightCm ? String(details.heightCm) : String(prev.heightCm || ''),
+              weightKg: details?.weightKg === 0 || details?.weightKg ? String(details.weightKg) : String(prev.weightKg || ''),
+              occupation: String(details?.occupation || prev.occupation || ''),
+              education: String(details?.education || prev.education || ''),
+              maritalStatus: String(details?.maritalStatus || prev.maritalStatus || ''),
+              hasChildren: String(details?.hasChildren || prev.hasChildren || ''),
+              childrenCount:
+                details?.childrenCount === 0 || details?.childrenCount
+                  ? String(details.childrenCount)
+                  : String(prev.childrenCount || ''),
+              familyApprovalStatus: String(details?.familyApprovalStatus || prev.familyApprovalStatus || ''),
+              religion: String(details?.religion || prev.religion || ''),
+              religiousValues: String(details?.religiousValues || prev.religiousValues || ''),
+              incomeLevel: String(details?.incomeLevel || prev.incomeLevel || ''),
+              marriageTimeline: String(details?.marriageTimeline || prev.marriageTimeline || ''),
+              relocationWillingness: String(details?.relocationWillingness || prev.relocationWillingness || ''),
+              preferredLivingCountry: String(details?.preferredLivingCountry || prev.preferredLivingCountry || ''),
+              nativeLanguage: String(nativeLang?.code || prev.nativeLanguage || ''),
+              nativeLanguageOther: String(nativeLang?.other || prev.nativeLanguageOther || ''),
+              foreignLanguages: Array.isArray(foreignLang?.codes) ? foreignLang.codes : (Array.isArray(prev.foreignLanguages) ? prev.foreignLanguages : []),
+              foreignLanguageOther: String(foreignLang?.other || prev.foreignLanguageOther || ''),
+              communicationLanguage: String(details?.communicationLanguage || prev.communicationLanguage || ''),
+              communicationLanguageOther: String(details?.communicationLanguageOther || prev.communicationLanguageOther || ''),
+              smoking: String(details?.smoking || prev.smoking || ''),
+              alcohol: String(details?.alcohol || prev.alcohol || ''),
+
+              partnerHeightMinCm:
+                partner?.heightMinCm === 0 || partner?.heightMinCm
+                  ? String(partner.heightMinCm)
+                  : String(prev.partnerHeightMinCm || ''),
+              partnerHeightMaxCm:
+                partner?.heightMaxCm === 0 || partner?.heightMaxCm
+                  ? String(partner.heightMaxCm)
+                  : String(prev.partnerHeightMaxCm || ''),
+              partnerAgeMaxOlderYears:
+                partner?.ageMaxOlderYears === 0 || partner?.ageMaxOlderYears
+                  ? String(partner.ageMaxOlderYears)
+                  : String(prev.partnerAgeMaxOlderYears || ''),
+              partnerAgeMaxYoungerYears:
+                partner?.ageMaxYoungerYears === 0 || partner?.ageMaxYoungerYears
+                  ? String(partner.ageMaxYoungerYears)
+                  : String(prev.partnerAgeMaxYoungerYears || ''),
+              partnerMaritalStatus: String(partner?.maritalStatus || prev.partnerMaritalStatus || ''),
+              partnerReligion: String(partner?.religion || prev.partnerReligion || ''),
+              partnerCommunicationLanguage: String(partner?.communicationLanguage || prev.partnerCommunicationLanguage || ''),
+              partnerCommunicationLanguageOther: String(partner?.communicationLanguageOther || prev.partnerCommunicationLanguageOther || ''),
+              partnerCanCommunicateWithTranslationApp: String(partner?.translationAppPreference || prev.partnerCanCommunicateWithTranslationApp || ''),
+              partnerLivingCountry: String(partner?.livingCountry || prev.partnerLivingCountry || ''),
+              partnerSmokingPreference: String(partner?.smokingPreference || prev.partnerSmokingPreference || ''),
+              partnerAlcoholPreference: String(partner?.alcoholPreference || prev.partnerAlcoholPreference || ''),
+              partnerChildrenPreference: String(partner?.childrenPreference || prev.partnerChildrenPreference || 'doesnt_matter'),
+              partnerEducationPreference: String(partner?.educationPreference || prev.partnerEducationPreference || 'doesnt_matter'),
+              partnerOccupationPreference: String(partner?.occupationPreference || prev.partnerOccupationPreference || 'doesnt_matter'),
+              partnerFamilyValuesPreference: String(partner?.familyValuesPreference || prev.partnerFamilyValuesPreference || 'doesnt_matter'),
+
+              about: String(data?.about || prev.about || ''),
+              expectations: String(data?.expectations || prev.expectations || ''),
+
+              consent18Plus: !!data?.consent18Plus,
+              consentPrivacy: !!data?.consentPrivacy,
+              consentPhotoShare: !!data?.consentPhotoShare,
+              consentTerms: !!data?.consentTerms,
+            };
+          });
         }
       } catch (e) {
         // ignore (rules/index/config) - kullanıcı yine formu görebilir.
@@ -111,7 +214,9 @@ export default function MatchmakingApply() {
     return () => {
       cancelled = true;
     };
-  }, [navigate, user?.uid]);
+  }, [isEditOnceMode, navigate, user?.uid]);
+
+  const [existingApplication, setExistingApplication] = useState(null);
 
   const nationalityOptions = useMemo(
     () => [
@@ -583,9 +688,11 @@ export default function MatchmakingApply() {
     if (!requiredValue(form.about)) return setError(t('matchmakingPage.form.errors.about'));
     if (!requiredValue(form.expectations)) return setError(t('matchmakingPage.form.errors.expectations'));
 
-    if (!photoFiles.photo1) return setError(t('matchmakingPage.form.errors.photo1Required'));
-    if (!photoFiles.photo2) return setError(t('matchmakingPage.form.errors.photo2Required'));
-    if (!photoFiles.photo3) return setError(t('matchmakingPage.form.errors.photo3Required'));
+    if (!isEditOnceMode) {
+      if (!photoFiles.photo1) return setError(t('matchmakingPage.form.errors.photo1Required'));
+      if (!photoFiles.photo2) return setError(t('matchmakingPage.form.errors.photo2Required'));
+      if (!photoFiles.photo3) return setError(t('matchmakingPage.form.errors.photo3Required'));
+    }
 
     if (photoFiles.photo1 && !isImageFile(photoFiles.photo1)) return setError(t('matchmakingPage.form.errors.photoType'));
     if (photoFiles.photo2 && !isImageFile(photoFiles.photo2)) return setError(t('matchmakingPage.form.errors.photoType'));
@@ -646,28 +753,45 @@ export default function MatchmakingApply() {
       }
 
       const colRef = collection(db, 'matchmakingApplications');
-      const docRef = doc(colRef);
+      const docId = isEditOnceMode ? String(existingApplication?.id || '') : '';
+      const docRef = isEditOnceMode ? (docId ? doc(colRef, docId) : null) : doc(colRef);
+      if (isEditOnceMode && !docRef) {
+        return setError(t('matchmakingPage.form.errors.submitFailed'));
+      }
 
       // Kullanıcı adı benzersiz olmalı (case-insensitive).
-      try {
-        const qLower = query(collection(db, 'matchmakingApplications'), where('usernameLower', '==', normalizedUsername), limit(1));
-        const snapLower = await getDocs(qLower);
-        if (!snapLower.empty) {
-          return setError(t('matchmakingPage.form.errors.usernameTaken'));
-        }
-
-        const exact = String(form.username || '').trim();
-        if (exact) {
-          const qExact = query(collection(db, 'matchmakingApplications'), where('username', '==', exact), limit(1));
-          const snapExact = await getDocs(qExact);
-          if (!snapExact.empty) {
-            return setError(t('matchmakingPage.form.errors.usernameTaken'));
+      // EditOnce modunda da kullanıcı adı düzeltilebilsin; sadece değiştiyse kontrol et.
+      const existingUsernameLower = normalizeUsername(existingApplication?.usernameLower || existingApplication?.username || '');
+      const shouldCheckUsernameUniqueness = !isEditOnceMode || normalizedUsername !== existingUsernameLower;
+      if (shouldCheckUsernameUniqueness) {
+        try {
+          const qLower = query(collection(db, 'matchmakingApplications'), where('usernameLower', '==', normalizedUsername), limit(1));
+          const snapLower = await getDocs(qLower);
+          if (!snapLower.empty) {
+            const foundId = snapLower.docs?.[0]?.id;
+            const isOwnDoc = isEditOnceMode && existingApplication?.id && foundId === existingApplication.id;
+            if (!isOwnDoc) {
+              return setError(t('matchmakingPage.form.errors.usernameTaken'));
+            }
           }
+
+          const exact = String(form.username || '').trim();
+          if (exact) {
+            const qExact = query(collection(db, 'matchmakingApplications'), where('username', '==', exact), limit(1));
+            const snapExact = await getDocs(qExact);
+            if (!snapExact.empty) {
+              const foundId = snapExact.docs?.[0]?.id;
+              const isOwnDoc = isEditOnceMode && existingApplication?.id && foundId === existingApplication.id;
+              if (!isOwnDoc) {
+                return setError(t('matchmakingPage.form.errors.usernameTaken'));
+              }
+            }
+          }
+        } catch (e) {
+          // Hata olursa, kullanıcıyı yanlış yönlendirmemek için gönderimi durdur.
+          console.error('username uniqueness check failed:', e);
+          return setError(t('matchmakingPage.form.errors.submitFailed'));
         }
-      } catch (e) {
-        // Hata olursa, kullanıcıyı yanlış yönlendirmemek için gönderimi durdur.
-        console.error('username uniqueness check failed:', e);
-        return setError(t('matchmakingPage.form.errors.submitFailed'));
       }
 
       const compressed1 = photoFiles.photo1 ? await compressImageToJpeg(photoFiles.photo1) : null;
@@ -846,6 +970,35 @@ export default function MatchmakingApply() {
         status: 'new',
       };
 
+      if (isEditOnceMode) {
+        const editPayload = { ...payload };
+        delete editPayload.createdAt;
+        delete editPayload.status;
+        delete editPayload.recaptchaEnterprise;
+        delete editPayload.photoPaths;
+        delete editPayload.photoCloudinary;
+        delete editPayload.photoContentTypes;
+        delete editPayload.photoOriginalTypes;
+
+        if (!Array.isArray(photoUrls) || photoUrls.length === 0) {
+          delete editPayload.photoUrls;
+        }
+
+        await authFetch('/api/matchmaking-application-edit-once', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ payload: editPayload }),
+        });
+
+        setSuccess(true);
+        setLastApplicationId(docRef.id);
+        navigate('/profilim', {
+          replace: true,
+          state: { from: 'matchmakingEditOnce', applicationId: docRef.id },
+        });
+        return;
+      }
+
       await setDoc(docRef, payload);
 
       setLastApplicationId(docRef.id);
@@ -1012,6 +1165,9 @@ export default function MatchmakingApply() {
                 className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
                 placeholder={t('matchmakingPage.form.placeholders.username')}
               />
+              {isEditOnceMode ? (
+                <p className="mt-1 text-xs text-slate-600">{t('matchmakingPage.form.editOnce.usernameLocked')}</p>
+              ) : null}
             </div>
             <div>
               <label className="block text-sm font-semibold text-slate-800">{t('matchmakingPage.form.labels.fullName')}</label>
@@ -1486,72 +1642,78 @@ export default function MatchmakingApply() {
 
           <div>
             <label className="block text-sm font-semibold text-slate-800">{t('matchmakingPage.form.labels.photos')}</label>
-            <div className="mt-2 space-y-3">
-              <div>
-                <label className="block text-xs font-semibold text-slate-700">{t('matchmakingPage.form.labels.photo1')}</label>
-                <div className="mt-1 flex items-center gap-3">
-                  <input
-                    id="matchmaking-photo1"
-                    type="file"
-                    accept="image/*"
-                    onChange={(e) => setPhotoFiles((p) => ({ ...p, photo1: e.target.files?.[0] || null }))}
-                    className="sr-only"
-                  />
-                  <label
-                    htmlFor="matchmaking-photo1"
-                    className="inline-flex cursor-pointer items-center rounded-full border border-slate-900 bg-slate-900 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-slate-800 hover:border-slate-800 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/60"
-                  >
-                    {t('matchmakingPage.form.photo.choose')}
-                  </label>
-                  <span className="min-w-0 flex-1 truncate text-xs text-slate-600">
-                    {photoFiles.photo1?.name || t('matchmakingPage.form.photo.noFileChosen')}
-                  </span>
+            {isEditOnceMode ? (
+              <p className="mt-2 text-xs text-slate-600">{t('matchmakingPage.form.editOnce.photosLocked')}</p>
+            ) : (
+              <>
+                <div className="mt-2 space-y-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700">{t('matchmakingPage.form.labels.photo1')}</label>
+                    <div className="mt-1 flex items-center gap-3">
+                      <input
+                        id="matchmaking-photo1"
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => setPhotoFiles((p) => ({ ...p, photo1: e.target.files?.[0] || null }))}
+                        className="sr-only"
+                      />
+                      <label
+                        htmlFor="matchmaking-photo1"
+                        className="inline-flex cursor-pointer items-center rounded-full border border-slate-900 bg-slate-900 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-slate-800 hover:border-slate-800 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/60"
+                      >
+                        {t('matchmakingPage.form.photo.choose')}
+                      </label>
+                      <span className="min-w-0 flex-1 truncate text-xs text-slate-600">
+                        {photoFiles.photo1?.name || t('matchmakingPage.form.photo.noFileChosen')}
+                      </span>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700">{t('matchmakingPage.form.labels.photo2')}</label>
+                    <div className="mt-1 flex items-center gap-3">
+                      <input
+                        id="matchmaking-photo2"
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => setPhotoFiles((p) => ({ ...p, photo2: e.target.files?.[0] || null }))}
+                        className="sr-only"
+                      />
+                      <label
+                        htmlFor="matchmaking-photo2"
+                        className="inline-flex cursor-pointer items-center rounded-full border border-slate-900 bg-slate-900 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-slate-800 hover:border-slate-800 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/60"
+                      >
+                        {t('matchmakingPage.form.photo.choose')}
+                      </label>
+                      <span className="min-w-0 flex-1 truncate text-xs text-slate-600">
+                        {photoFiles.photo2?.name || t('matchmakingPage.form.photo.noFileChosen')}
+                      </span>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700">{t('matchmakingPage.form.labels.photo3')}</label>
+                    <div className="mt-1 flex items-center gap-3">
+                      <input
+                        id="matchmaking-photo3"
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => setPhotoFiles((p) => ({ ...p, photo3: e.target.files?.[0] || null }))}
+                        className="sr-only"
+                      />
+                      <label
+                        htmlFor="matchmaking-photo3"
+                        className="inline-flex cursor-pointer items-center rounded-full border border-slate-900 bg-slate-900 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-slate-800 hover:border-slate-800 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/60"
+                      >
+                        {t('matchmakingPage.form.photo.choose')}
+                      </label>
+                      <span className="min-w-0 flex-1 truncate text-xs text-slate-600">
+                        {photoFiles.photo3?.name || t('matchmakingPage.form.photo.noFileChosen')}
+                      </span>
+                    </div>
+                  </div>
                 </div>
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-slate-700">{t('matchmakingPage.form.labels.photo2')}</label>
-                <div className="mt-1 flex items-center gap-3">
-                  <input
-                    id="matchmaking-photo2"
-                    type="file"
-                    accept="image/*"
-                    onChange={(e) => setPhotoFiles((p) => ({ ...p, photo2: e.target.files?.[0] || null }))}
-                    className="sr-only"
-                  />
-                  <label
-                    htmlFor="matchmaking-photo2"
-                    className="inline-flex cursor-pointer items-center rounded-full border border-slate-900 bg-slate-900 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-slate-800 hover:border-slate-800 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/60"
-                  >
-                    {t('matchmakingPage.form.photo.choose')}
-                  </label>
-                  <span className="min-w-0 flex-1 truncate text-xs text-slate-600">
-                    {photoFiles.photo2?.name || t('matchmakingPage.form.photo.noFileChosen')}
-                  </span>
-                </div>
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-slate-700">{t('matchmakingPage.form.labels.photo3')}</label>
-                <div className="mt-1 flex items-center gap-3">
-                  <input
-                    id="matchmaking-photo3"
-                    type="file"
-                    accept="image/*"
-                    onChange={(e) => setPhotoFiles((p) => ({ ...p, photo3: e.target.files?.[0] || null }))}
-                    className="sr-only"
-                  />
-                  <label
-                    htmlFor="matchmaking-photo3"
-                    className="inline-flex cursor-pointer items-center rounded-full border border-slate-900 bg-slate-900 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-slate-800 hover:border-slate-800 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/60"
-                  >
-                    {t('matchmakingPage.form.photo.choose')}
-                  </label>
-                  <span className="min-w-0 flex-1 truncate text-xs text-slate-600">
-                    {photoFiles.photo3?.name || t('matchmakingPage.form.photo.noFileChosen')}
-                  </span>
-                </div>
-              </div>
-            </div>
-            <p className="mt-2 text-xs text-slate-600">{t('matchmakingPage.form.photoHint')}</p>
+                <p className="mt-2 text-xs text-slate-600">{t('matchmakingPage.form.photoHint')}</p>
+              </>
+            )}
           </div>
 
           <div>

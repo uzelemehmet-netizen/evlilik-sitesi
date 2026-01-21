@@ -11,7 +11,7 @@ import { useAuth } from "../auth/AuthProvider";
 import { getWhatsAppNumber } from "../utils/whatsapp";
 import { normalizePhoneForWhatsApp } from "../utils/reservationStatus";
 import { authFetch } from "../utils/authFetch";
-import { isCloudinaryUnsignedUploadEnabled, uploadImageToCloudinaryAuto } from '../utils/cloudinaryUpload';
+import { uploadImageToCloudinaryAuto } from '../utils/cloudinaryUpload';
 
 export default function Panel() {
   const { t, i18n } = useTranslation();
@@ -42,6 +42,7 @@ export default function Panel() {
   const [chatDecisionByMatchId, setChatDecisionByMatchId] = useState({});
   const [chatNotifyMsgByMatchId, setChatNotifyMsgByMatchId] = useState({});
   const [chatFocusMatchId, setChatFocusMatchId] = useState('');
+  const [chatEmojiOpenByMatchId, setChatEmojiOpenByMatchId] = useState({});
 
   const lastChatSeenMessageIdByMatchIdRef = useRef({});
   const chatScrollElByMatchIdRef = useRef({});
@@ -67,7 +68,12 @@ export default function Panel() {
   });
   const [paymentAction, setPaymentAction] = useState({ loading: false, error: '', success: '', matchId: '' });
 
+  const [paymentMatchId, setPaymentMatchId] = useState('');
+
   const [receiptUpload, setReceiptUpload] = useState({ loading: false, error: '' });
+
+  const [editOnceForm, setEditOnceForm] = useState(null);
+  const [editOnceAction, setEditOnceAction] = useState({ loading: false, error: '', success: '' });
 
   const showMatchmakingIntro = !!location?.state?.showMatchmakingIntro;
   const matchmakingNext = '/evlilik/eslestirme-basvuru';
@@ -941,6 +947,16 @@ export default function Panel() {
     const sendLoading = !!chatSendByMatchId?.[matchId]?.loading;
     const sendError = chatSendByMatchId?.[matchId]?.error || '';
     const blocked = !canTakeActions;
+    const emojiOpen = !!chatEmojiOpenByMatchId?.[matchId];
+
+    const emojiList = ['😀', '😊', '😂', '😍', '🥰', '😘', '👍', '🙏', '🤝', '💐', '✨', '❤️', '🎉', '🤔', '😢', '😡'];
+
+    const appendEmoji = (emoji) => {
+      if (blocked) return;
+      const cur = String(chatTextByMatchId?.[matchId] || '');
+      const next = cur ? `${cur}${emoji}` : emoji;
+      setChatTextByMatchId((p) => ({ ...p, [matchId]: next }));
+    };
 
     return (
       <div className="mt-3 flex flex-col min-h-0 flex-1">
@@ -975,23 +991,25 @@ export default function Panel() {
           className="mt-3 flex-1 min-h-0 overflow-auto p-2"
         >
           {Array.isArray(items) && items.length ? (
-            <div className="space-y-2">
-              {items.map((msg) => {
-                const mine = msg?.userId === user?.uid;
-                return (
-                  <div key={msg.id} className={mine ? 'text-right' : 'text-left'}>
-                    <div
-                      className={
-                        mine
-                          ? 'inline-block bg-sky-600 text-white px-3 py-2 rounded-2xl text-sm max-w-[85%]'
-                          : 'inline-block bg-white/10 border border-white/10 text-white px-3 py-2 rounded-2xl text-sm max-w-[85%]'
-                      }
-                    >
-                      {msg?.text || ''}
+            <div className="min-h-full flex flex-col justify-end">
+              <div className="space-y-2">
+                {items.map((msg) => {
+                  const mine = msg?.userId === user?.uid;
+                  return (
+                    <div key={msg.id} className={mine ? 'text-right' : 'text-left'}>
+                      <div
+                        className={
+                          mine
+                            ? 'inline-block bg-sky-600 text-white px-3 py-2 rounded-2xl text-sm max-w-[85%]'
+                            : 'inline-block bg-white/10 border border-white/10 text-white px-3 py-2 rounded-2xl text-sm max-w-[85%]'
+                        }
+                      >
+                        {msg?.text || ''}
+                      </div>
                     </div>
-                  </div>
-                );
-              })}
+                  );
+                })}
+              </div>
             </div>
           ) : (
             <div className="text-xs text-white/60">{t('matchmakingPanel.matches.chat.empty')}</div>
@@ -1024,36 +1042,71 @@ export default function Panel() {
           </div>
         ) : null}
 
-        <div className="mt-3 flex flex-col sm:flex-row gap-2">
-          <input
-            value={chatTextByMatchId?.[matchId] || ''}
-            onChange={(e) => setChatTextByMatchId((p) => ({ ...p, [matchId]: e.target.value }))}
-            onKeyDown={(e) => {
-              if (blocked) return;
-              if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                sendChatMessage(matchId);
+        <div className="mt-3 pt-3 border-t border-white/10">
+          <div className="flex flex-col sm:flex-row gap-2">
+            <input
+              value={chatTextByMatchId?.[matchId] || ''}
+              onChange={(e) => setChatTextByMatchId((p) => ({ ...p, [matchId]: e.target.value }))}
+              onKeyDown={(e) => {
+                if (blocked) return;
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  sendChatMessage(matchId);
+                }
+              }}
+              className="w-full rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-white/40"
+              placeholder={
+                blocked
+                  ? (myGender === 'female'
+                      ? t('matchmakingPanel.errors.membershipOrVerificationRequired')
+                      : t('matchmakingPanel.errors.membershipRequired'))
+                  : t('matchmakingPanel.matches.chat.placeholder')
               }
-            }}
-            className="w-full rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-white/40"
-            placeholder={
-              blocked
-                ? (myGender === 'female'
-                    ? t('matchmakingPanel.errors.membershipOrVerificationRequired')
-                    : t('matchmakingPanel.errors.membershipRequired'))
-                : t('matchmakingPanel.matches.chat.placeholder')
-            }
-            maxLength={600}
-            disabled={blocked}
-          />
-          <button
-            type="button"
-            disabled={sendLoading || blocked}
-            onClick={() => sendChatMessage(matchId)}
-            className="px-4 py-2 rounded-full bg-sky-700 text-white text-sm font-semibold hover:bg-sky-800 disabled:opacity-60"
-          >
-            {sendLoading ? t('matchmakingPanel.actions.sending') : t('matchmakingPanel.matches.chat.send')}
-          </button>
+              maxLength={600}
+              disabled={blocked}
+            />
+
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setChatEmojiOpenByMatchId((p) => ({ ...p, [matchId]: !p?.[matchId] }))}
+                disabled={blocked}
+                className="px-3 py-2 rounded-full border border-white/15 bg-white/[0.04] text-white/85 text-sm font-semibold hover:bg-white/[0.08] disabled:opacity-60"
+                aria-label="Emoji"
+                title="Emoji"
+              >
+                😊
+              </button>
+              <button
+                type="button"
+                disabled={sendLoading || blocked}
+                onClick={() => sendChatMessage(matchId)}
+                className="px-4 py-2 rounded-full bg-sky-700 text-white text-sm font-semibold hover:bg-sky-800 disabled:opacity-60"
+              >
+                {sendLoading ? t('matchmakingPanel.actions.sending') : t('matchmakingPanel.matches.chat.send')}
+              </button>
+            </div>
+          </div>
+
+          {emojiOpen ? (
+            <div className="mt-2 rounded-xl border border-white/10 bg-white/[0.04] p-2">
+              <div className="flex flex-wrap gap-2">
+                {emojiList.map((e) => (
+                  <button
+                    key={e}
+                    type="button"
+                    onClick={() => appendEmoji(e)}
+                    className="h-9 w-9 rounded-lg border border-white/10 bg-white/[0.02] hover:bg-white/[0.08] text-lg"
+                    disabled={blocked}
+                    aria-label={`Emoji ${e}`}
+                    title={e}
+                  >
+                    {e}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : null}
         </div>
       </div>
     );
@@ -1187,11 +1240,6 @@ export default function Panel() {
 
     setReceiptUpload({ loading: true, error: '' });
     try {
-      const enabled = isCloudinaryUnsignedUploadEnabled();
-      if (!enabled) {
-        throw new Error(t('matchmakingPanel.receipt.errors.cloudinaryMissing'));
-      }
-
       const up = await uploadImageToCloudinaryAuto(file, {
         folder: 'matchmaking/receipts',
         tags: ['matchmaking', 'receipt'],
@@ -1203,6 +1251,13 @@ export default function Panel() {
       setReceiptUpload({ loading: false, error: String(e?.message || t('matchmakingPanel.receipt.errors.uploadFailed')) });
     }
   };
+
+  useEffect(() => {
+    if (paymentMatchId) return;
+    const list = Array.isArray(activeMatches) ? activeMatches : [];
+    const first = list.find((m) => m?.id)?.id || '';
+    if (first) setPaymentMatchId(first);
+  }, [activeMatches, paymentMatchId]);
 
   useEffect(() => {
     if (!user?.uid) return;
@@ -1233,6 +1288,104 @@ export default function Panel() {
     return getWhatsAppNumber();
   }, []);
 
+  const nationalityOptions = useMemo(
+    () => [
+      { id: '', label: t('matchmakingPage.form.options.common.select') },
+      { id: 'tr', label: t('matchmakingPage.form.options.nationality.tr') },
+      { id: 'id', label: t('matchmakingPage.form.options.nationality.id') },
+      { id: 'other', label: t('matchmakingPage.form.options.nationality.other') },
+    ],
+    [t, i18n.language]
+  );
+
+  const genderOptions = useMemo(
+    () => [
+      { id: '', label: t('matchmakingPage.form.options.common.select') },
+      { id: 'male', label: t('matchmakingPage.form.options.gender.male') },
+      { id: 'female', label: t('matchmakingPage.form.options.gender.female') },
+    ],
+    [t, i18n.language]
+  );
+
+  useEffect(() => {
+    if (!matchmaking?.id) return;
+    // İlk render'da, mevcut başvurudan edit formunu prefill et.
+    setEditOnceForm((cur) => {
+      if (cur && typeof cur === 'object') return cur;
+
+      const app = matchmaking || {};
+      const details = app?.details && typeof app.details === 'object' ? app.details : {};
+      const partner = app?.partnerPreferences && typeof app.partnerPreferences === 'object' ? app.partnerPreferences : {};
+      const languages = details?.languages && typeof details.languages === 'object' ? details.languages : {};
+      const nativeLang = languages?.native && typeof languages.native === 'object' ? languages.native : {};
+      const foreignLang = languages?.foreign && typeof languages.foreign === 'object' ? languages.foreign : {};
+
+      return {
+        fullName: app?.fullName || user?.displayName || '',
+        age: typeof app?.age === 'number' ? app.age : (app?.age || ''),
+        city: app?.city || '',
+        country: app?.country || '',
+        whatsapp: app?.whatsapp || app?.phone || '',
+        email: app?.email || user?.email || '',
+        instagram: app?.instagram || '',
+        nationality: app?.nationality || '',
+        gender: app?.gender || '',
+        lookingForNationality: app?.lookingForNationality || '',
+        lookingForGender: app?.lookingForGender || '',
+        about: app?.about || '',
+        expectations: app?.expectations || '',
+        details: {
+          heightCm: details?.heightCm ?? details?.heightCm === 0 ? details.heightCm : '',
+          weightKg: details?.weightKg ?? details?.weightKg === 0 ? details.weightKg : '',
+          occupation: details?.occupation || '',
+          education: details?.education || '',
+          maritalStatus: details?.maritalStatus || '',
+          hasChildren: details?.hasChildren || '',
+          childrenCount: details?.childrenCount ?? details?.childrenCount === 0 ? details.childrenCount : '',
+          incomeLevel: details?.incomeLevel || '',
+          religion: details?.religion || '',
+          religiousValues: details?.religiousValues || '',
+          familyApprovalStatus: details?.familyApprovalStatus || '',
+          marriageTimeline: details?.marriageTimeline || '',
+          relocationWillingness: details?.relocationWillingness || '',
+          preferredLivingCountry: details?.preferredLivingCountry || '',
+          languages: {
+            native: { code: nativeLang?.code || '', other: nativeLang?.other || '' },
+            foreign: {
+              codes: Array.isArray(foreignLang?.codes) ? foreignLang.codes : [],
+              other: foreignLang?.other || '',
+            },
+          },
+          communicationLanguage: details?.communicationLanguage || '',
+          communicationLanguageOther: details?.communicationLanguageOther || '',
+          communicationMethod: details?.communicationMethod || '',
+          canCommunicateWithTranslationApp: !!details?.canCommunicateWithTranslationApp,
+          smoking: details?.smoking || '',
+          alcohol: details?.alcohol || '',
+        },
+        partnerPreferences: {
+          heightMinCm: partner?.heightMinCm ?? partner?.heightMinCm === 0 ? partner.heightMinCm : '',
+          heightMaxCm: partner?.heightMaxCm ?? partner?.heightMaxCm === 0 ? partner.heightMaxCm : '',
+          ageMin: partner?.ageMin ?? partner?.ageMin === 0 ? partner.ageMin : '',
+          ageMax: partner?.ageMax ?? partner?.ageMax === 0 ? partner.ageMax : '',
+          maritalStatus: partner?.maritalStatus || '',
+          religion: partner?.religion || '',
+          communicationLanguage: partner?.communicationLanguage || '',
+          communicationLanguageOther: partner?.communicationLanguageOther || '',
+          canCommunicateWithTranslationApp: !!partner?.canCommunicateWithTranslationApp,
+          translationAppPreference: partner?.translationAppPreference || '',
+          livingCountry: partner?.livingCountry || '',
+          smokingPreference: partner?.smokingPreference || '',
+          alcoholPreference: partner?.alcoholPreference || '',
+          childrenPreference: partner?.childrenPreference || '',
+          educationPreference: partner?.educationPreference || '',
+          occupationPreference: partner?.occupationPreference || '',
+          familyValuesPreference: partner?.familyValuesPreference || '',
+        },
+      };
+    });
+  }, [matchmaking?.id, user?.displayName, user?.email]);
+
   const openWhatsApp = (text) => {
     const url = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(text)}`;
     window.open(url, "_blank", "noopener,noreferrer");
@@ -1241,6 +1394,38 @@ export default function Panel() {
   const handleLogout = async () => {
     await signOut(auth);
     navigate("/", { replace: true });
+  };
+
+  const submitEditOnce = async () => {
+    if (!matchmaking?.id) return;
+    if (matchmaking?.userEditOnceUsedAt) {
+      setEditOnceAction({ loading: false, error: t('matchmakingPanel.profileForm.editOnceUsed'), success: '' });
+      return;
+    }
+    if (!editOnceForm || typeof editOnceForm !== 'object') return;
+
+    setEditOnceAction({ loading: true, error: '', success: '' });
+    try {
+      await authFetch('/api/matchmaking-application-edit-once', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ payload: editOnceForm }),
+      });
+
+      setEditOnceAction({ loading: false, error: '', success: t('matchmakingPanel.profileForm.editOnceSuccess') });
+    } catch (e) {
+      const msg = String(e?.message || '').trim();
+      const mapped =
+        msg === 'edit_once_used'
+          ? t('matchmakingPanel.profileForm.editOnceUsed')
+          : msg === 'application_not_found'
+            ? t('matchmakingPanel.profileForm.editOnceErrors.notFound')
+            : msg === 'empty_update'
+              ? t('matchmakingPanel.profileForm.editOnceErrors.empty')
+              : t('matchmakingPanel.profileForm.editOnceErrors.failed');
+
+      setEditOnceAction({ loading: false, error: mapped, success: '' });
+    }
   };
 
   return (
@@ -1257,20 +1442,399 @@ export default function Panel() {
 
       <section className="relative max-w-6xl mx-auto px-4 py-16">
         <div className="relative overflow-hidden rounded-[28px] border border-white/10 bg-gradient-to-b from-white/10 via-white/[0.06] to-transparent shadow-[0_30px_90px_rgba(0,0,0,0.45)] p-5 md:p-6">
-          <div className="flex items-start justify-between gap-4">
-            <div>
+          <div className="grid grid-cols-1 md:grid-cols-[1fr_auto] items-start gap-4">
+            <div className="min-w-0">
               <h1 className="text-2xl md:text-3xl font-semibold text-white">{t('matchmakingPanel.title')}</h1>
-              <p className="text-sm text-white/70 mt-1">
-                {t('matchmakingPanel.subtitle')}
-              </p>
+              <p className="text-sm text-white/70 mt-1">{t('matchmakingPanel.subtitle')}</p>
+
+              <div className="mt-4">
+                <p className="text-sm font-semibold text-white">{t('matchmakingPanel.account.title')}</p>
+                <p className="text-sm text-white/75 mt-1">
+                  {t('matchmakingPanel.account.emailLabel')}: <span className="font-semibold">{user?.email || "-"}</span>
+                </p>
+                {user?.displayName ? (
+                  <p className="text-sm text-white/75">
+                    {t('matchmakingPanel.account.nameLabel')}: <span className="font-semibold">{user.displayName}</span>
+                  </p>
+                ) : null}
+              </div>
             </div>
-            <button
-              type="button"
-              onClick={handleLogout}
-              className="px-4 py-2 rounded-full border border-white/10 bg-white/5 text-white/90 text-sm font-semibold hover:bg-white/[0.12] transition"
-            >
-              {t('matchmakingPanel.actions.logout')}
-            </button>
+
+            <div className="flex flex-col items-end gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={handleLogout}
+                className="px-4 py-2 rounded-full border border-white/10 bg-white/5 text-white/90 text-sm font-semibold hover:bg-white/[0.12] transition"
+              >
+                {t('matchmakingPanel.actions.logout')}
+              </button>
+
+              <Link
+                to="/evlilik/eslestirme-basvuru?editOnce=1"
+                className="px-4 py-2 rounded-full border border-white/10 bg-white/[0.04] text-white/85 text-sm font-semibold hover:bg-white/[0.08] transition"
+              >
+                {t('matchmakingPanel.actions.profileForm')}
+              </Link>
+
+              <details className="w-full max-w-[24rem]">
+                <summary className="list-none [&::-webkit-details-marker]:hidden">
+                  <div className="w-full flex justify-end">
+                    <span className="inline-flex items-center justify-center w-fit px-4 py-2 rounded-full border border-white/10 bg-white/[0.03] text-white/75 text-xs font-semibold hover:bg-white/[0.08] transition cursor-pointer select-none">
+                      {t('matchmakingPanel.profileForm.detailsToggle')}
+                    </span>
+                  </div>
+                </summary>
+
+                <div className="mt-2 rounded-2xl border border-white/10 bg-white/[0.04] p-3 text-sm text-white/80">
+                  {matchmakingLoading ? (
+                    <p className="text-xs text-white/60">{t('matchmakingPanel.profileForm.loading')}</p>
+                  ) : !matchmaking ? (
+                    <p className="text-xs text-white/60">{t('matchmakingPanel.profileForm.empty')}</p>
+                  ) : (
+                    <div className="space-y-3">
+                      <div>
+                        <p className="text-xs text-white/60">{t('matchmakingPanel.profileForm.applicationId')}</p>
+                        <p className="font-semibold break-all">{matchmaking?.id || '-'}</p>
+                      </div>
+
+                      <dl className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                          <dt className="text-xs text-white/60">{t('matchmakingPage.form.labels.username')}</dt>
+                          <dd className="font-semibold break-words">{matchmaking?.username || '-'}</dd>
+                        </div>
+                        <div>
+                          <dt className="text-xs text-white/60">{t('matchmakingPage.form.labels.fullName')}</dt>
+                          <dd className="font-semibold break-words">{matchmaking?.fullName || user?.displayName || '-'}</dd>
+                        </div>
+                        <div>
+                          <dt className="text-xs text-white/60">{t('matchmakingPage.form.labels.age')}</dt>
+                          <dd className="font-semibold">{typeof matchmaking?.age === 'number' ? matchmaking.age : (matchmaking?.age || '-')}</dd>
+                        </div>
+                        <div>
+                          <dt className="text-xs text-white/60">{t('matchmakingPage.form.labels.gender')}</dt>
+                          <dd className="font-semibold">
+                            {(() => {
+                              const g = String(matchmaking?.gender || '').toLowerCase().trim();
+                              return g ? (t(`matchmakingPage.form.options.gender.${g}`) || g) : '-';
+                            })()}
+                          </dd>
+                        </div>
+                        <div>
+                          <dt className="text-xs text-white/60">{t('matchmakingPage.form.labels.city')}</dt>
+                          <dd className="font-semibold break-words">{matchmaking?.city || '-'}</dd>
+                        </div>
+                        <div>
+                          <dt className="text-xs text-white/60">{t('matchmakingPage.form.labels.country')}</dt>
+                          <dd className="font-semibold break-words">{matchmaking?.country || '-'}</dd>
+                        </div>
+                        <div>
+                          <dt className="text-xs text-white/60">{t('matchmakingPage.form.labels.whatsapp')}</dt>
+                          <dd className="font-semibold break-words">{matchmaking?.whatsapp || matchmaking?.phone || '-'}</dd>
+                        </div>
+                        <div>
+                          <dt className="text-xs text-white/60">{t('matchmakingPage.form.labels.maritalStatus')}</dt>
+                          <dd className="font-semibold">
+                            {(() => {
+                              const v = String(matchmaking?.details?.maritalStatus || '').trim();
+                              return v ? (t(`matchmakingPage.form.options.maritalStatus.${v}`) || v) : '-';
+                            })()}
+                          </dd>
+                        </div>
+                        <div>
+                          <dt className="text-xs text-white/60">{t('matchmakingPage.form.labels.education')}</dt>
+                          <dd className="font-semibold break-words">{matchmaking?.details?.education || '-'}</dd>
+                        </div>
+                        <div>
+                          <dt className="text-xs text-white/60">{t('matchmakingPage.form.labels.occupation')}</dt>
+                          <dd className="font-semibold break-words">{matchmaking?.details?.occupation || '-'}</dd>
+                        </div>
+                      </dl>
+
+                      <div className="grid grid-cols-1 gap-3">
+                        <div>
+                          <p className="text-xs text-white/60">{t('matchmakingPage.form.labels.about')}</p>
+                          <p className="text-sm text-white/80 whitespace-pre-wrap">{matchmaking?.about || '-'}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-white/60">{t('matchmakingPage.form.labels.expectations')}</p>
+                          <p className="text-sm text-white/80 whitespace-pre-wrap">{matchmaking?.expectations || '-'}</p>
+                        </div>
+                      </div>
+
+                      <div className="pt-3 border-t border-white/10">
+                        <p className="text-xs font-semibold text-white">{t('matchmakingPanel.profileForm.editOnceTitle')}</p>
+                        <p className="mt-1 text-xs text-white/60">{t('matchmakingPanel.profileForm.editOnceLead')}</p>
+
+                        {matchmaking?.userEditOnceUsedAt ? (
+                          <div className="mt-2 rounded-lg border border-amber-300/30 bg-amber-500/10 p-2 text-amber-100 text-xs">
+                            {t('matchmakingPanel.profileForm.editOnceUsed')}
+                          </div>
+                        ) : null}
+
+                        {editOnceAction.error ? (
+                          <div className="mt-2 rounded-lg border border-rose-300/30 bg-rose-500/10 p-2 text-rose-100 text-xs">
+                            {editOnceAction.error}
+                          </div>
+                        ) : null}
+                        {editOnceAction.success ? (
+                          <div className="mt-2 rounded-lg border border-emerald-300/30 bg-emerald-500/10 p-2 text-emerald-100 text-xs">
+                            {editOnceAction.success}
+                          </div>
+                        ) : null}
+
+                        {editOnceForm && !matchmaking?.userEditOnceUsedAt ? (
+                          <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            <label className="text-xs text-white/70">
+                              {t('matchmakingPage.form.labels.fullName')}
+                              <input
+                                value={editOnceForm?.fullName || ''}
+                                onChange={(e) => setEditOnceForm((p) => ({ ...(p || {}), fullName: e.target.value }))}
+                                className="mt-1 w-full rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-white/40"
+                              />
+                            </label>
+
+                            <label className="text-xs text-white/70">
+                              {t('matchmakingPage.form.labels.age')}
+                              <input
+                                inputMode="numeric"
+                                value={editOnceForm?.age ?? ''}
+                                onChange={(e) => setEditOnceForm((p) => ({ ...(p || {}), age: e.target.value }))}
+                                className="mt-1 w-full rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-white/40"
+                              />
+                            </label>
+
+                            <label className="text-xs text-white/70">
+                              {t('matchmakingPage.form.labels.city')}
+                              <input
+                                value={editOnceForm?.city || ''}
+                                onChange={(e) => setEditOnceForm((p) => ({ ...(p || {}), city: e.target.value }))}
+                                className="mt-1 w-full rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-white/40"
+                              />
+                            </label>
+
+                            <label className="text-xs text-white/70">
+                              {t('matchmakingPage.form.labels.country')}
+                              <input
+                                value={editOnceForm?.country || ''}
+                                onChange={(e) => setEditOnceForm((p) => ({ ...(p || {}), country: e.target.value }))}
+                                className="mt-1 w-full rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-white/40"
+                              />
+                            </label>
+
+                            <label className="text-xs text-white/70">
+                              {t('matchmakingPage.form.labels.whatsapp')}
+                              <input
+                                value={editOnceForm?.whatsapp || ''}
+                                onChange={(e) => setEditOnceForm((p) => ({ ...(p || {}), whatsapp: e.target.value }))}
+                                className="mt-1 w-full rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-white/40"
+                              />
+                            </label>
+
+                            <label className="text-xs text-white/70">
+                              {t('matchmakingPage.form.labels.email')}
+                              <input
+                                value={editOnceForm?.email || ''}
+                                onChange={(e) => setEditOnceForm((p) => ({ ...(p || {}), email: e.target.value }))}
+                                className="mt-1 w-full rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-white/40"
+                              />
+                            </label>
+
+                            <label className="text-xs text-white/70">
+                              {t('matchmakingPage.form.labels.nationality')}
+                              <select
+                                value={editOnceForm?.nationality || ''}
+                                onChange={(e) => setEditOnceForm((p) => ({ ...(p || {}), nationality: e.target.value }))}
+                                className="mt-1 w-full rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-sm text-white"
+                              >
+                                {nationalityOptions.map((o) => (
+                                  <option key={o.id} value={o.id}>
+                                    {o.label}
+                                  </option>
+                                ))}
+                              </select>
+                            </label>
+
+                            <label className="text-xs text-white/70">
+                              {t('matchmakingPage.form.labels.gender')}
+                              <select
+                                value={editOnceForm?.gender || ''}
+                                onChange={(e) => setEditOnceForm((p) => ({ ...(p || {}), gender: e.target.value }))}
+                                className="mt-1 w-full rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-sm text-white"
+                              >
+                                {genderOptions.map((o) => (
+                                  <option key={o.id} value={o.id}>
+                                    {o.label}
+                                  </option>
+                                ))}
+                              </select>
+                            </label>
+
+                            <label className="text-xs text-white/70">
+                              {t('matchmakingPage.form.labels.lookingForNationality')}
+                              <select
+                                value={editOnceForm?.lookingForNationality || ''}
+                                onChange={(e) => setEditOnceForm((p) => ({ ...(p || {}), lookingForNationality: e.target.value }))}
+                                className="mt-1 w-full rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-sm text-white"
+                              >
+                                {nationalityOptions.map((o) => (
+                                  <option key={o.id} value={o.id}>
+                                    {o.label}
+                                  </option>
+                                ))}
+                              </select>
+                            </label>
+
+                            <label className="text-xs text-white/70">
+                              {t('matchmakingPage.form.labels.lookingForGender')}
+                              <select
+                                value={editOnceForm?.lookingForGender || ''}
+                                onChange={(e) => setEditOnceForm((p) => ({ ...(p || {}), lookingForGender: e.target.value }))}
+                                className="mt-1 w-full rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-sm text-white"
+                              >
+                                {genderOptions.map((o) => (
+                                  <option key={o.id} value={o.id}>
+                                    {o.label}
+                                  </option>
+                                ))}
+                              </select>
+                            </label>
+
+                            <label className="text-xs text-white/70">
+                              {t('matchmakingPage.form.labels.height')}
+                              <input
+                                inputMode="numeric"
+                                value={editOnceForm?.details?.heightCm ?? ''}
+                                onChange={(e) =>
+                                  setEditOnceForm((p) => ({
+                                    ...(p || {}),
+                                    details: { ...((p || {})?.details || {}), heightCm: e.target.value },
+                                  }))
+                                }
+                                className="mt-1 w-full rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-white/40"
+                                placeholder="175"
+                              />
+                            </label>
+
+                            <label className="text-xs text-white/70">
+                              {t('matchmakingPage.form.labels.weight')}
+                              <input
+                                inputMode="numeric"
+                                value={editOnceForm?.details?.weightKg ?? ''}
+                                onChange={(e) =>
+                                  setEditOnceForm((p) => ({
+                                    ...(p || {}),
+                                    details: { ...((p || {})?.details || {}), weightKg: e.target.value },
+                                  }))
+                                }
+                                className="mt-1 w-full rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-white/40"
+                                placeholder="72"
+                              />
+                            </label>
+
+                            <label className="text-xs text-white/70">
+                              {t('matchmakingPage.form.labels.education')}
+                              <input
+                                value={editOnceForm?.details?.education || ''}
+                                onChange={(e) =>
+                                  setEditOnceForm((p) => ({
+                                    ...(p || {}),
+                                    details: { ...((p || {})?.details || {}), education: e.target.value },
+                                  }))
+                                }
+                                className="mt-1 w-full rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-white/40"
+                              />
+                            </label>
+
+                            <label className="text-xs text-white/70">
+                              {t('matchmakingPage.form.labels.occupation')}
+                              <input
+                                value={editOnceForm?.details?.occupation || ''}
+                                onChange={(e) =>
+                                  setEditOnceForm((p) => ({
+                                    ...(p || {}),
+                                    details: { ...((p || {})?.details || {}), occupation: e.target.value },
+                                  }))
+                                }
+                                className="mt-1 w-full rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-white/40"
+                              />
+                            </label>
+
+                            <label className="text-xs text-white/70 sm:col-span-2">
+                              {t('matchmakingPage.form.labels.about')}
+                              <textarea
+                                value={editOnceForm?.about || ''}
+                                onChange={(e) => setEditOnceForm((p) => ({ ...(p || {}), about: e.target.value }))}
+                                className="mt-1 w-full rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-white/40"
+                                rows={3}
+                              />
+                            </label>
+
+                            <label className="text-xs text-white/70 sm:col-span-2">
+                              {t('matchmakingPage.form.labels.expectations')}
+                              <textarea
+                                value={editOnceForm?.expectations || ''}
+                                onChange={(e) => setEditOnceForm((p) => ({ ...(p || {}), expectations: e.target.value }))}
+                                className="mt-1 w-full rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-white/40"
+                                rows={3}
+                              />
+                            </label>
+                          </div>
+                        ) : null}
+
+                        <button
+                          type="button"
+                          onClick={submitEditOnce}
+                          disabled={
+                            !editOnceForm ||
+                            !matchmaking ||
+                            matchmakingLoading ||
+                            editOnceAction.loading ||
+                            !!matchmaking?.userEditOnceUsedAt
+                          }
+                          className="mt-3 px-4 py-2 rounded-full bg-amber-300 text-slate-950 text-sm font-semibold hover:bg-amber-200 disabled:opacity-60"
+                        >
+                          {editOnceAction.loading
+                            ? t('matchmakingPanel.profileForm.editOnceSaving')
+                            : t('matchmakingPanel.profileForm.editOnceCta')}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </details>
+
+              <div className="flex flex-col items-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setDashboardTab('profile')}
+                  className={`w-fit px-4 py-2 rounded-full border text-sm font-semibold transition ${
+                    dashboardTab === 'profile'
+                      ? 'border-amber-300/30 bg-amber-500/10 text-amber-100'
+                      : 'border-white/10 bg-white/[0.04] text-white/85 hover:bg-white/[0.08]'
+                  }`}
+                >
+                  {t('matchmakingPanel.tabs.info')}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setDashboardTab('matches')}
+                  disabled={!matchmakingLoading && !matchmaking}
+                  className={`w-fit px-4 py-2 rounded-full border text-sm font-semibold transition disabled:opacity-50 ${
+                    dashboardTab === 'matches'
+                      ? 'border-sky-300/30 bg-sky-500/10 text-sky-100'
+                      : 'border-white/10 bg-white/[0.04] text-white/85 hover:bg-white/[0.08]'
+                  }`}
+                >
+                  {t('matchmakingPanel.tabs.matches')}
+                  {!matchmakingMatchesLoading && Array.isArray(activeMatches) && activeMatches.length ? (
+                    <span className="ml-2 inline-flex items-center rounded-full bg-white/10 border border-white/10 px-2 py-0.5 text-[11px] font-semibold text-white/80">
+                      {activeMatches.length}
+                    </span>
+                  ) : null}
+                </button>
+              </div>
+            </div>
           </div>
 
           {location?.state?.from === "matchmakingApply" ? (
@@ -1323,56 +1887,11 @@ export default function Panel() {
             </div>
           </div>
 
-          <div className="mt-6 p-4">
-            <p className="text-sm font-semibold text-white">{t('matchmakingPanel.account.title')}</p>
-            <p className="text-sm text-white/75 mt-1">
-              {t('matchmakingPanel.account.emailLabel')}: <span className="font-semibold">{user?.email || "-"}</span>
+          {!matchmakingLoading && !matchmaking ? (
+            <p className="mt-6 text-xs text-white/60">
+              Eşleşme profilini oluşturmadın. Önce formu doldurup profilini oluştur.
             </p>
-            {user?.displayName ? (
-              <p className="text-sm text-white/75">
-                {t('matchmakingPanel.account.nameLabel')}: <span className="font-semibold">{user.displayName}</span>
-              </p>
-            ) : null}
-          </div>
-
-          {/* Profilim Dashboard Tabs */}
-          <div className="mt-6">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              <button
-                type="button"
-                onClick={() => setDashboardTab('profile')}
-                className={`px-4 py-3 rounded-2xl border text-sm font-semibold transition ${
-                  dashboardTab === 'profile'
-                    ? 'border-amber-300/30 bg-amber-500/10 text-amber-100'
-                    : 'border-white/10 bg-white/[0.04] text-white/85 hover:bg-white/[0.08]'
-                }`}
-              >
-                {t('matchmakingPanel.tabs.info')}
-              </button>
-              <button
-                type="button"
-                onClick={() => setDashboardTab('matches')}
-                disabled={!matchmakingLoading && !matchmaking}
-                className={`px-4 py-3 rounded-2xl border text-sm font-semibold transition disabled:opacity-50 ${
-                  dashboardTab === 'matches'
-                    ? 'border-sky-300/30 bg-sky-500/10 text-sky-100'
-                    : 'border-white/10 bg-white/[0.04] text-white/85 hover:bg-white/[0.08]'
-                }`}
-              >
-                {t('matchmakingPanel.tabs.matches')}
-                {!matchmakingMatchesLoading && Array.isArray(activeMatches) && activeMatches.length ? (
-                  <span className="ml-2 inline-flex items-center rounded-full bg-white/10 border border-white/10 px-2 py-0.5 text-[11px] font-semibold text-white/80">
-                    {activeMatches.length}
-                  </span>
-                ) : null}
-              </button>
-            </div>
-            {!matchmakingLoading && !matchmaking ? (
-              <p className="mt-3 text-xs text-white/60">
-                Eşleşme profilini oluşturmadın. Önce formu doldurup profilini oluştur.
-              </p>
-            ) : null}
-          </div>
+          ) : null}
 
           <div className="mt-6">
             <p className="text-sm font-semibold text-white">{t('matchmakingPanel.application.title')}</p>
@@ -1468,9 +1987,46 @@ export default function Panel() {
                           {t('matchmakingPanel.application.applicationId')}: <span className="font-semibold">{matchmaking.id}</span>
                         </p>
                       </div>
-                      <div className="text-left sm:text-right">
-                        <p className="text-xs text-white/60">{t('matchmakingPanel.common.status')}</p>
-                        <p className="text-sm font-semibold text-white">{matchmaking.status || "-"}</p>
+                      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-end gap-4">
+                        <div className="text-left sm:text-right">
+                          <p className="text-xs text-white/60">{t('matchmakingPanel.common.status')}</p>
+                          <p className="text-sm font-semibold text-white">{matchmaking.status || "-"}</p>
+                        </div>
+
+                        {/* Fotoğraflarım: kullanıcı adı satırıyla aynı hizada, en sağda */}
+                        {dashboardTab === 'profile' ? (
+                          <div className="text-left sm:text-right">
+                            <div className="flex items-center justify-start sm:justify-end gap-2">
+                              <p className="text-xs text-white/60">{t('matchmakingPanel.photos.title')}</p>
+                              {Array.isArray(matchmaking.photoUrls) && matchmaking.photoUrls.filter(Boolean).length ? (
+                                <span className="inline-flex items-center rounded-full bg-white/10 border border-white/10 px-2 py-0.5 text-[11px] font-semibold text-white/80">
+                                  {matchmaking.photoUrls.filter(Boolean).length}
+                                </span>
+                              ) : null}
+                            </div>
+
+                            {Array.isArray(matchmaking.photoUrls) && matchmaking.photoUrls.filter(Boolean).length ? (
+                              <div className="mt-2 flex justify-start sm:justify-end">
+                                <a
+                                  href={matchmaking.photoUrls.filter(Boolean)[0]}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-flex items-center gap-2"
+                                  title={t('matchmakingPanel.photos.title')}
+                                >
+                                  <img
+                                    src={matchmaking.photoUrls.filter(Boolean)[0]}
+                                    alt={t('matchmakingPanel.photos.title')}
+                                    className="h-12 w-12 rounded-xl object-cover border border-white/10"
+                                    loading="lazy"
+                                  />
+                                </a>
+                              </div>
+                            ) : (
+                              <p className="mt-2 text-xs text-white/60">{t('matchmakingPanel.photos.empty')}</p>
+                            )}
+                          </div>
+                        ) : null}
                       </div>
                     </div>
 
@@ -1485,28 +2041,7 @@ export default function Panel() {
                     ) : null}
                   </div>
 
-                  {dashboardTab === 'profile' ? (
-                    <>
-                      {Array.isArray(matchmaking.photoUrls) && matchmaking.photoUrls.filter(Boolean).length ? (
-                        <div className="pt-3">
-                          <p className="text-xs font-semibold text-white">{t('matchmakingPanel.photos.title')}</p>
-                          <p className="text-xs text-white/60 mt-1">{t('matchmakingPanel.photos.lead')}</p>
-                          <div className="mt-3 grid grid-cols-2 sm:grid-cols-3 gap-2">
-                            {matchmaking.photoUrls.filter(Boolean).map((u) => (
-                              <a key={u} href={u} target="_blank" rel="noopener noreferrer" className="block">
-                                <img src={u} alt="Foto" className="w-full h-28 object-cover rounded-xl border border-white/10" loading="lazy" />
-                              </a>
-                            ))}
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="pt-3">
-                          <p className="text-xs font-semibold text-white">{t('matchmakingPanel.photos.title')}</p>
-                          <p className="text-xs text-white/60 mt-1">{t('matchmakingPanel.photos.empty')}</p>
-                        </div>
-                      )}
-                    </>
-                  ) : null}
+                  {/* Not: Fotoğraflarım bölümü üst satırın sağına taşındı. */}
 
                   {dashboardTab === 'profile' ? (
                   <div className="pt-3">
@@ -1521,6 +2056,269 @@ export default function Panel() {
                           <li key={idx}>{x}</li>
                         ))}
                       </ol>
+                    </details>
+
+                    <details className="mt-3 border-t border-white/10 pt-3" open={!canTakeActions}>
+                      <summary className="cursor-pointer text-sm font-semibold text-white">{t('matchmakingPanel.activation.title')}</summary>
+
+                      <div className="mt-2 text-sm text-white/75">{t('matchmakingPanel.activation.lead')}</div>
+                      <div className="mt-3 rounded-xl border border-white/10 bg-white/[0.04] p-3">
+                        <p className="text-xs font-semibold text-white">{t('matchmakingPanel.membership.title')}</p>
+                        <p className="mt-1 text-sm text-white/75">{membershipStatusText}</p>
+                      </div>
+
+                      {myGender === 'female' && !canTakeActions ? (
+                        <div className="mt-3 rounded-xl border border-sky-300/30 bg-sky-500/10 p-3">
+                          <p className="text-xs font-semibold text-sky-100">{t('matchmakingPanel.activation.freeActiveTitle')}</p>
+                          <p className="mt-1 text-sm text-white/75">{t('matchmakingPanel.activation.freeActiveBody')}</p>
+
+                          {freeActiveApplyAction.error ? (
+                            <div className="mt-2 rounded-lg border border-rose-300/30 bg-rose-500/10 p-2 text-rose-100 text-xs">
+                              {freeActiveApplyAction.error}
+                            </div>
+                          ) : null}
+                          {freeActiveApplyAction.success ? (
+                            <div className="mt-2 rounded-lg border border-emerald-300/30 bg-emerald-500/10 p-2 text-emerald-100 text-xs">
+                              {freeActiveApplyAction.success}
+                            </div>
+                          ) : null}
+
+                          <button
+                            type="button"
+                            onClick={applyFreeActiveMembership}
+                            disabled={freeActiveApplyAction.loading || myMembership.active || myFreeActive.eligible || myFreeActive.blocked || !myIdentityVerified}
+                            className="mt-3 px-4 py-2 rounded-full bg-sky-700 text-white text-sm font-semibold hover:bg-sky-800 disabled:opacity-60"
+                          >
+                            {freeActiveApplyAction.loading ? t('matchmakingPanel.membership.freeActiveApplying') : t('matchmakingPanel.membership.freeActiveApply')}
+                          </button>
+
+                          {!myIdentityVerified ? (
+                            <p className="mt-2 text-xs text-white/60">{t('matchmakingPanel.activation.freeActiveNeedsVerification')}</p>
+                          ) : null}
+                        </div>
+                      ) : null}
+
+                      {!canTakeActions ? (
+                        <div className="mt-3 rounded-2xl border border-emerald-300/30 bg-emerald-500/10 p-3">
+                          <p className="text-xs font-semibold text-emerald-100">{t('matchmakingPanel.activation.paymentTitle')}</p>
+                          <p className="text-sm text-white/75 mt-1">{t('matchmakingPanel.activation.paymentBody')}</p>
+
+                          <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div className="rounded-xl border border-white/10 bg-white/[0.04] p-3">
+                              <p className="text-xs font-semibold text-white">{t('matchmakingPanel.matches.payment.trTitle')}</p>
+                              <p className="text-sm text-white/75 mt-1">{t('matchmakingPanel.matches.payment.amount')}: <span className="font-semibold">{prices.TRY} TL</span></p>
+                              {import.meta?.env?.VITE_MATCHMAKING_TR_ACCOUNT_NAME || import.meta?.env?.VITE_MATCHMAKING_TR_IBAN ? (
+                                <div className="mt-2 text-xs text-white/75">
+                                  {import.meta?.env?.VITE_MATCHMAKING_TR_ACCOUNT_NAME ? (
+                                    <p>{t('matchmakingPanel.matches.payment.recipient')}: <span className="font-semibold">{import.meta.env.VITE_MATCHMAKING_TR_ACCOUNT_NAME}</span></p>
+                                  ) : null}
+                                  {import.meta?.env?.VITE_MATCHMAKING_TR_IBAN ? (
+                                    <p>{t('matchmakingPanel.matches.payment.iban')}: <span className="font-semibold">{import.meta.env.VITE_MATCHMAKING_TR_IBAN}</span></p>
+                                  ) : null}
+                                </div>
+                              ) : (
+                                <p className="mt-2 text-xs text-white/60">{t('matchmakingPanel.matches.payment.detailsSoon')}</p>
+                              )}
+                            </div>
+
+                            <div className="rounded-xl border border-white/10 bg-white/[0.04] p-3">
+                              <p className="text-xs font-semibold text-white">{t('matchmakingPanel.matches.payment.idTitle')}</p>
+                              <p className="text-sm text-white/75 mt-1">{t('matchmakingPanel.matches.payment.amount')}: <span className="font-semibold">{prices.IDR} IDR</span></p>
+                              {import.meta?.env?.VITE_MATCHMAKING_ID_QRIS_URL ? (
+                                <a
+                                  href={import.meta.env.VITE_MATCHMAKING_ID_QRIS_URL}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="mt-2 inline-block text-xs font-semibold text-sky-200 hover:underline"
+                                >
+                                  {t('matchmakingPanel.matches.payment.payWithQris')}
+                                </a>
+                              ) : null}
+                              {import.meta?.env?.VITE_MATCHMAKING_ID_BANK_DETAILS ? (
+                                <p className="mt-2 text-xs text-white/75 whitespace-pre-wrap">{import.meta.env.VITE_MATCHMAKING_ID_BANK_DETAILS}</p>
+                              ) : null}
+                            </div>
+                          </div>
+
+                          <div className="mt-3 rounded-xl border border-white/10 bg-white/5 p-3">
+                            <p className="text-xs font-semibold text-white">{t('matchmakingPanel.activation.selectMatchTitle')}</p>
+                            <p className="mt-1 text-[11px] text-white/55">{t('matchmakingPanel.activation.selectMatchHelp')}</p>
+                            <select
+                              value={paymentMatchId}
+                              onChange={(e) => setPaymentMatchId(e.target.value)}
+                              className="mt-2 w-full rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-sm text-white"
+                              disabled={!Array.isArray(activeMatches) || activeMatches.length === 0}
+                            >
+                              <option value="">{t('matchmakingPanel.activation.selectMatchPlaceholder')}</option>
+                              {(Array.isArray(activeMatches) ? activeMatches : []).map((m) => (
+                                <option key={m.id} value={m.id}>
+                                  {t('matchmakingPanel.activation.matchOption', { status: String(m?.status || ''), matchId: String(m?.id || '') })}
+                                </option>
+                              ))}
+                            </select>
+
+                            {!matchmakingPaymentsLoading && paymentMatchId && latestPaymentByMatchId?.[paymentMatchId]?.status === 'pending' ? (
+                              <p className="mt-2 text-xs text-amber-200 font-semibold">
+                                {t('matchmakingPanel.matches.payment.pendingNotice')}
+                              </p>
+                            ) : null}
+                          </div>
+
+                          <div className="mt-3 rounded-xl border border-white/10 bg-white/5 p-3">
+                            <p className="text-xs font-semibold text-white">{t('matchmakingPanel.matches.payment.reportTitle')}</p>
+                            <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-2">
+                              <label className="text-xs text-white/70">
+                                {t('matchmakingPanel.matches.payment.currency')}
+                                <select
+                                  value={paymentForm.currency}
+                                  onChange={(e) => setPaymentForm((p) => ({ ...p, currency: e.target.value }))}
+                                  className="mt-1 w-full rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-sm text-white"
+                                >
+                                  <option value="TRY">{t('matchmakingPanel.matches.payment.currencyTRY')}</option>
+                                  <option value="IDR">{t('matchmakingPanel.matches.payment.currencyIDR')}</option>
+                                </select>
+                              </label>
+                              <label className="text-xs text-white/70">
+                                {t('matchmakingPanel.matches.payment.method')}
+                                <select
+                                  value={paymentForm.method}
+                                  onChange={(e) => setPaymentForm((p) => ({ ...p, method: e.target.value }))}
+                                  className="mt-1 w-full rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-sm text-white"
+                                >
+                                  <option value="eft_fast">{t('matchmakingPanel.matches.payment.methodEftFast')}</option>
+                                  <option value="swift_wise">{t('matchmakingPanel.matches.payment.methodSwiftWise')}</option>
+                                  <option value="qris">{t('matchmakingPanel.matches.payment.methodQris')}</option>
+                                  <option value="other">{t('matchmakingPanel.matches.payment.methodOther')}</option>
+                                </select>
+                              </label>
+
+                              <label className="text-xs text-white/70 sm:col-span-2">
+                                {t('matchmakingPanel.matches.payment.reference')}
+                                <input
+                                  value={paymentForm.reference}
+                                  onChange={(e) => setPaymentForm((p) => ({ ...p, reference: e.target.value }))}
+                                  className="mt-1 w-full rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-white/40"
+                                  placeholder={t('matchmakingPanel.matches.payment.referencePlaceholder')}
+                                />
+                              </label>
+
+                              <label className="text-xs text-white/70 sm:col-span-2">
+                                {t('matchmakingPanel.matches.payment.note')}
+                                <textarea
+                                  value={paymentForm.note}
+                                  onChange={(e) => setPaymentForm((p) => ({ ...p, note: e.target.value }))}
+                                  className="mt-1 w-full rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-white/40"
+                                  rows={2}
+                                  placeholder={t('matchmakingPanel.matches.payment.notePlaceholder')}
+                                />
+                              </label>
+
+                              <label className="text-xs text-white/70 sm:col-span-2">
+                                {t('matchmakingPanel.matches.payment.receipt')}
+                                <div className="mt-1 flex flex-col sm:flex-row gap-2">
+                                  <input
+                                    type="file"
+                                    accept="image/*"
+                                    onChange={(e) => {
+                                      const f = e?.target?.files?.[0];
+                                      if (f) uploadReceipt(f);
+                                    }}
+                                    className="block w-full rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-sm text-white file:mr-3 file:rounded-md file:border-0 file:bg-white/10 file:px-3 file:py-2 file:text-xs file:font-semibold file:text-white hover:file:bg-white/15"
+                                    disabled={receiptUpload.loading}
+                                  />
+                                  <button
+                                    type="button"
+                                    className="px-4 py-2 rounded-full border border-white/15 text-white/85 text-sm font-semibold hover:bg-white/[0.08]"
+                                    onClick={() => setPaymentForm((p) => ({ ...p, receiptUrl: '' }))}
+                                    disabled={receiptUpload.loading || !paymentForm.receiptUrl}
+                                  >
+                                    {t('matchmakingPanel.actions.remove')}
+                                  </button>
+                                </div>
+                                <p className="mt-1 text-[11px] text-white/50">
+                                  {t('matchmakingPanel.matches.payment.receiptHelp')}
+                                </p>
+                              </label>
+
+                              <label className="text-xs text-white/70 sm:col-span-2">
+                                {t('matchmakingPanel.matches.payment.receiptLink')}
+                                <input
+                                  value={paymentForm.receiptUrl}
+                                  onChange={(e) => setPaymentForm((p) => ({ ...p, receiptUrl: e.target.value }))}
+                                  className="mt-1 w-full rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-white/40"
+                                  placeholder="https://..."
+                                />
+                                {paymentForm.receiptUrl ? (
+                                  <a
+                                    href={paymentForm.receiptUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="mt-1 inline-block text-xs font-semibold text-sky-200 hover:underline"
+                                  >
+                                    {t('matchmakingPanel.matches.payment.viewReceipt')}
+                                  </a>
+                                ) : null}
+                              </label>
+                            </div>
+
+                            {receiptUpload.error ? (
+                              <div className="mt-2 rounded-lg border border-rose-300/30 bg-rose-500/10 p-2 text-rose-100 text-xs">
+                                {receiptUpload.error}
+                              </div>
+                            ) : null}
+                            {receiptUpload.loading ? (
+                              <div className="mt-2 rounded-lg border border-white/10 bg-white/[0.04] p-2 text-white/60 text-xs">
+                                {t('matchmakingPanel.matches.payment.uploadingReceipt')}
+                              </div>
+                            ) : null}
+
+                            {paymentAction.error && paymentAction.matchId === paymentMatchId ? (
+                              <div className="mt-2 rounded-lg border border-rose-300/30 bg-rose-500/10 p-2 text-rose-100 text-xs">
+                                {paymentAction.error}
+                              </div>
+                            ) : null}
+                            {paymentAction.success && paymentAction.matchId === paymentMatchId ? (
+                              <div className="mt-2 rounded-lg border border-emerald-300/30 bg-emerald-500/10 p-2 text-emerald-100 text-xs">
+                                {paymentAction.success}
+                              </div>
+                            ) : null}
+
+                            <button
+                              type="button"
+                              disabled={
+                                !paymentMatchId ||
+                                receiptUpload.loading ||
+                                (paymentAction.loading && paymentAction.matchId === paymentMatchId) ||
+                                (!matchmakingPaymentsLoading && latestPaymentByMatchId?.[paymentMatchId]?.status === 'pending')
+                              }
+                              onClick={() => submitPayment(paymentMatchId)}
+                              className="mt-3 px-4 py-2 rounded-full bg-emerald-700 text-white text-sm font-semibold hover:bg-emerald-800 disabled:opacity-60"
+                            >
+                              {paymentAction.loading && paymentAction.matchId === paymentMatchId
+                                ? t('matchmakingPanel.actions.sending')
+                                : (!matchmakingPaymentsLoading && latestPaymentByMatchId?.[paymentMatchId]?.status === 'pending')
+                                  ? t('matchmakingPanel.actions.pending')
+                                  : t('matchmakingPanel.matches.payment.sendPayment', { amount: (paymentForm.currency === 'IDR' ? prices.IDR : prices.TRY), currency: paymentForm.currency })}
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const msg = t('matchmakingPanel.matches.payment.supportWhatsappMessage', { matchId: paymentMatchId || '-' });
+                                openWhatsApp(msg);
+                              }}
+                              className="mt-3 px-4 py-2 rounded-full border border-emerald-300 text-emerald-900 text-sm font-semibold hover:bg-emerald-50"
+                              disabled={!whatsappNumber}
+                            >
+                              {t('matchmakingPanel.matches.payment.supportWhatsapp')}
+                            </button>
+
+                            {!paymentMatchId ? (
+                              <p className="mt-2 text-xs text-white/60">{t('matchmakingPanel.activation.selectMatchRequired')}</p>
+                            ) : null}
+                          </div>
+                        </div>
+                      ) : null}
                     </details>
 
                     <details className="mt-3 border-t border-white/10 pt-3">

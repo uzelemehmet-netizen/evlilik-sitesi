@@ -151,6 +151,10 @@ export default {
     },
     form: {
       applicationIdLabel: 'Başvuru ID',
+      editOnce: {
+        usernameLocked: 'Bu modda kullanıcı adını da düzeltebilirsiniz (1 defaya mahsus).',
+        photosLocked: 'Edit modunda fotoğraf güncelleme kapalı. Sadece form alanlarını düzeltebilirsiniz.',
+      },
       photo: {
         choose: 'Dosya seç',
         noFileChosen: 'Dosya seçilmedi',
@@ -1042,6 +1046,10 @@ export default {
           q: 'DaMeTurk sizin mi?',
           a: 'Evet. DaMeTurk, {{company}} bünyesinde faaliyet gösteren markalarımızdan biridir ve kendi web sitesi üzerinden hizmet verir.',
         },
+      },
+      editOnce: {
+        usernameLocked: 'Edit modunda kullanıcı adı değiştirilemez (1 defalık düzeltme hakkı).',
+        photosLocked: 'Edit modunda fotoğraf güncelleme kapalı. Sadece form alanlarını düzeltebilirsiniz.',
       },
     },
   },
@@ -2185,6 +2193,7 @@ export default {
     },
     actions: {
       logout: 'Çıkış',
+      profileForm: 'Profil formu',
       whatsapp: 'WhatsApp’tan yaz',
       remove: 'Kaldır',
       sending: 'Gönderiliyor…',
@@ -2205,6 +2214,52 @@ export default {
       requestingNew: 'Talep gönderiliyor…',
       requestNewQuotaHint: 'Günlük hak: {{remaining}}/{{limit}}',
       requestNewSuccess: 'Yeni eşleşme talebiniz alındı. Uygun aday bulunduğunda panelde görünecek.',
+    },
+    profileForm: {
+      loading: 'Form yükleniyor…',
+      empty: 'Henüz eşleştirme başvuru formu bulunamadı. Önce formu doldurun.',
+      openOriginalEditOnce: 'Orijinal formu aç (1 kez düzelt)',
+      detailsToggle: 'Başvuru bilgilerini göster',
+      applicationId: 'Başvuru ID',
+      editOnceTitle: 'Formu 1 defaya mahsus düzelt',
+      editOnceLead:
+        'Başvuruda yanlış/eksik bilgi varsa burada güncelleyebilirsiniz. Bu işlem sadece 1 kez yapılabilir (gönderince tekrar değiştirilemez).',
+      editOnceCta: 'Değişiklikleri kaydet (1 kez)',
+      editOnceSaving: 'Kaydediliyor…',
+      editOnceSuccess: 'Güncelleme alındı. Formunuz güncellendi.',
+      editOnceUsed: 'Bu hak daha önce kullanıldı. Form artık tekrar düzenlenemez.',
+      editOnceErrors: {
+        failed: 'Güncelleme yapılamadı. Lütfen tekrar deneyin.',
+        empty: 'Boş güncelleme gönderemezsiniz. En az bir alanı doldurun.',
+        notFound: 'Başvuru bulunamadı. Önce formu doldurmanız gerekiyor.',
+      },
+    },
+    activation: {
+      title: 'Üyelik aktivasyonu ve ödeme',
+      lead: 'Üyelik/aksiyon açma adımlarını buradan takip edebilirsiniz. Üyelik aktif değilse, ödeme yapıp dekontu ekleyerek “Ödeme bildirimi” göndermeniz gerekir (admin onayı sonrası üyelik açılır).',
+      freeActiveTitle: 'Kadın kullanıcılar: ücretsiz aktif üyelik',
+      freeActiveBody: 'Kimlik doğrulamanız varsa ücretsiz aktif üyelik başvurusu yapabilirsiniz. Bu, ücretli üyelik olmadan aksiyonları açabilir (kurallar/48-24 saat şartları geçerlidir).',
+      freeActiveNeedsVerification: 'Ücretsiz aktif üyelik için önce kimlik doğrulama gerekir.',
+      paymentTitle: 'Ücretli üyelik (aylık) / ödeme',
+      paymentBody: 'Üyeliği aktifleştirmek için aşağıdaki ödeme yöntemlerinden biriyle ödeme yapın, sonra dekont/ref. bilgisi ile bildirim gönderin.',
+      selectMatchTitle: 'Ödeme bildirimi için eşleşme seçin',
+      selectMatchHelp: 'Teknik olarak ödeme bildirimi bir eşleşmeye bağlanır. Eşleşme yoksa WhatsApp destek hattına yazabilirsiniz.',
+      selectMatchPlaceholder: 'Eşleşme seçin…',
+      matchOption: '{{status}} • {{matchId}}',
+      selectMatchRequired: 'Ödeme bildirimi göndermek için bir eşleşme seçmelisiniz.',
+    },
+    payment: {
+      success: 'Ödeme bildiriminiz alındı. Admin onayı sonrası üyeliğiniz aktif edilecektir.',
+      errors: {
+        sendFailed: 'Ödeme bildirimi gönderilemedi.',
+        rateLimited: 'Ödeme bildirimi çok sık gönderiliyor. Lütfen biraz bekleyip tekrar deneyin.',
+        notReady: 'Şu an ödeme adımına geçilemedi. Lütfen destek hattına yazın.',
+      },
+    },
+    receipt: {
+      errors: {
+        uploadFailed: 'Dekont yüklenemedi. Lokal geliştirmede `npm run dev` (API+Web) çalıştığından ve Cloudinary server env’lerinin tanımlı olduğundan emin olun.',
+      },
     },
     choice: {
       title: 'Bir adayı işaretlediniz.',

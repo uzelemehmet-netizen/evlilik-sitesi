@@ -1722,6 +1722,10 @@ export default {
         },
         form: {
           applicationIdLabel: 'Application ID',
+          editOnce: {
+            usernameLocked: 'In this mode, you can also fix your username (one-time).',
+            photosLocked: 'In edit mode, photo updates are disabled. You can only fix the form fields.',
+          },
           photo: {
             choose: 'Choose file',
             noFileChosen: 'No file chosen',
@@ -2233,6 +2237,7 @@ export default {
     },
     actions: {
       logout: 'Sign out',
+      profileForm: 'Profile form',
       whatsapp: 'Message on WhatsApp',
       remove: 'Remove',
       sending: 'Sending…',
@@ -2253,6 +2258,53 @@ export default {
       requestingNew: 'Requesting…',
       requestNewQuotaHint: 'Daily quota: {{remaining}}/{{limit}}',
       requestNewSuccess: 'Your request was received. A new candidate will appear when available.',
+    },
+    profileForm: {
+      loading: 'Loading form…',
+      empty: 'No matchmaking application form found yet. Please fill the form first.',
+      openOriginalEditOnce: 'Open original form (edit once)',
+      detailsToggle: 'Show application details',
+      applicationId: 'Application ID',
+      editOnceTitle: 'Fix the form (one-time)',
+      editOnceLead:
+        'If you left fields empty or entered something wrong, you can update it here. This can be used only once (cannot be changed again after saving).',
+      editOnceCta: 'Save changes (one-time)',
+      editOnceSaving: 'Saving…',
+      editOnceSuccess: 'Update received. Your form has been updated.',
+      editOnceUsed: 'This one-time edit has already been used. The form cannot be edited again.',
+      editOnceErrors: {
+        failed: 'Update failed. Please try again.',
+        empty: 'You cannot submit an empty update. Please fill at least one field.',
+        notFound: 'Application not found. You need to fill the form first.',
+      },
+    },
+    activation: {
+      title: 'Membership activation & payment',
+      lead: 'You can follow membership/action-unlock steps here. If your membership is not active, make the payment and send a “payment report” with your receipt/reference (membership is activated after admin approval).',
+      freeActiveTitle: 'Women: free active membership',
+      freeActiveBody: 'If you are identity-verified, you can apply for free active membership. This can unlock actions without a paid membership (48/24h inactivity rules apply).',
+      freeActiveNeedsVerification: 'Identity verification is required for free active membership.',
+      paymentTitle: 'Paid membership (monthly) / payment',
+      paymentBody: 'To activate membership, pay with one of the methods below, then submit a payment report with your receipt/reference details.',
+      selectMatchTitle: 'Select a match for the payment report',
+      selectMatchHelp: 'Technically, payment reports are attached to a match. If you have no match, contact support via WhatsApp.',
+      selectMatchPlaceholder: 'Select a match…',
+      matchOption: '{{status}} • {{matchId}}',
+      selectMatchRequired: 'You must select a match to send a payment report.',
+    },
+    payment: {
+      success: 'Your payment report has been received. Your membership will be activated after admin approval.',
+      errors: {
+        sendFailed: 'Payment report could not be sent.',
+        rateLimited: 'You are submitting payment reports too frequently. Please wait and try again.',
+        notReady: 'Payment step is not available right now. Please contact support.',
+      },
+    },
+    receipt: {
+      errors: {
+        uploadFailed:
+          'Receipt upload failed. In local dev, make sure `npm run dev` (API+Web) is running and Cloudinary server env vars are configured.',
+      },
     },
     choice: {
       title: 'You marked a candidate.',
@@ -2616,6 +2668,10 @@ export default {
         s2: 'Never send money; if you see a money request, report it immediately.',
         s3: 'Verifying profile information is the user’s responsibility; if unsure, ask for support.',
       },
+          editOnce: {
+            usernameLocked: 'In edit mode, the username cannot be changed (one-time fix).',
+            photosLocked: 'In edit mode, photo updates are disabled. You can only fix the form fields.',
+          },
     },
   },
 };
