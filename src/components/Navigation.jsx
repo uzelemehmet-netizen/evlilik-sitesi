@@ -42,7 +42,7 @@ export default function Navigation() {
       ...(showWedding
         ? [{ to: "/uniqah", label: t("navigation.matchmaking"), active: isActive("/uniqah") }]
         : []),
-      ...(showWedding ? [{ to: "/panel", label: t("navigation.panel"), active: isActive("/panel") }] : []),
+      ...(showWedding ? [{ to: "/profilim", label: t("navigation.panel"), active: isActive("/profilim") }] : []),
       ...(showWedding
         ? [{ to: "/wedding", label: t("navigation.wedding"), active: isActive("/wedding") }]
         : []),
@@ -186,8 +186,8 @@ export default function Navigation() {
               </Link>
             )}
             {showWedding && (
-              <Link to="/panel" className={`px-2 sm:px-3 py-1.5 rounded-full text-xs sm:text-sm font-medium transition-all duration-200 shadow-md hover:shadow-lg whitespace-nowrap ${
-                isActive('/panel')
+              <Link to="/profilim" className={`px-2 sm:px-3 py-1.5 rounded-full text-xs sm:text-sm font-medium transition-all duration-200 shadow-md hover:shadow-lg whitespace-nowrap ${
+                isActive('/profilim')
                   ? 'bg-slate-900 text-white shadow-lg'
                   : 'text-slate-800 hover:bg-slate-900 hover:text-white'
               }`} style={{ fontFamily: '"Poppins", sans-serif' }}>

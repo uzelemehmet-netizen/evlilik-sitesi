@@ -12,7 +12,7 @@ export default {
     explore: "Keşfet",
     wedding: "Evlilik",
     matchmaking: "Uniqah",
-    panel: "Panelim",
+    panel: "Profilim",
     documents: "Dokümanlar",
     youtube: "YouTube",
     contact: "İletişim",
@@ -26,7 +26,7 @@ export default {
       'Evlilik planlayan ciddi insanları, adil ve güvenli şartlarda bir araya getiren kapalı bir eşleştirme sistemi. Profiller herkese açık değildir; sistem, kriterlerinize en uygun adayları panelinizde gösterir ve doğru kişiyi daha hızlı bulmanızı kolaylaştırır.',
     actions: {
       apply: 'Eşleştirme başvurusu yap',
-      goPanel: 'Panelim',
+      goPanel: 'Profilim',
       backWedding: 'Evlilik sayfasına dön',
       supportWhatsApp: 'WhatsApp destek',
     },
@@ -38,7 +38,7 @@ export default {
       },
       review: {
         title: 'Sistem değerlendirmesi',
-        desc: 'Uygun bir eşleşme olduğunda süreç panel üzerinden güvenli şekilde ilerler.',
+        desc: 'Size uygun bir aday bulunduğunda süreç panelinizde güvenli şekilde ilerler.',
       },
       panel: {
         title: 'Panel üzerinden ilerleme',
@@ -339,6 +339,7 @@ export default {
       hints: {
         partnerAgeComputed: 'Seçiminize göre yaklaşık aralık: {{min}}–{{max}}',
         partnerAgeNeedsYourAge: 'Not: Yaş aralığını hesaplamak için yaşınızı doğru girin.',
+        multiSelect: 'Birden fazla seçenek seçebilirsiniz.',
         foreignLanguages: 'Not: Kendi dilinizi seçtikten sonra aşağıda görünmez. Bilmiyorsanız “Yabancı dil bilmiyorum” seçebilirsiniz.',
       },
       photoHint:
@@ -2075,7 +2076,7 @@ export default {
     title: 'Giriş / Kayıt',
     context: {
       payment: 'Ödeme adımına devam etmek için giriş yapın.',
-      panel: 'Panele devam etmek için giriş yapın.',
+      panel: 'Profilime devam etmek için giriş yapın.',
       generic: 'Devam etmek için giriş yapın.',
     },
     forceInfo: 'Bu işlem için yeniden giriş yapmanız istendi. Lütfen tekrar giriş yapın.',
@@ -2122,6 +2123,10 @@ export default {
     resetSent: 'Şifre sıfırlama bağlantısı e-posta adresinize gönderildi.',
     errors: {
       googleFailed: 'Google ile giriş başarısız.',
+      invalidCredential: 'E-posta veya şifre hatalı ya da hesap bulunamadı. Şifrenizi unuttuysanız “Şifremi unuttum” ile sıfırlamayı deneyin.',
+      invalidEmail: 'E-posta adresi geçersiz görünüyor. Lütfen kontrol edin.',
+      emailAlreadyInUse: 'Bu e-posta adresiyle zaten bir hesap var. “Giriş yap” veya “Şifremi unuttum” seçeneğini kullanın.',
+      weakPassword: 'Şifre çok zayıf. Daha güçlü bir şifre deneyin (ör. en az 6 karakter).',
       emailPasswordRequired: 'E-posta ve şifre gerekli.',
       genderRequired: 'Kayıt olmak için cinsiyet seçin.',
       nationalityRequired: 'Kayıt olmak için uyruk seçin.',
@@ -2137,8 +2142,47 @@ export default {
   },
 
   matchmakingPanel: {
-    title: 'Panelim',
+    title: 'Profilim',
     subtitle: 'Evlilik eşleştirme, üyelik ve iletişim adımlarınız burada görünecek.',
+    tabs: {
+      info: 'Açıklamalar',
+      matches: 'Eşleşmelerim',
+    },
+    photos: {
+      title: 'Fotoğraflarım',
+      lead: 'Form doldururken yüklediğin fotoğraflar.',
+      empty: 'Henüz fotoğraf yüklenmemiş.',
+    },
+    trust: {
+      title: 'Bu sistem neden form ister?',
+      lead:
+        'Eşleştirme “rastgele profil gezme” değil; sizin bilgilerinizle çalışan kapalı bir sistem. Formu bir kez doldurmanız, uygun adayları isabetli şekilde seçebilmemiz ve süreci güvenli yürütmemiz için gerekir. Bilgileriniz herkese açık listelenmez.',
+      cards: {
+        quality: {
+          title: 'Daha isabetli eşleşme',
+          body: 'Yaş, şehir, beklenti ve temel kriterler; doğru adayı daha hızlı bulmamıza yardım eder.',
+        },
+        privacy: {
+          title: 'Gizlilik odaklı akış',
+          body: 'Profiliniz kamuya açık değildir. Adaylar panelinize kontrollü şekilde gelir; siz onaylamadan iletişim açılmaz.',
+        },
+        control: {
+          title: 'Kontrol sizde',
+          body: 'Panelde beğen/geç ile ilerlersiniz. Süreçte değişiklik gerekirse WhatsApp’tan kolayca güncelleyebilirsiniz.',
+        },
+      },
+      rulesTitle: 'Sistem kuralları (kısa)',
+      rules: [
+        'Bu sistem sadece evlilik amacı güdenler için tasarlanmıştır.',
+        'Kesinlikle flört, eğlence, boş zaman geçirme, evlilik amacı dışında birliktelik gibi niyetlere izin verilmez.',
+        'Bu sitede karşılıklı saygı çok önemlidir; küfürlü, argo ve hakaret içerikli konuşmak yasaktır.',
+        'Ahlak dışı davranışlara asla müsamaha gösterilmez.',
+        'İnsanları dolandırmaya ve aldatmaya yönelik faaliyetler, dijital para tuzakları ya da benzeri çıkar girişimleri yasaktır.',
+        'Cinsel istismar kesinlikle yasaktır.',
+        'Kurallara uymayanlar; ihlaller tespit edildiği an sistemden engellenir, varsa aktif üyeliği iptal edilir ve para iadesi yapılmaz.',
+        'Bu siteye kayıt oluşturan herkes bu kuralları okumuş ve onaylamış kabul edilir.',
+      ],
+    },
     actions: {
       logout: 'Çıkış',
       whatsapp: 'WhatsApp’tan yaz',

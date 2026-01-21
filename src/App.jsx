@@ -185,13 +185,14 @@ function App() {
         {isFeatureEnabled('tours') && <Route path="/tours/:id" element={<TourDetail />} />}
         <Route path="/login" element={<Login />} />
         <Route
-          path="/panel"
+          path="/profilim"
           element={
             <RequireAuth>
               <Panel />
             </RequireAuth>
           }
         />
+        <Route path="/panel" element={<Navigate to="/profilim" replace />} />
         <Route
           path="/rezervasyonlar"
           element={

@@ -19,6 +19,8 @@ export default function Panel() {
   const location = useLocation();
   const { user } = useAuth();
 
+  const [dashboardTab, setDashboardTab] = useState('matches'); // profile | matches
+
   const [matchmaking, setMatchmaking] = useState(null);
   const [matchmakingLoading, setMatchmakingLoading] = useState(true);
 
@@ -90,6 +92,11 @@ export default function Panel() {
 
   const dashboardFaqItems = useMemo(() => {
     const v = t('matchmakingPanel.dashboard.faq.items', { returnObjects: true });
+    return Array.isArray(v) ? v : [];
+  }, [t, i18n.language]);
+
+  const trustRules = useMemo(() => {
+    const v = t('matchmakingPanel.trust.rules', { returnObjects: true });
     return Array.isArray(v) ? v : [];
   }, [t, i18n.language]);
 
@@ -622,9 +629,38 @@ export default function Panel() {
   };
 
   const matchHistory = useMemo(() => {
-    // Kullanıcı panelinde iptal olmuş/geçmiş eşleşmeleri göstermiyoruz.
-    return [];
-  }, [matchmakingMatches]);
+    const all = Array.isArray(matchmakingMatches) ? matchmakingMatches : [];
+
+    const toMs = (ts) => {
+      if (!ts) return 0;
+      if (typeof ts?.toMillis === 'function') return ts.toMillis();
+      if (typeof ts?.seconds === 'number') return ts.seconds * 1000;
+      if (typeof ts === 'number') return ts;
+      return 0;
+    };
+
+    const isDismissedByMe = (m) => {
+      const d = m?.dismissals || null;
+      if (!d || !user?.uid) return false;
+      return !!d?.[user.uid];
+    };
+
+    const activeIds = new Set((Array.isArray(activeMatches) ? activeMatches : []).map((m) => String(m?.id || '')).filter(Boolean));
+
+    const items = all
+      .filter((m) => m && m?.id)
+      .filter((m) => !activeIds.has(String(m.id)))
+      .filter((m) => {
+        if (isDismissedByMe(m)) return true;
+        const st = String(m?.status || '').trim();
+        // "proposed/mutual_accepted/contact_unlocked" zaten activeMatches'te.
+        if (!st) return false;
+        return st !== 'proposed' && st !== 'mutual_accepted' && st !== 'contact_unlocked';
+      });
+
+    items.sort((a, b) => toMs(b?.createdAt) - toMs(a?.createdAt));
+    return items.slice(0, 20);
+  }, [activeMatches, matchmakingMatches, user?.uid]);
 
   const loadCandidateDetails = async (matchId) => {
     if (!matchId) return;
@@ -983,7 +1019,6 @@ export default function Panel() {
     const q = query(
       collection(db, "matchmakingApplications"),
       where("userId", "==", user.uid),
-      orderBy("createdAt", "desc"),
       limit(1)
     );
 
@@ -1018,37 +1053,76 @@ export default function Panel() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-white via-slate-50 to-emerald-50/40">
+    <div className="min-h-screen bg-[#050814] text-white relative">
       <Navigation />
 
-      <section className="max-w-6xl mx-auto px-4 py-16">
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-5 md:p-6">
+      {/* Background (Uniqah theme) */}
+      <div aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden">
+        <div className="absolute -top-40 left-1/2 -translate-x-1/2 w-[900px] h-[900px] bg-[radial-gradient(circle_at_center,rgba(255,215,128,0.18),rgba(255,215,128,0)_60%)]" />
+        <div className="absolute -top-24 -left-24 w-[520px] h-[520px] bg-[radial-gradient(circle_at_center,rgba(99,102,241,0.22),rgba(99,102,241,0)_60%)]" />
+        <div className="absolute bottom-0 -right-24 w-[620px] h-[620px] bg-[radial-gradient(circle_at_center,rgba(20,184,166,0.14),rgba(20,184,166,0)_60%)]" />
+        <div className="absolute inset-0 opacity-[0.18] [background-image:linear-gradient(to_right,rgba(255,255,255,0.08)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.08)_1px,transparent_1px)] [background-size:64px_64px]" />
+      </div>
+
+      <section className="relative max-w-6xl mx-auto px-4 py-16">
+        <div className="relative overflow-hidden rounded-[28px] border border-white/10 bg-gradient-to-b from-white/10 via-white/[0.06] to-transparent shadow-[0_30px_90px_rgba(0,0,0,0.45)] p-5 md:p-6">
           <div className="flex items-start justify-between gap-4">
             <div>
-              <h1 className="text-2xl md:text-3xl font-bold text-gray-900">{t('matchmakingPanel.title')}</h1>
-              <p className="text-sm text-gray-600 mt-1">
+              <h1 className="text-2xl md:text-3xl font-semibold text-white">{t('matchmakingPanel.title')}</h1>
+              <p className="text-sm text-white/70 mt-1">
                 {t('matchmakingPanel.subtitle')}
               </p>
             </div>
             <button
               type="button"
               onClick={handleLogout}
-              className="px-4 py-2 rounded-full border border-slate-300 text-slate-700 text-sm font-semibold hover:bg-slate-50"
+              className="px-4 py-2 rounded-full border border-white/10 bg-white/5 text-white/90 text-sm font-semibold hover:bg-white/[0.12] transition"
             >
               {t('matchmakingPanel.actions.logout')}
             </button>
           </div>
 
           {location?.state?.from === "matchmakingApply" ? (
-            <div className="mt-5 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-emerald-900">
+            <div className="mt-5 rounded-2xl border border-emerald-300/30 bg-emerald-500/10 p-4 text-emerald-100">
               <p className="text-sm font-semibold">{t('matchmakingPanel.afterSubmit.title')}</p>
-              <p className="text-sm text-emerald-900/90 mt-1">
+              <p className="text-sm text-emerald-100/90 mt-1">
                 {t('matchmakingPanel.afterSubmit.body')}
               </p>
             </div>
           ) : null}
 
-          <div className="mt-6 rounded-2xl border border-slate-200 bg-gradient-to-br from-white via-slate-50 to-emerald-50/40 p-4">
+          <div className="mt-6 rounded-2xl border border-white/10 bg-white/5 p-4">
+            <p className="text-sm font-semibold text-white">{t('matchmakingPanel.trust.title')}</p>
+            <p className="mt-2 text-sm text-white/75 leading-relaxed">{t('matchmakingPanel.trust.lead')}</p>
+
+            <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="rounded-xl border border-white/10 bg-white/[0.04] p-3">
+                <p className="text-xs font-semibold text-amber-200">{t('matchmakingPanel.trust.cards.quality.title')}</p>
+                <p className="mt-1 text-xs text-white/70 leading-relaxed">{t('matchmakingPanel.trust.cards.quality.body')}</p>
+              </div>
+              <div className="rounded-xl border border-white/10 bg-white/[0.04] p-3">
+                <p className="text-xs font-semibold text-sky-200">{t('matchmakingPanel.trust.cards.privacy.title')}</p>
+                <p className="mt-1 text-xs text-white/70 leading-relaxed">{t('matchmakingPanel.trust.cards.privacy.body')}</p>
+              </div>
+              <div className="rounded-xl border border-white/10 bg-white/[0.04] p-3">
+                <p className="text-xs font-semibold text-emerald-200">{t('matchmakingPanel.trust.cards.control.title')}</p>
+                <p className="mt-1 text-xs text-white/70 leading-relaxed">{t('matchmakingPanel.trust.cards.control.body')}</p>
+              </div>
+            </div>
+
+            {trustRules.length ? (
+              <div className="mt-4 rounded-xl border border-white/10 bg-white/[0.04] p-3">
+                <p className="text-xs font-semibold text-white">{t('matchmakingPanel.trust.rulesTitle')}</p>
+                <ul className="mt-2 space-y-1 text-sm text-white/75 list-disc pl-5">
+                  {trustRules.map((x, idx) => (
+                    <li key={idx}>{x}</li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+          </div>
+
+          <div className="mt-6 rounded-2xl border border-white/10 bg-white/5 p-4 shadow-[0_20px_70px_rgba(99,102,241,0.10)]">
             <div className="flex items-center gap-4">
               {(() => {
                 const photo =
@@ -1056,30 +1130,28 @@ export default function Panel() {
                   (Array.isArray(matchmaking?.photoUrls) && matchmaking.photoUrls[0]) ||
                   '';
                 const title =
-                  matchmaking?.username ||
-                  matchmaking?.fullName ||
                   user?.displayName ||
                   (user?.email ? String(user.email).split('@')[0] : t('matchmakingPanel.account.title'));
                 const profileCode = formatProfileCode(matchmaking);
                 return (
                   <>
-                    <div className="w-12 h-12 rounded-2xl border border-slate-200 bg-white overflow-hidden flex items-center justify-center">
+                    <div className="w-12 h-12 rounded-2xl border border-white/10 bg-white/5 overflow-hidden flex items-center justify-center">
                       {photo ? (
                         <img src={photo} alt={t('matchmakingPanel.application.photoAlt')} className="w-full h-full object-cover" loading="lazy" />
                       ) : (
-                        <div className="w-full h-full bg-slate-100" />
+                        <div className="w-full h-full bg-white/10" />
                       )}
                     </div>
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
-                        <div className="font-semibold text-slate-900 truncate">{title}</div>
+                        <div className="font-semibold text-white truncate">{title}</div>
                         {profileCode ? (
-                          <span className="inline-flex items-center rounded-full bg-white border border-slate-200 px-2 py-0.5 text-[11px] font-semibold text-slate-700">
+                          <span className="inline-flex items-center rounded-full bg-white/10 border border-white/10 px-2 py-0.5 text-[11px] font-semibold text-white/80">
                             {t('matchmakingPanel.application.profileNo')}: {profileCode}
                           </span>
                         ) : null}
                       </div>
-                      <div className="mt-1 text-xs text-slate-600 truncate">
+                      <div className="mt-1 text-xs text-white/60 truncate">
                         {user?.email ? user.email : '-'}
                       </div>
                     </div>
@@ -1089,32 +1161,71 @@ export default function Panel() {
             </div>
           </div>
 
-          <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-4">
-            <p className="text-sm font-semibold text-slate-900">{t('matchmakingPanel.account.title')}</p>
-            <p className="text-sm text-slate-700 mt-1">
+          <div className="mt-6 rounded-2xl border border-white/10 bg-white/5 p-4">
+            <p className="text-sm font-semibold text-white">{t('matchmakingPanel.account.title')}</p>
+            <p className="text-sm text-white/75 mt-1">
               {t('matchmakingPanel.account.emailLabel')}: <span className="font-semibold">{user?.email || "-"}</span>
             </p>
             {user?.displayName ? (
-              <p className="text-sm text-slate-700">
+              <p className="text-sm text-white/75">
                 {t('matchmakingPanel.account.nameLabel')}: <span className="font-semibold">{user.displayName}</span>
               </p>
             ) : null}
           </div>
 
-          <div className="mt-6 rounded-2xl border border-slate-200 bg-white p-4">
-            <p className="text-sm font-semibold text-slate-900">{t('matchmakingPanel.application.title')}</p>
+          {/* Profilim Dashboard Tabs */}
+          <div className="mt-6 rounded-2xl border border-white/10 bg-white/5 p-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setDashboardTab('profile')}
+                className={`px-4 py-3 rounded-2xl border text-sm font-semibold transition ${
+                  dashboardTab === 'profile'
+                    ? 'border-amber-300/30 bg-amber-500/10 text-amber-100'
+                    : 'border-white/10 bg-white/[0.04] text-white/85 hover:bg-white/[0.08]'
+                }`}
+              >
+                {t('matchmakingPanel.tabs.info')}
+              </button>
+              <button
+                type="button"
+                onClick={() => setDashboardTab('matches')}
+                disabled={!matchmakingLoading && !matchmaking}
+                className={`px-4 py-3 rounded-2xl border text-sm font-semibold transition disabled:opacity-50 ${
+                  dashboardTab === 'matches'
+                    ? 'border-sky-300/30 bg-sky-500/10 text-sky-100'
+                    : 'border-white/10 bg-white/[0.04] text-white/85 hover:bg-white/[0.08]'
+                }`}
+              >
+                {t('matchmakingPanel.tabs.matches')}
+                {!matchmakingMatchesLoading && Array.isArray(activeMatches) && activeMatches.length ? (
+                  <span className="ml-2 inline-flex items-center rounded-full bg-white/10 border border-white/10 px-2 py-0.5 text-[11px] font-semibold text-white/80">
+                    {activeMatches.length}
+                  </span>
+                ) : null}
+              </button>
+            </div>
+            {!matchmakingLoading && !matchmaking ? (
+              <p className="mt-3 text-xs text-white/60">
+                Eşleşme profilini oluşturmadın. Önce formu doldurup profilini oluştur.
+              </p>
+            ) : null}
+          </div>
+
+          <div className="mt-6 rounded-2xl border border-white/10 bg-white/5 p-4">
+            <p className="text-sm font-semibold text-white">{t('matchmakingPanel.application.title')}</p>
             {matchmakingLoading ? (
-              <p className="text-sm text-slate-600 mt-1">{t('common.loading')}</p>
+              <p className="text-sm text-white/60 mt-1">{t('common.loading')}</p>
             ) : !matchmaking ? (
-              <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-4">
-                <p className="text-sm font-semibold text-slate-900">{t('matchmakingPanel.onboarding.title')}</p>
-                <p className="text-sm text-slate-700 mt-1">
+              <div className="mt-3 rounded-xl border border-white/10 bg-white/[0.04] p-4">
+                <p className="text-sm font-semibold text-white">{t('matchmakingPanel.onboarding.title')}</p>
+                <p className="text-sm text-white/75 mt-1">
                   {t('matchmakingPanel.onboarding.intro')}
                 </p>
 
-                <div className="mt-3 rounded-xl border border-slate-200 bg-white p-3">
-                  <p className="text-xs font-semibold text-slate-900">{t('matchmakingPanel.onboarding.rulesTitle')}</p>
-                  <ul className="mt-2 space-y-1 text-sm text-slate-700 list-disc pl-5">
+                <div className="mt-3 rounded-xl border border-white/10 bg-white/5 p-3">
+                  <p className="text-xs font-semibold text-white">{t('matchmakingPanel.onboarding.rulesTitle')}</p>
+                  <ul className="mt-2 space-y-1 text-sm text-white/75 list-disc pl-5">
                     <li>{t('matchmakingPanel.onboarding.rules.r1')}</li>
                     <li>{t('matchmakingPanel.onboarding.rules.r2')}</li>
                     <li>{t('matchmakingPanel.onboarding.rules.r3')}</li>
@@ -1122,9 +1233,10 @@ export default function Panel() {
                   </ul>
                 </div>
 
-                <label className="mt-3 inline-flex items-center gap-2 text-sm text-slate-800">
+                <label className="mt-3 inline-flex items-center gap-2 text-sm text-white/80">
                   <input
                     type="checkbox"
+                    className="accent-amber-400"
                     checked={onboardingChecked}
                     onChange={(e) => setOnboardingChecked(e.target.checked)}
                   />
@@ -1142,287 +1254,99 @@ export default function Panel() {
                         // ignore
                       }
                       setOnboardingAccepted(true);
+                      navigate(matchmakingNext, { replace: true, state: { from: 'panelOnboarding' } });
                     }}
-                    className="px-4 py-2 rounded-full bg-slate-900 text-white text-sm font-semibold hover:bg-slate-800 disabled:opacity-60"
-                  >
-                    {t('matchmakingPanel.onboarding.createProfile')}
-                  </button>
-
-                  <Link
-                    to={matchmakingNext}
-                    className={`px-4 py-2 rounded-full text-sm font-semibold text-center ${
-                      onboardingAccepted ? 'bg-emerald-600 text-white hover:bg-emerald-700' : 'bg-slate-200 text-slate-500 pointer-events-none'
-                    }`}
-                    aria-disabled={!onboardingAccepted}
-                    tabIndex={onboardingAccepted ? 0 : -1}
+                    className="px-4 py-2 rounded-full bg-amber-300 text-slate-950 text-sm font-semibold hover:bg-amber-200 disabled:opacity-60"
                   >
                     {t('matchmakingPanel.onboarding.startForm')}
-                  </Link>
+                  </button>
 
-                  <Link to="/uniqah" className="text-sm font-semibold text-sky-700 hover:underline">
+                  <Link to="/uniqah" className="text-sm font-semibold text-sky-200 hover:underline">
                     {t('matchmakingPanel.onboarding.howWorks')}
                   </Link>
                 </div>
 
-                <p className="mt-3 text-xs text-slate-600">
+                <p className="mt-3 text-xs text-white/60">
                   {t('matchmakingPanel.onboarding.note')}
                 </p>
               </div>
             ) : (
               <div className="mt-4 grid grid-cols-1 lg:grid-cols-12 gap-4">
-                <div className="lg:col-span-5 space-y-3">
-                  <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                <div className={`${dashboardTab === 'matches' ? 'hidden' : 'lg:col-span-5'} space-y-3`}>
+                  <div className="rounded-xl border border-white/10 bg-white/5 p-4">
                     <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
                       <div>
-                        <p className="text-sm font-semibold text-slate-900">{matchmaking.fullName || t('matchmakingPanel.application.fallbackName')}</p>
-                        {matchmaking?.username ? (
-                          <p className="text-xs text-slate-600 mt-1">
-                            {t('matchmakingPanel.application.username')}: <span className="font-semibold">{matchmaking.username}</span>
-                          </p>
-                        ) : null}
+                        <p className="text-sm font-semibold text-white">{matchmaking?.username || user?.displayName || t('matchmakingPanel.application.fallbackName')}</p>
                         {formatProfileCode(matchmaking) ? (
-                          <p className="text-xs text-slate-600 mt-1">
+                          <p className="text-xs text-white/60 mt-1">
                             {t('matchmakingPanel.application.profileNo')}: <span className="font-semibold">{formatProfileCode(matchmaking)}</span>
                           </p>
                         ) : null}
-                        <p className="text-xs text-slate-600 mt-1">
+                        <p className="text-xs text-white/60 mt-1">
                           {t('matchmakingPanel.application.applicationId')}: <span className="font-semibold">{matchmaking.id}</span>
                         </p>
                       </div>
                       <div className="text-left sm:text-right">
-                        <p className="text-xs text-slate-600">{t('matchmakingPanel.common.status')}</p>
-                        <p className="text-sm font-semibold text-slate-900">{matchmaking.status || "-"}</p>
+                        <p className="text-xs text-white/60">{t('matchmakingPanel.common.status')}</p>
+                        <p className="text-sm font-semibold text-white">{matchmaking.status || "-"}</p>
                       </div>
-                    </div>
-
-                    <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
-                      <p><span className="font-semibold">{t('matchmakingPanel.common.age')}:</span> {typeof matchmaking.age === "number" ? matchmaking.age : "-"}</p>
-                      <p><span className="font-semibold">{t('matchmakingPanel.common.whatsapp')}:</span> {matchmaking.whatsapp || "-"}</p>
-                      <p><span className="font-semibold">{t('matchmakingPanel.common.email')}:</span> {matchmaking.email || "-"}</p>
-                      <p><span className="font-semibold">{t('matchmakingPanel.common.instagram')}:</span> {matchmaking.instagram || "-"}</p>
-                      <p className="sm:col-span-2"><span className="font-semibold">{t('matchmakingPanel.common.cityCountry')}:</span> {matchmaking.city ? `${matchmaking.city}${matchmaking.country ? ` / ${matchmaking.country}` : ""}` : (matchmaking.country || "-")}</p>
                     </div>
 
                     {Array.isArray(matchmaking.photoUrls) && matchmaking.photoUrls.length > 0 ? (
                       <div className="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-2">
                         {matchmaking.photoUrls.filter(Boolean).slice(0, 3).map((u) => (
                           <a key={u} href={u} target="_blank" rel="noopener noreferrer" className="block">
-                            <img src={u} alt="Foto" className="w-full h-32 object-cover rounded-xl border border-slate-200" loading="lazy" />
+                            <img src={u} alt="Foto" className="w-full h-32 object-cover rounded-xl border border-white/10" loading="lazy" />
                           </a>
                         ))}
                       </div>
                     ) : null}
                   </div>
 
-                  <div className="rounded-xl bg-white border border-slate-200 p-3">
-                    <p className="text-xs font-semibold text-slate-900">{t('matchmakingPanel.update.title')}</p>
-                    <p className="text-sm text-slate-700 mt-1">{t('matchmakingPanel.update.body')}</p>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const msg = t('matchmakingPanel.update.whatsappMessage', {
-                          applicationId: matchmaking.id,
-                          fullName: String(matchmaking?.fullName || '').trim(),
-                          profileCode: formatProfileCode(matchmaking),
-                        });
-                        openWhatsApp(msg);
-                      }}
-                      className="mt-2 px-4 py-2 rounded-full bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700"
-                      disabled={!whatsappNumber}
-                    >
-                      {t('matchmakingPanel.actions.whatsapp')}
-                    </button>
-                  </div>
-
-                  <div className="rounded-xl bg-white border border-slate-200 p-3">
-                    <p className="text-xs font-semibold text-slate-900">{t('matchmakingPanel.membership.title')}</p>
-                    <p className="text-sm text-slate-700 mt-1">{membershipStatusText}</p>
-
-                    {frequentCancelInfo.show ? (
-                      <div className="mt-3 rounded-xl border border-rose-200 bg-rose-50 p-3">
-                        <p className="text-xs font-semibold text-rose-900">Sık iptal uyarısı</p>
-                        <p className="mt-1 text-xs text-slate-700">
-                          Son 48 saat içinde <span className="font-semibold">{frequentCancelInfo.count} kez</span> eşleşme iptal ettiniz.
-                          Lütfen sadece gerçekten ilgilendiğiniz profilleri onaylayın.
-                        </p>
-                      </div>
-                    ) : null}
-
-                    {(myGender === 'male' || myGender === 'female') ? (
-                      <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3">
-                        <p className="text-xs font-semibold text-amber-900">{t('matchmakingPanel.membershipNotice.title')}</p>
-                        <p className="mt-1 text-xs text-slate-700">
-                          {t(
-                            myGender === 'female'
-                              ? 'matchmakingPanel.membershipNotice.female.lead'
-                              : 'matchmakingPanel.membershipNotice.male.lead'
-                          )}
-                        </p>
-
-                        {(() => {
-                          const pts = t(
-                            myGender === 'female'
-                              ? 'matchmakingPanel.membershipNotice.female.points'
-                              : 'matchmakingPanel.membershipNotice.male.points',
-                            { returnObjects: true }
-                          );
-                          return Array.isArray(pts) && pts.length ? (
-                            <div className="mt-2 space-y-1">
-                              {pts.map((x, idx) => (
-                                <div key={idx} className="flex gap-2 items-start">
-                                  <span className="mt-0.5 text-amber-900">•</span>
-                                  <span className="text-xs text-slate-700">{x}</span>
-                                </div>
-                              ))}
-                            </div>
-                          ) : null;
-                        })()}
-                      </div>
-                    ) : null}
-
-                    {myGender === 'female' && !myMembership.active && myIdentityVerified ? (
-                      <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
-                        <p className="text-xs font-semibold text-slate-900">{t('matchmakingPanel.membership.freeActiveTermsTitle')}</p>
-                        <p className="mt-1 text-xs text-slate-700">{t('matchmakingPanel.membership.freeActiveTermsBody')}</p>
-
-                        {!myFreeActive.eligible && !myFreeActive.blocked ? (
-                          <div className="mt-3">
-                            <button
-                              type="button"
-                              disabled={freeActiveApplyAction.loading}
-                              onClick={applyFreeActiveMembership}
-                              className="px-4 py-2 rounded-full bg-emerald-700 text-white text-sm font-semibold hover:bg-emerald-800 disabled:opacity-60"
-                            >
-                              {freeActiveApplyAction.loading
-                                ? t('matchmakingPanel.membership.freeActiveApplying')
-                                : t('matchmakingPanel.membership.freeActiveApply')}
-                            </button>
-
-                            {freeActiveApplyAction.error ? (
-                              <div className="mt-2 rounded-lg border border-rose-200 bg-rose-50 p-2 text-rose-900 text-xs">
-                                {freeActiveApplyAction.error}
-                              </div>
-                            ) : null}
-
-                            {freeActiveApplyAction.success ? (
-                              <div className="mt-2 rounded-lg border border-emerald-200 bg-emerald-50 p-2 text-emerald-900 text-xs">
-                                {freeActiveApplyAction.success}
-                              </div>
-                            ) : null}
+                  {dashboardTab === 'profile' ? (
+                    <>
+                      {Array.isArray(matchmaking.photoUrls) && matchmaking.photoUrls.filter(Boolean).length ? (
+                        <div className="rounded-xl bg-white/5 border border-white/10 p-3">
+                          <p className="text-xs font-semibold text-white">{t('matchmakingPanel.photos.title')}</p>
+                          <p className="text-xs text-white/60 mt-1">{t('matchmakingPanel.photos.lead')}</p>
+                          <div className="mt-3 grid grid-cols-2 sm:grid-cols-3 gap-2">
+                            {matchmaking.photoUrls.filter(Boolean).map((u) => (
+                              <a key={u} href={u} target="_blank" rel="noopener noreferrer" className="block">
+                                <img src={u} alt="Foto" className="w-full h-28 object-cover rounded-xl border border-white/10" loading="lazy" />
+                              </a>
+                            ))}
                           </div>
-                        ) : null}
-                      </div>
-                    ) : null}
-                  </div>
-
-                  <div className="mt-3 rounded-xl bg-white border border-slate-200 p-3">
-                    <p className="text-xs font-semibold text-slate-900">{t('matchmakingPanel.verification.title')}</p>
-
-                    {myIdentityVerified ? (
-                      <div className="mt-2 inline-flex items-center rounded-full bg-emerald-50 border border-emerald-200 px-3 py-1 text-xs font-semibold text-emerald-800">
-                        {t('matchmakingPanel.verification.verifiedBadge')}
-                      </div>
-                    ) : (
-                      <div className="mt-2 rounded-lg border border-amber-200 bg-amber-50 p-2 text-amber-900 text-xs">
-                        <p className="font-semibold">{t('matchmakingPanel.verification.unverifiedTitle')}</p>
-                        <p className="mt-1">{verificationUnverifiedBody}</p>
-                      </div>
-                    )}
-
-                    {!myIdentityVerified ? (
-                      <div className="mt-3 flex flex-col gap-2">
-                        <div className="flex flex-col sm:flex-row gap-2">
-                          <button
-                            type="button"
-                            disabled={verificationAction.loading}
-                            onClick={() => startVerification('whatsapp')}
-                            className="px-4 py-2 rounded-full bg-emerald-700 text-white text-sm font-semibold hover:bg-emerald-800 disabled:opacity-60"
-                          >
-                            {verificationAction.loading ? t('matchmakingPanel.actions.sending') : t('matchmakingPanel.verification.actions.startWhatsapp')}
-                          </button>
-                          {kycEnabled ? (
-                            <button
-                              type="button"
-                              disabled={verificationAction.loading}
-                              onClick={() => startVerification('kyc')}
-                              className="px-4 py-2 rounded-full border border-slate-300 text-slate-900 text-sm font-semibold hover:bg-slate-50 disabled:opacity-60"
-                            >
-                              {t('matchmakingPanel.verification.actions.startKyc')}
-                            </button>
-                          ) : null}
-                          <button
-                            type="button"
-                            disabled={verificationAction.loading}
-                            onClick={() => startVerification('manual')}
-                            className="px-4 py-2 rounded-full border border-slate-300 text-slate-900 text-sm font-semibold hover:bg-slate-50 disabled:opacity-60"
-                          >
-                            {t('matchmakingPanel.verification.actions.startManual')}
-                          </button>
                         </div>
+                      ) : (
+                        <div className="rounded-xl bg-white/5 border border-white/10 p-3">
+                          <p className="text-xs font-semibold text-white">{t('matchmakingPanel.photos.title')}</p>
+                          <p className="text-xs text-white/60 mt-1">{t('matchmakingPanel.photos.empty')}</p>
+                        </div>
+                      )}
+                    </>
+                  ) : null}
 
-                        {verificationAction.error ? (
-                          <div className="rounded-lg border border-rose-200 bg-rose-50 p-2 text-rose-900 text-xs">
-                            {verificationAction.error}
-                          </div>
-                        ) : null}
+                  {dashboardTab === 'profile' ? (
+                  <div className="rounded-xl border border-white/10 bg-white/5 p-3">
+                    <p className="text-xs font-semibold text-white">{t('matchmakingPanel.dashboard.title')}</p>
+                    <p className="mt-1 text-xs text-white/60">{t('matchmakingPanel.dashboard.subtitle')}</p>
 
-                        {(() => {
-                          const r = verificationAction.result;
-                          if (!r?.referenceCode && !r?.whatsappUrl) return null;
-
-                          return (
-                            <div className="rounded-lg border border-slate-200 bg-slate-50 p-2 text-slate-800 text-xs">
-                              {r?.referenceCode ? (
-                                <p>
-                                  {t('matchmakingPanel.verification.referenceCode')}: <span className="font-semibold">{r.referenceCode}</span>
-                                </p>
-                              ) : null}
-                              {r?.whatsappUrl ? (
-                                <a
-                                  href={r.whatsappUrl}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="mt-1 inline-block text-xs font-semibold text-sky-700 hover:underline"
-                                >
-                                  {t('matchmakingPanel.verification.actions.openWhatsapp')}
-                                </a>
-                              ) : r?.whatsappMessage ? (
-                                <button
-                                  type="button"
-                                  onClick={() => openWhatsApp(String(r.whatsappMessage || ''))}
-                                  className="mt-1 inline-block text-xs font-semibold text-sky-700 hover:underline"
-                                  disabled={!whatsappNumber}
-                                >
-                                  {t('matchmakingPanel.verification.actions.openWhatsapp')}
-                                </button>
-                              ) : null}
-                            </div>
-                          );
-                        })()}
-                      </div>
-                    ) : null}
-                  </div>
-
-                  <div className="rounded-xl border border-slate-200 bg-white p-3">
-                    <p className="text-xs font-semibold text-slate-900">{t('matchmakingPanel.dashboard.title')}</p>
-                    <p className="mt-1 text-xs text-slate-600">{t('matchmakingPanel.dashboard.subtitle')}</p>
-
-                    <details className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-3" open>
-                      <summary className="cursor-pointer text-sm font-semibold text-slate-900">{t('matchmakingPanel.intro.title')}</summary>
-                      <div className="mt-2 text-sm text-slate-700">{t('matchmakingPanel.intro.body')}</div>
-                      <ol className="mt-3 list-decimal pl-5 space-y-2 text-sm text-slate-800">
+                    <details className="mt-3 rounded-xl border border-white/10 bg-white/[0.04] p-3" open>
+                      <summary className="cursor-pointer text-sm font-semibold text-white">{t('matchmakingPanel.intro.title')}</summary>
+                      <div className="mt-2 text-sm text-white/75">{t('matchmakingPanel.intro.body')}</div>
+                      <ol className="mt-3 list-decimal pl-5 space-y-2 text-sm text-white/80">
                         {introPoints.map((x, idx) => (
                           <li key={idx}>{x}</li>
                         ))}
                       </ol>
                     </details>
 
-                    <details className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
-                      <summary className="cursor-pointer text-sm font-semibold text-slate-900">{t('matchmakingPanel.rules.title')}</summary>
-                      <div className="mt-2 text-sm text-slate-600">{t('matchmakingPanel.rules.lead')}</div>
-                      <div className="mt-3 space-y-4 text-sm text-slate-800">
-                        <div className="rounded-xl bg-white border border-slate-200 p-3">
-                          <p className="text-xs font-semibold text-slate-900">{t('matchmakingPanel.rules.promise.title')}</p>
+                    <details className="mt-3 rounded-xl border border-white/10 bg-white/[0.04] p-3">
+                      <summary className="cursor-pointer text-sm font-semibold text-white">{t('matchmakingPanel.rules.title')}</summary>
+                      <div className="mt-2 text-sm text-white/60">{t('matchmakingPanel.rules.lead')}</div>
+                      <div className="mt-3 space-y-4 text-sm text-white/80">
+                        <div className="rounded-xl bg-white/5 border border-white/10 p-3">
+                          <p className="text-xs font-semibold text-white">{t('matchmakingPanel.rules.promise.title')}</p>
                           <ul className="mt-2 list-disc pl-5 space-y-2">
                             <li><span className="font-semibold">{t('matchmakingPanel.rules.promise.p1Title')}:</span> {t('matchmakingPanel.rules.promise.p1Body')}</li>
                             <li><span className="font-semibold">{t('matchmakingPanel.rules.promise.p2Title')}:</span> {t('matchmakingPanel.rules.promise.p2Body')}</li>
@@ -1432,8 +1356,8 @@ export default function Panel() {
                           </ul>
                         </div>
 
-                        <div className="rounded-xl bg-white border border-slate-200 p-3">
-                          <p className="text-xs font-semibold text-slate-900">{t('matchmakingPanel.rules.zeroTolerance.title')}</p>
+                        <div className="rounded-xl bg-white/5 border border-white/10 p-3">
+                          <p className="text-xs font-semibold text-white">{t('matchmakingPanel.rules.zeroTolerance.title')}</p>
                           <ul className="mt-2 list-disc pl-5 space-y-2">
                             <li><span className="font-semibold">{t('matchmakingPanel.rules.zeroTolerance.r1Title')}:</span> {t('matchmakingPanel.rules.zeroTolerance.r1Body')}</li>
                             <li><span className="font-semibold">{t('matchmakingPanel.rules.zeroTolerance.r2Title')}:</span> {t('matchmakingPanel.rules.zeroTolerance.r2Body')}</li>
@@ -1444,7 +1368,7 @@ export default function Panel() {
                           </ul>
                         </div>
 
-                        <div className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-rose-950">
+                        <div className="rounded-xl border border-rose-300/30 bg-rose-500/10 p-3 text-rose-100">
                           <p className="text-xs font-semibold">{t('matchmakingPanel.rules.enforcement.title')}</p>
                           <ul className="mt-2 list-disc pl-5 space-y-2 text-sm">
                             <li>{t('matchmakingPanel.rules.enforcement.e1a')} <span className="font-semibold">{t('matchmakingPanel.rules.enforcement.e1b')}</span> {t('matchmakingPanel.rules.enforcement.e1c')}</li>
@@ -1454,35 +1378,36 @@ export default function Panel() {
                           </ul>
                         </div>
 
-                        <div className="rounded-xl bg-white border border-slate-200 p-3">
-                          <p className="text-xs font-semibold text-slate-900">{t('matchmakingPanel.rules.complaint.title')}</p>
-                          <p className="mt-2 text-sm text-slate-700">{t('matchmakingPanel.rules.complaint.body')}</p>
+                        <div className="rounded-xl bg-white/5 border border-white/10 p-3">
+                          <p className="text-xs font-semibold text-white">{t('matchmakingPanel.rules.complaint.title')}</p>
+                          <p className="mt-2 text-sm text-white/75">{t('matchmakingPanel.rules.complaint.body')}</p>
                           {complaintLeadExtra ? (
-                            <p className="mt-2 text-sm text-slate-700">{complaintLeadExtra}</p>
+                            <p className="mt-2 text-sm text-white/75">{complaintLeadExtra}</p>
                           ) : null}
                         </div>
                       </div>
                     </details>
 
-                    <details className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
-                      <summary className="cursor-pointer text-sm font-semibold text-slate-900">{t('matchmakingPanel.dashboard.faq.title')}</summary>
+                    <details className="mt-3 rounded-xl border border-white/10 bg-white/[0.04] p-3">
+                      <summary className="cursor-pointer text-sm font-semibold text-white">{t('matchmakingPanel.dashboard.faq.title')}</summary>
                       <div className="mt-3 space-y-3">
                         {dashboardFaqItems.map((it, idx) => (
-                          <div key={idx} className="rounded-xl bg-white border border-slate-200 p-3">
-                            <div className="text-xs font-semibold text-slate-900">{it?.q || ''}</div>
-                            <div className="mt-1 text-sm text-slate-700 whitespace-pre-wrap">{it?.a || ''}</div>
+                          <div key={idx} className="rounded-xl bg-white/5 border border-white/10 p-3">
+                            <div className="text-xs font-semibold text-white">{it?.q || ''}</div>
+                            <div className="mt-1 text-sm text-white/75 whitespace-pre-wrap">{it?.a || ''}</div>
                           </div>
                         ))}
                       </div>
                     </details>
                   </div>
+                  ) : null}
                 </div>
 
-                <div className="lg:col-span-7 lg:col-start-6 rounded-xl border border-slate-200 bg-white p-4 lg:sticky lg:top-24 self-start">
+                <div className={`${dashboardTab === 'matches' ? '' : 'hidden'} lg:col-span-7 lg:col-start-6 rounded-xl border border-white/10 bg-white/5 p-4 lg:sticky lg:top-24 self-start shadow-[0_25px_80px_rgba(245,158,11,0.06)]`}>
                   <div className="flex items-start justify-between gap-3">
                     <div>
-                      <p className="text-sm font-semibold text-slate-900">{t('matchmakingPanel.matches.title')}</p>
-                      <p className="text-xs text-slate-600 mt-1">{t('matchmakingPanel.matches.subtitle')}</p>
+                      <p className="text-sm font-semibold text-white">{t('matchmakingPanel.matches.title')}</p>
+                      <p className="text-xs text-white/60 mt-1">{t('matchmakingPanel.matches.subtitle')}</p>
                     </div>
                     <div className="flex items-center gap-2">
                       {!matchmakingMatchesLoading && !lockInfo.active && proposedMatchesCount > 0 ? (
@@ -1490,49 +1415,49 @@ export default function Panel() {
                           type="button"
                           onClick={rejectAllMatches}
                           disabled={rejectAllAction.loading}
-                          className="px-3 py-2 rounded-full border border-rose-300 text-rose-900 text-xs font-semibold hover:bg-rose-50 disabled:opacity-60"
+                          className="px-3 py-2 rounded-full border border-rose-300/30 text-rose-100 text-xs font-semibold hover:bg-rose-500/10 disabled:opacity-60"
                         >
                           {rejectAllAction.loading ? t('matchmakingPanel.actions.sending') : t('matchmakingPanel.actions.rejectAll')}
                         </button>
                       ) : null}
                       {matchmakingMatchesLoading ? (
-                        <span className="text-xs text-slate-500">{t('common.loading')}</span>
+                        <span className="text-xs text-white/50">{t('common.loading')}</span>
                       ) : null}
                     </div>
                   </div>
 
                   {!matchmakingUserLoading && lockInfo.active ? (
-                    <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-amber-900 text-sm">
+                    <div className="mt-3 rounded-xl border border-amber-300/30 bg-amber-500/10 p-3 text-amber-100 text-sm">
                       <p className="font-semibold">{t('matchmakingPanel.lock.title')}</p>
                       <p className="mt-1">{t('matchmakingPanel.lock.body')}</p>
                       {lockInfo.matchId ? (
-                        <p className="mt-1 text-xs text-amber-900/90">{t('matchmakingPanel.lock.matchId')}: <span className="font-semibold">{lockInfo.matchId}</span></p>
+                        <p className="mt-1 text-xs text-amber-100/90">{t('matchmakingPanel.lock.matchId')}: <span className="font-semibold">{lockInfo.matchId}</span></p>
                       ) : null}
                     </div>
                   ) : null}
 
                   {matchmakingAction.error ? (
-                    <div className="mt-3 rounded-xl border border-rose-200 bg-rose-50 p-3 text-rose-900 text-sm">
+                    <div className="mt-3 rounded-xl border border-rose-300/30 bg-rose-500/10 p-3 text-rose-100 text-sm">
                       {matchmakingAction.error}
                     </div>
                   ) : null}
 
                   {!canSeeFullProfiles ? (
-                    <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-3 text-slate-800 text-sm">
+                    <div className="mt-3 rounded-xl border border-white/10 bg-white/[0.04] p-3 text-white/80 text-sm">
                       <p className="font-semibold">
                         {myGender === 'female' ? t('matchmakingPanel.membershipOrVerificationGate.title') : t('matchmakingPanel.membershipGate.title')}
                       </p>
-                      <p className="mt-1 text-slate-700">
+                      <p className="mt-1 text-white/70">
                         {myGender === 'female' ? t('matchmakingPanel.membershipOrVerificationGate.body') : t('matchmakingPanel.membershipGate.body')}
                       </p>
 
                       {requestNewAction.error ? (
-                        <div className="mt-2 rounded-lg border border-rose-200 bg-rose-50 p-2 text-rose-900 text-xs">
+                        <div className="mt-2 rounded-lg border border-rose-300/30 bg-rose-500/10 p-2 text-rose-100 text-xs">
                           {requestNewAction.error}
                         </div>
                       ) : null}
                       {requestNewAction.success ? (
-                        <div className="mt-2 rounded-lg border border-emerald-200 bg-emerald-50 p-2 text-emerald-900 text-xs">
+                        <div className="mt-2 rounded-lg border border-emerald-300/30 bg-emerald-500/10 p-2 text-emerald-100 text-xs">
                           {requestNewAction.success}
                         </div>
                       ) : null}
@@ -1540,19 +1465,19 @@ export default function Panel() {
                   ) : null}
 
                   {rejectAllAction.error ? (
-                    <div className="mt-3 rounded-xl border border-rose-200 bg-rose-50 p-3 text-rose-900 text-sm">
+                    <div className="mt-3 rounded-xl border border-rose-300/30 bg-rose-500/10 p-3 text-rose-100 text-sm">
                       {rejectAllAction.error}
                     </div>
                   ) : null}
 
                   {rejectAllAction.success ? (
-                    <div className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-emerald-950 text-sm">
+                    <div className="mt-3 rounded-xl border border-emerald-300/30 bg-emerald-500/10 p-3 text-emerald-100 text-sm">
                       {rejectAllAction.success}
                     </div>
                   ) : null}
 
                   {!matchmakingMatchesLoading && activeMatches.length === 0 ? (
-                    <p className="text-sm text-slate-600 mt-3">{t('matchmakingPanel.matches.empty')}</p>
+                    <p className="text-sm text-white/60 mt-3">{t('matchmakingPanel.matches.empty')}</p>
                   ) : (
                     <div className="mt-3 space-y-3">
                       {activeMatches.map((m) => {
@@ -1572,44 +1497,44 @@ export default function Panel() {
                         const showHeart = otherDecision === 'accept' && myDecision !== 'accept';
 
                         return (
-                          <div key={m.id} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                          <div key={m.id} className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
                             <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
                               <div>
-                                <p className="text-sm font-semibold text-slate-900">
+                                <p className="text-sm font-semibold text-white">
                                   {displayName}{typeof other.age === 'number' ? ` (${other.age})` : ''}
                                   {other?.identityVerified ? (
-                                    <span className="ml-2 inline-flex items-center rounded-full bg-emerald-50 border border-emerald-200 px-2 py-0.5 text-[11px] font-semibold text-emerald-800">
+                                    <span className="ml-2 inline-flex items-center rounded-full bg-emerald-500/10 border border-emerald-300/30 px-2 py-0.5 text-[11px] font-semibold text-emerald-100">
                                       {t('matchmakingPanel.matches.candidate.verifiedBadge')}
                                     </span>
                                   ) : null}
                                   {other?.proMember ? (
-                                    <span className="ml-2 inline-flex items-center rounded-full bg-violet-50 border border-violet-200 px-2 py-0.5 text-[11px] font-semibold text-violet-800">
+                                    <span className="ml-2 inline-flex items-center rounded-full bg-violet-500/10 border border-violet-300/30 px-2 py-0.5 text-[11px] font-semibold text-violet-100">
                                       {t('matchmakingPanel.matches.candidate.proBadge')}
                                     </span>
                                   ) : null}
                                 </p>
                                 {formatProfileCode(other) ? (
-                                  <p className="text-xs text-slate-600 mt-1">
+                                  <p className="text-xs text-white/60 mt-1">
                                     {t('matchmakingPanel.matches.candidate.matchedProfile')}: <span className="font-semibold">{formatProfileCode(other)}</span>
                                   </p>
                                 ) : null}
                                 {canSeeFullProfiles ? (
-                                  <p className="text-xs text-slate-600 mt-1">
+                                  <p className="text-xs text-white/60 mt-1">
                                     {t('matchmakingPanel.matches.candidate.score')}: <span className="font-semibold">{typeof m.score === 'number' ? `%${m.score}` : '-'}</span>
-                                    {showHeart ? <span className="ml-2 text-rose-700 font-semibold">{t('matchmakingPanel.matches.candidate.likeBadge')}</span> : null}
+                                    {showHeart ? <span className="ml-2 text-rose-200 font-semibold">{t('matchmakingPanel.matches.candidate.likeBadge')}</span> : null}
                                   </p>
                                 ) : (
-                                  <p className="text-xs text-slate-600 mt-1">
+                                  <p className="text-xs text-white/60 mt-1">
                                     {t('matchmakingPanel.matches.candidate.maritalStatus')}: <span className="font-semibold">{maritalLabel}</span>
                                   </p>
                                 )}
-                                <p className="text-xs text-slate-600">
+                                <p className="text-xs text-white/60">
                                   {other.city ? `${other.city}${other.country ? ` / ${other.country}` : ''}` : (other.country || '-')}
                                 </p>
                               </div>
                               <div className="text-left sm:text-right">
-                                <p className="text-xs text-slate-600">{t('matchmakingPanel.common.status')}</p>
-                                <p className="text-sm font-semibold text-slate-900">{m.status || '-'}</p>
+                                <p className="text-xs text-white/60">{t('matchmakingPanel.common.status')}</p>
+                                <p className="text-sm font-semibold text-white">{m.status || '-'}</p>
                               </div>
                             </div>
 
@@ -1620,7 +1545,7 @@ export default function Panel() {
                                     <img
                                       src={u}
                                       alt={t('matchmakingPanel.matches.candidate.photoAlt')}
-                                      className="w-full h-40 object-cover rounded-xl border border-slate-200"
+                                      className="w-full h-40 object-cover rounded-xl border border-white/10"
                                       loading="lazy"
                                     />
                                   </a>
@@ -1629,35 +1554,35 @@ export default function Panel() {
                             ) : null}
 
                             {m.status === 'proposed' && canSeeFullProfiles ? (
-                              <div className="mt-3 rounded-xl border border-slate-200 bg-white p-3">
-                                <p className="text-xs font-semibold text-slate-900">{t('matchmakingPanel.matches.candidate.detailsTitle')}</p>
-                                <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm text-slate-800">
+                              <div className="mt-3 rounded-xl border border-white/10 bg-white/5 p-3">
+                                <p className="text-xs font-semibold text-white">{t('matchmakingPanel.matches.candidate.detailsTitle')}</p>
+                                <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm text-white/80">
                                   <div>
-                                    <p className="text-xs text-slate-600">{t('matchmakingPanel.matches.candidate.aboutLabel')}</p>
+                                    <p className="text-xs text-white/60">{t('matchmakingPanel.matches.candidate.aboutLabel')}</p>
                                     <p className="whitespace-pre-wrap">
                                       {candidateDetailsLoadingByMatchId?.[m.id] ? t('common.loading') : (other.about || '-')}
                                     </p>
                                   </div>
                                   <div>
-                                    <p className="text-xs text-slate-600">{t('matchmakingPanel.matches.candidate.expectationsLabel')}</p>
+                                    <p className="text-xs text-white/60">{t('matchmakingPanel.matches.candidate.expectationsLabel')}</p>
                                     <p className="whitespace-pre-wrap">
                                       {candidateDetailsLoadingByMatchId?.[m.id] ? t('common.loading') : (other.expectations || '-')}
                                     </p>
                                   </div>
                                   <div>
-                                    <p className="text-xs text-slate-600">{t('matchmakingPanel.matches.candidate.heightLabel')}</p>
+                                    <p className="text-xs text-white/60">{t('matchmakingPanel.matches.candidate.heightLabel')}</p>
                                     <p className="font-semibold">{typeof other?.details?.heightCm === 'number' ? `${other.details.heightCm} cm` : '-'}</p>
                                   </div>
                                   <div>
-                                    <p className="text-xs text-slate-600">{t('matchmakingPanel.matches.candidate.educationLabel')}</p>
+                                    <p className="text-xs text-white/60">{t('matchmakingPanel.matches.candidate.educationLabel')}</p>
                                     <p className="font-semibold">{other?.details?.education || '-'}</p>
                                   </div>
                                   <div>
-                                    <p className="text-xs text-slate-600">{t('matchmakingPanel.matches.candidate.occupationLabel')}</p>
+                                    <p className="text-xs text-white/60">{t('matchmakingPanel.matches.candidate.occupationLabel')}</p>
                                     <p className="font-semibold">{other?.details?.occupation || '-'}</p>
                                   </div>
                                   <div>
-                                    <p className="text-xs text-slate-600">{t('matchmakingPanel.matches.candidate.religionLabel')}</p>
+                                    <p className="text-xs text-white/60">{t('matchmakingPanel.matches.candidate.religionLabel')}</p>
                                     <p className="font-semibold">{other?.details?.religion || '-'}</p>
                                   </div>
                                 </div>
@@ -1665,7 +1590,7 @@ export default function Panel() {
                             ) : null}
 
                             {m.status === 'mutual_accepted' ? (
-                              <div className="mt-3 rounded-xl border border-sky-200 bg-sky-50 p-3 text-sky-950 text-sm">
+                              <div className="mt-3 rounded-xl border border-sky-300/30 bg-sky-500/10 p-3 text-sky-100 text-sm">
                                 {(() => {
                                   const myChoice = user?.uid ? (m?.interactionChoices?.[user.uid] || '') : '';
                                   const otherUserId = Array.isArray(m?.userIds) && user?.uid ? (m.userIds || []).find((x) => x !== user.uid) : '';
@@ -1680,7 +1605,7 @@ export default function Panel() {
                                   return (
                                     <div>
                                       <p className="font-semibold">{t('matchmakingPanel.matches.interaction.title')}</p>
-                                      <p className="mt-1 text-sky-950/90">{t('matchmakingPanel.matches.interaction.lead')}</p>
+                                      <p className="mt-1 text-white/75">{t('matchmakingPanel.matches.interaction.lead')}</p>
 
                                       <div className="mt-3 flex flex-col sm:flex-row gap-2">
                                         <button
@@ -1691,7 +1616,7 @@ export default function Panel() {
                                             'px-4 py-2 rounded-full text-sm font-semibold border ' +
                                             (myChoice === 'chat'
                                               ? 'bg-sky-700 text-white border-sky-700'
-                                              : 'bg-white text-sky-900 border-sky-200 hover:bg-sky-100')
+                                              : 'bg-white/5 text-sky-100 border-sky-300/30 hover:bg-sky-500/10')
                                           }
                                         >
                                           {t('matchmakingPanel.matches.interaction.chat')}
@@ -1704,7 +1629,7 @@ export default function Panel() {
                                             'px-4 py-2 rounded-full text-sm font-semibold border ' +
                                             (myChoice === 'contact'
                                               ? 'bg-emerald-700 text-white border-emerald-700'
-                                              : 'bg-white text-emerald-900 border-emerald-200 hover:bg-emerald-100')
+                                              : 'bg-white/5 text-emerald-100 border-emerald-300/30 hover:bg-emerald-500/10')
                                           }
                                         >
                                           {t('matchmakingPanel.matches.interaction.contact')}
@@ -1726,11 +1651,11 @@ export default function Panel() {
                                       ) : null}
 
                                       {myChoice ? (
-                                        <div className="mt-2 text-xs text-slate-700">
+                                        <div className="mt-2 text-xs text-white/60">
                                           {t('matchmakingPanel.matches.interaction.yourChoice', { choice: myChoice === 'chat' ? t('matchmakingPanel.matches.interaction.chatShort') : t('matchmakingPanel.matches.interaction.contactShort') })}
                                         </div>
                                       ) : (
-                                        <div className="mt-2 text-xs text-slate-700">{t('matchmakingPanel.matches.interaction.choosePrompt')}</div>
+                                        <div className="mt-2 text-xs text-white/60">{t('matchmakingPanel.matches.interaction.choosePrompt')}</div>
                                       )}
 
                                       {otherChoice === 'chat' && myChoice === 'contact' ? (
@@ -1746,34 +1671,34 @@ export default function Panel() {
                                       ) : null}
 
                                       {mode === 'chat' ? (
-                                        <div className="mt-3 rounded-xl border border-sky-200 bg-white p-3">
-                                          <p className="text-xs font-semibold text-slate-900">{t('matchmakingPanel.matches.chat.rulesTitle')}</p>
-                                          <p className="mt-1 text-xs text-slate-700">{t('matchmakingPanel.matches.chat.rulesBody')}</p>
+                                        <div className="mt-3 rounded-xl border border-sky-300/30 bg-sky-500/10 p-3">
+                                          <p className="text-xs font-semibold text-white">{t('matchmakingPanel.matches.chat.rulesTitle')}</p>
+                                          <p className="mt-1 text-xs text-white/75">{t('matchmakingPanel.matches.chat.rulesBody')}</p>
 
                                   {canBrowserNotify ? (
                                     <div className="mt-2 flex flex-col sm:flex-row sm:items-center gap-2">
                                       {Notification.permission === 'granted' ? (
-                                        <div className="text-xs text-emerald-700 font-semibold">
+                                        <div className="text-xs text-emerald-200 font-semibold">
                                           {t('matchmakingPanel.matches.chat.notificationsEnabled')}
                                         </div>
                                       ) : (
                                         <button
                                           type="button"
                                           onClick={() => requestChatNotifications(m.id)}
-                                          className="px-3 py-2 rounded-full bg-white border border-sky-200 text-sky-900 text-xs font-semibold hover:bg-sky-100"
+                                          className="px-3 py-2 rounded-full bg-sky-500/10 border border-sky-300/30 text-sky-100 text-xs font-semibold hover:bg-sky-500/15"
                                         >
                                           {t('matchmakingPanel.matches.chat.enableNotifications')}
                                         </button>
                                       )}
 
                                       {chatNotifyMsgByMatchId?.[m.id] ? (
-                                        <div className="text-xs text-slate-700">{chatNotifyMsgByMatchId[m.id]}</div>
+                                        <div className="text-xs text-white/60">{chatNotifyMsgByMatchId[m.id]}</div>
                                       ) : null}
                                     </div>
                                   ) : null}
 
                                   {chatByMatchId?.[m.id]?.loading ? (
-                                    <div className="mt-2 text-xs text-slate-600">{t('common.loading')}</div>
+                                    <div className="mt-2 text-xs text-white/60">{t('common.loading')}</div>
                                   ) : null}
 
                                   <div
@@ -1781,17 +1706,17 @@ export default function Panel() {
                                       if (!m?.id) return;
                                       if (el) chatScrollElByMatchIdRef.current[m.id] = el;
                                     }}
-                                    className="mt-2 max-h-56 overflow-auto rounded-lg border border-slate-200 bg-slate-50 p-2"
+                                    className="mt-2 max-h-56 overflow-auto rounded-lg border border-white/10 bg-white/[0.04] p-2"
                                   >
                                     {(chatByMatchId?.[m.id]?.items || []).length === 0 ? (
-                                      <div className="text-xs text-slate-600">{t('matchmakingPanel.matches.chat.empty')}</div>
+                                      <div className="text-xs text-white/60">{t('matchmakingPanel.matches.chat.empty')}</div>
                                     ) : (
                                       <div className="space-y-2">
                                         {(chatByMatchId?.[m.id]?.items || []).map((msg) => {
                                           const mine = msg?.userId === user?.uid;
                                           return (
                                             <div key={msg.id} className={mine ? 'text-right' : 'text-left'}>
-                                              <div className={mine ? 'inline-block bg-sky-600 text-white px-3 py-2 rounded-2xl text-sm max-w-[85%]' : 'inline-block bg-white border border-slate-200 text-slate-900 px-3 py-2 rounded-2xl text-sm max-w-[85%]'}>
+                                              <div className={mine ? 'inline-block bg-sky-600 text-white px-3 py-2 rounded-2xl text-sm max-w-[85%]' : 'inline-block bg-white/10 border border-white/10 text-white px-3 py-2 rounded-2xl text-sm max-w-[85%]'}>
                                                 {msg?.text || ''}
                                               </div>
                                             </div>
@@ -1799,6 +1724,30 @@ export default function Panel() {
                                         })}
                                       </div>
                                     )}
+
+                                    {!matchmakingMatchesLoading && matchHistory.length ? (
+                                      <div className="mt-6 rounded-xl border border-white/10 bg-white/[0.04] p-3">
+                                        <p className="text-sm font-semibold text-white">Eşleşme geçmişi</p>
+                                        <p className="mt-1 text-xs text-white/60">Daha önceki iptal/bitmiş eşleşmeler.</p>
+                                        <div className="mt-3 space-y-2">
+                                          {matchHistory.map((m) => (
+                                            <div key={m.id} className="rounded-xl border border-white/10 bg-white/5 p-3">
+                                              <div className="flex items-start justify-between gap-3">
+                                                <div className="min-w-0">
+                                                  <p className="text-sm font-semibold text-white truncate">Match ID: {m.id}</p>
+                                                  <p className="mt-1 text-xs text-white/60">Durum: <span className="font-semibold text-white/80">{String(m.status || '-')}</span></p>
+                                                </div>
+                                                {typeof m?.createdAt?.toMillis === 'function' ? (
+                                                  <div className="text-xs text-white/50 whitespace-nowrap">
+                                                    {new Intl.DateTimeFormat(i18n?.language === 'id' ? 'id-ID' : i18n?.language === 'en' ? 'en-US' : 'tr-TR', { year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(m.createdAt.toMillis()))}
+                                                  </div>
+                                                ) : null}
+                                              </div>
+                                            </div>
+                                          ))}
+                                        </div>
+                                      </div>
+                                    ) : null}
                                   </div>
 
                                   {chatSendByMatchId?.[m.id]?.error ? (
@@ -1821,7 +1770,7 @@ export default function Panel() {
                                     <input
                                       value={chatTextByMatchId?.[m.id] || ''}
                                       onChange={(e) => setChatTextByMatchId((p) => ({ ...p, [m.id]: e.target.value }))}
-                                      className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
+                                      className="w-full rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-white/40"
                                       placeholder={t('matchmakingPanel.matches.chat.placeholder')}
                                       maxLength={600}
                                       disabled={!canTakeActions}
@@ -1876,7 +1825,7 @@ export default function Panel() {
 
                                   if (p.status === 'rejected') {
                                     return (
-                                      <div className="mt-2 rounded-lg border border-rose-200 bg-rose-50 p-2 text-rose-900 text-xs">
+                                      <div className="mt-2 rounded-lg border border-rose-300/30 bg-rose-500/10 p-2 text-rose-100 text-xs">
                                         {t('matchmakingPanel.matches.paymentStatus.rejected')}
                                       </div>
                                     );
@@ -1884,7 +1833,7 @@ export default function Panel() {
 
                                   if (p.status === 'approved') {
                                     return (
-                                      <div className="mt-2 rounded-lg border border-emerald-200 bg-emerald-50 p-2 text-emerald-900 text-xs">
+                                      <div className="mt-2 rounded-lg border border-emerald-300/30 bg-emerald-500/10 p-2 text-emerald-100 text-xs">
                                         {t('matchmakingPanel.matches.paymentStatus.approved')}
                                       </div>
                                     );
@@ -1894,27 +1843,27 @@ export default function Panel() {
                                 })()}
 
                                 {contactAction.error && contactAction.matchId === m.id ? (
-                                  <div className="mt-2 rounded-lg border border-rose-200 bg-rose-50 p-2 text-rose-900 text-xs">
+                                  <div className="mt-2 rounded-lg border border-rose-300/30 bg-rose-500/10 p-2 text-rose-100 text-xs">
                                     {contactAction.error}
                                   </div>
                                 ) : null}
 
                                 {contactByMatchId?.[m.id] ? (
-                                  <div className="mt-3 rounded-xl border border-emerald-200 bg-white p-3">
-                                    <p className="text-xs font-semibold text-emerald-900">{t('matchmakingPanel.matches.contact.title')}</p>
-                                    <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm text-slate-800">
+                                  <div className="mt-3 rounded-xl border border-emerald-300/30 bg-emerald-500/10 p-3">
+                                    <p className="text-xs font-semibold text-emerald-100">{t('matchmakingPanel.matches.contact.title')}</p>
+                                    <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm text-white/80">
                                       <div>
-                                        <p className="text-xs text-slate-600">{t('matchmakingPanel.common.whatsapp')}</p>
+                                        <p className="text-xs text-white/60">{t('matchmakingPanel.common.whatsapp')}</p>
                                         <p className="font-semibold">
                                           {contactByMatchId[m.id]?.whatsapp || '-'}
                                         </p>
                                       </div>
                                       <div>
-                                        <p className="text-xs text-slate-600">{t('matchmakingPanel.common.email')}</p>
+                                        <p className="text-xs text-white/60">{t('matchmakingPanel.common.email')}</p>
                                         <p className="font-semibold">{contactByMatchId[m.id]?.email || '-'}</p>
                                       </div>
                                       <div className="sm:col-span-2">
-                                        <p className="text-xs text-slate-600">{t('matchmakingPanel.common.instagram')}</p>
+                                        <p className="text-xs text-white/60">{t('matchmakingPanel.common.instagram')}</p>
                                         <p className="font-semibold">{contactByMatchId[m.id]?.instagram || '-'}</p>
                                       </div>
                                     </div>
@@ -1936,9 +1885,9 @@ export default function Panel() {
                                 ) : (
                                   <div className="mt-3">
                                     {canTakeActions ? (
-                                      <div className="rounded-xl border border-emerald-200 bg-white p-3">
-                                        <p className="text-xs font-semibold text-emerald-900">{t('matchmakingPanel.matches.contactUnlock.membershipActiveTitle')}</p>
-                                        <p className="text-sm text-slate-700 mt-1">
+                                      <div className="rounded-xl border border-emerald-300/30 bg-emerald-500/10 p-3">
+                                        <p className="text-xs font-semibold text-emerald-100">{t('matchmakingPanel.matches.contactUnlock.membershipActiveTitle')}</p>
+                                        <p className="text-sm text-white/75 mt-1">
                                           {t('matchmakingPanel.matches.contactUnlock.membershipActiveBody')}
                                         </p>
                                         <button
@@ -1951,36 +1900,36 @@ export default function Panel() {
                                         </button>
                                       </div>
                                     ) : (
-                                      <div className="rounded-xl border border-emerald-200 bg-white p-3">
-                                        <p className="text-xs font-semibold text-emerald-900">
+                                      <div className="rounded-xl border border-emerald-300/30 bg-emerald-500/10 p-3">
+                                        <p className="text-xs font-semibold text-emerald-100">
                                           {myGender === 'female'
                                             ? t('matchmakingPanel.membershipOrVerificationGate.title')
                                             : t('matchmakingPanel.matches.payment.membershipRequiredTitle')}
                                         </p>
-                                        <p className="text-sm text-slate-700 mt-1">
+                                        <p className="text-sm text-white/75 mt-1">
                                           {myGender === 'female'
                                             ? t('matchmakingPanel.membershipOrVerificationGate.body')
                                             : t('matchmakingPanel.matches.payment.membershipRequiredBody')}
                                         </p>
 
-                                        <div className="mt-2 rounded-lg border border-amber-200 bg-amber-50 p-2 text-amber-900 text-xs">
+                                        <div className="mt-2 rounded-lg border border-amber-300/30 bg-amber-500/10 p-2 text-amber-100 text-xs">
                                           {myGender === 'female'
                                             ? t('matchmakingPanel.errors.membershipOrVerificationRequired')
                                             : t('matchmakingPanel.errors.membershipRequired')}
                                         </div>
 
                                         {!matchmakingPaymentsLoading && latestPaymentByMatchId?.[m.id]?.status === 'pending' ? (
-                                          <p className="mt-2 text-xs text-amber-700 font-semibold">
+                                          <p className="mt-2 text-xs text-amber-200 font-semibold">
                                             {t('matchmakingPanel.matches.payment.pendingNotice')}
                                           </p>
                                         ) : null}
 
                                         <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                          <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                                            <p className="text-xs font-semibold text-slate-900">{t('matchmakingPanel.matches.payment.trTitle')}</p>
-                                            <p className="text-sm text-slate-700 mt-1">{t('matchmakingPanel.matches.payment.amount')}: <span className="font-semibold">{prices.TRY} TL</span></p>
+                                          <div className="rounded-xl border border-white/10 bg-white/[0.04] p-3">
+                                            <p className="text-xs font-semibold text-white">{t('matchmakingPanel.matches.payment.trTitle')}</p>
+                                            <p className="text-sm text-white/75 mt-1">{t('matchmakingPanel.matches.payment.amount')}: <span className="font-semibold">{prices.TRY} TL</span></p>
                                             {import.meta?.env?.VITE_MATCHMAKING_TR_ACCOUNT_NAME || import.meta?.env?.VITE_MATCHMAKING_TR_IBAN ? (
-                                              <div className="mt-2 text-xs text-slate-700">
+                                              <div className="mt-2 text-xs text-white/75">
                                                 {import.meta?.env?.VITE_MATCHMAKING_TR_ACCOUNT_NAME ? (
                                                   <p>{t('matchmakingPanel.matches.payment.recipient')}: <span className="font-semibold">{import.meta.env.VITE_MATCHMAKING_TR_ACCOUNT_NAME}</span></p>
                                                 ) : null}
@@ -1989,49 +1938,49 @@ export default function Panel() {
                                                 ) : null}
                                               </div>
                                             ) : (
-                                              <p className="mt-2 text-xs text-slate-600">{t('matchmakingPanel.matches.payment.detailsSoon')}</p>
+                                              <p className="mt-2 text-xs text-white/60">{t('matchmakingPanel.matches.payment.detailsSoon')}</p>
                                             )}
                                           </div>
 
-                                          <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                                            <p className="text-xs font-semibold text-slate-900">{t('matchmakingPanel.matches.payment.idTitle')}</p>
-                                            <p className="text-sm text-slate-700 mt-1">{t('matchmakingPanel.matches.payment.amount')}: <span className="font-semibold">{prices.IDR} IDR</span></p>
+                                          <div className="rounded-xl border border-white/10 bg-white/[0.04] p-3">
+                                            <p className="text-xs font-semibold text-white">{t('matchmakingPanel.matches.payment.idTitle')}</p>
+                                            <p className="text-sm text-white/75 mt-1">{t('matchmakingPanel.matches.payment.amount')}: <span className="font-semibold">{prices.IDR} IDR</span></p>
                                             {import.meta?.env?.VITE_MATCHMAKING_ID_QRIS_URL ? (
                                               <a
                                                 href={import.meta.env.VITE_MATCHMAKING_ID_QRIS_URL}
                                                 target="_blank"
                                                 rel="noopener noreferrer"
-                                                className="mt-2 inline-block text-xs font-semibold text-sky-700 hover:underline"
+                                                className="mt-2 inline-block text-xs font-semibold text-sky-200 hover:underline"
                                               >
                                                 {t('matchmakingPanel.matches.payment.payWithQris')}
                                               </a>
                                             ) : null}
                                             {import.meta?.env?.VITE_MATCHMAKING_ID_BANK_DETAILS ? (
-                                              <p className="mt-2 text-xs text-slate-700 whitespace-pre-wrap">{import.meta.env.VITE_MATCHMAKING_ID_BANK_DETAILS}</p>
+                                              <p className="mt-2 text-xs text-white/75 whitespace-pre-wrap">{import.meta.env.VITE_MATCHMAKING_ID_BANK_DETAILS}</p>
                                             ) : null}
                                           </div>
                                         </div>
 
-                                        <div className="mt-3 rounded-xl border border-slate-200 bg-white p-3">
-                                          <p className="text-xs font-semibold text-slate-900">{t('matchmakingPanel.matches.payment.reportTitle')}</p>
+                                        <div className="mt-3 rounded-xl border border-white/10 bg-white/5 p-3">
+                                          <p className="text-xs font-semibold text-white">{t('matchmakingPanel.matches.payment.reportTitle')}</p>
                                           <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-2">
-                                            <label className="text-xs text-slate-700">
+                                            <label className="text-xs text-white/70">
                                               {t('matchmakingPanel.matches.payment.currency')}
                                               <select
                                                 value={paymentForm.currency}
                                                 onChange={(e) => setPaymentForm((p) => ({ ...p, currency: e.target.value }))}
-                                                className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
+                                                className="mt-1 w-full rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-sm text-white"
                                               >
                                                 <option value="TRY">{t('matchmakingPanel.matches.payment.currencyTRY')}</option>
                                                 <option value="IDR">{t('matchmakingPanel.matches.payment.currencyIDR')}</option>
                                               </select>
                                             </label>
-                                            <label className="text-xs text-slate-700">
+                                            <label className="text-xs text-white/70">
                                               {t('matchmakingPanel.matches.payment.method')}
                                               <select
                                                 value={paymentForm.method}
                                                 onChange={(e) => setPaymentForm((p) => ({ ...p, method: e.target.value }))}
-                                                className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
+                                                className="mt-1 w-full rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-sm text-white"
                                               >
                                                 <option value="eft_fast">{t('matchmakingPanel.matches.payment.methodEftFast')}</option>
                                                 <option value="swift_wise">{t('matchmakingPanel.matches.payment.methodSwiftWise')}</option>
@@ -2039,27 +1988,27 @@ export default function Panel() {
                                                 <option value="other">{t('matchmakingPanel.matches.payment.methodOther')}</option>
                                               </select>
                                             </label>
-                                            <label className="text-xs text-slate-700 sm:col-span-2">
+                                            <label className="text-xs text-white/70 sm:col-span-2">
                                               {t('matchmakingPanel.matches.payment.reference')}
                                               <input
                                                 value={paymentForm.reference}
                                                 onChange={(e) => setPaymentForm((p) => ({ ...p, reference: e.target.value }))}
-                                                className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
+                                                className="mt-1 w-full rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-white/40"
                                                 placeholder={t('matchmakingPanel.matches.payment.referencePlaceholder')}
                                               />
                                             </label>
-                                            <label className="text-xs text-slate-700 sm:col-span-2">
+                                            <label className="text-xs text-white/70 sm:col-span-2">
                                               {t('matchmakingPanel.matches.payment.note')}
                                               <textarea
                                                 value={paymentForm.note}
                                                 onChange={(e) => setPaymentForm((p) => ({ ...p, note: e.target.value }))}
-                                                className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
+                                                className="mt-1 w-full rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-white/40"
                                                 rows={2}
                                                 placeholder={t('matchmakingPanel.matches.payment.notePlaceholder')}
                                               />
                                             </label>
 
-                                            <label className="text-xs text-slate-700 sm:col-span-2">
+                                            <label className="text-xs text-white/70 sm:col-span-2">
                                               {t('matchmakingPanel.matches.payment.receipt')}
                                               <div className="mt-1 flex flex-col sm:flex-row gap-2">
                                                 <input
@@ -2069,29 +2018,29 @@ export default function Panel() {
                                                     const f = e?.target?.files?.[0];
                                                     if (f) uploadReceipt(f);
                                                   }}
-                                                  className="block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
+                                                  className="block w-full rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-sm text-white file:mr-3 file:rounded-md file:border-0 file:bg-white/10 file:px-3 file:py-2 file:text-xs file:font-semibold file:text-white hover:file:bg-white/15"
                                                   disabled={receiptUpload.loading}
                                                 />
                                                 <button
                                                   type="button"
-                                                  className="px-4 py-2 rounded-full border border-slate-300 text-slate-800 text-sm font-semibold hover:bg-slate-50"
+                                                  className="px-4 py-2 rounded-full border border-white/15 text-white/85 text-sm font-semibold hover:bg-white/[0.08]"
                                                   onClick={() => setPaymentForm((p) => ({ ...p, receiptUrl: '' }))}
                                                   disabled={receiptUpload.loading || !paymentForm.receiptUrl}
                                                 >
                                                   {t('matchmakingPanel.actions.remove')}
                                                 </button>
                                               </div>
-                                              <p className="mt-1 text-[11px] text-slate-500">
+                                              <p className="mt-1 text-[11px] text-white/50">
                                                 {t('matchmakingPanel.matches.payment.receiptHelp')}
                                               </p>
                                             </label>
 
-                                            <label className="text-xs text-slate-700 sm:col-span-2">
+                                            <label className="text-xs text-white/70 sm:col-span-2">
                                               {t('matchmakingPanel.matches.payment.receiptLink')}
                                               <input
                                                 value={paymentForm.receiptUrl}
                                                 onChange={(e) => setPaymentForm((p) => ({ ...p, receiptUrl: e.target.value }))}
-                                                className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
+                                                className="mt-1 w-full rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-white/40"
                                                 placeholder="https://..."
                                               />
                                               {paymentForm.receiptUrl ? (
@@ -2099,7 +2048,7 @@ export default function Panel() {
                                                   href={paymentForm.receiptUrl}
                                                   target="_blank"
                                                   rel="noopener noreferrer"
-                                                  className="mt-1 inline-block text-xs font-semibold text-sky-700 hover:underline"
+                                                  className="mt-1 inline-block text-xs font-semibold text-sky-200 hover:underline"
                                                 >
                                                   {t('matchmakingPanel.matches.payment.viewReceipt')}
                                                 </a>
@@ -2108,23 +2057,23 @@ export default function Panel() {
                                           </div>
 
                                           {receiptUpload.error ? (
-                                            <div className="mt-2 rounded-lg border border-rose-200 bg-rose-50 p-2 text-rose-900 text-xs">
+                                            <div className="mt-2 rounded-lg border border-rose-300/30 bg-rose-500/10 p-2 text-rose-100 text-xs">
                                               {receiptUpload.error}
                                             </div>
                                           ) : null}
                                           {receiptUpload.loading ? (
-                                            <div className="mt-2 rounded-lg border border-slate-200 bg-slate-50 p-2 text-slate-700 text-xs">
+                                            <div className="mt-2 rounded-lg border border-white/10 bg-white/[0.04] p-2 text-white/60 text-xs">
                                               {t('matchmakingPanel.matches.payment.uploadingReceipt')}
                                             </div>
                                           ) : null}
 
                                           {paymentAction.error && paymentAction.matchId === m.id ? (
-                                            <div className="mt-2 rounded-lg border border-rose-200 bg-rose-50 p-2 text-rose-900 text-xs">
+                                            <div className="mt-2 rounded-lg border border-rose-300/30 bg-rose-500/10 p-2 text-rose-100 text-xs">
                                               {paymentAction.error}
                                             </div>
                                           ) : null}
                                           {paymentAction.success && paymentAction.matchId === m.id ? (
-                                            <div className="mt-2 rounded-lg border border-emerald-200 bg-emerald-50 p-2 text-emerald-900 text-xs">
+                                            <div className="mt-2 rounded-lg border border-emerald-300/30 bg-emerald-500/10 p-2 text-emerald-100 text-xs">
                                               {paymentAction.success}
                                             </div>
                                           ) : null}
@@ -2216,14 +2165,14 @@ export default function Panel() {
                                         type="button"
                                         disabled={requestNewAction.loading}
                                         onClick={requestNewMatch}
-                                        className="px-4 py-2 rounded-full border border-slate-300 text-slate-900 text-sm font-semibold hover:bg-white disabled:opacity-60"
+                                        className="px-4 py-2 rounded-full border border-white/15 text-white/90 text-sm font-semibold hover:bg-white/[0.08] disabled:opacity-60"
                                       >
                                         {requestNewAction.loading
                                           ? t('matchmakingPanel.actions.requestingNew')
                                           : t('matchmakingPanel.actions.requestNewWithRemaining', { remaining: newMatchQuotaInfo.remaining, limit: newMatchQuotaInfo.limit })}
                                       </button>
                                     </div>
-                                    <div className="mt-2 text-xs text-slate-600">
+                                    <div className="mt-2 text-xs text-white/60">
                                       {t('matchmakingPanel.actions.requestNewQuotaHint', { remaining: newMatchQuotaInfo.remaining, limit: newMatchQuotaInfo.limit })}
                                     </div>
                                   </div>
@@ -2232,9 +2181,9 @@ export default function Panel() {
                             ) : null}
 
                             {m.status === 'cancelled' && String(m?.cancelledReason || '') === 'rejected' && String(m?.cancelledByUserId || '') !== String(user?.uid || '') ? (
-                              <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-amber-950 text-sm">
+                              <div className="mt-3 rounded-xl border border-amber-300/30 bg-amber-500/10 p-3 text-amber-100 text-sm">
                                 <p className="font-semibold">{t('matchmakingPanel.matches.rejectedByOther.title')}</p>
-                                <p className="mt-1 text-amber-950/90">{t('matchmakingPanel.matches.rejectedByOther.body')}</p>
+                                <p className="mt-1 text-amber-100/90">{t('matchmakingPanel.matches.rejectedByOther.body')}</p>
                                 <div className="mt-3 flex flex-col sm:flex-row gap-2">
                                   <button
                                     type="button"
@@ -2248,7 +2197,7 @@ export default function Panel() {
                                     type="button"
                                     disabled={requestNewAction.loading}
                                     onClick={requestNewMatch}
-                                    className="px-4 py-2 rounded-full border border-amber-300 text-amber-950 text-sm font-semibold hover:bg-white disabled:opacity-60"
+                                    className="px-4 py-2 rounded-full border border-amber-300/30 text-amber-100 text-sm font-semibold hover:bg-amber-500/10 disabled:opacity-60"
                                   >
                                     {requestNewAction.loading
                                       ? t('matchmakingPanel.actions.requestingNew')
@@ -2259,7 +2208,7 @@ export default function Panel() {
                             ) : null}
 
                             {myDecision === 'accept' && m.status === 'proposed' ? (
-                              <p className="mt-2 text-xs text-slate-600">{t('matchmakingPanel.matches.waitingOther')}</p>
+                              <p className="mt-2 text-xs text-white/60">{t('matchmakingPanel.matches.waitingOther')}</p>
                             ) : null}
                           </div>
                         );

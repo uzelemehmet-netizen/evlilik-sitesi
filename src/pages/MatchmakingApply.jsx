@@ -81,6 +81,8 @@ export default function MatchmakingApply() {
   const location = useLocation();
   const navigate = useNavigate();
 
+  const BRAND_LOGO_SRC = '/brand.png';
+
   const submitFeedbackRef = useRef(null);
 
   // Auth bazen (özellikle local dev / 3rd-party engeller) "loading"da takılı kalabiliyor.
@@ -99,7 +101,7 @@ export default function MatchmakingApply() {
         if (cancelled) return;
         if (!snap.empty) {
           const id = snap.docs[0]?.id;
-          navigate('/panel', { replace: true, state: { from: 'applyRedirectExisting', applicationId: id } });
+          navigate('/profilim', { replace: true, state: { from: 'applyRedirectExisting', applicationId: id } });
         }
       } catch (e) {
         // ignore (rules/index/config) - kullanıcı yine formu görebilir.
@@ -419,13 +421,10 @@ export default function MatchmakingApply() {
     setForm((prev) => {
       const list = Array.isArray(prev.foreignLanguages) ? prev.foreignLanguages : [];
       const exists = list.includes(code);
-      // "none" (bilmiyorum) seçeneği diğerleriyle birlikte seçilemesin.
+      // "none" seçeneği diğerlerini kilitlemesin.
+      // Başka bir dil seçildiğinde "none" otomatik çıkarılır (çelişkiyi engeller).
       let next = exists ? list.filter((x) => x !== code) : [...list, code];
-      if (code === 'none') {
-        next = exists ? [] : ['none'];
-      } else if (next.includes('none')) {
-        next = next.filter((x) => x !== 'none');
-      }
+      if (code !== 'none' && next.includes('none')) next = next.filter((x) => x !== 'none');
       return {
         ...prev,
         foreignLanguages: next,
@@ -857,7 +856,7 @@ export default function MatchmakingApply() {
         // ignore
       }
 
-      navigate('/panel', {
+      navigate('/profilim', {
         replace: true,
         state: { from: 'matchmakingApply', applicationId: docRef.id },
       });
@@ -893,32 +892,69 @@ export default function MatchmakingApply() {
   };
 
   return (
-    <div className="min-h-screen bg-white" id="matchmaking-top">
+    <div className="min-h-screen bg-[#050814] text-white relative" id="matchmaking-top">
       <Navigation />
 
-      <main className="max-w-3xl mx-auto px-4 pt-24 pb-12">
-        <h1 className="text-2xl md:text-3xl font-bold text-slate-900">{t('matchmakingPage.title')}</h1>
-        <p className="mt-3 text-sm md:text-base text-slate-700 leading-relaxed">{t('matchmakingPage.intro')}</p>
+      {/* Background (Uniqah theme) */}
+      <div aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden">
+        <div className="absolute -top-40 left-1/2 -translate-x-1/2 w-[900px] h-[900px] bg-[radial-gradient(circle_at_center,rgba(255,215,128,0.18),rgba(255,215,128,0)_60%)]" />
+        <div className="absolute -top-24 -left-24 w-[520px] h-[520px] bg-[radial-gradient(circle_at_center,rgba(99,102,241,0.22),rgba(99,102,241,0)_60%)]" />
+        <div className="absolute bottom-0 -right-24 w-[620px] h-[620px] bg-[radial-gradient(circle_at_center,rgba(20,184,166,0.14),rgba(20,184,166,0)_60%)]" />
+        <div className="absolute inset-0 opacity-[0.18] [background-image:linear-gradient(to_right,rgba(255,255,255,0.08)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.08)_1px,transparent_1px)] [background-size:64px_64px]" />
+      </div>
 
-        <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-4">
-          <p className="text-sm text-slate-800">{t('matchmakingPage.privacyNote')}</p>
+      <main className="relative max-w-3xl mx-auto px-4 pt-16 md:pt-20 pb-12">
+        <div className="relative overflow-hidden rounded-[28px] border border-white/10 bg-gradient-to-b from-white/10 via-white/[0.06] to-transparent shadow-[0_30px_90px_rgba(0,0,0,0.45)]">
+          <div aria-hidden="true" className="absolute inset-0">
+            <div className="absolute -top-24 -right-24 w-80 h-80 bg-[radial-gradient(circle_at_center,rgba(245,158,11,0.35),rgba(245,158,11,0)_60%)] blur-2xl" />
+            <div className="absolute -bottom-24 -left-24 w-96 h-96 bg-[radial-gradient(circle_at_center,rgba(99,102,241,0.34),rgba(99,102,241,0)_60%)] blur-2xl" />
+          </div>
+
+          <div className="relative p-6 md:p-10">
+            <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-6">
+              <div className="min-w-0">
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 border border-white/10 text-[11px] font-semibold tracking-wide">
+                  <span className="text-white/90">{t('navigation.matchmaking')}</span>
+                  <span className="text-white/40">•</span>
+                  <span className="text-white/80">{t('matchmakingHub.badge')}</span>
+                </div>
+
+                <h1 className="mt-4 text-2xl md:text-3xl font-semibold leading-tight">{t('matchmakingPage.title')}</h1>
+                <p className="mt-3 text-sm md:text-base text-white/75 leading-relaxed">{t('matchmakingPage.intro')}</p>
+              </div>
+
+              <div className="flex-shrink-0 md:pt-1">
+                <img
+                  src={BRAND_LOGO_SRC}
+                  alt={t('matchmakingHub.brandAlt')}
+                  className="h-10 md:h-12 w-auto drop-shadow-[0_20px_60px_rgba(0,0,0,0.55)]"
+                  loading="eager"
+                  decoding="async"
+                />
+              </div>
+            </div>
+
+            <div className="mt-4 rounded-2xl border border-white/10 bg-white/5 p-4">
+              <p className="text-sm text-white/80">{t('matchmakingPage.privacyNote')}</p>
+            </div>
+          </div>
         </div>
 
         {isAuthGate ? (
-          <div className="mt-8 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
-            <h2 className="text-lg font-semibold text-gray-900">{t('matchmakingPage.title')}</h2>
-            <p className="mt-2 text-gray-700">{t('matchmakingPage.authGate.message')}</p>
-            {loading && <p className="mt-1 text-sm text-gray-500">{t('common.loading')}</p>}
+          <div className="mt-6 rounded-[26px] border border-white/10 bg-white/5 p-6 md:p-7">
+            <h2 className="text-lg font-semibold text-white">{t('matchmakingPage.title')}</h2>
+            <p className="mt-2 text-white/80">{t('matchmakingPage.authGate.message')}</p>
+            {loading && <p className="mt-1 text-sm text-white/60">{t('common.loading')}</p>}
             <div className="mt-5 flex flex-col gap-3 sm:flex-row">
               <Link
-                className="inline-flex items-center justify-center rounded-xl bg-gray-900 px-5 py-3 text-sm font-semibold text-white hover:bg-gray-800"
+                className="inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-amber-300 to-amber-500 text-slate-950 px-6 py-3 font-semibold text-sm shadow-[0_16px_40px_rgba(245,158,11,0.35)] hover:brightness-110 transition"
                 to="/login"
                 state={{ from: location.pathname, fromState: null }}
               >
                 {t('matchmakingPage.authGate.login')}
               </Link>
               <Link
-                className="inline-flex items-center justify-center rounded-xl border border-gray-300 bg-white px-5 py-3 text-sm font-semibold text-gray-900 hover:bg-gray-50"
+                className="inline-flex items-center justify-center rounded-full bg-white/10 border border-white/10 text-white px-6 py-3 font-semibold text-sm hover:bg-white/[0.14] transition"
                 to="/login?mode=signup"
                 state={{
                   from: location.pathname,
@@ -931,10 +967,19 @@ export default function MatchmakingApply() {
                 {t('matchmakingPage.authGate.signup')}
               </Link>
             </div>
-            <p className="mt-4 text-sm text-gray-500">{t('matchmakingPage.authGate.note')}</p>
+            <p className="mt-4 text-sm text-white/60">{t('matchmakingPage.authGate.note')}</p>
           </div>
         ) : (
-          <form onSubmit={onSubmit} className="mt-8 space-y-6">
+          <div className="mt-6 rounded-[28px] border border-slate-200/80 bg-slate-100 text-slate-900 shadow-[0_30px_90px_rgba(0,0,0,0.35)] p-5 md:p-6">
+          <form
+            onSubmit={onSubmit}
+            className="relative overflow-hidden space-y-6 rounded-2xl bg-slate-50 p-4 md:p-6 border border-slate-200/80 shadow-[0_20px_60px_rgba(15,23,42,0.10)] [&_input]:bg-white [&_select]:bg-white [&_textarea]:bg-white [&_input]:shadow-sm [&_select]:shadow-sm [&_textarea]:shadow-sm [&_input:focus-visible]:outline-none [&_select:focus-visible]:outline-none [&_textarea:focus-visible]:outline-none [&_input:focus-visible]:ring-2 [&_select:focus-visible]:ring-2 [&_textarea:focus-visible]:ring-2 [&_input:focus-visible]:ring-amber-300/60 [&_select:focus-visible]:ring-amber-300/60 [&_textarea:focus-visible]:ring-amber-300/60 [&_input:focus-visible]:border-amber-300 [&_select:focus-visible]:border-amber-300 [&_textarea:focus-visible]:border-amber-300"
+          >
+          <div aria-hidden="true" className="pointer-events-none absolute inset-0">
+            <div className="absolute -top-24 -right-20 w-72 h-72 bg-[radial-gradient(circle_at_center,rgba(245,158,11,0.18),rgba(245,158,11,0)_62%)]" />
+            <div className="absolute -bottom-24 -left-20 w-80 h-80 bg-[radial-gradient(circle_at_center,rgba(99,102,241,0.14),rgba(99,102,241,0)_60%)]" />
+          </div>
+          <div className="relative">
           <div className="sr-only" aria-hidden="true">
             <label>
               Company
@@ -1189,26 +1234,38 @@ export default function MatchmakingApply() {
 
               <div className="md:col-span-2">
                 <label className="block text-sm text-slate-700">{t('matchmakingPage.form.labels.foreignLanguages')}</label>
+                <p className="mt-1 text-xs text-slate-600">{t('matchmakingPage.form.hints.multiSelect')}</p>
                 <div className="mt-2 grid grid-cols-2 md:grid-cols-4 gap-2">
-                  <label className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm">
+                  <label className="block">
                     <input
                       type="checkbox"
+                      className="peer sr-only"
                       checked={Array.isArray(form.foreignLanguages) ? form.foreignLanguages.includes('none') : false}
                       onChange={toggleForeignLanguage('none')}
                     />
-                    <span className="text-slate-800">{t('matchmakingPage.form.options.foreignLanguages.none')}</span>
+                    <div className="relative flex items-center rounded-xl border border-slate-200 bg-white pl-10 pr-3 py-2 text-sm font-semibold text-slate-800 shadow-sm transition hover:border-slate-300 peer-checked:border-amber-200 peer-checked:bg-gradient-to-r peer-checked:from-amber-300 peer-checked:to-amber-500 peer-checked:text-slate-950">
+                      <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 inline-flex h-4 w-4 items-center justify-center rounded border border-slate-400 bg-white/80">
+                        <span className="text-[11px] leading-none opacity-0 transition peer-checked:opacity-100">✓</span>
+                      </span>
+                      <span className="truncate">{t('matchmakingPage.form.options.foreignLanguages.none')}</span>
+                    </div>
                   </label>
                   {communicationLanguageOptions
                     .filter((opt) => opt.id !== form.nativeLanguage)
                     .map((opt) => (
-                      <label key={opt.id} className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm">
+                      <label key={opt.id} className="block">
                         <input
                           type="checkbox"
+                          className="peer sr-only"
                           checked={Array.isArray(form.foreignLanguages) ? form.foreignLanguages.includes(opt.id) : false}
                           onChange={toggleForeignLanguage(opt.id)}
-                          disabled={Array.isArray(form.foreignLanguages) ? form.foreignLanguages.includes('none') : false}
                         />
-                        <span className="text-slate-800">{opt.label}</span>
+                        <div className="relative flex items-center rounded-xl border border-slate-200 bg-white pl-10 pr-3 py-2 text-sm font-semibold text-slate-800 shadow-sm transition hover:border-slate-300 peer-checked:border-amber-200 peer-checked:bg-gradient-to-r peer-checked:from-amber-300 peer-checked:to-amber-500 peer-checked:text-slate-950">
+                          <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 inline-flex h-4 w-4 items-center justify-center rounded border border-slate-400 bg-white/80">
+                            <span className="text-[11px] leading-none opacity-0 transition peer-checked:opacity-100">✓</span>
+                          </span>
+                          <span className="truncate">{opt.label}</span>
+                        </div>
                       </label>
                     ))}
                 </div>
@@ -1442,7 +1499,7 @@ export default function MatchmakingApply() {
                   />
                   <label
                     htmlFor="matchmaking-photo1"
-                    className="inline-flex cursor-pointer items-center rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 hover:bg-slate-50"
+                    className="inline-flex cursor-pointer items-center rounded-full border border-slate-900 bg-slate-900 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-slate-800 hover:border-slate-800 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/60"
                   >
                     {t('matchmakingPage.form.photo.choose')}
                   </label>
@@ -1463,7 +1520,7 @@ export default function MatchmakingApply() {
                   />
                   <label
                     htmlFor="matchmaking-photo2"
-                    className="inline-flex cursor-pointer items-center rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 hover:bg-slate-50"
+                    className="inline-flex cursor-pointer items-center rounded-full border border-slate-900 bg-slate-900 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-slate-800 hover:border-slate-800 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/60"
                   >
                     {t('matchmakingPage.form.photo.choose')}
                   </label>
@@ -1484,7 +1541,7 @@ export default function MatchmakingApply() {
                   />
                   <label
                     htmlFor="matchmaking-photo3"
-                    className="inline-flex cursor-pointer items-center rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 hover:bg-slate-50"
+                    className="inline-flex cursor-pointer items-center rounded-full border border-slate-900 bg-slate-900 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-slate-800 hover:border-slate-800 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/60"
                   >
                     {t('matchmakingPage.form.photo.choose')}
                   </label>
@@ -1829,14 +1886,16 @@ export default function MatchmakingApply() {
           <button
             type="submit"
             disabled={submitting}
-            className="w-full rounded-xl bg-rose-600 text-white font-semibold py-3 hover:bg-rose-700 transition disabled:opacity-60 active:scale-[0.99] active:bg-rose-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-400 focus-visible:ring-offset-2"
+            className="w-full rounded-full bg-gradient-to-r from-amber-300 to-amber-500 text-slate-950 font-semibold py-3 shadow-[0_16px_40px_rgba(245,158,11,0.25)] hover:brightness-110 transition disabled:opacity-60 active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/60 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
             aria-busy={submitting ? 'true' : 'false'}
           >
             {submitting ? t('matchmakingPage.form.submitting') : t('matchmakingPage.form.submit')}
           </button>
 
           <p className="text-xs text-slate-500">{t('matchmakingPage.bottomNote')}</p>
+          </div>
           </form>
+          </div>
         )}
       </main>
 

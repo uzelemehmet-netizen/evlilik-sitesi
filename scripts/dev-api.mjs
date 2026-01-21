@@ -2,6 +2,7 @@ import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import net from 'node:net';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -90,7 +91,8 @@ console.log(
   cloudinaryEnvKeys.map((k) => ({ key: JSON.stringify(k), hasValue: hasEnv(k), len: safeLen(k) }))
 );
 
-const port = Number(process.env.PORT || 3000);
+const preferredPort = Number(process.env.PORT || 3000);
+const portFilePath = path.join(projectRoot, '.tmp-dev-api-port');
 const apiHandlerModulePath = path.join(projectRoot, 'api', '[...route].js');
 const { default: apiHandler } = await import(pathToFileURL(apiHandlerModulePath).href);
 
@@ -127,7 +129,79 @@ const server = http.createServer(async (req, res) => {
   }
 });
 
-server.listen(port, () => {
-  // eslint-disable-next-line no-console
-  console.log(`[dev-api] API server listening on http://localhost:${port}`);
-});
+function isPortFree(port) {
+  return new Promise((resolve) => {
+    const probe = net.createServer();
+    probe.once('error', () => resolve(false));
+    probe.once('listening', () => {
+      probe.close(() => resolve(true));
+    });
+    probe.listen(port, '127.0.0.1');
+  });
+}
+
+async function pickPort(startPort, maxAttempts = 20) {
+  const start = Number(startPort);
+  for (let i = 0; i < maxAttempts; i += 1) {
+    const candidate = start + i;
+    // eslint-disable-next-line no-await-in-loop
+    if (await isPortFree(candidate)) return candidate;
+  }
+  return start;
+}
+
+function writePortFile(port) {
+  try {
+    fs.writeFileSync(portFilePath, String(port), 'utf8');
+  } catch {
+    // ignore
+  }
+}
+
+function safeUnlinkPortFile() {
+  try {
+    fs.unlinkSync(portFilePath);
+  } catch {
+    // ignore
+  }
+}
+
+safeUnlinkPortFile();
+
+async function listenWithFallback(startPort, maxAttempts = 20) {
+  // Önce hızlı bir tahmin yapalım (127.0.0.1 probe). Yine de listen sırasında
+  // EADDRINUSE çıkabilir (IPv6/dual-stack). Bu yüzden error handler ile retry yapıyoruz.
+  let port = await pickPort(startPort, maxAttempts);
+  let attemptsLeft = Math.max(1, maxAttempts);
+
+  return await new Promise((resolve, reject) => {
+    const tryListen = (p) => {
+      server.removeAllListeners('error');
+      server.once('error', (err) => {
+        const code = String(err?.code || '');
+        if (code === 'EADDRINUSE' && attemptsLeft > 0) {
+          attemptsLeft -= 1;
+          const next = p + 1;
+          // eslint-disable-next-line no-console
+          console.log(`[dev-api] Port ${p} dolu. ${next} deneniyor…`);
+          setTimeout(() => tryListen(next), 50);
+          return;
+        }
+        reject(err);
+      });
+
+      server.listen(p, () => resolve(p));
+    };
+
+    if (port !== startPort) {
+      // eslint-disable-next-line no-console
+      console.log(`[dev-api] Port ${startPort} dolu olabilir. ${port} deneniyor…`);
+    }
+    tryListen(port);
+  });
+}
+
+const port = await listenWithFallback(preferredPort, 30);
+writePortFile(port);
+// eslint-disable-next-line no-console
+console.log(`[dev-api] API server listening on http://localhost:${port}`);

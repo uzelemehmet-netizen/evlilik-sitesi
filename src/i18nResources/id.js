@@ -41,7 +41,7 @@ const overrides = {
     explore: "Jelajahi",
     wedding: "Panduan Pernikahan",
     matchmaking: "Uniqah",
-    panel: "Panel saya",
+    panel: "Profil saya",
     documents: "Dokumen",
     youtube: "YouTube",
     contact: "Kontak",
@@ -244,7 +244,7 @@ const overrides = {
       "Sistem pencocokan tertutup yang mempertemukan orang-orang yang serius ingin menikah—dengan syarat yang adil dan aman. Profil tidak publik; sistem menampilkan kandidat paling cocok di panel Anda dan membantu Anda menemukan pasangan yang tepat lebih cepat.",
     actions: {
       apply: "Ajukan pencocokan",
-      goPanel: "Panel saya",
+      goPanel: "Profil saya",
       backWedding: "Kembali ke halaman pernikahan",
       supportWhatsApp: "Dukungan WhatsApp",
     },
@@ -632,7 +632,7 @@ const overrides = {
     title: "Masuk / Daftar",
     context: {
       payment: "Silakan masuk untuk melanjutkan ke pembayaran.",
-      panel: "Silakan masuk untuk melanjutkan ke panel Anda.",
+      panel: "Silakan masuk untuk melanjutkan ke profil Anda.",
       generic: "Silakan masuk untuk melanjutkan.",
     },
     forceInfo:
@@ -640,11 +640,106 @@ const overrides = {
     googleCta: "Lanjut dengan Google",
     redirecting: "Mengarahkan ke masuk Google…",
     or: "atau",
+    labels: {
+      email: 'Email',
+      password: 'Kata sandi',
+      gender: 'Jenis kelamin',
+      nationality: 'Kewarganegaraan',
+      nationalityOther: 'Kewarganegaraan lain (tulis)',
+    },
+    placeholders: {
+      email: 'contoh@email.com',
+      password: 'Kata sandi Anda',
+      nationality: 'Pilih kewarganegaraan',
+      nationalityOther: 'contoh: Jerman',
+    },
+    actions: {
+      login: 'Masuk',
+      signup: 'Daftar',
+      switchToSignup: 'Belum punya akun? Daftar',
+      switchToLogin: 'Sudah punya akun? Masuk',
+      forgot: 'Lupa kata sandi',
+    },
+    signup: {
+      genderMale: 'Saya laki-laki',
+      genderFemale: 'Saya perempuan',
+      nationalityTr: 'Turki',
+      nationalityId: 'Indonesia',
+      nationalityOther: 'Lainnya',
+    },
+    forgotHint: {
+      prefix: 'Jika Anda lupa kata sandi, klik',
+      suffix: 'untuk menerima tautan reset melalui email.',
+    },
+    legal: {
+      prefix: 'Dengan melanjutkan, Anda menyetujui',
+      contract: 'Kontrak paket tur',
+      cancelRefund: 'Kebijakan pembatalan & refund',
+      privacy: 'Kebijakan Privasi',
+    },
+    resetSent: 'Tautan reset kata sandi telah dikirim ke email Anda.',
+    errors: {
+      googleFailed: 'Masuk dengan Google gagal.',
+      invalidCredential: 'Email atau kata sandi salah (atau akun tidak ditemukan). Jika Anda lupa kata sandi, gunakan “Lupa kata sandi”.',
+      invalidEmail: 'Alamat email tampak tidak valid. Silakan periksa dan coba lagi.',
+      emailAlreadyInUse: 'Akun dengan email ini sudah ada. Silakan masuk atau gunakan “Lupa kata sandi”.',
+      weakPassword: 'Kata sandi terlalu lemah. Silakan pilih kata sandi yang lebih kuat (mis. minimal 6 karakter).',
+      emailPasswordRequired: 'Email dan kata sandi wajib diisi.',
+      genderRequired: 'Pilih jenis kelamin untuk mendaftar.',
+      nationalityRequired: 'Pilih kewarganegaraan untuk mendaftar.',
+      nationalityOtherRequired: 'Tuliskan kewarganegaraan Anda.',
+      loginFailed: 'Gagal masuk.',
+      resetEmailRequired: 'Masukkan email untuk mereset kata sandi.',
+      resetFailed: 'Tidak dapat mengirim email reset kata sandi.',
+      emailNotVerified: 'Email belum diverifikasi. Silakan klik tautan verifikasi di inbox Anda.',
+      emailVerificationSent: 'Email verifikasi telah dikirim. Silakan cek inbox Anda.',
+      emailVerificationSend: 'Kirim ulang email verifikasi',
+      emailVerificationFailed: 'Email verifikasi gagal dikirim. Silakan coba lagi.',
+    },
   },
 
   matchmakingPanel: {
-    title: 'Panel Saya',
+    title: 'Profil Saya',
     subtitle: 'Langkah pencocokan, keanggotaan, dan kontak Anda akan tampil di sini.',
+    tabs: {
+      info: 'Info',
+      matches: 'Kecocokan saya',
+    },
+    photos: {
+      title: 'Foto saya',
+      lead: 'Foto yang Anda unggah saat mengisi formulir.',
+      empty: 'Belum ada foto yang diunggah.',
+    },
+    trust: {
+      title: 'Kenapa kami meminta Anda mengisi formulir?',
+      lead:
+        'Ini bukan sekadar melihat-lihat secara acak. Ini adalah sistem pencocokan tertutup yang bekerja berdasarkan informasi Anda. Mengisi formulir sekali membantu kami memilih kandidat yang cocok dengan lebih akurat dan menjalankan proses dengan aman. Profil Anda tidak ditampilkan secara publik.',
+      cards: {
+        quality: {
+          title: 'Pencocokan lebih tepat',
+          body: 'Detail utama seperti usia, lokasi, dan harapan membantu kami menemukan kandidat yang sesuai lebih cepat.',
+        },
+        privacy: {
+          title: 'Privasi diutamakan',
+          body: 'Profil Anda tidak bersifat publik. Kandidat muncul di panel Anda secara terkontrol; kontak tidak dibagikan tanpa persetujuan kedua pihak.',
+        },
+        control: {
+          title: 'Anda tetap memegang kendali',
+          body: 'Anda melanjutkan proses dengan terima/tolak di panel. Jika perlu perubahan, Anda bisa memperbarui lewat WhatsApp.',
+        },
+      },
+      rulesTitle: 'Aturan sistem (singkat)',
+      rules: [
+        'Sistem ini dirancang hanya untuk orang yang berniat menikah.',
+        'Niat untuk flirting, hiburan, mengisi waktu luang, atau hubungan di luar tujuan pernikahan sama sekali tidak diperbolehkan.',
+        'Saling menghormati sangat penting di situs ini; kata-kata kasar, bahasa gaul yang menghina, dan ujaran merendahkan dilarang.',
+        'Perilaku tidak bermoral tidak akan ditoleransi.',
+        'Penipuan, upaya mengelabui, jebakan uang digital/kripto, atau upaya mencari keuntungan serupa dilarang.',
+        'Pelecehan seksual sama sekali dilarang.',
+        'Pelanggar aturan akan diblokir segera setelah pelanggaran terdeteksi; jika ada keanggotaan aktif akan dibatalkan dan tidak ada pengembalian dana.',
+        'Siapa pun yang membuat akun dianggap telah membaca dan menyetujui aturan ini.',
+      ],
+    },
     actions: {
       logout: 'Keluar',
       whatsapp: 'Chat via WhatsApp',
@@ -1062,7 +1157,7 @@ export default {
       'Sistem pencocokan tertutup yang mempertemukan orang-orang yang serius ingin menikah—dengan syarat yang adil dan aman. Profil tidak publik; sistem menampilkan kandidat paling cocok di panel Anda dan membantu Anda menemukan pasangan yang tepat lebih cepat.',
     actions: {
       apply: 'Ajukan pencocokan',
-      goPanel: 'Panel saya',
+      goPanel: 'Profil saya',
       backWedding: 'Kembali ke halaman pernikahan',
       supportWhatsApp: 'Dukungan WhatsApp',
     },
@@ -2931,6 +3026,7 @@ export default {
           hints: {
             partnerAgeComputed: 'Perkiraan rentang: {{min}}–{{max}}',
             partnerAgeNeedsYourAge: 'Catatan: Masukkan usia Anda untuk menghitung rentang.',
+            multiSelect: 'Anda dapat memilih lebih dari satu opsi.',
             foreignLanguages:
               'Catatan: Setelah memilih bahasa ibu, bahasa itu tidak akan muncul di daftar bawah. Jika Anda tidak bisa bahasa asing, pilih “Saya tidak bisa bahasa asing”.',
           },
@@ -3131,7 +3227,7 @@ export default {
     title: 'Masuk / Daftar',
     context: {
       payment: 'Silakan masuk untuk melanjutkan ke pembayaran.',
-      panel: 'Silakan masuk untuk melanjutkan ke panel Anda.',
+      panel: 'Silakan masuk untuk melanjutkan ke profil Anda.',
       generic: 'Silakan masuk untuk melanjutkan.',
     },
     forceInfo: 'Untuk aksi ini diminta masuk ulang. Silakan masuk kembali.',
@@ -3178,6 +3274,10 @@ export default {
     resetSent: 'Tautan reset kata sandi telah dikirim ke email Anda.',
     errors: {
       googleFailed: 'Masuk dengan Google gagal.',
+      invalidCredential: 'Email atau kata sandi salah (atau akun tidak ditemukan). Jika Anda lupa kata sandi, gunakan “Lupa kata sandi”.',
+      invalidEmail: 'Alamat email tampak tidak valid. Silakan periksa dan coba lagi.',
+      emailAlreadyInUse: 'Akun dengan email ini sudah ada. Silakan masuk atau gunakan “Lupa kata sandi”.',
+      weakPassword: 'Kata sandi terlalu lemah. Silakan pilih kata sandi yang lebih kuat (mis. minimal 6 karakter).',
       emailPasswordRequired: 'Email dan kata sandi wajib diisi.',
       genderRequired: 'Pilih jenis kelamin untuk mendaftar.',
       nationalityRequired: 'Pilih kewarganegaraan untuk mendaftar.',
@@ -3193,8 +3293,34 @@ export default {
   },
 
   matchmakingPanel: {
-    title: 'Panel Saya',
+    title: 'Profil Saya',
     subtitle: 'Langkah pencocokan, keanggotaan, dan kontak Anda akan tampil di sini.',
+    trust: {
+      title: 'Kenapa kami meminta Anda mengisi formulir?',
+      lead:
+        'Ini bukan sekadar melihat-lihat secara acak. Ini adalah sistem pencocokan tertutup yang bekerja berdasarkan informasi Anda. Mengisi formulir sekali membantu kami memilih kandidat yang cocok dengan lebih akurat dan menjalankan proses dengan aman. Profil Anda tidak ditampilkan secara publik.',
+      cards: {
+        quality: {
+          title: 'Pencocokan lebih tepat',
+          body: 'Detail utama seperti usia, lokasi, dan harapan membantu kami menemukan kandidat yang sesuai lebih cepat.',
+        },
+        privacy: {
+          title: 'Privasi diutamakan',
+          body: 'Profil Anda tidak bersifat publik. Kandidat muncul di panel Anda secara terkontrol; kontak tidak dibagikan tanpa persetujuan kedua pihak.',
+        },
+        control: {
+          title: 'Anda tetap memegang kendali',
+          body: 'Anda melanjutkan proses dengan terima/tolak di panel. Jika perlu perubahan, Anda bisa memperbarui lewat WhatsApp.',
+        },
+      },
+      rulesTitle: 'Aturan sistem (singkat)',
+      rules: [
+        'Berikan informasi yang benar dan terbaru; jangan memberikan data yang menyesatkan.',
+        'Gunakan bahasa yang sopan; pelecehan dan pesan yang memaksa tidak diperbolehkan.',
+        'Hormati privasi: jangan membagikan tangkapan layar atau data pribadi.',
+        'Detail kontak hanya dibagikan dengan persetujuan kedua pihak dan sesuai aturan.',
+      ],
+    },
     actions: {
       logout: 'Keluar',
       whatsapp: 'Chat via WhatsApp',

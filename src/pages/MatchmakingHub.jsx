@@ -91,7 +91,7 @@ export default function MatchmakingHub() {
                       <Link
                         to="/login"
                         state={{
-                          from: '/panel',
+                          from: '/profilim',
                           fromState: {
                             showMatchmakingIntro: true,
                             matchmakingNext: '/evlilik/eslestirme-basvuru',
@@ -107,7 +107,7 @@ export default function MatchmakingHub() {
 
                     {user && (
                       <Link
-                        to="/panel"
+                        to="/profilim"
                         className="inline-flex items-center justify-center gap-2 rounded-full bg-white/10 border border-white/10 text-white px-6 py-3 font-semibold text-sm hover:bg-white/[0.14] transition"
                       >
                         <UserCheck size={18} />

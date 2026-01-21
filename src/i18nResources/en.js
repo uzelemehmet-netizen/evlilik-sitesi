@@ -12,7 +12,7 @@ export default {
     explore: "Explore",
     wedding: "Wedding Guidance",
     matchmaking: "Uniqah",
-    panel: "My panel",
+    panel: "My profile",
     documents: "Documents",
     youtube: "YouTube",
     contact: "Contact",
@@ -26,7 +26,7 @@ export default {
       'A closed matchmaking system that brings together people who are serious about marriage—on equal and safe terms. Profiles are not public; the system shows the most compatible candidates in your panel and helps you find the right person faster.',
     actions: {
       apply: 'Apply for matchmaking',
-      goPanel: 'My panel',
+      goPanel: 'My profile',
       backWedding: 'Back to wedding page',
       supportWhatsApp: 'WhatsApp support',
     },
@@ -1922,6 +1922,7 @@ export default {
           hints: {
             partnerAgeComputed: 'Approx. range: {{min}}–{{max}}',
             partnerAgeNeedsYourAge: 'Note: Enter your age to compute the range.',
+            multiSelect: 'You can select multiple options.',
             foreignLanguages:
               "Note: After selecting your native language, it will not appear below. If you don't speak any, select “I don't speak a foreign language”.",
           },
@@ -2123,7 +2124,7 @@ export default {
     title: 'Sign in / Sign up',
     context: {
       payment: 'Please sign in to continue to payment.',
-      panel: 'Please sign in to continue to your panel.',
+      panel: 'Please sign in to continue to your profile.',
       generic: 'Please sign in to continue.',
     },
     forceInfo: 'A fresh sign-in was requested for this action. Please sign in again.',
@@ -2170,6 +2171,10 @@ export default {
     resetSent: 'A password reset link has been sent to your email.',
     errors: {
       googleFailed: 'Google sign-in failed.',
+      invalidCredential: 'Invalid email or password (or the account was not found). If you forgot your password, use “Forgot password”.',
+      invalidEmail: 'That email address looks invalid. Please check it and try again.',
+      emailAlreadyInUse: 'An account already exists with this email. Please sign in or use “Forgot password”.',
+      weakPassword: 'Password is too weak. Please choose a stronger password (e.g., at least 6 characters).',
       emailPasswordRequired: 'Email and password are required.',
       genderRequired: 'Please select your gender to sign up.',
       nationalityRequired: 'Please select your nationality to sign up.',
@@ -2185,8 +2190,47 @@ export default {
   },
 
   matchmakingPanel: {
-    title: 'My Panel',
+    title: 'My Profile',
     subtitle: 'Your matchmaking, membership and contact steps will appear here.',
+    tabs: {
+      info: 'Info',
+      matches: 'My matches',
+    },
+    photos: {
+      title: 'My photos',
+      lead: 'Photos you uploaded while filling the form.',
+      empty: 'No photos uploaded yet.',
+    },
+    trust: {
+      title: 'Why do we ask you to fill the form?',
+      lead:
+        'This is not random browsing. It’s a closed matching system that works with your information. Filling the form once helps us select suitable candidates more accurately and run the process safely. Your profile is not publicly listed.',
+      cards: {
+        quality: {
+          title: 'Better matches',
+          body: 'Core details like age, location and expectations help us find a suitable candidate faster.',
+        },
+        privacy: {
+          title: 'Privacy-first flow',
+          body: 'Your profile is not public. Candidates appear in your panel in a controlled way; contact is not shared without mutual approval.',
+        },
+        control: {
+          title: 'You stay in control',
+          body: 'You move forward with accept/reject in your panel. If you need changes, you can update via WhatsApp.',
+        },
+      },
+      rulesTitle: 'System rules (quick)',
+      rules: [
+        'This system is designed only for people whose intention is marriage.',
+        'Flirting, entertainment, killing time, or relationships outside the purpose of marriage are strictly not allowed.',
+        'Mutual respect is essential on this site; swearing, slang, and insulting language are prohibited.',
+        'Immoral behavior is never tolerated.',
+        'Fraud, deception, digital money traps, or similar profit-seeking attempts are prohibited.',
+        'Sexual abuse is strictly prohibited.',
+        'Users who violate the rules will be blocked as soon as violations are detected; any active membership will be cancelled and no refunds will be issued.',
+        'Anyone who creates an account is deemed to have read and accepted these rules.',
+      ],
+    },
     actions: {
       logout: 'Sign out',
       whatsapp: 'Message on WhatsApp',

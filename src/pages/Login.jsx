@@ -12,7 +12,7 @@ import {
   signInWithPopup,
   signInWithRedirect,
 } from "firebase/auth";
-import { doc, getDoc, serverTimestamp, setDoc } from "firebase/firestore";
+import { collection, doc, getDoc, getDocs, limit, query, serverTimestamp, setDoc, where } from "firebase/firestore";
 import Navigation from "../components/Navigation";
 import Footer from "../components/Footer";
 import { auth, db } from "../config/firebase";
@@ -29,7 +29,7 @@ export default function Login() {
   const redirectTarget = useMemo(() => {
     const state = location.state || {};
     return {
-      from: state.from || "/panel",
+      from: state.from || "/profilim",
       fromState: state.fromState || null,
     };
   }, [location.state]);
@@ -44,6 +44,27 @@ export default function Login() {
   const [error, setError] = useState("");
   const [info, setInfo] = useState("");
   const [forceLogin, setForceLogin] = useState(false);
+
+  const isMatchmakingApplyPath = (p) => {
+    const path = String(p || '').trim();
+    return (
+      path === '/wedding/apply' ||
+      path === '/evlilik/eslestirme-basvuru' ||
+      path === '/evlilik/eslestirme-basvurusu'
+    );
+  };
+
+  const hasExistingApplication = async (uid) => {
+    if (!uid) return false;
+    try {
+      const q = query(collection(db, 'matchmakingApplications'), where('userId', '==', uid), limit(1));
+      const snap = await getDocs(q);
+      return !snap.empty;
+    } catch (e) {
+      // Hata olursa kullanıcıyı bloklamayalım; varsayılan akış devam etsin.
+      return false;
+    }
+  };
 
 
   const readStoredRedirect = () => {
@@ -95,9 +116,19 @@ export default function Login() {
   const resolvePostAuthTarget = (isNewUser) => {
     const forced = readForcedTarget();
     if (forced) return forced;
-    if (isNewUser) return '/evlilik/eslestirme-basvuru';
     const stored = readStoredRedirect();
-    return stored?.from || redirectTarget.from || '/panel';
+    const candidate = stored?.from || redirectTarget.from || '';
+
+    // Ödeme / rezervasyon gibi akışlarda, kullanıcının kaldığı yerden devam etmesi daha doğru.
+    if (candidate === '/payment' || candidate.startsWith('/payment/')) return candidate;
+    if (candidate === '/rezervasyonlar' || candidate.startsWith('/rezervasyonlar/')) return candidate;
+
+    // Kullanıcı "başvuru" sayfasına gitmek istediyse onu koru.
+    if (isMatchmakingApplyPath(candidate)) return candidate;
+
+    // Mevcut kullanıcıyı (ve yeni kullanıcıyı) her zaman profil sayfasına götür.
+    // Böylece Google login sonrası anasayfaya dönüp "form yükleniyor" gibi geçişler yaşanmaz.
+    return '/profilim';
   };
 
   const resolvePostAuthState = () => {
@@ -108,9 +139,21 @@ export default function Login() {
   const navigateNext = (target, state) => {
     if (hasNavigatedRef.current) return;
     hasNavigatedRef.current = true;
-    const finalTarget = target || redirectTarget.from || '/panel';
+    const finalTarget = target || redirectTarget.from || '/profilim';
     const finalState = typeof state === 'undefined' ? redirectTarget.fromState : state;
     navigate(finalTarget, { replace: true, state: finalState });
+  };
+
+  const navigateNextWithApplyGuard = async (uid, target, state) => {
+    let next = target;
+    if (isMatchmakingApplyPath(next)) {
+      const exists = await hasExistingApplication(uid);
+      if (exists) {
+        next = '/profilim';
+        state = null;
+      }
+    }
+    navigateNext(next, state);
   };
   const resolveAuthLanguage = (lang) => {
     const key = String(lang || '').toLowerCase();
@@ -147,13 +190,13 @@ export default function Login() {
   };
 
   const contextMessage = useMemo(() => {
-    const from = redirectTarget.from || "/panel";
+    const from = redirectTarget.from || "/profilim";
 
     if (from === "/payment") {
       return t("authPage.context.payment");
     }
 
-    if (from === "/panel") {
+    if (from === "/profilim") {
       return t("authPage.context.panel");
     }
 
@@ -203,7 +246,7 @@ export default function Login() {
           const state = isNewUser ? null : resolvePostAuthState();
           clearStoredRedirect();
           writeForcedTarget('');
-          navigateNext(target, state);
+          await navigateNextWithApplyGuard(result?.user?.uid, target, state);
         }
       } catch (e) {
         // ignore redirect result errors
@@ -223,11 +266,13 @@ export default function Login() {
   useEffect(() => {
     if (hasNavigatedRef.current) return;
     if (user) {
-      const target = resolvePostAuthTarget(false);
-      const state = resolvePostAuthState();
-      clearStoredRedirect();
-      writeForcedTarget('');
-      navigateNext(target, state);
+      (async () => {
+        const target = resolvePostAuthTarget(false);
+        const state = resolvePostAuthState();
+        clearStoredRedirect();
+        writeForcedTarget('');
+        await navigateNextWithApplyGuard(user?.uid, target, state);
+      })();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
@@ -239,12 +284,14 @@ export default function Login() {
     // Eğer daha önce signup akışında hedef zorlandıysa (auth_force_target),
     // burada tek sefer kullanıp hemen temizlemeliyiz; aksi halde kullanıcı
     // sonraki girişlerde de sürekli forma itilir.
-    const forced = readForcedTarget();
-    const target = forced || resolvePostAuthTarget(false);
-    const state = resolvePostAuthState();
-    clearStoredRedirect();
-    writeForcedTarget('');
-    navigateNext(target, state);
+    (async () => {
+      const forced = readForcedTarget();
+      const target = forced || resolvePostAuthTarget(false);
+      const state = resolvePostAuthState();
+      clearStoredRedirect();
+      writeForcedTarget('');
+      await navigateNextWithApplyGuard(current?.uid, target, state);
+    })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [redirectTarget.from, redirectTarget.fromState]);
 
@@ -288,7 +335,7 @@ export default function Login() {
         return;
       }
       // Yeni kullanıcı signup akışında form sayfasını zorla; normal login'de mevcut hedefi bozma.
-      writeForcedTarget(mode === 'signup' ? '/evlilik/eslestirme-basvuru' : '');
+      writeForcedTarget(mode === 'signup' ? '/profilim' : '');
       const provider = new GoogleAuthProvider();
       const result = await signInWithPopup(auth, provider);
       const info2 = getAdditionalUserInfo(result);
@@ -299,9 +346,14 @@ export default function Login() {
       const state = info2?.isNewUser ? null : resolvePostAuthState();
       clearStoredRedirect();
       writeForcedTarget('');
-      navigateNext(target, state);
+      await navigateNextWithApplyGuard(result?.user?.uid, target, state);
     } catch (e) {
       const code = String(e?.code || "").trim();
+
+      if (code === 'auth/invalid-credential' || code === 'auth/wrong-password' || code === 'auth/user-not-found') {
+        setError(t('authPage.errors.invalidCredential'));
+        return;
+      }
 
       // Popup engellenirse veya argument-error olursa redirect ile devam et.
       if (code === 'auth/popup-blocked' || code === 'auth/popup-closed-by-user' || code === 'auth/cancelled-popup-request' || code === 'auth/argument-error') {
@@ -309,7 +361,7 @@ export default function Login() {
           const provider = new GoogleAuthProvider();
           setInfo(t('authPage.redirecting') || 'Yönlendiriliyor…');
           // Popup fallback: sadece signup akışında form hedefini zorla.
-          writeForcedTarget(mode === 'signup' ? '/evlilik/eslestirme-basvuru' : '');
+          writeForcedTarget(mode === 'signup' ? '/profilim' : '');
           await signInWithRedirect(auth, provider);
           return;
         } catch (e2) {
@@ -374,7 +426,7 @@ export default function Login() {
       if (mode === "signup") {
         // Yeni kullanıcı kaydı sonrası her zaman form sayfasına yönlendir.
         // (Kullanıcı login'e hangi sayfadan gelmiş olursa olsun.)
-        writeForcedTarget('/evlilik/eslestirme-basvuru');
+        writeForcedTarget('/profilim');
         const cred = await createUserWithEmailAndPassword(auth, email, password);
         await ensureProfileSaved(cred?.user?.uid, signupGender, signupNationality, signupNationalityOther);
       } else {
@@ -383,7 +435,29 @@ export default function Login() {
       // Navigasyonu burada yapmıyoruz; auth state değişince üstteki effect tek sefer yönlendirecek.
       return;
     } catch (e2) {
-      setError(e2?.message || t("authPage.errors.loginFailed"));
+      const code = String(e2?.code || '').trim();
+
+      if (code === 'auth/invalid-credential' || code === 'auth/wrong-password' || code === 'auth/user-not-found') {
+        setError(t('authPage.errors.invalidCredential'));
+        return;
+      }
+
+      if (code === 'auth/email-already-in-use') {
+        setError(t('authPage.errors.emailAlreadyInUse'));
+        return;
+      }
+
+      if (code === 'auth/weak-password') {
+        setError(t('authPage.errors.weakPassword'));
+        return;
+      }
+
+      if (code === 'auth/invalid-email') {
+        setError(t('authPage.errors.invalidEmail'));
+        return;
+      }
+
+      setError(e2?.message || t('authPage.errors.loginFailed'));
     } finally {
       setBusy(false);
     }
