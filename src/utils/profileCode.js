@@ -22,14 +22,14 @@ export function formatProfileCode(input) {
     return s;
   };
 
-  const username = fromUsername(input);
-  if (username) return username;
+  const profileNo = typeof input.profileNo === 'number' && Number.isFinite(input.profileNo) ? input.profileNo : null;
+  if (profileNo !== null) return `MK-${profileNo}`;
 
   const code = fromString(input.profileCode);
   if (code) return code;
 
-  const profileNo = typeof input.profileNo === 'number' && Number.isFinite(input.profileNo) ? input.profileNo : null;
-  if (profileNo !== null) return `MK-${profileNo}`;
+  const username = fromUsername(input);
+  if (username) return username;
 
   // Support callers that pass raw values instead of objects
   const raw = fromString(input);

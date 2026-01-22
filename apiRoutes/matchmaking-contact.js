@@ -50,7 +50,7 @@ export default async function handler(req, res) {
     }
 
     const mode = typeof match?.interactionMode === 'string' ? match.interactionMode : '';
-    if (mode !== 'contact') {
+    if (mode !== 'contact' && mode !== 'offsite') {
       res.statusCode = 400;
       res.setHeader('content-type', 'application/json');
       res.end(JSON.stringify({ ok: false, error: 'not_confirmed' }));

@@ -93,6 +93,14 @@ service cloud.firestore {
       allow update, delete: if isAdmin();
     }
 
+    // Matchmaking Photo Update Requests (kullanıcı foto güncelleme istekleri)
+    // Not: İstek oluşturma + karar verme işlemleri server-side API ile yapılır.
+    // Admin panel sadece okur (client write kapalı).
+    match /matchmakingPhotoUpdateRequests/{requestId} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+
     // Counters (profil numarası sayaçları)
     // Not: Bu sayaçlar yalnızca server-side transaction ile güncellenmeli.
     match /counters/{id} {

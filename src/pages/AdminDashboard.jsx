@@ -12,6 +12,7 @@ import MatchmakingIdentityTab from '../components/admin/MatchmakingIdentityTab';
 import MatchmakingPaymentsTab from '../components/admin/MatchmakingPaymentsTab';
 import MatchmakingMatchesTab from '../components/admin/MatchmakingMatchesTab';
 import MatchmakingUserToolsTab from '../components/admin/MatchmakingUserToolsTab';
+import MatchmakingPhotoUpdatesTab from '../components/admin/MatchmakingPhotoUpdatesTab';
 import { isFeatureEnabled } from '../config/siteVariant';
 
 // Tüm ada ve destinasyonlar
@@ -138,6 +139,7 @@ export default function AdminDashboard() {
   const [matchmakingNewCount, setMatchmakingNewCount] = useState(0);
   const [identityPendingCount, setIdentityPendingCount] = useState(0);
   const [paymentsPendingCount, setPaymentsPendingCount] = useState(0);
+  const [photoUpdatesPendingCount, setPhotoUpdatesPendingCount] = useState(0);
   const [activeMatchesCount, setActiveMatchesCount] = useState(0);
   const matchmakingInitializedRef = useRef(false);
   const lastNotifiedAtRef = useRef(0);
@@ -349,6 +351,24 @@ export default function AdminDashboard() {
       (error) => {
         if (blockFirestoreIfNeeded(error)) return;
         console.error('Firestore identity pending count error:', error);
+      }
+    );
+
+    return () => unsub();
+  }, [firestoreBlocked, weddingOnly]);
+
+  useEffect(() => {
+    if (firestoreBlocked) return;
+    if (!weddingOnly) return;
+
+    const q = query(collection(db, 'matchmakingPhotoUpdateRequests'), where('status', '==', 'pending'), limit(200));
+
+    const unsub = onSnapshot(
+      q,
+      (snap) => setPhotoUpdatesPendingCount(snap.size),
+      (error) => {
+        if (blockFirestoreIfNeeded(error)) return;
+        console.error('Firestore photo updates pending count error:', error);
       }
     );
 
@@ -984,6 +1004,10 @@ export default function AdminDashboard() {
         return <MatchmakingPaymentsTab />;
       }
 
+      if (activeTab === 'photoUpdates') {
+        return <MatchmakingPhotoUpdatesTab />;
+      }
+
       if (activeTab === 'matches') {
         return <MatchmakingMatchesTab />;
       }
@@ -1566,6 +1590,22 @@ export default function AdminDashboard() {
                 {paymentsPendingCount > 0 && (
                   <span className="ml-2 inline-flex items-center justify-center min-w-6 h-6 px-2 rounded-full bg-rose-600 text-white text-xs">
                     {paymentsPendingCount}
+                  </span>
+                )}
+              </button>
+
+              <button
+                onClick={() => setActiveTab('photoUpdates')}
+                className={`px-6 py-3 font-semibold transition whitespace-nowrap ${
+                  activeTab === 'photoUpdates'
+                    ? 'text-indigo-600 border-b-2 border-indigo-600'
+                    : 'text-gray-600 hover:text-gray-800'
+                }`}
+              >
+                Fotoğraf İstekleri
+                {photoUpdatesPendingCount > 0 && (
+                  <span className="ml-2 inline-flex items-center justify-center min-w-6 h-6 px-2 rounded-full bg-rose-600 text-white text-xs">
+                    {photoUpdatesPendingCount}
                   </span>
                 )}
               </button>

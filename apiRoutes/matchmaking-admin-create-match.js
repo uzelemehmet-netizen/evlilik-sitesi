@@ -165,6 +165,7 @@ export default async function handler(req, res) {
     const matchId = `${userIdsSorted[0]}__${userIdsSorted[1]}`;
 
     const matchRef = db.collection('matchmakingMatches').doc(matchId);
+    const matchNoCounterRef = db.collection('counters').doc('matchmakingMatchNo');
 
     let skippedBecauseExists = false;
 
@@ -173,6 +174,31 @@ export default async function handler(req, res) {
       if (existing.exists && !overwrite) {
         skippedBecauseExists = true;
         return;
+      }
+
+      // Kısa eşleşme kodu (ES-<no>) - var olan dokümanda varsa koru.
+      const existingData = existing.exists ? (existing.data() || {}) : {};
+      let matchNo = typeof existingData?.matchNo === 'number' && Number.isFinite(existingData.matchNo) ? existingData.matchNo : null;
+      let matchCode = safeStr(existingData?.matchCode);
+
+      if (!matchCode) {
+        if (matchNo === null) {
+          const cSnap = await tx.get(matchNoCounterRef);
+          const cur = cSnap.exists ? (cSnap.data() || {}) : {};
+          const next = typeof cur.next === 'number' && Number.isFinite(cur.next) ? cur.next : 10000;
+          matchNo = next;
+          tx.set(
+            matchNoCounterRef,
+            {
+              next: matchNo + 1,
+              updatedAt: FieldValue.serverTimestamp(),
+              updatedBy: admin.uid,
+            },
+            { merge: true }
+          );
+        }
+
+        matchCode = matchNo !== null ? `ES-${matchNo}` : '';
       }
 
       const [aUserSnap, bUserSnap] = await Promise.all([
@@ -184,6 +210,8 @@ export default async function handler(req, res) {
       const bUserDoc = bUserSnap.exists ? (bUserSnap.data() || {}) : null;
 
       const baseDoc = {
+        matchNo,
+        matchCode,
         userIds: userIdsSorted,
         aUserId,
         bUserId,
@@ -226,8 +254,8 @@ export default async function handler(req, res) {
           tx.set(
             db.collection('matchmakingUsers').doc(uid),
             {
-              matchmakingLock: { active: false, matchId: '' },
-              matchmakingChoice: { active: false, matchId: '' },
+              matchmakingLock: { active: false, matchId: '', matchCode: '' },
+              matchmakingChoice: { active: false, matchId: '', matchCode: '' },
               updatedAt: FieldValue.serverTimestamp(),
             },
             { merge: true }
@@ -241,8 +269,8 @@ export default async function handler(req, res) {
           tx.set(
             db.collection('matchmakingUsers').doc(uid),
             {
-              matchmakingLock: { active: true, matchId },
-              matchmakingChoice: { active: true, matchId },
+              matchmakingLock: { active: true, matchId, matchCode },
+              matchmakingChoice: { active: true, matchId, matchCode },
               updatedAt: FieldValue.serverTimestamp(),
             },
             { merge: true }

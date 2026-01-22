@@ -876,8 +876,27 @@ export default function MatchmakingApply() {
         }
       }
 
+      // Kısa ve anlaşılır başvuru kodu: MK-<profileNo>
+      // Not: Upload başarısız olursa numara boşa gidebilir; kabul edilebilir (sayaç sadece artar).
+      let allocatedProfileNo = null;
+      if (!isEditOnceMode) {
+        try {
+          const allocated = await authFetch('/api/matchmaking-allocate-profile-no', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({}),
+          });
+          allocatedProfileNo = typeof allocated?.profileNo === 'number' && Number.isFinite(allocated.profileNo)
+            ? allocated.profileNo
+            : null;
+        } catch (e) {
+          console.warn('profileNo allocation failed (fallback to username/profileCode):', e);
+        }
+      }
+
       const payload = {
-        profileCode: String(form.username || '').trim(),
+        profileNo: allocatedProfileNo,
+        profileCode: allocatedProfileNo !== null ? `MK-${allocatedProfileNo}` : String(form.username || '').trim(),
         username: String(form.username || '').trim(),
         usernameLower: normalizedUsername,
         fullName: String(form.fullName || '').trim(),

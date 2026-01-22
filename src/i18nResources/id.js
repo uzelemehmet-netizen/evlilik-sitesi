@@ -345,6 +345,10 @@ const overrides = {
       'Catatan: Ini adalah pendaftaran berfokus pada pernikahan; profil tidak ditampilkan secara publik di situs.',
     form: {
       applicationIdLabel: 'ID Pengajuan',
+      editOnce: {
+        usernameLocked: 'Dalam mode edit, nama pengguna tidak dapat diubah (perbaikan satu kali).',
+        photosLocked: 'Dalam mode edit, pembaruan foto dinonaktifkan. Anda hanya dapat memperbaiki kolom formulir.',
+      },
       photo: {
         choose: 'Pilih file',
         noFileChosen: 'Belum ada file dipilih',
@@ -372,6 +376,7 @@ const overrides = {
         weight: 'Berat (kg)',
         occupation: 'Pekerjaan',
         education: 'Pendidikan',
+        educationDepartment: 'Jurusan / Program studi',
         maritalStatus: 'Status pernikahan',
         hasChildren: 'Apakah Anda punya anak?',
         childrenCount: 'Jika ya, berapa?',
@@ -427,6 +432,7 @@ const overrides = {
         instagram: 'contoh: @username',
         height: 'contoh: 165',
         weight: 'contoh: 55',
+        educationDepartment: 'contoh: Teknik Informatika',
         childrenCount: 'contoh: 1',
         nativeLanguageOther: 'tuliskan bahasa Anda',
         foreignLanguageOther: 'tuliskan bahasa',
@@ -460,7 +466,8 @@ const overrides = {
           other: 'Lainnya',
         },
         education: {
-          secondary: 'SMA/SMK',
+          secondary: 'SMP',
+          highSchool: 'SMA/SMK',
           university: 'Sarjana',
           masters: 'Magister',
           phd: 'Doktor',
@@ -573,6 +580,7 @@ const overrides = {
 
         occupation: 'Pekerjaan wajib dipilih.',
         education: 'Pendidikan wajib dipilih.',
+        educationDepartment: 'Silakan isi jurusan/program studi Anda.',
         maritalStatus: 'Status pernikahan wajib dipilih.',
         hasChildren: 'Silakan pilih apakah Anda punya anak.',
         childrenCount: 'Silakan isi jumlah anak.',
@@ -709,6 +717,20 @@ const overrides = {
       title: 'Foto saya',
       lead: 'Foto yang Anda unggah saat mengisi formulir.',
       empty: 'Belum ada foto yang diunggah.',
+      updateRequest: {
+        title: 'Permintaan pembaruan foto',
+        lead: 'Unggah 3 foto baru. Foto akan diperbarui setelah disetujui admin.',
+        pending: 'Sedang ditinjau',
+        cta: 'Kirim permintaan',
+        uploading: 'Mengunggah…',
+        success: 'Permintaan diterima. Foto akan diperbarui setelah ditinjau.',
+        errors: {
+          photosRequired: 'Silakan pilih 3 foto.',
+          photoType: 'Silakan pilih file gambar saja (jpg/png/webp).',
+          applicationNotFound: 'Pengajuan tidak ditemukan. Silakan isi formulir terlebih dahulu.',
+          failed: 'Tidak bisa mengirim permintaan. Silakan coba lagi.',
+        },
+      },
     },
     trust: {
       title: 'Kenapa kami meminta Anda mengisi formulir?',
@@ -742,6 +764,7 @@ const overrides = {
     },
     actions: {
       logout: 'Keluar',
+      profileForm: 'Formulir profil',
       whatsapp: 'Chat via WhatsApp',
       remove: 'Hapus',
       sending: 'Mengirim…',
@@ -762,6 +785,25 @@ const overrides = {
       requestingNew: 'Mengirim permintaan…',
       requestNewQuotaHint: 'Kuota harian: {{remaining}}/{{limit}}',
       requestNewSuccess: 'Permintaan Anda diterima. Kandidat baru akan muncul jika tersedia.',
+    },
+    profileForm: {
+      loading: 'Memuat formulir…',
+      empty: 'Formulir pengajuan pencocokan belum ditemukan. Silakan isi formulir terlebih dahulu.',
+      openOriginalEditOnce: 'Buka formulir asli (edit satu kali)',
+      detailsToggle: 'Tampilkan detail pengajuan',
+      applicationId: 'ID Pengajuan',
+      editOnceTitle: 'Perbaiki formulir (satu kali)',
+      editOnceLead:
+        'Jika Anda meninggalkan kolom kosong atau mengisi sesuatu dengan salah, Anda dapat memperbaruinya di sini. Ini hanya bisa digunakan satu kali (setelah disimpan tidak bisa diubah lagi).',
+      editOnceCta: 'Simpan perubahan (satu kali)',
+      editOnceSaving: 'Menyimpan…',
+      editOnceSuccess: 'Pembaruan diterima. Formulir Anda telah diperbarui.',
+      editOnceUsed: 'Hak edit satu kali sudah digunakan. Formulir tidak dapat diedit lagi.',
+      editOnceErrors: {
+        failed: 'Pembaruan gagal. Silakan coba lagi.',
+        empty: 'Anda tidak dapat mengirim pembaruan kosong. Isi setidaknya satu kolom.',
+        notFound: 'Pengajuan tidak ditemukan. Anda harus mengisi formulir terlebih dahulu.',
+      },
     },
     choice: {
       title: 'Anda memilih satu kandidat.',
@@ -789,7 +831,7 @@ const overrides = {
     },
     account: {
       title: 'Akun',
-      emailLabel: 'Nama pengguna (email)',
+      usernameLabel: 'Nama pengguna',
       nameLabel: 'Nama',
     },
     application: {
@@ -797,7 +839,7 @@ const overrides = {
       empty: 'Anda belum memiliki pengajuan pencocokan.',
       goToForm: 'Buka formulir pengajuan',
       fallbackName: 'Pengajuan',
-      profileNo: 'Kode Pengguna',
+      profileNo: 'Kode Pengajuan',
       username: 'Nama pengguna',
       applicationId: 'ID Pengajuan',
       photoAlt: 'Profil',
@@ -813,7 +855,7 @@ const overrides = {
     update: {
       title: 'Perbarui info',
       body: 'Kami tidak mengubah formulir secara online. Jika ingin memperbarui info, silakan chat via WhatsApp.',
-      whatsappMessage: 'Saya ingin memperbarui informasi pengajuan pencocokan pernikahan saya.\nNama lengkap: {{fullName}}\nKode pengguna: {{profileCode}}\nID pengajuan: {{applicationId}}',
+      whatsappMessage: 'Saya ingin memperbarui informasi pengajuan pencocokan pernikahan saya.\nNama lengkap: {{fullName}}\nKode pengajuan: {{profileCode}}',
     },
     onboarding: {
       title: 'Sebelum mulai',
@@ -1047,8 +1089,8 @@ const overrides = {
 
     lock: {
       title: 'Proses kecocokan Anda sedang berjalan.',
-      body: 'Kunci aktif setelah kedua pihak saling menerima lalu memilih langkah ke-2 yang sama (chat di dalam situs atau berbagi kontak). Saat terkunci, Anda tidak bisa meminta kecocokan baru. Setelah berbagi kontak, tidak ada kecocokan baru yang ditampilkan kecuali kecocokan dibatalkan.',
-      matchId: 'ID Kecocokan',
+      body: 'Kunci aktif setelah kedua pihak saling menerima lalu memilih keputusan yang sama (lanjut di luar situs). Saat terkunci, Anda tidak bisa meminta kecocokan baru. Untuk mengakhiri kecocokan, kedua pihak harus memilih “batalkan kecocokan”.',
+      matchId: 'Kode Kecocokan',
     },
 
     matches: {
@@ -1063,18 +1105,22 @@ const overrides = {
       },
       interaction: {
         title: 'Langkah berikutnya',
-        lead: 'Anda bisa lanjut dengan chat di dalam situs atau berbagi kontak dengan persetujuan bersama. Chat dan kunci aktif hanya ketika kedua pihak memilih opsi yang sama.',
-        chat: 'Lanjut chat di dalam situs',
-        contact: 'Bagikan detail kontak saya',
-        chatShort: 'Chat di dalam situs',
-        contactShort: 'Berbagi kontak',
+        lead: 'Aksi terjadi hanya ketika kedua pihak memilih opsi yang sama. Anda bisa mengubah pilihan; sistem akan menerapkan ketika kedua pihak sepakat.',
+        offsite: 'Lanjut di luar situs',
+        cancel: 'Batalkan kecocokan',
+        offsiteShort: 'Lanjut di luar situs',
+        cancelShort: 'Batalkan kecocokan',
+        offsiteInfoTitle: 'Jika lanjut di luar situs',
+        offsiteInfoBody: 'Jika kedua pihak memilih ini, detail kontak akan terbuka untuk kedua pihak dan Anda bisa lanjut via WhatsApp, dll.',
+        cancelInfoTitle: 'Jika membatalkan kecocokan',
+        cancelInfoBody: 'Jika kedua pihak memilih ini, kecocokan berakhir, kunci dilepas, dan kandidat lain terlihat lagi.',
         choosePrompt: 'Pilih opsi untuk melanjutkan.',
         yourChoice: 'Pilihan Anda: {{choice}}',
         membershipRequired: 'Keanggotaan aktif diperlukan untuk langkah ini.',
         verificationRequired: 'Verifikasi identitas diperlukan untuk langkah ini.',
-        otherPrefersChat: '{{name}} memilih chat di dalam situs. Anda bisa lanjut dengan memilih chat di dalam situs juga.',
-        otherPrefersContact: '{{name}} memilih berbagi kontak. Anda bisa membuka kontak dengan memilih berbagi kontak juga.',
-        contactUnlocked: 'Berbagi kontak sudah disetujui bersama. Anda bisa membuka detail kontak.',
+        otherPrefersOffsite: '{{name}} memilih “lanjut di luar situs”. Anda bisa membuka kontak dengan memilih itu juga.',
+        otherPrefersCancel: '{{name}} memilih “batalkan kecocokan”. Anda bisa mengakhiri kecocokan dengan memilih batal juga.',
+        offsiteWaiting: 'Pilihan Anda tersimpan. Menunggu pihak lain memilih opsi yang sama.',
       },
       chat: {
         title: 'Chat di Dalam Situs',
@@ -1105,6 +1151,9 @@ const overrides = {
         matchedProfile: 'Profil kecocokan',
         score: 'Skor kecocokan',
         likeBadge: '♥ Anda mendapat like',
+        profileInfo: 'Info profil',
+        hideProfileInfo: 'Sembunyikan',
+        profileInfoTitle: 'Info profil (tanpa kontak)',
         photoAlt: 'Foto',
         maritalStatus: 'Status pernikahan',
         detailsTitle: 'Detail',
@@ -3295,6 +3344,22 @@ export default {
   matchmakingPanel: {
     title: 'Profil Saya',
     subtitle: 'Langkah pencocokan, keanggotaan, dan kontak Anda akan tampil di sini.',
+    photos: {
+      updateRequest: {
+        title: 'Permintaan pembaruan foto',
+        lead: 'Unggah 3 foto baru. Foto akan diperbarui setelah disetujui admin.',
+        pending: 'Sedang ditinjau',
+        cta: 'Kirim permintaan',
+        uploading: 'Mengunggah…',
+        success: 'Permintaan diterima. Foto akan diperbarui setelah ditinjau.',
+        errors: {
+          photosRequired: 'Silakan pilih 3 foto.',
+          photoType: 'Silakan pilih file gambar saja (jpg/png/webp).',
+          applicationNotFound: 'Pengajuan tidak ditemukan. Silakan isi formulir terlebih dahulu.',
+          failed: 'Tidak bisa mengirim permintaan. Silakan coba lagi.',
+        },
+      },
+    },
     trust: {
       title: 'Kenapa kami meminta Anda mengisi formulir?',
       lead:
@@ -3378,7 +3443,7 @@ export default {
       empty: 'Anda belum memiliki pengajuan pencocokan.',
       goToForm: 'Buka formulir pengajuan',
       fallbackName: 'Pengajuan',
-      profileNo: 'Kode Pengguna',
+      profileNo: 'Kode Pengajuan',
       username: 'Nama pengguna',
       applicationId: 'ID Pengajuan',
       photoAlt: 'Profil',
@@ -3394,7 +3459,7 @@ export default {
     update: {
       title: 'Perbarui info',
       body: 'Kami tidak mengubah formulir secara online. Jika ingin memperbarui info, silakan chat via WhatsApp.',
-      whatsappMessage: 'Saya ingin memperbarui informasi pengajuan pencocokan pernikahan saya.\nNama lengkap: {{fullName}}\nKode pengguna: {{profileCode}}\nID pengajuan: {{applicationId}}',
+      whatsappMessage: 'Saya ingin memperbarui informasi pengajuan pencocokan pernikahan saya.\nNama lengkap: {{fullName}}\nKode pengajuan: {{profileCode}}',
     },
     onboarding: {
       title: 'Sebelum mulai',
@@ -3503,8 +3568,8 @@ export default {
     },
     lock: {
       title: 'Proses kecocokan Anda sedang berjalan.',
-      body: 'Setelah sama-sama setuju, kedua pihak memilih langkah berikutnya di panel (chat di dalam situs atau berbagi kontak). Proses terkunci hanya ketika kedua pihak memilih opsi yang sama. Saat terkunci, Anda tidak bisa meminta kecocokan baru. Setelah berbagi kontak, tidak ada kecocokan baru kecuali kecocokan dibatalkan.',
-      matchId: 'ID Kecocokan',
+      body: 'Setelah sama-sama setuju, proses terkunci saat kedua pihak memilih keputusan yang sama (lanjut di luar situs). Saat terkunci, Anda tidak bisa meminta kecocokan baru. Untuk mengakhiri kecocokan, kedua pihak harus memilih “batalkan kecocokan”.',
+      matchId: 'Kode Kecocokan',
     },
     matches: {
       title: 'Kecocokan Anda',
@@ -3518,18 +3583,22 @@ export default {
       },
       interaction: {
         title: 'Langkah berikutnya',
-        lead: 'Anda bisa lanjut dengan chat di dalam situs atau berbagi kontak dengan persetujuan bersama. Chat dan lock aktif hanya ketika kedua pihak memilih opsi yang sama.',
-        chat: 'Lanjut chat di dalam situs',
-        contact: 'Bagikan detail kontak saya',
-        chatShort: 'Chat di dalam situs',
-        contactShort: 'Berbagi kontak',
+        lead: 'Aksi terjadi hanya ketika kedua pihak memilih opsi yang sama. Anda bisa mengubah pilihan; sistem akan menerapkan ketika kedua pihak sepakat.',
+        offsite: 'Lanjut di luar situs',
+        cancel: 'Batalkan kecocokan',
+        offsiteShort: 'Lanjut di luar situs',
+        cancelShort: 'Batalkan kecocokan',
+        offsiteInfoTitle: 'Jika lanjut di luar situs',
+        offsiteInfoBody: 'Jika kedua pihak memilih ini, detail kontak akan terbuka untuk kedua pihak dan Anda bisa lanjut via WhatsApp, dll.',
+        cancelInfoTitle: 'Jika membatalkan kecocokan',
+        cancelInfoBody: 'Jika kedua pihak memilih ini, kecocokan berakhir, kunci dilepas, dan kandidat lain terlihat lagi.',
         choosePrompt: 'Pilih opsi untuk melanjutkan.',
         yourChoice: 'Pilihan Anda: {{choice}}',
         membershipRequired: 'Keanggotaan aktif diperlukan untuk langkah ini.',
         verificationRequired: 'Verifikasi identitas diperlukan untuk langkah ini.',
-        otherPrefersChat: '{{name}} memilih chat di dalam situs. Anda bisa lanjut dengan memilih chat di dalam situs juga.',
-        otherPrefersContact: '{{name}} memilih berbagi kontak. Anda bisa membuka kontak dengan memilih berbagi kontak juga.',
-        contactUnlocked: 'Berbagi kontak sudah disetujui bersama. Anda bisa membuka detail kontak.',
+        otherPrefersOffsite: '{{name}} memilih “lanjut di luar situs”. Anda bisa membuka kontak dengan memilih itu juga.',
+        otherPrefersCancel: '{{name}} memilih “batalkan kecocokan”. Anda bisa mengakhiri kecocokan dengan memilih batal juga.',
+        offsiteWaiting: 'Pilihan Anda tersimpan. Menunggu pihak lain memilih opsi yang sama.',
       },
       chat: {
         title: 'Chat di Dalam Situs',
@@ -3566,6 +3635,9 @@ export default {
         matchedProfile: 'Profil kecocokan',
         score: 'Skor kecocokan',
         likeBadge: '♥ Anda mendapat like',
+        profileInfo: 'Info profil',
+        hideProfileInfo: 'Sembunyikan',
+        profileInfoTitle: 'Info profil (tanpa kontak)',
         photoAlt: 'Foto',
         maritalStatus: 'Status pernikahan',
         detailsTitle: 'Detail',
@@ -3626,7 +3698,7 @@ export default {
         uploadingReceipt: 'Mengunggah bukti bayar…',
         sendPayment: 'Kirim pemberitahuan pembayaran ({{amount}} {{currency}})',
         supportWhatsapp: 'Dukungan WhatsApp',
-        supportWhatsappMessage: 'Saya butuh bantuan terkait keanggotaan/pembayaran dalam proses pencocokan. ID Kecocokan: {{matchId}}',
+        supportWhatsappMessage: 'Saya butuh bantuan terkait keanggotaan/pembayaran dalam proses pencocokan. Kode Kecocokan: {{matchCode}}',
       },
     },
     intro: {

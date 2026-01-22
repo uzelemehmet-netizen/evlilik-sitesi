@@ -10,6 +10,10 @@ function asNum(v) {
   return Number.isFinite(n) ? n : null;
 }
 
+function asObj(v) {
+  return v && typeof v === 'object' ? v : {};
+}
+
 // Eligibility kontrolü artık ortak helper üzerinden.
 
 export default async function handler(req, res) {
@@ -59,6 +63,9 @@ export default async function handler(req, res) {
       return;
     }
 
+    const matchStatus = safeStr(match?.status);
+    const isMatchedCouple = matchStatus === 'mutual_accepted' || matchStatus === 'contact_unlocked';
+
     const aUserId = safeStr(match.aUserId);
     const bUserId = safeStr(match.bUserId);
     const aAppId = safeStr(match.aApplicationId);
@@ -72,13 +79,17 @@ export default async function handler(req, res) {
       myGender = myAppSnap.exists ? safeStr((myAppSnap.data() || {})?.gender) : '';
     }
 
-    try {
-      ensureEligibleOrThrow(me, myGender);
-    } catch (e) {
-      res.statusCode = e?.statusCode || 402;
-      res.setHeader('content-type', 'application/json');
-      res.end(JSON.stringify({ ok: false, error: String(e?.message || 'membership_required') }));
-      return;
+    // Eşleşmiş çiftlerde, iki tarafın da birbirinin profil detaylarını görebilmesi gerekir.
+    // Bu yüzden mutual_accepted/contact_unlocked durumlarında üyelik/eligibility kapısını bypass ediyoruz.
+    if (!isMatchedCouple) {
+      try {
+        ensureEligibleOrThrow(me, myGender);
+      } catch (e) {
+        res.statusCode = e?.statusCode || 402;
+        res.setHeader('content-type', 'application/json');
+        res.end(JSON.stringify({ ok: false, error: String(e?.message || 'membership_required') }));
+        return;
+      }
     }
 
     const otherUserId = userIds.find((x) => x !== uid) || '';
@@ -100,7 +111,12 @@ export default async function handler(req, res) {
     }
 
     const app = appSnap.data() || {};
-    const details = app?.details || {};
+    const details = asObj(app?.details);
+    const partner = asObj(app?.partnerPreferences);
+
+    const languages = asObj(details?.languages);
+    const nativeLang = asObj(languages?.native);
+    const foreignLang = asObj(languages?.foreign);
 
     res.statusCode = 200;
     res.setHeader('content-type', 'application/json');
@@ -128,12 +144,50 @@ export default async function handler(req, res) {
             maritalStatus: safeStr(details?.maritalStatus),
             hasChildren: safeStr(details?.hasChildren),
             childrenCount: asNum(details?.childrenCount),
+            incomeLevel: safeStr(details?.incomeLevel),
             religion: safeStr(details?.religion),
             religiousValues: safeStr(details?.religiousValues),
+            familyApprovalStatus: safeStr(details?.familyApprovalStatus),
+            marriageTimeline: safeStr(details?.marriageTimeline),
+            relocationWillingness: safeStr(details?.relocationWillingness),
+            preferredLivingCountry: safeStr(details?.preferredLivingCountry),
             smoking: safeStr(details?.smoking),
             alcohol: safeStr(details?.alcohol),
-            languages: details?.languages || null,
+            languages: {
+              native: {
+                code: safeStr(nativeLang?.code),
+                other: safeStr(nativeLang?.other),
+              },
+              foreign: {
+                codes: Array.isArray(foreignLang?.codes) ? foreignLang.codes.map(safeStr).filter(Boolean) : [],
+                other: safeStr(foreignLang?.other),
+              },
+            },
+            communicationLanguage: safeStr(details?.communicationLanguage),
+            communicationLanguageOther: safeStr(details?.communicationLanguageOther),
+            communicationMethod: safeStr(details?.communicationMethod),
             canCommunicateWithTranslationApp: !!details?.canCommunicateWithTranslationApp,
+          },
+
+          // Not: İletişim (whatsapp/email/instagram) ayrı endpoint ile açılıyor.
+          partnerPreferences: {
+            heightMinCm: asNum(partner?.heightMinCm),
+            heightMaxCm: asNum(partner?.heightMaxCm),
+            ageMin: asNum(partner?.ageMin),
+            ageMax: asNum(partner?.ageMax),
+            maritalStatus: safeStr(partner?.maritalStatus),
+            religion: safeStr(partner?.religion),
+            communicationLanguage: safeStr(partner?.communicationLanguage),
+            communicationLanguageOther: safeStr(partner?.communicationLanguageOther),
+            canCommunicateWithTranslationApp: !!partner?.canCommunicateWithTranslationApp,
+            translationAppPreference: safeStr(partner?.translationAppPreference),
+            livingCountry: safeStr(partner?.livingCountry),
+            smokingPreference: safeStr(partner?.smokingPreference),
+            alcoholPreference: safeStr(partner?.alcoholPreference),
+            childrenPreference: safeStr(partner?.childrenPreference),
+            educationPreference: safeStr(partner?.educationPreference),
+            occupationPreference: safeStr(partner?.occupationPreference),
+            familyValuesPreference: safeStr(partner?.familyValuesPreference),
           },
         },
       })

@@ -9,6 +9,8 @@ function normalizeChoice(v) {
   const s = safeStr(v).toLowerCase();
   if (s === 'chat' || s === 'in_app' || s === 'site' || s === 'site_chat') return 'chat';
   if (s === 'contact' || s === 'share' || s === 'share_contact') return 'contact';
+  if (s === 'offsite' || s === 'outside' || s === 'external' || s === 'site_disinda' || s === 'site_disi' || s === 'site-disi') return 'offsite';
+  if (s === 'cancel' || s === 'cancel_match' || s === 'match_cancel' || s === 'iptal' || s === 'eslesme_iptal' || s === 'eşleşme_iptal') return 'cancel';
   return '';
 }
 
@@ -40,6 +42,7 @@ export default async function handler(req, res) {
     const { db, FieldValue } = getAdmin();
 
     const matchRef = db.collection('matchmakingMatches').doc(matchId);
+    const matchNoCounterRef = db.collection('counters').doc('matchmakingMatchNo');
 
     let resolvedMode = '';
     let otherChoice = '';
@@ -110,6 +113,32 @@ export default async function handler(req, res) {
         updatedAt: FieldValue.serverTimestamp(),
       };
 
+      // Kısa eşleşme kodu (ES-<no>) - eski eşleşmelerde eksik olabilir; burada lazy üret.
+      const existingMatchCode = safeStr(match?.matchCode);
+      let matchNo = typeof match?.matchNo === 'number' && Number.isFinite(match.matchNo) ? match.matchNo : null;
+      let matchCode = existingMatchCode;
+
+      if (!matchCode) {
+        if (matchNo === null) {
+          const cSnap = await tx.get(matchNoCounterRef);
+          const cur = cSnap.exists ? (cSnap.data() || {}) : {};
+          const next = typeof cur.next === 'number' && Number.isFinite(cur.next) ? cur.next : 10000;
+          matchNo = next;
+          tx.set(
+            matchNoCounterRef,
+            {
+              next: matchNo + 1,
+              updatedAt: FieldValue.serverTimestamp(),
+              updatedBy: uid,
+            },
+            { merge: true }
+          );
+          patch.matchNo = matchNo;
+        }
+        matchCode = matchNo !== null ? `ES-${matchNo}` : '';
+        if (matchCode) patch.matchCode = matchCode;
+      }
+
       const bothChosen = safeStr(choices[uid]) && safeStr(choices[otherUid]);
       if (bothChosen) {
         const a = safeStr(choices[uid]);
@@ -121,22 +150,47 @@ export default async function handler(req, res) {
           patch.interactionMode = resolvedMode;
           patch.interactionChosenAt = FieldValue.serverTimestamp();
 
-          if (resolvedMode === 'contact') {
+          if (resolvedMode === 'contact' || resolvedMode === 'offsite') {
             patch.status = 'contact_unlocked';
             patch.contactUnlockedAt = FieldValue.serverTimestamp();
           }
 
-          // Lock sadece uzlaşı olduğunda açılır
-          for (const lockUid of userIds) {
-            tx.set(
-              db.collection('matchmakingUsers').doc(lockUid),
-              {
-                matchmakingLock: { active: true, matchId },
-                matchmakingChoice: { active: true, matchId },
-                updatedAt: FieldValue.serverTimestamp(),
-              },
-              { merge: true }
-            );
+          if (resolvedMode === 'cancel') {
+            patch.status = 'cancelled';
+            patch.cancelledReason = 'mutual_cancel';
+            patch.cancelledByUserId = null;
+            patch.cancelledAt = FieldValue.serverTimestamp();
+
+            // İptalde kilit/choice kaldır: kullanıcılar diğer eşleşmeleri görebilsin.
+            for (const lockUid of userIds) {
+              const lockRef = db.collection('matchmakingUsers').doc(lockUid);
+              const lockSnap = await tx.get(lockRef);
+              const u = lockSnap.exists ? (lockSnap.data() || {}) : {};
+
+              const curLockMatchId = safeStr(u?.matchmakingLock?.matchId);
+              const curChoiceMatchId = safeStr(u?.matchmakingChoice?.matchId);
+
+              const userPatch = { updatedAt: FieldValue.serverTimestamp() };
+              if (curLockMatchId === matchId) userPatch.matchmakingLock = { active: false, matchId: '', matchCode: '' };
+              if (curChoiceMatchId === matchId) userPatch.matchmakingChoice = { active: false, matchId: '', matchCode: '' };
+
+              tx.set(lockRef, userPatch, { merge: true });
+            }
+          }
+
+          // Lock sadece uzlaşı olduğunda açılır (iptal hariç).
+          if (resolvedMode !== 'cancel') {
+            for (const lockUid of userIds) {
+              tx.set(
+                db.collection('matchmakingUsers').doc(lockUid),
+                {
+                  matchmakingLock: { active: true, matchId, matchCode },
+                  matchmakingChoice: { active: true, matchId, matchCode },
+                  updatedAt: FieldValue.serverTimestamp(),
+                },
+                { merge: true }
+              );
+            }
           }
         } else {
           // Farklı seçim: mod/lock açma.

@@ -3,12 +3,14 @@ import clientIp from '../apiRoutes/client-ip.js';
 import cloudinarySignature from '../apiRoutes/cloudinary-signature.js';
 import identityKycWebhook from '../apiRoutes/identity-kyc-webhook.js';
 import matchmakingAdminApprovePayment from '../apiRoutes/matchmaking-admin-approve-payment.js';
+import matchmakingAdminPhotoUpdateDecide from '../apiRoutes/matchmaking-admin-photo-update-decide.js';
 import matchmakingAdminCancel from '../apiRoutes/matchmaking-admin-cancel.js';
 import matchmakingAdminConfirm from '../apiRoutes/matchmaking-admin-confirm.js';
 import matchmakingAdminCreateMatch from '../apiRoutes/matchmaking-admin-create-match.js';
 import matchmakingAdminIdentityVerify from '../apiRoutes/matchmaking-admin-identity-verify.js';
 import matchmakingAllocateProfileNo from '../apiRoutes/matchmaking-allocate-profile-no.js';
 import matchmakingApplicationEditOnce from '../apiRoutes/matchmaking-application-edit-once.js';
+import matchmakingPhotoUpdateRequest from '../apiRoutes/matchmaking-photo-update-request.js';
 import matchmakingChatDecision from '../apiRoutes/matchmaking-chat-decision.js';
 import matchmakingChatMarkRead from '../apiRoutes/matchmaking-chat-mark-read.js';
 import matchmakingChatSend from '../apiRoutes/matchmaking-chat-send.js';
@@ -32,12 +34,14 @@ const handlers = {
   'cloudinary-signature': cloudinarySignature,
   'identity-kyc-webhook': identityKycWebhook,
   'matchmaking-admin-approve-payment': matchmakingAdminApprovePayment,
+  'matchmaking-admin-photo-update-decide': matchmakingAdminPhotoUpdateDecide,
   'matchmaking-admin-cancel': matchmakingAdminCancel,
   'matchmaking-admin-confirm': matchmakingAdminConfirm,
   'matchmaking-admin-create-match': matchmakingAdminCreateMatch,
   'matchmaking-admin-identity-verify': matchmakingAdminIdentityVerify,
   'matchmaking-allocate-profile-no': matchmakingAllocateProfileNo,
   'matchmaking-application-edit-once': matchmakingApplicationEditOnce,
+  'matchmaking-photo-update-request': matchmakingPhotoUpdateRequest,
   'matchmaking-chat-decision': matchmakingChatDecision,
   'matchmaking-chat-mark-read': matchmakingChatMarkRead,
   'matchmaking-chat-send': matchmakingChatSend,
