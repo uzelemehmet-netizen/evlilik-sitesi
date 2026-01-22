@@ -40,6 +40,10 @@ export default {
         title: 'System evaluation',
         desc: 'When a suitable match is found, the process continues safely in your panel.',
       },
+        showEmptyFields: 'Show empty fields',
+        hideEmptyFields: 'Hide empty fields',
+        partnerAgeMin: 'Min age',
+        partnerAgeMax: 'Max age',
         partnerAgeMin: 'Min age',
         partnerAgeMax: 'Max age',
       panel: {

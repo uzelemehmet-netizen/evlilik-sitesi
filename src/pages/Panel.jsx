@@ -37,6 +37,7 @@ export default function Panel() {
   const [candidateDetailsLoadingByMatchId, setCandidateDetailsLoadingByMatchId] = useState({});
 
   const [profileInfoOpenByMatchId, setProfileInfoOpenByMatchId] = useState({});
+  const [profileInfoShowEmptyByMatchId, setProfileInfoShowEmptyByMatchId] = useState({});
 
   const [chatByMatchId, setChatByMatchId] = useState({});
   const [chatSendByMatchId, setChatSendByMatchId] = useState({});
@@ -514,6 +515,17 @@ export default function Panel() {
     const s = String(v).trim();
     if (!s) return '-';
     return unit ? `${s}${unit}` : s;
+  };
+
+  const isEmptyUiValue = (v) => {
+    const s = String(v ?? '').trim();
+    return !s || s === '-' || s.toLowerCase() === 'null' || s.toLowerCase() === 'undefined';
+  };
+
+  const filterEmptyRows = (rows, showEmpty) => {
+    const list = Array.isArray(rows) ? rows : [];
+    if (showEmpty) return list;
+    return list.filter((r) => r && !isEmptyUiValue(r.value));
   };
 
   const formatLanguagesSummary = (langs) => {
@@ -2750,6 +2762,7 @@ export default function Panel() {
                         const otherDecision = m?.decisions?.[otherSide] || null;
 
                         const profileInfoOpen = !!profileInfoOpenByMatchId?.[m.id];
+                        const showEmptyProfileFields = !!profileInfoShowEmptyByMatchId?.[m.id];
 
                         const displayName = other?.username || other?.fullName || t('matchmakingPanel.matches.candidate.fallbackName');
                         const maritalCode = other?.details?.maritalStatus || '';
@@ -2842,61 +2855,91 @@ export default function Panel() {
 
                             {profileInfoOpen && canSeeFullProfiles ? (
                               <div className="mt-3 rounded-xl border border-white/10 bg-white/5 p-3">
-                                <p className="text-xs font-semibold text-white">{t('matchmakingPanel.matches.candidate.profileInfoTitle')}</p>
+                                <div className="flex items-start justify-between gap-3">
+                                  <p className="text-xs font-semibold text-white">{t('matchmakingPanel.matches.candidate.profileInfoTitle')}</p>
+                                  <button
+                                    type="button"
+                                    onClick={() => setProfileInfoShowEmptyByMatchId((p) => ({ ...p, [m.id]: !p?.[m.id] }))}
+                                    className="inline-flex items-center rounded-full border border-white/15 bg-white/5 px-2 py-0.5 text-[11px] font-semibold text-white/80 hover:bg-white/10"
+                                  >
+                                    {showEmptyProfileFields
+                                      ? t('matchmakingPanel.matches.candidate.hideEmptyFields')
+                                      : t('matchmakingPanel.matches.candidate.showEmptyFields')}
+                                  </button>
+                                </div>
 
                                 {candidateDetailsLoadingByMatchId?.[m.id] ? (
                                   <p className="mt-2 text-xs text-white/60">{t('common.loading')}</p>
                                 ) : null}
 
-                                <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2">
-                                  <div>
-                                    <p className="text-xs text-white/60">{t('matchmakingPage.form.sections.me')}</p>
-                                    <div className="mt-1 space-y-2 text-sm text-white/80">
-                                      <div>
-                                        <p className="text-xs text-white/60">{t('matchmakingPage.form.labels.username')}</p>
-                                        <p className="font-semibold break-words">{other?.username || '-'}</p>
-                                      </div>
-                                      <div>
-                                        <p className="text-xs text-white/60">{t('matchmakingPage.form.labels.fullName')}</p>
-                                        <p className="font-semibold break-words">{other?.fullName || '-'}</p>
-                                      </div>
-                                      <div>
-                                        <p className="text-xs text-white/60">{t('matchmakingPage.form.labels.age')}</p>
-                                        <p className="font-semibold break-words">{typeof other?.age === 'number' ? String(other.age) : '-'}</p>
-                                      </div>
-                                      <div>
-                                        <p className="text-xs text-white/60">{t('matchmakingPage.form.labels.city')}</p>
-                                        <p className="font-semibold break-words">{other?.city || '-'}</p>
-                                      </div>
-                                      <div>
-                                        <p className="text-xs text-white/60">{t('matchmakingPage.form.labels.country')}</p>
-                                        <p className="font-semibold break-words">{other?.country || '-'}</p>
-                                      </div>
-                                      <div>
-                                        <p className="text-xs text-white/60">{t('matchmakingPage.form.labels.nationality')}</p>
-                                        <p className="font-semibold break-words">{formatMaybeValue(tOption('nationality', other?.nationality) || other?.nationality)}</p>
-                                      </div>
-                                      <div>
-                                        <p className="text-xs text-white/60">{t('matchmakingPage.form.labels.gender')}</p>
-                                        <p className="font-semibold break-words">{formatMaybeValue(tOption('gender', other?.gender) || other?.gender)}</p>
-                                      </div>
-                                    </div>
-                                  </div>
+                                {(() => {
+                                  const meRows = filterEmptyRows(
+                                    [
+                                      { label: t('matchmakingPage.form.labels.username'), value: formatMaybeValue(other?.username) },
+                                      { label: t('matchmakingPage.form.labels.fullName'), value: formatMaybeValue(other?.fullName) },
+                                      { label: t('matchmakingPage.form.labels.age'), value: typeof other?.age === 'number' ? String(other.age) : '-' },
+                                      { label: t('matchmakingPage.form.labels.city'), value: formatMaybeValue(other?.city) },
+                                      { label: t('matchmakingPage.form.labels.country'), value: formatMaybeValue(other?.country) },
+                                      {
+                                        label: t('matchmakingPage.form.labels.nationality'),
+                                        value: formatMaybeValue(tOption('nationality', other?.nationality) || other?.nationality),
+                                      },
+                                      {
+                                        label: t('matchmakingPage.form.labels.gender'),
+                                        value: formatMaybeValue(tOption('gender', other?.gender) || other?.gender),
+                                      },
+                                    ],
+                                    showEmptyProfileFields
+                                  );
 
-                                  <div>
-                                    <p className="text-xs text-white/60">{t('matchmakingPage.form.sections.lookingFor')}</p>
-                                    <div className="mt-1 space-y-2 text-sm text-white/80">
-                                      <div>
-                                        <p className="text-xs text-white/60">{t('matchmakingPage.form.labels.lookingForNationality')}</p>
-                                        <p className="font-semibold break-words">{formatMaybeValue(tOption('nationality', other?.lookingForNationality) || other?.lookingForNationality)}</p>
-                                      </div>
-                                      <div>
-                                        <p className="text-xs text-white/60">{t('matchmakingPage.form.labels.lookingForGender')}</p>
-                                        <p className="font-semibold break-words">{formatMaybeValue(tOption('gender', other?.lookingForGender) || other?.lookingForGender)}</p>
-                                      </div>
+                                  const lookingForRows = filterEmptyRows(
+                                    [
+                                      {
+                                        label: t('matchmakingPage.form.labels.lookingForNationality'),
+                                        value: formatMaybeValue(tOption('nationality', other?.lookingForNationality) || other?.lookingForNationality),
+                                      },
+                                      {
+                                        label: t('matchmakingPage.form.labels.lookingForGender'),
+                                        value: formatMaybeValue(tOption('gender', other?.lookingForGender) || other?.lookingForGender),
+                                      },
+                                    ],
+                                    showEmptyProfileFields
+                                  );
+
+                                  if (!meRows.length && !lookingForRows.length) return null;
+
+                                  return (
+                                    <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                      {meRows.length ? (
+                                        <div className="rounded-xl border border-white/10 bg-white/[0.04] p-3">
+                                          <p className="text-xs font-semibold text-white">{t('matchmakingPage.form.sections.me')}</p>
+                                          <div className="mt-2 grid grid-cols-1 gap-2">
+                                            {meRows.map((r) => (
+                                              <div key={r.label} className="rounded-lg border border-white/10 bg-white/5 px-3 py-2">
+                                                <p className="text-[11px] text-white/60">{r.label}</p>
+                                                <p className="font-semibold break-words text-sm text-white/85">{r.value}</p>
+                                              </div>
+                                            ))}
+                                          </div>
+                                        </div>
+                                      ) : null}
+
+                                      {lookingForRows.length ? (
+                                        <div className="rounded-xl border border-white/10 bg-white/[0.04] p-3">
+                                          <p className="text-xs font-semibold text-white">{t('matchmakingPage.form.sections.lookingFor')}</p>
+                                          <div className="mt-2 grid grid-cols-1 gap-2">
+                                            {lookingForRows.map((r) => (
+                                              <div key={r.label} className="rounded-lg border border-white/10 bg-white/5 px-3 py-2">
+                                                <p className="text-[11px] text-white/60">{r.label}</p>
+                                                <p className="font-semibold break-words text-sm text-white/85">{r.value}</p>
+                                              </div>
+                                            ))}
+                                          </div>
+                                        </div>
+                                      ) : null}
                                     </div>
-                                  </div>
-                                </div>
+                                  );
+                                })()}
 
                                 <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm text-white/80">
                                   <div>
@@ -2944,7 +2987,7 @@ export default function Panel() {
                                     { label: t('matchmakingPage.form.options.commLanguage.translationApp'), value: formatMaybeValue(d?.canCommunicateWithTranslationApp ? t('matchmakingPage.form.options.common.yes') : t('matchmakingPage.form.options.common.no')) },
                                   ];
 
-                                  const visible = items.filter((x) => x && x.label);
+                                  const visible = filterEmptyRows(items.filter((x) => x && x.label), showEmptyProfileFields);
 
                                   return (
                                     <>
@@ -2970,70 +3013,92 @@ export default function Panel() {
                                               <p className="text-xs text-white/60">{t('matchmakingPage.form.labels.partnerHeightMax')}</p>
                                               <p className="font-semibold break-words text-sm text-white/80">{formatMaybeValue(p?.heightMaxCm, ' cm')}</p>
                                             </div>
-                                            <div>
-                                              <p className="text-xs text-white/60">{t('matchmakingPanel.matches.candidate.partnerAgeMin')}</p>
-                                              <p className="font-semibold break-words text-sm text-white/80">{formatMaybeValue(p?.ageMin)}</p>
-                                            </div>
-                                            <div>
-                                              <p className="text-xs text-white/60">{t('matchmakingPanel.matches.candidate.partnerAgeMax')}</p>
-                                              <p className="font-semibold break-words text-sm text-white/80">{formatMaybeValue(p?.ageMax)}</p>
-                                            </div>
-                                            <div>
-                                              <p className="text-xs text-white/60">{t('matchmakingPage.form.labels.partnerAgeMaxOlderYears')}</p>
-                                              <p className="font-semibold break-words text-sm text-white/80">{formatMaybeValue(p?.ageMaxOlderYears)}</p>
-                                            </div>
-                                            <div>
-                                              <p className="text-xs text-white/60">{t('matchmakingPage.form.labels.partnerAgeMaxYoungerYears')}</p>
-                                              <p className="font-semibold break-words text-sm text-white/80">{formatMaybeValue(p?.ageMaxYoungerYears)}</p>
-                                            </div>
-                                            <div>
-                                              <p className="text-xs text-white/60">{t('matchmakingPage.form.labels.partnerMaritalStatus')}</p>
-                                              <p className="font-semibold break-words text-sm text-white/80">{formatMaybeValue(tOption('maritalStatus', p?.maritalStatus) || p?.maritalStatus)}</p>
-                                            </div>
-                                            <div>
-                                              <p className="text-xs text-white/60">{t('matchmakingPage.form.labels.partnerReligion')}</p>
-                                              <p className="font-semibold break-words text-sm text-white/80">{formatMaybeValue(tOption('religion', p?.religion) || p?.religion)}</p>
-                                            </div>
-                                            <div>
-                                              <p className="text-xs text-white/60">{t('matchmakingPage.form.labels.partnerCommunicationLanguages')}</p>
-                                              <p className="font-semibold break-words text-sm text-white/80">{formatMaybeValue(tOption('commLanguage', p?.communicationLanguage) || p?.communicationLanguage)}</p>
-                                            </div>
-                                            <div>
-                                              <p className="text-xs text-white/60">{t('matchmakingPage.form.labels.partnerCommunicationLanguageOther')}</p>
-                                              <p className="font-semibold break-words text-sm text-white/80">{formatMaybeValue(p?.communicationLanguageOther)}</p>
-                                            </div>
-                                            <div>
-                                              <p className="text-xs text-white/60">{t('matchmakingPage.form.labels.partnerTranslationApp')}</p>
-                                              <p className="font-semibold break-words text-sm text-white/80">{formatMaybeValue(p?.canCommunicateWithTranslationApp ? t('matchmakingPage.form.options.common.yes') : t('matchmakingPage.form.options.common.no'))}</p>
-                                            </div>
-                                            <div>
-                                              <p className="text-xs text-white/60">{t('matchmakingPage.form.labels.partnerLivingCountry')}</p>
-                                              <p className="font-semibold break-words text-sm text-white/80">{formatMaybeValue(tOption('livingCountry', p?.livingCountry) || p?.livingCountry)}</p>
-                                            </div>
-                                            <div>
-                                              <p className="text-xs text-white/60">{t('matchmakingPage.form.labels.partnerSmokingPreference')}</p>
-                                              <p className="font-semibold break-words text-sm text-white/80">{formatPref(p?.smokingPreference)}</p>
-                                            </div>
-                                            <div>
-                                              <p className="text-xs text-white/60">{t('matchmakingPage.form.labels.partnerAlcoholPreference')}</p>
-                                              <p className="font-semibold break-words text-sm text-white/80">{formatPref(p?.alcoholPreference)}</p>
-                                            </div>
-                                            <div>
-                                              <p className="text-xs text-white/60">{t('matchmakingPage.form.labels.partnerChildrenPreference')}</p>
-                                              <p className="font-semibold break-words text-sm text-white/80">{formatPref(p?.childrenPreference)}</p>
-                                            </div>
-                                            <div>
-                                              <p className="text-xs text-white/60">{t('matchmakingPage.form.labels.partnerEducationPreference')}</p>
-                                              <p className="font-semibold break-words text-sm text-white/80">{formatPref(p?.educationPreference)}</p>
-                                            </div>
-                                            <div>
-                                              <p className="text-xs text-white/60">{t('matchmakingPage.form.labels.partnerOccupationPreference')}</p>
-                                              <p className="font-semibold break-words text-sm text-white/80">{formatPref(p?.occupationPreference)}</p>
-                                            </div>
-                                            <div>
-                                              <p className="text-xs text-white/60">{t('matchmakingPage.form.labels.partnerFamilyValuesPreference')}</p>
-                                              <p className="font-semibold break-words text-sm text-white/80">{formatPref(p?.familyValuesPreference)}</p>
-                                            </div>
+                                            {filterEmptyRows(
+                                              [
+                                                {
+                                                  label: t('matchmakingPage.form.labels.partnerHeightMin'),
+                                                  value: formatMaybeValue(p?.heightMinCm, ' cm'),
+                                                },
+                                                {
+                                                  label: t('matchmakingPage.form.labels.partnerHeightMax'),
+                                                  value: formatMaybeValue(p?.heightMaxCm, ' cm'),
+                                                },
+                                                {
+                                                  label: t('matchmakingPanel.matches.candidate.partnerAgeMin'),
+                                                  value: formatMaybeValue(p?.ageMin),
+                                                },
+                                                {
+                                                  label: t('matchmakingPanel.matches.candidate.partnerAgeMax'),
+                                                  value: formatMaybeValue(p?.ageMax),
+                                                },
+                                                {
+                                                  label: t('matchmakingPage.form.labels.partnerAgeMaxOlderYears'),
+                                                  value: formatMaybeValue(p?.ageMaxOlderYears),
+                                                },
+                                                {
+                                                  label: t('matchmakingPage.form.labels.partnerAgeMaxYoungerYears'),
+                                                  value: formatMaybeValue(p?.ageMaxYoungerYears),
+                                                },
+                                                {
+                                                  label: t('matchmakingPage.form.labels.partnerMaritalStatus'),
+                                                  value: formatMaybeValue(tOption('maritalStatus', p?.maritalStatus) || p?.maritalStatus),
+                                                },
+                                                {
+                                                  label: t('matchmakingPage.form.labels.partnerReligion'),
+                                                  value: formatMaybeValue(tOption('religion', p?.religion) || p?.religion),
+                                                },
+                                                {
+                                                  label: t('matchmakingPage.form.labels.partnerCommunicationLanguages'),
+                                                  value: formatMaybeValue(tOption('commLanguage', p?.communicationLanguage) || p?.communicationLanguage),
+                                                },
+                                                {
+                                                  label: t('matchmakingPage.form.labels.partnerCommunicationLanguageOther'),
+                                                  value: formatMaybeValue(p?.communicationLanguageOther),
+                                                },
+                                                {
+                                                  label: t('matchmakingPage.form.labels.partnerTranslationApp'),
+                                                  value: formatMaybeValue(
+                                                    p?.canCommunicateWithTranslationApp
+                                                      ? t('matchmakingPage.form.options.common.yes')
+                                                      : t('matchmakingPage.form.options.common.no')
+                                                  ),
+                                                },
+                                                {
+                                                  label: t('matchmakingPage.form.labels.partnerLivingCountry'),
+                                                  value: formatMaybeValue(tOption('livingCountry', p?.livingCountry) || p?.livingCountry),
+                                                },
+                                                {
+                                                  label: t('matchmakingPage.form.labels.partnerSmokingPreference'),
+                                                  value: formatPref(p?.smokingPreference),
+                                                },
+                                                {
+                                                  label: t('matchmakingPage.form.labels.partnerAlcoholPreference'),
+                                                  value: formatPref(p?.alcoholPreference),
+                                                },
+                                                {
+                                                  label: t('matchmakingPage.form.labels.partnerChildrenPreference'),
+                                                  value: formatPref(p?.childrenPreference),
+                                                },
+                                                {
+                                                  label: t('matchmakingPage.form.labels.partnerEducationPreference'),
+                                                  value: formatPref(p?.educationPreference),
+                                                },
+                                                {
+                                                  label: t('matchmakingPage.form.labels.partnerOccupationPreference'),
+                                                  value: formatPref(p?.occupationPreference),
+                                                },
+                                                {
+                                                  label: t('matchmakingPage.form.labels.partnerFamilyValuesPreference'),
+                                                  value: formatPref(p?.familyValuesPreference),
+                                                },
+                                              ],
+                                              showEmptyProfileFields
+                                            ).map((it) => (
+                                              <div key={it.label}>
+                                                <p className="text-xs text-white/60">{it.label}</p>
+                                                <p className="font-semibold break-words text-sm text-white/80">{it.value}</p>
+                                              </div>
+                                            ))}
                                           </div>
                                         </div>
                                       ) : null}

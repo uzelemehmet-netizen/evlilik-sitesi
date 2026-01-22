@@ -40,6 +40,10 @@ export default {
         title: 'Sistem değerlendirmesi',
         desc: 'Size uygun bir aday bulunduğunda süreç panelinizde güvenli şekilde ilerler.',
       },
+        showEmptyFields: 'Boş alanları göster',
+        hideEmptyFields: 'Boşları gizle',
+        partnerAgeMin: 'Min yaş',
+        partnerAgeMax: 'Max yaş',
       panel: {
         title: 'Panel üzerinden ilerleme',
         desc: 'Eşleşme, ön izleme ve sonraki adımları panelinizden yönetirsiniz.',
