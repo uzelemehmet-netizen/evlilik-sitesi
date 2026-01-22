@@ -2873,6 +2873,8 @@ export default function Panel() {
                                 ) : null}
 
                                 {(() => {
+                                  const d = other?.details && typeof other.details === 'object' ? other.details : {};
+
                                   const meRows = filterEmptyRows(
                                     [
                                       { label: t('matchmakingPage.form.labels.username'), value: formatMaybeValue(other?.username) },
@@ -2892,21 +2894,40 @@ export default function Panel() {
                                     showEmptyProfileFields
                                   );
 
-                                  const lookingForRows = filterEmptyRows(
+                                  const personalRows = filterEmptyRows(
                                     [
+                                      { label: t('matchmakingPage.form.labels.height'), value: formatMaybeValue(d?.heightCm, ' cm') },
+                                      { label: t('matchmakingPage.form.labels.weight'), value: formatMaybeValue(d?.weightKg, ' kg') },
+                                      { label: t('matchmakingPage.form.labels.education'), value: formatMaybeValue(tOption('education', d?.education) || d?.education) },
+                                      { label: t('matchmakingPage.form.labels.educationDepartment'), value: formatMaybeValue(d?.educationDepartment) },
+                                      { label: t('matchmakingPage.form.labels.occupation'), value: formatMaybeValue(tOption('occupation', d?.occupation) || d?.occupation) },
+                                      { label: t('matchmakingPage.form.labels.maritalStatus'), value: formatMaybeValue(tOption('maritalStatus', d?.maritalStatus) || d?.maritalStatus) },
+                                      { label: t('matchmakingPage.form.labels.hasChildren'), value: formatMaybeValue(tYesNoCommon(d?.hasChildren) || d?.hasChildren) },
+                                      { label: t('matchmakingPage.form.labels.childrenCount'), value: formatMaybeValue(d?.childrenCount) },
+                                      { label: t('matchmakingPage.form.labels.incomeLevel'), value: formatMaybeValue(tOption('income', d?.incomeLevel) || d?.incomeLevel) },
+                                      { label: t('matchmakingPage.form.labels.religion'), value: formatMaybeValue(tOption('religion', d?.religion) || d?.religion) },
+                                      { label: t('matchmakingPage.form.labels.religiousValues'), value: formatMaybeValue(d?.religiousValues) },
+                                      { label: t('matchmakingPage.form.labels.familyApprovalStatus'), value: formatMaybeValue(tOption('familyApproval', d?.familyApprovalStatus) || d?.familyApprovalStatus) },
+                                      { label: t('matchmakingPage.form.labels.marriageTimeline'), value: formatMaybeValue(tOption('timeline', d?.marriageTimeline) || d?.marriageTimeline) },
+                                      { label: t('matchmakingPage.form.labels.relocationWillingness'), value: formatMaybeValue(tYesNoCommon(d?.relocationWillingness) || d?.relocationWillingness) },
+                                      { label: t('matchmakingPage.form.labels.preferredLivingCountry'), value: formatMaybeValue(tOption('livingCountry', d?.preferredLivingCountry) || d?.preferredLivingCountry) },
+                                      { label: t('matchmakingPage.form.labels.communicationLanguages'), value: formatMaybeValue(tOption('commLanguage', d?.communicationLanguage) || d?.communicationLanguage) },
+                                      { label: t('matchmakingPage.form.labels.smoking'), value: formatMaybeValue(tYesNoCommon(d?.smoking) || d?.smoking) },
+                                      { label: t('matchmakingPage.form.labels.alcohol'), value: formatMaybeValue(tYesNoCommon(d?.alcohol) || d?.alcohol) },
+                                      { label: t('matchmakingPage.form.labels.foreignLanguages'), value: formatMaybeValue(formatLanguagesSummary(d?.languages)) },
                                       {
-                                        label: t('matchmakingPage.form.labels.lookingForNationality'),
-                                        value: formatMaybeValue(tOption('nationality', other?.lookingForNationality) || other?.lookingForNationality),
-                                      },
-                                      {
-                                        label: t('matchmakingPage.form.labels.lookingForGender'),
-                                        value: formatMaybeValue(tOption('gender', other?.lookingForGender) || other?.lookingForGender),
+                                        label: t('matchmakingPage.form.options.commLanguage.translationApp'),
+                                        value: formatMaybeValue(
+                                          d?.canCommunicateWithTranslationApp
+                                            ? t('matchmakingPage.form.options.common.yes')
+                                            : t('matchmakingPage.form.options.common.no')
+                                        ),
                                       },
                                     ],
                                     showEmptyProfileFields
                                   );
 
-                                  if (!meRows.length && !lookingForRows.length) return null;
+                                  if (!meRows.length && !personalRows.length) return null;
 
                                   return (
                                     <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -2924,11 +2945,11 @@ export default function Panel() {
                                         </div>
                                       ) : null}
 
-                                      {lookingForRows.length ? (
+                                      {personalRows.length ? (
                                         <div className="rounded-xl border border-white/10 bg-white/[0.04] p-3">
-                                          <p className="text-xs font-semibold text-white">{t('matchmakingPage.form.sections.lookingFor')}</p>
+                                          <p className="text-xs font-semibold text-white">{t('matchmakingPanel.matches.candidate.detailsTitle')}</p>
                                           <div className="mt-2 grid grid-cols-1 gap-2">
-                                            {lookingForRows.map((r) => (
+                                            {personalRows.map((r) => (
                                               <div key={r.label} className="rounded-lg border border-white/10 bg-white/5 px-3 py-2">
                                                 <p className="text-[11px] text-white/60">{r.label}</p>
                                                 <p className="font-semibold break-words text-sm text-white/85">{r.value}</p>
@@ -2953,7 +2974,6 @@ export default function Panel() {
                                 </div>
 
                                 {(() => {
-                                  const d = other?.details && typeof other.details === 'object' ? other.details : {};
                                   const p = other?.partnerPreferences && typeof other.partnerPreferences === 'object' ? other.partnerPreferences : {};
 
                                   const formatPref = (raw) => {
@@ -2964,41 +2984,35 @@ export default function Panel() {
                                     return String(raw || '').trim() || '-';
                                   };
 
-                                  const items = [
-                                    { label: t('matchmakingPage.form.labels.height'), value: formatMaybeValue(d?.heightCm, ' cm') },
-                                    { label: t('matchmakingPage.form.labels.weight'), value: formatMaybeValue(d?.weightKg, ' kg') },
-                                    { label: t('matchmakingPage.form.labels.education'), value: formatMaybeValue(tOption('education', d?.education) || d?.education) },
-                                    { label: t('matchmakingPage.form.labels.educationDepartment'), value: formatMaybeValue(d?.educationDepartment) },
-                                    { label: t('matchmakingPage.form.labels.occupation'), value: formatMaybeValue(tOption('occupation', d?.occupation) || d?.occupation) },
-                                    { label: t('matchmakingPage.form.labels.maritalStatus'), value: formatMaybeValue(tOption('maritalStatus', d?.maritalStatus) || d?.maritalStatus) },
-                                    { label: t('matchmakingPage.form.labels.hasChildren'), value: formatMaybeValue(tYesNoCommon(d?.hasChildren) || d?.hasChildren) },
-                                    { label: t('matchmakingPage.form.labels.childrenCount'), value: formatMaybeValue(d?.childrenCount) },
-                                    { label: t('matchmakingPage.form.labels.incomeLevel'), value: formatMaybeValue(tOption('income', d?.incomeLevel) || d?.incomeLevel) },
-                                    { label: t('matchmakingPage.form.labels.religion'), value: formatMaybeValue(tOption('religion', d?.religion) || d?.religion) },
-                                    { label: t('matchmakingPage.form.labels.religiousValues'), value: formatMaybeValue(d?.religiousValues) },
-                                    { label: t('matchmakingPage.form.labels.familyApprovalStatus'), value: formatMaybeValue(tOption('familyApproval', d?.familyApprovalStatus) || d?.familyApprovalStatus) },
-                                    { label: t('matchmakingPage.form.labels.marriageTimeline'), value: formatMaybeValue(tOption('timeline', d?.marriageTimeline) || d?.marriageTimeline) },
-                                    { label: t('matchmakingPage.form.labels.relocationWillingness'), value: formatMaybeValue(tYesNoCommon(d?.relocationWillingness) || d?.relocationWillingness) },
-                                    { label: t('matchmakingPage.form.labels.preferredLivingCountry'), value: formatMaybeValue(tOption('livingCountry', d?.preferredLivingCountry) || d?.preferredLivingCountry) },
-                                    { label: t('matchmakingPage.form.labels.communicationLanguages'), value: formatMaybeValue(tOption('commLanguage', d?.communicationLanguage) || d?.communicationLanguage) },
-                                    { label: t('matchmakingPage.form.labels.smoking'), value: formatMaybeValue(tYesNoCommon(d?.smoking) || d?.smoking) },
-                                    { label: t('matchmakingPage.form.labels.alcohol'), value: formatMaybeValue(tYesNoCommon(d?.alcohol) || d?.alcohol) },
-                                    { label: t('matchmakingPage.form.labels.foreignLanguages'), value: formatMaybeValue(formatLanguagesSummary(d?.languages)) },
-                                    { label: t('matchmakingPage.form.options.commLanguage.translationApp'), value: formatMaybeValue(d?.canCommunicateWithTranslationApp ? t('matchmakingPage.form.options.common.yes') : t('matchmakingPage.form.options.common.no')) },
-                                  ];
-
-                                  const visible = filterEmptyRows(items.filter((x) => x && x.label), showEmptyProfileFields);
+                                  const lookingForRows = filterEmptyRows(
+                                    [
+                                      {
+                                        label: t('matchmakingPage.form.labels.lookingForNationality'),
+                                        value: formatMaybeValue(tOption('nationality', other?.lookingForNationality) || other?.lookingForNationality),
+                                      },
+                                      {
+                                        label: t('matchmakingPage.form.labels.lookingForGender'),
+                                        value: formatMaybeValue(tOption('gender', other?.lookingForGender) || other?.lookingForGender),
+                                      },
+                                    ],
+                                    showEmptyProfileFields
+                                  );
 
                                   return (
                                     <>
-                                      <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2">
-                                        {visible.map((it) => (
-                                          <div key={it.label}>
-                                            <p className="text-xs text-white/60">{it.label}</p>
-                                            <p className="font-semibold break-words text-sm text-white/80">{it.value}</p>
+                                      {lookingForRows.length ? (
+                                        <div className="mt-4 pt-3 border-t border-white/10">
+                                          <p className="text-xs font-semibold text-white">{t('matchmakingPage.form.sections.lookingFor')}</p>
+                                          <div className="mt-2 grid grid-cols-1 gap-2">
+                                            {lookingForRows.map((r) => (
+                                              <div key={r.label} className="rounded-lg border border-white/10 bg-white/5 px-3 py-2">
+                                                <p className="text-[11px] text-white/60">{r.label}</p>
+                                                <p className="font-semibold break-words text-sm text-white/85">{r.value}</p>
+                                              </div>
+                                            ))}
                                           </div>
-                                        ))}
-                                      </div>
+                                        </div>
+                                      ) : null}
 
                                       {p && Object.keys(p).length ? (
                                         <div className="mt-4 pt-3 border-t border-white/10">
