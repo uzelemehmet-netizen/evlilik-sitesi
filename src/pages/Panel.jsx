@@ -2927,11 +2927,15 @@ export default function Panel() {
                                     showEmptyProfileFields
                                   );
 
+                                  const splitAt = Math.ceil(personalRows.length / 2);
+                                  const personalLeft = personalRows.slice(0, splitAt);
+                                  const personalRight = personalRows.slice(splitAt);
+
                                   if (!meRows.length && !personalRows.length) return null;
 
                                   return (
                                     <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                      {meRows.length ? (
+                                      {meRows.length || personalLeft.length ? (
                                         <div className="rounded-xl border border-white/10 bg-white/[0.04] p-3">
                                           <p className="text-xs font-semibold text-white">{t('matchmakingPage.form.sections.me')}</p>
                                           <div className="mt-2 grid grid-cols-1 gap-2">
@@ -2941,15 +2945,29 @@ export default function Panel() {
                                                 <p className="font-semibold break-words text-sm text-white/85">{r.value}</p>
                                               </div>
                                             ))}
+
+                                            {meRows.length && personalLeft.length ? <div className="h-px bg-white/10 my-1" /> : null}
+
+                                            {personalLeft.length ? (
+                                              <>
+                                                <p className="text-[11px] font-semibold text-white/70">{t('matchmakingPanel.matches.candidate.detailsTitle')}</p>
+                                                {personalLeft.map((r) => (
+                                                  <div key={r.label} className="rounded-lg border border-white/10 bg-white/5 px-3 py-2">
+                                                    <p className="text-[11px] text-white/60">{r.label}</p>
+                                                    <p className="font-semibold break-words text-sm text-white/85">{r.value}</p>
+                                                  </div>
+                                                ))}
+                                              </>
+                                            ) : null}
                                           </div>
                                         </div>
                                       ) : null}
 
-                                      {personalRows.length ? (
+                                      {personalRight.length ? (
                                         <div className="rounded-xl border border-white/10 bg-white/[0.04] p-3">
                                           <p className="text-xs font-semibold text-white">{t('matchmakingPanel.matches.candidate.detailsTitle')}</p>
                                           <div className="mt-2 grid grid-cols-1 gap-2">
-                                            {personalRows.map((r) => (
+                                            {personalRight.map((r) => (
                                               <div key={r.label} className="rounded-lg border border-white/10 bg-white/5 px-3 py-2">
                                                 <p className="text-[11px] text-white/60">{r.label}</p>
                                                 <p className="font-semibold break-words text-sm text-white/85">{r.value}</p>
