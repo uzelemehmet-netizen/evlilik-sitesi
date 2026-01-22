@@ -52,7 +52,7 @@ function getServiceAccount() {
       }
       return json;
     } catch {
-      return null;
+      // Eğer inline JSON bozuksa, yine de dosya yoluna fallback etmeye çalış.
     }
   }
 

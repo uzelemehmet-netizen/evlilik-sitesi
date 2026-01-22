@@ -18,6 +18,7 @@ import ReservationsPanel from './pages/ReservationsPanel';
 import Wedding from './pages/Wedding';
 import MatchmakingApply from './pages/MatchmakingApply';
 import MatchmakingHub from './pages/MatchmakingHub';
+import MatchmakingMembership from './pages/MatchmakingMembership';
 import YouTube from './pages/YouTube';
 import Privacy from './pages/Privacy';
 import Kesfet from './pages/Kesfet';
@@ -252,6 +253,17 @@ function App() {
             element={
               <RequireAuth>
                 <MatchmakingApply />
+              </RequireAuth>
+            }
+          />
+        )}
+
+        {isFeatureEnabled('wedding') && (
+          <Route
+            path="/evlilik/uyelik"
+            element={
+              <RequireAuth>
+                <MatchmakingMembership />
               </RequireAuth>
             }
           />

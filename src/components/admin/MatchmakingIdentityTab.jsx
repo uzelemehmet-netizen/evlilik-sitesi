@@ -17,6 +17,22 @@ function fmtTs(ts) {
   }
 }
 
+function renderFileLink(label, url) {
+  const u = safeStr(url);
+  if (!u) return null;
+  return (
+    <a
+      key={label}
+      href={u}
+      target="_blank"
+      rel="noreferrer"
+      className="inline-flex items-center justify-center px-3 py-1.5 rounded-full bg-white border border-slate-200 text-xs font-semibold text-slate-800 hover:bg-slate-50"
+    >
+      {label}
+    </a>
+  );
+}
+
 export default function MatchmakingIdentityTab() {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -96,6 +112,8 @@ export default function MatchmakingIdentityTab() {
           const method = safeStr(u?.identityVerification?.method) || '-';
           const ref = safeStr(u?.identityVerification?.referenceCode) || '-';
           const requestedAt = u?.identityVerification?.requestedAt || u?.updatedAt || null;
+          const files = u?.identityVerification?.files || null;
+          const hasFiles = !!(safeStr(files?.idFrontUrl) || safeStr(files?.idBackUrl) || safeStr(files?.selfieUrl));
 
           return (
             <div key={userId} className="rounded-xl border border-slate-200 bg-slate-50 p-4">
@@ -109,6 +127,14 @@ export default function MatchmakingIdentityTab() {
                     <span className="font-semibold">{ref}</span>
                   </p>
                   <p className="text-xs text-slate-600">Requested: {fmtTs(requestedAt)}</p>
+
+                  {hasFiles ? (
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {renderFileLink('Kimlik (Ön)', files?.idFrontUrl)}
+                      {renderFileLink('Kimlik (Arka)', files?.idBackUrl)}
+                      {renderFileLink('Selfie', files?.selfieUrl)}
+                    </div>
+                  ) : null}
                 </div>
                 <div className="flex flex-col sm:items-end gap-2">
                   <input

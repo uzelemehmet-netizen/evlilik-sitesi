@@ -2,6 +2,7 @@ import adminMatchmakingUserStats from '../apiRoutes/admin-matchmaking-user-stats
 import clientIp from '../apiRoutes/client-ip.js';
 import cloudinarySignature from '../apiRoutes/cloudinary-signature.js';
 import identityKycWebhook from '../apiRoutes/identity-kyc-webhook.js';
+import matchmakingVerificationManualSubmit from '../apiRoutes/matchmaking-verification-manual-submit.js';
 import matchmakingAdminApprovePayment from '../apiRoutes/matchmaking-admin-approve-payment.js';
 import matchmakingAdminPhotoUpdateDecide from '../apiRoutes/matchmaking-admin-photo-update-decide.js';
 import matchmakingAdminCancel from '../apiRoutes/matchmaking-admin-cancel.js';
@@ -20,6 +21,9 @@ import matchmakingDismiss from '../apiRoutes/matchmaking-dismiss.js';
 import matchmakingFreeMembershipApply from '../apiRoutes/matchmaking-free-membership-apply.js';
 import matchmakingHeartbeat from '../apiRoutes/matchmaking-heartbeat.js';
 import matchmakingInteractionChoice from '../apiRoutes/matchmaking-interaction-choice.js';
+import matchmakingMembershipActivateFree from '../apiRoutes/matchmaking-membership-activate-free.js';
+import matchmakingMembershipCancel from '../apiRoutes/matchmaking-membership-cancel.js';
+import matchmakingAccountDelete from '../apiRoutes/matchmaking-account-delete.js';
 import matchmakingProfile from '../apiRoutes/matchmaking-profile.js';
 import matchmakingRejectAll from '../apiRoutes/matchmaking-reject-all.js';
 import matchmakingRequestNew from '../apiRoutes/matchmaking-request-new.js';
@@ -51,12 +55,16 @@ const handlers = {
   'matchmaking-free-membership-apply': matchmakingFreeMembershipApply,
   'matchmaking-heartbeat': matchmakingHeartbeat,
   'matchmaking-interaction-choice': matchmakingInteractionChoice,
+  'matchmaking-membership-activate-free': matchmakingMembershipActivateFree,
+  'matchmaking-membership-cancel': matchmakingMembershipCancel,
+  'matchmaking-account-delete': matchmakingAccountDelete,
   'matchmaking-profile': matchmakingProfile,
   'matchmaking-reject-all': matchmakingRejectAll,
   'matchmaking-request-new': matchmakingRequestNew,
   'matchmaking-run': matchmakingRun,
   'matchmaking-submit-payment': matchmakingSubmitPayment,
   'matchmaking-verification-select': matchmakingVerificationSelect,
+  'matchmaking-verification-manual-submit': matchmakingVerificationManualSubmit,
   'recaptcha-assess': recaptchaAssess,
 };
 

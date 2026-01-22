@@ -19,7 +19,24 @@ export default function Panel() {
   const location = useLocation();
   const { user } = useAuth();
 
+  const getStatusLabel = (rawStatus) => {
+    const st = String(rawStatus || '').trim();
+    if (!st) return '-';
+
+    const key = `matchmakingPanel.statuses.${st}`;
+    const v = t(key);
+    return v && v !== key ? v : st;
+  };
+
+  const promoCutoffMs = useMemo(() => new Date('2026-02-10T23:59:59.999+03:00').getTime(), []);
+  const membershipPromoActive = Date.now() <= promoCutoffMs;
+
   const [dashboardTab, setDashboardTab] = useState('matches'); // profile | matches
+
+  const identityVerificationCardRef = useRef(null);
+  const identityInlinePanelRef = useRef(null);
+  const identityInlineButtonRef = useRef(null);
+  const [identityInlineOpen, setIdentityInlineOpen] = useState(false);
 
   const [matchmaking, setMatchmaking] = useState(null);
   const [matchmakingLoading, setMatchmakingLoading] = useState(true);
@@ -77,11 +94,71 @@ export default function Panel() {
   const [photoUpdateFiles, setPhotoUpdateFiles] = useState({ photo1: null, photo2: null, photo3: null });
   const [photoUpdateAction, setPhotoUpdateAction] = useState({ loading: false, error: '', success: '' });
 
+  const [manualVerificationFiles, setManualVerificationFiles] = useState({ idFront: null, idBack: null, selfie: null });
+  const [manualVerificationAction, setManualVerificationAction] = useState({ loading: false, error: '', success: '' });
+
+  const [membershipModalOpen, setMembershipModalOpen] = useState(false);
+  const [membershipModalAction, setMembershipModalAction] = useState({ loading: false, error: '', success: '' });
+  const [membershipDeleteStep, setMembershipDeleteStep] = useState('none'); // none | type | final
+  const [membershipDeleteTyped, setMembershipDeleteTyped] = useState('');
+
+  useEffect(() => {
+    if (!identityInlineOpen) return;
+
+    const onPointerDown = (e) => {
+      const panel = identityInlinePanelRef.current;
+      const btn = identityInlineButtonRef.current;
+      const target = e?.target;
+      if (!target) return;
+
+      if (panel && panel.contains(target)) return;
+      if (btn && btn.contains(target)) return;
+
+      setIdentityInlineOpen(false);
+    };
+
+    const onKeyDown = () => {
+      setIdentityInlineOpen(false);
+    };
+
+    document.addEventListener('mousedown', onPointerDown, true);
+    document.addEventListener('touchstart', onPointerDown, true);
+    window.addEventListener('keydown', onKeyDown, true);
+
+    return () => {
+      document.removeEventListener('mousedown', onPointerDown, true);
+      document.removeEventListener('touchstart', onPointerDown, true);
+      window.removeEventListener('keydown', onKeyDown, true);
+    };
+  }, [identityInlineOpen]);
+
+  const scrollToIdentityVerification = () => {
+    setDashboardTab('profile');
+    setIdentityInlineOpen(true);
+    setTimeout(() => {
+      try {
+        identityVerificationCardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      } catch {
+        // noop
+      }
+    }, 50);
+  };
+
   const [editOnceForm, setEditOnceForm] = useState(null);
   const [editOnceAction, setEditOnceAction] = useState({ loading: false, error: '', success: '' });
 
   const showMatchmakingIntro = !!location?.state?.showMatchmakingIntro;
   const matchmakingNext = '/evlilik/eslestirme-basvuru';
+
+  useEffect(() => {
+    if (!location?.state?.openMembershipActivation) return;
+
+    setDashboardTab('profile');
+
+    const nextState = { ...(location.state || {}) };
+    delete nextState.openMembershipActivation;
+    navigate(location.pathname, { replace: true, state: nextState });
+  }, [location?.state?.openMembershipActivation, location?.pathname, navigate]);
 
   const [onboardingAccepted, setOnboardingAccepted] = useState(() => {
     try {
@@ -744,6 +821,148 @@ export default function Panel() {
     }
   };
 
+  const submitManualVerification = async () => {
+    if (manualVerificationAction.loading) return;
+
+    const idFront = manualVerificationFiles?.idFront || null;
+    const idBack = manualVerificationFiles?.idBack || null;
+    const selfie = manualVerificationFiles?.selfie || null;
+
+    if (!idFront || !idBack || !selfie) {
+      setManualVerificationAction({ loading: false, error: t('matchmakingPanel.verification.errors.missingFiles'), success: '' });
+      return;
+    }
+
+    setManualVerificationAction({ loading: true, error: '', success: '' });
+    try {
+      const folder = 'matchmaking/identity';
+      const tags = ['identity_verification', 'manual'];
+
+      const upFront = await uploadImageToCloudinaryAuto(idFront, { folder, tags });
+      const upBack = await uploadImageToCloudinaryAuto(idBack, { folder, tags });
+      const upSelfie = await uploadImageToCloudinaryAuto(selfie, { folder, tags });
+
+      await authFetch('/api/matchmaking-verification-manual-submit', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          idFrontUrl: upFront?.secureUrl || '',
+          idBackUrl: upBack?.secureUrl || '',
+          selfieUrl: upSelfie?.secureUrl || '',
+        }),
+      });
+
+      setManualVerificationAction({ loading: false, error: '', success: t('matchmakingPanel.verification.manualUpload.success') });
+      setManualVerificationFiles({ idFront: null, idBack: null, selfie: null });
+    } catch (e) {
+      const msg = String(e?.message || '').trim();
+      setManualVerificationAction({ loading: false, error: msg || t('matchmakingPanel.errors.actionFailed'), success: '' });
+    }
+  };
+
+  const openMembershipModal = () => {
+    setMembershipModalAction({ loading: false, error: '', success: '' });
+    setMembershipDeleteStep('none');
+    setMembershipDeleteTyped('');
+    setMembershipModalOpen(true);
+  };
+
+  const closeMembershipModal = () => {
+    if (membershipModalAction.loading) return;
+    setMembershipDeleteStep('none');
+    setMembershipDeleteTyped('');
+    setMembershipModalOpen(false);
+  };
+
+  const normalizeDeleteConfirmText = (v) => {
+    const raw = String(v || '').trim();
+    try {
+      return i18n?.language === 'tr' ? raw.toLocaleLowerCase('tr-TR') : raw.toLocaleLowerCase();
+    } catch {
+      return raw.toLowerCase();
+    }
+  };
+
+  const isDeleteConfirmTextOk = (norm) => norm === 'hesabımı sil' || norm === 'hesabimi sil';
+
+  const startDeleteAccountFlow = () => {
+    if (membershipModalAction.loading) return;
+    setMembershipModalAction({ loading: false, error: '', success: '' });
+    setMembershipDeleteTyped('');
+    setMembershipDeleteStep('type');
+  };
+
+  const goDeleteFinalStep = () => {
+    const norm = normalizeDeleteConfirmText(membershipDeleteTyped);
+    if (!isDeleteConfirmTextOk(norm)) return;
+    setMembershipDeleteStep('final');
+  };
+
+  const activateFreeMembershipNow = async () => {
+    if (membershipModalAction.loading) return;
+    setMembershipModalAction({ loading: true, error: '', success: '' });
+    try {
+      await authFetch('/api/matchmaking-membership-activate-free', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({}),
+      });
+      setMembershipModalAction({ loading: false, error: '', success: t('matchmakingPanel.membershipModal.successActivated') });
+    } catch (e) {
+      const msg = String(e?.message || '').trim();
+      const mapped = msg || t('matchmakingPanel.errors.actionFailed');
+      setMembershipModalAction({ loading: false, error: mapped, success: '' });
+    }
+  };
+
+  const cancelMembershipNow = async () => {
+    if (membershipModalAction.loading) return;
+    setMembershipModalAction({ loading: true, error: '', success: '' });
+    try {
+      await authFetch('/api/matchmaking-membership-cancel', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({}),
+      });
+      setMembershipModalAction({ loading: false, error: '', success: t('matchmakingPanel.membershipModal.successCancelled') });
+    } catch (e) {
+      const msg = String(e?.message || '').trim();
+      const mapped = msg || t('matchmakingPanel.errors.actionFailed');
+      setMembershipModalAction({ loading: false, error: mapped, success: '' });
+    }
+  };
+
+  const deleteAccountNow = async () => {
+    if (membershipModalAction.loading) return;
+
+    const norm = normalizeDeleteConfirmText(membershipDeleteTyped);
+    if (!isDeleteConfirmTextOk(norm)) {
+      setMembershipModalAction({ loading: false, error: t('matchmakingPanel.membershipModal.deleteTypePrompt'), success: '' });
+      setMembershipDeleteStep('type');
+      return;
+    }
+
+    setMembershipModalAction({ loading: true, error: '', success: '' });
+    try {
+      await authFetch('/api/matchmaking-account-delete', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ confirmText: norm, confirmFinal: true }),
+      });
+
+      try {
+        await signOut(auth);
+      } catch {
+        // ignore
+      }
+      navigate('/', { replace: true });
+    } catch (e) {
+      const msg = String(e?.message || '').trim();
+      const mapped = msg || t('matchmakingPanel.errors.actionFailed');
+      setMembershipModalAction({ loading: false, error: mapped, success: '' });
+    }
+  };
+
   const chooseInteraction = async (matchId, choice) => {
     if (!matchId || !choice) return;
     const cur = interactionChoiceByMatchId?.[matchId] || null;
@@ -1114,8 +1333,8 @@ export default function Panel() {
                       <div
                         className={
                           mine
-                            ? 'inline-block bg-sky-600 text-white px-3 py-2 rounded-2xl text-sm max-w-[85%]'
-                            : 'inline-block bg-white/10 border border-white/10 text-white px-3 py-2 rounded-2xl text-sm max-w-[85%]'
+                            ? 'inline-block text-sky-100 text-sm max-w-[85%] whitespace-pre-wrap break-words leading-relaxed'
+                            : 'inline-block text-white/90 text-sm max-w-[85%] whitespace-pre-wrap break-words leading-relaxed'
                         }
                       >
                         {msg?.text || ''}
@@ -1609,6 +1828,137 @@ export default function Panel() {
     <div className="min-h-screen bg-[#050814] text-white relative">
       <Navigation />
 
+      {membershipModalOpen ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div
+            className="absolute inset-0 bg-black/70"
+            onClick={closeMembershipModal}
+            aria-hidden="true"
+          />
+          <div className="relative w-full max-w-lg rounded-3xl border border-white/10 bg-[#070A18] shadow-[0_30px_90px_rgba(0,0,0,0.55)] p-4 md:p-5">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-lg font-bold text-white">{t('matchmakingPanel.membershipModal.title')}</p>
+                <p className="mt-1 text-sm text-white/70">{t('matchmakingPanel.membershipModal.statusLabel')}: <span className="font-semibold text-white/85">{membershipStatusText}</span></p>
+              </div>
+              <button
+                type="button"
+                onClick={closeMembershipModal}
+                disabled={membershipModalAction.loading}
+                className="shrink-0 px-3 py-2 rounded-full border border-white/10 bg-white/5 text-white/80 text-sm font-semibold hover:bg-white/[0.12] disabled:opacity-60"
+              >
+                {t('common.close')}
+              </button>
+            </div>
+
+            {membershipModalAction.error ? (
+              <div className="mt-3 rounded-xl border border-rose-300/30 bg-rose-500/10 p-3 text-rose-100 text-sm">
+                {membershipModalAction.error}
+              </div>
+            ) : null}
+            {membershipModalAction.success ? (
+              <div className="mt-3 rounded-xl border border-emerald-300/30 bg-emerald-500/10 p-3 text-emerald-100 text-sm">
+                {membershipModalAction.success}
+              </div>
+            ) : null}
+
+            {membershipDeleteStep !== 'none' ? (
+              <div className="mt-4">
+                {membershipDeleteStep === 'type' ? (
+                  <>
+                    <p className="text-sm text-white/80">{t('matchmakingPanel.membershipModal.deleteTypePrompt')}</p>
+                    <input
+                      type="text"
+                      value={membershipDeleteTyped}
+                      onChange={(e) => setMembershipDeleteTyped(e.target.value)}
+                      disabled={membershipModalAction.loading}
+                      className="mt-3 w-full px-4 py-2 rounded-xl border border-white/10 bg-white/5 text-white placeholder:text-white/40 outline-none focus:ring-2 focus:ring-white/20"
+                      placeholder="hesabımı sil"
+                    />
+                    <div className="mt-3 grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setMembershipDeleteStep('none')}
+                        disabled={membershipModalAction.loading}
+                        className="w-full px-4 py-2 rounded-full border border-white/15 bg-white/5 text-white/90 text-sm font-semibold hover:bg-white/[0.12] disabled:opacity-60"
+                      >
+                        {t('matchmakingPanel.membershipModal.deleteCancel')}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={goDeleteFinalStep}
+                        disabled={membershipModalAction.loading || !isDeleteConfirmTextOk(normalizeDeleteConfirmText(membershipDeleteTyped))}
+                        className="w-full px-4 py-2 rounded-full bg-rose-500 text-white text-sm font-semibold hover:bg-rose-600 disabled:opacity-60"
+                      >
+                        {t('matchmakingPanel.membershipModal.deleteContinue')}
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-sm text-white/80">{t('matchmakingPanel.membershipModal.deleteFinalConfirm')}</p>
+                    <div className="mt-3 grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setMembershipDeleteStep('type')}
+                        disabled={membershipModalAction.loading}
+                        className="w-full px-4 py-2 rounded-full border border-white/15 bg-white/5 text-white/90 text-sm font-semibold hover:bg-white/[0.12] disabled:opacity-60"
+                      >
+                        {t('matchmakingPanel.membershipModal.deleteBack')}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={deleteAccountNow}
+                        disabled={membershipModalAction.loading}
+                        className="w-full px-4 py-2 rounded-full bg-rose-600 text-white text-sm font-semibold hover:bg-rose-700 disabled:opacity-60"
+                      >
+                        {membershipModalAction.loading ? t('matchmakingPanel.membershipModal.loading') : t('matchmakingPanel.membershipModal.deleteYes')}
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
+            ) : (
+              <div className="mt-4 grid grid-cols-1 gap-2">
+                <button
+                  type="button"
+                  onClick={activateFreeMembershipNow}
+                  disabled={membershipModalAction.loading || myMembership.active}
+                  className="w-full px-4 py-2 rounded-full bg-emerald-300 text-slate-950 text-sm font-semibold hover:bg-emerald-200 disabled:opacity-60"
+                >
+                  {membershipModalAction.loading
+                    ? t('matchmakingPanel.membershipModal.loading')
+                    : myMembership.active
+                      ? t('matchmakingPanel.membershipModal.alreadyActive')
+                      : t('matchmakingPanel.membershipModal.activate')}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={cancelMembershipNow}
+                  disabled={membershipModalAction.loading || !myMembership.active}
+                  className="w-full px-4 py-2 rounded-full border border-white/15 bg-white/5 text-white/90 text-sm font-semibold hover:bg-white/[0.12] disabled:opacity-60"
+                >
+                  {t('matchmakingPanel.membershipModal.cancel')}
+                </button>
+                {!myMembership.active ? (
+                  <p className="text-xs text-white/55">{t('matchmakingPanel.membershipModal.cancelDisabledHint')}</p>
+                ) : null}
+
+                <button
+                  type="button"
+                  onClick={startDeleteAccountFlow}
+                  disabled={membershipModalAction.loading}
+                  className="w-full px-4 py-2 rounded-full bg-rose-600 text-white text-sm font-semibold hover:bg-rose-700 disabled:opacity-60"
+                >
+                  {t('matchmakingPanel.membershipModal.deleteAccount')}
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      ) : null}
+
       {/* Background (Uniqah theme) */}
       <div aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden">
         <div className="absolute -top-40 left-1/2 -translate-x-1/2 w-[900px] h-[900px] bg-[radial-gradient(circle_at_center,rgba(255,215,128,0.18),rgba(255,215,128,0)_60%)]" />
@@ -1637,11 +1987,11 @@ export default function Panel() {
               </div>
             </div>
 
-            <div className="flex flex-col items-end gap-2 shrink-0">
+            <div className="flex flex-col items-end gap-2 shrink-0 w-full md:w-auto">
               <button
                 type="button"
                 onClick={handleLogout}
-                className="px-4 py-2 rounded-full border border-white/10 bg-white/5 text-white/90 text-sm font-semibold hover:bg-white/[0.12] transition"
+                className="w-full sm:w-48 h-8 inline-flex items-center justify-start text-left whitespace-nowrap px-3 rounded-full bg-gradient-to-r from-rose-600 to-rose-500 text-white text-xs font-extrabold tracking-wide shadow-[0_14px_45px_rgba(244,63,94,0.35)] ring-1 ring-rose-200/20 hover:from-rose-500 hover:to-rose-500 transition"
               >
                 {t('matchmakingPanel.actions.logout')}
               </button>
@@ -1651,7 +2001,7 @@ export default function Panel() {
                   matchmaking?.userEditOnceUsedAt ? null : (
                     <Link
                       to="/evlilik/eslestirme-basvuru?editOnce=1"
-                      className="px-4 py-2 rounded-full border border-white/10 bg-white/[0.04] text-white/85 text-sm font-semibold hover:bg-white/[0.08] transition"
+                      className="w-full sm:w-56 h-9 inline-flex items-center justify-start text-left whitespace-nowrap px-3 rounded-full bg-gradient-to-r from-sky-500/20 to-indigo-500/10 text-sky-100 text-sm font-extrabold tracking-wide ring-1 ring-sky-300/25 shadow-[0_14px_45px_rgba(0,0,0,0.45)] hover:from-sky-500/28 hover:to-indigo-500/16 transition"
                     >
                       {t('matchmakingPanel.actions.profileForm')}
                     </Link>
@@ -1659,17 +2009,17 @@ export default function Panel() {
                 ) : (
                   <Link
                     to="/evlilik/eslestirme-basvuru"
-                    className="px-4 py-2 rounded-full border border-white/10 bg-white/[0.04] text-white/85 text-sm font-semibold hover:bg-white/[0.08] transition"
+                    className="w-full sm:w-56 h-9 inline-flex items-center justify-start text-left whitespace-nowrap px-3 rounded-full bg-gradient-to-r from-sky-500/20 to-indigo-500/10 text-sky-100 text-sm font-extrabold tracking-wide ring-1 ring-sky-300/25 shadow-[0_14px_45px_rgba(0,0,0,0.45)] hover:from-sky-500/28 hover:to-indigo-500/16 transition"
                   >
                     {t('matchmakingPanel.actions.profileForm')}
                   </Link>
                 )
               ) : null}
 
-              <details className="w-full max-w-[24rem]">
+              <details className="w-full sm:w-56">
                 <summary className="list-none [&::-webkit-details-marker]:hidden">
                   <div className="w-full flex justify-end">
-                    <span className="inline-flex items-center justify-center w-fit px-4 py-2 rounded-full border border-white/10 bg-white/[0.03] text-white/75 text-xs font-semibold hover:bg-white/[0.08] transition cursor-pointer select-none">
+                    <span className="w-full h-9 inline-flex items-center justify-start text-left whitespace-nowrap px-3 rounded-full bg-gradient-to-r from-white/[0.10] to-white/[0.03] text-white/90 text-sm font-extrabold tracking-wide ring-1 ring-white/10 shadow-[0_14px_45px_rgba(0,0,0,0.45)] hover:from-white/[0.14] hover:to-white/[0.06] transition cursor-pointer select-none">
                       {t('matchmakingPanel.profileForm.detailsToggle')}
                     </span>
                   </div>
@@ -1997,10 +2347,10 @@ export default function Panel() {
                 <button
                   type="button"
                   onClick={() => setDashboardTab('profile')}
-                  className={`w-fit px-4 py-2 rounded-full border text-sm font-semibold transition ${
+                  className={`w-full sm:w-56 h-9 inline-flex items-center justify-start text-left whitespace-nowrap px-3 rounded-full text-sm font-extrabold tracking-wide ring-1 shadow-[0_14px_45px_rgba(0,0,0,0.45)] transition ${
                     dashboardTab === 'profile'
-                      ? 'border-amber-300/30 bg-amber-500/10 text-amber-100'
-                      : 'border-white/10 bg-white/[0.04] text-white/85 hover:bg-white/[0.08]'
+                      ? 'bg-gradient-to-r from-amber-400/25 to-amber-200/10 text-amber-100 ring-amber-300/25 hover:from-amber-400/35 hover:to-amber-200/15'
+                      : 'bg-gradient-to-r from-white/[0.10] to-white/[0.03] text-white/90 ring-white/10 hover:from-white/[0.14] hover:to-white/[0.06]'
                   }`}
                 >
                   {t('matchmakingPanel.tabs.info')}
@@ -2010,10 +2360,10 @@ export default function Panel() {
                   type="button"
                   onClick={() => setDashboardTab('matches')}
                   disabled={!matchmakingLoading && !matchmaking}
-                  className={`w-fit px-4 py-2 rounded-full border text-sm font-semibold transition disabled:opacity-50 ${
+                  className={`w-full sm:w-56 h-9 inline-flex items-center justify-start text-left whitespace-nowrap px-3 rounded-full text-sm font-extrabold tracking-wide ring-1 shadow-[0_14px_45px_rgba(0,0,0,0.45)] transition disabled:opacity-50 ${
                     dashboardTab === 'matches'
-                      ? 'border-sky-300/30 bg-sky-500/10 text-sky-100'
-                      : 'border-white/10 bg-white/[0.04] text-white/85 hover:bg-white/[0.08]'
+                      ? 'bg-gradient-to-r from-sky-400/25 to-indigo-400/10 text-sky-100 ring-sky-300/25 hover:from-sky-400/35 hover:to-indigo-400/15'
+                      : 'bg-gradient-to-r from-white/[0.10] to-white/[0.03] text-white/90 ring-white/10 hover:from-white/[0.14] hover:to-white/[0.06]'
                   }`}
                 >
                   {t('matchmakingPanel.tabs.matches')}
@@ -2023,6 +2373,159 @@ export default function Panel() {
                     </span>
                   ) : null}
                 </button>
+
+                {!myIdentityVerified ? (
+                  <button
+                    type="button"
+                    ref={identityInlineButtonRef}
+                    onClick={() => {
+                      if (identityInlineOpen) {
+                        setIdentityInlineOpen(false);
+                        return;
+                      }
+                      scrollToIdentityVerification();
+                    }}
+                    className="w-full sm:w-56 h-9 inline-flex items-center justify-start text-left whitespace-nowrap px-3 rounded-full bg-gradient-to-r from-emerald-300 to-emerald-200 text-slate-950 text-sm font-extrabold tracking-wide shadow-[0_14px_45px_rgba(16,185,129,0.25)] ring-1 ring-emerald-200/40 hover:from-emerald-200 hover:to-emerald-200 transition"
+                  >
+                    {t('matchmakingPanel.verification.cta')}
+                  </button>
+                ) : null}
+
+                {!myIdentityVerified && identityInlineOpen ? (
+                  <div
+                    ref={identityVerificationCardRef}
+                    data-mk-identity-inline
+                    id="mk-identity-verification"
+                    className="w-full sm:w-56 mt-2 rounded-2xl border border-white/10 bg-white/[0.04] p-3"
+                  >
+                    <div ref={identityInlinePanelRef}>
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="text-xs font-semibold text-white">{t('matchmakingPanel.verification.title')}</p>
+                        <p className="mt-1 text-sm text-white/75">{verificationUnverifiedBody}</p>
+                      </div>
+                    </div>
+
+                    {(() => {
+                      const st = String(matchmakingUser?.identityVerification?.status || '').toLowerCase().trim();
+                      const ref = String(matchmakingUser?.identityVerification?.referenceCode || '').trim();
+                      const files = matchmakingUser?.identityVerification?.files || null;
+                      const hasFiles = !!(
+                        String(files?.idFrontUrl || '').trim() ||
+                        String(files?.idBackUrl || '').trim() ||
+                        String(files?.selfieUrl || '').trim()
+                      );
+                      const pendingWithFiles = st === 'pending' && hasFiles;
+
+                      return (
+                        <div className="mt-3">
+                          {st === 'pending' ? (
+                            <div className="rounded-xl border border-amber-300/30 bg-amber-500/10 p-3">
+                              <p className="text-xs font-semibold text-amber-100">{t('matchmakingPanel.verification.manualUpload.pendingHint')}</p>
+                              {ref ? (
+                                <p className="mt-1 text-xs text-white/70">
+                                  {t('matchmakingPanel.verification.referenceCode')}: <span className="font-mono">{ref}</span>
+                                </p>
+                              ) : null}
+                            </div>
+                          ) : null}
+
+                          <p className="mt-3 text-xs font-semibold text-white/90">{t('matchmakingPanel.verification.manualUpload.title')}</p>
+                          <p className="mt-1 text-xs text-white/60">{t('matchmakingPanel.verification.manualUpload.lead')}</p>
+
+                          <div className="mt-3 space-y-3">
+                            <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
+                              <p className="text-xs font-semibold text-white/80">{t('matchmakingPanel.verification.manualUpload.idFrontLabel')}</p>
+                              <input
+                                type="file"
+                                accept="image/*"
+                                className="mt-2 block w-full text-xs text-white/80 file:mr-3 file:rounded-lg file:border-0 file:bg-white/10 file:px-3 file:py-2 file:text-xs file:font-semibold file:text-white/90 hover:file:bg-white/15"
+                                onChange={(e) => setManualVerificationFiles((p) => ({ ...p, idFront: e.target.files?.[0] || null }))}
+                                disabled={pendingWithFiles || manualVerificationAction.loading}
+                              />
+                              <p className="mt-2 text-[11px] text-white/60 break-words">
+                                {manualVerificationFiles?.idFront?.name || t('matchmakingPage.form.photo.noFileChosen')}
+                              </p>
+                            </div>
+
+                            <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
+                              <p className="text-xs font-semibold text-white/80">{t('matchmakingPanel.verification.manualUpload.idBackLabel')}</p>
+                              <input
+                                type="file"
+                                accept="image/*"
+                                className="mt-2 block w-full text-xs text-white/80 file:mr-3 file:rounded-lg file:border-0 file:bg-white/10 file:px-3 file:py-2 file:text-xs file:font-semibold file:text-white/90 hover:file:bg-white/15"
+                                onChange={(e) => setManualVerificationFiles((p) => ({ ...p, idBack: e.target.files?.[0] || null }))}
+                                disabled={pendingWithFiles || manualVerificationAction.loading}
+                              />
+                              <p className="mt-2 text-[11px] text-white/60 break-words">
+                                {manualVerificationFiles?.idBack?.name || t('matchmakingPage.form.photo.noFileChosen')}
+                              </p>
+                            </div>
+
+                            <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
+                              <p className="text-xs font-semibold text-white/80">{t('matchmakingPanel.verification.manualUpload.selfieLabel')}</p>
+                              <input
+                                type="file"
+                                accept="image/*"
+                                className="mt-2 block w-full text-xs text-white/80 file:mr-3 file:rounded-lg file:border-0 file:bg-white/10 file:px-3 file:py-2 file:text-xs file:font-semibold file:text-white/90 hover:file:bg-white/15"
+                                onChange={(e) => setManualVerificationFiles((p) => ({ ...p, selfie: e.target.files?.[0] || null }))}
+                                disabled={pendingWithFiles || manualVerificationAction.loading}
+                              />
+                              <p className="mt-2 text-[11px] text-white/60 break-words">
+                                {manualVerificationFiles?.selfie?.name || t('matchmakingPage.form.photo.noFileChosen')}
+                              </p>
+                            </div>
+                          </div>
+
+                          {manualVerificationAction.error ? (
+                            <div className="mt-3 rounded-lg border border-rose-300/30 bg-rose-500/10 p-2 text-rose-100 text-xs">
+                              {manualVerificationAction.error}
+                            </div>
+                          ) : null}
+                          {manualVerificationAction.success ? (
+                            <div className="mt-3 rounded-lg border border-emerald-300/30 bg-emerald-500/10 p-2 text-emerald-100 text-xs">
+                              {manualVerificationAction.success}
+                            </div>
+                          ) : null}
+
+                          {(pendingWithFiles || !!manualVerificationAction.success) ? (
+                            <p className="mt-2 text-[11px] text-white/65">
+                              {t('matchmakingPanel.verification.manualUpload.reviewNote')}
+                            </p>
+                          ) : null}
+
+                          <button
+                            type="button"
+                            onClick={submitManualVerification}
+                            disabled={pendingWithFiles || manualVerificationAction.loading}
+                            className="mt-3 inline-flex items-center justify-center w-full px-3 py-2 rounded-full bg-white/10 border border-white/10 text-white/90 text-sm font-semibold hover:bg-white/[0.16] disabled:opacity-60"
+                          >
+                            {manualVerificationAction.loading
+                              ? t('matchmakingPanel.verification.manualUpload.uploading')
+                              : t('matchmakingPanel.verification.manualUpload.submit')}
+                          </button>
+                        </div>
+                      );
+                    })()}
+                    </div>
+                  </div>
+                ) : null}
+
+                <button
+                  type="button"
+                  onClick={openMembershipModal}
+                  className={
+                    "w-full sm:w-56 h-9 inline-flex items-center justify-start text-left whitespace-nowrap px-3 rounded-full text-sm font-extrabold tracking-wide shadow-[0_14px_45px_rgba(0,0,0,0.45)] ring-1 transition " +
+                    (myMembership.active
+                      ? 'bg-gradient-to-r from-white/[0.10] to-white/[0.03] text-white/90 ring-white/10 hover:from-white/[0.14] hover:to-white/[0.06]'
+                      : 'bg-gradient-to-r from-emerald-400 to-emerald-300 text-slate-950 ring-emerald-200/40 hover:from-emerald-300 hover:to-emerald-300')
+                  }
+                >
+                  {myMembership.active
+                    ? t('matchmakingPanel.membershipModal.open')
+                    : t('matchmakingPanel.membershipModal.openFree')}
+                </button>
+                <p className="text-[11px] text-white/55 text-right">{membershipStatusText}</p>
               </div>
             </div>
           </div>
@@ -2064,6 +2567,11 @@ export default function Panel() {
                         {profileCode ? (
                           <span className="inline-flex items-center rounded-full bg-white/10 border border-white/10 px-2 py-0.5 text-[11px] font-semibold text-white/80">
                             {t('matchmakingPanel.application.profileNo')}: {profileCode}
+                          </span>
+                        ) : null}
+                        {myIdentityVerified ? (
+                          <span className="inline-flex items-center rounded-full bg-emerald-500/10 border border-emerald-300/30 px-2 py-0.5 text-[11px] font-semibold text-emerald-100">
+                            {t('matchmakingPanel.verification.verifiedBadge')}
                           </span>
                         ) : null}
                       </div>
@@ -2180,7 +2688,7 @@ export default function Panel() {
                       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-end gap-4">
                         <div className="text-left sm:text-right">
                           <p className="text-xs text-white/60">{t('matchmakingPanel.common.status')}</p>
-                          <p className="text-sm font-semibold text-white">{matchmaking.status || "-"}</p>
+                          <p className="text-sm font-semibold text-white">{getStatusLabel(matchmaking.status)}</p>
                         </div>
 
                         {/* Fotoğraflarım: kullanıcı adı satırıyla aynı hizada, en sağda */}
@@ -2312,7 +2820,7 @@ export default function Panel() {
                       </ol>
                     </details>
 
-                    <details className="mt-3 border-t border-white/10 pt-3" open={!canTakeActions}>
+                    <details className="mt-3 border-t border-white/10 pt-3" open={!canTakeActions || !myIdentityVerified}>
                       <summary className="cursor-pointer text-sm font-semibold text-white">{t('matchmakingPanel.activation.title')}</summary>
 
                       <div className="mt-2 text-sm text-white/75">{t('matchmakingPanel.activation.lead')}</div>
@@ -2320,6 +2828,16 @@ export default function Panel() {
                         <p className="text-xs font-semibold text-white">{t('matchmakingPanel.membership.title')}</p>
                         <p className="mt-1 text-sm text-white/75">{membershipStatusText}</p>
                       </div>
+
+                      {!myIdentityVerified ? (
+                        <button
+                          type="button"
+                          onClick={scrollToIdentityVerification}
+                          className="mt-3 inline-flex items-center justify-center px-4 py-2 rounded-full bg-emerald-300 text-slate-950 text-sm font-semibold hover:bg-emerald-200 transition"
+                        >
+                          {t('matchmakingPanel.verification.cta')}
+                        </button>
+                      ) : null}
 
                       {myGender === 'female' && !canTakeActions ? (
                         <div className="mt-3 rounded-xl border border-sky-300/30 bg-sky-500/10 p-3">
@@ -2814,10 +3332,10 @@ export default function Panel() {
                                       }}
                                       data-mk-profile-info-toggle
                                       className={
-                                        'ml-2 inline-flex items-center rounded-full px-3 py-1 text-[11px] font-extrabold tracking-wide ' +
+                                        'ml-2 inline-flex items-center rounded-full px-3 py-1 text-[11px] font-extrabold tracking-wide ring-1 ring-white/10 shadow-[0_12px_35px_rgba(0,0,0,0.45)] transition focus:outline-none focus:ring-2 focus:ring-white/20 ' +
                                         (profileInfoOpen
-                                          ? 'border border-amber-200/40 bg-amber-400/15 text-amber-100 hover:bg-amber-400/25'
-                                          : 'border border-sky-200/40 bg-sky-400/15 text-sky-100 hover:bg-sky-400/25')
+                                          ? 'bg-gradient-to-r from-amber-400/25 to-amber-200/10 text-amber-100 ring-amber-300/25 hover:from-amber-400/35 hover:to-amber-200/15'
+                                          : 'bg-gradient-to-r from-sky-400/25 to-indigo-400/10 text-sky-100 ring-sky-300/25 hover:from-sky-400/35 hover:to-indigo-400/15')
                                       }
                                     >
                                       {profileInfoOpen
@@ -2863,7 +3381,7 @@ export default function Panel() {
                               </div>
                               <div className="text-left sm:text-right">
                                 <p className="text-xs text-white/60">{t('matchmakingPanel.common.status')}</p>
-                                <p className="text-sm font-semibold text-white">{m.status || '-'}</p>
+                                <p className="text-sm font-semibold text-white">{getStatusLabel(m.status)}</p>
                               </div>
                             </div>
 
@@ -3182,10 +3700,10 @@ export default function Panel() {
                                           disabled={loading || blocked}
                                           onClick={() => chooseInteraction(m.id, 'offsite')}
                                           className={
-                                            'px-4 py-2 rounded-full text-sm font-semibold border ' +
+                                            'px-4 py-2 rounded-full text-sm font-semibold ring-1 ring-white/10 shadow-[0_12px_35px_rgba(0,0,0,0.45)] transition focus:outline-none focus:ring-2 focus:ring-white/20 disabled:opacity-60 ' +
                                             (myChoice === 'offsite'
-                                              ? 'bg-emerald-700 text-white border-emerald-700'
-                                              : 'bg-white/5 text-emerald-100 border-emerald-300/30 hover:bg-emerald-500/10')
+                                              ? 'bg-gradient-to-r from-emerald-400 to-emerald-300 text-slate-950 ring-emerald-200/40'
+                                              : 'bg-emerald-500/10 text-emerald-100 ring-emerald-300/25 hover:bg-emerald-500/20')
                                           }
                                         >
                                           {t('matchmakingPanel.matches.interaction.offsite')}
@@ -3195,10 +3713,10 @@ export default function Panel() {
                                           disabled={loading || blocked}
                                           onClick={() => chooseInteraction(m.id, 'cancel')}
                                           className={
-                                            'px-4 py-2 rounded-full text-sm font-semibold border ' +
+                                            'px-4 py-2 rounded-full text-sm font-semibold ring-1 ring-white/10 shadow-[0_12px_35px_rgba(0,0,0,0.45)] transition focus:outline-none focus:ring-2 focus:ring-white/20 disabled:opacity-60 ' +
                                             (myChoice === 'cancel'
-                                              ? 'bg-rose-700 text-white border-rose-700'
-                                              : 'bg-white/5 text-rose-100 border-rose-300/30 hover:bg-rose-500/10')
+                                              ? 'bg-gradient-to-r from-rose-500 to-rose-400 text-white ring-rose-200/40'
+                                              : 'bg-rose-500/10 text-rose-100 ring-rose-300/25 hover:bg-rose-500/20')
                                           }
                                         >
                                           {t('matchmakingPanel.matches.interaction.cancel')}

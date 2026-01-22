@@ -712,7 +712,7 @@ const overrides = {
     title: 'Profil Saya',
     subtitle: 'Langkah pencocokan, keanggotaan, dan kontak Anda akan tampil di sini.',
     tabs: {
-      info: 'Info',
+      info: 'Info/Aturan',
       matches: 'Kecocokan saya',
     },
     photos: {
@@ -807,6 +807,26 @@ const overrides = {
         notFound: 'Pengajuan tidak ditemukan. Anda harus mengisi formulir terlebih dahulu.',
       },
     },
+    activation: {
+      title: 'Aktivasi keanggotaan & pembayaran',
+      lead:
+        'Anda dapat mengikuti langkah aktivasi/membuka aksi dari sini. Jika keanggotaan Anda belum aktif, lakukan pembayaran dan kirim “laporan pembayaran” dengan bukti/nomor referensi (keanggotaan aktif setelah persetujuan admin).',
+      freePaidMembershipCta: 'Aktifkan keanggotaan saya gratis',
+      paidMembershipCta: 'Aktifkan keanggotaan',
+      freeActiveTitle: 'Wanita: keanggotaan aktif gratis',
+      freeActiveBody:
+        'Jika identitas Anda terverifikasi, Anda dapat mengajukan keanggotaan aktif gratis. Ini dapat membuka aksi tanpa keanggotaan berbayar (aturan tidak aktif 48/24 jam berlaku).',
+      freeActiveNeedsVerification: 'Verifikasi identitas diperlukan untuk keanggotaan aktif gratis.',
+      paymentTitle: 'Keanggotaan berbayar (bulanan) / pembayaran',
+      paymentBody:
+        'Untuk mengaktifkan keanggotaan, lakukan pembayaran dengan salah satu metode di bawah ini, lalu kirim laporan pembayaran dengan detail bukti/referensi.',
+      selectMatchTitle: 'Pilih kecocokan untuk laporan pembayaran',
+      selectMatchHelp:
+        'Secara teknis, laporan pembayaran terhubung ke sebuah kecocokan. Jika Anda belum punya kecocokan, hubungi dukungan via WhatsApp.',
+      selectMatchPlaceholder: 'Pilih kecocokan…',
+      matchOption: '{{status}} • {{matchCode}}',
+      selectMatchRequired: 'Anda harus memilih kecocokan untuk mengirim laporan pembayaran.',
+    },
     choice: {
       title: 'Anda memilih satu kandidat.',
       body: 'Kandidat lain tidak dihapus. Anda bisa memilih untuk menampilkan hanya pilihan Anda atau melihat kandidat sebelumnya kapan saja.',
@@ -853,6 +873,15 @@ const overrides = {
       email: 'Email',
       instagram: 'Instagram',
       cityCountry: 'Kota/Negara',
+    },
+    statuses: {
+      proposed: 'Diusulkan',
+      mutual_accepted: 'Disetujui bersama',
+      contact_unlocked: 'Kontak dibuka',
+      cancelled: 'Dibatalkan',
+      rejected: 'Ditolak',
+      pending: 'Menunggu',
+      approved: 'Disetujui',
     },
     update: {
       title: 'Perbarui info',
@@ -1006,6 +1035,7 @@ const overrides = {
     },
     verification: {
       title: 'Verifikasi identitas',
+      cta: 'Verifikasi identitas',
       verifiedBadge: 'Identitas terverifikasi',
       requiredTitle: 'Verifikasi identitas (lencana)',
       requiredBody: 'Verifikasi identitas adalah lencana kepercayaan. Jika ada pelanggaran aturan, Anda bisa mengajukan keluhan dengan screenshot/bukti.',
@@ -1013,6 +1043,18 @@ const overrides = {
       unverifiedBodyMale: 'Verifikasi identitas bersifat opsional. Catatan: untuk pria, aksi membutuhkan keanggotaan aktif.',
       unverifiedBodyFemale: 'Verifikasi identitas bersifat opsional. Catatan: wanita bisa menggunakan aksi dengan keanggotaan atau verifikasi identitas.',
       referenceCode: 'Kode verifikasi',
+      manualUpload: {
+        title: 'Verifikasi di situs (manual)',
+        lead: 'Tidak wajib. Unggah foto KTP/ID (depan & belakang) dan satu selfie. Setelah ditinjau, lencana akan diberikan ke akun Anda.',
+        idFrontLabel: 'ID (depan)',
+        idBackLabel: 'ID (belakang)',
+        selfieLabel: 'Selfie',
+        submit: 'Kirim',
+        uploading: 'Mengunggah…',
+        success: 'Dokumen Anda berhasil dikirim. Menunggu peninjauan.',
+        pendingHint: 'Status: menunggu peninjauan',
+        reviewNote: 'Setelah Anda mengirim file, verifikasi identitas akan ditinjau dan disetujui oleh sistem.',
+      },
       actions: {
         startWhatsapp: 'Verifikasi via WhatsApp',
         startKyc: 'KYC otomatis (ID + selfie)',
@@ -1022,7 +1064,29 @@ const overrides = {
       errors: {
         kycNotConfigured: 'KYC otomatis belum dikonfigurasi. Silakan gunakan WhatsApp atau verifikasi manual.',
         whatsappNotConfigured: 'Nomor WhatsApp belum dikonfigurasi. Silakan gunakan verifikasi manual.',
+        missingFiles: 'Silakan pilih ID (depan/belakang) dan selfie.',
       },
+    },
+
+    membershipModal: {
+      openFree: 'Aktifkan keanggotaan gratis',
+      open: 'Status keanggotaan',
+      title: 'Kelola keanggotaan',
+      statusLabel: 'Keanggotaan',
+      activate: 'Aktifkan keanggotaan saya',
+      cancel: 'Batalkan keanggotaan saya',
+      cancelDisabledHint: 'Anda tidak bisa membatalkan sebelum keanggotaan aktif.',
+      deleteAccount: 'Hapus akun',
+      deleteTypePrompt: 'Jika Anda benar-benar ingin menghapus akun: ketik "hesabımı sil".',
+      deleteFinalConfirm: 'Akun Anda akan dihapus permanen dari sistem. Anda yakin?',
+      deleteCancel: 'Batal',
+      deleteContinue: 'Lanjutkan',
+      deleteBack: 'Kembali',
+      deleteYes: 'Ya, hapus akun saya',
+      loading: 'Memproses…',
+      alreadyActive: 'Keanggotaan Anda sudah aktif',
+      successActivated: 'Keanggotaan Anda diaktifkan.',
+      successCancelled: 'Keanggotaan Anda dibatalkan.',
     },
 
     membershipGate: {
@@ -1153,7 +1217,7 @@ const overrides = {
         matchedProfile: 'Profil kecocokan',
         score: 'Skor kecocokan',
         likeBadge: '♥ Anda mendapat like',
-        profileInfo: 'Info profil',
+        profileInfo: 'Tampilkan info profil',
         hideProfileInfo: 'Sembunyikan',
         profileInfoTitle: 'Info profil (tanpa kontak)',
         partnerAgeMin: 'Usia min',
@@ -1169,6 +1233,32 @@ const overrides = {
         religionLabel: 'Agama',
       },
     },
+  },
+
+  matchmakingMembership: {
+    title: 'Aktivasi keanggotaan',
+    lead: 'Anda dapat mengaktifkan keanggotaan Anda di sini.',
+    planTitle: 'Keanggotaan bulanan',
+    monthlyPrice: 'Harga: ${{amount}} / bulan',
+    promoTitle: 'Promo: Aktivasi gratis',
+    promoBody: 'Aktivasi keanggotaan gratis sampai {{date}}.',
+    promoEndedTitle: 'Promo berakhir',
+    promoEndedBody: 'Setelah {{date}}, aktivasi keanggotaan berbayar dan aktif setelah pembayaran.',
+    freeActivateCta: 'Aktifkan keanggotaan saya gratis',
+    paidActivationCta: 'Lanjut ke pembayaran',
+    activating: 'Mengaktifkan…',
+    activated: 'Keanggotaan diaktifkan.',
+    activatedUntil: 'Keanggotaan diaktifkan. Berlaku sampai: {{date}}',
+    promoExpired: 'Promo berakhir. Setelah {{date}}, aktivasi berbayar dan aktif setelah pembayaran.',
+    activateFailed: 'Tidak dapat mengaktifkan keanggotaan. Silakan coba lagi.',
+    errors: {
+      notAuthenticated: 'Sesi tidak dapat diverifikasi. Silakan keluar lalu masuk kembali.',
+      serverNotConfigured: 'Konfigurasi server tidak lengkap. Silakan hubungi dukungan.',
+      apiUnavailableDev: 'API tidak dapat dijangkau. Di local dev, jalankan `npm run dev` (api+web).',
+    },
+    backToPanel: 'Kembali ke panel',
+    paymentMethodsSoon: 'Catatan: Aktivasi keanggotaan gratis sampai {{date}}.',
+    paidAdminApprovalNote: 'Catatan: Setelah {{date}}, aktivasi berbayar dan aktif setelah pembayaran.',
   },
 
   panel: {
@@ -3348,6 +3438,10 @@ export default {
   matchmakingPanel: {
     title: 'Profil Saya',
     subtitle: 'Langkah pencocokan, keanggotaan, dan kontak Anda akan tampil di sini.',
+    tabs: {
+      info: 'Info/Aturan',
+      matches: 'Kecocokan saya',
+    },
     photos: {
       updateRequest: {
         title: 'Permintaan pembaruan foto',
@@ -3639,7 +3733,7 @@ export default {
         matchedProfile: 'Profil kecocokan',
         score: 'Skor kecocokan',
         likeBadge: '♥ Anda mendapat like',
-        profileInfo: 'Info profil',
+        profileInfo: 'Tampilkan info profil',
         hideProfileInfo: 'Sembunyikan',
         profileInfoTitle: 'Info profil (tanpa kontak)',
         partnerAgeMin: 'Usia min',
