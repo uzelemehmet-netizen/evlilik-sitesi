@@ -8,8 +8,6 @@ export default {
     about: "Hakkımızda",
     corporate: "Kurumsal",
     travel: "Seyahat",
-    tours: "Tur Paketleri",
-    explore: "Keşfet",
     wedding: "Evlilik",
     matchmaking: "Uniqah",
     panel: "Profilim",

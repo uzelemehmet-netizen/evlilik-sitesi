@@ -37,7 +37,6 @@ export default function Panel() {
   const [candidateDetailsLoadingByMatchId, setCandidateDetailsLoadingByMatchId] = useState({});
 
   const [profileInfoOpenByMatchId, setProfileInfoOpenByMatchId] = useState({});
-  const [profileInfoShowEmptyByMatchId, setProfileInfoShowEmptyByMatchId] = useState({});
 
   const [chatByMatchId, setChatByMatchId] = useState({});
   const [chatSendByMatchId, setChatSendByMatchId] = useState({});
@@ -522,11 +521,36 @@ export default function Panel() {
     return !s || s === '-' || s.toLowerCase() === 'null' || s.toLowerCase() === 'undefined';
   };
 
-  const filterEmptyRows = (rows, showEmpty) => {
+  const filterEmptyRows = (rows) => {
     const list = Array.isArray(rows) ? rows : [];
-    if (showEmpty) return list;
     return list.filter((r) => r && !isEmptyUiValue(r.value));
   };
+
+  const anyProfileInfoOpen = useMemo(() => {
+    const m = profileInfoOpenByMatchId && typeof profileInfoOpenByMatchId === 'object' ? profileInfoOpenByMatchId : {};
+    return Object.values(m).some(Boolean);
+  }, [profileInfoOpenByMatchId]);
+
+  useEffect(() => {
+    if (!anyProfileInfoOpen) return;
+
+    const onDocPointerDown = (e) => {
+      try {
+        const target = e?.target;
+        if (!target || typeof target.closest !== 'function') return;
+
+        // Profil paneli veya butonun üstüne tıklanırsa kapatma.
+        if (target.closest('[data-mk-profile-info]') || target.closest('[data-mk-profile-info-toggle]')) return;
+
+        setProfileInfoOpenByMatchId({});
+      } catch {
+        // noop
+      }
+    };
+
+    document.addEventListener('pointerdown', onDocPointerDown, true);
+    return () => document.removeEventListener('pointerdown', onDocPointerDown, true);
+  }, [anyProfileInfoOpen]);
 
   const formatLanguagesSummary = (langs) => {
     const l = langs && typeof langs === 'object' ? langs : {};
@@ -2762,7 +2786,6 @@ export default function Panel() {
                         const otherDecision = m?.decisions?.[otherSide] || null;
 
                         const profileInfoOpen = !!profileInfoOpenByMatchId?.[m.id];
-                        const showEmptyProfileFields = !!profileInfoShowEmptyByMatchId?.[m.id];
 
                         const displayName = other?.username || other?.fullName || t('matchmakingPanel.matches.candidate.fallbackName');
                         const maritalCode = other?.details?.maritalStatus || '';
@@ -2789,7 +2812,13 @@ export default function Panel() {
                                         setProfileInfoOpenByMatchId((p) => ({ ...p, [m.id]: !p?.[m.id] }));
                                         if (!profileInfoOpen) loadCandidateDetails(m.id);
                                       }}
-                                      className="ml-2 inline-flex items-center rounded-full border border-white/15 bg-white/5 px-2 py-0.5 text-[11px] font-semibold text-white/80 hover:bg-white/10"
+                                      data-mk-profile-info-toggle
+                                      className={
+                                        'ml-2 inline-flex items-center rounded-full px-3 py-1 text-[11px] font-extrabold tracking-wide ' +
+                                        (profileInfoOpen
+                                          ? 'border border-amber-200/40 bg-amber-400/15 text-amber-100 hover:bg-amber-400/25'
+                                          : 'border border-sky-200/40 bg-sky-400/15 text-sky-100 hover:bg-sky-400/25')
+                                      }
                                     >
                                       {profileInfoOpen
                                         ? t('matchmakingPanel.matches.candidate.hideProfileInfo')
@@ -2854,19 +2883,8 @@ export default function Panel() {
                             ) : null}
 
                             {profileInfoOpen && canSeeFullProfiles ? (
-                              <div className="mt-3 rounded-xl border border-white/10 bg-white/5 p-3">
-                                <div className="flex items-start justify-between gap-3">
-                                  <p className="text-xs font-semibold text-white">{t('matchmakingPanel.matches.candidate.profileInfoTitle')}</p>
-                                  <button
-                                    type="button"
-                                    onClick={() => setProfileInfoShowEmptyByMatchId((p) => ({ ...p, [m.id]: !p?.[m.id] }))}
-                                    className="inline-flex items-center rounded-full border border-white/15 bg-white/5 px-2 py-0.5 text-[11px] font-semibold text-white/80 hover:bg-white/10"
-                                  >
-                                    {showEmptyProfileFields
-                                      ? t('matchmakingPanel.matches.candidate.hideEmptyFields')
-                                      : t('matchmakingPanel.matches.candidate.showEmptyFields')}
-                                  </button>
-                                </div>
+                              <div data-mk-profile-info className="mt-3 rounded-xl border border-white/10 bg-white/5 p-3">
+                                <p className="text-xs font-semibold text-white">{t('matchmakingPanel.matches.candidate.profileInfoTitle')}</p>
 
                                 {candidateDetailsLoadingByMatchId?.[m.id] ? (
                                   <p className="mt-2 text-xs text-white/60">{t('common.loading')}</p>
@@ -2891,7 +2909,7 @@ export default function Panel() {
                                         value: formatMaybeValue(tOption('gender', other?.gender) || other?.gender),
                                       },
                                     ],
-                                    showEmptyProfileFields
+                                    
                                   );
 
                                   const personalRows = filterEmptyRows(
@@ -2924,7 +2942,7 @@ export default function Panel() {
                                         ),
                                       },
                                     ],
-                                    showEmptyProfileFields
+                                    
                                   );
 
                                   const splitAt = Math.ceil(personalRows.length / 2);
@@ -3013,7 +3031,7 @@ export default function Panel() {
                                         value: formatMaybeValue(tOption('gender', other?.lookingForGender) || other?.lookingForGender),
                                       },
                                     ],
-                                    showEmptyProfileFields
+                                    
                                   );
 
                                   return (
@@ -3124,7 +3142,7 @@ export default function Panel() {
                                                   value: formatPref(p?.familyValuesPreference),
                                                 },
                                               ],
-                                              showEmptyProfileFields
+                                              
                                             ).map((it) => (
                                               <div key={it.label}>
                                                 <p className="text-xs text-white/60">{it.label}</p>

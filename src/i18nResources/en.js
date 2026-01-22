@@ -8,8 +8,6 @@ export default {
     about: "About",
     corporate: "Corporate",
     travel: "Travel",
-    tours: "Tours",
-    explore: "Explore",
     wedding: "Wedding Guidance",
     matchmaking: "Uniqah",
     panel: "My profile",
