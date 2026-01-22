@@ -192,6 +192,8 @@ const overrides = {
       badge: 'Perusahaan induk',
       caption: 'Payung hukum untuk operasi {{brand}}',
     },
+        partnerAgeMin: 'Usia min',
+        partnerAgeMax: 'Usia max',
     billing: {
       title: 'Pembayaran, penagihan, dan kontrak',
       items: {
@@ -1154,6 +1156,8 @@ const overrides = {
         profileInfo: 'Info profil',
         hideProfileInfo: 'Sembunyikan',
         profileInfoTitle: 'Info profil (tanpa kontak)',
+        partnerAgeMin: 'Usia min',
+        partnerAgeMax: 'Usia max',
         photoAlt: 'Foto',
         maritalStatus: 'Status pernikahan',
         detailsTitle: 'Detail',
@@ -3638,6 +3642,8 @@ export default {
         profileInfo: 'Info profil',
         hideProfileInfo: 'Sembunyikan',
         profileInfoTitle: 'Info profil (tanpa kontak)',
+        partnerAgeMin: 'Usia min',
+        partnerAgeMax: 'Usia max',
         photoAlt: 'Foto',
         maritalStatus: 'Status pernikahan',
         detailsTitle: 'Detail',

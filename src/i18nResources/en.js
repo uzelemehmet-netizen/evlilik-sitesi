@@ -40,6 +40,8 @@ export default {
         title: 'System evaluation',
         desc: 'When a suitable match is found, the process continues safely in your panel.',
       },
+        partnerAgeMin: 'Min age',
+        partnerAgeMax: 'Max age',
       panel: {
         title: 'Manage in your panel',
         desc: 'You manage previews, matches and next steps from your panel.',

@@ -2848,6 +2848,56 @@ export default function Panel() {
                                   <p className="mt-2 text-xs text-white/60">{t('common.loading')}</p>
                                 ) : null}
 
+                                <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2">
+                                  <div>
+                                    <p className="text-xs text-white/60">{t('matchmakingPage.form.sections.me')}</p>
+                                    <div className="mt-1 space-y-2 text-sm text-white/80">
+                                      <div>
+                                        <p className="text-xs text-white/60">{t('matchmakingPage.form.labels.username')}</p>
+                                        <p className="font-semibold break-words">{other?.username || '-'}</p>
+                                      </div>
+                                      <div>
+                                        <p className="text-xs text-white/60">{t('matchmakingPage.form.labels.fullName')}</p>
+                                        <p className="font-semibold break-words">{other?.fullName || '-'}</p>
+                                      </div>
+                                      <div>
+                                        <p className="text-xs text-white/60">{t('matchmakingPage.form.labels.age')}</p>
+                                        <p className="font-semibold break-words">{typeof other?.age === 'number' ? String(other.age) : '-'}</p>
+                                      </div>
+                                      <div>
+                                        <p className="text-xs text-white/60">{t('matchmakingPage.form.labels.city')}</p>
+                                        <p className="font-semibold break-words">{other?.city || '-'}</p>
+                                      </div>
+                                      <div>
+                                        <p className="text-xs text-white/60">{t('matchmakingPage.form.labels.country')}</p>
+                                        <p className="font-semibold break-words">{other?.country || '-'}</p>
+                                      </div>
+                                      <div>
+                                        <p className="text-xs text-white/60">{t('matchmakingPage.form.labels.nationality')}</p>
+                                        <p className="font-semibold break-words">{formatMaybeValue(tOption('nationality', other?.nationality) || other?.nationality)}</p>
+                                      </div>
+                                      <div>
+                                        <p className="text-xs text-white/60">{t('matchmakingPage.form.labels.gender')}</p>
+                                        <p className="font-semibold break-words">{formatMaybeValue(tOption('gender', other?.gender) || other?.gender)}</p>
+                                      </div>
+                                    </div>
+                                  </div>
+
+                                  <div>
+                                    <p className="text-xs text-white/60">{t('matchmakingPage.form.sections.lookingFor')}</p>
+                                    <div className="mt-1 space-y-2 text-sm text-white/80">
+                                      <div>
+                                        <p className="text-xs text-white/60">{t('matchmakingPage.form.labels.lookingForNationality')}</p>
+                                        <p className="font-semibold break-words">{formatMaybeValue(tOption('nationality', other?.lookingForNationality) || other?.lookingForNationality)}</p>
+                                      </div>
+                                      <div>
+                                        <p className="text-xs text-white/60">{t('matchmakingPage.form.labels.lookingForGender')}</p>
+                                        <p className="font-semibold break-words">{formatMaybeValue(tOption('gender', other?.lookingForGender) || other?.lookingForGender)}</p>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+
                                 <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm text-white/80">
                                   <div>
                                     <p className="text-xs text-white/60">{t('matchmakingPanel.matches.candidate.aboutLabel')}</p>
@@ -2863,10 +2913,19 @@ export default function Panel() {
                                   const d = other?.details && typeof other.details === 'object' ? other.details : {};
                                   const p = other?.partnerPreferences && typeof other.partnerPreferences === 'object' ? other.partnerPreferences : {};
 
+                                  const formatPref = (raw) => {
+                                    const s = String(raw || '').trim().toLowerCase();
+                                    if (!s) return '-';
+                                    if (s === 'doesnt_matter' || s === 'doesntmatter') return t('matchmakingPage.form.options.common.doesntMatter');
+                                    if (s === 'yes' || s === 'no' || s === 'true' || s === 'false' || s === '1' || s === '0') return tYesNoCommon(s);
+                                    return String(raw || '').trim() || '-';
+                                  };
+
                                   const items = [
                                     { label: t('matchmakingPage.form.labels.height'), value: formatMaybeValue(d?.heightCm, ' cm') },
                                     { label: t('matchmakingPage.form.labels.weight'), value: formatMaybeValue(d?.weightKg, ' kg') },
                                     { label: t('matchmakingPage.form.labels.education'), value: formatMaybeValue(tOption('education', d?.education) || d?.education) },
+                                    { label: t('matchmakingPage.form.labels.educationDepartment'), value: formatMaybeValue(d?.educationDepartment) },
                                     { label: t('matchmakingPage.form.labels.occupation'), value: formatMaybeValue(tOption('occupation', d?.occupation) || d?.occupation) },
                                     { label: t('matchmakingPage.form.labels.maritalStatus'), value: formatMaybeValue(tOption('maritalStatus', d?.maritalStatus) || d?.maritalStatus) },
                                     { label: t('matchmakingPage.form.labels.hasChildren'), value: formatMaybeValue(tYesNoCommon(d?.hasChildren) || d?.hasChildren) },
@@ -2912,12 +2971,20 @@ export default function Panel() {
                                               <p className="font-semibold break-words text-sm text-white/80">{formatMaybeValue(p?.heightMaxCm, ' cm')}</p>
                                             </div>
                                             <div>
-                                              <p className="text-xs text-white/60">Min yaş</p>
+                                              <p className="text-xs text-white/60">{t('matchmakingPanel.matches.candidate.partnerAgeMin')}</p>
                                               <p className="font-semibold break-words text-sm text-white/80">{formatMaybeValue(p?.ageMin)}</p>
                                             </div>
                                             <div>
-                                              <p className="text-xs text-white/60">Max yaş</p>
+                                              <p className="text-xs text-white/60">{t('matchmakingPanel.matches.candidate.partnerAgeMax')}</p>
                                               <p className="font-semibold break-words text-sm text-white/80">{formatMaybeValue(p?.ageMax)}</p>
+                                            </div>
+                                            <div>
+                                              <p className="text-xs text-white/60">{t('matchmakingPage.form.labels.partnerAgeMaxOlderYears')}</p>
+                                              <p className="font-semibold break-words text-sm text-white/80">{formatMaybeValue(p?.ageMaxOlderYears)}</p>
+                                            </div>
+                                            <div>
+                                              <p className="text-xs text-white/60">{t('matchmakingPage.form.labels.partnerAgeMaxYoungerYears')}</p>
+                                              <p className="font-semibold break-words text-sm text-white/80">{formatMaybeValue(p?.ageMaxYoungerYears)}</p>
                                             </div>
                                             <div>
                                               <p className="text-xs text-white/60">{t('matchmakingPage.form.labels.partnerMaritalStatus')}</p>
@@ -2945,27 +3012,27 @@ export default function Panel() {
                                             </div>
                                             <div>
                                               <p className="text-xs text-white/60">{t('matchmakingPage.form.labels.partnerSmokingPreference')}</p>
-                                              <p className="font-semibold break-words text-sm text-white/80">{formatMaybeValue(p?.smokingPreference)}</p>
+                                              <p className="font-semibold break-words text-sm text-white/80">{formatPref(p?.smokingPreference)}</p>
                                             </div>
                                             <div>
                                               <p className="text-xs text-white/60">{t('matchmakingPage.form.labels.partnerAlcoholPreference')}</p>
-                                              <p className="font-semibold break-words text-sm text-white/80">{formatMaybeValue(p?.alcoholPreference)}</p>
+                                              <p className="font-semibold break-words text-sm text-white/80">{formatPref(p?.alcoholPreference)}</p>
                                             </div>
                                             <div>
                                               <p className="text-xs text-white/60">{t('matchmakingPage.form.labels.partnerChildrenPreference')}</p>
-                                              <p className="font-semibold break-words text-sm text-white/80">{formatMaybeValue(p?.childrenPreference)}</p>
+                                              <p className="font-semibold break-words text-sm text-white/80">{formatPref(p?.childrenPreference)}</p>
                                             </div>
                                             <div>
                                               <p className="text-xs text-white/60">{t('matchmakingPage.form.labels.partnerEducationPreference')}</p>
-                                              <p className="font-semibold break-words text-sm text-white/80">{formatMaybeValue(p?.educationPreference)}</p>
+                                              <p className="font-semibold break-words text-sm text-white/80">{formatPref(p?.educationPreference)}</p>
                                             </div>
                                             <div>
                                               <p className="text-xs text-white/60">{t('matchmakingPage.form.labels.partnerOccupationPreference')}</p>
-                                              <p className="font-semibold break-words text-sm text-white/80">{formatMaybeValue(p?.occupationPreference)}</p>
+                                              <p className="font-semibold break-words text-sm text-white/80">{formatPref(p?.occupationPreference)}</p>
                                             </div>
                                             <div>
                                               <p className="text-xs text-white/60">{t('matchmakingPage.form.labels.partnerFamilyValuesPreference')}</p>
-                                              <p className="font-semibold break-words text-sm text-white/80">{formatMaybeValue(p?.familyValuesPreference)}</p>
+                                              <p className="font-semibold break-words text-sm text-white/80">{formatPref(p?.familyValuesPreference)}</p>
                                             </div>
                                           </div>
                                         </div>

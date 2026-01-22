@@ -2519,6 +2519,8 @@ export default {
         profileInfo: 'Profil bilgileri',
         hideProfileInfo: 'Gizle',
         profileInfoTitle: 'Profil bilgileri (iletişim hariç)',
+        partnerAgeMin: 'Min yaş',
+        partnerAgeMax: 'Max yaş',
         photoAlt: 'Fotoğraf',
         maritalStatus: 'Medeni durum',
         detailsTitle: 'Detaylar',
