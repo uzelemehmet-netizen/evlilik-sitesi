@@ -1690,15 +1690,18 @@ export default function Panel() {
             loading: false,
             error: '',
             usagePercent: typeof data?.usage?.usagePercent === 'number' ? data.usage.usagePercent : null,
+            billingMode: typeof data?.usage?.billingMode === 'string' ? data.usage.billingMode : '',
           },
         }));
       } catch (e) {
         const code = String(e?.message || '').trim();
         const pctRaw = e?.details?.details?.usagePercent;
         const usagePercent = typeof pctRaw === 'number' ? pctRaw : null;
+        const billingModeRaw = e?.details?.details?.billingMode;
+        const billingMode = typeof billingModeRaw === 'string' ? billingModeRaw : '';
         setChatTranslateByKey((p) => ({
           ...p,
-          [key]: { loading: false, error: code || 'translate_failed', usagePercent },
+          [key]: { loading: false, error: code || 'translate_failed', usagePercent, billingMode },
         }));
       }
     };
@@ -1776,6 +1779,7 @@ export default function Panel() {
                     typeof translateUsagePercentRaw === 'number' && Number.isFinite(translateUsagePercentRaw)
                       ? translateUsagePercentRaw
                       : null;
+                  const translateBillingMode = String(chatTranslateByKey?.[translateKey]?.billingMode || '').trim();
                   return (
                     <div key={msg.id} className={mine ? 'text-right' : 'text-left'}>
                       <div
@@ -1805,8 +1809,19 @@ export default function Panel() {
                       {!mine && !isSystem ? (
                         <div className="mt-1">
                           {translatedText ? (
-                            <div className="inline-block text-xs text-white/70 max-w-[85%] whitespace-pre-wrap break-words leading-relaxed">
-                              {translatedText}
+                            <div>
+                              <div className="inline-block text-xs text-white/70 max-w-[85%] whitespace-pre-wrap break-words leading-relaxed">
+                                {translatedText}
+                              </div>
+                              {translateBillingMode ? (
+                                <div className="mt-1 text-[11px] text-white/60">
+                                  {translateBillingMode === 'sponsored'
+                                    ? 'Sponsorlu çeviri (maliyet karşı tarafa yansıtıldı)'
+                                    : translateBillingMode === 'self'
+                                      ? 'Çeviri kotandan düştü'
+                                      : ''}
+                                </div>
+                              ) : null}
                             </div>
                           ) : (
                             <button
