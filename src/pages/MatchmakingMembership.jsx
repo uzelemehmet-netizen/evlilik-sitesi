@@ -110,7 +110,7 @@ export default function MatchmakingMembership() {
               {[
                 {
                   tier: 'eco',
-                  price: '25$',
+                  price: promoActive ? 'Ücretsiz' : '25$',
                   features: [
                     'Eşleşme ekranında aynı anda en fazla 3 eşleşme',
                     'Mesaj çevirisi: günlük 80 mesaj',
@@ -147,7 +147,7 @@ export default function MatchmakingMembership() {
                     </div>
                     <div className="text-right">
                       <p className="text-sm font-semibold text-white">{p.price}</p>
-                      <p className="text-[11px] text-white/50">(örnek fiyat)</p>
+                      <p className="text-[11px] text-white/50">{p.tier === 'eco' && promoActive ? `10 Şubat'a kadar` : '(örnek fiyat)'}</p>
                     </div>
                   </div>
                   <div className="mt-3 text-xs text-white/75">
@@ -187,14 +187,23 @@ export default function MatchmakingMembership() {
 
           <div className="mt-5 flex flex-col sm:flex-row gap-3 sm:items-center">
             {promoActive ? (
-              <button
-                type="button"
-                onClick={activateFree}
-                disabled={action.loading}
-                className="px-5 py-2.5 rounded-full bg-emerald-400 text-slate-950 text-sm font-semibold hover:bg-emerald-300 disabled:opacity-60"
-              >
-                {action.loading ? t('matchmakingMembership.activating') : t('matchmakingMembership.freeActivateCta')}
-              </button>
+              <>
+                <button
+                  type="button"
+                  onClick={activateFree}
+                  disabled={action.loading}
+                  className="px-5 py-2.5 rounded-full bg-emerald-400 text-slate-950 text-sm font-semibold hover:bg-emerald-300 disabled:opacity-60"
+                >
+                  {action.loading ? t('matchmakingMembership.activating') : t('matchmakingMembership.freeActivateCta')}
+                </button>
+                <button
+                  type="button"
+                  onClick={goToPaidFlow}
+                  className="px-5 py-2.5 rounded-full border border-white/10 bg-white/5 text-white/90 text-sm font-semibold hover:bg-white/[0.12] transition"
+                >
+                  {t('matchmakingMembership.paidActivationCta')}
+                </button>
+              </>
             ) : (
               <button
                 type="button"

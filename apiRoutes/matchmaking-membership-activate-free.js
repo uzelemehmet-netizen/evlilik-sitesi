@@ -26,7 +26,10 @@ export default async function handler(req, res) {
   }
 
   try {
-    const promoEnabledRaw = String(process.env.MATCHMAKING_FREE_PROMO_ENABLED || '').toLowerCase().trim();
+    // Varsayılan: promo AÇIK. Prod'da kapatmak istenirse env ile kapatılabilir.
+    // - MATCHMAKING_FREE_PROMO_ENABLED=0/false/no => kapalı
+    // - boş / tanımsız => açık
+    const promoEnabledRaw = String(process.env.MATCHMAKING_FREE_PROMO_ENABLED || 'true').toLowerCase().trim();
     const promoEnabled = promoEnabledRaw === '1' || promoEnabledRaw === 'true' || promoEnabledRaw === 'yes';
     if (!promoEnabled) {
       const err = new Error('promo_disabled');

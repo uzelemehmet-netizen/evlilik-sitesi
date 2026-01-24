@@ -2527,11 +2527,12 @@ export default function Panel() {
                             },
                           ].map((p) => {
                             const est = translationCostEstimator?.estimateUsdForMonthlyMessages?.(p.monthlyTranslate);
+                            const isEcoPromo = membershipPromoActive && p.tier === 'eco';
                             return (
                               <button
                                 key={p.tier}
                                 type="button"
-                                onClick={() => openMembershipPayment(p.tier)}
+                                onClick={() => (isEcoPromo ? activateFreeMembershipNow() : openMembershipPayment(p.tier))}
                                 disabled={membershipModalAction.loading}
                                 className="w-full text-left rounded-2xl border border-white/15 bg-white/5 hover:bg-white/[0.12] disabled:opacity-60 p-4"
                               >
@@ -2548,8 +2549,17 @@ export default function Panel() {
                                     {p.description ? <p className="mt-1 text-xs text-white/65">{p.description}</p> : null}
                                   </div>
                                   <div className="text-right">
-                                    <p className="text-sm font-bold text-white">{getTierPrice('USD', p.tier)} USD</p>
-                                    <p className="mt-0.5 text-[11px] text-white/55">{t('matchmakingPanel.matches.payment.perMonth')}</p>
+                                    {isEcoPromo ? (
+                                      <>
+                                        <p className="text-sm font-bold text-emerald-200">Ücretsiz</p>
+                                        <p className="mt-0.5 text-[11px] text-white/55">10 Şubat'a kadar</p>
+                                      </>
+                                    ) : (
+                                      <>
+                                        <p className="text-sm font-bold text-white">{getTierPrice('USD', p.tier)} USD</p>
+                                        <p className="mt-0.5 text-[11px] text-white/55">{t('matchmakingPanel.matches.payment.perMonth')}</p>
+                                      </>
+                                    )}
                                   </div>
                                 </div>
 
@@ -2569,17 +2579,6 @@ export default function Panel() {
                             );
                           })}
                         </div>
-
-                        {membershipPromoActive ? (
-                          <button
-                            type="button"
-                            onClick={activateFreeMembershipNow}
-                            disabled={membershipModalAction.loading}
-                            className="mt-3 w-full px-4 py-2 rounded-full bg-emerald-300 text-slate-950 text-sm font-semibold hover:bg-emerald-200 disabled:opacity-60"
-                          >
-                            {membershipModalAction.loading ? t('matchmakingPanel.membershipModal.loading') : t('matchmakingPanel.membershipModal.openFree')}
-                          </button>
-                        ) : null}
                       </>
                     ) : (
                       <>
