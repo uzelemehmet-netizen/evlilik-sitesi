@@ -3353,12 +3353,19 @@ export default function Panel() {
 
                 <button
                   type="button"
-                  onClick={openMembershipModal}
+                  onClick={() => {
+                    if (!myMembership.active && membershipPromoActive) {
+                      activateFreeMembershipNow();
+                      return;
+                    }
+                    openMembershipModal();
+                  }}
+                  disabled={membershipModalAction.loading}
                   className={
                     "w-full sm:w-56 h-9 inline-flex items-center justify-start text-left whitespace-nowrap px-3 rounded-full text-sm font-extrabold tracking-wide shadow-[0_14px_45px_rgba(0,0,0,0.45)] ring-1 transition " +
                     (myMembership.active
                       ? 'bg-gradient-to-r from-white/[0.10] to-white/[0.03] text-white/90 ring-white/10 hover:from-white/[0.14] hover:to-white/[0.06]'
-                      : 'bg-gradient-to-r from-emerald-400 to-emerald-300 text-slate-950 ring-emerald-200/40 hover:from-emerald-300 hover:to-emerald-300')
+                      : 'bg-gradient-to-r from-emerald-400 to-emerald-300 text-slate-950 ring-emerald-200/40 hover:from-emerald-300 hover:to-emerald-300 disabled:opacity-60')
                   }
                 >
                   {myMembership.active
