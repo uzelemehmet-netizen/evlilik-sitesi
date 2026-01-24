@@ -1170,7 +1170,17 @@ export default function Panel() {
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({}),
       });
-      setMembershipModalAction({ loading: false, error: '', success: t('matchmakingPanel.membershipModal.successActivated') });
+
+      const promoSuccessText =
+        String(i18n?.language || '').toLowerCase().startsWith('tr')
+          ? "Üyeliğiniz ekonomik paket çerçevesinde 10 Şubat'a kadar ücretsiz aktif edilmiştir. 10 Şubat'tan sonra seçeceğiniz paket üzerinden sistemi kullanmaya devam edebilirsiniz."
+          : t('matchmakingPanel.membershipModal.successActivated');
+
+      setMembershipModalAction({
+        loading: false,
+        error: '',
+        success: membershipPromoActive ? promoSuccessText : t('matchmakingPanel.membershipModal.successActivated'),
+      });
     } catch (e) {
       const msg = String(e?.message || '').trim();
       const mapped = msg || t('matchmakingPanel.errors.actionFailed');
@@ -3370,8 +3380,25 @@ export default function Panel() {
                 >
                   {myMembership.active
                     ? t('matchmakingPanel.membershipModal.open')
-                    : t('matchmakingPanel.membershipModal.openFree')}
+                    : (membershipPromoActive && membershipModalAction.loading
+                        ? t('matchmakingPanel.membershipModal.loading')
+                        : t('matchmakingPanel.membershipModal.openFree'))}
                 </button>
+
+                {!myMembership.active && membershipPromoActive ? (
+                  <div className="mt-2">
+                    {membershipModalAction.error ? (
+                      <div className="rounded-xl border border-rose-300/30 bg-rose-500/10 p-2 text-rose-100 text-xs">
+                        {membershipModalAction.error}
+                      </div>
+                    ) : null}
+                    {membershipModalAction.success ? (
+                      <div className="rounded-xl border border-emerald-300/30 bg-emerald-500/10 p-2 text-emerald-100 text-xs">
+                        {membershipModalAction.success}
+                      </div>
+                    ) : null}
+                  </div>
+                ) : null}
                 <p className="text-[11px] text-white/55 text-right">{membershipStatusText}</p>
               </div>
             </div>
