@@ -34,7 +34,7 @@ function readPortFile() {
   }
 }
 
-function waitForPortFile({ timeoutMs = 15000, intervalMs = 150 } = {}) {
+function waitForPortFile({ timeoutMs = 60000, intervalMs = 150 } = {}) {
   const startedAt = Date.now();
 
   return new Promise((resolve, reject) => {
@@ -122,7 +122,7 @@ process.on('SIGTERM', () => shutdown(0));
     shutdown(exitCode);
   });
 
-  const apiPort = await waitForPortFile({ timeoutMs: 15000, intervalMs: 150 });
+  const apiPort = await waitForPortFile({ timeoutMs: 60000, intervalMs: 150 });
 
   // Vite proxy target should follow the chosen API port.
   const proxyTarget = `http://localhost:${apiPort}`;

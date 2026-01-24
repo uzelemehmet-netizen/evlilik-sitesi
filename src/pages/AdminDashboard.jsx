@@ -135,6 +135,7 @@ export default function AdminDashboard() {
   const [toursMessage, setToursMessage] = useState('');
   const [firestoreBlocked, setFirestoreBlocked] = useState(false);
   const [firestoreBlockedReason, setFirestoreBlockedReason] = useState('');
+  const [authDebug, setAuthDebug] = useState({ loading: true, admin: null, email: '', uid: '', projectId: '' });
   const [matchmakingItems, setMatchmakingItems] = useState([]);
   const [matchmakingNewCount, setMatchmakingNewCount] = useState(0);
   const [identityPendingCount, setIdentityPendingCount] = useState(0);
@@ -147,6 +148,55 @@ export default function AdminDashboard() {
 
   const cloudinaryUploadPreset = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET;
   const cloudinaryCloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || 'dj1xg1c56';
+  const firebaseProjectId = import.meta.env.VITE_FIREBASE_PROJECT_ID || '';
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const refreshClaims = async () => {
+      const u = auth?.currentUser || null;
+      if (!u) {
+        if (!cancelled) setAuthDebug({ loading: false, admin: null, email: '', uid: '', projectId: firebaseProjectId });
+        return;
+      }
+
+      try {
+        // Custom claim güncellemelerinden sonra token yenilenmesi gerekir.
+        const tokenResult = await u.getIdTokenResult(true);
+        const admin = tokenResult?.claims?.admin === true;
+        if (!cancelled) {
+          setAuthDebug({
+            loading: false,
+            admin,
+            email: u.email ? String(u.email) : '',
+            uid: u.uid ? String(u.uid) : '',
+            projectId: firebaseProjectId,
+          });
+
+          // Claim geldiyse daha önce bloklanan Firestore'u tekrar denemeye aç.
+          if (admin) {
+            setFirestoreBlocked(false);
+            setFirestoreBlockedReason('');
+          }
+        }
+      } catch (e) {
+        if (!cancelled) {
+          setAuthDebug({
+            loading: false,
+            admin: null,
+            email: u.email ? String(u.email) : '',
+            uid: u.uid ? String(u.uid) : '',
+            projectId: firebaseProjectId,
+          });
+        }
+      }
+    };
+
+    refreshClaims();
+    return () => {
+      cancelled = true;
+    };
+  }, [firebaseProjectId]);
 
   const isFirestorePermissionDenied = (err) => {
     const code = err?.code || err?.name;
@@ -1536,6 +1586,13 @@ export default function AdminDashboard() {
           <div className="mb-6 rounded-xl border border-amber-200 bg-amber-50 p-4">
             <p className="text-sm text-amber-900">
               <strong>Firestore erişimi engellendi:</strong> {firestoreBlockedReason || 'Missing or insufficient permissions.'}
+            </p>
+            <p className="text-xs text-amber-800 mt-1">
+              Debug: project <strong>{firebaseProjectId || '-'}</strong> • admin claim:{' '}
+              <strong>
+                {authDebug.loading ? 'kontrol ediliyor…' : authDebug.admin === true ? 'VAR' : authDebug.admin === false ? 'YOK' : 'bilinmiyor'}
+              </strong>
+              {authDebug.email ? ` • ${authDebug.email}` : ''}
             </p>
             <p className="text-xs text-amber-800 mt-1">
               Not: Görsel yükleme (Cloudinary) çalışır; fakat Firestore yazma/okuma kapalıysa "Kaydet" sadece bu tarayıcıda (localStorage) etkili olur.

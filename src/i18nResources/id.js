@@ -975,7 +975,7 @@ const overrides = {
         'Pencocokan dan pratinjau profil tidak memerlukan keanggotaan. Untuk setuju/tolak atau menghubungi pasangan, Anda perlu verifikasi identitas + free active membership atau keanggotaan berbayar.',
       points: [
         'Profil tidak bersifat publik. Hanya pengguna yang cocok yang bisa melihat detail satu sama lain.',
-        'Di panel Anda ditampilkan maksimal 3 kandidat. Menandai satu kandidat tidak menghapus kandidat lain; Anda bisa memilih untuk menampilkan hanya pilihan Anda.',
+        'Di panel Anda ditampilkan maksimal 3 / 5 / 10 kandidat sesuai paket. Menandai satu kandidat tidak menghapus kandidat lain; Anda bisa memilih untuk menampilkan hanya pilihan Anda.',
         'Langkah 1: Tinjau kandidat → Setuju atau Tolak. Jika salah satu menolak, kecocokan dibatalkan.',
         'Langkah 2: Jika kedua pihak setuju, pilih langkah berikutnya (chat di dalam situs atau berbagi kontak). Langkah aktif hanya jika kedua pihak memilih opsi yang sama.',
         'Kunci: Saat langkah 2 disepakati, proses terkunci dan Anda tidak bisa meminta kecocokan baru sampai selesai/dibatalkan.',
@@ -1161,7 +1161,7 @@ const overrides = {
 
     matches: {
       title: 'Kecocokan Anda',
-      subtitle: 'Maksimal 3 kandidat ditampilkan.',
+      subtitle: 'Maksimal 3 / 5 / 10 kandidat ditampilkan sesuai paket Anda.',
       empty: 'Saat ini tidak ada kecocokan untuk ditampilkan.',
       waitingOther: 'Menunggu jawaban pihak lain.',
       mutualAcceptedNotice: 'Kedua pihak menyetujui. Anda bisa memilih langkah berikutnya.',
@@ -1214,6 +1214,7 @@ const overrides = {
         fallbackName: 'Kandidat',
         verifiedBadge: 'Identitas terverifikasi',
         proBadge: 'PRO',
+        standardBadge: 'STANDAR',
         matchedProfile: 'Profil kecocokan',
         score: 'Skor kecocokan',
         likeBadge: '♥ Anda mendapat like',
@@ -2984,7 +2985,7 @@ export default {
             fullName: 'Nama lengkap',
             age: 'Usia',
             city: 'Kota',
-            country: 'Negara',
+            country: 'Negara tempat tinggal',
             whatsapp: 'Nomor WhatsApp',
             email: 'Email',
             instagram: 'Instagram (opsional)',
@@ -3671,7 +3672,7 @@ export default {
     },
     matches: {
       title: 'Kecocokan Anda',
-      subtitle: 'Maksimal 3 kandidat ditampilkan.',
+      subtitle: 'Maksimal 3 / 5 / 10 kandidat ditampilkan sesuai paket Anda.',
       empty: 'Saat ini tidak ada kecocokan untuk ditampilkan.',
       waitingOther: 'Menunggu jawaban pihak lain.',
       mutualAcceptedNotice: 'Kedua pihak menyetujui. Anda bisa memilih langkah berikutnya.',
@@ -3752,6 +3753,10 @@ export default {
         title: 'Berbagi kontak sudah terbuka.',
         body: 'Anda bisa membuka detail kontak dari panel. Harap tetap sopan dan patuhi aturan.',
       },
+      contactLocked: {
+        title: 'Detail kontak (terkunci 48 jam)',
+        body: 'Detail kontak akan terbuka 48 jam setelah chat aktif. Sementara itu, Anda bisa chat di dalam situs.',
+      },
       paymentStatus: {
         pending: 'Pemberitahuan pembayaran Anda masih menunggu. Keanggotaan akan aktif setelah disetujui admin.',
         rejected: 'Pemberitahuan pembayaran terakhir Anda ditolak. Periksa bukti bayar/referensi lalu kirim ulang.',
@@ -3763,8 +3768,11 @@ export default {
       contactUnlock: {
         membershipActiveTitle: 'Anda memenuhi syarat',
         membershipActiveBody: 'Klik tombol untuk membuka detail kontak. (Pihak lain juga harus memenuhi aturan kelayakan.)',
+        lockedTitle: 'Kontak terkunci',
+        lockedBody: 'Detail kontak terbuka 48 jam setelah chat dimulai. Sisa waktu: {{time}}',
+        lockedBodyNoTime: 'Detail kontak terbuka 48 jam setelah chat dimulai.',
         opening: 'Membuka…',
-        open: 'Buka detail kontak',
+        open: 'Bagikan info kontak saya',
         verificationRequired: 'Verifikasi identitas diperlukan untuk membuka detail kontak.',
       },
       payment: {
@@ -3774,6 +3782,11 @@ export default {
         trTitle: 'Turki',
         idTitle: 'Indonesia',
         amount: 'Jumlah',
+        package: 'Paket',
+        packageEco: 'Eco (terjemahan: 5.000 karakter/bulan)',
+        packageStandard: 'Standar (terjemahan: 30.000 karakter/bulan)',
+        packagePro: 'Pro (terjemahan: 50.000 karakter/bulan + sponsor)',
+        packageHelp: 'Harga dan izin diterapkan sesuai paket yang dipilih.',
         recipient: 'Penerima',
         iban: 'IBAN',
         detailsSoon: 'Detail rekening akan segera ditambahkan.',
@@ -3782,6 +3795,7 @@ export default {
         currency: 'Mata uang',
         currencyTRY: 'TRY (Turki)',
         currencyIDR: 'IDR (Indonesia)',
+        currencyUSD: 'USD (Dolar)',
         method: 'Metode pembayaran',
         methodEftFast: 'EFT / FAST',
         methodSwiftWise: 'SWIFT / Wise',
@@ -3809,7 +3823,7 @@ export default {
       eligibilityPointFemale: 'Pencocokan dan melihat info profil terbatas di dalam situs tidak memerlukan keanggotaan. Untuk setuju/tolak dan menghubungi pasangan, Anda harus mengajukan keanggotaan aktif gratis dengan verifikasi identitas atau membeli keanggotaan berbayar.',
       points: [
         'Profil tidak bersifat publik. Hanya pengguna yang cocok yang bisa melihat detail satu sama lain.',
-        'Maksimal 3 kandidat ditampilkan. Menandai/memilih kandidat tidak menghapus kandidat lain; Anda bisa memilih untuk menampilkan hanya pilihan Anda.',
+        'Maksimal 3 / 5 / 10 kandidat ditampilkan sesuai paket. Menandai/memilih kandidat tidak menghapus kandidat lain; Anda bisa memilih untuk menampilkan hanya pilihan Anda.',
         'Langkah 1: Tinjau kandidat → Setuju atau Tolak. Jika salah satu menolak, kecocokan dibatalkan.',
         'Langkah 2 (persetujuan kedua): Jika kedua pihak setuju, pilih langkah berikutnya di panel (chat di dalam situs atau berbagi kontak). Langkah aktif hanya jika kedua pihak memilih opsi yang sama.',
         'Kunci: Saat langkah 2 disepakati, proses terkunci dan Anda tidak bisa meminta kecocokan baru sampai selesai/dibatalkan.',

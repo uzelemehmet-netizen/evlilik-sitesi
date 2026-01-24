@@ -1,0 +1,375 @@
+import { getAdmin, normalizeBody, requireIdToken } from './_firebaseAdmin.js';
+import { normalizeChatLang, translateText } from './_translate.js';
+import {
+  computeTranslationBilling,
+  dayKeyUTC,
+  getUsageForDay,
+  isSponsoredTranslationRevoked,
+} from './_translationPolicy.js';
+
+function safeStr(v) {
+  return typeof v === 'string' ? v.trim() : '';
+}
+
+function nowMs() {
+  return Date.now();
+}
+
+function toUsagePercent(usedCount, dailyLimit) {
+  if (dailyLimit === Infinity) return null;
+  const used = typeof usedCount === 'number' && Number.isFinite(usedCount) ? usedCount : 0;
+  const lim = typeof dailyLimit === 'number' && Number.isFinite(dailyLimit) && dailyLimit > 0 ? dailyLimit : 0;
+  if (!lim) return null;
+  const pct = Math.floor((used / lim) * 100);
+  return Math.max(0, Math.min(100, pct));
+}
+
+export default async function handler(req, res) {
+  if (req.method !== 'POST') {
+    res.statusCode = 405;
+    res.setHeader('content-type', 'application/json');
+    res.end(JSON.stringify({ ok: false, error: 'method_not_allowed' }));
+    return;
+  }
+
+  try {
+    const decoded = await requireIdToken(req);
+    const uid = decoded.uid;
+
+    const body = normalizeBody(req);
+    const matchId = safeStr(body?.matchId);
+    const messageId = safeStr(body?.messageId);
+    const targetLang = normalizeChatLang(body?.targetLang);
+
+    if (!matchId || !messageId || !targetLang) {
+      res.statusCode = 400;
+      res.setHeader('content-type', 'application/json');
+      res.end(JSON.stringify({ ok: false, error: 'bad_request' }));
+      return;
+    }
+
+    const { db, FieldValue } = getAdmin();
+
+    const matchRef = db.collection('matchmakingMatches').doc(matchId);
+    const msgRef = matchRef.collection('messages').doc(messageId);
+    const meRef = db.collection('matchmakingUsers').doc(uid);
+
+    const ts = nowMs();
+    const dKey = dayKeyUTC(ts);
+
+    let translated = '';
+    let billing = null;
+    let sponsorUid = '';
+
+    let usageUsedCount = null;
+    let usageDailyLimit = null;
+    let usagePercent = null;
+    let usageBillingMode = '';
+
+    await db.runTransaction(async (tx) => {
+      const [matchSnap, msgSnap, meSnap] = await Promise.all([tx.get(matchRef), tx.get(msgRef), tx.get(meRef)]);
+
+      if (!matchSnap.exists) {
+        const err = new Error('not_found');
+        err.statusCode = 404;
+        throw err;
+      }
+      if (!msgSnap.exists) {
+        const err = new Error('not_found');
+        err.statusCode = 404;
+        throw err;
+      }
+
+      const match = matchSnap.data() || {};
+      const status = String(match.status || '');
+      if (status !== 'mutual_accepted') {
+        const err = new Error('chat_not_available');
+        err.statusCode = 400;
+        throw err;
+      }
+
+      const currentMode = typeof match?.interactionMode === 'string' ? match.interactionMode : '';
+      if (currentMode !== 'chat') {
+        // Backward-compat: eski match'lerde interactionMode boş kalmış olabilir.
+        if (!currentMode) {
+          tx.set(
+            matchRef,
+            {
+              interactionMode: 'chat',
+              interactionChosenAt: FieldValue.serverTimestamp(),
+              chatEnabledAt: FieldValue.serverTimestamp(),
+              chatEnabledAtMs: ts,
+              updatedAt: FieldValue.serverTimestamp(),
+            },
+            { merge: true }
+          );
+        } else {
+          const err = new Error('chat_not_enabled');
+          err.statusCode = 400;
+          throw err;
+        }
+      }
+
+      const userIds = Array.isArray(match.userIds) ? match.userIds.map(String).filter(Boolean) : [];
+      if (userIds.length !== 2 || !userIds.includes(uid)) {
+        const err = new Error('forbidden');
+        err.statusCode = 403;
+        throw err;
+      }
+
+      sponsorUid = userIds.find((x) => x && x !== uid) || '';
+      const sponsorRef = sponsorUid ? db.collection('matchmakingUsers').doc(sponsorUid) : null;
+      const sponsorSnap = sponsorRef ? await tx.get(sponsorRef) : null;
+      const sponsor = sponsorSnap?.exists ? (sponsorSnap.data() || {}) : {};
+
+      const revoke = isSponsoredTranslationRevoked(match, uid);
+
+      const me = meSnap.exists ? (meSnap.data() || {}) : {};
+
+      // Hibrit çeviri politikası:
+      // - Herkesin bir “self” günlük mesaj çeviri limiti vardır.
+      // - Free/Eko kullanıcı: karşı taraf Standard/Pro ise sponsorlu (maliyet sponsor) olabilir.
+      // - Sponsor kapatıldıysa self’e düşer (iletişim kopmaz).
+      const computed = computeTranslationBilling({
+        requesterUid: uid,
+        requesterDoc: me,
+        otherUid: sponsorUid,
+        otherDoc: sponsor,
+        matchDoc: match,
+        now: ts,
+      });
+
+      // Revoked ise: sponsorlu akış devre dışı; self’e düş.
+      if (computed.mode === 'sponsored' && revoke.revoked) {
+        billing = { mode: 'self', uid, dailyLimit: computed.selfDailyLimit };
+      } else {
+        billing = { mode: computed.mode, uid: computed.billingUid, dailyLimit: computed.dailyLimit };
+      }
+
+      // Kota bilgisi (UI için): mevcut kullanım ve limit
+      {
+        const billingUidNow = String(billing?.uid || uid);
+        const dailyLimitNow = billing?.dailyLimit;
+        const billingUser = billingUidNow === sponsorUid && sponsorUid ? sponsor : me;
+        const usage = getUsageForDay(billingUser, dKey);
+        usageUsedCount = usage.count;
+        usageDailyLimit = dailyLimitNow;
+        usagePercent = toUsagePercent(usageUsedCount, usageDailyLimit);
+        usageBillingMode = String(billing?.mode || '');
+      }
+
+      const msg = msgSnap.data() || {};
+      const senderUid = safeStr(msg?.userId);
+      if (senderUid && senderUid === uid) {
+        // Sadece karşı taraftan gelen mesajlar çevrilebilir.
+        const err = new Error('only_incoming');
+        err.statusCode = 400;
+        throw err;
+      }
+
+      const text = safeStr(msg?.text);
+      if (!text) {
+        const err = new Error('bad_request');
+        err.statusCode = 400;
+        throw err;
+      }
+
+      // Kota: mesaj başı 150 karakter (suistimali azaltmak için).
+      if (text.length > 150) {
+        const err = new Error('translate_too_long');
+        err.statusCode = 400;
+        throw err;
+      }
+
+      const existing = msg?.translations && typeof msg.translations === 'object' ? safeStr(msg.translations[targetLang]) : '';
+      if (existing) {
+        translated = existing;
+        return;
+      }
+
+      // Not: revoke artık “sponsorlu çeviriyi kapat” olarak yorumlanır.
+      // Self kotası ile çeviri devam edebilir; iletişim kopmasın.
+
+      // Transaction içinde dış istek yapmamak için: translate'i transaction dışında yapacağız.
+      // Burada sadece ön kontrol yapıp, çeviriyi dışarıda yapacağız.
+    });
+
+    // Eğer transaction içinde erken döndüysek translated dolu olur.
+    if (!translated) {
+      // Mesajı tekrar oku (tx dışı)
+      const msgSnap = await msgRef.get();
+      if (!msgSnap.exists) {
+        res.statusCode = 404;
+        res.setHeader('content-type', 'application/json');
+        res.end(JSON.stringify({ ok: false, error: 'not_found' }));
+        return;
+      }
+      const msg = msgSnap.data() || {};
+      const senderUid = safeStr(msg?.userId);
+      if (senderUid && senderUid === uid) {
+        res.statusCode = 400;
+        res.setHeader('content-type', 'application/json');
+        res.end(JSON.stringify({ ok: false, error: 'only_incoming' }));
+        return;
+      }
+
+      const text = safeStr(msg?.text);
+      if (!text) {
+        res.statusCode = 400;
+        res.setHeader('content-type', 'application/json');
+        res.end(JSON.stringify({ ok: false, error: 'bad_request' }));
+        return;
+      }
+
+      if (text.length > 150) {
+        res.statusCode = 400;
+        res.setHeader('content-type', 'application/json');
+        res.end(JSON.stringify({ ok: false, error: 'translate_too_long' }));
+        return;
+      }
+
+      translated = await translateText({ text, targetLang });
+
+      await db.runTransaction(async (tx) => {
+        const sponsorRef = sponsorUid ? db.collection('matchmakingUsers').doc(sponsorUid) : null;
+        const reads = [tx.get(msgRef), tx.get(matchRef)];
+        if (sponsorRef) reads.push(tx.get(sponsorRef));
+        reads.push(tx.get(meRef));
+
+        const all = await Promise.all(reads);
+        const msgSnap2 = all[0];
+        const matchSnap2 = all[1];
+        const sponsorSnap2 = sponsorRef ? all[2] : null;
+        const meSnap2 = sponsorRef ? all[3] : all[2];
+        if (!msgSnap2.exists) return;
+
+        const match = matchSnap2.exists ? (matchSnap2.data() || {}) : {};
+        const revoke = isSponsoredTranslationRevoked(match, uid);
+
+        const me = meSnap2.exists ? (meSnap2.data() || {}) : {};
+        const sponsor = sponsorSnap2?.exists ? (sponsorSnap2.data() || {}) : {};
+
+        const userIds = Array.isArray(match.userIds) ? match.userIds.map(String).filter(Boolean) : [];
+        if (userIds.length !== 2 || !userIds.includes(uid)) {
+          const err = new Error('forbidden');
+          err.statusCode = 403;
+          throw err;
+        }
+
+        // Erişim + faturalama tekrar hesapla (yarış durumlarına karşı).
+        const computed = computeTranslationBilling({
+          requesterUid: uid,
+          requesterDoc: me,
+          otherUid: sponsorUid,
+          otherDoc: sponsor,
+          matchDoc: match,
+          now: ts,
+        });
+
+        const effectiveBilling =
+          computed.mode === 'sponsored' && revoke.revoked
+            ? { mode: 'self', billingUid: uid, dailyLimit: computed.selfDailyLimit }
+            : computed;
+
+        const cur = msgSnap2.data() || {};
+        const existing = cur?.translations && typeof cur.translations === 'object' ? safeStr(cur.translations[targetLang]) : '';
+        if (existing) {
+          translated = existing;
+          return;
+        }
+
+        const billingUidNow = String(effectiveBilling.billingUid || uid);
+        const billingRef = billingUidNow === sponsorUid && sponsorUid ? db.collection('matchmakingUsers').doc(sponsorUid) : meRef;
+        const billingUser = billingUidNow === sponsorUid ? sponsor : me;
+
+        const dailyLimit = effectiveBilling.dailyLimit;
+        if (!(dailyLimit > 0) && dailyLimit !== Infinity) {
+          const err = new Error('translation_not_allowed');
+          err.statusCode = 402;
+          throw err;
+        }
+
+        const usage = getUsageForDay(billingUser, dKey);
+        const nextCount = usage.count + 1;
+        if (dailyLimit !== Infinity && nextCount > dailyLimit) {
+          const err = new Error('translate_quota_exceeded');
+          err.statusCode = 429;
+          err.details = {
+            usedCount: usage.count,
+            dailyLimit,
+            usagePercent: toUsagePercent(usage.count, dailyLimit),
+            billingMode: String(effectiveBilling?.mode || ''),
+          };
+          throw err;
+        }
+
+        usageUsedCount = nextCount;
+        usageDailyLimit = dailyLimit;
+        usagePercent = toUsagePercent(nextCount, dailyLimit);
+        usageBillingMode = String(effectiveBilling?.mode || '');
+
+        const nextUsageDaily = {
+          ...(billingUser.translationUsageDaily && typeof billingUser.translationUsageDaily === 'object'
+            ? billingUser.translationUsageDaily
+            : {}),
+          [dKey]: {
+            count: nextCount,
+            updatedAtMs: ts,
+          },
+        };
+
+        tx.set(
+          msgRef,
+          {
+            translations: {
+              ...(cur.translations || {}),
+              [targetLang]: translated,
+            },
+            translationsUpdatedAtMs: ts,
+            updatedAt: FieldValue.serverTimestamp(),
+          },
+          { merge: true }
+        );
+
+        if (billingRef) {
+          tx.set(
+            billingRef,
+            {
+              translationUsageDaily: nextUsageDaily,
+              translationUsageDailyUpdatedAtMs: ts,
+              updatedAt: FieldValue.serverTimestamp(),
+            },
+            { merge: true }
+          );
+        }
+      });
+    }
+
+    res.statusCode = 200;
+    res.setHeader('content-type', 'application/json');
+    res.end(
+      JSON.stringify({
+        ok: true,
+        targetLang,
+        text: translated,
+        usage: {
+          usedCount: usageUsedCount,
+          dailyLimit: usageDailyLimit,
+          usagePercent,
+          billingMode: usageBillingMode,
+        },
+      })
+    );
+  } catch (e) {
+    res.statusCode = e?.statusCode || 500;
+    res.setHeader('content-type', 'application/json');
+    const details = e?.details && typeof e.details === 'object' ? e.details : undefined;
+    res.end(
+      JSON.stringify({
+        ok: false,
+        error: String(e?.message || 'server_error'),
+        ...(details ? { details } : {}),
+      })
+    );
+  }
+}

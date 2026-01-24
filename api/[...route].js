@@ -15,6 +15,8 @@ import matchmakingPhotoUpdateRequest from '../apiRoutes/matchmaking-photo-update
 import matchmakingChatDecision from '../apiRoutes/matchmaking-chat-decision.js';
 import matchmakingChatMarkRead from '../apiRoutes/matchmaking-chat-mark-read.js';
 import matchmakingChatSend from '../apiRoutes/matchmaking-chat-send.js';
+import matchmakingChatTranslate from '../apiRoutes/matchmaking-chat-translate.js';
+import matchmakingChatTranslationRevoke from '../apiRoutes/matchmaking-chat-translation-revoke.js';
 import matchmakingContact from '../apiRoutes/matchmaking-contact.js';
 import matchmakingDecision from '../apiRoutes/matchmaking-decision.js';
 import matchmakingDismiss from '../apiRoutes/matchmaking-dismiss.js';
@@ -49,6 +51,8 @@ const handlers = {
   'matchmaking-chat-decision': matchmakingChatDecision,
   'matchmaking-chat-mark-read': matchmakingChatMarkRead,
   'matchmaking-chat-send': matchmakingChatSend,
+  'matchmaking-chat-translate': matchmakingChatTranslate,
+  'matchmaking-chat-translation-revoke': matchmakingChatTranslationRevoke,
   'matchmaking-contact': matchmakingContact,
   'matchmaking-decision': matchmakingDecision,
   'matchmaking-dismiss': matchmakingDismiss,

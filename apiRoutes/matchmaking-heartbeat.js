@@ -1,5 +1,5 @@
 import { getAdmin, requireIdToken } from './_firebaseAdmin.js';
-import { computeFreeActiveMembershipState } from './_matchmakingEligibility.js';
+import { computeFreeActiveMembershipState, isFreeActiveEnabled } from './_matchmakingEligibility.js';
 
 function nextInactiveCount(prev) {
   const n = typeof prev === 'number' ? prev : Number(prev);
@@ -15,6 +15,13 @@ export default async function handler(req, res) {
   }
 
   try {
+    if (!isFreeActiveEnabled()) {
+      res.statusCode = 200;
+      res.setHeader('content-type', 'application/json');
+      res.end(JSON.stringify({ ok: true, status: 'disabled', blocked: false, windowHours: 0 }));
+      return;
+    }
+
     const decoded = await requireIdToken(req);
     const uid = decoded.uid;
 

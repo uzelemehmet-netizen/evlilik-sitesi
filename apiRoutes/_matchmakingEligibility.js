@@ -34,6 +34,11 @@ function isDevBypassEnabled() {
   return raw === '1' || raw === 'true' || raw === 'yes';
 }
 
+function isFreeActiveEnabled() {
+  const raw = String(process.env.MATCHMAKING_FREE_ACTIVE_ENABLED || '').toLowerCase().trim();
+  return raw === '1' || raw === 'true' || raw === 'yes';
+}
+
 function ensureEligibleOrThrow(userDoc, gender) {
   // Local dev akışında üyelik kontrolünü bypass edebilmek için.
   // Prod’da kapalıdır; sadece dev-api script’i bu env’i set eder.
@@ -55,6 +60,13 @@ function ensureEligibleOrThrow(userDoc, gender) {
   // Kadın kullanıcılar: ücretli üyelik veya (kimlik doğrulama + ücretsiz aktif üyelik) ile aksiyon açılır.
   if (g === 'female') {
     if (member) return;
+
+    // Ücretsiz aktif üyelik özelliği kapalıysa: kadın kullanıcılar için de ücretli üyelik gerekir.
+    if (!isFreeActiveEnabled()) {
+      const err = new Error('membership_required');
+      err.statusCode = 402;
+      throw err;
+    }
 
     if (!isIdentityVerified(userDoc)) {
       const err = new Error('membership_or_verification_required');
@@ -92,4 +104,5 @@ export {
   isIdentityVerified,
   computeFreeActiveMembershipState,
   ensureEligibleOrThrow,
+  isFreeActiveEnabled,
 };

@@ -183,7 +183,9 @@ function buildPublicProfile(app, userStatus) {
   // Üyelik aktif kullanıcılar detayları server-side endpoint'ten çeker.
   return {
     identityVerified: !!userStatus?.identityVerified,
-    proMember: !!userStatus?.membershipActive,
+    proMember: !!userStatus?.membershipActive && String(userStatus?.membershipPlan || '') === 'pro',
+    membershipActive: !!userStatus?.membershipActive,
+    membershipPlan: safeStr(userStatus?.membershipPlan),
     profileNo: asNum(app?.profileNo),
     profileCode: safeStr(app?.profileCode),
     username: safeStr(app?.username),
@@ -273,6 +275,7 @@ export default async function handler(req, res) {
           lockActive: !!data?.matchmakingLock?.active,
           identityVerified: isIdentityVerifiedUserDoc(data),
           membershipActive: isMembershipActiveUserDoc(data),
+          membershipPlan: typeof data?.membership?.plan === 'string' ? String(data.membership.plan).toLowerCase().trim() : '',
         });
       });
     }
@@ -286,7 +289,8 @@ export default async function handler(req, res) {
     let created = 0;
     let skippedExisting = 0;
 
-    // Kaba bir yaklaşım: her başvuru için top-3 aday üret.
+    // Kaba bir yaklaşım: her başvuru için aday üret.
+    // Not: Pro aktif üyeler için top-3 kısıtını kaldırıyoruz.
     for (const seeker of apps) {
       const seekerUserId = seeker.userId;
 
@@ -324,13 +328,16 @@ export default async function handler(req, res) {
         const scoreA = computeFitScore(seeker, cand);
         const scoreB = computeFitScore(cand, seeker);
         const score = Math.round((scoreA + scoreB) / 2);
-        if (score >= threshold && scoreA >= threshold && scoreB >= threshold) {
-          scored.push({ cand, score, scoreA, scoreB });
-        }
+        scored.push({ cand, score, scoreA, scoreB });
       }
 
-      scored.sort((x, y) => y.score - x.score);
-      const top = scored.slice(0, 3);
+      // Eğer threshold'u geçen yoksa (özellikle yeni kullanıcılar için) en yüksek puanlıları göster.
+      const eligible = scored.filter((x) => x.score >= threshold && x.scoreA >= threshold && x.scoreB >= threshold);
+      const picked = eligible.length ? eligible : scored;
+      picked.sort((x, y) => y.score - x.score);
+      const plan = seekerStatus.membershipActive ? String(seekerStatus.membershipPlan || '') : '';
+      const maxMatches = plan === 'pro' ? 10 : plan === 'standard' ? 5 : 3;
+      const top = picked.slice(0, maxMatches);
 
       for (const row of top) {
         const aUserId = seekerUserId;

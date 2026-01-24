@@ -40,6 +40,24 @@ const REQUIRED_VARS = [
       'Firebase Admin (server-side /api) service account JSON dosya yolu (opsiyonel ama /api matchmaking endpointleri için gerekir). Örn: C:\\...\\firebase-service-account.json',
     mustHaveValue: false,
   },
+  {
+    key: 'TRANSLATE_PROVIDER',
+    value: 'deepl',
+    comment: 'Çeviri sağlayıcısı: deepl | libretranslate (chat manuel çeviri için).',
+    mustHaveValue: false,
+  },
+  {
+    key: 'DEEPL_API_KEY',
+    value: '',
+    comment: 'DeepL API key (gizli). Yoksa manuel çeviri 501 translate_not_configured döner.',
+    mustHaveValue: false,
+  },
+  {
+    key: 'DEEPL_API_URL',
+    value: 'https://api-free.deepl.com/v2/translate',
+    comment: 'DeepL endpoint. Free plan: https://api-free.deepl.com/v2/translate, Pro: https://api.deepl.com/v2/translate',
+    mustHaveValue: false,
+  },
 ];
 
 const normalize = (s) => String(s || '').replace(/\r\n/g, '\n');

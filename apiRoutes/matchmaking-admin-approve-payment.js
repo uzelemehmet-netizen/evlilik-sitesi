@@ -4,6 +4,12 @@ function safeStr(v) {
   return typeof v === 'string' ? v.trim() : '';
 }
 
+function safeTier(v) {
+  const t = safeStr(v).toLowerCase();
+  const allowed = new Set(['eco', 'standard', 'pro']);
+  return allowed.has(t) ? t : '';
+}
+
 function addDays(date, days) {
   const ms = date.getTime() + days * 24 * 60 * 60 * 1000;
   return new Date(ms);
@@ -30,6 +36,7 @@ export default async function handler(req, res) {
     const body = normalizeBody(req);
     const paymentId = safeStr(body?.paymentId);
     const approve = body?.approve === undefined ? true : !!body.approve;
+    const overrideTier = safeTier(body?.tier);
 
     if (!paymentId) {
       res.statusCode = 400;
@@ -60,6 +67,9 @@ export default async function handler(req, res) {
         throw err;
       }
 
+      const paymentTier = safeTier(data?.tier);
+      const appliedTier = overrideTier || paymentTier || 'pro';
+
       const patch = {
         status: approve ? 'approved' : 'rejected',
         decidedBy: admin.uid,
@@ -82,9 +92,14 @@ export default async function handler(req, res) {
             membership: {
               active: true,
               validUntilMs,
-              plan: 'monthly',
+              plan: appliedTier,
               lastApprovedPaymentId: paymentId,
             },
+            // Paket ile çeviri hakkını bağla:
+            // - eco: aylık 5000 karakter
+            // - standard: aylık 30000 karakter
+            // - pro: aylık 50000 karakter (+ sponsorlu çeviri)
+            translationPack: { active: true, plan: appliedTier, validUntilMs, lastApprovedPaymentId: paymentId },
             updatedAt: FieldValue.serverTimestamp(),
           },
           { merge: true }
@@ -93,6 +108,7 @@ export default async function handler(req, res) {
         tx.set(
           ref,
           {
+            appliedTier,
             appliedValidUntilMs: validUntilMs,
             updatedAt: FieldValue.serverTimestamp(),
           },

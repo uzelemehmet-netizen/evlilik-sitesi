@@ -56,6 +56,30 @@ Not: Vite env değişiklikleri için `npm run dev` sürecini yeniden başlatman�
 
 Canlı (deploy) sitede ise `.env.local` okunmaz; `VITE_*` değişkenleri build sırasında gömülür. Bu yüzden Vercel proje ayarlarından **Environment Variables** kısmına `VITE_CLOUDINARY_UPLOAD_PRESET` (ve gerekirse `VITE_CLOUDINARY_CLOUD_NAME`) ekleyip **yeniden deploy** etmelisiniz.
 
+## Sohbet Manuel Çeviri (DeepL)
+
+Bu projede sohbet çevirisi **manuel** çalışır: kullanıcı "Çevir" butonuna basınca `/api/matchmaking-chat-translate` DeepL'e istek atar ve sonucu mesaj dokümanına cache'ler.
+
+Localde çalıştırmak için `.env.local` içine şunları ekleyin (gizli anahtarları paylaşmayın):
+
+```dotenv
+TRANSLATE_PROVIDER=deepl
+DEEPL_API_KEY=YOUR_DEEPL_KEY
+
+# Free plan kullanıyorsanız:
+DEEPL_API_URL=https://api-free.deepl.com/v2/translate
+
+# Pro plan kullanıyorsanız:
+# DEEPL_API_URL=https://api.deepl.com/v2/translate
+```
+
+Notlar:
+- `DEEPL_API_KEY` yoksa API `501 translate_not_configured` döner ve UI "Çeviri servisi ayarlı değil" mesajını gösterir.
+- Çeviri istekleri server-side yapıldığı için tarayıcı CSP ayarları DeepL'i etkilemez.
+- Çeviri yetkileri ve kotalar server-side uygulanır (paket/limit mantığı).
+
+Vercel deploy için aynı değişkenleri Vercel → Project → Settings → **Environment Variables** bölümüne ekleyip yeniden deploy edin.
+
 ## Admin Panel Firestore İzinleri
 
 Admin panel, bazı ayarları Firestore'a okur/yazar:

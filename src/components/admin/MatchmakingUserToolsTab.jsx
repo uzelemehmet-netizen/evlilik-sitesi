@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { doc, getDoc, serverTimestamp, setDoc } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs, limit, orderBy, query, serverTimestamp, setDoc, where } from 'firebase/firestore';
 import { db } from '../../config/firebase';
 import { authFetch } from '../../utils/authFetch';
 
@@ -20,6 +20,16 @@ function fmtDateTimeTr(ms) {
 
 function asNum(v) {
   return typeof v === 'number' && Number.isFinite(v) ? v : null;
+}
+
+function parseProfileNoFromInput(raw) {
+  const s = String(raw || '').trim();
+  if (!s) return null;
+  const mk = s.match(/^mk\s*-\s*(\d+)$/i);
+  if (mk) return Number(mk[1]);
+  const numeric = s.match(/^(\d+)$/);
+  if (numeric) return Number(numeric[1]);
+  return null;
 }
 
 function computeCancelInfo(userDoc) {
@@ -48,9 +58,12 @@ export default function MatchmakingUserToolsTab() {
   const [msg, setMsg] = useState('');
 
   const [userDoc, setUserDoc] = useState(null);
+  const [applicationDoc, setApplicationDoc] = useState(null);
   const [stats, setStats] = useState(null);
 
   const [membershipDays, setMembershipDays] = useState('30');
+  const [translationPackDays, setTranslationPackDays] = useState('30');
+  const [translationPackTier, setTranslationPackTier] = useState('standard');
 
   const trimmedUserId = useMemo(() => String(userId || '').trim(), [userId]);
 
@@ -67,6 +80,19 @@ export default function MatchmakingUserToolsTab() {
     };
   }, [userDoc]);
 
+  const translationPackInfo = useMemo(() => {
+    const tp = userDoc?.translationPack || null;
+    const untilMs = typeof tp?.validUntilMs === 'number' ? tp.validUntilMs : 0;
+    const active = !!tp?.active && (!untilMs || untilMs > Date.now());
+    const daysLeft = untilMs && untilMs > Date.now() ? Math.ceil((untilMs - Date.now()) / 86400000) : 0;
+    return {
+      active,
+      untilMs,
+      daysLeft,
+      plan: typeof tp?.plan === 'string' ? tp.plan : '',
+    };
+  }, [userDoc]);
+
   const freeActiveInfo = useMemo(() => {
     const fam = userDoc?.freeActiveMembership || null;
     return {
@@ -80,8 +106,8 @@ export default function MatchmakingUserToolsTab() {
   }, [userDoc]);
 
   const reload = async () => {
-    const uid = trimmedUserId;
-    if (!uid) {
+    const input = trimmedUserId;
+    if (!input) {
       setErr('User ID girin.');
       return;
     }
@@ -90,14 +116,55 @@ export default function MatchmakingUserToolsTab() {
     setErr('');
     setMsg('');
     try {
-      const snap = await getDoc(doc(db, 'matchmakingUsers', uid));
+      // 1) Kullanıcı MK kodu ile girildiyse önce başvuru dokümanından userId bul.
+      let resolvedUid = input;
+      const profileNo = parseProfileNoFromInput(input);
+
+      if (profileNo !== null && Number.isFinite(profileNo)) {
+        const qApp = query(collection(db, 'matchmakingApplications'), where('profileNo', '==', profileNo), limit(1));
+        const snapApp = await getDocs(qApp);
+        if (snapApp.empty) {
+          setUserDoc(null);
+          setApplicationDoc(null);
+          setStats(null);
+          setErr('Bu MK kodu için başvuru bulunamadı.');
+          return;
+        }
+        const d = snapApp.docs[0];
+        const app = d.data() || {};
+        setApplicationDoc({ id: d.id, ...app });
+        const u = typeof app?.userId === 'string' ? app.userId.trim() : '';
+        if (!u) {
+          setUserDoc(null);
+          setStats(null);
+          setErr('Başvuru bulundu ama userId yok.');
+          return;
+        }
+        resolvedUid = u;
+      } else {
+        // UID girildiyse: o UID'nin başvurusunu (son başvuru) da çek.
+        try {
+          const qApp = query(collection(db, 'matchmakingApplications'), where('userId', '==', resolvedUid), orderBy('createdAt', 'desc'), limit(1));
+          const snapApp = await getDocs(qApp);
+          if (snapApp.empty) {
+            setApplicationDoc(null);
+          } else {
+            const d = snapApp.docs[0];
+            setApplicationDoc({ id: d.id, ...(d.data() || {}) });
+          }
+        } catch (e) {
+          setApplicationDoc(null);
+        }
+      }
+
+      const snap = await getDoc(doc(db, 'matchmakingUsers', resolvedUid));
       setUserDoc(snap.exists() ? (snap.data() || {}) : null);
 
       try {
         const data = await authFetch('/api/admin-matchmaking-user-stats', {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ userId: uid }),
+          body: JSON.stringify({ userId: resolvedUid }),
         });
         setStats(data || null);
       } catch (e) {
@@ -106,6 +173,7 @@ export default function MatchmakingUserToolsTab() {
     } catch (e) {
       setErr(String(e?.message || 'Kullanıcı okunamadı.'));
       setUserDoc(null);
+      setApplicationDoc(null);
       setStats(null);
     } finally {
       setLoading(false);
@@ -252,6 +320,89 @@ export default function MatchmakingUserToolsTab() {
     }
   };
 
+  const grantTranslationPack = async () => {
+    const uid = trimmedUserId;
+    if (!uid) return;
+
+    const days = Number(translationPackDays);
+    if (!Number.isFinite(days) || days <= 0 || days > 365) {
+      setErr('Gün sayısı 1–365 arası olmalı.');
+      return;
+    }
+
+    const tier = String(translationPackTier || '').toLowerCase().trim();
+    if (tier !== 'standard' && tier !== 'pro') {
+      setErr('Paket türü standard veya pro olmalı.');
+      return;
+    }
+
+    const ok = window.confirm(`Bu kullanıcıya ${days} gün çeviri paketi tanımlansın mı?`);
+    if (!ok) return;
+
+    setActing(true);
+    setErr('');
+    setMsg('');
+    try {
+      const now = Date.now();
+      const validUntilMs = now + days * 86400000;
+
+      await setDoc(
+        doc(db, 'matchmakingUsers', uid),
+        {
+          translationPack: {
+            active: true,
+            plan: tier,
+            validUntilMs,
+            updatedAtMs: now,
+          },
+          updatedAt: serverTimestamp(),
+        },
+        { merge: true }
+      );
+
+      setMsg(`Çeviri paketi aktif edildi. Bitiş: ${fmtDateTimeTr(validUntilMs)}`);
+      await reload();
+    } catch (e) {
+      setErr(String(e?.message || 'İşlem başarısız.'));
+    } finally {
+      setActing(false);
+    }
+  };
+
+  const revokeTranslationPack = async () => {
+    const uid = trimmedUserId;
+    if (!uid) return;
+
+    const ok = window.confirm('Bu kullanıcının çeviri paketi pasif edilsin mi?');
+    if (!ok) return;
+
+    setActing(true);
+    setErr('');
+    setMsg('');
+    try {
+      await setDoc(
+        doc(db, 'matchmakingUsers', uid),
+        {
+          translationPack: {
+            active: false,
+            validUntilMs: 0,
+            plan: 'admin',
+            updatedAtMs: Date.now(),
+          },
+          updatedAt: serverTimestamp(),
+        },
+        { merge: true }
+      );
+
+      setMsg('Çeviri paketi pasif edildi.');
+      await reload();
+    } catch (e) {
+      setErr(String(e?.message || 'İşlem başarısız.'));
+    } finally {
+      setActing(false);
+    }
+  };
+
   const resetFreeActiveMembership = async () => {
     const uid = trimmedUserId;
     if (!uid) return;
@@ -368,6 +519,16 @@ export default function MatchmakingUserToolsTab() {
                 </span>
               </div>
               <div>
+                Çeviri paketi:{' '}
+                <span className="font-semibold">
+                  {translationPackInfo.active
+                    ? `Aktif${translationPackInfo.plan ? ` (${String(translationPackInfo.plan).toUpperCase()})` : ''}${
+                        translationPackInfo.daysLeft ? ` • ${translationPackInfo.daysLeft}g` : ''
+                      }`
+                    : 'Pasif'}
+                </span>
+              </div>
+              <div>
                 Ücretsiz aktif:{' '}
                 <span className="font-semibold">
                   {freeActiveInfo.active ? 'Aktif' : freeActiveInfo.blocked ? 'Bloklu' : 'Pasif'}
@@ -375,6 +536,9 @@ export default function MatchmakingUserToolsTab() {
               </div>
               <div className="sm:col-span-2 text-xs text-slate-600">
                 Üyelik bitiş: {membershipInfo.untilMs ? fmtDateTimeTr(membershipInfo.untilMs) : '-'}
+              </div>
+              <div className="sm:col-span-2 text-xs text-slate-600">
+                Çeviri paketi bitiş: {translationPackInfo.untilMs ? fmtDateTimeTr(translationPackInfo.untilMs) : '-'}
               </div>
               <div className="sm:col-span-2 text-xs text-slate-600">
                 Ücretsiz aktif son aktif: {freeActiveInfo.lastActiveAtMs ? fmtDateTimeTr(freeActiveInfo.lastActiveAtMs) : '-'}
@@ -422,6 +586,31 @@ export default function MatchmakingUserToolsTab() {
             <p className="text-sm font-semibold text-slate-900">Üyelik Yönetimi</p>
             <p className="text-xs text-slate-600 mt-1">Ödeme dışı manuel üyelik tanımlamak için.</p>
 
+            {applicationDoc ? (
+              <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-3">
+                <p className="text-xs font-semibold text-slate-900">Başvuru / Kimlik Bilgileri</p>
+                <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm text-slate-800">
+                  <div>
+                    Ad Soyad: <span className="font-semibold">{applicationDoc.fullName ? String(applicationDoc.fullName) : '-'}</span>
+                  </div>
+                  <div>
+                    MK Kodu:{' '}
+                    <span className="font-semibold">
+                      {typeof applicationDoc.profileNo === 'number' ? `MK-${applicationDoc.profileNo}` : applicationDoc.profileCode ? String(applicationDoc.profileCode) : '-'}
+                    </span>
+                  </div>
+                  <div>
+                    Kullanıcı adı: <span className="font-semibold">{applicationDoc.username ? String(applicationDoc.username) : '-'}</span>
+                  </div>
+                  <div>
+                    Şehir: <span className="font-semibold">{applicationDoc.city ? String(applicationDoc.city) : '-'}</span>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="mt-4 text-xs text-slate-600">Başvuru dokümanı bulunamadı (ad/soyad bu yüzden görünmeyebilir).</div>
+            )}
+
             <div className="mt-3 flex flex-col sm:flex-row gap-2">
               <input
                 value={membershipDays}
@@ -460,6 +649,62 @@ export default function MatchmakingUserToolsTab() {
             ) : (
               <div className="mt-4 text-xs text-slate-600">İstatistik yüklenemedi (opsiyonel).</div>
             )}
+
+            <div className="mt-6 border-t border-slate-200 pt-4">
+              <p className="text-sm font-semibold text-slate-900">Çeviri Paketi</p>
+              <p className="text-xs text-slate-600 mt-1">Manuel çeviri özelliğini aç/kapat (aylık kota server-side).</p>
+
+              <div className="mt-3 flex flex-col sm:flex-row gap-2">
+                <div className="w-full sm:w-40">
+                  <div className="text-[11px] text-slate-600 mb-1">Paket</div>
+                  <select
+                    value={translationPackTier}
+                    onChange={(e) => setTranslationPackTier(e.target.value)}
+                    className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
+                    aria-label="Çeviri paketi türü"
+                  >
+                    <option value="standard">Standard</option>
+                    <option value="pro">Pro</option>
+                  </select>
+                </div>
+                <input
+                  value={translationPackDays}
+                  onChange={(e) => setTranslationPackDays(e.target.value)}
+                  className="w-full sm:w-40 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
+                  placeholder="Gün"
+                />
+                <button
+                  type="button"
+                  disabled={acting}
+                  onClick={grantTranslationPack}
+                  className="px-4 py-2 rounded-lg bg-sky-600 text-white text-sm font-semibold hover:bg-sky-700 disabled:opacity-60"
+                >
+                  Çeviri paketi ver
+                </button>
+                <button
+                  type="button"
+                  disabled={acting}
+                  onClick={revokeTranslationPack}
+                  className="px-4 py-2 rounded-lg bg-white border border-rose-300 text-rose-700 text-sm font-semibold hover:bg-rose-50 disabled:opacity-60"
+                >
+                  Çeviri paketini kapat
+                </button>
+              </div>
+
+              <div className="mt-2 text-xs text-slate-600">
+                Durum: <span className="font-semibold">{translationPackInfo.active ? 'Aktif' : 'Pasif'}</span>
+                {translationPackInfo.plan ? (
+                  <>
+                    {' '}• Paket: <span className="font-semibold">{String(translationPackInfo.plan).toUpperCase()}</span>
+                  </>
+                ) : null}
+                {translationPackInfo.untilMs ? (
+                  <>
+                    {' '}• Bitiş: <span className="font-semibold">{fmtDateTimeTr(translationPackInfo.untilMs)}</span>
+                  </>
+                ) : null}
+              </div>
+            </div>
           </div>
         </div>
       ) : null}

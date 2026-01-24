@@ -24,9 +24,13 @@ function getChoiceMatchId(userDoc) {
   return active && matchId ? matchId : '';
 }
 
+function safeStr(v) {
+  return typeof v === 'string' ? v.trim() : '';
+}
+
 // Eligibility kontrolü artık ortak helper üzerinden.
 
-// (chat/lock artık mutual accept anında değil, karşılıklı interaction seçimiyle açılır)
+// Yeni kural: Mutual accept anında chat otomatik aktif olur.
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -53,6 +57,7 @@ export default async function handler(req, res) {
 
     const { db, FieldValue } = getAdmin();
     const ref = db.collection('matchmakingMatches').doc(matchId);
+    const matchNoCounterRef = db.collection('counters').doc('matchmakingMatchNo');
 
     let status = 'proposed';
 
@@ -164,10 +169,51 @@ export default async function handler(req, res) {
         if (other === 'accept') {
           patch.status = 'mutual_accepted';
           patch.mutualAcceptedAt = FieldValue.serverTimestamp();
-          // interactionChoices + lock bu aşamada açılmayacak.
-          patch.interactionMode = null;
-          patch.interactionChosenAt = null;
+          patch.mutualAcceptedAtMs = Date.now();
+
+          // Chat otomatik aktif: 48 saat kilidi bu başlangıçtan hesaplanır.
+          patch.interactionMode = 'chat';
+          patch.interactionChosenAt = FieldValue.serverTimestamp();
+          patch.chatEnabledAt = FieldValue.serverTimestamp();
+          patch.chatEnabledAtMs = Date.now();
           patch.interactionChoices = {};
+
+          // Kısa eşleşme kodu (ES-<no>) - eksik olabilir; burada lazy üret.
+          const existingMatchCode = safeStr(data?.matchCode);
+          let matchNo = typeof data?.matchNo === 'number' && Number.isFinite(data.matchNo) ? data.matchNo : null;
+          let matchCode = existingMatchCode;
+
+          if (!matchCode) {
+            if (matchNo === null) {
+              const cSnap = await tx.get(matchNoCounterRef);
+              const cur = cSnap.exists ? (cSnap.data() || {}) : {};
+              const next = typeof cur.next === 'number' && Number.isFinite(cur.next) ? cur.next : 10000;
+              matchNo = next;
+              tx.set(
+                matchNoCounterRef,
+                {
+                  next: matchNo + 1,
+                  updatedAt: FieldValue.serverTimestamp(),
+                  updatedBy: uid,
+                },
+                { merge: true }
+              );
+              patch.matchNo = matchNo;
+            }
+            matchCode = matchNo !== null ? `ES-${matchNo}` : '';
+            if (matchCode) patch.matchCode = matchCode;
+          }
+
+          // İki kullanıcıyı bu match'e kilitle (yeni eşleşme akışını kontrol etmek için)
+          // Not: iptal/reject akışları zaten lock temizliyor.
+          const lockPatch = {
+            matchmakingLock: { active: true, matchId, matchCode: matchCode || '' },
+            matchmakingChoice: { active: true, matchId, matchCode: matchCode || '' },
+            updatedAt: FieldValue.serverTimestamp(),
+          };
+          tx.set(meRef, lockPatch, { merge: true });
+          tx.set(otherUserRef, lockPatch, { merge: true });
+
           status = 'mutual_accepted';
 
         } else {

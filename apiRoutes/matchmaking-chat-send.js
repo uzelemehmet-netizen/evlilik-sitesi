@@ -5,6 +5,12 @@ function safeStr(v) {
   return typeof v === 'string' ? v.trim() : '';
 }
 
+function normalizeLangHint(v) {
+  const s = safeStr(v).toLowerCase();
+  if (s === 'tr' || s === 'id' || s === 'en') return s;
+  return '';
+}
+
 function nowMs() {
   return Date.now();
 }
@@ -50,6 +56,7 @@ export default async function handler(req, res) {
     const body = normalizeBody(req);
     const matchId = safeStr(body?.matchId);
     const text = safeStr(body?.text);
+    const langHint = normalizeLangHint(body?.langHint);
 
     if (!matchId || !text) {
       res.statusCode = 400;
@@ -71,6 +78,8 @@ export default async function handler(req, res) {
       res.end(JSON.stringify({ ok: false, error: 'filtered' }));
       return;
     }
+
+    // Yeni model: Kullanıcı kendi dilinde yazar; çeviri sadece gelen mesajlarda manuel yapılır.
 
     const { db, FieldValue } = getAdmin();
 
@@ -98,11 +107,27 @@ export default async function handler(req, res) {
         throw err;
       }
 
-      const mode = typeof match?.interactionMode === 'string' ? match.interactionMode : '';
-      if (mode !== 'chat') {
-        const err = new Error('chat_not_enabled');
-        err.statusCode = 400;
-        throw err;
+      const currentMode = typeof match?.interactionMode === 'string' ? match.interactionMode : '';
+      if (currentMode !== 'chat') {
+        // Backward-compat: eski match'lerde interactionMode boş kalmış olabilir.
+        // mutual_accepted + taraflar doğrulandıysa chat'i varsay ve lazy set et.
+        if (!currentMode) {
+          tx.set(
+            matchRef,
+            {
+              interactionMode: 'chat',
+              interactionChosenAt: FieldValue.serverTimestamp(),
+              chatEnabledAt: FieldValue.serverTimestamp(),
+              chatEnabledAtMs: ts,
+              updatedAt: FieldValue.serverTimestamp(),
+            },
+            { merge: true }
+          );
+        } else {
+          const err = new Error('chat_not_enabled');
+          err.statusCode = 400;
+          throw err;
+        }
       }
 
       const userIds = Array.isArray(match.userIds) ? match.userIds.map(String).filter(Boolean) : [];
@@ -154,6 +179,7 @@ export default async function handler(req, res) {
         matchId,
         userId: uid,
         text,
+        ...(langHint ? { langHint } : {}),
         createdAt: FieldValue.serverTimestamp(),
         createdAtMs: ts,
       });

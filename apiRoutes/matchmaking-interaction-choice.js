@@ -46,6 +46,7 @@ export default async function handler(req, res) {
 
     let resolvedMode = '';
     let otherChoice = '';
+    const tsMs = Date.now();
 
     await db.runTransaction(async (tx) => {
       const matchSnap = await tx.get(matchRef);
@@ -150,9 +151,15 @@ export default async function handler(req, res) {
           patch.interactionMode = resolvedMode;
           patch.interactionChosenAt = FieldValue.serverTimestamp();
 
+          if (resolvedMode === 'chat') {
+            patch.chatEnabledAt = FieldValue.serverTimestamp();
+            patch.chatEnabledAtMs = tsMs;
+          }
+
           if (resolvedMode === 'contact' || resolvedMode === 'offsite') {
             patch.status = 'contact_unlocked';
             patch.contactUnlockedAt = FieldValue.serverTimestamp();
+            patch.contactUnlockedAtMs = tsMs;
           }
 
           if (resolvedMode === 'cancel') {

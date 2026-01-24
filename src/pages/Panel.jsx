@@ -1,5 +1,5 @@
 import { formatProfileCode } from '../utils/profileCode';
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { signOut } from "firebase/auth";
@@ -18,6 +18,15 @@ export default function Panel() {
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useAuth();
+
+  const normalizeChatLang = useCallback((raw) => {
+    const s = String(raw || '').toLowerCase().trim();
+    if (!s) return '';
+    if (s === 'tr' || s.startsWith('tr')) return 'tr';
+    if (s === 'id' || s.startsWith('id')) return 'id';
+    if (s === 'en' || s.startsWith('en')) return 'en';
+    return '';
+  }, []);
 
   const getStatusLabel = (rawStatus) => {
     const st = String(rawStatus || '').trim();
@@ -44,6 +53,17 @@ export default function Panel() {
   const [matchmakingUser, setMatchmakingUser] = useState(null);
   const [matchmakingUserLoading, setMatchmakingUserLoading] = useState(true);
 
+  // Chat çevirisi: hedef dil, UI dilinden değil kullanıcının profil/app dilinden gelsin.
+  // Böylece Endonezya kullanıcısı site dili TR olsa bile gelen Türkçe mesajı ID'ye çevirebilir.
+  const myChatLang = useMemo(() => {
+    // Net kural: hedef dil = başvuruda seçilen “uyruk” (nationality)
+    const fromNationality = normalizeChatLang(matchmaking?.nationality);
+    if (fromNationality) return fromNationality;
+
+    const fromUi = normalizeChatLang(i18n?.language);
+    return fromUi || 'en';
+  }, [i18n?.language, matchmaking?.details?.communicationLanguage, matchmaking?.lang, matchmaking?.nationality, normalizeChatLang]);
+
   const [matchmakingMatches, setMatchmakingMatches] = useState([]);
   const [matchmakingMatchesLoading, setMatchmakingMatchesLoading] = useState(true);
   const [matchmakingAction, setMatchmakingAction] = useState({ loading: false, error: '' });
@@ -58,6 +78,7 @@ export default function Panel() {
   const [chatByMatchId, setChatByMatchId] = useState({});
   const [chatSendByMatchId, setChatSendByMatchId] = useState({});
   const [chatTextByMatchId, setChatTextByMatchId] = useState({});
+  const [chatTranslateByKey, setChatTranslateByKey] = useState({});
   const [chatDecisionByMatchId, setChatDecisionByMatchId] = useState({});
   const [chatNotifyMsgByMatchId, setChatNotifyMsgByMatchId] = useState({});
   const [chatFocusMatchId, setChatFocusMatchId] = useState('');
@@ -196,7 +217,6 @@ export default function Panel() {
     const q = query(
       collection(db, 'matchmakingPayments'),
       where('userId', '==', user.uid),
-      orderBy('createdAt', 'desc'),
       limit(25)
     );
 
@@ -205,6 +225,17 @@ export default function Panel() {
       (snap) => {
         const items = [];
         snap.forEach((d) => items.push({ id: d.id, ...d.data() }));
+
+        // Composite index gereksinimini (userId + createdAt orderBy) dev ortamında engellemek için
+        // sıralamayı client-side yapıyoruz.
+        const toMs = (v) => {
+          if (!v) return 0;
+          if (typeof v === 'number') return v;
+          if (typeof v?.toMillis === 'function') return v.toMillis();
+          return 0;
+        };
+        items.sort((a, b) => toMs(b?.createdAt) - toMs(a?.createdAt));
+
         setMatchmakingPayments(items);
         setMatchmakingPaymentsLoading(false);
       },
@@ -253,8 +284,46 @@ export default function Panel() {
     };
   }, []);
 
+  const getTierPrice = useCallback(
+    (currency, tier) => {
+      const c = String(currency || '').toUpperCase();
+      const t0 = String(tier || '').toLowerCase().trim();
+      const t = t0 === 'eco' || t0 === 'standard' || t0 === 'pro' ? t0 : 'pro';
+
+      const readEnvNumber = (key) => {
+        const n = Number(import.meta?.env?.[key]);
+        return Number.isFinite(n) && n > 0 ? n : 0;
+      };
+
+      if (c === 'TRY') {
+        const base = prices.TRY;
+        const key = t === 'eco' ? 'VITE_MATCHMAKING_PRICE_TRY_ECO' : t === 'standard' ? 'VITE_MATCHMAKING_PRICE_TRY_STANDARD' : 'VITE_MATCHMAKING_PRICE_TRY_PRO';
+        return readEnvNumber(key) || base;
+      }
+
+      if (c === 'IDR') {
+        const base = prices.IDR;
+        const key = t === 'eco' ? 'VITE_MATCHMAKING_PRICE_IDR_ECO' : t === 'standard' ? 'VITE_MATCHMAKING_PRICE_IDR_STANDARD' : 'VITE_MATCHMAKING_PRICE_IDR_PRO';
+        return readEnvNumber(key) || base;
+      }
+
+      if (c === 'USD') {
+        const key = t === 'eco' ? 'VITE_MATCHMAKING_PRICE_USD_ECO' : t === 'standard' ? 'VITE_MATCHMAKING_PRICE_USD_STANDARD' : 'VITE_MATCHMAKING_PRICE_USD_PRO';
+        const env = readEnvNumber(key);
+        if (env) return env;
+        if (t === 'eco') return 20;
+        if (t === 'standard') return 40;
+        return 50;
+      }
+
+      return 0;
+    },
+    [prices.IDR, prices.TRY]
+  );
+
   const myMembership = useMemo(() => {
     const m = matchmakingUser?.membership || null;
+    const plan = typeof m?.plan === 'string' ? String(m.plan).toLowerCase().trim() : '';
     const validUntilMs = typeof m?.validUntilMs === 'number' ? m.validUntilMs : 0;
     const active = !!m?.active && validUntilMs > Date.now();
     const msLeft = validUntilMs - Date.now();
@@ -265,8 +334,15 @@ export default function Panel() {
           new Date(validUntilMs)
         )
       : '';
-    return { active, validUntilMs, daysLeft, untilText };
+    return { active, plan, validUntilMs, daysLeft, untilText };
   }, [i18n?.language, matchmakingUser]);
+
+  const membershipMaxMatches = useMemo(() => {
+    if (!myMembership.active) return 3;
+    if (myMembership.plan === 'pro') return 10;
+    if (myMembership.plan === 'standard') return 5;
+    return 3;
+  }, [myMembership.active, myMembership.plan]);
 
   const myIdentityVerified = useMemo(() => {
     if (matchmakingUser?.identityVerified === true) return true;
@@ -333,6 +409,8 @@ export default function Panel() {
   const membershipStatusText = useMemo(() => {
     if (myMembership.active) {
       let s = t('matchmakingPanel.membership.active');
+      const planLabel = myMembership.plan === 'pro' ? 'Pro' : myMembership.plan === 'standard' ? 'Standart' : myMembership.plan === 'eco' ? 'Eko' : '';
+      if (planLabel) s += ` (${planLabel})`;
       if (typeof myMembership.daysLeft === 'number' && myMembership.daysLeft > 0) {
         s += ` ${t('matchmakingPanel.membership.daysLeft', { count: myMembership.daysLeft })}`;
       }
@@ -726,8 +804,8 @@ export default function Panel() {
       return toMs(b?.createdAt) - toMs(a?.createdAt);
     });
 
-    return items.slice(0, 3);
-  }, [matchmakingMatches, lockInfo.active, lockInfo.matchId, user?.uid]);
+    return items.slice(0, membershipMaxMatches);
+  }, [matchmakingMatches, lockInfo.active, lockInfo.matchId, membershipMaxMatches, user?.uid]);
 
   const focusedChatMatchId = useMemo(() => {
     const list = Array.isArray(activeMatches) ? activeMatches : [];
@@ -772,15 +850,27 @@ export default function Panel() {
   }, [activeMatches, chatByMatchId]);
 
   const newMatchQuotaInfo = useMemo(() => {
-    const limit = 3;
     const q = matchmakingUser?.newMatchRequestQuota || null;
     const qDayKey = typeof q?.dayKey === 'string' ? q.dayKey : '';
     const qCount = typeof q?.count === 'number' ? q.count : 0;
+    const qLimit = typeof q?.limit === 'number' ? q.limit : 0;
+
+    const derivedLimit = (myMembership.active && myMembership.plan === 'eco') || !myMembership.active ? 3 : 999;
+    const limit = qLimit > 0 ? qLimit : derivedLimit;
     const today = new Date().toISOString().slice(0, 10);
     const count = qDayKey === today ? qCount : 0;
     const remaining = Math.max(0, limit - count);
     return { limit, remaining, dayKey: today, count };
-  }, [matchmakingUser]);
+  }, [matchmakingUser, myMembership.active, myMembership.plan]);
+
+  const newMatchQuotaDisplay = useMemo(() => {
+    const inf = typeof newMatchQuotaInfo?.limit === 'number' && newMatchQuotaInfo.limit >= 999;
+    return {
+      inf,
+      limit: inf ? '∞' : newMatchQuotaInfo.limit,
+      remaining: inf ? '∞' : newMatchQuotaInfo.remaining,
+    };
+  }, [newMatchQuotaInfo.limit, newMatchQuotaInfo.remaining]);
 
   const [interactionChoiceByMatchId, setInteractionChoiceByMatchId] = useState({});
 
@@ -872,6 +962,107 @@ export default function Panel() {
     setMembershipDeleteStep('none');
     setMembershipDeleteTyped('');
     setMembershipModalOpen(false);
+  };
+
+  const [membershipPayment, setMembershipPayment] = useState({ open: false, tier: 'eco', loading: false, error: '', success: '', paymentId: '' });
+  const [membershipPaymentForm, setMembershipPaymentForm] = useState({
+    currency: 'USD',
+    method: 'eft_fast',
+    reference: '',
+    note: '',
+    receiptVia: 'upload',
+    receiptUrl: '',
+  });
+  const [membershipReceiptUpload, setMembershipReceiptUpload] = useState({ loading: false, error: '' });
+
+  const openMembershipPayment = (tier) => {
+    setMembershipPayment({ open: true, tier: tier || 'eco', loading: false, error: '', success: '', paymentId: '' });
+    setMembershipPaymentForm((p) => ({
+      ...p,
+      currency: p.currency || 'USD',
+      method: p.method || 'eft_fast',
+      reference: '',
+      note: '',
+      receiptVia: 'upload',
+      receiptUrl: '',
+    }));
+    setMembershipReceiptUpload({ loading: false, error: '' });
+  };
+
+  const closeMembershipPayment = () => {
+    if (membershipPayment.loading || membershipReceiptUpload.loading) return;
+    setMembershipPayment((p) => ({ ...p, open: false, error: '', success: '' }));
+  };
+
+  const uploadMembershipReceipt = async (file) => {
+    if (!file) return;
+    if (membershipReceiptUpload.loading) return;
+    setMembershipReceiptUpload({ loading: true, error: '' });
+
+    try {
+      const up = await uploadImageToCloudinaryAuto(file, {
+        folder: 'matchmaking/receipts',
+        tags: ['matchmaking', 'receipt', 'membership'],
+      });
+
+      setMembershipPaymentForm((p) => ({ ...p, receiptUrl: up?.secureUrl || '', receiptVia: 'upload' }));
+      setMembershipReceiptUpload({ loading: false, error: '' });
+    } catch (e) {
+      setMembershipReceiptUpload({ loading: false, error: String(e?.message || t('matchmakingPanel.receipt.errors.uploadFailed')) });
+    }
+  };
+
+  const submitMembershipPayment = async () => {
+    if (membershipPayment.loading) return;
+    const tier = String(membershipPayment.tier || 'eco').toLowerCase().trim();
+    const currency = String(membershipPaymentForm.currency || 'USD').toUpperCase();
+    const method = String(membershipPaymentForm.method || '').trim();
+    const receiptVia = String(membershipPaymentForm.receiptVia || '').trim();
+    const receiptUrl = String(membershipPaymentForm.receiptUrl || '').trim();
+
+    if (!method || !currency) {
+      setMembershipPayment((p) => ({ ...p, loading: false, error: t('matchmakingPanel.payment.errors.sendFailed'), success: '' }));
+      return;
+    }
+
+    if (receiptVia !== 'whatsapp' && !receiptUrl) {
+      setMembershipPayment((p) => ({ ...p, loading: false, error: t('matchmakingPanel.payment.errors.sendFailed'), success: '' }));
+      return;
+    }
+
+    setMembershipPayment((p) => ({ ...p, loading: true, error: '', success: '', paymentId: '' }));
+
+    try {
+      const amount = getTierPrice(currency, tier);
+      const res = await authFetch('/api/matchmaking-submit-payment', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          method,
+          amount,
+          currency,
+          tier,
+          reference: String(membershipPaymentForm.reference || '').trim(),
+          note: String(membershipPaymentForm.note || '').trim(),
+          receiptUrl: receiptUrl || '',
+          receiptVia,
+          context: 'membership',
+        }),
+      });
+
+      setMembershipPaymentForm((p) => ({ ...p, reference: '', note: '' }));
+      setMembershipPayment((p) => ({
+        ...p,
+        loading: false,
+        error: '',
+        success: t('matchmakingPanel.matches.paymentStatus.pending'),
+        paymentId: res?.paymentId || '',
+      }));
+    } catch (e) {
+      const msg = String(e?.message || t('matchmakingPanel.payment.errors.sendFailed'));
+      const mapped = msg === 'rate_limited' ? t('matchmakingPanel.payment.errors.rateLimited') : msg;
+      setMembershipPayment((p) => ({ ...p, loading: false, error: mapped, success: '', paymentId: '' }));
+    }
   };
 
   const normalizeDeleteConfirmText = (v) => {
@@ -1291,6 +1482,41 @@ export default function Panel() {
       setChatTextByMatchId((p) => ({ ...p, [matchId]: next }));
     };
 
+    const translateIncomingMessage = async (messageId) => {
+      const mid = String(messageId || '').trim();
+      if (!matchId || !mid) return;
+
+      const key = `${matchId}:${mid}`;
+      if (chatTranslateByKey?.[key]?.loading) return;
+
+      setChatTranslateByKey((p) => ({ ...p, [key]: { loading: true, error: '' } }));
+      try {
+        const data = await authFetch('/api/matchmaking-chat-translate', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ matchId, messageId: mid, targetLang: myChatLang }),
+        });
+
+        // Çeviri sonucu mesaj dokümanına cache'lenir; snapshot güncellenince ekranda görünür.
+        setChatTranslateByKey((p) => ({
+          ...p,
+          [key]: {
+            loading: false,
+            error: '',
+            usagePercent: typeof data?.usage?.usagePercent === 'number' ? data.usage.usagePercent : null,
+          },
+        }));
+      } catch (e) {
+        const code = String(e?.message || '').trim();
+        const pctRaw = e?.details?.details?.usagePercent;
+        const usagePercent = typeof pctRaw === 'number' ? pctRaw : null;
+        setChatTranslateByKey((p) => ({
+          ...p,
+          [key]: { loading: false, error: code || 'translate_failed', usagePercent },
+        }));
+      }
+    };
+
     return (
       <div className="mt-3 flex flex-col min-h-0 flex-1">
         {loading ? <div className="text-xs text-white/60">{t('common.loading')}</div> : null}
@@ -1328,6 +1554,16 @@ export default function Panel() {
               <div className="space-y-2">
                 {items.map((msg) => {
                   const mine = msg?.userId === user?.uid;
+                  const translatedText =
+                    !mine && msg?.translations && typeof msg.translations === 'object' ? String(msg.translations?.[myChatLang] || '') : '';
+                  const translateKey = `${matchId}:${msg.id}`;
+                  const translating = !!chatTranslateByKey?.[translateKey]?.loading;
+                  const translateErr = String(chatTranslateByKey?.[translateKey]?.error || '').trim();
+                  const translateUsagePercentRaw = chatTranslateByKey?.[translateKey]?.usagePercent;
+                  const translateUsagePercent =
+                    typeof translateUsagePercentRaw === 'number' && Number.isFinite(translateUsagePercentRaw)
+                      ? translateUsagePercentRaw
+                      : null;
                   return (
                     <div key={msg.id} className={mine ? 'text-right' : 'text-left'}>
                       <div
@@ -1339,6 +1575,48 @@ export default function Panel() {
                       >
                         {msg?.text || ''}
                       </div>
+
+                      {!mine ? (
+                        <div className="mt-1">
+                          {translatedText ? (
+                            <div className="inline-block text-xs text-white/70 max-w-[85%] whitespace-pre-wrap break-words leading-relaxed">
+                              {translatedText}
+                            </div>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => translateIncomingMessage(msg.id)}
+                              disabled={blocked || translating}
+                              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-white/15 bg-white/5 text-white/85 text-xs font-semibold hover:bg-white/[0.12] disabled:opacity-60"
+                              title="Mesajı çevir"
+                            >
+                              {translating ? 'Çevriliyor…' : 'Çevir'}
+                            </button>
+                          )}
+
+                          {translateErr ? (
+                            <div className="mt-1 text-[11px] text-rose-200/90">
+                              {(() => {
+                                if (translateErr === 'translate_quota_exceeded') {
+                                  if (translateUsagePercent !== null) return `Limitinin %${translateUsagePercent}'ini kullandın. Yarın yenilenir veya Boost/plan yükselt.`;
+                                  return 'Çeviri limitin doldu. Yarın yenilenir veya Boost/plan yükselt.';
+                                }
+                                if (translateErr === 'translate_too_long') return 'Bu mesaj çok uzun; çeviri için kısaltılmalı.';
+                                if (translateErr === 'only_incoming') return 'Sadece gelen mesajlar çevrilebilir.';
+                                if (translateErr === 'missing_auth' || translateErr === 'invalid_auth') return 'Oturum gerekli.';
+                                if (translateErr === 'translate_not_configured') return 'Çeviri servisi ayarlı değil.';
+                                return 'Çeviri başarısız.';
+                              })()}
+                            </div>
+                          ) : null}
+
+                          {!translateErr && translateUsagePercent !== null && translateUsagePercent >= 70 ? (
+                            <div className="mt-1 text-[11px] text-white/70">
+                              {`Limitinin %${translateUsagePercent}'ini kullandın.`}
+                            </div>
+                          ) : null}
+                        </div>
+                      ) : null}
                     </div>
                   );
                 })}
@@ -1920,18 +2198,222 @@ export default function Panel() {
               </div>
             ) : (
               <div className="mt-4 grid grid-cols-1 gap-2">
-                <button
-                  type="button"
-                  onClick={activateFreeMembershipNow}
-                  disabled={membershipModalAction.loading || myMembership.active}
-                  className="w-full px-4 py-2 rounded-full bg-emerald-300 text-slate-950 text-sm font-semibold hover:bg-emerald-200 disabled:opacity-60"
-                >
-                  {membershipModalAction.loading
-                    ? t('matchmakingPanel.membershipModal.loading')
-                    : myMembership.active
-                      ? t('matchmakingPanel.membershipModal.alreadyActive')
-                      : t('matchmakingPanel.membershipModal.activate')}
-                </button>
+                {!myMembership.active ? (
+                  <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-3">
+                    {!membershipPayment.open ? (
+                      <>
+                        <p className="text-sm font-semibold text-white">{t('matchmakingPanel.matches.payment.package')}</p>
+                        <p className="mt-1 text-xs text-white/65">{t('matchmakingPanel.matches.subtitle')}</p>
+
+                        <div className="mt-3 grid grid-cols-1 gap-2">
+                          <button
+                            type="button"
+                            onClick={() => openMembershipPayment('eco')}
+                            disabled={membershipModalAction.loading}
+                            className="w-full px-4 py-2 rounded-2xl border border-white/15 bg-white/5 text-white/90 text-sm font-semibold hover:bg-white/[0.12] disabled:opacity-60 text-left"
+                          >
+                            <div className="flex items-center justify-between gap-3">
+                              <span>{t('matchmakingPanel.matches.payment.packageEco')}</span>
+                              <span className="text-white/70">{getTierPrice('USD', 'eco')} USD</span>
+                            </div>
+                            <div className="mt-1 text-xs text-white/55">3 eşleşme • Günlük 80 mesaj çeviri • Günlük 3 yeni eşleşme</div>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => openMembershipPayment('standard')}
+                            disabled={membershipModalAction.loading}
+                            className="w-full px-4 py-2 rounded-2xl border border-white/15 bg-white/5 text-white/90 text-sm font-semibold hover:bg-white/[0.12] disabled:opacity-60 text-left"
+                          >
+                            <div className="flex items-center justify-between gap-3">
+                              <span>{t('matchmakingPanel.matches.payment.packageStandard')}</span>
+                              <span className="text-white/70">{getTierPrice('USD', 'standard')} USD</span>
+                            </div>
+                            <div className="mt-1 text-xs text-white/55">5 eşleşme • Günlük 300 mesaj çeviri</div>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => openMembershipPayment('pro')}
+                            disabled={membershipModalAction.loading}
+                            className="w-full px-4 py-2 rounded-2xl border border-white/15 bg-white/5 text-white/90 text-sm font-semibold hover:bg-white/[0.12] disabled:opacity-60 text-left"
+                          >
+                            <div className="flex items-center justify-between gap-3">
+                              <span>{t('matchmakingPanel.matches.payment.packagePro')}</span>
+                              <span className="text-white/70">{getTierPrice('USD', 'pro')} USD</span>
+                            </div>
+                            <div className="mt-1 text-xs text-white/55">10 eşleşme • Günlük 2000 mesaj çeviri • Sponsorlu çeviri</div>
+                          </button>
+                        </div>
+
+                        {membershipPromoActive ? (
+                          <button
+                            type="button"
+                            onClick={activateFreeMembershipNow}
+                            disabled={membershipModalAction.loading}
+                            className="mt-3 w-full px-4 py-2 rounded-full bg-emerald-300 text-slate-950 text-sm font-semibold hover:bg-emerald-200 disabled:opacity-60"
+                          >
+                            {membershipModalAction.loading ? t('matchmakingPanel.membershipModal.loading') : t('matchmakingPanel.membershipModal.openFree')}
+                          </button>
+                        ) : null}
+                      </>
+                    ) : (
+                      <>
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <p className="text-sm font-semibold text-white">{t('matchmakingPanel.matches.payment.reportTitle')}</p>
+                            <p className="mt-1 text-xs text-white/65">Paket: <span className="font-semibold">{String(membershipPayment.tier || '').toUpperCase()}</span></p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={closeMembershipPayment}
+                            disabled={membershipPayment.loading || membershipReceiptUpload.loading}
+                            className="shrink-0 px-3 py-2 rounded-full border border-white/10 bg-white/5 text-white/80 text-xs font-semibold hover:bg-white/[0.12] disabled:opacity-60"
+                          >
+                            {t('common.close')}
+                          </button>
+                        </div>
+
+                        <div className="mt-3 grid grid-cols-1 gap-3">
+                          <div>
+                            <label className="block text-xs font-semibold text-white/80">{t('matchmakingPanel.matches.payment.currency')}</label>
+                            <select
+                              value={membershipPaymentForm.currency}
+                              onChange={(e) => setMembershipPaymentForm((p) => ({ ...p, currency: e.target.value }))}
+                              disabled={membershipPayment.loading}
+                              className="mt-1 w-full px-3 py-2 rounded-xl border border-white/10 bg-white/5 text-white/90 text-sm outline-none focus:ring-2 focus:ring-white/20"
+                            >
+                              <option value="USD">{t('matchmakingPanel.matches.payment.currencyUSD')}</option>
+                              <option value="TRY">{t('matchmakingPanel.matches.payment.currencyTRY')}</option>
+                              <option value="IDR">{t('matchmakingPanel.matches.payment.currencyIDR')}</option>
+                            </select>
+                          </div>
+
+                          <div>
+                            <label className="block text-xs font-semibold text-white/80">{t('matchmakingPanel.matches.payment.method')}</label>
+                            <select
+                              value={membershipPaymentForm.method}
+                              onChange={(e) => setMembershipPaymentForm((p) => ({ ...p, method: e.target.value }))}
+                              disabled={membershipPayment.loading}
+                              className="mt-1 w-full px-3 py-2 rounded-xl border border-white/10 bg-white/5 text-white/90 text-sm outline-none focus:ring-2 focus:ring-white/20"
+                            >
+                              <option value="eft_fast">{t('matchmakingPanel.matches.payment.methodEftFast')}</option>
+                              <option value="swift_wise">{t('matchmakingPanel.matches.payment.methodSwiftWise')}</option>
+                              <option value="qris">{t('matchmakingPanel.matches.payment.methodQris')}</option>
+                              <option value="other">{t('matchmakingPanel.matches.payment.methodOther')}</option>
+                            </select>
+                          </div>
+
+                          <div>
+                            <label className="block text-xs font-semibold text-white/80">{t('matchmakingPanel.matches.payment.reference')}</label>
+                            <input
+                              type="text"
+                              value={membershipPaymentForm.reference}
+                              onChange={(e) => setMembershipPaymentForm((p) => ({ ...p, reference: e.target.value }))}
+                              disabled={membershipPayment.loading}
+                              className="mt-1 w-full px-3 py-2 rounded-xl border border-white/10 bg-white/5 text-white placeholder:text-white/40 text-sm outline-none focus:ring-2 focus:ring-white/20"
+                              placeholder={t('matchmakingPanel.matches.payment.referencePlaceholder')}
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-xs font-semibold text-white/80">{t('matchmakingPanel.matches.payment.note')}</label>
+                            <input
+                              type="text"
+                              value={membershipPaymentForm.note}
+                              onChange={(e) => setMembershipPaymentForm((p) => ({ ...p, note: e.target.value }))}
+                              disabled={membershipPayment.loading}
+                              className="mt-1 w-full px-3 py-2 rounded-xl border border-white/10 bg-white/5 text-white placeholder:text-white/40 text-sm outline-none focus:ring-2 focus:ring-white/20"
+                              placeholder={t('matchmakingPanel.matches.payment.notePlaceholder')}
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-xs font-semibold text-white/80">{t('matchmakingPanel.matches.payment.receipt')}</label>
+                            <div className="mt-2 flex flex-col gap-2">
+                              <label className="inline-flex items-center gap-2 text-xs text-white/80">
+                                <input
+                                  type="radio"
+                                  checked={membershipPaymentForm.receiptVia === 'upload'}
+                                  onChange={() => setMembershipPaymentForm((p) => ({ ...p, receiptVia: 'upload' }))}
+                                  disabled={membershipPayment.loading}
+                                />
+                                Dekont yükle
+                              </label>
+                              <label className="inline-flex items-center gap-2 text-xs text-white/80">
+                                <input
+                                  type="radio"
+                                  checked={membershipPaymentForm.receiptVia === 'whatsapp'}
+                                  onChange={() => setMembershipPaymentForm((p) => ({ ...p, receiptVia: 'whatsapp', receiptUrl: '' }))}
+                                  disabled={membershipPayment.loading}
+                                />
+                                Dekontu WhatsApp’tan göndereceğim
+                              </label>
+                            </div>
+
+                            {membershipPaymentForm.receiptVia === 'upload' ? (
+                              <div className="mt-2">
+                                <input
+                                  type="file"
+                                  accept="image/*"
+                                  className="block w-full text-xs text-white/80 file:mr-3 file:rounded-lg file:border-0 file:bg-white/10 file:px-3 file:py-2 file:text-xs file:font-semibold file:text-white/90 hover:file:bg-white/15"
+                                  onChange={(e) => uploadMembershipReceipt(e.target.files?.[0] || null)}
+                                  disabled={membershipPayment.loading || membershipReceiptUpload.loading}
+                                />
+                                {membershipPaymentForm.receiptUrl ? (
+                                  <a
+                                    href={membershipPaymentForm.receiptUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="mt-2 inline-flex items-center text-xs text-emerald-200 underline"
+                                  >
+                                    {t('matchmakingPanel.matches.payment.viewReceipt')}
+                                  </a>
+                                ) : null}
+                              </div>
+                            ) : null}
+
+                            {membershipReceiptUpload.error ? (
+                              <div className="mt-2 rounded-lg border border-rose-300/30 bg-rose-500/10 p-2 text-rose-100 text-xs">
+                                {membershipReceiptUpload.error}
+                              </div>
+                            ) : null}
+                            {membershipReceiptUpload.loading ? (
+                              <div className="mt-2 rounded-lg border border-white/10 bg-white/[0.04] p-2 text-white/60 text-xs">
+                                {t('matchmakingPanel.matches.payment.uploadingReceipt')}
+                              </div>
+                            ) : null}
+
+                            {membershipPayment.error ? (
+                              <div className="mt-2 rounded-lg border border-rose-300/30 bg-rose-500/10 p-2 text-rose-100 text-xs">
+                                {membershipPayment.error}
+                              </div>
+                            ) : null}
+                            {membershipPayment.success ? (
+                              <div className="mt-2 rounded-lg border border-emerald-300/30 bg-emerald-500/10 p-2 text-emerald-100 text-xs">
+                                {membershipPayment.success}
+                                {membershipPayment.paymentId ? (
+                                  <div className="mt-1 text-[11px] text-emerald-100/90 break-words">paymentId: {membershipPayment.paymentId}</div>
+                                ) : null}
+                              </div>
+                            ) : null}
+                          </div>
+
+                          <button
+                            type="button"
+                            onClick={submitMembershipPayment}
+                            disabled={membershipPayment.loading || membershipReceiptUpload.loading}
+                            className="w-full px-4 py-2 rounded-full bg-emerald-700 text-white text-sm font-semibold hover:bg-emerald-800 disabled:opacity-60"
+                          >
+                            {membershipPayment.loading
+                              ? t('matchmakingPanel.actions.sending')
+                              : t('matchmakingPanel.matches.payment.sendPayment', { amount: getTierPrice(membershipPaymentForm.currency, membershipPayment.tier), currency: membershipPaymentForm.currency })}
+                          </button>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                ) : null}
 
                 <button
                   type="button"
@@ -4151,11 +4633,11 @@ export default function Panel() {
                                       >
                                         {requestNewAction.loading
                                           ? t('matchmakingPanel.actions.requestingNew')
-                                          : t('matchmakingPanel.actions.requestNewWithRemaining', { remaining: newMatchQuotaInfo.remaining, limit: newMatchQuotaInfo.limit })}
+                                          : t('matchmakingPanel.actions.requestNewWithRemaining', { remaining: newMatchQuotaDisplay.remaining, limit: newMatchQuotaDisplay.limit })}
                                       </button>
                                     </div>
                                     <div className="mt-2 text-xs text-white/60">
-                                      {t('matchmakingPanel.actions.requestNewQuotaHint', { remaining: newMatchQuotaInfo.remaining, limit: newMatchQuotaInfo.limit })}
+                                      {t('matchmakingPanel.actions.requestNewQuotaHint', { remaining: newMatchQuotaDisplay.remaining, limit: newMatchQuotaDisplay.limit })}
                                     </div>
                                   </div>
                                 ) : null}
@@ -4183,7 +4665,7 @@ export default function Panel() {
                                   >
                                     {requestNewAction.loading
                                       ? t('matchmakingPanel.actions.requestingNew')
-                                      : t('matchmakingPanel.actions.requestNewWithRemaining', { remaining: newMatchQuotaInfo.remaining, limit: newMatchQuotaInfo.limit })}
+                                      : t('matchmakingPanel.actions.requestNewWithRemaining', { remaining: newMatchQuotaDisplay.remaining, limit: newMatchQuotaDisplay.limit })}
                                   </button>
                                 </div>
                               </div>

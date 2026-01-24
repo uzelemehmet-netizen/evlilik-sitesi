@@ -51,11 +51,26 @@ export default async function handler(req, res) {
         throw err;
       }
 
-      const mode = typeof match?.interactionMode === 'string' ? match.interactionMode : '';
-      if (mode !== 'chat') {
-        const err = new Error('chat_not_enabled');
-        err.statusCode = 400;
-        throw err;
+      const currentMode = typeof match?.interactionMode === 'string' ? match.interactionMode : '';
+      if (currentMode !== 'chat') {
+        // Backward-compat: eski match'lerde interactionMode boş kalmış olabilir.
+        if (!currentMode) {
+          tx.set(
+            matchRef,
+            {
+              interactionMode: 'chat',
+              interactionChosenAt: FieldValue.serverTimestamp(),
+              chatEnabledAt: FieldValue.serverTimestamp(),
+              chatEnabledAtMs: ts,
+              updatedAt: FieldValue.serverTimestamp(),
+            },
+            { merge: true }
+          );
+        } else {
+          const err = new Error('chat_not_enabled');
+          err.statusCode = 400;
+          throw err;
+        }
       }
 
       const userIds = Array.isArray(match.userIds) ? match.userIds.map(String).filter(Boolean) : [];

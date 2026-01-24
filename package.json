@@ -5,6 +5,10 @@
   "type": "module",
   "scripts": {
     "ensure:env": "node scripts/ensure-env-local.mjs",
+    "admin:check": "node scripts/admin-user.mjs --email uzelemehmet@gmail.com --check",
+    "admin:setpw": "node scripts/admin-user.mjs --email uzelemehmet@gmail.com",
+    "admin:grant": "node scripts/admin-user.mjs --email uzelemehmet@gmail.com --set-admin-claim",
+    "admin:revoke": "node scripts/admin-user.mjs --email uzelemehmet@gmail.com --clear-admin-claim",
     "seed:matchmaking": "node scripts/seed-matchmaking.mjs",
     "seed:matchmaking:cleanup": "node scripts/seed-matchmaking.mjs --cleanup",
     "seed:promote-matches": "node scripts/promote-seed-matches.mjs",

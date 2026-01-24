@@ -13,6 +13,30 @@ function dayKeyUtc(ts) {
   }
 }
 
+function getMembershipPlan(userDoc) {
+  const m = userDoc?.membership || null;
+  const raw = typeof m?.plan === 'string' ? m.plan : '';
+  return String(raw || '').toLowerCase().trim();
+}
+
+function isMembershipActive(userDoc, now = Date.now()) {
+  const m = userDoc?.membership || null;
+  if (!m || !m.active) return false;
+  const until = typeof m.validUntilMs === 'number' ? m.validUntilMs : 0;
+  return until > now;
+}
+
+function dailyNewMatchLimitForUser(userDoc) {
+  // İstenen net kural: Eko'da günlük 3; diğer paketlerde kısıt yok (pratikte yüksek limit).
+  if (isMembershipActive(userDoc)) {
+    const plan = getMembershipPlan(userDoc);
+    if (plan === 'eco') return 3;
+    if (plan === 'standard' || plan === 'pro') return 999;
+  }
+  // Üyelik yok / ücretsiz aktif üyelik: güvenli tarafta 3.
+  return 3;
+}
+
 async function resolveGenderFromAnyApplication(db, uid) {
   try {
     const snap = await db.collection('matchmakingApplications').where('userId', '==', uid).limit(1).get();
@@ -44,10 +68,9 @@ export default async function handler(req, res) {
     const genderFallback = normalizeGender(await resolveGenderFromAnyApplication(db, uid));
 
     const ts = nowMs();
-    const limit = 3;
     const today = dayKeyUtc(ts);
 
-    let result = { remaining: limit, limit, dayKey: today, count: 0 };
+    let result = { remaining: 0, limit: 0, dayKey: today, count: 0 };
 
     await db.runTransaction(async (tx) => {
       const snap = await tx.get(ref);
@@ -56,6 +79,8 @@ export default async function handler(req, res) {
       // Eligibility: özellikle kadın kullanıcılar için (paid OR (verified + freeActive)).
       const g = normalizeGender(data?.gender) || genderFallback;
       ensureEligibleOrThrow(data, g);
+
+      const limit = dailyNewMatchLimitForUser(data);
 
       const totalPrev = typeof data?.newMatchRequestTotalCount === 'number' ? data.newMatchRequestTotalCount : 0;
 

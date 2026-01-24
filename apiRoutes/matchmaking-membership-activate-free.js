@@ -26,6 +26,14 @@ export default async function handler(req, res) {
   }
 
   try {
+    const promoEnabledRaw = String(process.env.MATCHMAKING_FREE_PROMO_ENABLED || '').toLowerCase().trim();
+    const promoEnabled = promoEnabledRaw === '1' || promoEnabledRaw === 'true' || promoEnabledRaw === 'yes';
+    if (!promoEnabled) {
+      const err = new Error('promo_disabled');
+      err.statusCode = 410;
+      throw err;
+    }
+
     const decoded = await requireIdToken(req);
     const uid = decoded.uid;
 
@@ -65,7 +73,18 @@ export default async function handler(req, res) {
           membership: {
             active: true,
             validUntilMs,
-            plan: 'monthly',
+            plan: 'eco',
+            lastPromo: {
+              type: 'free_activation_until_2026_02_10',
+              priceUsd: 20,
+              activatedAtMs: now,
+              cutoffMs,
+            },
+          },
+          translationPack: {
+            active: true,
+            plan: 'eco',
+            validUntilMs,
             lastPromo: {
               type: 'free_activation_until_2026_02_10',
               priceUsd: 20,

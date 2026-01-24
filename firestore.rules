@@ -11,7 +11,10 @@ service cloud.firestore {
 
     function isAdmin() {
       return isNonAnonymous() && (
-        request.auth.token.email.lower() in [
+        // Önerilen: Firebase Auth custom claim ile admin
+        // (scripts/admin-user.mjs ile admin=true set edilebilir)
+        request.auth.token.admin == true
+        || request.auth.token.email.lower() in [
           'uzelemehmet@gmail.com',
           'articelikkapi@gmail.com'
         ]

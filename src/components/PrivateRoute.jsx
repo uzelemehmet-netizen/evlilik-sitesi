@@ -30,8 +30,11 @@ export default function PrivateRoute({ children }) {
       }
 
       const email = String(user.email || "").toLowerCase();
-      // Kural listesi dışına admin çıkmasın.
-      setIsAdmin(effectiveAdmins.includes(email));
+      // Admin panel: sadece allowlist + email/şifre (password provider) ile giriş.
+      // Böylece Google login açık olsa bile admin panelde kullanılmaz.
+      const providers = Array.isArray(user?.providerData) ? user.providerData.map((p) => String(p?.providerId || '')) : [];
+      const hasPasswordProvider = providers.includes('password');
+      setIsAdmin(effectiveAdmins.includes(email) && hasPasswordProvider);
     });
 
     return unsubscribe;
