@@ -2,8 +2,8 @@ import { getAdmin, normalizeBody, requireIdToken } from './_firebaseAdmin.js';
 import { normalizeChatLang, translateText } from './_translate.js';
 import {
   computeTranslationBilling,
-  dayKeyUTC,
-  getUsageForDay,
+  getUsageForMonth,
+  monthKeyUTC,
   isSponsoredTranslationRevoked,
 } from './_translationPolicy.js';
 
@@ -15,10 +15,10 @@ function nowMs() {
   return Date.now();
 }
 
-function toUsagePercent(usedCount, dailyLimit) {
-  if (dailyLimit === Infinity) return null;
+function toUsagePercent(usedCount, limit) {
+  if (limit === Infinity) return null;
   const used = typeof usedCount === 'number' && Number.isFinite(usedCount) ? usedCount : 0;
-  const lim = typeof dailyLimit === 'number' && Number.isFinite(dailyLimit) && dailyLimit > 0 ? dailyLimit : 0;
+  const lim = typeof limit === 'number' && Number.isFinite(limit) && limit > 0 ? limit : 0;
   if (!lim) return null;
   const pct = Math.floor((used / lim) * 100);
   return Math.max(0, Math.min(100, pct));
@@ -55,14 +55,14 @@ export default async function handler(req, res) {
     const meRef = db.collection('matchmakingUsers').doc(uid);
 
     const ts = nowMs();
-    const dKey = dayKeyUTC(ts);
+    const mKey = monthKeyUTC(ts);
 
     let translated = '';
     let billing = null;
     let sponsorUid = '';
 
     let usageUsedCount = null;
-    let usageDailyLimit = null;
+    let usageMonthlyLimit = null;
     let usagePercent = null;
     let usageBillingMode = '';
 
@@ -141,20 +141,20 @@ export default async function handler(req, res) {
 
       // Revoked ise: sponsorlu akış devre dışı; self’e düş.
       if (computed.mode === 'sponsored' && revoke.revoked) {
-        billing = { mode: 'self', uid, dailyLimit: computed.selfDailyLimit };
+        billing = { mode: 'self', uid, monthlyLimit: computed.selfMonthlyLimit };
       } else {
-        billing = { mode: computed.mode, uid: computed.billingUid, dailyLimit: computed.dailyLimit };
+        billing = { mode: computed.mode, uid: computed.billingUid, monthlyLimit: computed.monthlyLimit };
       }
 
       // Kota bilgisi (UI için): mevcut kullanım ve limit
       {
         const billingUidNow = String(billing?.uid || uid);
-        const dailyLimitNow = billing?.dailyLimit;
+        const monthlyLimitNow = billing?.monthlyLimit;
         const billingUser = billingUidNow === sponsorUid && sponsorUid ? sponsor : me;
-        const usage = getUsageForDay(billingUser, dKey);
+        const usage = getUsageForMonth(billingUser, mKey);
         usageUsedCount = usage.count;
-        usageDailyLimit = dailyLimitNow;
-        usagePercent = toUsagePercent(usageUsedCount, usageDailyLimit);
+        usageMonthlyLimit = monthlyLimitNow;
+        usagePercent = toUsagePercent(usageUsedCount, usageMonthlyLimit);
         usageBillingMode = String(billing?.mode || '');
       }
 
@@ -268,7 +268,7 @@ export default async function handler(req, res) {
 
         const effectiveBilling =
           computed.mode === 'sponsored' && revoke.revoked
-            ? { mode: 'self', billingUid: uid, dailyLimit: computed.selfDailyLimit }
+            ? { mode: 'self', billingUid: uid, monthlyLimit: computed.selfMonthlyLimit }
             : computed;
 
         const cur = msgSnap2.data() || {};
@@ -282,37 +282,37 @@ export default async function handler(req, res) {
         const billingRef = billingUidNow === sponsorUid && sponsorUid ? db.collection('matchmakingUsers').doc(sponsorUid) : meRef;
         const billingUser = billingUidNow === sponsorUid ? sponsor : me;
 
-        const dailyLimit = effectiveBilling.dailyLimit;
-        if (!(dailyLimit > 0) && dailyLimit !== Infinity) {
+        const monthlyLimit = effectiveBilling.monthlyLimit;
+        if (!(monthlyLimit > 0) && monthlyLimit !== Infinity) {
           const err = new Error('translation_not_allowed');
           err.statusCode = 402;
           throw err;
         }
 
-        const usage = getUsageForDay(billingUser, dKey);
+        const usage = getUsageForMonth(billingUser, mKey);
         const nextCount = usage.count + 1;
-        if (dailyLimit !== Infinity && nextCount > dailyLimit) {
+        if (monthlyLimit !== Infinity && nextCount > monthlyLimit) {
           const err = new Error('translate_quota_exceeded');
           err.statusCode = 429;
           err.details = {
             usedCount: usage.count,
-            dailyLimit,
-            usagePercent: toUsagePercent(usage.count, dailyLimit),
+            monthlyLimit,
+            usagePercent: toUsagePercent(usage.count, monthlyLimit),
             billingMode: String(effectiveBilling?.mode || ''),
           };
           throw err;
         }
 
         usageUsedCount = nextCount;
-        usageDailyLimit = dailyLimit;
-        usagePercent = toUsagePercent(nextCount, dailyLimit);
+        usageMonthlyLimit = monthlyLimit;
+        usagePercent = toUsagePercent(nextCount, monthlyLimit);
         usageBillingMode = String(effectiveBilling?.mode || '');
 
-        const nextUsageDaily = {
-          ...(billingUser.translationUsageDaily && typeof billingUser.translationUsageDaily === 'object'
-            ? billingUser.translationUsageDaily
+        const nextUsageMonthly = {
+          ...(billingUser.translationUsageMonthly && typeof billingUser.translationUsageMonthly === 'object'
+            ? billingUser.translationUsageMonthly
             : {}),
-          [dKey]: {
+          [mKey]: {
             count: nextCount,
             updatedAtMs: ts,
           },
@@ -335,8 +335,8 @@ export default async function handler(req, res) {
           tx.set(
             billingRef,
             {
-              translationUsageDaily: nextUsageDaily,
-              translationUsageDailyUpdatedAtMs: ts,
+              translationUsageMonthly: nextUsageMonthly,
+              translationUsageMonthlyUpdatedAtMs: ts,
               updatedAt: FieldValue.serverTimestamp(),
             },
             { merge: true }
@@ -354,7 +354,9 @@ export default async function handler(req, res) {
         text: translated,
         usage: {
           usedCount: usageUsedCount,
-          dailyLimit: usageDailyLimit,
+          monthlyLimit: usageMonthlyLimit,
+          // Backward-compat: eski client’lar için
+          dailyLimit: usageMonthlyLimit,
           usagePercent,
           billingMode: usageBillingMode,
         },

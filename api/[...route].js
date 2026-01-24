@@ -17,7 +17,10 @@ import matchmakingChatMarkRead from '../apiRoutes/matchmaking-chat-mark-read.js'
 import matchmakingChatSend from '../apiRoutes/matchmaking-chat-send.js';
 import matchmakingChatTranslate from '../apiRoutes/matchmaking-chat-translate.js';
 import matchmakingChatTranslationRevoke from '../apiRoutes/matchmaking-chat-translation-revoke.js';
+import matchmakingMatchCancel from '../apiRoutes/matchmaking-match-cancel.js';
 import matchmakingContact from '../apiRoutes/matchmaking-contact.js';
+import matchmakingContactRequest from '../apiRoutes/matchmaking-contact-request.js';
+import matchmakingContactApprove from '../apiRoutes/matchmaking-contact-approve.js';
 import matchmakingDecision from '../apiRoutes/matchmaking-decision.js';
 import matchmakingDismiss from '../apiRoutes/matchmaking-dismiss.js';
 import matchmakingFreeMembershipApply from '../apiRoutes/matchmaking-free-membership-apply.js';
@@ -53,7 +56,10 @@ const handlers = {
   'matchmaking-chat-send': matchmakingChatSend,
   'matchmaking-chat-translate': matchmakingChatTranslate,
   'matchmaking-chat-translation-revoke': matchmakingChatTranslationRevoke,
+  'matchmaking-match-cancel': matchmakingMatchCancel,
   'matchmaking-contact': matchmakingContact,
+  'matchmaking-contact-request': matchmakingContactRequest,
+  'matchmaking-contact-approve': matchmakingContactApprove,
   'matchmaking-decision': matchmakingDecision,
   'matchmaking-dismiss': matchmakingDismiss,
   'matchmaking-free-membership-apply': matchmakingFreeMembershipApply,

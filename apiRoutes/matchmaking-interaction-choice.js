@@ -24,6 +24,13 @@ export default async function handler(req, res) {
     return;
   }
 
+  // Yeni akış: İlk 48 saat site içi chat zorunlu.
+  // Contact paylaşımı artık request/approve ile yapılır.
+  res.statusCode = 410;
+  res.setHeader('content-type', 'application/json');
+  res.end(JSON.stringify({ ok: false, error: 'deprecated' }));
+  return;
+
   try {
     const decoded = await requireIdToken(req);
     const uid = decoded.uid;

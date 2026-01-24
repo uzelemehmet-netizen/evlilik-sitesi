@@ -23,6 +23,17 @@ export function dayKeyUTC(ms = Date.now()) {
   }
 }
 
+export function monthKeyUTC(ms = Date.now()) {
+  try {
+    const d = new Date(ms);
+    const y = d.getUTCFullYear();
+    const m = String(d.getUTCMonth() + 1).padStart(2, '0');
+    return `${y}-${m}`;
+  } catch {
+    return 'unknown';
+  }
+}
+
 export function getMembershipPlan(userDoc) {
   const raw = typeof userDoc?.membership?.plan === 'string' ? userDoc.membership.plan : '';
   const s = safeStr(raw).toLowerCase();
@@ -55,6 +66,19 @@ export function getDailyTranslateLimitForPlan(plan) {
   return parseIntOr(process.env.TRANSLATE_DAILY_LIMIT_FREE, 20);
 }
 
+export function getMonthlyTranslateLimitForPlan(plan) {
+  const p = safeStr(plan).toLowerCase();
+
+  // Not: kota birimi mesaj sayısıdır.
+  // Öncelik: aylık env varsa onu kullan; yoksa güvenli varsayılanları uygula.
+  if (p === 'pro') return parseIntOr(process.env.TRANSLATE_MONTHLY_LIMIT_PRO, 1000);
+  if (p === 'standard') return parseIntOr(process.env.TRANSLATE_MONTHLY_LIMIT_STANDARD, 400);
+  if (p === 'eco') return parseIntOr(process.env.TRANSLATE_MONTHLY_LIMIT_ECO, 200);
+  if (p === 'free') return parseIntOr(process.env.TRANSLATE_MONTHLY_LIMIT_FREE, 50);
+
+  return parseIntOr(process.env.TRANSLATE_MONTHLY_LIMIT_FREE, 50);
+}
+
 export function getBoostForUser(userDoc, now = Date.now()) {
   const b = userDoc?.translationBoost && typeof userDoc.translationBoost === 'object' ? userDoc.translationBoost : null;
   if (!b || b.active !== true) return { unlimited: false, extraDaily: 0 };
@@ -72,6 +96,29 @@ export function getUsageForDay(userDoc, dayKey) {
   const row = usage && usage[dayKey] && typeof usage[dayKey] === 'object' ? usage[dayKey] : null;
   const count = typeof row?.count === 'number' && Number.isFinite(row.count) ? row.count : 0;
   return { count };
+}
+
+export function getUsageForMonth(userDoc, monthKey) {
+  const usageMonthly =
+    userDoc?.translationUsageMonthly && typeof userDoc.translationUsageMonthly === 'object' ? userDoc.translationUsageMonthly : null;
+  const rowMonthly = usageMonthly && usageMonthly[monthKey] && typeof usageMonthly[monthKey] === 'object' ? usageMonthly[monthKey] : null;
+  const countMonthly = typeof rowMonthly?.count === 'number' && Number.isFinite(rowMonthly.count) ? rowMonthly.count : 0;
+  if (countMonthly > 0) return { count: countMonthly };
+
+  // Backward-compat: aylık sayaç yoksa, aynı ayın günlüklerini topla.
+  const usageDaily =
+    userDoc?.translationUsageDaily && typeof userDoc.translationUsageDaily === 'object' ? userDoc.translationUsageDaily : null;
+  if (!usageDaily) return { count: 0 };
+
+  const prefix = `${monthKey}-`;
+  let sum = 0;
+  for (const [k, v] of Object.entries(usageDaily)) {
+    if (!k || typeof k !== 'string') continue;
+    if (!k.startsWith(prefix)) continue;
+    const c = typeof v?.count === 'number' && Number.isFinite(v.count) ? v.count : 0;
+    sum += c;
+  }
+  return { count: sum };
 }
 
 export function getTranslationAccessRow(matchDoc, uid) {
@@ -92,11 +139,15 @@ export function computeTranslationBilling({ requesterUid, requesterDoc, otherUid
   const requesterBoost = getBoostForUser(requesterDoc, now);
   const otherBoost = getBoostForUser(otherDoc, now);
 
-  const requesterBase = getDailyTranslateLimitForPlan(requesterPlan);
-  const otherBase = getDailyTranslateLimitForPlan(otherPlan);
+  const requesterBaseMonthly = getMonthlyTranslateLimitForPlan(requesterPlan);
+  const otherBaseMonthly = getMonthlyTranslateLimitForPlan(otherPlan);
 
-  const requesterLimit = requesterBoost.unlimited ? Infinity : requesterBase + requesterBoost.extraDaily;
-  const otherLimit = otherBoost.unlimited ? Infinity : otherBase + otherBoost.extraDaily;
+  // Boost alanları geçmişte “günlük” diye isimlendi; aylık kotada geri uyum için *30 uygula.
+  const requesterExtraMonthly = (requesterBoost.extraDaily || 0) * 30;
+  const otherExtraMonthly = (otherBoost.extraDaily || 0) * 30;
+
+  const requesterLimit = requesterBoost.unlimited ? Infinity : requesterBaseMonthly + requesterExtraMonthly;
+  const otherLimit = otherBoost.unlimited ? Infinity : otherBaseMonthly + otherExtraMonthly;
 
   const sponsorEligible = (otherPlan === 'standard' || otherPlan === 'pro') && isMembershipActive(otherDoc, now);
   const revoked = isSponsoredTranslationRevoked(matchDoc, requesterUid);
@@ -109,9 +160,9 @@ export function computeTranslationBilling({ requesterUid, requesterDoc, otherUid
     return {
       mode: 'sponsored',
       billingUid: String(otherUid),
-      dailyLimit: otherLimit,
-      selfDailyLimit: requesterLimit,
-      sponsorDailyLimit: otherLimit,
+      monthlyLimit: otherLimit,
+      selfMonthlyLimit: requesterLimit,
+      sponsorMonthlyLimit: otherLimit,
       requesterPlan,
       sponsorPlan: otherPlan,
       reason: 'sponsor',
@@ -121,9 +172,9 @@ export function computeTranslationBilling({ requesterUid, requesterDoc, otherUid
   return {
     mode: 'self',
     billingUid: String(requesterUid),
-    dailyLimit: requesterLimit,
-    selfDailyLimit: requesterLimit,
-    sponsorDailyLimit: otherLimit,
+    monthlyLimit: requesterLimit,
+    selfMonthlyLimit: requesterLimit,
+    sponsorMonthlyLimit: otherLimit,
     requesterPlan,
     sponsorPlan: otherPlan,
     reason: revoked.revoked ? 'sponsor_revoked' : 'self',

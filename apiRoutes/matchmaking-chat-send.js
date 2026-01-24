@@ -1,5 +1,5 @@
 import { getAdmin, normalizeBody, requireIdToken } from './_firebaseAdmin.js';
-import { ensureEligibleOrThrow } from './_matchmakingEligibility.js';
+import { ensureEligibleOrThrow, isMembershipActive } from './_matchmakingEligibility.js';
 
 function safeStr(v) {
   return typeof v === 'string' ? v.trim() : '';
@@ -13,6 +13,15 @@ function normalizeLangHint(v) {
 
 function nowMs() {
   return Date.now();
+}
+
+function hasActiveLock(userDoc, exceptMatchId) {
+  const lock = userDoc?.matchmakingLock || null;
+  const active = !!lock?.active;
+  const matchId = typeof lock?.matchId === 'string' ? lock.matchId : '';
+  if (!active) return false;
+  if (!matchId) return true;
+  return matchId !== String(exceptMatchId || '');
 }
 
 // Eligibility kontrolü artık ortak helper üzerinden.
@@ -85,6 +94,7 @@ export default async function handler(req, res) {
 
     const matchRef = db.collection('matchmakingMatches').doc(matchId);
     const meRef = db.collection('matchmakingUsers').doc(uid);
+    const matchNoCounterRef = db.collection('counters').doc('matchmakingMatchNo');
 
     const ts = nowMs();
     let messageId = '';
@@ -101,33 +111,11 @@ export default async function handler(req, res) {
 
       const match = matchSnap.data() || {};
       const status = String(match.status || '');
-      if (status !== 'mutual_accepted') {
+
+      if (status !== 'mutual_accepted' && status !== 'proposed') {
         const err = new Error('chat_not_available');
         err.statusCode = 400;
         throw err;
-      }
-
-      const currentMode = typeof match?.interactionMode === 'string' ? match.interactionMode : '';
-      if (currentMode !== 'chat') {
-        // Backward-compat: eski match'lerde interactionMode boş kalmış olabilir.
-        // mutual_accepted + taraflar doğrulandıysa chat'i varsay ve lazy set et.
-        if (!currentMode) {
-          tx.set(
-            matchRef,
-            {
-              interactionMode: 'chat',
-              interactionChosenAt: FieldValue.serverTimestamp(),
-              chatEnabledAt: FieldValue.serverTimestamp(),
-              chatEnabledAtMs: ts,
-              updatedAt: FieldValue.serverTimestamp(),
-            },
-            { merge: true }
-          );
-        } else {
-          const err = new Error('chat_not_enabled');
-          err.statusCode = 400;
-          throw err;
-        }
       }
 
       const userIds = Array.isArray(match.userIds) ? match.userIds.map(String).filter(Boolean) : [];
@@ -158,6 +146,20 @@ export default async function handler(req, res) {
       const myGender = uid === aUid ? aGender : bGender;
 
       ensureEligibleOrThrow(me, myGender);
+
+      // Bu projede “ücretsiz üyelikte mesaj yok” kuralı: mesaj göndermek için ücretli üyelik şart.
+      if (!isMembershipActive(me, ts)) {
+        const err = new Error('membership_required');
+        err.statusCode = 402;
+        throw err;
+      }
+
+      // Başka bir match'e aktif kilit varsa, diğer match'lere mesaj engeli.
+      if (hasActiveLock(me, matchId)) {
+        const err = new Error('user_locked');
+        err.statusCode = 409;
+        throw err;
+      }
       // Not: Mesaj göndermek için alıcının eligibility şartlarını zorlamıyoruz.
       // Amaç: Diğer taraf offline/uygunsuz durumda olsa bile mesaj kuyruk gibi düşsün,
       // karşı taraf panele girince unread/bildirim görsün.
@@ -184,26 +186,99 @@ export default async function handler(req, res) {
         createdAtMs: ts,
       });
 
-      tx.set(
-        matchRef,
-        {
-          chatLastMessageAtMs: {
-            ...(match.chatLastMessageAtMs || {}),
-            [uid]: ts,
-          },
-          chatLastMessageAtMsAny: ts,
-          chatLastMessageByUid: uid,
-          chatLastMessageId: messageId,
-          chatLastMessagePreview: text.slice(0, 120),
-          chatUnreadByUid: {
-            ...(match.chatUnreadByUid || {}),
-            [uid]: 0,
-            [otherUid]: (typeof (match.chatUnreadByUid || {})?.[otherUid] === 'number' ? (match.chatUnreadByUid || {})[otherUid] : 0) + 1,
-          },
-          updatedAt: FieldValue.serverTimestamp(),
+
+      const patch = {
+        chatLastMessageAtMs: {
+          ...(match.chatLastMessageAtMs || {}),
+          [uid]: ts,
         },
-        { merge: true }
-      );
+        chatLastMessageAtMsAny: ts,
+        chatLastMessageByUid: uid,
+        chatLastMessageId: messageId,
+        chatLastMessagePreview: text.slice(0, 120),
+        chatUnreadByUid: {
+          ...(match.chatUnreadByUid || {}),
+          [uid]: 0,
+          [otherUid]: (typeof (match.chatUnreadByUid || {})?.[otherUid] === 'number' ? (match.chatUnreadByUid || {})[otherUid] : 0) + 1,
+        },
+        updatedAt: FieldValue.serverTimestamp(),
+      };
+
+      // Direkt mesajlaşma başlangıcı (proposed'ta ilk mesaj)
+      if (status === 'proposed') {
+        const starterUid = safeStr(match?.dmStarterUid);
+        if (!starterUid) {
+          patch.dmStarterUid = uid;
+          patch.dmStartedAtMs = ts;
+        }
+
+        // Karşı taraf ilk kez cevap verince: eşleşmeyi chat'e yükselt ve kilitle.
+        const effectiveStarter = starterUid || uid;
+        const shouldPromote = effectiveStarter && effectiveStarter !== uid;
+
+        if (shouldPromote) {
+          patch.status = 'mutual_accepted';
+          patch.mutualAcceptedAt = FieldValue.serverTimestamp();
+          patch.mutualAcceptedAtMs = ts;
+          patch.interactionMode = 'chat';
+          patch.interactionChosenAt = FieldValue.serverTimestamp();
+          patch.chatEnabledAt = FieldValue.serverTimestamp();
+          patch.chatEnabledAtMs = ts;
+          patch.interactionChoices = {};
+
+          // Match code / no (lazy)
+          const existingMatchCode = safeStr(match?.matchCode);
+          let matchNo = typeof match?.matchNo === 'number' && Number.isFinite(match.matchNo) ? match.matchNo : null;
+          let matchCode = existingMatchCode;
+
+          if (!matchCode) {
+            if (matchNo === null) {
+              const cSnap = await tx.get(matchNoCounterRef);
+              const cur = cSnap.exists ? (cSnap.data() || {}) : {};
+              const next = typeof cur.next === 'number' && Number.isFinite(cur.next) ? cur.next : 10000;
+              matchNo = next;
+              tx.set(
+                matchNoCounterRef,
+                {
+                  next: matchNo + 1,
+                  updatedAt: FieldValue.serverTimestamp(),
+                  updatedBy: uid,
+                },
+                { merge: true }
+              );
+              patch.matchNo = matchNo;
+            }
+            matchCode = matchNo !== null ? `ES-${matchNo}` : '';
+            if (matchCode) patch.matchCode = matchCode;
+          }
+
+          // İki kullanıcıyı bu match'e kilitle
+          const lockPatch = {
+            matchmakingLock: { active: true, matchId, matchCode: matchCode || '' },
+            matchmakingChoice: { active: true, matchId, matchCode: matchCode || '' },
+            updatedAt: FieldValue.serverTimestamp(),
+          };
+          tx.set(db.collection('matchmakingUsers').doc(uid), lockPatch, { merge: true });
+          tx.set(db.collection('matchmakingUsers').doc(otherUid), lockPatch, { merge: true });
+        }
+      } else {
+        // mutual_accepted: backward-compat olarak chat mode'u boşsa set et.
+        const currentMode = typeof match?.interactionMode === 'string' ? match.interactionMode : '';
+        if (currentMode !== 'chat') {
+          if (!currentMode) {
+            patch.interactionMode = 'chat';
+            patch.interactionChosenAt = FieldValue.serverTimestamp();
+            patch.chatEnabledAt = FieldValue.serverTimestamp();
+            patch.chatEnabledAtMs = ts;
+          } else {
+            const err = new Error('chat_not_enabled');
+            err.statusCode = 400;
+            throw err;
+          }
+        }
+      }
+
+      tx.set(matchRef, patch, { merge: true });
     });
 
     res.statusCode = 200;

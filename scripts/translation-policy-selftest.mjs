@@ -1,8 +1,8 @@
 import {
   computeTranslationBilling,
-  dayKeyUTC,
-  getDailyTranslateLimitForPlan,
+  getMonthlyTranslateLimitForPlan,
   getEffectiveTranslationPlan,
+  monthKeyUTC,
 } from '../apiRoutes/_translationPolicy.js';
 
 function assert(cond, msg) {
@@ -49,7 +49,7 @@ const now = Date.now();
   const me = user({ active: false });
   const plan = getEffectiveTranslationPlan(me, now);
   assert(plan === 'free', 'non-member should be free plan');
-  assert(getDailyTranslateLimitForPlan(plan) > 0, 'free plan should have positive limit');
+  assert(getMonthlyTranslateLimitForPlan(plan) > 0, 'free plan should have positive monthly limit');
 }
 
 // 2) Eco requester + Pro other => sponsored
@@ -95,9 +95,9 @@ const now = Date.now();
   const other = user({ active: true, plan: 'eco' });
   const b = computeTranslationBilling({ requesterUid: 'a', requesterDoc: me, otherUid: 'b', otherDoc: other, matchDoc: match(), now });
   assert(b.mode === 'self', 'eco with no sponsor should self');
-  assert(b.dailyLimit === Infinity, 'unlimited boost should yield Infinity dailyLimit');
+  assert(b.monthlyLimit === Infinity, 'unlimited boost should yield Infinity monthlyLimit');
 }
 
-console.log('dayKeyUTC(now)=', dayKeyUTC(now));
+console.log('monthKeyUTC(now)=', monthKeyUTC(now));
 console.log(process.exitCode ? 'Selftest FAILED' : 'Selftest OK');
 process.exit(process.exitCode || 0);

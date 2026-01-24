@@ -63,7 +63,7 @@ export default async function handler(req, res) {
 
     const mode = typeof match?.interactionMode === 'string' ? match.interactionMode : '';
     const allowedByState =
-      (st === 'contact_unlocked' && (mode === 'contact' || mode === 'offsite')) ||
+      (st === 'contact_unlocked' && (mode === 'contact' || mode === 'offsite' || mode === 'chat' || !mode)) ||
       (st === 'mutual_accepted' && mode === 'chat');
 
     if (!allowedByState) {
@@ -72,6 +72,12 @@ export default async function handler(req, res) {
       res.end(JSON.stringify({ ok: false, error: 'not_confirmed' }));
       return;
     }
+
+    // Yeni model: 48 saat + karşı taraf onayı olmadan iletişim bilgisi dönme.
+    // Backward-compat: Eski eşleşmelerde status=contact_unlocked ise onaylanmış kabul edilir.
+    const cs = match?.contactShare && typeof match.contactShare === 'object' ? match.contactShare : null;
+    const csStatus = safeStr(cs?.status);
+    const approved = st === 'contact_unlocked' || csStatus === 'approved';
 
     const userIds = Array.isArray(match.userIds) ? match.userIds.map(String) : [];
     if (!userIds.includes(uid) || userIds.length !== 2) {
@@ -143,6 +149,13 @@ export default async function handler(req, res) {
       }
     }
 
+    if (!approved) {
+      res.statusCode = 403;
+      res.setHeader('content-type', 'application/json');
+      res.end(JSON.stringify({ ok: false, error: 'contact_not_approved' }));
+      return;
+    }
+
     // Uygulama dokümanından iletişim bilgilerini çek (client’a hiç açmadan)
     const aUserId = aUid;
     const bUserId = bUid;
@@ -172,8 +185,6 @@ export default async function handler(req, res) {
         ok: true,
         contact: {
           whatsapp: safeStr(app.whatsapp),
-          email: safeStr(app.email),
-          instagram: safeStr(app.instagram),
         },
       })
     );
