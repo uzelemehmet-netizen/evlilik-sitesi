@@ -26,12 +26,12 @@ export default async function handler(req, res) {
   }
 
   try {
-    // Varsayılan: promo AÇIK. Prod'da kapatmak istenirse env ile kapatılabilir.
-    // - MATCHMAKING_FREE_PROMO_ENABLED=0/false/no => kapalı
-    // - boş / tanımsız => açık
-    const promoEnabledRaw = String(process.env.MATCHMAKING_FREE_PROMO_ENABLED || 'true').toLowerCase().trim();
-    const promoEnabled = promoEnabledRaw === '1' || promoEnabledRaw === 'true' || promoEnabledRaw === 'yes';
-    if (!promoEnabled) {
+    // Varsayılan: promo AÇIK.
+    // Sadece açıkça "false" benzeri değerler verilirse kapat.
+    // Örn: 0 / false / no / off / disabled
+    const promoFlag = String(process.env.MATCHMAKING_FREE_PROMO_ENABLED || '').toLowerCase().trim();
+    const promoDisabled = ['0', 'false', 'no', 'off', 'disabled'].includes(promoFlag);
+    if (promoDisabled) {
       const err = new Error('promo_disabled');
       err.statusCode = 410;
       throw err;

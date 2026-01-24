@@ -197,6 +197,15 @@ export default function Panel() {
   const [membershipDeleteTyped, setMembershipDeleteTyped] = useState('');
 
   useEffect(() => {
+    if (!membershipModalOpen) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = prev || 'unset';
+    };
+  }, [membershipModalOpen]);
+
+  useEffect(() => {
     if (!identityInlineOpen) return;
 
     const onPointerDown = (e) => {
@@ -2398,13 +2407,13 @@ export default function Panel() {
       <Navigation />
 
       {membershipModalOpen ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 flex items-start justify-center p-4 overflow-y-auto overscroll-contain">
           <div
             className="absolute inset-0 bg-black/70"
             onClick={closeMembershipModal}
             aria-hidden="true"
           />
-          <div className="relative w-full max-w-lg rounded-3xl border border-white/10 bg-[#070A18] shadow-[0_30px_90px_rgba(0,0,0,0.55)] p-4 md:p-5">
+          <div className="relative w-full max-w-lg my-auto rounded-3xl border border-white/10 bg-[#070A18] shadow-[0_30px_90px_rgba(0,0,0,0.55)] p-4 md:p-5 max-h-[calc(100vh-2rem)] overflow-y-auto">
             <div className="flex items-start justify-between gap-3">
               <div>
                 <p className="text-lg font-bold text-white">{t('matchmakingPanel.membershipModal.title')}</p>
