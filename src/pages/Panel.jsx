@@ -110,6 +110,77 @@ export default function Panel() {
   });
   const [paymentAction, setPaymentAction] = useState({ loading: false, error: '', success: '', matchId: '' });
 
+  const paymentReferenceText = (() => {
+    const mkCode = formatProfileCode(matchmaking);
+    if (mkCode) return mkCode;
+    const uid = String(user?.uid || '').trim();
+    const uname = String(matchmaking?.username || '').trim();
+    if (uid && uname) return `${uid} / ${uname}`;
+    if (uid) return uid;
+    if (uname) return uname;
+    return '';
+  })();
+
+  const copyToClipboard = async (text) => {
+    const s = String(text || '').trim();
+    if (!s) return;
+    try {
+      if (navigator?.clipboard?.writeText) {
+        await navigator.clipboard.writeText(s);
+        return;
+      }
+    } catch {
+      // fallback below
+    }
+
+    try {
+      const ta = document.createElement('textarea');
+      ta.value = s;
+      ta.style.position = 'fixed';
+      ta.style.left = '-9999px';
+      ta.style.top = '0';
+      document.body.appendChild(ta);
+      ta.focus();
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+    } catch {
+      // noop
+    }
+  };
+
+  const getAllowedPaymentMethods = (currencyRaw) => {
+    const c = String(currencyRaw || '').toUpperCase().trim();
+    if (c === 'IDR') return ['qris'];
+    if (c === 'TRY') return ['eft_fast', 'swift_wise'];
+    // USD ve diğerleri için en güvenlisi Wise/SWIFT.
+    return ['swift_wise'];
+  };
+
+  const normalizePaymentMethodForCurrency = (currencyRaw, methodRaw) => {
+    const allowed = getAllowedPaymentMethods(currencyRaw);
+    const m = String(methodRaw || '').trim();
+    return allowed.includes(m) ? m : (allowed[0] || '');
+  };
+
+  const renderPaymentMethodOptions = (currencyRaw) => {
+    const allowed = getAllowedPaymentMethods(currencyRaw);
+    return allowed
+      .map((m) => {
+        if (m === 'eft_fast') return { value: 'eft_fast', label: t('matchmakingPanel.matches.payment.methodEftFast') };
+        if (m === 'swift_wise') return { value: 'swift_wise', label: t('matchmakingPanel.matches.payment.methodSwiftWise') };
+        if (m === 'qris') return { value: 'qris', label: t('matchmakingPanel.matches.payment.methodQris') };
+        if (m === 'other') return { value: 'other', label: t('matchmakingPanel.matches.payment.methodOther') };
+        return { value: m, label: m };
+      })
+      .filter(Boolean)
+      .map((opt) => (
+        <option key={opt.value} value={opt.value}>
+          {opt.label}
+        </option>
+      ));
+  };
+
   const [paymentMatchId, setPaymentMatchId] = useState('');
 
   const [receiptUpload, setReceiptUpload] = useState({ loading: false, error: '' });
@@ -958,7 +1029,7 @@ export default function Panel() {
   const [membershipPayment, setMembershipPayment] = useState({ open: false, tier: 'eco', loading: false, error: '', success: '', paymentId: '' });
   const [membershipPaymentForm, setMembershipPaymentForm] = useState({
     currency: 'USD',
-    method: 'eft_fast',
+    method: 'swift_wise',
     reference: '',
     note: '',
     receiptVia: 'upload',
@@ -971,7 +1042,7 @@ export default function Panel() {
     setMembershipPaymentForm((p) => ({
       ...p,
       currency: p.currency || 'USD',
-      method: p.method || 'eft_fast',
+      method: normalizePaymentMethodForCurrency(p.currency || 'USD', p.method || ''),
       reference: '',
       note: '',
       receiptVia: 'upload',
@@ -1007,7 +1078,8 @@ export default function Panel() {
     if (membershipPayment.loading) return;
     const tier = String(membershipPayment.tier || 'eco').toLowerCase().trim();
     const currency = String(membershipPaymentForm.currency || 'USD').toUpperCase();
-    const method = String(membershipPaymentForm.method || '').trim();
+    const methodRaw = String(membershipPaymentForm.method || '').trim();
+    const method = normalizePaymentMethodForCurrency(currency, methodRaw);
     const receiptVia = String(membershipPaymentForm.receiptVia || '').trim();
     const receiptUrl = String(membershipPaymentForm.receiptUrl || '').trim();
 
@@ -1033,8 +1105,8 @@ export default function Panel() {
           amount,
           currency,
           tier,
-          reference: String(membershipPaymentForm.reference || '').trim(),
-          note: String(membershipPaymentForm.note || '').trim(),
+          reference: String(paymentReferenceText || '').trim(),
+          note: '',
           receiptUrl: receiptUrl || '',
           receiptVia,
           context: 'membership',
@@ -2027,7 +2099,8 @@ export default function Panel() {
     try {
       const currency = paymentForm.currency === 'IDR' ? 'IDR' : 'TRY';
       const amount = currency === 'IDR' ? prices.IDR : prices.TRY;
-      const method = String(paymentForm.method || '').trim();
+      const methodRaw = String(paymentForm.method || '').trim();
+      const method = normalizePaymentMethodForCurrency(currency, methodRaw);
 
       await authFetch('/api/matchmaking-submit-payment', {
         method: 'POST',
@@ -2037,8 +2110,8 @@ export default function Panel() {
           method,
           amount,
           currency,
-          reference: String(paymentForm.reference || '').trim(),
-          note: String(paymentForm.note || '').trim(),
+          reference: String(paymentReferenceText || '').trim(),
+          note: '',
           receiptUrl: String(paymentForm.receiptUrl || '').trim(),
         }),
       });
@@ -2530,9 +2603,16 @@ export default function Panel() {
                             <label className="block text-xs font-semibold text-white/80">{t('matchmakingPanel.matches.payment.currency')}</label>
                             <select
                               value={membershipPaymentForm.currency}
-                              onChange={(e) => setMembershipPaymentForm((p) => ({ ...p, currency: e.target.value }))}
+                              onChange={(e) => {
+                                const nextCurrency = e.target.value;
+                                setMembershipPaymentForm((p) => ({
+                                  ...p,
+                                  currency: nextCurrency,
+                                  method: normalizePaymentMethodForCurrency(nextCurrency, p.method),
+                                }));
+                              }}
                               disabled={membershipPayment.loading}
-                              className="mt-1 w-full px-3 py-2 rounded-xl border border-white/10 bg-white/5 text-white/90 text-sm outline-none focus:ring-2 focus:ring-white/20"
+                              className="mt-1 w-full px-3 py-2 rounded-xl border border-white/10 bg-white text-slate-900 text-sm outline-none focus:ring-2 focus:ring-white/20"
                             >
                               <option value="USD">{t('matchmakingPanel.matches.payment.currencyUSD')}</option>
                               <option value="TRY">{t('matchmakingPanel.matches.payment.currencyTRY')}</option>
@@ -2546,37 +2626,56 @@ export default function Panel() {
                               value={membershipPaymentForm.method}
                               onChange={(e) => setMembershipPaymentForm((p) => ({ ...p, method: e.target.value }))}
                               disabled={membershipPayment.loading}
-                              className="mt-1 w-full px-3 py-2 rounded-xl border border-white/10 bg-white/5 text-white/90 text-sm outline-none focus:ring-2 focus:ring-white/20"
+                              className="mt-1 w-full px-3 py-2 rounded-xl border border-white/10 bg-white text-slate-900 text-sm outline-none focus:ring-2 focus:ring-white/20"
                             >
-                              <option value="eft_fast">{t('matchmakingPanel.matches.payment.methodEftFast')}</option>
-                              <option value="swift_wise">{t('matchmakingPanel.matches.payment.methodSwiftWise')}</option>
-                              <option value="qris">{t('matchmakingPanel.matches.payment.methodQris')}</option>
-                              <option value="other">{t('matchmakingPanel.matches.payment.methodOther')}</option>
+                              {renderPaymentMethodOptions(membershipPaymentForm.currency)}
                             </select>
                           </div>
 
                           <div>
                             <label className="block text-xs font-semibold text-white/80">{t('matchmakingPanel.matches.payment.reference')}</label>
-                            <input
-                              type="text"
-                              value={membershipPaymentForm.reference}
-                              onChange={(e) => setMembershipPaymentForm((p) => ({ ...p, reference: e.target.value }))}
-                              disabled={membershipPayment.loading}
-                              className="mt-1 w-full px-3 py-2 rounded-xl border border-white/10 bg-white/5 text-white placeholder:text-white/40 text-sm outline-none focus:ring-2 focus:ring-white/20"
-                              placeholder={t('matchmakingPanel.matches.payment.referencePlaceholder')}
-                            />
+                            <div className="mt-1 flex items-stretch gap-2">
+                              <input
+                                type="text"
+                                value={paymentReferenceText || '-'}
+                                readOnly
+                                className="w-full px-3 py-2 rounded-xl border border-white/10 bg-white text-slate-900 text-sm outline-none"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => copyToClipboard(paymentReferenceText)}
+                                disabled={!paymentReferenceText || membershipPayment.loading}
+                                className="shrink-0 px-3 py-2 rounded-xl border border-white/10 bg-white/10 text-white/85 text-xs font-semibold hover:bg-white/[0.16] disabled:opacity-60"
+                              >
+                                Kopyala
+                              </button>
+                            </div>
+                            <p className="mt-2 text-[11px] text-white/60">
+                              Ödeme yaparken açıklama/ref. kısmına bu <span className="font-semibold">MK kullanıcı kodunu</span> aynen yazın.
+                            </p>
                           </div>
 
                           <div>
                             <label className="block text-xs font-semibold text-white/80">{t('matchmakingPanel.matches.payment.note')}</label>
-                            <input
-                              type="text"
-                              value={membershipPaymentForm.note}
-                              onChange={(e) => setMembershipPaymentForm((p) => ({ ...p, note: e.target.value }))}
-                              disabled={membershipPayment.loading}
-                              className="mt-1 w-full px-3 py-2 rounded-xl border border-white/10 bg-white/5 text-white placeholder:text-white/40 text-sm outline-none focus:ring-2 focus:ring-white/20"
-                              placeholder={t('matchmakingPanel.matches.payment.notePlaceholder')}
-                            />
+                            <div className="mt-1 rounded-xl border border-amber-300/30 bg-amber-500/10 p-3 text-amber-100 text-xs">
+                              {(membershipPaymentForm.method === 'eft_fast' || membershipPaymentForm.method === 'swift_wise') ? (
+                                <div className="space-y-2">
+                                  <p>
+                                    EFT/Havale (veya Wise/SWIFT) gönderirken bankanın “Açıklama / Reference” alanına yukarıdaki <span className="font-semibold">MK kullanıcı kodunu</span>
+                                    <span className="font-semibold"> tam olarak</span> yazmanız gerekiyor.
+                                  </p>
+                                  {membershipPaymentForm.method === 'eft_fast' ? (
+                                    <p className="text-amber-100/90">
+                                      EFT/FAST seçeneği ile ödemeler şirketimiz adına yetkili kişinin Türkiye hesabına yapılmaktadır.
+                                    </p>
+                                  ) : null}
+                                </div>
+                              ) : (
+                                <p>
+                                  Ödeme yöntemine göre açıklama alanı gerekmeyebilir. Yine de yukarıdaki referans bilgisini saklayın.
+                                </p>
+                              )}
+                            </div>
                           </div>
 
                           <div>
@@ -3651,7 +3750,7 @@ export default function Panel() {
                             <select
                               value={paymentMatchId}
                               onChange={(e) => setPaymentMatchId(e.target.value)}
-                              className="mt-2 w-full rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-sm text-white"
+                              className="mt-2 w-full rounded-lg border border-white/15 bg-white px-3 py-2 text-sm text-slate-900"
                               disabled={!Array.isArray(activeMatches) || activeMatches.length === 0}
                             >
                               <option value="">{t('matchmakingPanel.activation.selectMatchPlaceholder')}</option>
@@ -3686,8 +3785,15 @@ export default function Panel() {
                                 {t('matchmakingPanel.matches.payment.currency')}
                                 <select
                                   value={paymentForm.currency}
-                                  onChange={(e) => setPaymentForm((p) => ({ ...p, currency: e.target.value }))}
-                                  className="mt-1 w-full rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-sm text-white"
+                                  onChange={(e) => {
+                                    const nextCurrency = e.target.value;
+                                    setPaymentForm((p) => ({
+                                      ...p,
+                                      currency: nextCurrency,
+                                      method: normalizePaymentMethodForCurrency(nextCurrency, p.method),
+                                    }));
+                                  }}
+                                  className="mt-1 w-full rounded-lg border border-white/15 bg-white px-3 py-2 text-sm text-slate-900"
                                 >
                                   <option value="TRY">{t('matchmakingPanel.matches.payment.currencyTRY')}</option>
                                   <option value="IDR">{t('matchmakingPanel.matches.payment.currencyIDR')}</option>
@@ -3698,34 +3804,52 @@ export default function Panel() {
                                 <select
                                   value={paymentForm.method}
                                   onChange={(e) => setPaymentForm((p) => ({ ...p, method: e.target.value }))}
-                                  className="mt-1 w-full rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-sm text-white"
+                                  className="mt-1 w-full rounded-lg border border-white/15 bg-white px-3 py-2 text-sm text-slate-900"
                                 >
-                                  <option value="eft_fast">{t('matchmakingPanel.matches.payment.methodEftFast')}</option>
-                                  <option value="swift_wise">{t('matchmakingPanel.matches.payment.methodSwiftWise')}</option>
-                                  <option value="qris">{t('matchmakingPanel.matches.payment.methodQris')}</option>
-                                  <option value="other">{t('matchmakingPanel.matches.payment.methodOther')}</option>
+                                  {renderPaymentMethodOptions(paymentForm.currency)}
                                 </select>
                               </label>
 
                               <label className="text-xs text-white/70 sm:col-span-2">
                                 {t('matchmakingPanel.matches.payment.reference')}
-                                <input
-                                  value={paymentForm.reference}
-                                  onChange={(e) => setPaymentForm((p) => ({ ...p, reference: e.target.value }))}
-                                  className="mt-1 w-full rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-white/40"
-                                  placeholder={t('matchmakingPanel.matches.payment.referencePlaceholder')}
-                                />
+                                <div className="mt-1 flex items-stretch gap-2">
+                                  <input
+                                    value={paymentReferenceText || '-'}
+                                    readOnly
+                                    className="w-full rounded-lg border border-white/15 bg-white px-3 py-2 text-sm text-slate-900"
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={() => copyToClipboard(paymentReferenceText)}
+                                    disabled={!paymentReferenceText || receiptUpload.loading}
+                                    className="shrink-0 px-3 py-2 rounded-lg border border-white/15 bg-white/10 text-white/85 text-xs font-semibold hover:bg-white/[0.16] disabled:opacity-60"
+                                  >
+                                    Kopyala
+                                  </button>
+                                </div>
                               </label>
 
                               <label className="text-xs text-white/70 sm:col-span-2">
                                 {t('matchmakingPanel.matches.payment.note')}
-                                <textarea
-                                  value={paymentForm.note}
-                                  onChange={(e) => setPaymentForm((p) => ({ ...p, note: e.target.value }))}
-                                  className="mt-1 w-full rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-white/40"
-                                  rows={2}
-                                  placeholder={t('matchmakingPanel.matches.payment.notePlaceholder')}
-                                />
+                                <div className="mt-1 rounded-lg border border-amber-300/30 bg-amber-500/10 p-3 text-amber-100 text-xs">
+                                  {(paymentForm.method === 'eft_fast' || paymentForm.method === 'swift_wise') ? (
+                                    <div className="space-y-2">
+                                      <p>
+                                        EFT/Havale (veya Wise/SWIFT) yaparken bankanın “Açıklama / Reference” alanına yukarıdaki <span className="font-semibold">MK kullanıcı kodunu</span>
+                                        <span className="font-semibold">aynen</span> yazın.
+                                      </p>
+                                      {paymentForm.method === 'eft_fast' ? (
+                                        <p className="text-amber-100/90">
+                                          EFT/FAST seçeneği ile ödemeler şirketimiz adına yetkili kişinin Türkiye hesabına yapılmaktadır.
+                                        </p>
+                                      ) : null}
+                                    </div>
+                                  ) : (
+                                    <p>
+                                      Ödeme yöntemine göre açıklama alanı gerekmeyebilir. Referans bilgisini saklayın.
+                                    </p>
+                                  )}
+                                </div>
                               </label>
 
                               <label className="text-xs text-white/70 sm:col-span-2">
@@ -4623,8 +4747,15 @@ export default function Panel() {
                                               {t('matchmakingPanel.matches.payment.currency')}
                                               <select
                                                 value={paymentForm.currency}
-                                                onChange={(e) => setPaymentForm((p) => ({ ...p, currency: e.target.value }))}
-                                                className="mt-1 w-full rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-sm text-white"
+                                                onChange={(e) => {
+                                                  const nextCurrency = e.target.value;
+                                                  setPaymentForm((p) => ({
+                                                    ...p,
+                                                    currency: nextCurrency,
+                                                    method: normalizePaymentMethodForCurrency(nextCurrency, p.method),
+                                                  }));
+                                                }}
+                                                className="mt-1 w-full rounded-lg border border-white/15 bg-white px-3 py-2 text-sm text-slate-900"
                                               >
                                                 <option value="TRY">{t('matchmakingPanel.matches.payment.currencyTRY')}</option>
                                                 <option value="IDR">{t('matchmakingPanel.matches.payment.currencyIDR')}</option>
@@ -4635,32 +4766,50 @@ export default function Panel() {
                                               <select
                                                 value={paymentForm.method}
                                                 onChange={(e) => setPaymentForm((p) => ({ ...p, method: e.target.value }))}
-                                                className="mt-1 w-full rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-sm text-white"
+                                                className="mt-1 w-full rounded-lg border border-white/15 bg-white px-3 py-2 text-sm text-slate-900"
                                               >
-                                                <option value="eft_fast">{t('matchmakingPanel.matches.payment.methodEftFast')}</option>
-                                                <option value="swift_wise">{t('matchmakingPanel.matches.payment.methodSwiftWise')}</option>
-                                                <option value="qris">{t('matchmakingPanel.matches.payment.methodQris')}</option>
-                                                <option value="other">{t('matchmakingPanel.matches.payment.methodOther')}</option>
+                                                {renderPaymentMethodOptions(paymentForm.currency)}
                                               </select>
                                             </label>
                                             <label className="text-xs text-white/70 sm:col-span-2">
                                               {t('matchmakingPanel.matches.payment.reference')}
-                                              <input
-                                                value={paymentForm.reference}
-                                                onChange={(e) => setPaymentForm((p) => ({ ...p, reference: e.target.value }))}
-                                                className="mt-1 w-full rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-white/40"
-                                                placeholder={t('matchmakingPanel.matches.payment.referencePlaceholder')}
-                                              />
+                                              <div className="mt-1 flex items-stretch gap-2">
+                                                <input
+                                                  value={paymentReferenceText || '-'}
+                                                  readOnly
+                                                  className="w-full rounded-lg border border-white/15 bg-white px-3 py-2 text-sm text-slate-900"
+                                                />
+                                                <button
+                                                  type="button"
+                                                  onClick={() => copyToClipboard(paymentReferenceText)}
+                                                  disabled={!paymentReferenceText || receiptUpload.loading}
+                                                  className="shrink-0 px-3 py-2 rounded-lg border border-white/15 bg-white/10 text-white/85 text-xs font-semibold hover:bg-white/[0.16] disabled:opacity-60"
+                                                >
+                                                  Kopyala
+                                                </button>
+                                              </div>
                                             </label>
                                             <label className="text-xs text-white/70 sm:col-span-2">
                                               {t('matchmakingPanel.matches.payment.note')}
-                                              <textarea
-                                                value={paymentForm.note}
-                                                onChange={(e) => setPaymentForm((p) => ({ ...p, note: e.target.value }))}
-                                                className="mt-1 w-full rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-white/40"
-                                                rows={2}
-                                                placeholder={t('matchmakingPanel.matches.payment.notePlaceholder')}
-                                              />
+                                              <div className="mt-1 rounded-lg border border-amber-300/30 bg-amber-500/10 p-3 text-amber-100 text-xs">
+                                                {(paymentForm.method === 'eft_fast' || paymentForm.method === 'swift_wise') ? (
+                                                  <div className="space-y-2">
+                                                    <p>
+                                                      EFT/Havale (veya Wise/SWIFT) yaparken bankanın “Açıklama / Reference” alanına yukarıdaki <span className="font-semibold">MK kullanıcı kodunu</span>
+                                                      <span className="font-semibold">aynen</span> yazın.
+                                                    </p>
+                                                    {paymentForm.method === 'eft_fast' ? (
+                                                      <p className="text-amber-100/90">
+                                                        EFT/FAST seçeneği ile ödemeler şirketimiz adına yetkili kişinin Türkiye hesabına yapılmaktadır.
+                                                      </p>
+                                                    ) : null}
+                                                  </div>
+                                                ) : (
+                                                  <p>
+                                                    Ödeme yöntemine göre açıklama alanı gerekmeyebilir. Referans bilgisini saklayın.
+                                                  </p>
+                                                )}
+                                              </div>
                                             </label>
 
                                             <label className="text-xs text-white/70 sm:col-span-2">
