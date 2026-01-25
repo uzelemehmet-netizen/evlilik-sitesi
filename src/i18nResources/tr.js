@@ -215,6 +215,7 @@ export default {
         smoking: 'Sigara kullanıyor musunuz?',
         alcohol: 'Alkol kullanıyor musunuz?',
         partnerCommunicationLanguages: 'Aradığınız kişiyle iletişim dili',
+        partnerCommunicationMethods: 'Aradığınız kişiyle iletişim yöntemi',
         partnerCommunicationLanguageOther: 'Aradığınız kişi için diğer dil (yazın)',
         partnerTranslationApp: 'Aradığınız kişi ile çeviri uygulamasıyla konuşmak ister misiniz?',
         partnerLivingCountry: 'Yaşanacak ülke tercihi',
@@ -2178,6 +2179,14 @@ export default {
   },
 
   matchmakingPanel: {
+        profile: {
+          guidanceAfterConfirm: {
+            title: 'Kesin eşleşme sonrası destek',
+            body:
+              'Kesin eşleşme kararından sonra eş adaylarının birbirine güven kazanması ve evlilik adımlarında aileler arası iletişim, tercümanlık, evlilik kararı öncesi eş adaylarının verdiği bilgilerin doğruluğunu araştırma ve daha birçok kolaylıktan faydalanmak için sitemizde bulunan evlilik rehberliği sayfamız aracılığıyla rehberlik ekibimizden hizmet alabilirsiniz.',
+            cta: 'Evlilik rehberliği sayfasını aç',
+          },
+        },
     title: 'Profilim',
     subtitle: 'Evlilik eşleştirme, üyelik ve iletişim adımlarınız burada görünecek.',
     tabs: {
@@ -2256,6 +2265,11 @@ export default {
       requestingNew: 'Talep gönderiliyor…',
       requestNewQuotaHint: 'Günlük hak: {{remaining}}/{{limit}}',
       requestNewSuccess: 'Yeni eşleşme talebiniz alındı. Uygun aday bulunduğunda panelde görünecek.',
+      freeSlot: 'Slotu boşalt (günlük 1)',
+      freeSlotHint: 'Bu işlem, "yeni kayıt" adaylar için ayrılmış bir slot açar. Slot, profilinize uygun {{threshold}}+ puanlı yeni kayıt gelene kadar boş kalır. Hemen yeni aday istiyorsanız "Yeni eşleşme talep et" butonunu kullanın.',
+      freeSlotConfirm: 'Bu adayı listenden çıkarıp yeni kayıt slotunu açmak istiyor musun? (Günlük 1 hak)',
+      freeSlotSuccess: 'Slot boşaltıldı. {{creditGranted}} kredi tanımlandı. Yeni kayıt ({{threshold}}+ puan) gelene kadar slot boş kalacak. Yeni aday talebi için bekleme: {{remaining}}',
+      removedCreditNotice: 'Bu eşleşme listenizden çıkarıldı. Yeni eşleşme isteme hakkınız için 1 kredi tanımlandı. Bekleme: {{remaining}}',
     },
     profileForm: {
       loading: 'Form yükleniyor…',
@@ -2263,6 +2277,12 @@ export default {
       openOriginalEditOnce: 'Orijinal formu aç (1 kez düzelt)',
       detailsToggle: 'Başvuru bilgilerini göster',
       applicationId: 'Başvuru ID',
+      applicantNationality: 'Kendi uyruğunuz',
+      applicantGender: 'Kendi cinsiyetiniz',
+      partnerNationality: 'Aradığınız kişinin uyruğu',
+      partnerGender: 'Aradığınız kişinin cinsiyeti',
+      moreDetailsTitle: 'Diğer bilgiler',
+      partnerPrefsTitle: 'Aradığınız kişi tercihleri',
       editOnceTitle: 'Formu 1 defaya mahsus düzelt',
       editOnceLead:
         'Başvuruda yanlış/eksik bilgi varsa burada güncelleyebilirsiniz. Bu işlem sadece 1 kez yapılabilir (gönderince tekrar değiştirilemez).',
@@ -2324,6 +2344,10 @@ export default {
       requestNewRateLimited: 'Yeni eşleşme talebini çok sık gönderiyorsunuz. Lütfen daha sonra tekrar deneyin.',
       requestNewQuotaExhausted: 'Bugünkü yeni eşleşme hakkınız bitti (3/3). Yarın tekrar deneyin.',
       requestNewFreeActiveBlocked: 'Ücretsiz aktif üyelik hakkınız iptal edildiği için yeni eşleşme talep edemezsiniz. Tekrar aktif olmanız için ücretli üyelik gerekir.',
+      freeSlotFailed: 'Slot boşaltma işlemi başarısız.',
+      freeSlotQuotaExhausted: 'Bugünkü slot boşaltma hakkınız bitti (1/1). Yarın tekrar deneyin.',
+      cooldownActive: 'Bu işlem için biraz beklemeniz gerekir. Kalan süre: {{remaining}}',
+      newUserSlotAlreadyActive: 'Yeni kayıt slotunuz zaten açık. Uygun yeni kayıt gelene kadar bekleyin veya normal yenileme kullanın.',
     },
     afterSubmit: {
       title: 'Başvurunuz alındı.',
@@ -2513,8 +2537,32 @@ export default {
       matchId: 'Eşleşme Kodu',
     },
     matches: {
+      presence: {
+        online: 'Çevrimiçi',
+        lastSeen: 'Son aktif: {{time}}',
+        unknown: 'Son aktif: -',
+      },
       title: 'Eşleşmeleriniz',
       subtitle: 'Paketinize göre en fazla 3 / 5 / 10 aday gösterilir.',
+      inactivityNotice: {
+        title: 'Pasiflik kuralı (24 saat)',
+        body:
+          '24 saatin üzerindeki pasif sürelerde eşleşme listeniz sıfırlanır. Eşleşme listenizdeki kişiler eşleşme havuzuna dahil edilir ve yeniden aktif olduğunuzda eşleşme talep etme hakkınızı daha sonra kullanabilirsiniz; fakat mevcut eşleşmelerinizi kaybedersiniz.',
+      },
+      newUserSlotNotice: {
+        title: 'Yeni kayıt slotu açık',
+        body:
+          'Slot boş kaldı. Slot açıldıktan sonra sisteme katılan yeni kayıtlar içinden profilinize uygun {{threshold}}+ puanlı bir aday bulunduğunda otomatik dolacak. Hemen yeni aday istiyorsanız "Yeni eşleşme talep et" butonunu kullanın.',
+      },
+      inactiveReset: {
+        title: 'Eşleşme pasiflik nedeniyle sıfırlandı',
+        body: 'Taraflardan biri 24 saatten uzun süre pasif kaldığı için bu eşleşme iptal edildi ve havuza geri alındı.',
+      },
+      focusActiveReset: {
+        title: 'Bu eşleşme kapatıldı',
+        body: 'Karşı taraf şu an başka bir tanışma penceresini ilerletiyor. Bu sizinle ilgili olumsuz bir değerlendirme değildir; sistem uygun olduğunda yeni adaylar gösterecektir.',
+      },
+        pendingContinueExists: 'Devam etmek için zaten bir aday seçtiniz. Önce o eşleşmede karar verin.',
       empty: 'Profilinize uygun bir eşleşme bulunduğunda burada görünecektir. Sayfayı telefonunuza ya da bilgisayarınıza kaydedip tekrar kontrol etmek istediğinizde kolayca ulaşmak için kaydedin.',
       savePage: 'Sayfayı kaydet',
       savePageAlready: 'Bu sayfa zaten ana ekrana/uygulama olarak ekli görünüyor.',
@@ -2573,6 +2621,18 @@ export default {
         send: 'Gönder',
         continue: 'Devam edelim (Onay)',
         reject: 'Uymadı (Reddet)',
+        proposedLimit: {
+          counter: 'Sohbet: {{used}} / {{limit}}',
+          reachedTitle: 'Karar zamanı',
+          reachedBody: 'Mesaj limiti doldu. Devam etmek için onaylayın veya uygun değilse reddedin.',
+        },
+        pause: {
+          focusTitle: 'Bu sohbet beklemede',
+          focusBody: 'Şu an başka bir tanışma penceresini ilerlettiğiniz için bu sohbet geçici olarak durduruldu. Mesaj gönderemezsiniz.',
+          otherTitle: 'Sohbet geçici olarak beklemede',
+          otherBody: 'Mesajlarınız karşı tarafa şu an iletilmez; uygun olduğunda otomatik olarak devam eder.',
+          heldBadge: 'Beklemede (henüz iletilmedi)',
+        },
         errors: {
           filtered: 'Mesajınız iletişim bilgisi/sosyal medya/link içerdiği için gönderilemedi.',
           rateLimited: 'Çok hızlı mesaj gönderiyorsunuz. Lütfen biraz bekleyin.',
@@ -2580,10 +2640,28 @@ export default {
           notEnabled: 'Bu eşleşmede site içi konuşma aktif değil.',
           membershipRequired: 'Mesajlaşma için üyeliğiniz aktif olmalıdır.',
           verificationRequired: 'Mesajlaşma için kimlik doğrulaması gerekir.',
+          limitReached: 'Mesaj limiti doldu. Karar vermeniz gerekiyor.',
+          chatPaused: 'Bu sohbet geçici olarak beklemede.',
           serverNotConfigured: 'Local sunucuda Firebase Admin ayarlı değil. .env.local içine FIREBASE_SERVICE_ACCOUNT_JSON_FILE ekleyip dev sürecini yeniden başlatın.',
           authRequired: 'Mesaj göndermek için giriş yapmanız gerekir. (Anonim hesapla olmaz.)',
           sendFailed: 'Mesaj gönderilemedi.',
           decisionFailed: 'Karar kaydedilemedi.',
+        },
+
+        confirm48h: {
+          title: '48 saat doldu: Eşleşmeyi kesinleştirme',
+          body:
+            'Bu aşamadan sonra eşleşmeniz “kesinleşmiş” olarak işaretlenecek ve iletişim paylaşımı (telefon numarası) adımı aktif edilecektir. Kesinleşince eşleşme slotunuzdaki diğer öneriler silinebilir.',
+          note: 'Onay verdiğinizde karşı tarafın da onayı beklenir.',
+          confirmButton: 'Kesinleştirmeyi onayla',
+          cancelButton: 'Vazgeç',
+          waitingOther: 'Onay verdiniz. Karşı tarafın onayı bekleniyor.',
+          confirmed: 'Eşleşme kesinleşti. İletişim isteği gönderebilirsiniz.',
+          contactLockedUntilConfirm: 'İletişim isteği gönderebilmek için önce bu eşleşmeyi kesinleştirmelisiniz.',
+          errors: {
+            locked: '48 saat dolmadan kesinleştirilemez.',
+            confirmRequired: 'İletişim için önce kesinleştirme onayı gereklidir.',
+          },
         },
       },
       candidate: {
@@ -2702,6 +2780,19 @@ export default {
       title: 'Evlilik Eşleştirme: Vaadimiz, Kurallar ve Güvenlik',
       lead: 'Bu platform flört/eğlence için değildir. Evlilik niyetiyle tanışmayı daha güvenli ve kontrollü hale getirmek için tasarlanmıştır.',
       open: 'Kuralları ve işleyişi görüntüle',
+      why: {
+        title: 'Neden bu kadar kural var?',
+        body:
+          'Bu kurallar kullanıcıyı cezalandırmak için değil; gerçekten evlilik niyeti olanların güvenle kalabilmesi için var. Amacımız sahte/aldatıcı niyetleri, dolandırıcılığı ve “sadece eğlenmek” isteyenleri mümkün olduğunca erken elemek.',
+        points: [
+          'Güvenlik: para talebi, sahte profil, taciz gibi riskleri azaltır.',
+          'Ciddiyet: evlilik dışı niyetle gelenlerin sistemde tutunmasını zorlaştırır.',
+          'Kalite: havuzun tıkanmasını ve aynı kişilerin dönüp durmasını azaltır.',
+          'Şeffaflık: limit/cooldown/48saat gibi kurallar süreçte belirsizliği azaltır.',
+        ],
+        note:
+          'Eğer hedef sadece daha fazla etkileşim ve “eğlence” olsaydı; daha az kural, daha serbest iletişim ve daha fazla açık profil ile çok daha fazla kullanım üretmek mümkündü.\nAma biz bu sistemi “aile kurmak isteyenler” için tasarladık; kaliteyi niceliğin önüne koyuyoruz.',
+      },
       promise: {
         title: 'Ne vaat ediyoruz?',
         p1Title: 'Evlilik odaklı sistem',

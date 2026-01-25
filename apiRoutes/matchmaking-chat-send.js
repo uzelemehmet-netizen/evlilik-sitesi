@@ -15,6 +15,8 @@ function nowMs() {
   return Date.now();
 }
 
+const PROPOSED_CHAT_LIMIT_TOTAL = 20;
+
 function hasActiveLock(userDoc, exceptMatchId) {
   const lock = userDoc?.matchmakingLock || null;
   const active = !!lock?.active;
@@ -112,6 +114,10 @@ export default async function handler(req, res) {
       const match = matchSnap.data() || {};
       const status = String(match.status || '');
 
+      const proposedChatPause = match?.proposedChatPause && typeof match.proposedChatPause === 'object' ? match.proposedChatPause : null;
+      const proposedChatPaused = status === 'proposed' && !!proposedChatPause?.active;
+      const proposedChatFocusUid = proposedChatPaused ? safeStr(proposedChatPause?.focusUid) : '';
+
       if (status !== 'mutual_accepted' && status !== 'proposed') {
         const err = new Error('chat_not_available');
         err.statusCode = 400;
@@ -167,6 +173,17 @@ export default async function handler(req, res) {
 
       // Not: Bu akışta chat süre sınırı yok; iptal/evlilik kararı ile kapanır.
 
+      // proposed aşamasında kontrollü sohbet: mesaj limiti dolunca karar aşamasına geç.
+      // Not: sohbet beklemede ise (pause) limit uygulanmaz; mesajlar bekletilir.
+      if (status === 'proposed' && !proposedChatPaused) {
+        const reachedAt = typeof match?.proposedChatLimitReachedAtMs === 'number' ? match.proposedChatLimitReachedAtMs : 0;
+        if (reachedAt > 0) {
+          const err = new Error('chat_limit_reached');
+          err.statusCode = 409;
+          throw err;
+        }
+      }
+
       const last = match?.chatLastMessageAtMs && typeof match.chatLastMessageAtMs[uid] === 'number' ? match.chatLastMessageAtMs[uid] : 0;
       if (last && ts - last < 1500) {
         const err = new Error('rate_limited');
@@ -177,14 +194,38 @@ export default async function handler(req, res) {
       const msgRef = matchRef.collection('messages').doc();
       messageId = msgRef.id;
 
-      tx.set(msgRef, {
-        matchId,
-        userId: uid,
-        text,
-        ...(langHint ? { langHint } : {}),
-        createdAt: FieldValue.serverTimestamp(),
-        createdAtMs: ts,
-      });
+      if (proposedChatPaused) {
+        // Odak kullanıcı bu sohbeti kullanamaz.
+        if (proposedChatFocusUid && proposedChatFocusUid === uid) {
+          const err = new Error('chat_paused');
+          err.statusCode = 409;
+          throw err;
+        }
+
+        // Diğer taraf mesaj atabilir ama mesaj teslim edilmez (bekletilir).
+        tx.set(msgRef, {
+          matchId,
+          userId: uid,
+          text,
+          ...(langHint ? { langHint } : {}),
+          createdAt: FieldValue.serverTimestamp(),
+          createdAtMs: ts,
+          delivery: {
+            state: 'held',
+            heldForUid: proposedChatFocusUid,
+            reason: 'focus_active',
+          },
+        });
+      } else {
+        tx.set(msgRef, {
+          matchId,
+          userId: uid,
+          text,
+          ...(langHint ? { langHint } : {}),
+          createdAt: FieldValue.serverTimestamp(),
+          createdAtMs: ts,
+        });
+      }
 
 
       const patch = {
@@ -204,62 +245,38 @@ export default async function handler(req, res) {
         updatedAt: FieldValue.serverTimestamp(),
       };
 
-      // Direkt mesajlaşma başlangıcı (proposed'ta ilk mesaj)
-      if (status === 'proposed') {
+      // proposed aşamasında: limit sayacı (beklemede değilse)
+      if (status === 'proposed' && !proposedChatPaused) {
+        const counts = match?.proposedChatCountByUid && typeof match.proposedChatCountByUid === 'object' ? { ...match.proposedChatCountByUid } : {};
+        const myPrev = typeof counts?.[uid] === 'number' && Number.isFinite(counts[uid]) ? counts[uid] : 0;
+        counts[uid] = myPrev + 1;
+
+        let total = 0;
+        for (const v of Object.values(counts)) {
+          const n = typeof v === 'number' && Number.isFinite(v) ? v : 0;
+          total += n;
+        }
+
+        patch.proposedChatCountByUid = counts;
+        patch.proposedChatTotalCount = total;
+        patch.proposedChatLimitTotal = PROPOSED_CHAT_LIMIT_TOTAL;
+
+        if (total >= PROPOSED_CHAT_LIMIT_TOTAL) {
+          patch.proposedChatLimitReachedAtMs = ts;
+          patch.proposedChatLimitReachedAt = FieldValue.serverTimestamp();
+        }
+
         const starterUid = safeStr(match?.dmStarterUid);
         if (!starterUid) {
           patch.dmStarterUid = uid;
           patch.dmStartedAtMs = ts;
         }
-
-        // Karşı taraf ilk kez cevap verince: eşleşmeyi chat'e yükselt ve kilitle.
-        const effectiveStarter = starterUid || uid;
-        const shouldPromote = effectiveStarter && effectiveStarter !== uid;
-
-        if (shouldPromote) {
-          patch.status = 'mutual_accepted';
-          patch.mutualAcceptedAt = FieldValue.serverTimestamp();
-          patch.mutualAcceptedAtMs = ts;
-          patch.interactionMode = 'chat';
-          patch.interactionChosenAt = FieldValue.serverTimestamp();
-          patch.chatEnabledAt = FieldValue.serverTimestamp();
-          patch.chatEnabledAtMs = ts;
-          patch.interactionChoices = {};
-
-          // Match code / no (lazy)
-          const existingMatchCode = safeStr(match?.matchCode);
-          let matchNo = typeof match?.matchNo === 'number' && Number.isFinite(match.matchNo) ? match.matchNo : null;
-          let matchCode = existingMatchCode;
-
-          if (!matchCode) {
-            if (matchNo === null) {
-              const cSnap = await tx.get(matchNoCounterRef);
-              const cur = cSnap.exists ? (cSnap.data() || {}) : {};
-              const next = typeof cur.next === 'number' && Number.isFinite(cur.next) ? cur.next : 10000;
-              matchNo = next;
-              tx.set(
-                matchNoCounterRef,
-                {
-                  next: matchNo + 1,
-                  updatedAt: FieldValue.serverTimestamp(),
-                  updatedBy: uid,
-                },
-                { merge: true }
-              );
-              patch.matchNo = matchNo;
-            }
-            matchCode = matchNo !== null ? `ES-${matchNo}` : '';
-            if (matchCode) patch.matchCode = matchCode;
-          }
-
-          // İki kullanıcıyı bu match'e kilitle
-          const lockPatch = {
-            matchmakingLock: { active: true, matchId, matchCode: matchCode || '' },
-            matchmakingChoice: { active: true, matchId, matchCode: matchCode || '' },
-            updatedAt: FieldValue.serverTimestamp(),
-          };
-          tx.set(db.collection('matchmakingUsers').doc(uid), lockPatch, { merge: true });
-          tx.set(db.collection('matchmakingUsers').doc(otherUid), lockPatch, { merge: true });
+      } else if (status === 'proposed' && proposedChatPaused) {
+        // Beklemede de starter'ı set edelim (first message bilgisi kalsın)
+        const starterUid = safeStr(match?.dmStarterUid);
+        if (!starterUid) {
+          patch.dmStarterUid = uid;
+          patch.dmStartedAtMs = ts;
         }
       } else {
         // mutual_accepted: backward-compat olarak chat mode'u boşsa set et.

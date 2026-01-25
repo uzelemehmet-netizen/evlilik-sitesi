@@ -67,6 +67,16 @@ export default async function handler(req, res) {
         throw err;
       }
 
+      const confirmedAtMs =
+        (typeof match?.confirmedAtMs === 'number' ? match.confirmedAtMs : 0) ||
+        tsToMs(match?.confirmedAt) ||
+        0;
+      if (!confirmedAtMs) {
+        const err = new Error('confirm_required');
+        err.statusCode = 403;
+        throw err;
+      }
+
       const userIds = Array.isArray(match.userIds) ? match.userIds.map(String).filter(Boolean) : [];
       if (userIds.length !== 2 || !userIds.includes(uid)) {
         const err = new Error('forbidden');

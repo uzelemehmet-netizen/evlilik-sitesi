@@ -4,6 +4,10 @@ function safeStr(v) {
   return typeof v === 'string' ? v.trim() : '';
 }
 
+function nowMs() {
+  return Date.now();
+}
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     res.statusCode = 405;
@@ -28,6 +32,9 @@ export default async function handler(req, res) {
 
     const { db, FieldValue } = getAdmin();
     const ref = db.collection('matchmakingMatches').doc(matchId);
+
+    let creditGranted = 0;
+    let cooldownUntilMs = 0;
 
     await db.runTransaction(async (tx) => {
       const snap = await tx.get(ref);
@@ -60,6 +67,20 @@ export default async function handler(req, res) {
         throw err;
       }
 
+      const existingDismissal = data?.dismissals?.[uid] || null;
+      if (existingDismissal) {
+        // idempotent: tekrar kredi verme.
+        return;
+      }
+
+      const now = nowMs();
+        const COOLDOWN_MS = 1 * 60 * 60 * 1000;
+      creditGranted = 1;
+      cooldownUntilMs = now + COOLDOWN_MS;
+
+      const meRef = db.collection('matchmakingUsers').doc(uid);
+      await tx.get(meRef);
+
       tx.set(
         ref,
         {
@@ -70,11 +91,23 @@ export default async function handler(req, res) {
         },
         { merge: true }
       );
+
+      tx.set(
+        meRef,
+        {
+          newMatchReplacementCredits: FieldValue.increment(1),
+          newMatchCooldownUntilMs: cooldownUntilMs,
+          lastMatchRemovalAtMs: now,
+          lastMatchRemovalReason: 'dismissed',
+          updatedAt: FieldValue.serverTimestamp(),
+        },
+        { merge: true }
+      );
     });
 
     res.statusCode = 200;
     res.setHeader('content-type', 'application/json');
-    res.end(JSON.stringify({ ok: true }));
+    res.end(JSON.stringify({ ok: true, creditGranted, cooldownUntilMs }));
   } catch (e) {
     res.statusCode = e?.statusCode || 500;
     res.setHeader('content-type', 'application/json');

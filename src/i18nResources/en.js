@@ -1812,6 +1812,7 @@ export default {
             smoking: 'Do you smoke?',
             alcohol: 'Do you drink alcohol?',
             partnerCommunicationLanguages: 'Partner communication language',
+            partnerCommunicationMethods: 'Partner communication methods',
             partnerCommunicationLanguageOther: 'Other language for partner (please specify)',
             partnerTranslationApp: 'Would you prefer to use a translation app with your partner?',
             partnerLivingCountry: 'Preferred country to live in',
@@ -2237,6 +2238,14 @@ export default {
   },
 
   matchmakingPanel: {
+        profile: {
+          guidanceAfterConfirm: {
+            title: 'Support after confirmation',
+            body:
+              'After the final match confirmation, you can get services from our guidance team via our wedding guidance page to help build trust between candidates and support steps such as family-to-family communication, interpreting, verifying the accuracy of the information provided before the wedding decision, and many other conveniences.',
+            cta: 'Open wedding guidance',
+          },
+        },
     title: 'My Profile',
     subtitle: 'Your matchmaking, membership and contact steps will appear here.',
     tabs: {
@@ -2315,6 +2324,11 @@ export default {
       requestingNew: 'Requesting…',
       requestNewQuotaHint: 'Daily quota: {{remaining}}/{{limit}}',
       requestNewSuccess: 'Your request was received. A new candidate will appear when available.',
+      freeSlot: 'Free a slot (daily 1)',
+      freeSlotHint: 'This opens a dedicated slot for new sign-ups. The slot will stay empty until a {{threshold}}+ match from a newly signed-up user appears. If you want an immediate candidate from the existing pool, use “Request a new match”.',
+      freeSlotConfirm: 'Remove this candidate and open the new-user slot? (Daily 1)',
+      freeSlotSuccess: 'Slot freed. {{creditGranted}} credit granted. The slot will stay empty until a new sign-up ({{threshold}}+) matches you. Cooldown: {{remaining}}',
+      removedCreditNotice: 'This match was removed from your list. 1 credit was granted for requesting a new match. Cooldown: {{remaining}}',
     },
     profileForm: {
       loading: 'Loading form…',
@@ -2322,6 +2336,12 @@ export default {
       openOriginalEditOnce: 'Open original form (edit once)',
       detailsToggle: 'Show application details',
       applicationId: 'Application ID',
+      applicantNationality: 'Your nationality',
+      applicantGender: 'Your gender',
+      partnerNationality: "The person you're looking for: nationality",
+      partnerGender: "The person you're looking for: gender",
+      moreDetailsTitle: 'More details',
+      partnerPrefsTitle: 'Partner preferences',
       editOnceTitle: 'Fix the form (one-time)',
       editOnceLead:
         'If you left fields empty or entered something wrong, you can update it here. This can be used only once (cannot be changed again after saving).',
@@ -2380,10 +2400,15 @@ export default {
       otherUserMatched: 'This person is already matched with someone else.',
       alreadyMatched: 'You already have a match.',
       userLocked: 'Your match process is locked. This action is not allowed.',
+      pendingContinueExists: 'You already selected someone to continue with. Decide on that match first.',
       requestNewFailed: 'Could not request a new match.',
       requestNewRateLimited: 'You are requesting too often. Please try again later.',
       requestNewQuotaExhausted: 'You have used up today’s new match quota (3/3). Please try again tomorrow.',
       requestNewFreeActiveBlocked: 'You cannot request a new match because your free active membership privilege was cancelled. You need a paid membership to reactivate.',
+      freeSlotFailed: 'Free slot action failed.',
+      freeSlotQuotaExhausted: 'You have used today\'s free slot quota (1/1). Please try again tomorrow.',
+      cooldownActive: 'Please wait a bit before doing this again. Remaining: {{remaining}}',
+      newUserSlotAlreadyActive: 'Your new-user slot is already active. Please wait for a suitable new sign-up, or use the normal refresh.',
     },
     afterSubmit: {
       title: 'Application received.',
@@ -2573,8 +2598,31 @@ export default {
       matchId: 'Match Code',
     },
     matches: {
+      presence: {
+        online: 'Online',
+        lastSeen: 'Last active: {{time}}',
+        unknown: 'Last active: -',
+      },
       title: 'Your Matches',
       subtitle: 'Up to 3 / 5 / 10 candidates are shown depending on your plan.',
+      inactivityNotice: {
+        title: 'Inactivity rule (24 hours)',
+        body:
+          'If you are inactive for more than 24 hours, your match list will be reset. People in your list will be returned to the match pool. When you become active again, you can request matches later—but you will lose your current matches.',
+      },
+      newUserSlotNotice: {
+        title: 'New-user slot is active',
+        body:
+          'This slot is currently empty. It will be filled automatically when a newly signed-up user produces a {{threshold}}+ match with your profile. If you want an immediate candidate, use “Request a new match”.',
+      },
+      inactiveReset: {
+        title: 'Match reset due to inactivity',
+        body: 'This match was cancelled and returned to the pool because one side was inactive for more than 24 hours.',
+      },
+      focusActiveReset: {
+        title: 'This match was closed',
+        body: 'The other person is currently progressing another introduction window. This is not a negative judgement about you; the system will show new candidates when appropriate.',
+      },
       empty: 'There are no matches to show right now.',
       savePage: 'Save page',
       savePageAlready: 'This page already looks like it is added to your home screen / installed as an app.',
@@ -2619,6 +2667,18 @@ export default {
         send: 'Send',
         continue: 'Continue (Approve)',
         reject: 'Not a fit (Reject)',
+        proposedLimit: {
+          counter: 'Chat: {{used}} / {{limit}}',
+          reachedTitle: 'Decision time',
+          reachedBody: 'The message limit is reached. Approve to continue or reject if it’s not a fit.',
+        },
+        pause: {
+          focusTitle: 'This chat is on hold',
+          focusBody: 'Because you are currently progressing another match, this chat is temporarily paused. You can’t send messages.',
+          otherTitle: 'Chat temporarily on hold',
+          otherBody: 'Your messages are not delivered right now; it will automatically resume when available.',
+          heldBadge: 'On hold (not delivered yet)',
+        },
         errors: {
           filtered: 'Your message looks like contact/social/link and was blocked.',
           rateLimited: 'You are sending too fast. Please wait a moment.',
@@ -2626,10 +2686,28 @@ export default {
           notEnabled: 'In-site chat is not enabled for this match.',
           membershipRequired: 'An active membership is required to chat.',
           verificationRequired: 'Identity verification is required to chat.',
+          limitReached: 'Message limit reached. You need to decide.',
+          chatPaused: 'This chat is temporarily on hold.',
           serverNotConfigured: 'Firebase Admin is not configured in local dev. Add FIREBASE_SERVICE_ACCOUNT_JSON_FILE to .env.local and restart the dev process.',
           authRequired: 'You must be logged in to send messages (anonymous users are not supported).',
           sendFailed: 'Message could not be sent.',
           decisionFailed: 'Decision could not be saved.',
+        },
+
+        confirm48h: {
+          title: '48 hours passed: Confirm this match',
+          body:
+            'From this point, your match will be marked as “confirmed” and the contact-sharing step (phone number) will be enabled. After confirmation, other suggestions in your match slots may be removed.',
+          note: 'After you confirm, we will wait for the other person to confirm as well.',
+          confirmButton: 'Confirm match',
+          cancelButton: 'Cancel',
+          waitingOther: 'You confirmed. Waiting for the other person to confirm.',
+          confirmed: 'Match confirmed. You can request contact sharing.',
+          contactLockedUntilConfirm: 'To request contact sharing, you must confirm this match first.',
+          errors: {
+            locked: 'You cannot confirm before 48 hours pass.',
+            confirmRequired: 'Contact sharing requires match confirmation first.',
+          },
         },
       },
       candidate: {
@@ -2754,6 +2832,19 @@ export default {
       title: 'Matchmaking: Our Promise, Rules & Safety',
       lead: 'This platform is not for dating/entertainment. It is designed to make marriage-focused introductions safer and more controlled.',
       open: 'View rules and process',
+      why: {
+        title: 'Why are there so many rules?',
+        body:
+          'These rules are not meant to punish users. They exist to keep the platform safe and focused for people who genuinely intend to marry, and to filter out scams, fake profiles, and “just for fun” usage as early as possible.',
+        points: [
+          'Safety: reduces fraud, money requests, harassment, and fake profiles.',
+          'Serious intent: makes it harder for non-marriage intent users to stay in the system.',
+          'Quality: prevents pool congestion and repeated low-quality loops.',
+          'Clarity: limits/cooldowns/48h steps reduce uncertainty in the process.',
+        ],
+        note:
+          'If the goal were only maximum engagement, we could remove many of these safeguards and allow looser communication and more public browsing.\nBut we built this specifically for people who want to build a family — quality over quantity.',
+      },
       promise: {
         title: 'What do we promise?',
         p1Title: 'Marriage-focused system',

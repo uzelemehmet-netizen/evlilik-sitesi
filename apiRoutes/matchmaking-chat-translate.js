@@ -82,30 +82,44 @@ export default async function handler(req, res) {
 
       const match = matchSnap.data() || {};
       const status = String(match.status || '');
-      if (status !== 'mutual_accepted') {
+      if (!['mutual_accepted', 'proposed'].includes(status)) {
         const err = new Error('chat_not_available');
         err.statusCode = 400;
         throw err;
       }
 
-      const currentMode = typeof match?.interactionMode === 'string' ? match.interactionMode : '';
-      if (currentMode !== 'chat') {
-        // Backward-compat: eski match'lerde interactionMode boş kalmış olabilir.
-        if (!currentMode) {
-          tx.set(
-            matchRef,
-            {
-              interactionMode: 'chat',
-              interactionChosenAt: FieldValue.serverTimestamp(),
-              chatEnabledAt: FieldValue.serverTimestamp(),
-              chatEnabledAtMs: ts,
-              updatedAt: FieldValue.serverTimestamp(),
-            },
-            { merge: true }
-          );
-        } else {
-          const err = new Error('chat_not_enabled');
-          err.statusCode = 400;
+      if (status === 'mutual_accepted') {
+        const currentMode = typeof match?.interactionMode === 'string' ? match.interactionMode : '';
+        if (currentMode !== 'chat') {
+          // Backward-compat: eski match'lerde interactionMode boş kalmış olabilir.
+          if (!currentMode) {
+            tx.set(
+              matchRef,
+              {
+                interactionMode: 'chat',
+                interactionChosenAt: FieldValue.serverTimestamp(),
+                chatEnabledAt: FieldValue.serverTimestamp(),
+                chatEnabledAtMs: ts,
+                updatedAt: FieldValue.serverTimestamp(),
+              },
+              { merge: true }
+            );
+          } else {
+            const err = new Error('chat_not_enabled');
+            err.statusCode = 400;
+            throw err;
+          }
+        }
+      }
+
+      if (status === 'proposed') {
+        const reachedAtMs =
+          typeof match?.proposedChatLimitReachedAtMs === 'number' && Number.isFinite(match.proposedChatLimitReachedAtMs)
+            ? match.proposedChatLimitReachedAtMs
+            : 0;
+        if (reachedAtMs > 0) {
+          const err = new Error('chat_limit_reached');
+          err.statusCode = 409;
           throw err;
         }
       }
@@ -174,12 +188,7 @@ export default async function handler(req, res) {
         throw err;
       }
 
-      // Kota: mesaj başı 150 karakter (suistimali azaltmak için).
-      if (text.length > 150) {
-        const err = new Error('translate_too_long');
-        err.statusCode = 400;
-        throw err;
-      }
+      // Not: Mesaj başına ayrı limit yok; kullanım hesap geneli aylık havuzdan düşer.
 
       const existing = msg?.translations && typeof msg.translations === 'object' ? safeStr(msg.translations[targetLang]) : '';
       if (existing) {
@@ -218,13 +227,6 @@ export default async function handler(req, res) {
         res.statusCode = 400;
         res.setHeader('content-type', 'application/json');
         res.end(JSON.stringify({ ok: false, error: 'bad_request' }));
-        return;
-      }
-
-      if (text.length > 150) {
-        res.statusCode = 400;
-        res.setHeader('content-type', 'application/json');
-        res.end(JSON.stringify({ ok: false, error: 'translate_too_long' }));
         return;
       }
 

@@ -2155,7 +2155,7 @@ export default function MatchmakingApply() {
           <button
             type="submit"
             disabled={submitting}
-            className="w-full rounded-full bg-gradient-to-r from-amber-300 to-amber-500 text-slate-950 font-semibold py-3 shadow-[0_16px_40px_rgba(245,158,11,0.25)] hover:brightness-110 transition disabled:opacity-60 active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/60 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+            className="w-full sm:w-56 sm:mx-auto rounded-full bg-gradient-to-r from-amber-300 to-amber-500 text-slate-950 font-semibold py-3 shadow-[0_16px_40px_rgba(245,158,11,0.25)] hover:brightness-110 transition disabled:opacity-60 active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/60 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
             aria-busy={submitting ? 'true' : 'false'}
           >
             {submitting ? t('matchmakingPage.form.submitting') : t('matchmakingPage.form.submit')}

@@ -28,6 +28,13 @@ function safeStr(v) {
   return typeof v === 'string' ? v.trim() : '';
 }
 
+function getPendingContinueMatchId(userDoc) {
+  const p = userDoc?.matchmakingPendingContinue || null;
+  const active = !!p?.active;
+  const matchId = safeStr(p?.matchId);
+  return active && matchId ? matchId : '';
+}
+
 // Eligibility kontrolü artık ortak helper üzerinden.
 
 // Yeni kural: Mutual accept anında chat otomatik aktif olur.
@@ -60,6 +67,8 @@ export default async function handler(req, res) {
     const matchNoCounterRef = db.collection('counters').doc('matchmakingMatchNo');
 
     let status = 'proposed';
+    let creditGranted = 0;
+    let cooldownUntilMs = 0;
 
     await db.runTransaction(async (tx) => {
       const snap = await tx.get(ref);
@@ -126,15 +135,27 @@ export default async function handler(req, res) {
       if (decision === 'reject') {
         ensureEligibleOrThrow(meUser, myGender);
 
+        const nowMs = Date.now();
+        const COOLDOWN_MS = 1 * 60 * 60 * 1000;
+
         patch.status = 'cancelled';
         patch.cancelledAt = FieldValue.serverTimestamp();
+        patch.cancelledAtMs = nowMs;
         patch.cancelledByUserId = uid;
         patch.cancelledReason = 'rejected';
+        patch.rejectionCount = FieldValue.increment(1);
+        patch.lastRejectedAtMs = nowMs;
         status = 'cancelled';
+
+        creditGranted = 1;
+        cooldownUntilMs = nowMs + COOLDOWN_MS;
 
         // Kullanıcıların seçim/lock alanlarını temizle (bu eşleşmeye bağlıysa)
         const meChoice = getChoiceMatchId(meUser);
         const otherChoice = getChoiceMatchId(otherUser);
+
+        const mePending = getPendingContinueMatchId(meUser);
+        const otherPending = getPendingContinueMatchId(otherUser);
 
         if (meChoice === matchId) {
           tx.set(meRef, { matchmakingChoice: { active: false, matchId: '' }, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
@@ -143,10 +164,24 @@ export default async function handler(req, res) {
           tx.set(otherUserRef, { matchmakingChoice: { active: false, matchId: '' }, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
         }
 
+        if (mePending === matchId) {
+          tx.set(meRef, { matchmakingPendingContinue: { active: false, matchId: '' }, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+        }
+        if (otherPending === matchId) {
+          tx.set(otherUserRef, { matchmakingPendingContinue: { active: false, matchId: '' }, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+        }
+
         // Eğer bu match karşılıklı onay sonrası kilitlenmişse kilidi kaldır
         tx.set(
           meRef,
-          { matchmakingLock: { active: false, matchId: '' }, updatedAt: FieldValue.serverTimestamp() },
+          {
+            matchmakingLock: { active: false, matchId: '' },
+            newMatchReplacementCredits: FieldValue.increment(1),
+            newMatchCooldownUntilMs: cooldownUntilMs,
+            lastMatchRemovalAtMs: nowMs,
+            lastMatchRemovalReason: 'rejected',
+            updatedAt: FieldValue.serverTimestamp(),
+          },
           { merge: true }
         );
         tx.set(
@@ -158,6 +193,14 @@ export default async function handler(req, res) {
         // accept
         ensureEligibleOrThrow(meUser, myGender);
 
+        // Aynı anda sadece 1 kişiyle "devam" isteği: ikinci seçenek hissini ve suistimali engeller.
+        const myPending = getPendingContinueMatchId(meUser);
+        if (myPending && myPending !== matchId) {
+          const err = new Error('pending_continue_exists');
+          err.statusCode = 409;
+          throw err;
+        }
+
         // Karşı taraf başka biriyle karşılıklı eşleşmiş/kilitli ise beğeni gönderme
         if (hasActiveLock(otherUser, matchId)) {
           const err = new Error('other_user_matched');
@@ -168,14 +211,19 @@ export default async function handler(req, res) {
         const other = decisions[otherSide];
         if (other === 'accept') {
           patch.status = 'mutual_accepted';
-          patch.mutualAcceptedAt = FieldValue.serverTimestamp();
-          patch.mutualAcceptedAtMs = Date.now();
+          const acceptedAtMs = Date.now();
+          patch.mutualAcceptedAtMs = acceptedAtMs;
+
+          if (!data?.everMutualAcceptedAtMs) {
+            patch.everMutualAcceptedAtMs = Date.now();
+            patch.everMutualAcceptedAt = FieldValue.serverTimestamp();
+          }
 
           // Chat otomatik aktif: 48 saat kilidi bu başlangıçtan hesaplanır.
           patch.interactionMode = 'chat';
           patch.interactionChosenAt = FieldValue.serverTimestamp();
           patch.chatEnabledAt = FieldValue.serverTimestamp();
-          patch.chatEnabledAtMs = Date.now();
+          patch.chatEnabledAtMs = acceptedAtMs;
           patch.interactionChoices = {};
 
           // Kısa eşleşme kodu (ES-<no>) - eksik olabilir; burada lazy üret.
@@ -214,10 +262,31 @@ export default async function handler(req, res) {
           tx.set(meRef, lockPatch, { merge: true });
           tx.set(otherUserRef, lockPatch, { merge: true });
 
+          // Pending temizliği (mutual_accepted artık aktif kilit ile yönetilir)
+          if (myPending === matchId) {
+            tx.set(meRef, { matchmakingPendingContinue: { active: false, matchId: '' }, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+          }
+          const otherPending = getPendingContinueMatchId(otherUser);
+          if (otherPending === matchId) {
+            tx.set(otherUserRef, { matchmakingPendingContinue: { active: false, matchId: '' }, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+          }
+
           status = 'mutual_accepted';
 
         } else {
           status = String(data?.status || 'proposed');
+
+          // Karşı taraf henüz onaylamadı: pending işaretle (tek kişiyle devam).
+          if (!myPending) {
+            tx.set(
+              meRef,
+              {
+                matchmakingPendingContinue: { active: true, matchId, startedAtMs: Date.now() },
+                updatedAt: FieldValue.serverTimestamp(),
+              },
+              { merge: true }
+            );
+          }
         }
       }
 
@@ -226,7 +295,7 @@ export default async function handler(req, res) {
 
     res.statusCode = 200;
     res.setHeader('content-type', 'application/json');
-    res.end(JSON.stringify({ ok: true, status }));
+    res.end(JSON.stringify({ ok: true, status, creditGranted, cooldownUntilMs }));
   } catch (e) {
     res.statusCode = e?.statusCode || 500;
     res.setHeader('content-type', 'application/json');

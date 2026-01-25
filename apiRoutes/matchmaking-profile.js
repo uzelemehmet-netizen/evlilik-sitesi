@@ -14,6 +14,29 @@ function asObj(v) {
   return v && typeof v === 'object' ? v : {};
 }
 
+function tsToMs(v) {
+  if (!v) return 0;
+  if (typeof v === 'number' && Number.isFinite(v)) return v;
+  if (typeof v?.toMillis === 'function') {
+    try {
+      return v.toMillis();
+    } catch {
+      return 0;
+    }
+  }
+  const seconds = typeof v?.seconds === 'number' ? v.seconds : null;
+  const nanoseconds = typeof v?.nanoseconds === 'number' ? v.nanoseconds : 0;
+  if (seconds !== null) return Math.floor(seconds * 1000 + nanoseconds / 1e6);
+  return 0;
+}
+
+function lastSeenMsFromUserDoc(userDoc) {
+  const ms = typeof userDoc?.lastSeenAtMs === 'number' && Number.isFinite(userDoc.lastSeenAtMs) ? userDoc.lastSeenAtMs : 0;
+  if (ms > 0) return ms;
+  const ts = tsToMs(userDoc?.lastSeenAt);
+  return ts > 0 ? ts : 0;
+}
+
 // Eligibility kontrolü artık ortak helper üzerinden.
 
 export default async function handler(req, res) {
@@ -102,7 +125,10 @@ export default async function handler(req, res) {
       return;
     }
 
-    const appSnap = await db.collection('matchmakingApplications').doc(otherAppId).get();
+    const [appSnap, otherUserSnap] = await Promise.all([
+      db.collection('matchmakingApplications').doc(otherAppId).get(),
+      db.collection('matchmakingUsers').doc(otherUserId).get(),
+    ]);
     if (!appSnap.exists) {
       res.statusCode = 404;
       res.setHeader('content-type', 'application/json');
@@ -111,6 +137,8 @@ export default async function handler(req, res) {
     }
 
     const app = appSnap.data() || {};
+    const otherUser = otherUserSnap.exists ? (otherUserSnap.data() || {}) : {};
+    const lastSeenAtMs = lastSeenMsFromUserDoc(otherUser);
     const details = asObj(app?.details);
     const partner = asObj(app?.partnerPreferences);
 
@@ -196,6 +224,10 @@ export default async function handler(req, res) {
             educationPreference: safeStr(partner?.educationPreference),
             occupationPreference: safeStr(partner?.occupationPreference),
             familyValuesPreference: safeStr(partner?.familyValuesPreference),
+          },
+
+          presence: {
+            lastSeenAtMs,
           },
         },
       })

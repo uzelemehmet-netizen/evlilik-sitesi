@@ -7,6 +7,7 @@ import matchmakingAdminApprovePayment from '../apiRoutes/matchmaking-admin-appro
 import matchmakingAdminPhotoUpdateDecide from '../apiRoutes/matchmaking-admin-photo-update-decide.js';
 import matchmakingAdminCancel from '../apiRoutes/matchmaking-admin-cancel.js';
 import matchmakingAdminConfirm from '../apiRoutes/matchmaking-admin-confirm.js';
+import matchmakingConfirm from '../apiRoutes/matchmaking-confirm.js';
 import matchmakingAdminCreateMatch from '../apiRoutes/matchmaking-admin-create-match.js';
 import matchmakingAdminIdentityVerify from '../apiRoutes/matchmaking-admin-identity-verify.js';
 import matchmakingAllocateProfileNo from '../apiRoutes/matchmaking-allocate-profile-no.js';
@@ -46,6 +47,7 @@ const handlers = {
   'matchmaking-admin-photo-update-decide': matchmakingAdminPhotoUpdateDecide,
   'matchmaking-admin-cancel': matchmakingAdminCancel,
   'matchmaking-admin-confirm': matchmakingAdminConfirm,
+  'matchmaking-confirm': matchmakingConfirm,
   'matchmaking-admin-create-match': matchmakingAdminCreateMatch,
   'matchmaking-admin-identity-verify': matchmakingAdminIdentityVerify,
   'matchmaking-allocate-profile-no': matchmakingAllocateProfileNo,

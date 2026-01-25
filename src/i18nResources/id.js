@@ -415,6 +415,7 @@ const overrides = {
         partnerMaritalStatus: 'Status pernikahan pasangan',
         partnerReligion: 'Agama pasangan',
         partnerCommunicationLanguages: 'Bahasa komunikasi pasangan',
+        partnerCommunicationMethods: 'Metode komunikasi pasangan',
         partnerCommunicationLanguageOther: 'Bahasa lain untuk pasangan (tuliskan)',
         partnerTranslationApp: 'Aplikasi terjemahan untuk pasangan',
         partnerLivingCountry: 'Negara tinggal pasangan',
@@ -727,6 +728,14 @@ const overrides = {
   },
 
   matchmakingPanel: {
+        profile: {
+          guidanceAfterConfirm: {
+            title: 'Dukungan setelah konfirmasi',
+            body:
+              'Setelah keputusan kecocokan final, Anda bisa mendapatkan layanan dari tim pendamping kami melalui halaman panduan pernikahan untuk membantu membangun kepercayaan antar kandidat serta dukungan seperti komunikasi antar keluarga, penerjemah, verifikasi kebenaran informasi sebelum keputusan pernikahan, dan banyak kemudahan lainnya.',
+            cta: 'Buka panduan pernikahan',
+          },
+        },
     title: 'Profil Saya',
     subtitle: 'Langkah pencocokan, keanggotaan, dan kontak Anda akan tampil di sini.',
     tabs: {
@@ -805,6 +814,11 @@ const overrides = {
       requestingNew: 'Mengirim permintaan…',
       requestNewQuotaHint: 'Kuota harian: {{remaining}}/{{limit}}',
       requestNewSuccess: 'Permintaan Anda diterima. Kandidat baru akan muncul jika tersedia.',
+      freeSlot: 'Kosongkan slot (harian 1)',
+      freeSlotHint: 'Ini membuka slot khusus untuk pendaftar baru. Slot akan tetap kosong sampai muncul kecocokan {{threshold}}+ dari pengguna baru. Jika ingin kandidat langsung dari pool yang ada, gunakan “Minta kecocokan baru”.',
+      freeSlotConfirm: 'Hapus kandidat ini dan buka slot pendaftar baru? (Harian 1)',
+      freeSlotSuccess: 'Slot dikosongkan. {{creditGranted}} kredit diberikan. Slot akan tetap kosong sampai pendaftar baru ({{threshold}}+) cocok dengan Anda. Cooldown: {{remaining}}',
+      removedCreditNotice: 'Kecocokan ini dihapus dari daftar Anda. 1 kredit diberikan untuk meminta kecocokan baru. Cooldown: {{remaining}}',
     },
     profileForm: {
       loading: 'Memuat formulir…',
@@ -812,6 +826,12 @@ const overrides = {
       openOriginalEditOnce: 'Buka formulir asli (edit satu kali)',
       detailsToggle: 'Tampilkan detail pengajuan',
       applicationId: 'ID Pengajuan',
+      applicantNationality: 'Kewarganegaraan Anda',
+      applicantGender: 'Jenis kelamin Anda',
+      partnerNationality: 'Kewarganegaraan orang yang Anda cari',
+      partnerGender: 'Jenis kelamin orang yang Anda cari',
+      moreDetailsTitle: 'Detail lainnya',
+      partnerPrefsTitle: 'Preferensi pasangan',
       editOnceTitle: 'Perbaiki formulir (satu kali)',
       editOnceLead:
         'Jika Anda meninggalkan kolom kosong atau mengisi sesuatu dengan salah, Anda dapat memperbaruinya di sini. Ini hanya bisa digunakan satu kali (setelah disimpan tidak bisa diubah lagi).',
@@ -860,10 +880,15 @@ const overrides = {
       otherUserMatched: 'Orang ini sudah cocok dengan orang lain.',
       alreadyMatched: 'Anda sudah memiliki kecocokan.',
       userLocked: 'Proses kecocokan Anda terkunci. Aksi ini tidak diizinkan.',
+      pendingContinueExists: 'Anda sudah memilih seseorang untuk dilanjutkan. Putuskan dulu di kecocokan itu.',
       requestNewFailed: 'Tidak bisa meminta kecocokan baru.',
       requestNewRateLimited: 'Anda terlalu sering meminta. Silakan coba lagi nanti.',
       requestNewQuotaExhausted: 'Kuota permintaan kecocokan baru hari ini sudah habis (3/3). Silakan coba lagi besok.',
       requestNewFreeActiveBlocked: 'Anda tidak bisa meminta kecocokan baru karena hak keanggotaan aktif gratis Anda dibatalkan. Anda perlu keanggotaan berbayar untuk mengaktifkan kembali.',
+      freeSlotFailed: 'Aksi mengosongkan slot gagal.',
+      freeSlotQuotaExhausted: 'Kuota mengosongkan slot hari ini sudah habis (1/1). Silakan coba lagi besok.',
+      cooldownActive: 'Silakan tunggu sebentar sebelum mencoba lagi. Sisa: {{remaining}}',
+      newUserSlotAlreadyActive: 'Slot pendaftar baru Anda sudah aktif. Tunggu pendaftar baru yang cocok, atau gunakan refresh normal.',
     },
     afterSubmit: {
       title: 'Pengajuan Anda diterima.',
@@ -1004,6 +1029,19 @@ const overrides = {
     rules: {
       title: 'Janji, aturan, dan keamanan',
       lead: 'Aturan dibuat untuk menjaga keamanan dan keseriusan. Pelanggaran dengan bukti dapat berujung blokir permanen.',
+      why: {
+        title: 'Mengapa aturannya banyak?',
+        body:
+          'Aturan ini bukan untuk menghukum pengguna. Tujuannya menjaga sistem tetap aman dan fokus untuk orang yang serius ingin menikah, serta menyaring penipuan, profil palsu, dan penggunaan “sekadar hiburan” sedini mungkin.',
+        points: [
+          'Keamanan: mengurangi penipuan, permintaan uang, pelecehan, dan profil palsu.',
+          'Keseriusan: mempersulit niat di luar pernikahan untuk bertahan di sistem.',
+          'Kualitas: mencegah pool macet dan siklus kandidat yang berulang.',
+          'Kejelasan: limit/cooldown/langkah 48 jam mengurangi ketidakpastian proses.',
+        ],
+        note:
+          'Jika tujuan utama hanya meningkatkan interaksi, kami bisa membuat aturan jauh lebih longgar dan membiarkan komunikasi lebih bebas.\nNamun sistem ini dibuat untuk orang yang ingin membangun keluarga — kualitas lebih penting daripada kuantitas.',
+      },
       promise: {
         title: 'Janji kami',
         p1Title: 'Privasi',
@@ -1179,8 +1217,31 @@ const overrides = {
     },
 
     matches: {
+      presence: {
+        online: 'Online',
+        lastSeen: 'Terakhir aktif: {{time}}',
+        unknown: 'Terakhir aktif: -',
+      },
       title: 'Kecocokan Anda',
       subtitle: 'Maksimal 3 / 5 / 10 kandidat ditampilkan sesuai paket Anda.',
+      inactivityNotice: {
+        title: 'Aturan tidak aktif (24 jam)',
+        body:
+          'Jika Anda tidak aktif lebih dari 24 jam, daftar kecocokan Anda akan direset. Orang-orang di daftar Anda akan dikembalikan ke pool kecocokan. Saat Anda aktif kembali, Anda bisa meminta kecocokan lagi nanti—namun Anda akan kehilangan kecocokan saat ini.',
+      },
+      newUserSlotNotice: {
+        title: 'Slot pendaftar baru aktif',
+        body:
+          'Anda telah membuka slot khusus untuk pendaftar baru. Slot ini akan tetap kosong sampai muncul kecocokan {{threshold}}+ dari pengguna baru (yang mendaftar setelah Anda membuka slot). Selama slot ini aktif, Anda tidak akan menerima kandidat dari pool umum.',
+      },
+      inactiveReset: {
+        title: 'Kecocokan direset karena tidak aktif',
+        body: 'Kecocokan ini dibatalkan dan dikembalikan ke pool karena salah satu pihak tidak aktif lebih dari 24 jam.',
+      },
+      focusActiveReset: {
+        title: 'Kecocokan ini ditutup',
+        body: 'Pihak lain sedang melanjutkan satu jendela perkenalan yang lain. Ini bukan penilaian negatif tentang Anda; sistem akan menampilkan kandidat baru jika sudah waktunya.',
+      },
       empty: 'Ketika ditemukan kecocokan yang sesuai dengan profil Anda, akan muncul di sini. Simpan halaman ini di ponsel atau komputer Anda agar mudah dibuka kembali saat ingin mengecek.',
       savePage: 'Simpan halaman',
       savePageAlready: 'Halaman ini sudah ditambahkan ke layar utama / terpasang sebagai aplikasi.',
@@ -1232,6 +1293,22 @@ const overrides = {
         reject: 'Tidak cocok (Tolak)',
         errors: {
           sendFailed: 'Pesan gagal dikirim.',
+        },
+
+        confirm48h: {
+          title: '48 jam berlalu: Konfirmasi kecocokan',
+          body:
+            'Mulai tahap ini, kecocokan Anda akan ditandai sebagai “terkonfirmasi” dan fitur berbagi kontak (nomor telepon) akan diaktifkan. Setelah konfirmasi, saran lain di slot kecocokan Anda bisa dihapus.',
+          note: 'Setelah Anda konfirmasi, kami akan menunggu konfirmasi dari pihak lain juga.',
+          confirmButton: 'Konfirmasi kecocokan',
+          cancelButton: 'Batal',
+          waitingOther: 'Anda sudah konfirmasi. Menunggu konfirmasi pihak lain.',
+          confirmed: 'Kecocokan terkonfirmasi. Anda dapat meminta berbagi kontak.',
+          contactLockedUntilConfirm: 'Untuk meminta berbagi kontak, Anda harus mengonfirmasi kecocokan ini terlebih dahulu.',
+          errors: {
+            locked: 'Tidak bisa dikonfirmasi sebelum 48 jam berlalu.',
+            confirmRequired: 'Berbagi kontak memerlukan konfirmasi kecocokan terlebih dahulu.',
+          },
         },
       },
       candidate: {
@@ -3752,6 +3829,18 @@ export default {
         send: 'Kirim',
         continue: 'Lanjut (Setuju)',
         reject: 'Tidak cocok (Tolak)',
+        proposedLimit: {
+          counter: 'Chat: {{used}} / {{limit}}',
+          reachedTitle: 'Saatnya memutuskan',
+          reachedBody: 'Batas pesan sudah tercapai. Setujui untuk lanjut atau tolak jika tidak cocok.',
+        },
+        pause: {
+          focusTitle: 'Chat ini sedang ditahan',
+          focusBody: 'Karena Anda sedang melanjutkan kecocokan lain, chat ini sementara dijeda. Anda tidak bisa mengirim pesan.',
+          otherTitle: 'Chat sementara ditahan',
+          otherBody: 'Pesan Anda belum dikirim sekarang; chat akan lanjut otomatis saat tersedia.',
+          heldBadge: 'Ditahan (belum terkirim)',
+        },
         errors: {
           filtered: 'Pesan Anda terdeteksi berisi kontak/sosmed/link dan diblokir.',
           rateLimited: 'Anda mengirim terlalu cepat. Tunggu sebentar.',
@@ -3759,6 +3848,8 @@ export default {
           notEnabled: 'Chat di dalam situs tidak diaktifkan untuk kecocokan ini.',
           membershipRequired: 'Keanggotaan aktif diperlukan untuk chat.',
           verificationRequired: 'Verifikasi identitas diperlukan untuk chat.',
+          limitReached: 'Batas pesan tercapai. Anda perlu memutuskan.',
+          chatPaused: 'Chat ini sementara ditahan.',
           sendFailed: 'Pesan gagal dikirim.',
           decisionFailed: 'Keputusan gagal disimpan.',
         },

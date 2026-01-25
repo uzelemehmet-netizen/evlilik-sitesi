@@ -66,7 +66,7 @@ export default function Panel() {
 
   const [matchmakingMatches, setMatchmakingMatches] = useState([]);
   const [matchmakingMatchesLoading, setMatchmakingMatchesLoading] = useState(true);
-  const [matchmakingAction, setMatchmakingAction] = useState({ loading: false, error: '' });
+  const [matchmakingAction, setMatchmakingAction] = useState({ loading: false, error: '', success: '' });
 
   const [dismissAction, setDismissAction] = useState({ loading: false, error: '', matchId: '' });
 
@@ -102,6 +102,9 @@ export default function Panel() {
   const [contactAction, setContactAction] = useState({ loading: false, error: '', matchId: '' });
 
   const [contactShareActionByMatchId, setContactShareActionByMatchId] = useState({});
+
+  const [matchConfirmActionByMatchId, setMatchConfirmActionByMatchId] = useState({});
+  const [confirm48hModalMatchId, setConfirm48hModalMatchId] = useState('');
 
   const [paymentForm, setPaymentForm] = useState({
     currency: 'TRY',
@@ -598,9 +601,6 @@ export default function Panel() {
       const items = [];
       snap.forEach((d) => items.push({ id: d.id, ...d.data() }));
 
-      // İptal edilen eşleşmeler listede görünmesin.
-      const visible = items.filter((m) => String(m?.status || '') !== 'cancelled');
-
       const toMs = (ts) => {
         if (!ts) return 0;
         if (typeof ts?.toMillis === 'function') return ts.toMillis();
@@ -609,7 +609,40 @@ export default function Panel() {
         return 0;
       };
 
-      visible.sort((a, b) => toMs(b?.createdAt) - toMs(a?.createdAt));
+      const nowMs = Date.now();
+      const inactiveShowMs = 7 * 24 * 60 * 60 * 1000;
+      const focusShowMs = 3 * 24 * 60 * 60 * 1000;
+      const isInactiveResetCancelled = (m) => {
+        if (String(m?.status || '') !== 'cancelled') return false;
+        if (String(m?.cancelledReason || '') !== 'inactive_24h') return false;
+        const cMs = (typeof m?.cancelledAtMs === 'number' ? m.cancelledAtMs : 0) || toMs(m?.cancelledAt);
+        return cMs > 0 ? nowMs - cMs <= inactiveShowMs : true;
+      };
+
+      const isFocusActiveCancelled = (m) => {
+        if (String(m?.status || '') !== 'cancelled') return false;
+        if (String(m?.cancelledReason || '') !== 'focus_active') return false;
+        const cMs = (typeof m?.cancelledAtMs === 'number' ? m.cancelledAtMs : 0) || toMs(m?.cancelledAt);
+        return cMs > 0 ? nowMs - cMs <= focusShowMs : true;
+      };
+
+      // İptal edilen eşleşmeler listede görünmesin.
+      // İstisna: bazı sistem iptalleri (kullanıcı bilgilensin diye kısa süre görünür kalsın).
+      const visible = items.filter(
+        (m) => String(m?.status || '') !== 'cancelled' || isInactiveResetCancelled(m) || isFocusActiveCancelled(m)
+      );
+
+      const sortKeyMs = (m) => {
+        return (
+          (typeof m?.updatedAtMs === 'number' ? m.updatedAtMs : 0) ||
+          (typeof m?.cancelledAtMs === 'number' ? m.cancelledAtMs : 0) ||
+          toMs(m?.updatedAt) ||
+          toMs(m?.cancelledAt) ||
+          toMs(m?.createdAt)
+        );
+      };
+
+      visible.sort((a, b) => sortKeyMs(b) - sortKeyMs(a));
       setMatchmakingMatches(visible.slice(0, 25));
       setMatchmakingMatchesLoading(false);
     };
@@ -641,8 +674,48 @@ export default function Panel() {
           const items = [];
           snap.forEach((d) => items.push({ id: d.id, ...d.data() }));
 
+          const toMs = (ts) => {
+            if (!ts) return 0;
+            if (typeof ts?.toMillis === 'function') return ts.toMillis();
+            if (typeof ts?.seconds === 'number') return ts.seconds * 1000;
+            if (typeof ts === 'number') return ts;
+            return 0;
+          };
+
+          const nowMs = Date.now();
+          const inactiveShowMs = 7 * 24 * 60 * 60 * 1000;
+          const focusShowMs = 3 * 24 * 60 * 60 * 1000;
+          const isInactiveResetCancelled = (m) => {
+            if (String(m?.status || '') !== 'cancelled') return false;
+            if (String(m?.cancelledReason || '') !== 'inactive_24h') return false;
+            const cMs = (typeof m?.cancelledAtMs === 'number' ? m.cancelledAtMs : 0) || toMs(m?.cancelledAt);
+            return cMs > 0 ? nowMs - cMs <= inactiveShowMs : true;
+          };
+
+          const isFocusActiveCancelled = (m) => {
+            if (String(m?.status || '') !== 'cancelled') return false;
+            if (String(m?.cancelledReason || '') !== 'focus_active') return false;
+            const cMs = (typeof m?.cancelledAtMs === 'number' ? m.cancelledAtMs : 0) || toMs(m?.cancelledAt);
+            return cMs > 0 ? nowMs - cMs <= focusShowMs : true;
+          };
+
           // İptal edilen eşleşmeler listede görünmesin.
-          const visible = items.filter((m) => String(m?.status || '') !== 'cancelled');
+          // İstisna: bazı sistem iptalleri (kullanıcı bilgilensin diye kısa süre görünür kalsın).
+          const visible = items.filter(
+            (m) => String(m?.status || '') !== 'cancelled' || isInactiveResetCancelled(m) || isFocusActiveCancelled(m)
+          );
+
+          const sortKeyMs = (m) => {
+            return (
+              (typeof m?.updatedAtMs === 'number' ? m.updatedAtMs : 0) ||
+              (typeof m?.cancelledAtMs === 'number' ? m.cancelledAtMs : 0) ||
+              toMs(m?.updatedAt) ||
+              toMs(m?.cancelledAt) ||
+              toMs(m?.createdAt)
+            );
+          };
+          visible.sort((a, b) => sortKeyMs(b) - sortKeyMs(a));
+
           setMatchmakingMatches(visible);
           setMatchmakingMatchesLoading(false);
         },
@@ -811,6 +884,56 @@ export default function Panel() {
     return map;
   }, [matchmakingMatches]);
 
+  const hasConfirmedMatch = useMemo(() => {
+    const list = Array.isArray(matchmakingMatches) ? matchmakingMatches : [];
+    const toMs = (ts) => {
+      if (!ts) return 0;
+      if (typeof ts?.toMillis === 'function') return ts.toMillis();
+      if (typeof ts?.seconds === 'number') return ts.seconds * 1000;
+      if (typeof ts === 'number') return ts;
+      return 0;
+    };
+    return list.some((m) => {
+      const ms = (typeof m?.confirmedAtMs === 'number' ? m.confirmedAtMs : 0) || toMs(m?.confirmedAt);
+      return ms > 0;
+    });
+  }, [matchmakingMatches]);
+
+  const formatPresenceLabel = useCallback(
+    (lastSeenAtMs) => {
+      const ms = typeof lastSeenAtMs === 'number' && Number.isFinite(lastSeenAtMs) ? lastSeenAtMs : 0;
+      if (!ms) return t('matchmakingPanel.matches.presence.unknown');
+
+      const now = Date.now();
+      const diff = Math.max(0, now - ms);
+      const onlineWindowMs = 2 * 60 * 1000;
+      if (diff <= onlineWindowMs) return t('matchmakingPanel.matches.presence.online');
+
+      const lang = String(i18n?.language || 'tr').toLowerCase();
+      const mins = Math.floor(diff / 60000);
+      const hours = Math.floor(diff / 3600000);
+      const days = Math.floor(diff / 86400000);
+
+      const timeText = (() => {
+        if (mins <= 1) return lang.startsWith('en') ? 'just now' : lang.startsWith('id') ? 'baru saja' : 'az önce';
+        if (mins < 60) return lang.startsWith('en') ? `${mins} min ago` : lang.startsWith('id') ? `${mins} mnt lalu` : `${mins} dk önce`;
+        if (hours < 24) return lang.startsWith('en') ? `${hours} h ago` : lang.startsWith('id') ? `${hours} jam lalu` : `${hours} sa önce`;
+
+        const locale = lang.startsWith('id') ? 'id-ID' : lang.startsWith('en') ? 'en-US' : 'tr-TR';
+        try {
+          return new Intl.DateTimeFormat(locale, { year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(ms));
+        } catch {
+          return days > 0
+            ? (lang.startsWith('en') ? `${days} d ago` : lang.startsWith('id') ? `${days} hari lalu` : `${days} gün önce`)
+            : (lang.startsWith('en') ? 'recently' : lang.startsWith('id') ? 'baru-baru ini' : 'yakın zamanda');
+        }
+      })();
+
+      return t('matchmakingPanel.matches.presence.lastSeen', { time: timeText });
+    },
+    [i18n?.language, t]
+  );
+
   const proposedMatchesCount = useMemo(() => {
     const all = Array.isArray(matchmakingMatches) ? matchmakingMatches : [];
     return all.filter((m) => m?.status === 'proposed').length;
@@ -928,13 +1051,36 @@ export default function Panel() {
     const qCount = typeof q?.count === 'number' ? q.count : 0;
     const qLimit = typeof q?.limit === 'number' ? q.limit : 0;
 
-    const derivedLimit = (myMembership.active && myMembership.plan === 'eco') || !myMembership.active ? 3 : 999;
+    const derivedLimit = 3;
     const limit = qLimit > 0 ? qLimit : derivedLimit;
     const today = new Date().toISOString().slice(0, 10);
     const count = qDayKey === today ? qCount : 0;
     const remaining = Math.max(0, limit - count);
     return { limit, remaining, dayKey: today, count };
   }, [matchmakingUser, myMembership.active, myMembership.plan]);
+
+  const freeSlotQuotaInfo = useMemo(() => {
+    const q = matchmakingUser?.freeSlotQuota || null;
+    const qDayKey = typeof q?.dayKey === 'string' ? q.dayKey : '';
+    const qCount = typeof q?.count === 'number' ? q.count : 0;
+    const qLimit = typeof q?.limit === 'number' ? q.limit : 0;
+
+    const derivedLimit = 1;
+    const limit = qLimit > 0 ? qLimit : derivedLimit;
+    const today = new Date().toISOString().slice(0, 10);
+    const count = qDayKey === today ? qCount : 0;
+    const remaining = Math.max(0, limit - count);
+    return { limit, remaining, dayKey: today, count };
+  }, [matchmakingUser]);
+
+  const newUserSlotInfo = useMemo(() => {
+    const slot = matchmakingUser?.newUserSlot || null;
+    const active = !!slot?.active;
+    const sinceMs = typeof slot?.sinceMs === 'number' ? slot.sinceMs : 0;
+    const threshold = typeof slot?.threshold === 'number' ? slot.threshold : 70;
+    const filledMatchId = typeof slot?.filledMatchId === 'string' ? slot.filledMatchId : '';
+    return { active, sinceMs, threshold, filledMatchId };
+  }, [matchmakingUser]);
 
   const newMatchQuotaDisplay = useMemo(() => {
     const inf = typeof newMatchQuotaInfo?.limit === 'number' && newMatchQuotaInfo.limit >= 999;
@@ -1488,18 +1634,32 @@ export default function Panel() {
   }, [canSeeFullProfiles, activeMatches]);
 
   const decideMatch = async (matchId, decision) => {
-    setMatchmakingAction({ loading: true, error: '' });
+    setMatchmakingAction({ loading: true, error: '', success: '' });
     try {
-      await authFetch('/api/matchmaking-decision', {
+      const data = await authFetch('/api/matchmaking-decision', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ matchId, decision }),
       });
+
+      if (String(decision) === 'reject') {
+        const creditGranted = typeof data?.creditGranted === 'number' ? data.creditGranted : 0;
+        const cooldownUntilMs = typeof data?.cooldownUntilMs === 'number' ? data.cooldownUntilMs : 0;
+        if (creditGranted > 0) {
+          const remainingMs = cooldownUntilMs > Date.now() ? cooldownUntilMs - Date.now() : 0;
+          const mins = remainingMs > 0 ? Math.ceil(remainingMs / 60000) : 0;
+          const remaining = mins > 0 ? `${mins} dk` : '';
+          setMatchmakingAction({ loading: false, error: '', success: t('matchmakingPanel.actions.removedCreditNotice', { remaining }) });
+          return;
+        }
+      }
     } catch (e) {
       const msg = String(e?.message || '').trim();
       const mapped =
         msg === 'other_user_matched'
           ? t('matchmakingPanel.errors.otherUserMatched')
+          : msg === 'pending_continue_exists'
+            ? t('matchmakingPanel.errors.pendingContinueExists')
           : msg === 'membership_required'
             ? t('matchmakingPanel.errors.membershipRequired')
             : msg === 'free_active_membership_required'
@@ -1514,10 +1674,10 @@ export default function Panel() {
               ? t('matchmakingPanel.errors.alreadyMatched')
             : msg || t('matchmakingPanel.errors.actionFailed');
 
-      setMatchmakingAction({ loading: false, error: mapped });
+      setMatchmakingAction({ loading: false, error: mapped, success: '' });
       return;
     }
-    setMatchmakingAction({ loading: false, error: '' });
+    setMatchmakingAction({ loading: false, error: '', success: '' });
   };
 
   const dismissMatch = async (matchId) => {
@@ -1526,11 +1686,22 @@ export default function Panel() {
 
     setDismissAction({ loading: true, error: '', matchId });
     try {
-      await authFetch('/api/matchmaking-dismiss', {
+      const data = await authFetch('/api/matchmaking-dismiss', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ matchId }),
       });
+
+      const creditGranted = typeof data?.creditGranted === 'number' ? data.creditGranted : 0;
+      const cooldownUntilMs = typeof data?.cooldownUntilMs === 'number' ? data.cooldownUntilMs : 0;
+      if (creditGranted > 0) {
+        const remainingMs = cooldownUntilMs > Date.now() ? cooldownUntilMs - Date.now() : 0;
+        const mins = remainingMs > 0 ? Math.ceil(remainingMs / 60000) : 0;
+        const remaining = mins > 0 ? `${mins} dk` : '';
+        setDismissAction({ loading: false, error: '', matchId: '' });
+        setMatchmakingAction({ loading: false, error: '', success: t('matchmakingPanel.actions.removedCreditNotice', { remaining }) });
+        return;
+      }
     } catch (e) {
       const msg = String(e?.message || '').trim();
       setDismissAction({ loading: false, error: msg || t('matchmakingPanel.errors.actionFailed'), matchId });
@@ -1580,15 +1751,74 @@ export default function Panel() {
       setRequestNewAction({ loading: false, error: '', success: t('matchmakingPanel.actions.requestNewSuccess', { remaining }) });
     } catch (e) {
       const msg = String(e?.message || '').trim();
+      const cooldownUntilMs = typeof e?.details?.cooldownUntilMs === 'number' ? e.details.cooldownUntilMs : 0;
+      const remainingMs = cooldownUntilMs > Date.now() ? cooldownUntilMs - Date.now() : 0;
+      const mins = remainingMs > 0 ? Math.ceil(remainingMs / 60000) : 0;
+      const remaining = mins > 0 ? `${mins} dk` : '';
       const mapped =
         msg === 'quota_exhausted'
           ? t('matchmakingPanel.errors.requestNewQuotaExhausted')
+          : msg === 'cooldown_active'
+            ? t('matchmakingPanel.errors.cooldownActive', { remaining })
           : msg === 'rate_limited'
             ? t('matchmakingPanel.errors.requestNewRateLimited')
             : msg === 'free_active_membership_blocked'
               ? t('matchmakingPanel.errors.requestNewFreeActiveBlocked')
             : (msg || t('matchmakingPanel.errors.requestNewFailed'));
       setRequestNewAction({ loading: false, error: mapped, success: '' });
+    }
+  };
+
+  const [freeSlotAction, setFreeSlotAction] = useState({ loading: false, error: '', success: '', matchId: '' });
+
+  const freeSlot = async (matchId) => {
+    const id = String(matchId || '').trim();
+    if (!id) return;
+    if (freeSlotAction.loading) return;
+    if (newUserSlotInfo.active) {
+      setFreeSlotAction({ loading: false, error: t('matchmakingPanel.errors.newUserSlotAlreadyActive'), success: '', matchId: id });
+      return;
+    }
+    if (typeof freeSlotQuotaInfo?.remaining === 'number' && freeSlotQuotaInfo.remaining <= 0) {
+      setFreeSlotAction({ loading: false, error: t('matchmakingPanel.errors.freeSlotQuotaExhausted'), success: '', matchId: id });
+      return;
+    }
+    if (!window.confirm(t('matchmakingPanel.actions.freeSlotConfirm'))) return;
+
+    setFreeSlotAction({ loading: true, error: '', success: '', matchId: id });
+    try {
+      const data = await authFetch('/api/matchmaking-request-new', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ action: 'free_slot', matchId: id }),
+      });
+
+      const creditGranted = typeof data?.creditGranted === 'number' ? data.creditGranted : 0;
+      const cooldownUntilMs = typeof data?.cooldownUntilMs === 'number' ? data.cooldownUntilMs : 0;
+      const remainingMs = cooldownUntilMs > Date.now() ? cooldownUntilMs - Date.now() : 0;
+      const mins = remainingMs > 0 ? Math.ceil(remainingMs / 60000) : 0;
+      const remaining = mins > 0 ? `${mins} dk` : '';
+      setFreeSlotAction({
+        loading: false,
+        error: '',
+        success: t('matchmakingPanel.actions.freeSlotSuccess', { creditGranted, remaining, threshold: 70 }),
+        matchId: id,
+      });
+    } catch (e) {
+      const msg = String(e?.message || '').trim();
+      const cooldownUntilMs = typeof e?.details?.cooldownUntilMs === 'number' ? e.details.cooldownUntilMs : 0;
+      const remainingMs = cooldownUntilMs > Date.now() ? cooldownUntilMs - Date.now() : 0;
+      const mins = remainingMs > 0 ? Math.ceil(remainingMs / 60000) : 0;
+      const remaining = mins > 0 ? `${mins} dk` : '';
+      const mapped =
+        msg === 'quota_exhausted'
+          ? t('matchmakingPanel.errors.requestNewQuotaExhausted')
+          : msg === 'free_slot_quota_exhausted'
+            ? t('matchmakingPanel.errors.freeSlotQuotaExhausted')
+            : msg === 'cooldown_active'
+              ? t('matchmakingPanel.errors.cooldownActive', { remaining })
+            : msg || t('matchmakingPanel.errors.freeSlotFailed');
+      setFreeSlotAction({ loading: false, error: mapped, success: '', matchId: id });
     }
   };
 
@@ -1640,6 +1870,8 @@ export default function Panel() {
       const mapped =
         msg === 'contact_locked'
           ? '48 saat dolmadan iletişim isteği gönderemezsin.'
+          : msg === 'confirm_required'
+            ? t('matchmakingPanel.matches.chat.confirm48h.errors.confirmRequired')
           : msg === 'membership_required'
             ? t('matchmakingPanel.errors.membershipRequired')
             : msg === 'free_active_membership_required'
@@ -1677,6 +1909,8 @@ export default function Panel() {
       const mapped =
         msg === 'contact_locked'
           ? '48 saat dolmadan onay verilemez.'
+          : msg === 'confirm_required'
+            ? t('matchmakingPanel.matches.chat.confirm48h.errors.confirmRequired')
           : msg === 'contact_not_pending'
             ? 'Onaylanacak bir iletişim isteği yok.'
             : msg === 'membership_required'
@@ -1692,6 +1926,31 @@ export default function Panel() {
         ...p,
         [id]: { ...(p?.[id] || {}), approveLoading: false, approveError: mapped },
       }));
+    }
+  };
+
+  const confirmMatchAfter48h = async (matchId) => {
+    const id = String(matchId || '').trim();
+    if (!id) return;
+    if (matchConfirmActionByMatchId?.[id]?.loading) return;
+
+    setMatchConfirmActionByMatchId((p) => ({ ...p, [id]: { loading: true, error: '', success: '' } }));
+    try {
+      await authFetch('/api/matchmaking-confirm', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ matchId: id }),
+      });
+      setMatchConfirmActionByMatchId((p) => ({ ...p, [id]: { loading: false, error: '', success: 'ok' } }));
+      return true;
+    } catch (e) {
+      const msg = String(e?.message || '').trim();
+      const mapped =
+        msg === 'confirm_locked'
+          ? t('matchmakingPanel.matches.chat.confirm48h.errors.locked')
+          : (msg || t('matchmakingPanel.errors.actionFailed'));
+      setMatchConfirmActionByMatchId((p) => ({ ...p, [id]: { loading: false, error: mapped, success: '' } }));
+      return false;
     }
   };
 
@@ -1725,6 +1984,9 @@ export default function Panel() {
           lastChatSeenMessageIdByMatchIdRef.current = { ...seenMap, [matchId]: last.id };
 
           const fromOther = !!last?.userId && last.userId !== user.uid;
+          const delivery = last?.delivery && typeof last.delivery === 'object' ? last.delivery : null;
+          const heldForUid = delivery ? String(delivery?.heldForUid || '').trim() : '';
+          const isHeldForMe = delivery?.state === 'held' && !!heldForUid && heldForUid === String(user?.uid || '').trim();
           const canNotifyNow =
             fromOther &&
             canBrowserNotify &&
@@ -1732,7 +1994,7 @@ export default function Panel() {
             !!document.hidden &&
             Notification.permission === 'granted';
 
-          if (canNotifyNow) {
+          if (canNotifyNow && !isHeldForMe) {
             try {
               const n = new Notification(t('matchmakingPanel.matches.chat.notificationTitle'), {
                 body: t('matchmakingPanel.matches.chat.notificationBody'),
@@ -1777,10 +2039,37 @@ export default function Panel() {
     const sendLoading = !!chatSendByMatchId?.[matchId]?.loading;
     const sendError = chatSendByMatchId?.[matchId]?.error || '';
     const lockedByActiveMatch = !!(lockInfo.active && lockInfo.matchId && lockInfo.matchId !== matchId);
-    const blocked = !canTakeActions || lockedByActiveMatch;
     const emojiOpen = !!chatEmojiOpenByMatchId?.[matchId];
 
     const focusedMatch = (Array.isArray(activeMatches) ? activeMatches : []).find((m) => String(m?.id || '') === String(matchId)) || null;
+    const myUid = String(user?.uid || '').trim();
+
+    const matchStatus = String(focusedMatch?.status || '').trim();
+    const proposedChatPause =
+      focusedMatch?.proposedChatPause && typeof focusedMatch.proposedChatPause === 'object' ? focusedMatch.proposedChatPause : null;
+    const proposedChatPaused = matchStatus === 'proposed' && !!proposedChatPause?.active;
+    const proposedChatFocusUid = proposedChatPaused ? String(proposedChatPause?.focusUid || '').trim() : '';
+    const isFocusUserForThisChat = proposedChatPaused && !!proposedChatFocusUid && proposedChatFocusUid === myUid;
+    const proposedChatLimitTotal =
+      typeof focusedMatch?.proposedChatLimitTotal === 'number' && Number.isFinite(focusedMatch.proposedChatLimitTotal)
+        ? focusedMatch.proposedChatLimitTotal
+        : 0;
+    const proposedChatTotalCount =
+      typeof focusedMatch?.proposedChatTotalCount === 'number' && Number.isFinite(focusedMatch.proposedChatTotalCount)
+        ? focusedMatch.proposedChatTotalCount
+        : 0;
+    const proposedChatLimitReachedAtMs =
+      typeof focusedMatch?.proposedChatLimitReachedAtMs === 'number' && Number.isFinite(focusedMatch.proposedChatLimitReachedAtMs)
+        ? focusedMatch.proposedChatLimitReachedAtMs
+        : 0;
+    const proposedChatLimitReached = matchStatus === 'proposed' && proposedChatLimitReachedAtMs > 0;
+
+    const blockedByGate = !canTakeActions;
+    const blockedByOtherMatch = lockedByActiveMatch;
+    const blockedByLimit = proposedChatLimitReached;
+    const blocked = blockedByGate || blockedByOtherMatch || blockedByLimit;
+    const blockedByPause = proposedChatPaused && isFocusUserForThisChat;
+    const sendBlocked = blocked || blockedByPause;
 
     const tsToMsLocal = (v) => {
       if (!v) return 0;
@@ -1804,6 +2093,24 @@ export default function Panel() {
     const remainingMs = unlockAtMs && nowMs < unlockAtMs ? Math.max(0, unlockAtMs - nowMs) : 0;
     const contactLocked = remainingMs > 0;
 
+    const confirmedAtMs =
+      (typeof focusedMatch?.confirmedAtMs === 'number' ? focusedMatch.confirmedAtMs : 0) ||
+      tsToMsLocal(focusedMatch?.confirmedAt) ||
+      0;
+    const isConfirmed = confirmedAtMs > 0;
+    const confirmations = (focusedMatch && typeof focusedMatch === 'object' ? focusedMatch.confirmations : null) || {};
+    const aUserId = String(focusedMatch?.aUserId || '').trim();
+    const bUserId = String(focusedMatch?.bUserId || '').trim();
+    const mySide = myUid && myUid === aUserId ? 'a' : myUid && myUid === bUserId ? 'b' : '';
+    const otherSide = mySide === 'a' ? 'b' : mySide === 'b' ? 'a' : '';
+    const myConfirmed = mySide ? !!confirmations?.[mySide] : false;
+    const otherConfirmed = otherSide ? !!confirmations?.[otherSide] : false;
+    const canConfirmNow = !contactLocked && !isConfirmed && !!mySide;
+
+    const confirmAction = matchConfirmActionByMatchId?.[matchId] || {};
+    const confirmLoading = !!confirmAction?.loading;
+    const confirmError = String(confirmAction?.error || '').trim();
+
     const shareAction = contactShareActionByMatchId?.[matchId] || {};
     const requestLoading = !!shareAction?.loading;
     const requestError = String(shareAction?.error || '').trim();
@@ -1813,7 +2120,7 @@ export default function Panel() {
     const emojiList = ['😀', '😊', '😂', '😍', '🥰', '😘', '👍', '🙏', '🤝', '💐', '✨', '❤️', '🎉', '🤔', '😢', '😡'];
 
     const appendEmoji = (emoji) => {
-      if (blocked) return;
+      if (sendBlocked) return;
       const cur = String(chatTextByMatchId?.[matchId] || '');
       const next = cur ? `${cur}${emoji}` : emoji;
       setChatTextByMatchId((p) => ({ ...p, [matchId]: next }));
@@ -1889,6 +2196,56 @@ export default function Panel() {
           </div>
         ) : null}
 
+        {matchStatus === 'proposed' && proposedChatLimitTotal > 0 ? (
+          <div className="mt-3 rounded-xl border border-white/10 bg-white/[0.03] p-3 text-xs text-white/80">
+            {t('matchmakingPanel.matches.chat.proposedLimit.counter', {
+              used: proposedChatTotalCount,
+              limit: proposedChatLimitTotal,
+            })}
+          </div>
+        ) : null}
+
+        {proposedChatPaused && !lockedByActiveMatch ? (
+          <div className="mt-3 rounded-xl border border-white/10 bg-white/[0.03] p-3 text-sm text-white/90">
+            <p className="font-semibold">
+              {isFocusUserForThisChat
+                ? t('matchmakingPanel.matches.chat.pause.focusTitle')
+                : t('matchmakingPanel.matches.chat.pause.otherTitle')}
+            </p>
+            <p className="mt-1 text-xs text-white/70">
+              {isFocusUserForThisChat
+                ? t('matchmakingPanel.matches.chat.pause.focusBody')
+                : t('matchmakingPanel.matches.chat.pause.otherBody')}
+            </p>
+          </div>
+        ) : null}
+
+        {proposedChatLimitReached && !lockedByActiveMatch ? (
+          <div className="mt-3 rounded-xl border border-sky-300/30 bg-sky-500/10 p-3 text-sm text-sky-100">
+            <p className="font-semibold">{t('matchmakingPanel.matches.chat.proposedLimit.reachedTitle')}</p>
+            <p className="mt-1 text-white/80">{t('matchmakingPanel.matches.chat.proposedLimit.reachedBody')}</p>
+
+            <div className="mt-3 flex flex-col sm:flex-row gap-2">
+              <button
+                type="button"
+                disabled={!canTakeActions || !!matchmakingAction?.loading}
+                onClick={() => decideMatch(matchId, 'accept')}
+                className="px-4 py-2 rounded-full bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700 disabled:opacity-60"
+              >
+                {t('matchmakingPanel.matches.chat.continue')}
+              </button>
+              <button
+                type="button"
+                disabled={!canTakeActions || !!matchmakingAction?.loading}
+                onClick={() => decideMatch(matchId, 'reject')}
+                className="px-4 py-2 rounded-full bg-rose-600 text-white text-sm font-semibold hover:bg-rose-700 disabled:opacity-60"
+              >
+                {t('matchmakingPanel.matches.chat.reject')}
+              </button>
+            </div>
+          </div>
+        ) : null}
+
         <div
           ref={(el) => {
             if (el) chatScrollElByMatchIdRef.current[matchId] = el;
@@ -1898,10 +2255,21 @@ export default function Panel() {
           {Array.isArray(items) && items.length ? (
             <div className="min-h-full flex flex-col justify-end">
               <div className="space-y-2">
-                {items.map((msg) => {
+                {items
+                  .filter((msg) => {
+                    if (!proposedChatPaused || !isFocusUserForThisChat) return true;
+                    const d = msg?.delivery && typeof msg.delivery === 'object' ? msg.delivery : null;
+                    const heldForUid = d ? String(d?.heldForUid || '').trim() : '';
+                    return !(d?.state === 'held' && !!heldForUid && heldForUid === myUid);
+                  })
+                  .map((msg) => {
                   const mine = msg?.userId === user?.uid;
                   const isSystem = String(msg?.type || '') === 'system';
                   const systemType = isSystem ? String(msg?.systemType || '').trim() : '';
+
+                  const delivery = msg?.delivery && typeof msg.delivery === 'object' ? msg.delivery : null;
+                  const heldForUid = delivery ? String(delivery?.heldForUid || '').trim() : '';
+                  const isHeldForFocus = delivery?.state === 'held' && !!heldForUid && heldForUid === proposedChatFocusUid;
 
                   const displayText = (() => {
                     if (!isSystem) return msg?.text || '';
@@ -1942,6 +2310,10 @@ export default function Panel() {
                       >
                         {displayText}
                       </div>
+
+                      {mine && proposedChatPaused && !isFocusUserForThisChat && isHeldForFocus ? (
+                        <div className="mt-1 text-[11px] text-white/60">{t('matchmakingPanel.matches.chat.pause.heldBadge')}</div>
+                      ) : null}
 
                       {!mine && isSystem && systemType === 'contact_request' && contactStatus === 'pending' ? (
                         <div className="mt-2">
@@ -1993,6 +2365,7 @@ export default function Panel() {
                                   if (translateUsagePercent !== null) return `Limitinin %${translateUsagePercent}'ini kullandın. Bu ay yenilenir veya Boost/plan yükselt.`;
                                   return 'Çeviri limitin doldu. Bu ay yenilenir veya Boost/plan yükselt.';
                                 }
+                                if (translateErr === 'chat_limit_reached') return t('matchmakingPanel.matches.chat.errors.limitReached');
                                 if (translateErr === 'translate_too_long') return 'Bu mesaj çok uzun; çeviri için kısaltılmalı.';
                                 if (translateErr === 'only_incoming') return 'Sadece gelen mesajlar çevrilebilir.';
                                 if (translateErr === 'missing_auth' || translateErr === 'invalid_auth') return 'Oturum gerekli.';
@@ -2042,12 +2415,14 @@ export default function Panel() {
               if (code === 'free_active_membership_required') return t('matchmakingPanel.errors.freeActiveMembershipRequired');
               if (code === 'free_active_membership_blocked') return t('matchmakingPanel.errors.freeActiveMembershipBlocked');
               if (code === 'membership_or_verification_required') return t('matchmakingPanel.errors.membershipOrVerificationRequired');
+              if (code === 'chat_limit_reached') return t('matchmakingPanel.matches.chat.errors.limitReached');
+              if (code === 'chat_paused') return t('matchmakingPanel.matches.chat.errors.chatPaused');
               return t('matchmakingPanel.matches.chat.errors.sendFailed');
             })()}
           </div>
         ) : null}
 
-        {blocked ? (
+        {blockedByGate ? (
           <div className="mt-2 text-xs text-amber-100/90">
             {myGender === 'female'
               ? t('matchmakingPanel.errors.membershipOrVerificationRequired')
@@ -2061,7 +2436,7 @@ export default function Panel() {
               value={chatTextByMatchId?.[matchId] || ''}
               onChange={(e) => setChatTextByMatchId((p) => ({ ...p, [matchId]: e.target.value }))}
               onKeyDown={(e) => {
-                if (blocked) return;
+                if (sendBlocked) return;
                 if (e.key === 'Enter' && !e.shiftKey) {
                   e.preventDefault();
                   sendChatMessage(matchId);
@@ -2069,21 +2444,25 @@ export default function Panel() {
               }}
               className="w-full rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-white/40"
               placeholder={
-                blocked
-                  ? (myGender === 'female'
-                      ? t('matchmakingPanel.errors.membershipOrVerificationRequired')
-                      : t('matchmakingPanel.errors.membershipRequired'))
+                sendBlocked
+                  ? (blockedByLimit
+                      ? t('matchmakingPanel.matches.chat.errors.limitReached')
+                      : blockedByPause
+                        ? t('matchmakingPanel.matches.chat.errors.chatPaused')
+                        : (myGender === 'female'
+                            ? t('matchmakingPanel.errors.membershipOrVerificationRequired')
+                            : t('matchmakingPanel.errors.membershipRequired')))
                   : t('matchmakingPanel.matches.chat.placeholder')
               }
               maxLength={600}
-              disabled={blocked}
+              disabled={sendBlocked}
             />
 
             <div className="flex items-center gap-2">
               <button
                 type="button"
                 onClick={() => setChatEmojiOpenByMatchId((p) => ({ ...p, [matchId]: !p?.[matchId] }))}
-                disabled={blocked}
+                disabled={sendBlocked}
                 className="px-3 py-2 rounded-full border border-white/15 bg-white/[0.04] text-white/85 text-sm font-semibold hover:bg-white/[0.08] disabled:opacity-60"
                 aria-label="Emoji"
                 title="Emoji"
@@ -2092,7 +2471,7 @@ export default function Panel() {
               </button>
               <button
                 type="button"
-                disabled={sendLoading || blocked}
+                disabled={sendLoading || sendBlocked}
                 onClick={() => sendChatMessage(matchId)}
                 className="px-4 py-2 rounded-full bg-sky-700 text-white text-sm font-semibold hover:bg-sky-800 disabled:opacity-60"
               >
@@ -2157,41 +2536,104 @@ export default function Panel() {
           </div>
 
           {focusedMatch ? (
-            <div className="mt-2 rounded-xl border border-white/10 bg-white/[0.04] p-3 text-sm text-white/85">
-              <p className="font-semibold">İletişim paylaşımı</p>
-              {contactStatus === 'approved' ? (
-                <p className="mt-1 text-white/70">İletişim bilgileri karşılıklı onayla paylaşıldı.</p>
-              ) : contactStatus === 'pending' ? (
-                <p className="mt-1 text-white/70">İletişim isteği gönderildi. Karşı tarafın onayı bekleniyor.</p>
-              ) : contactLocked ? (
-                <p className="mt-1 text-white/70">
-                  {(() => {
-                    const h = Math.floor(remainingMs / 3600000);
-                    const m = Math.floor((remainingMs % 3600000) / 60000);
-                    return `Telefon numaralarını paylaşmak için 48 saat site içi iletişim gerekli. Kalan süre: ${h}s ${m}dk.`;
-                  })()}
-                </p>
-              ) : (
-                <div className="mt-2 flex flex-col sm:flex-row gap-2 sm:items-center">
-                  <button
-                    type="button"
-                    disabled={blocked || requestLoading}
-                    onClick={() => requestContactShare(matchId)}
-                    className="px-4 py-2 rounded-full bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700 disabled:opacity-60"
-                  >
-                    {requestLoading ? 'Gönderiliyor…' : 'İletişim isteği gönder'}
-                  </button>
-                  <p className="text-xs text-white/60">Karşı taraf onaylarsa telefon numaraları görünür.</p>
-                </div>
-              )}
+            <>
+              {canConfirmNow ? (
+                <div className="mt-2 rounded-xl border border-sky-300/30 bg-sky-500/10 p-3 text-sm text-sky-100">
+                  <p className="font-semibold">{t('matchmakingPanel.matches.chat.confirm48h.title')}</p>
+                  <p className="mt-1 text-white/80">{t('matchmakingPanel.matches.chat.confirm48h.body')}</p>
+                  <p className="mt-2 text-xs text-white/70">{t('matchmakingPanel.matches.chat.confirm48h.note')}</p>
 
-              {requestError ? (
-                <div className="mt-2 text-xs text-rose-200/90">{requestError}</div>
+                  {isConfirmed ? (
+                    <p className="mt-2 text-xs text-emerald-200 font-semibold">{t('matchmakingPanel.matches.chat.confirm48h.confirmed')}</p>
+                  ) : myConfirmed ? (
+                    <p className="mt-2 text-xs text-white/80">
+                      {otherConfirmed
+                        ? t('matchmakingPanel.matches.chat.confirm48h.confirmed')
+                        : t('matchmakingPanel.matches.chat.confirm48h.waitingOther')}
+                    </p>
+                  ) : (
+                    <button
+                      type="button"
+                      disabled={blocked || confirmLoading}
+                      onClick={() => setConfirm48hModalMatchId(matchId)}
+                      className="mt-3 px-4 py-2 rounded-full bg-sky-600 text-white text-sm font-semibold hover:bg-sky-700 disabled:opacity-60"
+                    >
+                      {confirmLoading ? t('matchmakingPanel.actions.sending') : t('matchmakingPanel.matches.chat.confirm48h.confirmButton')}
+                    </button>
+                  )}
+
+                  {confirmError ? <div className="mt-2 text-xs text-rose-200/90">{confirmError}</div> : null}
+                </div>
               ) : null}
-              {approveError ? (
-                <div className="mt-2 text-xs text-rose-200/90">{approveError}</div>
+
+              <div className="mt-2 rounded-xl border border-white/10 bg-white/[0.04] p-3 text-sm text-white/85">
+                <p className="font-semibold">İletişim paylaşımı</p>
+                {contactStatus === 'approved' ? (
+                  <p className="mt-1 text-white/70">İletişim bilgileri karşılıklı onayla paylaşıldı.</p>
+                ) : contactStatus === 'pending' ? (
+                  <p className="mt-1 text-white/70">İletişim isteği gönderildi. Karşı tarafın onayı bekleniyor.</p>
+                ) : contactLocked ? (
+                  <p className="mt-1 text-white/70">
+                    {(() => {
+                      const h = Math.floor(remainingMs / 3600000);
+                      const m = Math.floor((remainingMs % 3600000) / 60000);
+                      return `Telefon numaralarını paylaşmak için 48 saat site içi iletişim gerekli. Kalan süre: ${h}s ${m}dk.`;
+                    })()}
+                  </p>
+                ) : !isConfirmed ? (
+                  <p className="mt-1 text-white/70">{t('matchmakingPanel.matches.chat.confirm48h.contactLockedUntilConfirm')}</p>
+                ) : (
+                  <div className="mt-2 flex flex-col sm:flex-row gap-2 sm:items-center">
+                    <button
+                      type="button"
+                      disabled={blocked || requestLoading}
+                      onClick={() => requestContactShare(matchId)}
+                      className="px-4 py-2 rounded-full bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700 disabled:opacity-60"
+                    >
+                      {requestLoading ? 'Gönderiliyor…' : 'İletişim isteği gönder'}
+                    </button>
+                    <p className="text-xs text-white/60">Karşı taraf onaylarsa telefon numaraları görünür.</p>
+                  </div>
+                )}
+
+                {requestError ? <div className="mt-2 text-xs text-rose-200/90">{requestError}</div> : null}
+                {approveError ? <div className="mt-2 text-xs text-rose-200/90">{approveError}</div> : null}
+              </div>
+
+              {confirm48hModalMatchId === matchId ? (
+                <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/70 p-4">
+                  <div className="w-full max-w-md rounded-2xl border border-white/10 bg-zinc-950 p-4">
+                    <p className="text-sm font-semibold text-white">{t('matchmakingPanel.matches.chat.confirm48h.title')}</p>
+                    <p className="mt-2 text-sm text-white/80">{t('matchmakingPanel.matches.chat.confirm48h.body')}</p>
+                    <p className="mt-2 text-xs text-white/60">{t('matchmakingPanel.matches.chat.confirm48h.note')}</p>
+
+                    {confirmError ? <div className="mt-3 text-xs text-rose-200/90">{confirmError}</div> : null}
+
+                    <div className="mt-4 grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        disabled={confirmLoading}
+                        onClick={() => setConfirm48hModalMatchId('')}
+                        className="w-full px-4 py-2 rounded-full border border-white/15 bg-white/5 text-white/90 text-sm font-semibold hover:bg-white/[0.12] disabled:opacity-60"
+                      >
+                        {t('matchmakingPanel.matches.chat.confirm48h.cancelButton')}
+                      </button>
+                      <button
+                        type="button"
+                        disabled={confirmLoading}
+                        onClick={async () => {
+                          const ok = await confirmMatchAfter48h(matchId);
+                          if (ok) setConfirm48hModalMatchId('');
+                        }}
+                        className="w-full px-4 py-2 rounded-full bg-sky-600 text-white text-sm font-semibold hover:bg-sky-700 disabled:opacity-60"
+                      >
+                        {confirmLoading ? t('matchmakingPanel.actions.sending') : t('matchmakingPanel.matches.chat.confirm48h.confirmButton')}
+                      </button>
+                    </div>
+                  </div>
+                </div>
               ) : null}
-            </div>
+            </>
           ) : null}
         </div>
       </div>
@@ -2457,6 +2899,118 @@ export default function Panel() {
     [t, i18n.language]
   );
 
+  const maritalStatusOptions = useMemo(
+    () => [
+      { id: '', label: t('matchmakingPage.form.options.common.select') },
+      { id: 'single', label: t('matchmakingPage.form.options.maritalStatus.single') },
+      { id: 'widowed', label: t('matchmakingPage.form.options.maritalStatus.widowed') },
+      { id: 'divorced', label: t('matchmakingPage.form.options.maritalStatus.divorced') },
+      { id: 'other', label: t('matchmakingPage.form.options.maritalStatus.other') },
+    ],
+    [t, i18n.language]
+  );
+
+  const educationOptions = useMemo(
+    () => [
+      { id: '', label: t('matchmakingPage.form.options.common.select') },
+      { id: 'secondary', label: t('matchmakingPage.form.options.education.secondary') },
+      { id: 'high_school', label: t('matchmakingPage.form.options.education.highSchool') },
+      { id: 'university', label: t('matchmakingPage.form.options.education.university') },
+      { id: 'masters', label: t('matchmakingPage.form.options.education.masters') },
+      { id: 'phd', label: t('matchmakingPage.form.options.education.phd') },
+      { id: 'other', label: t('matchmakingPage.form.options.education.other') },
+    ],
+    [t, i18n.language]
+  );
+
+  const occupationOptions = useMemo(
+    () => [
+      { id: '', label: t('matchmakingPage.form.options.common.select') },
+      { id: 'civil_servant', label: t('matchmakingPage.form.options.occupation.civilServant') },
+      { id: 'employee', label: t('matchmakingPage.form.options.occupation.employee') },
+      { id: 'retired', label: t('matchmakingPage.form.options.occupation.retired') },
+      { id: 'business_owner', label: t('matchmakingPage.form.options.occupation.businessOwner') },
+      { id: 'other', label: t('matchmakingPage.form.options.occupation.other') },
+    ],
+    [t, i18n.language]
+  );
+
+  const partnerMaritalStatusOptions = useMemo(
+    () => [
+      { id: '', label: t('matchmakingPage.form.options.common.select') },
+      { id: 'single', label: t('matchmakingPage.form.options.maritalStatus.single') },
+      { id: 'widowed', label: t('matchmakingPage.form.options.maritalStatus.widowed') },
+      { id: 'divorced', label: t('matchmakingPage.form.options.maritalStatus.divorced') },
+      { id: 'doesnt_matter', label: t('matchmakingPage.form.options.common.doesntMatter') },
+    ],
+    [t, i18n.language]
+  );
+
+  const religionOptions = useMemo(
+    () => [
+      { id: '', label: t('matchmakingPage.form.options.common.select') },
+      { id: 'islam', label: t('matchmakingPage.form.options.religion.islam') },
+      { id: 'christian', label: t('matchmakingPage.form.options.religion.christian') },
+      { id: 'hindu', label: t('matchmakingPage.form.options.religion.hindu') },
+      { id: 'buddhist', label: t('matchmakingPage.form.options.religion.buddhist') },
+      { id: 'other', label: t('matchmakingPage.form.options.religion.other') },
+    ],
+    [t, i18n.language]
+  );
+
+  const livingCountryOptions = useMemo(
+    () => [
+      { id: '', label: t('matchmakingPage.form.options.common.select') },
+      { id: 'tr', label: t('matchmakingPage.form.options.livingCountry.tr') },
+      { id: 'id', label: t('matchmakingPage.form.options.livingCountry.id') },
+      { id: 'doesnt_matter', label: t('matchmakingPage.form.options.common.doesntMatter') },
+    ],
+    [t, i18n.language]
+  );
+
+  const yesNoDoesntMatterOptions = useMemo(
+    () => [
+      { id: '', label: t('matchmakingPage.form.options.common.select') },
+      { id: 'yes', label: t('matchmakingPage.form.options.common.yes') },
+      { id: 'no', label: t('matchmakingPage.form.options.common.no') },
+      { id: 'doesnt_matter', label: t('matchmakingPage.form.options.common.doesntMatter') },
+    ],
+    [t, i18n.language]
+  );
+
+  const partnerEducationPreferenceOptions = useMemo(
+    () => [
+      { id: '', label: t('matchmakingPage.form.options.common.select') },
+      { id: 'secondary', label: t('matchmakingPage.form.options.education.secondary') },
+      { id: 'university', label: t('matchmakingPage.form.options.education.university') },
+      { id: 'masters', label: t('matchmakingPage.form.options.education.masters') },
+      { id: 'phd', label: t('matchmakingPage.form.options.education.phd') },
+      { id: 'doesnt_matter', label: t('matchmakingPage.form.options.common.doesntMatter') },
+    ],
+    [t, i18n.language]
+  );
+
+  const partnerOccupationPreferenceOptions = useMemo(
+    () => [
+      { id: '', label: t('matchmakingPage.form.options.common.select') },
+      { id: 'civil_servant', label: t('matchmakingPage.form.options.occupation.civilServant') },
+      { id: 'employee', label: t('matchmakingPage.form.options.occupation.employee') },
+      { id: 'retired', label: t('matchmakingPage.form.options.occupation.retired') },
+      { id: 'business_owner', label: t('matchmakingPage.form.options.occupation.businessOwner') },
+      { id: 'doesnt_matter', label: t('matchmakingPage.form.options.common.doesntMatter') },
+    ],
+    [t, i18n.language]
+  );
+
+  const partnerCommunicationMethodOptions = useMemo(
+    () => [
+      { id: 'own_language', label: t('matchmakingPage.form.options.partnerCommunicationMethods.ownLanguage') },
+      { id: 'foreign_language', label: t('matchmakingPage.form.options.partnerCommunicationMethods.foreignLanguage') },
+      { id: 'translation_app', label: t('matchmakingPage.form.options.partnerCommunicationMethods.translationApp') },
+    ],
+    [t, i18n.language]
+  );
+
   useEffect(() => {
     if (!matchmaking?.id) return;
     // İlk render'da, mevcut başvurudan edit formunu prefill et.
@@ -2516,6 +3070,8 @@ export default function Panel() {
         partnerPreferences: {
           heightMinCm: partner?.heightMinCm ?? partner?.heightMinCm === 0 ? partner.heightMinCm : '',
           heightMaxCm: partner?.heightMaxCm ?? partner?.heightMaxCm === 0 ? partner.heightMaxCm : '',
+          ageMaxOlderYears: partner?.ageMaxOlderYears ?? partner?.ageMaxOlderYears === 0 ? partner.ageMaxOlderYears : '',
+          ageMaxYoungerYears: partner?.ageMaxYoungerYears ?? partner?.ageMaxYoungerYears === 0 ? partner.ageMaxYoungerYears : '',
           ageMin: partner?.ageMin ?? partner?.ageMin === 0 ? partner.ageMin : '',
           ageMax: partner?.ageMax ?? partner?.ageMax === 0 ? partner.ageMax : '',
           maritalStatus: partner?.maritalStatus || '',
@@ -2531,6 +3087,7 @@ export default function Panel() {
           educationPreference: partner?.educationPreference || '',
           occupationPreference: partner?.occupationPreference || '',
           familyValuesPreference: partner?.familyValuesPreference || '',
+          communicationMethods: Array.isArray(partner?.communicationMethods) ? partner.communicationMethods : [],
         },
       };
     });
@@ -3013,29 +3570,20 @@ export default function Panel() {
               </button>
 
               {!matchmakingLoading ? (
-                matchmaking ? (
-                  matchmaking?.userEditOnceUsedAt ? null : (
-                    <Link
-                      to="/evlilik/eslestirme-basvuru?editOnce=1"
-                      className="w-full sm:w-56 h-9 inline-flex items-center justify-start text-left whitespace-nowrap px-3 rounded-full bg-gradient-to-r from-sky-500/20 to-indigo-500/10 text-sky-100 text-sm font-extrabold tracking-wide ring-1 ring-sky-300/25 shadow-[0_14px_45px_rgba(0,0,0,0.45)] hover:from-sky-500/28 hover:to-indigo-500/16 transition"
-                    >
-                      {t('matchmakingPanel.actions.profileForm')}
-                    </Link>
-                  )
-                ) : (
+                !matchmaking ? (
                   <Link
                     to="/evlilik/eslestirme-basvuru"
                     className="w-full sm:w-56 h-9 inline-flex items-center justify-start text-left whitespace-nowrap px-3 rounded-full bg-gradient-to-r from-sky-500/20 to-indigo-500/10 text-sky-100 text-sm font-extrabold tracking-wide ring-1 ring-sky-300/25 shadow-[0_14px_45px_rgba(0,0,0,0.45)] hover:from-sky-500/28 hover:to-indigo-500/16 transition"
                   >
                     {t('matchmakingPanel.actions.profileForm')}
                   </Link>
-                )
+                ) : null
               ) : null}
 
-              <details className="w-full sm:w-56">
+              <details className="w-full sm:w-[420px] md:w-[560px] lg:w-[720px] max-w-full">
                 <summary className="list-none [&::-webkit-details-marker]:hidden">
                   <div className="w-full flex justify-end">
-                    <span className="w-full h-9 inline-flex items-center justify-start text-left whitespace-nowrap px-3 rounded-full bg-gradient-to-r from-white/[0.10] to-white/[0.03] text-white/90 text-sm font-extrabold tracking-wide ring-1 ring-white/10 shadow-[0_14px_45px_rgba(0,0,0,0.45)] hover:from-white/[0.14] hover:to-white/[0.06] transition cursor-pointer select-none">
+                    <span className="w-full sm:w-56 h-9 inline-flex items-center justify-start text-left whitespace-nowrap px-3 rounded-full bg-gradient-to-r from-white/[0.10] to-white/[0.03] text-white/90 text-sm font-extrabold tracking-wide ring-1 ring-white/10 shadow-[0_14px_45px_rgba(0,0,0,0.45)] hover:from-white/[0.14] hover:to-white/[0.06] transition cursor-pointer select-none">
                       {t('matchmakingPanel.profileForm.detailsToggle')}
                     </span>
                   </div>
@@ -3067,11 +3615,50 @@ export default function Panel() {
                           <dd className="font-semibold">{typeof matchmaking?.age === 'number' ? matchmaking.age : (matchmaking?.age || '-')}</dd>
                         </div>
                         <div>
-                          <dt className="text-xs text-white/60">{t('matchmakingPage.form.labels.gender')}</dt>
+                          <dt className="text-xs text-white/60">{t('matchmakingPanel.profileForm.applicantNationality')}</dt>
+                          <dd className="font-semibold">
+                            {(() => {
+                              const n = String(matchmaking?.nationality || '').toLowerCase().trim();
+                              if (!n) return '-';
+                              const key = `matchmakingPage.form.options.nationality.${n}`;
+                              const v = t(key);
+                              return v && v !== key ? v : n;
+                            })()}
+                          </dd>
+                        </div>
+                        <div>
+                          <dt className="text-xs text-white/60">{t('matchmakingPanel.profileForm.applicantGender')}</dt>
                           <dd className="font-semibold">
                             {(() => {
                               const g = String(matchmaking?.gender || '').toLowerCase().trim();
-                              return g ? (t(`matchmakingPage.form.options.gender.${g}`) || g) : '-';
+                              if (!g) return '-';
+                              const key = `matchmakingPage.form.options.gender.${g}`;
+                              const v = t(key);
+                              return v && v !== key ? v : g;
+                            })()}
+                          </dd>
+                        </div>
+                        <div>
+                          <dt className="text-xs text-white/60">{t('matchmakingPanel.profileForm.partnerNationality')}</dt>
+                          <dd className="font-semibold">
+                            {(() => {
+                              const n = String(matchmaking?.lookingForNationality || '').toLowerCase().trim();
+                              if (!n) return '-';
+                              const key = `matchmakingPage.form.options.nationality.${n}`;
+                              const v = t(key);
+                              return v && v !== key ? v : n;
+                            })()}
+                          </dd>
+                        </div>
+                        <div>
+                          <dt className="text-xs text-white/60">{t('matchmakingPanel.profileForm.partnerGender')}</dt>
+                          <dd className="font-semibold">
+                            {(() => {
+                              const g = String(matchmaking?.lookingForGender || '').toLowerCase().trim();
+                              if (!g) return '-';
+                              const key = `matchmakingPage.form.options.gender.${g}`;
+                              const v = t(key);
+                              return v && v !== key ? v : g;
                             })()}
                           </dd>
                         </div>
@@ -3091,20 +3678,134 @@ export default function Panel() {
                           <dt className="text-xs text-white/60">{t('matchmakingPage.form.labels.maritalStatus')}</dt>
                           <dd className="font-semibold">
                             {(() => {
-                              const v = String(matchmaking?.details?.maritalStatus || '').trim();
-                              return v ? (t(`matchmakingPage.form.options.maritalStatus.${v}`) || v) : '-';
+                              const v = matchmaking?.details?.maritalStatus;
+                              return tOption('maritalStatus', v) || (String(v || '').trim() || '-');
                             })()}
                           </dd>
                         </div>
                         <div>
                           <dt className="text-xs text-white/60">{t('matchmakingPage.form.labels.education')}</dt>
-                          <dd className="font-semibold break-words">{matchmaking?.details?.education || '-'}</dd>
+                          <dd className="font-semibold break-words">
+                            {(() => {
+                              const v = matchmaking?.details?.education;
+                              return tOption('education', v) || (String(v || '').trim() || '-');
+                            })()}
+                          </dd>
                         </div>
                         <div>
                           <dt className="text-xs text-white/60">{t('matchmakingPage.form.labels.occupation')}</dt>
-                          <dd className="font-semibold break-words">{matchmaking?.details?.occupation || '-'}</dd>
+                          <dd className="font-semibold break-words">
+                            {(() => {
+                              const v = matchmaking?.details?.occupation;
+                              return tOption('occupation', v) || (String(v || '').trim() || '-');
+                            })()}
+                          </dd>
                         </div>
                       </dl>
+
+                      {(() => {
+                        const d = matchmaking?.details && typeof matchmaking.details === 'object' ? matchmaking.details : {};
+                        const p = matchmaking?.partnerPreferences && typeof matchmaking.partnerPreferences === 'object' ? matchmaking.partnerPreferences : {};
+
+                        const formatPref = (raw) => {
+                          const s = String(raw || '').trim().toLowerCase();
+                          if (!s) return '-';
+                          if (s === 'doesnt_matter' || s === 'doesntmatter') return t('matchmakingPage.form.options.common.doesntMatter');
+                          if (s === 'yes' || s === 'no' || s === 'true' || s === 'false' || s === '1' || s === '0') return tYesNoCommon(s);
+                          return String(raw || '').trim() || '-';
+                        };
+
+                        const formatRange = (min, max, unit = '') => {
+                          const a = String(min ?? '').trim();
+                          const b = String(max ?? '').trim();
+                          if (!a && !b) return '-';
+                          if (a && b) return unit ? `${a}${unit} - ${b}${unit}` : `${a} - ${b}`;
+                          return unit ? `${a || b}${unit}` : String(a || b);
+                        };
+
+                        const formatPartnerCommunicationMethods = (raw) => {
+                          const list = Array.isArray(raw) ? raw : [];
+                          const labels = list
+                            .map((m) => {
+                              const id = normalizeEnumValue(m);
+                              if (!id) return '';
+                              const key = `matchmakingPage.form.options.partnerCommunicationMethods.${id}`;
+                              const label = t(key);
+                              return label && label !== key ? label : String(m || '');
+                            })
+                            .filter(Boolean);
+                          return labels.length ? labels.join(', ') : '-';
+                        };
+
+                        const extraPersonalRows = filterEmptyRows([
+                          { label: t('matchmakingPage.form.labels.height'), value: formatMaybeValue(d?.heightCm, ' cm') },
+                          { label: t('matchmakingPage.form.labels.weight'), value: formatMaybeValue(d?.weightKg, ' kg') },
+                          { label: t('matchmakingPage.form.labels.educationDepartment'), value: formatMaybeValue(d?.educationDepartment) },
+                          { label: t('matchmakingPage.form.labels.hasChildren'), value: formatMaybeValue(tYesNoCommon(d?.hasChildren) || d?.hasChildren) },
+                          { label: t('matchmakingPage.form.labels.childrenCount'), value: formatMaybeValue(d?.childrenCount) },
+                          { label: t('matchmakingPage.form.labels.incomeLevel'), value: formatMaybeValue(tOption('income', d?.incomeLevel) || d?.incomeLevel) },
+                          { label: t('matchmakingPage.form.labels.religion'), value: formatMaybeValue(tOption('religion', d?.religion) || d?.religion) },
+                          { label: t('matchmakingPage.form.labels.religiousValues'), value: formatMaybeValue(d?.religiousValues) },
+                          { label: t('matchmakingPage.form.labels.familyApprovalStatus'), value: formatMaybeValue(tOption('familyApproval', d?.familyApprovalStatus) || d?.familyApprovalStatus) },
+                          { label: t('matchmakingPage.form.labels.marriageTimeline'), value: formatMaybeValue(tOption('timeline', d?.marriageTimeline) || d?.marriageTimeline) },
+                          { label: t('matchmakingPage.form.labels.relocationWillingness'), value: formatMaybeValue(tYesNoCommon(d?.relocationWillingness) || d?.relocationWillingness) },
+                          { label: t('matchmakingPage.form.labels.preferredLivingCountry'), value: formatMaybeValue(tOption('livingCountry', d?.preferredLivingCountry) || d?.preferredLivingCountry) },
+                          { label: t('matchmakingPage.form.labels.communicationLanguages'), value: formatMaybeValue(tOption('commLanguage', d?.communicationLanguage) || d?.communicationLanguage) },
+                          { label: t('matchmakingPage.form.labels.foreignLanguages'), value: formatMaybeValue(formatLanguagesSummary(d?.languages)) },
+                          { label: t('matchmakingPage.form.labels.smoking'), value: formatMaybeValue(tYesNoCommon(d?.smoking) || d?.smoking) },
+                          { label: t('matchmakingPage.form.labels.alcohol'), value: formatMaybeValue(tYesNoCommon(d?.alcohol) || d?.alcohol) },
+                        ]);
+
+                        const prefRows = filterEmptyRows([
+                          { label: t('matchmakingPage.form.labels.partnerHeightMin'), value: formatMaybeValue(p?.heightMinCm, ' cm') },
+                          { label: t('matchmakingPage.form.labels.partnerHeightMax'), value: formatMaybeValue(p?.heightMaxCm, ' cm') },
+                          { label: t('matchmakingPage.form.labels.partnerAgeMaxOlderYears'), value: formatMaybeValue(p?.ageMaxOlderYears) },
+                          { label: t('matchmakingPage.form.labels.partnerAgeMaxYoungerYears'), value: formatMaybeValue(p?.ageMaxYoungerYears) },
+                          { label: t('matchmakingPage.form.labels.partnerMaritalStatus'), value: formatPref(tOption('maritalStatus', p?.maritalStatus) || p?.maritalStatus) },
+                          { label: t('matchmakingPage.form.labels.partnerReligion'), value: formatPref(tOption('religion', p?.religion) || p?.religion) },
+                          { label: t('matchmakingPage.form.labels.partnerLivingCountry'), value: formatPref(tOption('livingCountry', p?.livingCountry) || p?.livingCountry) },
+                          { label: t('matchmakingPage.form.labels.partnerChildrenPreference'), value: formatPref(p?.childrenPreference) },
+                          { label: t('matchmakingPage.form.labels.partnerEducationPreference'), value: formatPref(tOption('education', p?.educationPreference) || p?.educationPreference) },
+                          { label: t('matchmakingPage.form.labels.partnerOccupationPreference'), value: formatPref(tOption('occupation', p?.occupationPreference) || p?.occupationPreference) },
+                          { label: t('matchmakingPage.form.labels.partnerSmokingPreference'), value: formatPref(p?.smokingPreference) },
+                          { label: t('matchmakingPage.form.labels.partnerAlcoholPreference'), value: formatPref(p?.alcoholPreference) },
+                          { label: t('matchmakingPage.form.labels.partnerCommunicationMethods'), value: formatPartnerCommunicationMethods(p?.communicationMethods) },
+                        ]);
+
+                        if (!extraPersonalRows.length && !prefRows.length) return null;
+
+                        return (
+                          <div className="grid grid-cols-1 gap-3">
+                            {extraPersonalRows.length ? (
+                              <div className="pt-3 border-t border-white/10">
+                                <p className="text-xs font-semibold text-white">{t('matchmakingPanel.profileForm.moreDetailsTitle')}</p>
+                                <dl className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                  {extraPersonalRows.map((r) => (
+                                    <div key={r.label}>
+                                      <dt className="text-xs text-white/60">{r.label}</dt>
+                                      <dd className="font-semibold break-words">{r.value}</dd>
+                                    </div>
+                                  ))}
+                                </dl>
+                              </div>
+                            ) : null}
+
+                            {prefRows.length ? (
+                              <div className="pt-3 border-t border-white/10">
+                                <p className="text-xs font-semibold text-white">{t('matchmakingPanel.profileForm.partnerPrefsTitle')}</p>
+                                <dl className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                  {prefRows.map((r) => (
+                                    <div key={r.label}>
+                                      <dt className="text-xs text-white/60">{r.label}</dt>
+                                      <dd className="font-semibold break-words">{r.value}</dd>
+                                    </div>
+                                  ))}
+                                </dl>
+                              </div>
+                            ) : null}
+                          </div>
+                        );
+                      })()}
 
                       <div className="grid grid-cols-1 gap-3">
                         <div>
@@ -3138,8 +3839,12 @@ export default function Panel() {
                           </div>
                         ) : null}
 
-                        {editOnceForm && !matchmaking?.userEditOnceUsedAt ? (
-                          <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        {editOnceForm ? (
+                          <fieldset
+                            disabled={!!matchmaking?.userEditOnceUsedAt}
+                            className={matchmaking?.userEditOnceUsedAt ? 'mt-3 opacity-70' : 'mt-3'}
+                          >
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                             <label className="text-xs text-white/70">
                               {t('matchmakingPage.form.labels.fullName')}
                               <input
@@ -3288,8 +3993,28 @@ export default function Panel() {
                             </label>
 
                             <label className="text-xs text-white/70">
+                              {t('matchmakingPage.form.labels.maritalStatus')}
+                              <select
+                                value={editOnceForm?.details?.maritalStatus || ''}
+                                onChange={(e) =>
+                                  setEditOnceForm((p) => ({
+                                    ...(p || {}),
+                                    details: { ...((p || {})?.details || {}), maritalStatus: e.target.value },
+                                  }))
+                                }
+                                className="mt-1 w-full rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-sm text-white"
+                              >
+                                {maritalStatusOptions.map((o) => (
+                                  <option key={o.id} value={o.id}>
+                                    {o.label}
+                                  </option>
+                                ))}
+                              </select>
+                            </label>
+
+                            <label className="text-xs text-white/70">
                               {t('matchmakingPage.form.labels.education')}
-                              <input
+                              <select
                                 value={editOnceForm?.details?.education || ''}
                                 onChange={(e) =>
                                   setEditOnceForm((p) => ({
@@ -3297,13 +4022,26 @@ export default function Panel() {
                                     details: { ...((p || {})?.details || {}), education: e.target.value },
                                   }))
                                 }
-                                className="mt-1 w-full rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-white/40"
-                              />
+                                className="mt-1 w-full rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-sm text-white"
+                              >
+                                {(() => {
+                                  const current = String(editOnceForm?.details?.education || '').trim();
+                                  const has = !!current && educationOptions.some((o) => o.id === current);
+                                  return has || !current ? null : (
+                                    <option value={current}>{current}</option>
+                                  );
+                                })()}
+                                {educationOptions.map((o) => (
+                                  <option key={o.id} value={o.id}>
+                                    {o.label}
+                                  </option>
+                                ))}
+                              </select>
                             </label>
 
                             <label className="text-xs text-white/70">
                               {t('matchmakingPage.form.labels.occupation')}
-                              <input
+                              <select
                                 value={editOnceForm?.details?.occupation || ''}
                                 onChange={(e) =>
                                   setEditOnceForm((p) => ({
@@ -3311,9 +4049,281 @@ export default function Panel() {
                                     details: { ...((p || {})?.details || {}), occupation: e.target.value },
                                   }))
                                 }
+                                className="mt-1 w-full rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-sm text-white"
+                              >
+                                {(() => {
+                                  const current = String(editOnceForm?.details?.occupation || '').trim();
+                                  const has = !!current && occupationOptions.some((o) => o.id === current);
+                                  return has || !current ? null : (
+                                    <option value={current}>{current}</option>
+                                  );
+                                })()}
+                                {occupationOptions.map((o) => (
+                                  <option key={o.id} value={o.id}>
+                                    {o.label}
+                                  </option>
+                                ))}
+                              </select>
+                            </label>
+
+                            <div className="sm:col-span-2 pt-2 mt-1 border-t border-white/10">
+                              <p className="text-xs font-semibold text-white">{t('matchmakingPanel.profileForm.partnerPrefsTitle')}</p>
+                              <p className="mt-1 text-[11px] text-white/60">{t('matchmakingPage.form.sections.partnerPreferences')}</p>
+                            </div>
+
+                            <label className="text-xs text-white/70">
+                              {t('matchmakingPage.form.labels.partnerHeightMin')}
+                              <input
+                                inputMode="numeric"
+                                value={editOnceForm?.partnerPreferences?.heightMinCm ?? ''}
+                                onChange={(e) =>
+                                  setEditOnceForm((p) => ({
+                                    ...(p || {}),
+                                    partnerPreferences: { ...((p || {})?.partnerPreferences || {}), heightMinCm: e.target.value },
+                                  }))
+                                }
                                 className="mt-1 w-full rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-white/40"
+                                placeholder="160"
                               />
                             </label>
+
+                            <label className="text-xs text-white/70">
+                              {t('matchmakingPage.form.labels.partnerHeightMax')}
+                              <input
+                                inputMode="numeric"
+                                value={editOnceForm?.partnerPreferences?.heightMaxCm ?? ''}
+                                onChange={(e) =>
+                                  setEditOnceForm((p) => ({
+                                    ...(p || {}),
+                                    partnerPreferences: { ...((p || {})?.partnerPreferences || {}), heightMaxCm: e.target.value },
+                                  }))
+                                }
+                                className="mt-1 w-full rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-white/40"
+                                placeholder="190"
+                              />
+                            </label>
+
+                            <label className="text-xs text-white/70">
+                              {t('matchmakingPage.form.labels.partnerAgeMaxOlderYears')}
+                              <input
+                                inputMode="numeric"
+                                value={editOnceForm?.partnerPreferences?.ageMaxOlderYears ?? ''}
+                                onChange={(e) =>
+                                  setEditOnceForm((p) => ({
+                                    ...(p || {}),
+                                    partnerPreferences: { ...((p || {})?.partnerPreferences || {}), ageMaxOlderYears: e.target.value },
+                                  }))
+                                }
+                                className="mt-1 w-full rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-white/40"
+                                placeholder="5"
+                              />
+                            </label>
+
+                            <label className="text-xs text-white/70">
+                              {t('matchmakingPage.form.labels.partnerAgeMaxYoungerYears')}
+                              <input
+                                inputMode="numeric"
+                                value={editOnceForm?.partnerPreferences?.ageMaxYoungerYears ?? ''}
+                                onChange={(e) =>
+                                  setEditOnceForm((p) => ({
+                                    ...(p || {}),
+                                    partnerPreferences: { ...((p || {})?.partnerPreferences || {}), ageMaxYoungerYears: e.target.value },
+                                  }))
+                                }
+                                className="mt-1 w-full rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-white/40"
+                                placeholder="3"
+                              />
+                            </label>
+
+                            <label className="text-xs text-white/70">
+                              {t('matchmakingPage.form.labels.partnerMaritalStatus')}
+                              <select
+                                value={editOnceForm?.partnerPreferences?.maritalStatus || ''}
+                                onChange={(e) =>
+                                  setEditOnceForm((p) => ({
+                                    ...(p || {}),
+                                    partnerPreferences: { ...((p || {})?.partnerPreferences || {}), maritalStatus: e.target.value },
+                                  }))
+                                }
+                                className="mt-1 w-full rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-sm text-white"
+                              >
+                                {partnerMaritalStatusOptions.map((o) => (
+                                  <option key={o.id} value={o.id}>
+                                    {o.label}
+                                  </option>
+                                ))}
+                              </select>
+                            </label>
+
+                            <label className="text-xs text-white/70">
+                              {t('matchmakingPage.form.labels.partnerReligion')}
+                              <select
+                                value={editOnceForm?.partnerPreferences?.religion || ''}
+                                onChange={(e) =>
+                                  setEditOnceForm((p) => ({
+                                    ...(p || {}),
+                                    partnerPreferences: { ...((p || {})?.partnerPreferences || {}), religion: e.target.value },
+                                  }))
+                                }
+                                className="mt-1 w-full rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-sm text-white"
+                              >
+                                {religionOptions.map((o) => (
+                                  <option key={o.id} value={o.id}>
+                                    {o.label}
+                                  </option>
+                                ))}
+                              </select>
+                            </label>
+
+                            <label className="text-xs text-white/70">
+                              {t('matchmakingPage.form.labels.partnerLivingCountry')}
+                              <select
+                                value={editOnceForm?.partnerPreferences?.livingCountry || ''}
+                                onChange={(e) =>
+                                  setEditOnceForm((p) => ({
+                                    ...(p || {}),
+                                    partnerPreferences: { ...((p || {})?.partnerPreferences || {}), livingCountry: e.target.value },
+                                  }))
+                                }
+                                className="mt-1 w-full rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-sm text-white"
+                              >
+                                {livingCountryOptions.map((o) => (
+                                  <option key={o.id} value={o.id}>
+                                    {o.label}
+                                  </option>
+                                ))}
+                              </select>
+                            </label>
+
+                            <label className="text-xs text-white/70">
+                              {t('matchmakingPage.form.labels.partnerChildrenPreference')}
+                              <select
+                                value={editOnceForm?.partnerPreferences?.childrenPreference || ''}
+                                onChange={(e) =>
+                                  setEditOnceForm((p) => ({
+                                    ...(p || {}),
+                                    partnerPreferences: { ...((p || {})?.partnerPreferences || {}), childrenPreference: e.target.value },
+                                  }))
+                                }
+                                className="mt-1 w-full rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-sm text-white"
+                              >
+                                {yesNoDoesntMatterOptions.map((o) => (
+                                  <option key={o.id} value={o.id}>
+                                    {o.label}
+                                  </option>
+                                ))}
+                              </select>
+                            </label>
+
+                            <label className="text-xs text-white/70">
+                              {t('matchmakingPage.form.labels.partnerEducationPreference')}
+                              <select
+                                value={editOnceForm?.partnerPreferences?.educationPreference || ''}
+                                onChange={(e) =>
+                                  setEditOnceForm((p) => ({
+                                    ...(p || {}),
+                                    partnerPreferences: { ...((p || {})?.partnerPreferences || {}), educationPreference: e.target.value },
+                                  }))
+                                }
+                                className="mt-1 w-full rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-sm text-white"
+                              >
+                                {partnerEducationPreferenceOptions.map((o) => (
+                                  <option key={o.id} value={o.id}>
+                                    {o.label}
+                                  </option>
+                                ))}
+                              </select>
+                            </label>
+
+                            <label className="text-xs text-white/70">
+                              {t('matchmakingPage.form.labels.partnerOccupationPreference')}
+                              <select
+                                value={editOnceForm?.partnerPreferences?.occupationPreference || ''}
+                                onChange={(e) =>
+                                  setEditOnceForm((p) => ({
+                                    ...(p || {}),
+                                    partnerPreferences: { ...((p || {})?.partnerPreferences || {}), occupationPreference: e.target.value },
+                                  }))
+                                }
+                                className="mt-1 w-full rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-sm text-white"
+                              >
+                                {partnerOccupationPreferenceOptions.map((o) => (
+                                  <option key={o.id} value={o.id}>
+                                    {o.label}
+                                  </option>
+                                ))}
+                              </select>
+                            </label>
+
+                            <label className="text-xs text-white/70">
+                              {t('matchmakingPage.form.labels.partnerSmokingPreference')}
+                              <select
+                                value={editOnceForm?.partnerPreferences?.smokingPreference || ''}
+                                onChange={(e) =>
+                                  setEditOnceForm((p) => ({
+                                    ...(p || {}),
+                                    partnerPreferences: { ...((p || {})?.partnerPreferences || {}), smokingPreference: e.target.value },
+                                  }))
+                                }
+                                className="mt-1 w-full rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-sm text-white"
+                              >
+                                {yesNoDoesntMatterOptions.map((o) => (
+                                  <option key={o.id} value={o.id}>
+                                    {o.label}
+                                  </option>
+                                ))}
+                              </select>
+                            </label>
+
+                            <label className="text-xs text-white/70">
+                              {t('matchmakingPage.form.labels.partnerAlcoholPreference')}
+                              <select
+                                value={editOnceForm?.partnerPreferences?.alcoholPreference || ''}
+                                onChange={(e) =>
+                                  setEditOnceForm((p) => ({
+                                    ...(p || {}),
+                                    partnerPreferences: { ...((p || {})?.partnerPreferences || {}), alcoholPreference: e.target.value },
+                                  }))
+                                }
+                                className="mt-1 w-full rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-sm text-white"
+                              >
+                                {yesNoDoesntMatterOptions.map((o) => (
+                                  <option key={o.id} value={o.id}>
+                                    {o.label}
+                                  </option>
+                                ))}
+                              </select>
+                            </label>
+
+                            <div className="text-xs text-white/70 sm:col-span-2">
+                              <p className="text-xs text-white/70">{t('matchmakingPage.form.labels.partnerCommunicationMethods')}</p>
+                              <div className="mt-2 grid grid-cols-1 sm:grid-cols-3 gap-2">
+                                {partnerCommunicationMethodOptions.map((opt) => (
+                                  <label key={opt.id} className="flex items-start gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-xs text-white/85">
+                                    <input
+                                      type="checkbox"
+                                      className="mt-0.5"
+                                      checked={
+                                        Array.isArray(editOnceForm?.partnerPreferences?.communicationMethods)
+                                          ? editOnceForm.partnerPreferences.communicationMethods.includes(opt.id)
+                                          : false
+                                      }
+                                      onChange={() =>
+                                        setEditOnceForm((prev) => {
+                                          const prevObj = prev && typeof prev === 'object' ? prev : {};
+                                          const prevPartner = prevObj.partnerPreferences && typeof prevObj.partnerPreferences === 'object' ? prevObj.partnerPreferences : {};
+                                          const list = Array.isArray(prevPartner.communicationMethods) ? prevPartner.communicationMethods : [];
+                                          const has = list.includes(opt.id);
+                                          const next = has ? list.filter((x) => x !== opt.id) : [...list, opt.id];
+                                          return { ...prevObj, partnerPreferences: { ...prevPartner, communicationMethods: next } };
+                                        })
+                                      }
+                                    />
+                                    <span>{opt.label}</span>
+                                  </label>
+                                ))}
+                              </div>
+                            </div>
 
                             <label className="text-xs text-white/70 sm:col-span-2">
                               {t('matchmakingPage.form.labels.about')}
@@ -3335,24 +4345,21 @@ export default function Panel() {
                               />
                             </label>
                           </div>
+                          </fieldset>
                         ) : null}
 
-                        <button
-                          type="button"
-                          onClick={submitEditOnce}
-                          disabled={
-                            !editOnceForm ||
-                            !matchmaking ||
-                            matchmakingLoading ||
-                            editOnceAction.loading ||
-                            !!matchmaking?.userEditOnceUsedAt
-                          }
-                          className="mt-3 px-4 py-2 rounded-full bg-amber-300 text-slate-950 text-sm font-semibold hover:bg-amber-200 disabled:opacity-60"
-                        >
-                          {editOnceAction.loading
-                            ? t('matchmakingPanel.profileForm.editOnceSaving')
-                            : t('matchmakingPanel.profileForm.editOnceCta')}
-                        </button>
+                        {matchmaking?.userEditOnceUsedAt ? null : (
+                          <button
+                            type="button"
+                            onClick={submitEditOnce}
+                            disabled={!editOnceForm || !matchmaking || matchmakingLoading || editOnceAction.loading}
+                            className="mt-3 px-4 py-2 rounded-full bg-amber-300 text-slate-950 text-sm font-semibold hover:bg-amber-200 disabled:opacity-60"
+                          >
+                            {editOnceAction.loading
+                              ? t('matchmakingPanel.profileForm.editOnceSaving')
+                              : t('matchmakingPanel.profileForm.editOnceCta')}
+                          </button>
+                        )}
                       </div>
                     </div>
                   )}
@@ -4174,6 +5181,19 @@ export default function Panel() {
                       <summary className="cursor-pointer text-sm font-semibold text-white">{t('matchmakingPanel.rules.title')}</summary>
                       <div className="mt-2 text-sm text-white/60">{t('matchmakingPanel.rules.lead')}</div>
                       <div className="mt-3 space-y-4 text-sm text-white/80">
+                        <div className="rounded-xl border border-white/10 bg-white/[0.04] p-3">
+                          <p className="text-xs font-semibold text-white">{t('matchmakingPanel.rules.why.title')}</p>
+                          <p className="mt-2 text-sm text-white/75">{t('matchmakingPanel.rules.why.body')}</p>
+                          {Array.isArray(t('matchmakingPanel.rules.why.points', { returnObjects: true })) ? (
+                            <ul className="mt-3 list-disc pl-5 space-y-2 text-sm text-white/80">
+                              {t('matchmakingPanel.rules.why.points', { returnObjects: true }).map((x, idx) => (
+                                <li key={idx}>{x}</li>
+                              ))}
+                            </ul>
+                          ) : null}
+                          <p className="mt-3 text-sm text-white/70 whitespace-pre-line">{t('matchmakingPanel.rules.why.note')}</p>
+                        </div>
+
                         <div>
                           <p className="text-xs font-semibold text-white">{t('matchmakingPanel.rules.promise.title')}</p>
                           <ul className="mt-2 list-disc pl-5 space-y-2">
@@ -4267,6 +5287,21 @@ export default function Panel() {
                       </div>
                     ) : null}
                   </div>
+
+                  {hasConfirmedMatch ? (
+                    <div className="mt-4 rounded-2xl border border-emerald-300/20 bg-emerald-500/10 p-4">
+                      <p className="text-sm font-semibold text-white">{t('matchmakingPanel.profile.guidanceAfterConfirm.title')}</p>
+                      <p className="mt-2 text-sm text-white/80 leading-relaxed">{t('matchmakingPanel.profile.guidanceAfterConfirm.body')}</p>
+                      <div className="mt-3">
+                        <Link
+                          to="/wedding"
+                          className="inline-flex items-center rounded-full px-4 py-2 bg-white/10 text-white text-sm font-semibold hover:bg-white/15"
+                        >
+                          {t('matchmakingPanel.profile.guidanceAfterConfirm.cta')}
+                        </Link>
+                      </div>
+                    </div>
+                  ) : null}
                 </div>
 
                 <div className={`${dashboardTab === 'matches' ? '' : 'hidden'} lg:col-span-7 lg:col-start-6 p-4 lg:sticky lg:top-24 self-start`}>
@@ -4276,6 +5311,20 @@ export default function Panel() {
                         <>
                           <p className="text-sm font-semibold text-white">{t('matchmakingPanel.matches.title')}</p>
                           <p className="text-xs text-white/60 mt-1">{t('matchmakingPanel.matches.subtitle')}</p>
+
+                          <div className="mt-3 rounded-xl border border-white/10 bg-white/[0.04] p-3 text-white/80 text-xs">
+                            <p className="font-semibold text-white">{t('matchmakingPanel.matches.inactivityNotice.title')}</p>
+                            <p className="mt-1 text-white/70">{t('matchmakingPanel.matches.inactivityNotice.body')}</p>
+                          </div>
+
+                          {newUserSlotInfo.active ? (
+                            <div className="mt-3 rounded-xl border border-sky-300/20 bg-sky-500/10 p-3 text-sky-100 text-xs">
+                              <p className="font-semibold text-white">{t('matchmakingPanel.matches.newUserSlotNotice.title')}</p>
+                              <p className="mt-1 text-sky-100/80">
+                                {t('matchmakingPanel.matches.newUserSlotNotice.body', { threshold: newUserSlotInfo.threshold })}
+                              </p>
+                            </div>
+                          ) : null}
                         </>
                       ) : null}
                     </div>
@@ -4329,6 +5378,12 @@ export default function Panel() {
                   {matchmakingAction.error ? (
                     <div className="mt-3 rounded-xl border border-rose-300/30 bg-rose-500/10 p-3 text-rose-100 text-sm">
                       {matchmakingAction.error}
+                    </div>
+                  ) : null}
+
+                  {matchmakingAction.success ? (
+                    <div className="mt-3 rounded-xl border border-emerald-300/30 bg-emerald-500/10 p-3 text-emerald-100 text-sm">
+                      {matchmakingAction.success}
                     </div>
                   ) : null}
 
@@ -4492,6 +5547,30 @@ export default function Panel() {
                                 <p className="text-xs text-white/60">
                                   {other.city ? `${other.city}${other.country ? ` / ${other.country}` : ''}` : (other.country || '-')}
                                 </p>
+
+                                {(() => {
+                                  const presence = other?.presence && typeof other.presence === 'object' ? other.presence : {};
+                                  const lastSeenAtMs =
+                                    typeof presence?.lastSeenAtMs === 'number' && Number.isFinite(presence.lastSeenAtMs)
+                                      ? presence.lastSeenAtMs
+                                      : (typeof other?.lastSeenAtMs === 'number' && Number.isFinite(other.lastSeenAtMs) ? other.lastSeenAtMs : 0);
+
+                                  const label = formatPresenceLabel(lastSeenAtMs);
+                                  const online = !!lastSeenAtMs && label === t('matchmakingPanel.matches.presence.online');
+
+                                  return (
+                                    <div className="mt-1 flex items-center gap-2 text-[11px] text-white/65">
+                                      <span
+                                        className={
+                                          'inline-block h-2 w-2 rounded-full ' +
+                                          (online ? 'bg-emerald-400 shadow-[0_0_0_3px_rgba(52,211,153,0.15)]' : 'bg-white/20')
+                                        }
+                                        aria-hidden="true"
+                                      />
+                                      <span>{label}</span>
+                                    </div>
+                                  );
+                                })()}
                               </div>
                               <div className="text-left sm:text-right">
                                 <p className="text-xs text-white/60">{t('matchmakingPanel.common.status')}</p>
@@ -5272,10 +6351,37 @@ export default function Panel() {
                                           ? t('matchmakingPanel.actions.requestingNew')
                                           : t('matchmakingPanel.actions.requestNewWithRemaining', { remaining: newMatchQuotaDisplay.remaining, limit: newMatchQuotaDisplay.limit })}
                                       </button>
+
+                                      <button
+                                        type="button"
+                                        disabled={
+                                          freeSlotAction.loading ||
+                                          (typeof freeSlotQuotaInfo?.remaining === 'number' && freeSlotQuotaInfo.remaining <= 0)
+                                        }
+                                        onClick={() => freeSlot(m.id)}
+                                        className="px-4 py-2 rounded-full border border-white/15 text-white/90 text-sm font-semibold hover:bg-white/[0.08] disabled:opacity-60"
+                                        title={t('matchmakingPanel.actions.freeSlotHint')}
+                                      >
+                                        {freeSlotAction.loading && freeSlotAction.matchId === m.id
+                                          ? t('matchmakingPanel.actions.requestingNew')
+                                          : t('matchmakingPanel.actions.freeSlot')}
+                                      </button>
                                     </div>
                                     <div className="mt-2 text-xs text-white/60">
                                       {t('matchmakingPanel.actions.requestNewQuotaHint', { remaining: newMatchQuotaDisplay.remaining, limit: newMatchQuotaDisplay.limit })}
+                                      <span className="ml-2">{t('matchmakingPanel.actions.freeSlotHint')}</span>
                                     </div>
+
+                                    {freeSlotAction.error && freeSlotAction.matchId === m.id ? (
+                                      <div className="mt-2 rounded-lg border border-rose-300/30 bg-rose-500/10 p-2 text-rose-100 text-xs">
+                                        {freeSlotAction.error}
+                                      </div>
+                                    ) : null}
+                                    {freeSlotAction.success && freeSlotAction.matchId === m.id ? (
+                                      <div className="mt-2 rounded-lg border border-emerald-300/30 bg-emerald-500/10 p-2 text-emerald-100 text-xs">
+                                        {freeSlotAction.success}
+                                      </div>
+                                    ) : null}
                                   </div>
                                 ) : null}
                               </div>
@@ -5299,6 +6405,60 @@ export default function Panel() {
                                     disabled={requestNewAction.loading}
                                     onClick={requestNewMatch}
                                     className="px-4 py-2 rounded-full border border-amber-300/30 text-amber-100 text-sm font-semibold hover:bg-amber-500/10 disabled:opacity-60"
+                                  >
+                                    {requestNewAction.loading
+                                      ? t('matchmakingPanel.actions.requestingNew')
+                                      : t('matchmakingPanel.actions.requestNewWithRemaining', { remaining: newMatchQuotaDisplay.remaining, limit: newMatchQuotaDisplay.limit })}
+                                  </button>
+                                </div>
+                              </div>
+                            ) : null}
+
+                            {m.status === 'cancelled' && String(m?.cancelledReason || '') === 'inactive_24h' ? (
+                              <div className="mt-3 rounded-xl border border-white/15 bg-white/[0.06] p-3 text-white/85 text-sm">
+                                <p className="font-semibold">{t('matchmakingPanel.matches.inactiveReset.title')}</p>
+                                <p className="mt-1 text-white/75">{t('matchmakingPanel.matches.inactiveReset.body')}</p>
+                                <div className="mt-3 flex flex-col sm:flex-row gap-2">
+                                  <button
+                                    type="button"
+                                    disabled={dismissAction.loading && dismissAction.matchId === m.id}
+                                    onClick={() => dismissMatch(m.id)}
+                                    className="px-4 py-2 rounded-full bg-slate-900 text-white text-sm font-semibold hover:bg-slate-800 disabled:opacity-60"
+                                  >
+                                    {t('matchmakingPanel.actions.dismissMatch')}
+                                  </button>
+                                  <button
+                                    type="button"
+                                    disabled={requestNewAction.loading}
+                                    onClick={requestNewMatch}
+                                    className="px-4 py-2 rounded-full border border-white/15 text-white/90 text-sm font-semibold hover:bg-white/[0.08] disabled:opacity-60"
+                                  >
+                                    {requestNewAction.loading
+                                      ? t('matchmakingPanel.actions.requestingNew')
+                                      : t('matchmakingPanel.actions.requestNewWithRemaining', { remaining: newMatchQuotaDisplay.remaining, limit: newMatchQuotaDisplay.limit })}
+                                  </button>
+                                </div>
+                              </div>
+                            ) : null}
+
+                            {m.status === 'cancelled' && String(m?.cancelledReason || '') === 'focus_active' ? (
+                              <div className="mt-3 rounded-xl border border-white/15 bg-white/[0.06] p-3 text-white/85 text-sm">
+                                <p className="font-semibold">{t('matchmakingPanel.matches.focusActiveReset.title')}</p>
+                                <p className="mt-1 text-white/75">{t('matchmakingPanel.matches.focusActiveReset.body')}</p>
+                                <div className="mt-3 flex flex-col sm:flex-row gap-2">
+                                  <button
+                                    type="button"
+                                    disabled={dismissAction.loading && dismissAction.matchId === m.id}
+                                    onClick={() => dismissMatch(m.id)}
+                                    className="px-4 py-2 rounded-full bg-slate-900 text-white text-sm font-semibold hover:bg-slate-800 disabled:opacity-60"
+                                  >
+                                    {t('matchmakingPanel.actions.dismissMatch')}
+                                  </button>
+                                  <button
+                                    type="button"
+                                    disabled={requestNewAction.loading}
+                                    onClick={requestNewMatch}
+                                    className="px-4 py-2 rounded-full border border-white/15 text-white/90 text-sm font-semibold hover:bg-white/[0.08] disabled:opacity-60"
                                   >
                                     {requestNewAction.loading
                                       ? t('matchmakingPanel.actions.requestingNew')
