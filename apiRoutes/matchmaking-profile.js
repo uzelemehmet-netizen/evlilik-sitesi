@@ -182,6 +182,9 @@ export default async function handler(req, res) {
             ageMax: asNum(partner?.ageMax),
             maritalStatus: safeStr(partner?.maritalStatus),
             religion: safeStr(partner?.religion),
+            communicationMethods: Array.isArray(partner?.communicationMethods)
+              ? partner.communicationMethods.map(safeStr).filter(Boolean).slice(0, 5)
+              : [],
             communicationLanguage: safeStr(partner?.communicationLanguage),
             communicationLanguageOther: safeStr(partner?.communicationLanguageOther),
             canCommunicateWithTranslationApp: !!partner?.canCommunicateWithTranslationApp,

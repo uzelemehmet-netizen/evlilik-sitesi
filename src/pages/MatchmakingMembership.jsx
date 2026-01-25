@@ -42,15 +42,16 @@ export default function MatchmakingMembership() {
       });
 
       const untilMs = typeof data?.validUntilMs === 'number' ? data.validUntilMs : 0;
-      const locale = i18n?.language === 'id' ? 'id-ID' : i18n?.language === 'en' ? 'en-US' : 'tr-TR';
       const untilText = untilMs
-        ? new Intl.DateTimeFormat(locale, { year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(untilMs))
+        ? new Intl.DateTimeFormat('en-GB', { year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(untilMs))
         : '';
 
       setAction({
         loading: false,
         error: '',
-        success: untilText ? t('matchmakingMembership.activatedUntil', { date: untilText }) : t('matchmakingMembership.activated'),
+        success: untilText
+          ? t('matchmakingMembership.freeActivatedInfo', { date: untilText, translatedCount: 200, dailyLimit: 3 })
+          : t('matchmakingMembership.activated'),
       });
 
       // Panel üyelik durumunu tekrar okuyabilsin diye kullanıcıyı panele döndür.
@@ -175,12 +176,12 @@ export default function MatchmakingMembership() {
           </div>
 
           {action.error ? (
-            <div className="mt-4 rounded-xl border border-rose-300/30 bg-rose-500/10 p-3 text-rose-100 text-sm">
+            <div className="mt-4 rounded-xl border border-rose-300/30 bg-rose-500/10 p-3 text-rose-100 text-sm whitespace-pre-line">
               {action.error}
             </div>
           ) : null}
           {action.success ? (
-            <div className="mt-4 rounded-xl border border-emerald-300/30 bg-emerald-500/10 p-3 text-emerald-100 text-sm">
+            <div className="mt-4 rounded-xl border border-emerald-300/30 bg-emerald-500/10 p-3 text-emerald-100 text-sm whitespace-pre-line">
               {action.success}
             </div>
           ) : null}

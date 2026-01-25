@@ -45,6 +45,7 @@ const overrides = {
     documents: "Dokumen",
     youtube: "YouTube",
     contact: "Kontak",
+    language: "Bahasa",
   },
 
   home: {
@@ -152,6 +153,7 @@ const overrides = {
       ],
     },
     cta: {
+        open: 'Pesan',
       eyebrow: 'Jangan ragu bertanya',
       title: 'Mari kita jelaskan semua hal tentang Indonesia bersama-sama',
       description:
@@ -334,9 +336,9 @@ const overrides = {
   matchmakingPage: {
     title: 'Pengajuan Pencocokan Pernikahan',
     intro:
-      'Halaman ini adalah formulir pengajuan untuk pencocokan yang berfokus pada pernikahan. Profil tidak dipublikasikan; pengajuan hanya ditinjau oleh tim kami. Jika ada kecocokan yang sesuai, kami akan menghubungi Anda.',
+      'Halaman ini adalah formulir pengajuan untuk pencocokan yang berfokus pada pernikahan. Profil tidak dipublikasikan; pengajuan hanya ditinjau oleh tim kami. Profil yang cocok akan ditampilkan di halaman Profil Anda.',
     privacyNote:
-      'Catatan privasi: Data pengajuan Anda diproses untuk pencocokan dan keamanan; profil Anda tidak ditampilkan secara publik. Jika ada pelanggaran aturan, Anda bisa menghubungi dukungan dengan bukti (screenshot, dll.).',
+      'Catatan privasi: Data pengajuan Anda diproses untuk pencocokan dan keamanan; profil Anda tidak ditampilkan secara publik. Jika ada pelanggaran aturan, Anda bisa menghubungi dukungan dengan bukti (screenshot, dll.). Pastikan informasi yang Anda isi akurat; Anda bertanggung jawab atas informasi yang Anda masukkan di formulir ini, dan pencocokan dilakukan berdasarkan informasi tersebut. Pengguna yang sengaja memberikan informasi palsu akan diblokir; jika memiliki keanggotaan aktif, akan dibatalkan dan tidak ada pengembalian dana.',
     authGate: {
       message: 'Untuk mengirim pengajuan pencocokan, silakan masuk atau buat akun.',
       login: 'Masuk',
@@ -466,6 +468,17 @@ const overrides = {
           widowed: 'Duda/Janda (ditinggal)',
           divorced: 'Bercerai',
           other: 'Lainnya',
+          doesnt_matter: 'Tidak masalah',
+        },
+        religiousValues: {
+          weak: 'Rendah',
+          medium: 'Sedang',
+          conservative: 'Konservatif',
+        },
+        partnerCommunicationMethods: {
+          ownLanguage: 'Bahasa saya',
+          foreignLanguage: 'Bahasa asing',
+          translationApp: 'Aplikasi terjemahan',
         },
         education: {
           secondary: 'SMP',
@@ -648,7 +661,9 @@ const overrides = {
     forceInfo:
       "Aksi ini meminta login ulang. Silakan masuk kembali.",
     googleCta: "Lanjut dengan Google",
+    googleSignupCta: "Daftar dengan Google",
     redirecting: "Mengarahkan ke masuk Google…",
+    signupGuide: "Untuk mendaftar, pilih jenis kelamin dan kewarganegaraan, lalu konfirmasi batas usia.",
     or: "atau",
     labels: {
       email: 'Email',
@@ -676,6 +691,8 @@ const overrides = {
       nationalityTr: 'Turki',
       nationalityId: 'Indonesia',
       nationalityOther: 'Lainnya',
+      ageConfirm: 'Saya mengonfirmasi bahwa saya berusia minimal {{minAge}} tahun. (Buka perjanjian untuk detail)',
+      ageConfirmLink: 'Perjanjian',
     },
     forgotHint: {
       prefix: 'Jika Anda lupa kata sandi, klik',
@@ -683,7 +700,7 @@ const overrides = {
     },
     legal: {
       prefix: 'Dengan melanjutkan, Anda menyetujui',
-      contract: 'Kontrak paket tur',
+      contract: 'Perjanjian Pengguna / Keanggotaan',
       cancelRefund: 'Kebijakan pembatalan & refund',
       privacy: 'Kebijakan Privasi',
     },
@@ -698,6 +715,7 @@ const overrides = {
       genderRequired: 'Pilih jenis kelamin untuk mendaftar.',
       nationalityRequired: 'Pilih kewarganegaraan untuk mendaftar.',
       nationalityOtherRequired: 'Tuliskan kewarganegaraan Anda.',
+      ageConfirmRequired: 'Untuk mendaftar, Anda harus mengonfirmasi bahwa Anda berusia minimal {{minAge}} tahun.',
       loginFailed: 'Gagal masuk.',
       resetEmailRequired: 'Masukkan email untuk mereset kata sandi.',
       resetFailed: 'Tidak dapat mengirim email reset kata sandi.',
@@ -1086,6 +1104,7 @@ const overrides = {
       loading: 'Memproses…',
       alreadyActive: 'Keanggotaan Anda sudah aktif',
       successActivated: 'Keanggotaan Anda diaktifkan.',
+      promoActivated: 'Paket Eco Anda diaktifkan gratis. Berakhir pada {{date}} (sisa {{count}} hari).',
       successCancelled: 'Keanggotaan Anda dibatalkan.',
     },
 
@@ -1162,7 +1181,12 @@ const overrides = {
     matches: {
       title: 'Kecocokan Anda',
       subtitle: 'Maksimal 3 / 5 / 10 kandidat ditampilkan sesuai paket Anda.',
-      empty: 'Saat ini tidak ada kecocokan untuk ditampilkan.',
+      empty: 'Ketika ditemukan kecocokan yang sesuai dengan profil Anda, akan muncul di sini. Simpan halaman ini di ponsel atau komputer Anda agar mudah dibuka kembali saat ingin mengecek.',
+      savePage: 'Simpan halaman',
+      savePageAlready: 'Halaman ini sudah ditambahkan ke layar utama / terpasang sebagai aplikasi.',
+      savePageIosHint: 'iPhone/iPad: Di Safari, ketuk Bagikan → “Tambah ke Layar Utama”. (Tautan disalin.)',
+      savePageAndroidHint: 'Android: Dari menu browser pilih “Tambahkan ke layar utama” atau “Instal aplikasi”. (Tautan disalin.)',
+      savePageDesktopHint: 'Komputer: Dari menu browser pilih “Instal aplikasi” (jika ada) atau tambahkan bookmark (Ctrl+D). (Tautan disalin.)',
       waitingOther: 'Menunggu jawaban pihak lain.',
       mutualAcceptedNotice: 'Kedua pihak menyetujui. Anda bisa memilih langkah berikutnya.',
       rejectedByOther: {
@@ -1250,6 +1274,8 @@ const overrides = {
     activating: 'Mengaktifkan…',
     activated: 'Keanggotaan diaktifkan.',
     activatedUntil: 'Keanggotaan diaktifkan. Berlaku sampai: {{date}}',
+    freeActivatedInfo:
+      'Keanggotaan gratis Anda berlaku sampai {{date}}.\nDengan keanggotaan ini, Anda dapat like/tolak profil kecocokan dan menggunakan {{translatedCount}} pesan terjemahan.\nBatas ganti kecocokan harian Anda adalah {{dailyLimit}}.',
     promoExpired: 'Promo berakhir. Setelah {{date}}, aktivasi berbayar dan aktif setelah pembayaran.',
     activateFailed: 'Tidak dapat mengaktifkan keanggotaan. Silakan coba lagi.',
     errors: {
@@ -3177,18 +3203,18 @@ export default {
           photoHint:
             'Unggah file gambar saja. Sistem akan mengompres dan mengunggah otomatis (disarankan: foto jelas, terbaru, wajah terlihat).',
           consents: {
-            age: 'Saya mengonfirmasi bahwa saya berusia 18+.',
+            age: 'Saya mengonfirmasi bahwa saya berusia {{minAge}}+.',
             privacy: 'Saya telah membaca <privacyLink>Kebijakan Privasi</privacyLink> dan menyetujui pemrosesan data untuk evaluasi/komunikasi.',
             terms: 'Saya telah membaca dan menyetujui <termsLink>Syarat & Ketentuan</termsLink>.',
             photo: 'Saya menyetujui foto saya dilihat oleh tim admin untuk evaluasi (tidak dipublikasikan secara umum).',
           },
           submit: 'Kirim Pendaftaran',
           submitting: 'Mengirim…',
-          success: 'Pendaftaran Anda sudah kami terima. Jika ada kecocokan yang sesuai, kami akan menghubungi Anda.',
+          success: 'Pendaftaran Anda sudah kami terima. Profil yang cocok akan ditampilkan di halaman Profil Anda.',
           errors: {
             mustLogin: 'Anda harus masuk untuk mengirim pendaftaran.',
             blocked: 'Akun Anda diblokir dari pengiriman formulir ini.',
-            consentsRequired: 'Untuk mengirim, Anda harus menyetujui kotak persetujuan (18+, Kebijakan Privasi, Syarat & Ketentuan, persetujuan foto).',
+            consentsRequired: 'Untuk mengirim, Anda harus menyetujui kotak persetujuan ({{minAge}}+, Kebijakan Privasi, Syarat & Ketentuan, persetujuan foto).',
             permissionDenied: 'Gagal mengirim (kesalahan izin). Silakan masuk dengan akun yang benar atau periksa aturan Firestore.',
             honeypotTriggered: 'Gagal mengirim. Autofill browser mungkin mengisi field tersembunyi. Refresh halaman dan coba lagi dengan autofill dimatikan.',
             photoUploadFailed: 'Gagal mengunggah foto. Project ini memakai Cloudinary SIGNED upload secara default. Biasanya berarti `/api/cloudinary-signature` tidak jalan atau env server belum lengkap. Solusi: jalankan `npm run dev` (API + web) dan pastikan `.env.local` punya `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET`. (Upload preset unsigned hanya dipakai jika diaktifkan secara khusus.)',
@@ -3196,7 +3222,7 @@ export default {
             usernameTaken: 'Nama pengguna sudah dipakai. Silakan pilih nama lain.',
             fullName: 'Silakan masukkan nama lengkap.',
             age: 'Silakan masukkan usia.',
-            ageRange: 'Usia harus antara 18 dan 99.',
+            ageRange: 'Usia harus antara {{minAge}} dan 99.',
             email: 'Silakan masukkan email.',
             instagram: 'Silakan masukkan username Instagram.',
             nationality: 'Silakan pilih kewarganegaraan Anda.',
@@ -3261,7 +3287,7 @@ export default {
             about: 'Silakan tulis perkenalan singkat.',
             photoRequired: 'Silakan unggah foto.',
             photoType: 'Silakan pilih file gambar yang valid.',
-            consent18Plus: 'Konfirmasi 18+ diperlukan untuk melanjutkan.',
+            consent18Plus: 'Konfirmasi {{minAge}}+ diperlukan untuk melanjutkan.',
             consentPrivacy: 'Persetujuan privasi diperlukan untuk melanjutkan.',
             consentPhotoShare: 'Persetujuan foto diperlukan untuk melanjutkan.',
             submitFailed: 'Pendaftaran gagal dikirim. Silakan coba lagi.',
@@ -3404,6 +3430,8 @@ export default {
       nationalityTr: 'Turki',
       nationalityId: 'Indonesia',
       nationalityOther: 'Lainnya',
+      ageConfirm: 'Saya mengonfirmasi bahwa saya berusia minimal {{minAge}} tahun. (Buka perjanjian untuk detail)',
+      ageConfirmLink: 'Perjanjian',
     },
     forgotHint: {
       prefix: 'Jika Anda lupa kata sandi, klik',
@@ -3411,7 +3439,7 @@ export default {
     },
     legal: {
       prefix: 'Dengan melanjutkan, Anda menyetujui',
-      contract: 'Kontrak paket tur',
+      contract: 'Perjanjian Pengguna / Keanggotaan',
       cancelRefund: 'Kebijakan pembatalan & refund',
       privacy: 'Kebijakan Privasi',
     },
@@ -3426,6 +3454,7 @@ export default {
       genderRequired: 'Pilih jenis kelamin untuk mendaftar.',
       nationalityRequired: 'Pilih kewarganegaraan untuk mendaftar.',
       nationalityOtherRequired: 'Tuliskan kewarganegaraan Anda.',
+      ageConfirmRequired: 'Untuk mendaftar, Anda harus mengonfirmasi bahwa Anda berusia minimal {{minAge}} tahun.',
       loginFailed: 'Gagal masuk.',
       resetEmailRequired: 'Masukkan email untuk mereset kata sandi.',
       resetFailed: 'Tidak dapat mengirim email reset kata sandi.',
@@ -3673,7 +3702,12 @@ export default {
     matches: {
       title: 'Kecocokan Anda',
       subtitle: 'Maksimal 3 / 5 / 10 kandidat ditampilkan sesuai paket Anda.',
-      empty: 'Saat ini tidak ada kecocokan untuk ditampilkan.',
+      empty: 'Ketika ditemukan kecocokan yang sesuai dengan profil Anda, akan muncul di sini. Simpan halaman ini di ponsel atau komputer Anda agar mudah dibuka kembali saat ingin mengecek.',
+      savePage: 'Simpan halaman',
+      savePageAlready: 'Halaman ini sudah ditambahkan ke layar utama / terpasang sebagai aplikasi.',
+      savePageIosHint: 'iPhone/iPad: Di Safari, ketuk Bagikan → “Tambah ke Layar Utama”. (Tautan disalin.)',
+      savePageAndroidHint: 'Android: Dari menu browser pilih “Tambahkan ke layar utama” atau “Instal aplikasi”. (Tautan disalin.)',
+      savePageDesktopHint: 'Komputer: Dari menu browser pilih “Instal aplikasi” (jika ada) atau tambahkan bookmark (Ctrl+D). (Tautan disalin.)',
       waitingOther: 'Menunggu jawaban pihak lain.',
       mutualAcceptedNotice: 'Kedua pihak menyetujui. Anda bisa memilih langkah berikutnya.',
       rejectedByOther: {
@@ -3700,6 +3734,7 @@ export default {
         offsiteWaiting: 'Pilihan Anda tersimpan. Menunggu pihak lain memilih opsi yang sama.',
       },
       chat: {
+        open: 'Pesan',
         title: 'Chat di Dalam Situs',
         lead: 'Anda bisa ngobrol di sini sebelum memutuskan. Berbagi kontak/IG/FB/link diblokir.',
         enableNotifications: 'Aktifkan notifikasi',

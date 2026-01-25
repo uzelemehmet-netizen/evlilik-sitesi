@@ -50,21 +50,30 @@ service cloud.firestore {
         return request.resource.data.gender in ['male', 'female'];
       }
 
+      function isValidNationalityWrite() {
+        return request.resource.data.nationality in ['tr', 'id', 'other'];
+      }
+
       // Kullanıcı kendi dokümanını okuyabilir.
       allow read: if isAdmin() || isSelf();
 
-      // Kullanıcı kayıtta sadece gender (+ timestamp) set edebilir.
+      // Kullanıcı kayıtta temel profil alanlarını (+ timestamp) set edebilir.
       allow create: if isSelf()
-        && request.resource.data.keys().hasOnly(['gender', 'createdAt', 'updatedAt'])
+        && request.resource.data.keys().hasOnly(['gender', 'nationality', 'nationalityOther', 'createdAt', 'updatedAt'])
         && isValidGenderWrite()
+        && isValidNationalityWrite()
         && request.resource.data.createdAt == request.time
         && request.resource.data.updatedAt == request.time;
 
-      // Sonradan gender değişimi kapalı: sadece ilk set (boş/null ise).
+      // Sonradan değişim kapalı: sadece ilk set (boş/null ise).
       allow update: if isAdmin() || (isSelf()
-        && (resource.data.gender == null || resource.data.gender == '')
-        && request.resource.data.diff(resource.data).changedKeys().hasOnly(['gender', 'updatedAt'])
-        && isValidGenderWrite()
+        && request.resource.data.diff(resource.data).changedKeys().hasOnly(['gender', 'nationality', 'nationalityOther', 'updatedAt'])
+        && (!request.resource.data.diff(resource.data).changedKeys().hasAny(['gender'])
+            || ((resource.data.gender == null || resource.data.gender == '') && isValidGenderWrite()))
+        && (!request.resource.data.diff(resource.data).changedKeys().hasAny(['nationality'])
+            || ((resource.data.nationality == null || resource.data.nationality == '') && isValidNationalityWrite()))
+        && (!request.resource.data.diff(resource.data).changedKeys().hasAny(['nationalityOther'])
+            || (resource.data.nationalityOther == null || resource.data.nationalityOther == ''))
         && request.resource.data.updatedAt == request.time
       );
 

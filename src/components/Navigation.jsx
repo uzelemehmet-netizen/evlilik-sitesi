@@ -263,6 +263,30 @@ export default function Navigation() {
                 </button>
               </div>
 
+              <div className="mt-3">
+                <label className="block text-xs font-semibold text-slate-700 mb-1" htmlFor="mobile-lang-select">
+                  {t('navigation.language')}
+                </label>
+                <select
+                  id="mobile-lang-select"
+                  value={currentLang}
+                  onChange={(e) => {
+                    try {
+                      localStorage.setItem('preferred_lang_source', 'selector');
+                    } catch {
+                      // ignore
+                    }
+                    i18n.changeLanguage(e.target.value);
+                  }}
+                  className="w-full px-3 py-2 rounded-xl text-sm font-semibold border border-emerald-200 bg-white text-slate-800 shadow-sm"
+                  aria-label={t('navigation.language')}
+                >
+                  <option value="tr">TR</option>
+                  <option value="en">EN</option>
+                  <option value="id">ID</option>
+                </select>
+              </div>
+
               <div className="mt-3 grid grid-cols-1 gap-2 pb-4">
                 {navItems.map((item) => (
                   <Link

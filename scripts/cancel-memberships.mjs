@@ -1,4 +1,44 @@
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { getAdmin } from '../apiRoutes/_firebaseAdmin.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const projectRoot = path.resolve(__dirname, '..');
+
+function loadEnvLocal() {
+  const envPath = path.join(projectRoot, '.env.local');
+  if (!fs.existsSync(envPath)) return;
+
+  const raw = fs.readFileSync(envPath, 'utf8');
+  const lines = raw.split(/\r?\n/);
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith('#')) continue;
+
+    const eq = trimmed.indexOf('=');
+    if (eq <= 0) continue;
+
+    const key = trimmed.slice(0, eq).trim();
+    let value = trimmed.slice(eq + 1).trim();
+
+    if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
+      value = value.slice(1, -1);
+    }
+
+    const current = process.env[key];
+    if (current === undefined || String(current).trim() === '') {
+      if (key.toUpperCase().includes('PRIVATE_KEY')) {
+        process.env[key] = value.replace(/\\n/g, '\n');
+      } else {
+        process.env[key] = value;
+      }
+    }
+  }
+}
+
+loadEnvLocal();
 
 function usage() {
   console.log('Usage: node scripts/cancel-memberships.mjs <uidOrEmail1> <uidOrEmail2> ...');

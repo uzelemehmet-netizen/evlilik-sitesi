@@ -14,6 +14,7 @@ export default {
     documents: "Documents",
     youtube: "YouTube",
     contact: "Contact",
+    language: "Language",
   },
 
   matchmakingHub: {
@@ -1733,9 +1734,9 @@ export default {
       matchmakingPage: {
         title: 'Marriage Matchmaking Application',
         intro:
-          'This page is an application form for marriage-focused matchmaking. Profiles are not published publicly; applications are reviewed only by our team. If we find a suitable match, we will contact you.',
+          'This page is an application form for marriage-focused matchmaking. Profiles are not published publicly; applications are reviewed only by our team. Matching profiles will appear on your Profile page.',
         privacyNote:
-          'Important: This is not a public “browse/search profiles” area. Your information is used only for evaluation and communication purposes.',
+          'Important: This is not a public “browse/search profiles” area. Your information is used only for evaluation and communication purposes. Please make sure the information you provide is accurate; you are responsible for the information you enter in this form, and your matches are made based on it. Users who intentionally provide false information will be blocked; if they have an active membership, it will be cancelled and no refund will be issued.',
         authGate: {
           message: 'To submit a matchmaking application, please log in or create an account.',
           login: 'Log in',
@@ -1868,6 +1869,17 @@ export default {
               widowed: 'Widowed (spouse passed away)',
               divorced: 'Divorced',
               other: 'Other',
+              doesnt_matter: "Doesn't matter",
+            },
+            religiousValues: {
+              weak: 'Low',
+              medium: 'Moderate',
+              conservative: 'Conservative',
+            },
+            partnerCommunicationMethods: {
+              ownLanguage: 'My language',
+              foreignLanguage: 'Foreign language',
+              translationApp: 'Via translation app',
             },
             education: {
               secondary: 'Secondary',
@@ -1958,7 +1970,7 @@ export default {
           photoHint:
             'Upload an image file only. The system will automatically compress and upload it (recommended: clear, recent, face-visible photo).',
           consents: {
-            age: 'I confirm that I am 18+.',
+            age: 'I confirm that I am {{minAge}}+.',
             privacy:
               'I have read the <privacyLink>Privacy Policy</privacyLink> and consent to processing my data for evaluation/communication purposes.',
             terms: 'I have read and accept the <termsLink>Terms of Use</termsLink>.',
@@ -1966,11 +1978,11 @@ export default {
           },
           submit: 'Submit Application',
           submitting: 'Submitting…',
-          success: 'We received your application. If we find a suitable match, we will contact you.',
+          success: 'We received your application. Matching profiles will appear on your Profile page.',
           errors: {
             mustLogin: 'You must be logged in to submit the application.',
             blocked: 'Your account is blocked from submitting this form.',
-            consentsRequired: 'To submit, you must accept the consent checkboxes (18+, Privacy Policy, Terms of Use, photo consent).',
+            consentsRequired: 'To submit, you must accept the consent checkboxes ({{minAge}}+, Privacy Policy, Terms of Use, photo consent).',
             permissionDenied: 'Could not submit (permission error). Please log in with the correct account or check Firestore rules.',
             honeypotTriggered: 'Could not submit. Browser autofill may have filled a hidden field. Refresh the page and try again with autofill disabled.',
             photoUploadFailed: 'Photo upload failed. This project uses Cloudinary SIGNED uploads by default. This usually means `/api/cloudinary-signature` is not running or server env is missing. Fix: run `npm run dev` (starts API + web) and ensure `.env.local` includes `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET`. (Unsigned preset uploads are only used if explicitly enabled.)',
@@ -1978,7 +1990,7 @@ export default {
             usernameTaken: 'This username is already taken. Please choose another one.',
             fullName: 'Please enter your full name.',
             age: 'Please enter your age.',
-            ageRange: 'Age must be between 18 and 99.',
+            ageRange: 'Age must be between {{minAge}} and 99.',
             email: 'Please enter your email.',
             instagram: 'Please enter your Instagram username.',
             nationality: 'Please select your nationality.',
@@ -2044,7 +2056,7 @@ export default {
             about: 'Please write a short introduction.',
             photoRequired: 'Please upload a photo.',
             photoType: 'Please select a valid image file.',
-            consent18Plus: '18+ confirmation is required to continue.',
+            consent18Plus: '{{minAge}}+ confirmation is required to continue.',
             consentPrivacy: 'Privacy consent is required to continue.',
             consentPhotoShare: 'Photo consent is required to continue.',
             submitFailed: 'Could not submit the application. Please try again.',
@@ -2159,7 +2171,9 @@ export default {
     },
     forceInfo: 'A fresh sign-in was requested for this action. Please sign in again.',
     googleCta: 'Continue with Google',
+    googleSignupCta: 'Sign up with Google',
     redirecting: 'Redirecting to Google sign-in…',
+    signupGuide: 'To sign up, select gender and nationality, then confirm the age requirement.',
     or: 'or',
     labels: {
       email: 'Email',
@@ -2187,6 +2201,8 @@ export default {
       nationalityTr: 'Turkey',
       nationalityId: 'Indonesia',
       nationalityOther: 'Other',
+      ageConfirm: 'I confirm that I am at least {{minAge}} years old. (Open the agreement for details)',
+      ageConfirmLink: 'Agreement',
     },
     forgotHint: {
       prefix: 'If you forgot your password, click',
@@ -2194,7 +2210,7 @@ export default {
     },
     legal: {
       prefix: 'By continuing, you agree to the',
-      contract: 'Package tour contract',
+      contract: 'User / Membership agreement',
       cancelRefund: 'Cancellation & refund policy',
       privacy: 'Privacy Policy',
     },
@@ -2209,6 +2225,7 @@ export default {
       genderRequired: 'Please select your gender to sign up.',
       nationalityRequired: 'Please select your nationality to sign up.',
       nationalityOtherRequired: 'Please specify your nationality.',
+      ageConfirmRequired: 'To sign up, you must confirm that you are at least {{minAge}} years old.',
       loginFailed: 'Sign-in failed.',
       resetEmailRequired: 'Enter your email to reset your password.',
       resetFailed: 'Could not send password reset email.',
@@ -2539,6 +2556,7 @@ export default {
       loading: 'Working…',
       alreadyActive: 'Your membership is already active',
       successActivated: 'Your membership was activated.',
+      promoActivated: 'Your Eco plan was activated for free. Ends on {{date}} ({{count}} days left).',
       successCancelled: 'Your membership was cancelled.',
     },
     membershipGate: {
@@ -2558,6 +2576,11 @@ export default {
       title: 'Your Matches',
       subtitle: 'Up to 3 / 5 / 10 candidates are shown depending on your plan.',
       empty: 'There are no matches to show right now.',
+      savePage: 'Save page',
+      savePageAlready: 'This page already looks like it is added to your home screen / installed as an app.',
+      savePageIosHint: "iPhone/iPad: In Safari, tap Share → ‘Add to Home Screen’. (Link copied.)",
+      savePageAndroidHint: 'Android: From the browser menu choose “Add to Home screen” or “Install app”. (Link copied.)',
+      savePageDesktopHint: 'Desktop: From the browser menu choose “Install app” (if available) or add a bookmark (Ctrl+D). (Link copied.)',
       waitingOther: "Waiting for the other person's response.",
       mutualAcceptedNotice: 'Both sides accepted. You can choose the next step.',
       rejectedByOther: {
@@ -2584,6 +2607,7 @@ export default {
         offsiteWaiting: 'Your choice is saved. Waiting for the other person to choose the same option.',
       },
       chat: {
+        open: 'Messages',
         title: 'In-site Chat',
         lead: 'You can chat here before deciding. Sharing contact/IG/FB/links is blocked.',
         timeLeft: 'Time left: {{minutes}} min',
@@ -2810,6 +2834,8 @@ export default {
     activating: 'Activating…',
     activated: 'Membership activated.',
     activatedUntil: 'Membership activated. Valid until: {{date}}',
+    freeActivatedInfo:
+      'Your free membership is assigned until {{date}}.\nWith this membership, you can like/reject match profiles and use {{translatedCount}} translated messages.\nYour daily match-change limit is {{dailyLimit}}.',
     promoExpired: 'Promo expired. After {{date}}, activations are paid and become active after payment.',
     activateFailed: 'Could not activate membership. Please try again.',
     errors: {

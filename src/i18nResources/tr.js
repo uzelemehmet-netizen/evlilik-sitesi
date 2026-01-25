@@ -14,6 +14,7 @@ export default {
     documents: "Dokümanlar",
     youtube: "YouTube",
     contact: "İletişim",
+    language: "Dil",
   },
 
   matchmakingHub: {
@@ -142,9 +143,9 @@ export default {
   matchmakingPage: {
     title: 'Evlilik Eşleştirme Başvurusu',
     intro:
-      'Bu sayfa, evlilik amacıyla uygun aday eşleştirmesi için yapılan başvuru formudur. Profiller herkese açık olarak yayınlanmaz; başvurular sadece ekibimiz tarafından görüntülenir. Uygun bir eşleşme olduğunda sizinle iletişime geçeriz.',
+      'Bu sayfa, evlilik amacıyla uygun aday eşleştirmesi için yapılan başvuru formudur. Profiller herkese açık olarak yayınlanmaz; başvurular sadece ekibimiz tarafından görüntülenir. Sistem profilinizle eşleşen kişileri Profilim sayfasında gösterecektir.',
     privacyNote:
-      'Önemli: Bu sayfa herkese açık “profil arama/gezme” alanı değildir. Paylaştığınız bilgiler yalnızca değerlendirme ve iletişim amacıyla kullanılır.',
+      'Önemli: Bu sayfa herkese açık “profil arama/gezme” alanı değildir. Paylaştığınız bilgiler yalnızca değerlendirme ve iletişim amacıyla kullanılır. Doldurduğunuz bilgilerin doğruluğundan emin olun; bu formda paylaştığınız bilgilerden siz sorumlusunuz ve eşleştirmeleriniz bu bilgiler üzerinden gerçekleşir. Kasıtlı olarak yanlış bilgi verenler sistemden engellenir; aktif üyeliği varsa iptal edilir ve geri ödeme yapılmaz.',
     authGate: {
       message: 'Eşleştirme başvurusu gönderebilmek için lütfen giriş yapın veya yeni hesap oluşturun.',
       login: 'Giriş yap',
@@ -275,6 +276,17 @@ export default {
           widowed: 'Dul (eşi vefat etmiş)',
           divorced: 'Boşanmış',
           other: 'Diğer',
+          doesnt_matter: 'Farketmez',
+        },
+        religiousValues: {
+          weak: 'Zayıf',
+          medium: 'Orta',
+          conservative: 'Muhafazakar',
+        },
+        partnerCommunicationMethods: {
+          ownLanguage: 'Kendi dilim',
+          foreignLanguage: 'Yabancı dil bilgim',
+          translationApp: 'Çeviri uygulaması',
         },
         education: {
           secondary: 'Ortaöğretim',
@@ -359,7 +371,7 @@ export default {
       photoHint:
         'Sadece resim dosyası yükleyin. Sistem otomatik olarak sıkıştırıp yükler (öneri: net, güncel ve yüzünüzün göründüğü bir fotoğraf).',
       consents: {
-        age: '18 yaşından büyük olduğumu onaylıyorum.',
+        age: '{{minAge}} yaşından büyük olduğumu onaylıyorum.',
         privacy: '<privacyLink>Gizlilik Politikası</privacyLink>’nı okudum ve verilerimin değerlendirme/iletişim amacıyla işlenmesini kabul ediyorum.',
         terms: '<termsLink>Kullanım Sözleşmesi</termsLink>’ni okudum ve kabul ediyorum.',
         photo: 'Fotoğrafımı, değerlendirme amacıyla admin ekibinin görmesini kabul ediyorum (profil herkese açık yayınlanmaz).',
@@ -367,11 +379,11 @@ export default {
       submit: 'Başvuruyu Gönder',
       submitting: 'Gönderiliyor…',
       success:
-        'Başvurunuz alındı. Uygun bir eşleşme olduğunda sizinle iletişime geçeceğiz.',
+        'Başvurunuz alındı. Profilinizle eşleşen kişiler Profilim sayfanızda görüntülenecektir.',
       errors: {
         blocked: 'Bu hesap evlilik başvurularında engellenmiş. Eğer bunun hata olduğunu düşünüyorsanız bizimle iletişime geçin.',
         mustLogin: 'Başvuruyu göndermek için giriş yapmanız gerekir.',
-        consentsRequired: 'Başvuru için onay kutularını (18+, Gizlilik Politikası, Kullanım Sözleşmesi, Fotoğraf paylaşımı) işaretlemeniz gerekir.',
+        consentsRequired: 'Başvuru için onay kutularını ({{minAge}}+, Gizlilik Politikası, Kullanım Sözleşmesi, Fotoğraf paylaşımı) işaretlemeniz gerekir.',
         permissionDenied: 'Başvuru gönderilemedi (izin hatası). Lütfen doğru hesapla giriş yapın veya Firestore kurallarını kontrol edin.',
         honeypotTriggered: 'Form gönderilemedi. Tarayıcı otomatik doldurma (autofill) gizli alanı doldurmuş olabilir. Lütfen sayfayı yenileyin ve otomatik doldurmayı kapatıp tekrar deneyin.',
         photoUploadFailed: 'Fotoğraf yüklenemedi. Bu projede Cloudinary yükleme varsayılan olarak SIGNED (imzalı) çalışır. Bu yüzden genelde sebep: `/api/cloudinary-signature` çalışmıyor veya server env eksik. Çözüm: Lokal geliştirmede `npm run dev` çalıştırın (API + Web birlikte) ve `.env.local` içinde `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET` tanımlı olsun. (Unsigned preset ancak özellikle açarsanız kullanılır.)',
@@ -379,7 +391,7 @@ export default {
         usernameTaken: 'Bu kullanıcı adı kullanımda. Lütfen başka bir kullanıcı adı seçin.',
         fullName: 'Lütfen ad soyad girin.',
         age: 'Lütfen yaş girin.',
-        ageRange: 'Yaş 18–99 arasında olmalı.',
+        ageRange: 'Yaş {{minAge}}–99 arasında olmalı.',
         email: 'Lütfen e-posta adresinizi girin.',
         instagram: 'Lütfen Instagram kullanıcı adınızı girin.',
         nationality: 'Lütfen uyruk seçin.',
@@ -445,7 +457,7 @@ export default {
         about: 'Lütfen kısa bir tanıtım yazın.',
         photoRequired: 'Lütfen bir fotoğraf yükleyin.',
         photoType: 'Lütfen geçerli bir resim dosyası seçin.',
-        consent18Plus: 'Devam etmek için 18+ onayı gerekli.',
+        consent18Plus: 'Devam etmek için {{minAge}}+ onayı gerekli.',
         consentPrivacy: 'Devam etmek için gizlilik onayı gerekli.',
         consentPhotoShare: 'Devam etmek için fotoğraf onayı gerekli.',
         submitFailed: 'Başvuru gönderilemedi. Lütfen tekrar deneyin.',
@@ -2100,7 +2112,9 @@ export default {
     },
     forceInfo: 'Bu işlem için yeniden giriş yapmanız istendi. Lütfen tekrar giriş yapın.',
     googleCta: 'Google ile devam et',
+    googleSignupCta: 'Google ile kayıt ol',
     redirecting: 'Google girişine yönlendiriliyorsunuz…',
+    signupGuide: 'Kayıt için önce cinsiyet ve uyruk seçip yaş onayını işaretleyin.',
     or: 'veya',
     labels: {
       email: 'E-posta',
@@ -2128,6 +2142,8 @@ export default {
       nationalityTr: 'Türkiye',
       nationalityId: 'Endonezya',
       nationalityOther: 'Diğer',
+      ageConfirm: '{{minAge}} yaşından büyük olduğumu onaylıyorum. (Detaylar için sözleşmeyi aç)',
+      ageConfirmLink: 'Sözleşme',
     },
     forgotHint: {
       prefix: 'Şifrenizi unuttuysanız',
@@ -2135,7 +2151,7 @@ export default {
     },
     legal: {
       prefix: 'Devam ederek',
-      contract: 'Paket tur sözleşmesi',
+      contract: 'Kullanıcı / Üyelik sözleşmesi',
       cancelRefund: 'İptal / iade politikası',
       privacy: 'Gizlilik Politikası',
     },
@@ -2150,6 +2166,7 @@ export default {
       genderRequired: 'Kayıt olmak için cinsiyet seçin.',
       nationalityRequired: 'Kayıt olmak için uyruk seçin.',
       nationalityOtherRequired: 'Lütfen uyruğunuzu yazın.',
+      ageConfirmRequired: 'Kayıt olmak için en az {{minAge}} yaşında olduğunuzu onaylamalısınız.',
       loginFailed: 'Giriş başarısız.',
       resetEmailRequired: 'Şifre sıfırlamak için e-posta girin.',
       resetFailed: 'Şifre sıfırlama e-postası gönderilemedi.',
@@ -2479,6 +2496,7 @@ export default {
       loading: 'İşlem yapılıyor…',
       alreadyActive: 'Üyeliğiniz zaten aktif',
       successActivated: 'Üyeliğiniz aktif edildi.',
+      promoActivated: 'Üyeliğiniz Eko pakette ücretsiz aktif edildi. Bitiş: {{date}} ({{count}} gün kaldı).',
       successCancelled: 'Üyeliğiniz iptal edildi.',
     },
     membershipGate: {
@@ -2497,7 +2515,12 @@ export default {
     matches: {
       title: 'Eşleşmeleriniz',
       subtitle: 'Paketinize göre en fazla 3 / 5 / 10 aday gösterilir.',
-      empty: 'Şu an gösterilecek bir eşleşmeniz yok.',
+      empty: 'Profilinize uygun bir eşleşme bulunduğunda burada görünecektir. Sayfayı telefonunuza ya da bilgisayarınıza kaydedip tekrar kontrol etmek istediğinizde kolayca ulaşmak için kaydedin.',
+      savePage: 'Sayfayı kaydet',
+      savePageAlready: 'Bu sayfa zaten ana ekrana/uygulama olarak ekli görünüyor.',
+      savePageIosHint: 'iPhone/iPad: Safari\'de Paylaş → “Ana Ekrana Ekle” seçin. (Bağlantı kopyalandı.)',
+      savePageAndroidHint: 'Android: Tarayıcı menüsünden “Ana ekrana ekle” veya “Uygulamayı yükle” seçin. (Bağlantı kopyalandı.)',
+      savePageDesktopHint: 'Bilgisayar: Tarayıcı menüsünden “Uygulamayı yükle” (varsa) veya yer imlerine ekle (Ctrl+D). (Bağlantı kopyalandı.)',
       waitingOther: 'Karşı tarafın cevabı bekleniyor.',
       mutualAcceptedNotice: 'Her iki taraf da onayladı. Bir sonraki adımı seçebilirsiniz.',
       rejectedByOther: {
@@ -2532,6 +2555,7 @@ export default {
         offsiteWaiting: 'Seçiminiz kaydedildi. Karşı tarafın aynı seçimi yapması bekleniyor.',
       },
       chat: {
+        open: 'Mesajlar',
         title: 'Site İçi Mesajlaşma',
         lead: 'Karar vermeden önce burada konuşabilirsiniz. İletişim/IG/FB/link paylaşımı engellenir.',
         enableNotifications: 'Bildirimleri aç',
@@ -2754,6 +2778,8 @@ export default {
     activating: 'Aktifleştiriliyor…',
     activated: 'Üyelik aktifleştirildi.',
     activatedUntil: 'Üyelik aktifleştirildi. Bitiş: {{date}}',
+    freeActivatedInfo:
+      '{{date}} tarihine kadar ücretsiz üyeliğiniz tanımlanmıştır.\nÜyelik kapsamında eşleşme profilini beğenip reddetme ve {{translatedCount}} çevirili mesaj hakkından faydalanabilirsiniz.\nGünlük eşleşme değiştirme hakkınız {{dailyLimit}} ile sınırlıdır.',
     promoExpired: 'Kampanya süresi doldu. {{date}} sonrası aktivasyonlar ücretlidir ve ödeme sonrası aktif olur.',
     activateFailed: 'Üyelik aktifleştirilemedi. Lütfen tekrar deneyin.',
     errors: {

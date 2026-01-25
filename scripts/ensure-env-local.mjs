@@ -6,6 +6,12 @@ const envLocalPath = path.join(projectRoot, '.env.local');
 
 const REQUIRED_VARS = [
   {
+    key: 'MATCHMAKING_FREE_PROMO_ENABLED',
+    value: '1',
+    comment: "Matchmaking Eko promo ücretsiz aktivasyon (2026-02-10'a kadar) - localde varsayılan AÇIK. Kapatmak için: 0 / false / no / off / disabled",
+    mustHaveValue: false,
+  },
+  {
     key: 'VITE_CLOUDINARY_CLOUD_NAME',
     value: 'dj1xg1c56',
     comment: 'Cloudinary cloud name',

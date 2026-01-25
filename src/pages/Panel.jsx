@@ -84,6 +84,8 @@ export default function Panel() {
   const [chatFocusMatchId, setChatFocusMatchId] = useState('');
   const [chatEmojiOpenByMatchId, setChatEmojiOpenByMatchId] = useState({});
 
+  const [chatInlineOpenMatchId, setChatInlineOpenMatchId] = useState('');
+
   const lastChatSeenMessageIdByMatchIdRef = useRef({});
   const chatScrollElByMatchIdRef = useRef({});
   const lastChatLenByMatchIdRef = useRef({});
@@ -346,7 +348,20 @@ export default function Panel() {
   const myMembership = useMemo(() => {
     const m = matchmakingUser?.membership || null;
     const plan = typeof m?.plan === 'string' ? String(m.plan).toLowerCase().trim() : '';
-    const validUntilMs = typeof m?.validUntilMs === 'number' ? m.validUntilMs : 0;
+    const rawValidUntilMs = typeof m?.validUntilMs === 'number' ? m.validUntilMs : 0;
+    const promoType = 'free_activation_until_2026_02_10';
+    const promoCutoff = promoCutoffMs;
+
+    const isPromo =
+      m?.lastPromo?.type === promoType ||
+      m?.lastPromo?.cutoffMs === promoCutoff ||
+      (plan === 'eco' && typeof m?.lastPromo?.activatedAtMs === 'number' && Number.isFinite(m.lastPromo.activatedAtMs) && m.lastPromo.activatedAtMs > 0) ||
+      matchmakingUser?.translationPack?.lastPromo?.type === promoType ||
+      matchmakingUser?.translationPack?.lastPromo?.cutoffMs === promoCutoff ||
+      (plan === 'eco' && typeof matchmakingUser?.translationPack?.lastPromo?.activatedAtMs === 'number' && Number.isFinite(matchmakingUser.translationPack.lastPromo.activatedAtMs) && matchmakingUser.translationPack.lastPromo.activatedAtMs > 0);
+
+    // Promo üyelikte bitiş mutlaka cutoff olmalı; eski kayıtlar 30 gün görünebilir.
+    const validUntilMs = isPromo && promoCutoff > 0 && rawValidUntilMs > promoCutoff ? promoCutoff : rawValidUntilMs;
     const active = !!m?.active && validUntilMs > Date.now();
     const msLeft = validUntilMs - Date.now();
     const daysLeft = msLeft > 0 ? Math.ceil(msLeft / 86400000) : 0;
@@ -357,7 +372,7 @@ export default function Panel() {
         )
       : '';
     return { active, plan, validUntilMs, daysLeft, untilText };
-  }, [i18n?.language, matchmakingUser]);
+  }, [i18n?.language, matchmakingUser, promoCutoffMs]);
 
   const membershipMaxMatches = useMemo(() => {
     if (!myMembership.active) return 1;
@@ -583,6 +598,9 @@ export default function Panel() {
       const items = [];
       snap.forEach((d) => items.push({ id: d.id, ...d.data() }));
 
+      // İptal edilen eşleşmeler listede görünmesin.
+      const visible = items.filter((m) => String(m?.status || '') !== 'cancelled');
+
       const toMs = (ts) => {
         if (!ts) return 0;
         if (typeof ts?.toMillis === 'function') return ts.toMillis();
@@ -591,8 +609,8 @@ export default function Panel() {
         return 0;
       };
 
-      items.sort((a, b) => toMs(b?.createdAt) - toMs(a?.createdAt));
-      setMatchmakingMatches(items.slice(0, 25));
+      visible.sort((a, b) => toMs(b?.createdAt) - toMs(a?.createdAt));
+      setMatchmakingMatches(visible.slice(0, 25));
       setMatchmakingMatchesLoading(false);
     };
 
@@ -622,7 +640,10 @@ export default function Panel() {
 
           const items = [];
           snap.forEach((d) => items.push({ id: d.id, ...d.data() }));
-          setMatchmakingMatches(items);
+
+          // İptal edilen eşleşmeler listede görünmesin.
+          const visible = items.filter((m) => String(m?.status || '') !== 'cancelled');
+          setMatchmakingMatches(visible);
           setMatchmakingMatchesLoading(false);
         },
         (err) => {
@@ -926,7 +947,93 @@ export default function Panel() {
 
   const [interactionChoiceByMatchId, setInteractionChoiceByMatchId] = useState({});
 
+  const [deferredInstallPrompt, setDeferredInstallPrompt] = useState(null);
+  const [isStandaloneDisplayMode, setIsStandaloneDisplayMode] = useState(false);
+
   const [verificationAction, setVerificationAction] = useState({ loading: false, error: '', result: null });
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const detectStandalone = () => {
+      try {
+        const mm = typeof window.matchMedia === 'function' ? window.matchMedia('(display-mode: standalone)') : null;
+        const isStandalone = !!mm?.matches || (window.navigator && window.navigator.standalone === true);
+        setIsStandaloneDisplayMode(isStandalone);
+      } catch {
+        setIsStandaloneDisplayMode(false);
+      }
+    };
+
+    detectStandalone();
+
+    const onBeforeInstallPrompt = (e) => {
+      try {
+        // Chrome/Android install prompt'u kontrol etmek için yakala.
+        e.preventDefault();
+        setDeferredInstallPrompt(e);
+      } catch {
+        // noop
+      }
+    };
+
+    const onAppInstalled = () => {
+      setDeferredInstallPrompt(null);
+      detectStandalone();
+    };
+
+    window.addEventListener('beforeinstallprompt', onBeforeInstallPrompt);
+    window.addEventListener('appinstalled', onAppInstalled);
+    return () => {
+      window.removeEventListener('beforeinstallprompt', onBeforeInstallPrompt);
+      window.removeEventListener('appinstalled', onAppInstalled);
+    };
+  }, []);
+
+  const savePageToHomeScreen = async () => {
+    if (typeof window === 'undefined') return;
+
+    if (isStandaloneDisplayMode) {
+      window.alert(t('matchmakingPanel.matches.savePageAlready'));
+      return;
+    }
+
+    const p = deferredInstallPrompt;
+    if (p && typeof p.prompt === 'function') {
+      try {
+        await p.prompt();
+        await p.userChoice;
+      } catch {
+        // noop
+      }
+      setDeferredInstallPrompt(null);
+      return;
+    }
+
+    // Fallback: Her tarayıcı programatik eklemeyi desteklemez.
+    const ua = String(window.navigator?.userAgent || '');
+    const isIOS = /iPad|iPhone|iPod/i.test(ua);
+    const isAndroid = /Android/i.test(ua);
+
+    try {
+      const url = String(window.location?.href || '');
+      if (url && window.navigator?.clipboard?.writeText) await window.navigator.clipboard.writeText(url);
+    } catch {
+      // noop
+    }
+
+    if (isIOS) {
+      window.alert(t('matchmakingPanel.matches.savePageIosHint'));
+      return;
+    }
+
+    if (isAndroid) {
+      window.alert(t('matchmakingPanel.matches.savePageAndroidHint'));
+      return;
+    }
+
+    window.alert(t('matchmakingPanel.matches.savePageDesktopHint'));
+  };
 
   const kycEnabled = useMemo(() => {
     const raw = String(import.meta.env.VITE_KYC_ENABLED || '').trim().toLowerCase();
@@ -1165,25 +1272,69 @@ export default function Panel() {
     if (membershipModalAction.loading) return;
     setMembershipModalAction({ loading: true, error: '', success: '' });
     try {
-      await authFetch('/api/matchmaking-membership-activate-free', {
+      const data = await authFetch('/api/matchmaking-membership-activate-free', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({}),
       });
 
-      const promoSuccessText =
-        String(i18n?.language || '').toLowerCase().startsWith('tr')
-          ? "Üyeliğiniz ekonomik paket çerçevesinde 10 Şubat'a kadar ücretsiz aktif edilmiştir. 10 Şubat'tan sonra seçeceğiniz paket üzerinden sistemi kullanmaya devam edebilirsiniz."
-          : t('matchmakingPanel.membershipModal.successActivated');
+      const validUntilMs = typeof data?.validUntilMs === 'number' ? data.validUntilMs : 0;
+      const msLeft = validUntilMs - Date.now();
+      const daysLeft = msLeft > 0 ? Math.ceil(msLeft / 86400000) : 0;
+
+      const locale = i18n?.language === 'id' ? 'id-ID' : i18n?.language === 'en' ? 'en-US' : 'tr-TR';
+      const untilText = validUntilMs
+        ? new Intl.DateTimeFormat(locale, { year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(validUntilMs))
+        : '';
+      const untilTextSlash = validUntilMs
+        ? new Intl.DateTimeFormat('en-GB', { year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(validUntilMs))
+        : '';
+
+      const promoSuccessText = untilText
+        ? t('matchmakingPanel.membershipModal.promoActivated', { date: untilText, count: daysLeft })
+        : t('matchmakingPanel.membershipModal.successActivated');
+
+      const promoInfo = untilTextSlash
+        ? t('matchmakingMembership.freeActivatedInfo', { date: untilTextSlash, translatedCount: 200, dailyLimit: 3 })
+        : '';
 
       setMembershipModalAction({
         loading: false,
         error: '',
-        success: membershipPromoActive ? promoSuccessText : t('matchmakingPanel.membershipModal.successActivated'),
+        success: membershipPromoActive
+          ? (promoInfo ? `${promoSuccessText}\n\n${promoInfo}` : promoSuccessText)
+          : t('matchmakingPanel.membershipModal.successActivated'),
       });
     } catch (e) {
       const msg = String(e?.message || '').trim();
-      const mapped = msg || t('matchmakingPanel.errors.actionFailed');
+      const isLocalhost =
+        typeof window !== 'undefined' &&
+        (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+
+      const locale = i18n?.language === 'id' ? 'id-ID' : i18n?.language === 'en' ? 'en-US' : 'tr-TR';
+      const cutoffText = (() => {
+        try {
+          return new Intl.DateTimeFormat(locale, { year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(promoCutoffMs));
+        } catch {
+          return '';
+        }
+      })();
+
+      const mapped =
+        msg === 'promo_expired'
+          ? t('matchmakingMembership.promoExpired', { date: cutoffText })
+          : msg === 'promo_disabled'
+            ? t('matchmakingMembership.activateFailed')
+            : msg === 'missing_auth' || msg === 'invalid_auth' || msg === 'not_authenticated'
+              ? t('matchmakingMembership.errors.notAuthenticated')
+              : msg === 'firebase_admin_not_configured'
+                ? t('matchmakingMembership.errors.serverNotConfigured')
+                : msg === 'request_failed_404' || msg === 'request_failed_405'
+                  ? (isLocalhost
+                      ? t('matchmakingMembership.errors.apiUnavailableDev')
+                      : t('matchmakingMembership.activateFailed'))
+                  : (msg || t('matchmakingPanel.errors.actionFailed'));
+
       setMembershipModalAction({ loading: false, error: mapped, success: '' });
     }
   };
@@ -2455,12 +2606,12 @@ export default function Panel() {
             </div>
 
             {membershipModalAction.error ? (
-              <div className="mt-3 rounded-xl border border-rose-300/30 bg-rose-500/10 p-3 text-rose-100 text-sm">
+              <div className="mt-3 rounded-xl border border-rose-300/30 bg-rose-500/10 p-3 text-rose-100 text-sm whitespace-pre-line">
                 {membershipModalAction.error}
               </div>
             ) : null}
             {membershipModalAction.success ? (
-              <div className="mt-3 rounded-xl border border-emerald-300/30 bg-emerald-500/10 p-3 text-emerald-100 text-sm">
+              <div className="mt-3 rounded-xl border border-emerald-300/30 bg-emerald-500/10 p-3 text-emerald-100 text-sm whitespace-pre-line">
                 {membershipModalAction.success}
               </div>
             ) : null}
@@ -3403,12 +3554,12 @@ export default function Panel() {
                 {!myMembership.active && membershipPromoActive ? (
                   <div className="mt-2">
                     {membershipModalAction.error ? (
-                      <div className="rounded-xl border border-rose-300/30 bg-rose-500/10 p-2 text-rose-100 text-xs">
+                      <div className="rounded-xl border border-rose-300/30 bg-rose-500/10 p-2 text-rose-100 text-xs whitespace-pre-line">
                         {membershipModalAction.error}
                       </div>
                     ) : null}
                     {membershipModalAction.success ? (
-                      <div className="rounded-xl border border-emerald-300/30 bg-emerald-500/10 p-2 text-emerald-100 text-xs">
+                      <div className="rounded-xl border border-emerald-300/30 bg-emerald-500/10 p-2 text-emerald-100 text-xs whitespace-pre-line">
                         {membershipModalAction.success}
                       </div>
                     ) : null}
@@ -3542,7 +3693,7 @@ export default function Panel() {
               <div className="mt-4 grid grid-cols-1 lg:grid-cols-12 gap-4">
                 <div className="lg:col-span-5 space-y-3">
                   {dashboardTab === 'matches' ? (
-                    <div className="rounded-2xl border border-amber-300/20 bg-white/[0.06] p-4 lg:sticky lg:top-24 self-start shadow-[0_25px_80px_rgba(245,158,11,0.10)] flex flex-col h-[calc(100vh-9rem)] min-h-[28rem]">
+                    <div className="hidden lg:flex rounded-2xl border border-amber-300/20 bg-white/[0.06] p-4 lg:sticky lg:top-24 self-start shadow-[0_25px_80px_rgba(245,158,11,0.10)] flex-col h-[calc(100vh-9rem)] min-h-[28rem]">
                       <div className="flex items-start justify-between gap-3">
                         <div>
                           <p className="text-sm font-semibold text-white">Sohbet</p>
@@ -4129,6 +4280,18 @@ export default function Panel() {
                       ) : null}
                     </div>
                     <div className="flex items-center gap-2">
+                      {!matchmakingMatchesLoading ? (
+                        <button
+                          type="button"
+                          disabled={requestNewAction.loading}
+                          onClick={requestNewMatch}
+                          className="px-3 py-2 rounded-full border border-white/15 text-white/90 text-xs font-semibold hover:bg-white/[0.08] disabled:opacity-60"
+                        >
+                          {requestNewAction.loading
+                            ? t('matchmakingPanel.actions.requestingNew')
+                            : t('matchmakingPanel.actions.requestNewWithRemaining', { remaining: newMatchQuotaDisplay.remaining, limit: newMatchQuotaDisplay.limit })}
+                        </button>
+                      ) : null}
                       {!matchmakingMatchesLoading && !lockInfo.active && proposedMatchesCount > 0 ? (
                         <button
                           type="button"
@@ -4204,7 +4367,16 @@ export default function Panel() {
                   ) : null}
 
                   {!matchmakingMatchesLoading && activeMatches.length === 0 ? (
-                    <p className="text-sm text-white/60 mt-3">{t('matchmakingPanel.matches.empty')}</p>
+                    <div className="mt-3">
+                      <p className="text-sm text-white/60">{t('matchmakingPanel.matches.empty')}</p>
+                      <button
+                        type="button"
+                        onClick={savePageToHomeScreen}
+                        className="mt-3 px-4 py-2 rounded-full bg-white/10 text-white text-sm font-semibold hover:bg-white/15"
+                      >
+                        {t('matchmakingPanel.matches.savePage')}
+                      </button>
+                    </div>
                   ) : (
                     <div className="mt-3 space-y-3">
                       {activeMatches.map((m) => {
@@ -4228,6 +4400,9 @@ export default function Panel() {
                           user?.uid && typeof m?.chatUnreadByUid?.[user.uid] === 'number' ? m.chatUnreadByUid[user.uid] : 0;
 
                         const showInlineLockNotice = !matchmakingUserLoading && lockInfo.active && !!lockInfo.matchId && lockInfo.matchId === m.id;
+
+                        const isChat = m?.status === 'mutual_accepted' && m?.interactionMode === 'chat' && m?.id;
+                        const isChatInlineOpen = String(chatInlineOpenMatchId || '') === String(m.id || '');
 
                         return (
                           <div key={m.id}>
@@ -4262,6 +4437,31 @@ export default function Panel() {
                                     <span className="ml-2 inline-flex items-center rounded-full bg-rose-500/10 border border-rose-300/30 px-2 py-0.5 text-[11px] font-semibold text-rose-100">
                                       {unreadCount}
                                     </span>
+                                  ) : null}
+
+                                  {isChat ? (
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        const id = String(m.id || '').trim();
+                                        if (!id) return;
+                                        setChatFocusMatchId(id);
+                                        setChatInlineOpenMatchId((prev) => (String(prev || '') === id ? '' : id));
+                                      }}
+                                      className={
+                                        'ml-2 inline-flex items-center rounded-full px-3 py-1 text-[11px] font-extrabold tracking-wide ring-1 ring-white/10 shadow-[0_12px_35px_rgba(0,0,0,0.45)] transition focus:outline-none focus:ring-2 focus:ring-white/20 lg:hidden ' +
+                                        (isChatInlineOpen
+                                          ? 'bg-gradient-to-r from-amber-400/25 to-amber-200/10 text-amber-100 ring-amber-300/25 hover:from-amber-400/35 hover:to-amber-200/15'
+                                          : 'bg-gradient-to-r from-sky-400/25 to-indigo-400/10 text-sky-100 ring-sky-300/25 hover:from-sky-400/35 hover:to-indigo-400/15')
+                                      }
+                                    >
+                                      {t('matchmakingPanel.matches.chat.open')}
+                                      {unreadCount > 0 ? (
+                                        <span className="ml-2 inline-flex items-center rounded-full bg-rose-500/15 border border-rose-300/30 px-2 py-0.5 text-[10px] font-extrabold text-rose-100">
+                                          {unreadCount}
+                                        </span>
+                                      ) : null}
+                                    </button>
                                   ) : null}
                                   {other?.identityVerified ? (
                                     <span className="ml-2 inline-flex items-center rounded-full bg-emerald-500/10 border border-emerald-300/30 px-2 py-0.5 text-[11px] font-semibold text-emerald-100">
@@ -4298,6 +4498,12 @@ export default function Panel() {
                                 <p className="text-sm font-semibold text-white">{getStatusLabel(m.status)}</p>
                               </div>
                             </div>
+
+                            {isChat && isChatInlineOpen ? (
+                              <div className="mt-3 lg:hidden rounded-xl border border-amber-300/20 bg-white/[0.06] p-3">
+                                {renderFocusedChat(String(m.id || ''))}
+                              </div>
+                            ) : null}
 
                             {Array.isArray(other.photoUrls) && other.photoUrls.length > 0 ? (
                               <div className="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-2">

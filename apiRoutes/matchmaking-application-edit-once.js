@@ -29,6 +29,10 @@ function toStringArray(value, { maxItems = 20, maxLen = 40 } = {}) {
   return out;
 }
 
+function includesStr(arr, v) {
+  return Array.isArray(arr) && arr.includes(v);
+}
+
 export default async function handler(req, res) {
   if (String(req?.method || '').toUpperCase() !== 'POST') {
     res.statusCode = 405;
@@ -60,6 +64,8 @@ export default async function handler(req, res) {
     payload?.partnerPreferences && typeof payload.partnerPreferences === 'object'
       ? payload.partnerPreferences
       : {};
+
+  const partnerCommunicationMethods = toStringArray(partner?.communicationMethods, { maxItems: 5, maxLen: 40 });
 
   const photoUrls = Array.isArray(payload?.photoUrls) ? payload.photoUrls : null;
 
@@ -120,10 +126,15 @@ export default async function handler(req, res) {
       ageMax: toNumOrNull(partner?.ageMax, { min: 18, max: 99 }),
       maritalStatus: safeStr(partner?.maritalStatus, 40),
       religion: safeStr(partner?.religion, 60),
+      communicationMethods: partnerCommunicationMethods,
       communicationLanguage: safeStr(partner?.communicationLanguage, 40),
       communicationLanguageOther: safeStr(partner?.communicationLanguageOther, 80),
-      canCommunicateWithTranslationApp: !!partner?.canCommunicateWithTranslationApp,
-      translationAppPreference: safeStr(partner?.translationAppPreference, 20),
+      canCommunicateWithTranslationApp: includesStr(partnerCommunicationMethods, 'translation_app')
+        ? true
+        : !!partner?.canCommunicateWithTranslationApp,
+      translationAppPreference: includesStr(partnerCommunicationMethods, 'translation_app')
+        ? 'yes'
+        : safeStr(partner?.translationAppPreference, 20),
       livingCountry: safeStr(partner?.livingCountry, 60),
       smokingPreference: safeStr(partner?.smokingPreference, 40),
       alcoholPreference: safeStr(partner?.alcoholPreference, 40),

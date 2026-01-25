@@ -38,6 +38,12 @@ Notlar:
 - "Missing or insufficient permissions" hatası Firestore Rules kaynaklıdır; daha kapsamlı snippet için [FIRESTORE_RULES_SNIPPET.md](FIRESTORE_RULES_SNIPPET.md) dosyasına bakın.
 - Firebase Storage CORS hataları için [FIREBASE_STORAGE_CORS.md](FIREBASE_STORAGE_CORS.md) adımlarını izleyin.
 
+## Deployment notları (uniqah.com)
+
+- Google ile girişte `auth/unauthorized-domain` görürseniz: Firebase Console → Authentication → Settings → **Authorized domains** kısmına `uniqah.com` ve `www.uniqah.com` ekleyin.
+- Prod ortamında `.env`/Vercel env değerlerinde `VITE_FIREBASE_*` değişkenlerinin (özellikle `VITE_FIREBASE_AUTH_DOMAIN`, `VITE_FIREBASE_PROJECT_ID`) doğru Firebase projesini işaret ettiğini doğrulayın.
+- Fotoğraflar/Storage istekleri CORS yüzünden bloklanıyorsa: [FIREBASE_STORAGE_CORS.md](FIREBASE_STORAGE_CORS.md) dosyasındaki adımlarla bucket CORS ayarına `uniqah.com` originlerini ekleyin.
+
 ## Admin Panel Görsel Yükleme (Cloudinary)
 
 Admin panelde lokal dosyadan görsel yükleme için Cloudinary "unsigned upload preset" gerekir.

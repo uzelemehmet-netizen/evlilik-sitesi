@@ -89,10 +89,37 @@ export default async function handler(req, res) {
       const qCount = typeof q?.count === 'number' ? q.count : 0;
 
       const count = qDayKey === today ? qCount : 0;
-      if (count >= limit) {
+
+      const replacementCredits = typeof data?.newMatchReplacementCredits === 'number' ? data.newMatchReplacementCredits : 0;
+      const useReplacementCredit = count >= limit && replacementCredits > 0;
+
+      if (count >= limit && !useReplacementCredit) {
         const err = new Error('quota_exhausted');
         err.statusCode = 429;
         throw err;
+      }
+
+      if (useReplacementCredit) {
+        // Kotayı artırmadan (1e1) kredi tüket.
+        result = {
+          remaining: Math.max(0, limit - count),
+          limit,
+          dayKey: today,
+          count,
+        };
+
+        tx.set(
+          ref,
+          {
+            requestedNewMatchAt: FieldValue.serverTimestamp(),
+            requestedNewMatchAtMs: ts,
+            newMatchRequestTotalCount: totalPrev + 1,
+            newMatchReplacementCredits: FieldValue.increment(-1),
+            updatedAt: FieldValue.serverTimestamp(),
+          },
+          { merge: true }
+        );
+        return;
       }
 
       const nextCount = count + 1;

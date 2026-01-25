@@ -49,6 +49,7 @@ export default async function handler(req, res) {
     const ts = nowMs();
 
     await db.runTransaction(async (tx) => {
+      // IMPORTANT: Firestore transactions require all reads before all writes.
       const matchSnap = await tx.get(matchRef);
       if (!matchSnap.exists) {
         const err = new Error('not_found');
@@ -77,6 +78,24 @@ export default async function handler(req, res) {
 
       const otherUid = userIds.find((x) => x && x !== uid) || '';
 
+      // Read user docs BEFORE any writes.
+      const meRef = db.collection('matchmakingUsers').doc(uid);
+      const otherRef = otherUid ? db.collection('matchmakingUsers').doc(otherUid) : null;
+
+      // NOTE: Keep reads strictly sequential to avoid any SDK edge-cases
+      // around read/write ordering inside a transaction.
+      const meSnap = await tx.get(meRef);
+      const otherSnap = otherRef ? await tx.get(otherRef) : null;
+      const me = meSnap.exists ? (meSnap.data() || {}) : {};
+      const other = otherSnap?.exists ? (otherSnap.data() || {}) : {};
+
+      const mePatch = clearUserLockIfMatch(me, matchId);
+      const otherPatch = otherRef ? clearUserLockIfMatch(other, matchId) : {};
+
+      // İptal edilen eşleşmenin yerine 1 adet yeni eşleşme isteme hakkı.
+      // Kredi sadece iptali başlatan kullanıcıya yazılır.
+      mePatch.newMatchReplacementCredits = FieldValue.increment(1);
+
       tx.set(
         matchRef,
         {
@@ -91,16 +110,6 @@ export default async function handler(req, res) {
       );
 
       // İki kullanıcıdan da bu match'e bağlı lock/choice alanlarını temizle.
-      const meRef = db.collection('matchmakingUsers').doc(uid);
-      const otherRef = otherUid ? db.collection('matchmakingUsers').doc(otherUid) : null;
-
-      const [meSnap, otherSnap] = await Promise.all([tx.get(meRef), otherRef ? tx.get(otherRef) : Promise.resolve(null)]);
-      const me = meSnap.exists ? (meSnap.data() || {}) : {};
-      const other = otherSnap?.exists ? (otherSnap.data() || {}) : {};
-
-      const mePatch = clearUserLockIfMatch(me, matchId);
-      const otherPatch = otherRef ? clearUserLockIfMatch(other, matchId) : {};
-
       if (Object.keys(mePatch).length) tx.set(meRef, { ...mePatch, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
       if (otherRef && Object.keys(otherPatch).length) tx.set(otherRef, { ...otherPatch, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
     });
@@ -109,6 +118,8 @@ export default async function handler(req, res) {
     res.setHeader('content-type', 'application/json');
     res.end(JSON.stringify({ ok: true }));
   } catch (e) {
+    // eslint-disable-next-line no-console
+    console.error('[matchmaking-match-cancel] error:', e);
     res.statusCode = e?.statusCode || 500;
     res.setHeader('content-type', 'application/json');
     res.end(JSON.stringify({ ok: false, error: String(e?.message || 'server_error') }));

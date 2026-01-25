@@ -12,6 +12,10 @@ function loadEnvLocal() {
   const envPath = path.join(projectRoot, '.env.local');
   if (!fs.existsSync(envPath)) return;
 
+  // Localde .env.local bazı flag'lerde (özellikle promo) ENV'deki değerleri override etsin.
+  // Bu sayede yanlışlıkla global/system env'e düşen değerler local testi bozmaz.
+  const OVERRIDE_KEYS = new Set(['MATCHMAKING_FREE_PROMO_ENABLED']);
+
   const raw = fs.readFileSync(envPath, 'utf8');
   const lines = raw.split(/\r?\n/);
   let setCount = 0;
@@ -30,7 +34,8 @@ function loadEnvLocal() {
     }
 
     const current = process.env[key];
-    if (current === undefined || String(current).trim() === '') {
+    const shouldOverride = OVERRIDE_KEYS.has(key);
+    if (shouldOverride || current === undefined || String(current).trim() === '') {
       if (key.toUpperCase().includes('PRIVATE_KEY')) {
         process.env[key] = value.replace(/\\n/g, '\n');
       } else {
