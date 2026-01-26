@@ -79,7 +79,9 @@ export function getAdmin() {
   if (!getApps().length) {
     const serviceAccount = getServiceAccount();
     if (!serviceAccount) {
-      const err = new Error('firebase_admin_not_configured');
+      const err = new Error(
+        'firebase_admin_not_configured_set_FIREBASE_SERVICE_ACCOUNT_JSON_or_FIREBASE_SERVICE_ACCOUNT_JSON_FILE'
+      );
       err.statusCode = 503;
       throw err;
     }
@@ -128,15 +130,32 @@ export async function requireAdmin(req) {
 
 export function requireCronSecret(req) {
   const secret = process.env.MATCHMAKING_CRON_SECRET || '';
-  const got = String(req?.headers?.['x-cron-secret'] || req?.headers?.['X-Cron-Secret'] || '');
+  const headers = req?.headers || {};
 
-  if (!secret || got !== secret) {
-    const err = new Error('forbidden');
-    err.statusCode = 403;
-    throw err;
+  // Primary: shared secret via header (local scripts / GitHub Actions gibi ortamlarda).
+  const gotHeader = String(headers?.['x-cron-secret'] || headers?.['X-Cron-Secret'] || '').trim();
+  if (secret && gotHeader && gotHeader === secret) return true;
+
+  // Fallback: secret via query (?cronSecret=...). Bazı scheduler'lar header gönderemeyebilir.
+  // Not: Query string log'lara düşebileceği için mümkünse header tercih edin.
+  const qs = req?.query && typeof req.query === 'object' ? req.query : {};
+  const gotQuery = String(qs?.cronSecret || qs?.cron_secret || '').trim();
+  if (secret && gotQuery && gotQuery === secret) return true;
+
+  // Optional: Vercel Cron Jobs otomatik header ekler. Güvenlik için explicit opt-in env ister.
+  const allowVercelCron = String(process.env.MATCHMAKING_ALLOW_VERCEL_CRON || '').toLowerCase().trim();
+  const vercelCronHeader = String(headers?.['x-vercel-cron'] || headers?.['X-Vercel-Cron'] || '').trim();
+  if ((allowVercelCron === '1' || allowVercelCron === 'true' || allowVercelCron === 'yes') && vercelCronHeader) {
+    return true;
   }
 
-  return true;
+  const err = new Error(
+    vercelCronHeader
+      ? 'forbidden_vercel_cron_not_allowed_set_MATCHMAKING_ALLOW_VERCEL_CRON'
+      : 'forbidden'
+  );
+  err.statusCode = 403;
+  throw err;
 }
 
 export { normalizeBody };
