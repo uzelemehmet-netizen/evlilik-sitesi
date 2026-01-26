@@ -83,26 +83,78 @@ loadEnvLocal();
 
 const args = parseArgs(process.argv.slice(2));
 const cleanup = !!args.cleanup;
-const count = Math.max(1, Math.min(50, Number(args.count || 6)));
+const cleanupAuth = !!args['cleanup-auth'] || !!args.cleanupAuth;
+const simple = !!args.simple;
+const count = simple ? 1 : Math.max(1, Math.min(50, Number(args.count || 6)));
+
+const short = !!args.short || simple;
 
 const seedBatchId =
-  (typeof args.batch === 'string' && args.batch.trim()) || `mk_seed_${new Date().toISOString().replace(/[:.]/g, '-')}_${randomId()}`;
+  (typeof args.batch === 'string' && args.batch.trim()) || (simple ? 'simple' : (short ? `t_${randomId()}` : `mk_seed_${new Date().toISOString().replace(/[:.]/g, '-')}_${randomId()}`));
+
+const withAuth = simple ? true : !!args.withAuth;
+const seedPassword = typeof args.password === 'string' && args.password.trim() ? args.password.trim() : 'Test1234!';
+
+const seedEmailTag = short
+  ? String(seedBatchId).toLowerCase().replace(/[^a-z0-9]+/g, '').slice(0, 12) || randomId()
+  : String(seedBatchId)
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/(^-|-$)/g, '')
+      .slice(0, 60);
 
 const SEED_TAG = 'mk_seed';
 
-const { db, FieldValue } = getAdmin();
+const { db, auth, FieldValue } = getAdmin();
 
 async function seed() {
   const now = Date.now();
   const membershipValidUntilMs = now + 30 * 24 * 60 * 60 * 1000;
+
+  async function ensureAuthUser({ uid, email }) {
+    if (!withAuth) return;
+    if (!uid || !email) return;
+
+    try {
+      await auth.createUser({
+        uid,
+        email,
+        password: seedPassword,
+        emailVerified: true,
+        disabled: false,
+      });
+    } catch (e) {
+      const code = String(e?.code || '');
+      if (code === 'auth/email-already-exists') {
+        // Email zaten varsa, o kullanıcıyı kullanıp şifresini güncelle.
+        const existing = await auth.getUserByEmail(email);
+        await auth.updateUser(existing.uid, {
+          password: seedPassword,
+          emailVerified: true,
+          disabled: false,
+        });
+        return;
+      }
+      if (code === 'auth/uid-already-exists') {
+        await auth.updateUser(uid, {
+          email,
+          password: seedPassword,
+          emailVerified: true,
+          disabled: false,
+        });
+        return;
+      }
+      throw e;
+    }
+  }
 
   const pairs = [];
 
   for (let i = 1; i <= count; i += 1) {
     const idx = pad2(i);
 
-    const maleUserId = `seed_${seedBatchId}_male_${idx}`;
-    const femaleUserId = `seed_${seedBatchId}_female_${idx}`;
+    const maleUserId = simple ? 'test1' : `seed_${seedBatchId}_male_${idx}`;
+    const femaleUserId = simple ? 'test2' : `seed_${seedBatchId}_female_${idx}`;
 
     const male = {
       userId: maleUserId,
@@ -114,7 +166,7 @@ async function seed() {
       city: 'İstanbul',
       country: 'Türkiye',
       whatsapp: `+90555000${idx}`,
-      email: `seed.erkek.${idx}@example.test`,
+      email: simple ? 'test1@example.com' : `seed.erkek.${seedEmailTag}.${idx}@example.test`,
       instagram: `seed_erkek_${idx}`,
       nationality: 'tr',
       gender: 'male',
@@ -193,7 +245,7 @@ async function seed() {
       city: 'Jakarta',
       country: 'Indonesia',
       whatsapp: `+62811000${idx}`,
-      email: `seed.kadin.${idx}@example.test`,
+      email: simple ? 'test2@example.com' : `seed.kadin.${seedEmailTag}.${idx}@example.test`,
       instagram: `seed_kadin_${idx}`,
       nationality: 'id',
       gender: 'female',
@@ -262,6 +314,8 @@ async function seed() {
       consentPhotoShare: true,
     };
 
+    await ensureAuthUser({ uid: maleUserId, email: male.email });
+    await ensureAuthUser({ uid: femaleUserId, email: female.email });
     pairs.push({ maleUserId, femaleUserId, male, female });
   }
 
@@ -369,12 +423,26 @@ async function seed() {
       });
   }
 
-  console.log(JSON.stringify({ ok: true, seedBatchId, pairs: pairs.map((p) => ({
-    maleUserId: p.maleUserId,
-    femaleUserId: p.femaleUserId,
-    maleAppId: p.maleAppId,
-    femaleAppId: p.femaleAppId,
-  })) }, null, 2));
+  console.log(
+    JSON.stringify(
+      {
+        ok: true,
+        seedBatchId,
+        withAuth,
+        seedPassword: withAuth ? seedPassword : null,
+        pairs: pairs.map((p) => ({
+          maleUserId: p.maleUserId,
+          femaleUserId: p.femaleUserId,
+          maleEmail: typeof p.male?.email === 'string' ? p.male.email : null,
+          femaleEmail: typeof p.female?.email === 'string' ? p.female.email : null,
+          maleAppId: p.maleAppId,
+          femaleAppId: p.femaleAppId,
+        })),
+      },
+      null,
+      2
+    )
+  );
 }
 
 async function cleanupBatch() {
@@ -386,18 +454,36 @@ async function cleanupBatch() {
   }
 
   const toDelete = [];
+  const authUids = [];
 
   const appsSnap = await db.collection('matchmakingApplications').where('seedBatchId', '==', batch).get();
   appsSnap.docs.forEach((d) => toDelete.push(d.ref));
 
   const usersSnap = await db.collection('matchmakingUsers').where('seedBatchId', '==', batch).get();
-  usersSnap.docs.forEach((d) => toDelete.push(d.ref));
+  usersSnap.docs.forEach((d) => {
+    toDelete.push(d.ref);
+    const data = d.data() || {};
+    const uid = typeof data.userId === 'string' ? data.userId.trim() : '';
+    if (uid) authUids.push(uid);
+  });
 
   const matchesSnap = await db.collection('matchmakingMatches').where('seedBatchId', '==', batch).get();
   matchesSnap.docs.forEach((d) => toDelete.push(d.ref));
 
   for (const ref of toDelete) {
     await ref.delete();
+  }
+
+  if (cleanupAuth && authUids.length) {
+    for (const uid of authUids) {
+      try {
+        await auth.deleteUser(uid);
+      } catch (e) {
+        const code = String(e?.code || '');
+        if (code === 'auth/user-not-found') continue;
+        throw e;
+      }
+    }
   }
 
   console.log(JSON.stringify({ ok: true, deleted: toDelete.length, seedBatchId: batch }, null, 2));

@@ -42,15 +42,16 @@ export default function MatchmakingMembership() {
       });
 
       const untilMs = typeof data?.validUntilMs === 'number' ? data.validUntilMs : 0;
-      const locale = i18n?.language === 'id' ? 'id-ID' : i18n?.language === 'en' ? 'en-US' : 'tr-TR';
       const untilText = untilMs
-        ? new Intl.DateTimeFormat(locale, { year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(untilMs))
+        ? new Intl.DateTimeFormat('en-GB', { year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(untilMs))
         : '';
 
       setAction({
         loading: false,
         error: '',
-        success: untilText ? t('matchmakingMembership.activatedUntil', { date: untilText }) : t('matchmakingMembership.activated'),
+        success: untilText
+          ? t('matchmakingMembership.freeActivatedInfo', { date: untilText, translatedCount: 200, dailyLimit: 3 })
+          : t('matchmakingMembership.activated'),
       });
 
       // Panel üyelik durumunu tekrar okuyabilsin diye kullanıcıyı panele döndür.
@@ -95,9 +96,71 @@ export default function MatchmakingMembership() {
 
           <div className="mt-5 rounded-2xl border border-white/10 bg-white/[0.04] p-4">
             <p className="text-sm font-semibold text-white">{t('matchmakingMembership.planTitle')}</p>
-            <p className="mt-2 text-sm text-white/75">
-              {t('matchmakingMembership.monthlyPrice', { amount: 20 })}
-            </p>
+
+            <div className="mt-3 rounded-2xl border border-white/10 bg-white/[0.04] p-4">
+              <p className="text-xs font-semibold text-white">Tüm paketlerde açık olanlar</p>
+              <ul className="mt-2 list-disc pl-5 space-y-1 text-xs text-white/75">
+                <li>Beğeni / reddetme</li>
+                <li>Site içi mesajlaşma</li>
+                <li>İletişim bilgisi paylaşma isteğinde bulunabilme (karşılıklı onay sonrası)</li>
+                <li>Eşleşmeyi sonlandırma / panelden kaldırma</li>
+              </ul>
+            </div>
+
+            <div className="mt-3 grid grid-cols-1 gap-3">
+              {[
+                {
+                  tier: 'eco',
+                  price: promoActive ? 'Ücretsiz' : '25$',
+                  features: [
+                    'Eşleşme ekranında aynı anda en fazla 3 eşleşme',
+                    'Mesaj çevirisi: günlük 80 mesaj',
+                    'Sponsorlu çeviri: karşı taraf Standart/Pro ise otomatik',
+                  ],
+                },
+                {
+                  tier: 'standard',
+                  price: '40$',
+                  features: [
+                    'Eşleşme ekranında aynı anda en fazla 5 eşleşme',
+                    'Mesaj çevirisi: günlük 300 mesaj',
+                    'Panel ve eşleşmelerde STANDART rozeti',
+                    'Sponsorlu çeviri: Eko kullanıcılarla sohbetlerde otomatik',
+                  ],
+                },
+                {
+                  tier: 'pro',
+                  price: '75$',
+                  features: [
+                    'Eşleşme ekranında aynı anda en fazla 10 eşleşme',
+                    'Mesaj çevirisi: günlük 2000 mesaj',
+                    'Sponsorlu çeviri (Eko/Free kullanıcılar için): otomatik',
+                    'Sohbet içinde sponsorlu çeviriyi aç/kapat',
+                    'Panel ve eşleşmelerde PRO rozeti',
+                  ],
+                },
+              ].map((p) => (
+                <div key={p.tier} className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-bold text-white">{p.tier === 'eco' ? 'Eko' : p.tier === 'standard' ? 'Standart' : 'Pro'}</p>
+                      <p className="text-xs text-white/60 mt-1">Aylık üyelik</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm font-semibold text-white">{p.price}</p>
+                      <p className="text-[11px] text-white/50">{p.tier === 'eco' && promoActive ? `10 Şubat'a kadar` : '(örnek fiyat)'}</p>
+                    </div>
+                  </div>
+                  <div className="mt-3 text-xs text-white/75">
+                    <ul className="list-disc pl-5 space-y-1">
+                      {p.features.map((f, idx) => (
+                        <li key={`${p.tier}-${idx}`}>{f}</li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+              ))}
+            </div>
 
             {promoActive ? (
               <div className="mt-3 rounded-xl border border-emerald-300/30 bg-emerald-500/10 p-3">
@@ -113,26 +176,35 @@ export default function MatchmakingMembership() {
           </div>
 
           {action.error ? (
-            <div className="mt-4 rounded-xl border border-rose-300/30 bg-rose-500/10 p-3 text-rose-100 text-sm">
+            <div className="mt-4 rounded-xl border border-rose-300/30 bg-rose-500/10 p-3 text-rose-100 text-sm whitespace-pre-line">
               {action.error}
             </div>
           ) : null}
           {action.success ? (
-            <div className="mt-4 rounded-xl border border-emerald-300/30 bg-emerald-500/10 p-3 text-emerald-100 text-sm">
+            <div className="mt-4 rounded-xl border border-emerald-300/30 bg-emerald-500/10 p-3 text-emerald-100 text-sm whitespace-pre-line">
               {action.success}
             </div>
           ) : null}
 
           <div className="mt-5 flex flex-col sm:flex-row gap-3 sm:items-center">
             {promoActive ? (
-              <button
-                type="button"
-                onClick={activateFree}
-                disabled={action.loading}
-                className="px-5 py-2.5 rounded-full bg-emerald-400 text-slate-950 text-sm font-semibold hover:bg-emerald-300 disabled:opacity-60"
-              >
-                {action.loading ? t('matchmakingMembership.activating') : t('matchmakingMembership.freeActivateCta')}
-              </button>
+              <>
+                <button
+                  type="button"
+                  onClick={activateFree}
+                  disabled={action.loading}
+                  className="px-5 py-2.5 rounded-full bg-emerald-400 text-slate-950 text-sm font-semibold hover:bg-emerald-300 disabled:opacity-60"
+                >
+                  {action.loading ? t('matchmakingMembership.activating') : t('matchmakingMembership.freeActivateCta')}
+                </button>
+                <button
+                  type="button"
+                  onClick={goToPaidFlow}
+                  className="px-5 py-2.5 rounded-full border border-white/10 bg-white/5 text-white/90 text-sm font-semibold hover:bg-white/[0.12] transition"
+                >
+                  {t('matchmakingMembership.paidActivationCta')}
+                </button>
+              </>
             ) : (
               <button
                 type="button"

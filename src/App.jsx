@@ -34,9 +34,9 @@ import AdminMatchmakingPayments from './pages/AdminMatchmakingPayments';
 import AdminIdentityVerifications from './pages/AdminIdentityVerifications';
 import NotFound from './pages/NotFound';
 import RequireAuth from './auth/RequireAuth';
-import { useAuth } from './auth/AuthProvider';
 import FloatingWhatsApp from './components/FloatingWhatsApp';
 import { isFeatureEnabled } from './config/siteVariant';
+import DevOverlay from './components/DevOverlay';
 
 function ScrollToTop() {
   const location = useLocation();
@@ -132,34 +132,6 @@ function TitleManager() {
   return null;
 }
 
-function SiteAuthGate({ children }) {
-  const { user, loading } = useAuth();
-  const location = useLocation();
-  const path = location.pathname || '/';
-
-  const allowUnauthed = path.startsWith('/login') || path.startsWith('/admin');
-  if (allowUnauthed) return children;
-
-  if (loading) {
-    return <div className="min-h-screen flex items-center justify-center">Yükleniyor...</div>;
-  }
-
-  if (!user || user.isAnonymous) {
-    return (
-      <Navigate
-        to="/login"
-        replace
-        state={{
-          from: path,
-          fromState: location.state || null,
-        }}
-      />
-    );
-  }
-
-  return children;
-}
-
 function App() {
   console.log('App component loaded');
   const showTravel = isFeatureEnabled('travel');
@@ -173,7 +145,7 @@ function App() {
       <TitleManager />
       <AnalyticsTracker />
       <FloatingWhatsApp />
-      <SiteAuthGate>
+      {import.meta.env.DEV ? <DevOverlay /> : null}
       <Routes>
         <Route path="/" element={isWeddingOnly ? <Wedding /> : <Home />} />
         <Route path="/about" element={<About />} />
@@ -316,7 +288,6 @@ function App() {
 
         <Route path="*" element={<NotFound />} />
       </Routes>
-      </SiteAuthGate>
     </Router>
   );
 }

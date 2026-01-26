@@ -1,5 +1,5 @@
 import { getAdmin, requireIdToken } from './_firebaseAdmin.js';
-import { computeFreeActiveMembershipState, isIdentityVerified, isMembershipActive, normalizeGender } from './_matchmakingEligibility.js';
+import { computeFreeActiveMembershipState, isFreeActiveEnabled, isIdentityVerified, isMembershipActive, normalizeGender } from './_matchmakingEligibility.js';
 
 function safeStr(v) {
   return typeof v === 'string' ? v.trim() : '';
@@ -25,6 +25,12 @@ export default async function handler(req, res) {
   }
 
   try {
+    if (!isFreeActiveEnabled()) {
+      const err = new Error('free_active_disabled');
+      err.statusCode = 410;
+      throw err;
+    }
+
     const decoded = await requireIdToken(req);
     const uid = decoded.uid;
 

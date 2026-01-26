@@ -5,6 +5,24 @@ function safeStr(v) {
   return typeof v === 'string' ? v.trim() : '';
 }
 
+function tsToMs(v) {
+  if (!v) return 0;
+  if (typeof v === 'number' && Number.isFinite(v)) return v;
+  if (typeof v?.toMillis === 'function') {
+    try {
+      return v.toMillis();
+    } catch {
+      return 0;
+    }
+  }
+  const seconds = typeof v?.seconds === 'number' ? v.seconds : null;
+  const nanoseconds = typeof v?.nanoseconds === 'number' ? v.nanoseconds : 0;
+  if (seconds !== null) return Math.floor(seconds * 1000 + nanoseconds / 1e6);
+  return 0;
+}
+
+const CONTACT_LOCK_MS = 48 * 60 * 60 * 1000;
+
 // Eligibility kontrolü artık ortak helper üzerinden.
 
 export default async function handler(req, res) {
@@ -42,20 +60,24 @@ export default async function handler(req, res) {
 
     const match = matchSnap.data() || {};
     const st = String(match.status || '');
-    if (st !== 'contact_unlocked') {
+
+    const mode = typeof match?.interactionMode === 'string' ? match.interactionMode : '';
+    const allowedByState =
+      (st === 'contact_unlocked' && (mode === 'contact' || mode === 'offsite' || mode === 'chat' || !mode)) ||
+      (st === 'mutual_accepted' && mode === 'chat');
+
+    if (!allowedByState) {
       res.statusCode = 400;
       res.setHeader('content-type', 'application/json');
       res.end(JSON.stringify({ ok: false, error: 'not_confirmed' }));
       return;
     }
 
-    const mode = typeof match?.interactionMode === 'string' ? match.interactionMode : '';
-    if (mode !== 'contact' && mode !== 'offsite') {
-      res.statusCode = 400;
-      res.setHeader('content-type', 'application/json');
-      res.end(JSON.stringify({ ok: false, error: 'not_confirmed' }));
-      return;
-    }
+    // Yeni model: 48 saat + karşı taraf onayı olmadan iletişim bilgisi dönme.
+    // Backward-compat: Eski eşleşmelerde status=contact_unlocked ise onaylanmış kabul edilir.
+    const cs = match?.contactShare && typeof match.contactShare === 'object' ? match.contactShare : null;
+    const csStatus = safeStr(cs?.status);
+    const approved = st === 'contact_unlocked' || csStatus === 'approved';
 
     const userIds = Array.isArray(match.userIds) ? match.userIds.map(String) : [];
     if (!userIds.includes(uid) || userIds.length !== 2) {
@@ -99,6 +121,41 @@ export default async function handler(req, res) {
     ensureEligibleOrThrow(me, myGender);
     ensureEligibleOrThrow(other, otherGender);
 
+    // 48 saat kilidi: chat (mutual accept ile otomatik) başladıktan sonra iletişim açılır.
+    // Not: Eski akışlarda timestamp eksik olabilir; mutualAcceptedAt fallback yapılır.
+    const baseMs =
+      (typeof match?.chatEnabledAtMs === 'number' ? match.chatEnabledAtMs : 0) ||
+      tsToMs(match?.chatEnabledAt) ||
+      tsToMs(match?.interactionChosenAt) ||
+      (typeof match?.mutualAcceptedAtMs === 'number' ? match.mutualAcceptedAtMs : 0) ||
+      tsToMs(match?.mutualAcceptedAt) ||
+      0;
+
+    if (baseMs) {
+      const unlockAtMs = baseMs + CONTACT_LOCK_MS;
+      const now = Date.now();
+      if (now < unlockAtMs) {
+        res.statusCode = 403;
+        res.setHeader('content-type', 'application/json');
+        res.end(
+          JSON.stringify({
+            ok: false,
+            error: 'contact_locked',
+            unlockAtMs,
+            remainingMs: Math.max(0, unlockAtMs - now),
+          })
+        );
+        return;
+      }
+    }
+
+    if (!approved) {
+      res.statusCode = 403;
+      res.setHeader('content-type', 'application/json');
+      res.end(JSON.stringify({ ok: false, error: 'contact_not_approved' }));
+      return;
+    }
+
     // Uygulama dokümanından iletişim bilgilerini çek (client’a hiç açmadan)
     const aUserId = aUid;
     const bUserId = bUid;
@@ -128,8 +185,6 @@ export default async function handler(req, res) {
         ok: true,
         contact: {
           whatsapp: safeStr(app.whatsapp),
-          email: safeStr(app.email),
-          instagram: safeStr(app.instagram),
         },
       })
     );

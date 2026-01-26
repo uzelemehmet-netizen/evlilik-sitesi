@@ -11,17 +11,25 @@ export default function Footer() {
   const getWhatsappLink = () => {
     let message = "Merhaba, web sitenizden yazıyorum. Genel bilgi almak istiyorum.";
 
-    if (location.pathname.startsWith("/wedding") && isFeatureEnabled('wedding')) {
+    const path = String(location.pathname || '');
+    const isWeddingPath =
+      path.startsWith('/wedding') ||
+      path.startsWith('/evlilik') ||
+      path.startsWith('/uniqah') ||
+      path.startsWith('/eslestirme') ||
+      path.startsWith('/profilim');
+
+    if (isWeddingPath && isFeatureEnabled('wedding')) {
       message = "Endonezya'da evlilik hakkında bilgi almak istiyorum";
-    } else if (location.pathname.startsWith("/travel")) {
+    } else if (path.startsWith("/travel")) {
       message = "Endonezya seyahati hakkında bilgi almak istiyorum";
-    } else if (location.pathname.startsWith("/kesfet")) {
+    } else if (path.startsWith("/kesfet")) {
       message = "Endonezya'nın tatil destinasyonları hakkında bilgi almak istiyorum";
-    } else if (location.pathname.startsWith("/youtube")) {
+    } else if (path.startsWith("/youtube")) {
       message = "Merhaba, YouTube sayfanızı ziyaret ettim ve size bir şey sormak istiyorum";
-    } else if (location.pathname.startsWith("/contact")) {
+    } else if (path.startsWith("/contact")) {
       message = "Merhaba, bir konu hakkında bilgi almak istiyorum";
-    } else if (location.pathname === "/") {
+    } else if (path === "/") {
       message = "Merhaba, size genel anlamda bir şey sormak istiyorum";
     }
 
@@ -35,6 +43,10 @@ export default function Footer() {
   const phone = COMPANY.phoneTr;
   const indonesiaPhoneTel = COMPANY.phoneIdTel;
   const indonesiaPhoneDisplay = COMPANY.phoneIdDisplay;
+
+  const showTravel = isFeatureEnabled('travel');
+  const showWedding = isFeatureEnabled('wedding');
+  const isWeddingOnly = showWedding && !showTravel;
 
   return (
     <footer className="bg-gray-900 text-white py-16">
@@ -80,6 +92,34 @@ export default function Footer() {
                   Ana Sayfa
                 </Link>
               </li>
+              {showWedding && (
+                <li>
+                  <Link to="/evlilik" className="hover:text-white transition">
+                    Evlilik
+                  </Link>
+                </li>
+              )}
+              {showWedding && (
+                <li>
+                  <Link to="/evlilik/uniqah" className="hover:text-white transition">
+                    Uniqah
+                  </Link>
+                </li>
+              )}
+              {showWedding && (
+                <li>
+                  <Link to="/profilim" className="hover:text-white transition">
+                    Profilim
+                  </Link>
+                </li>
+              )}
+              {showWedding && (
+                <li>
+                  <Link to="/evlilik/uyelik" className="hover:text-white transition">
+                    Üyelik
+                  </Link>
+                </li>
+              )}
               <li>
                 <Link to="/about" className="hover:text-white transition">
                   Hakkımızda
@@ -90,26 +130,32 @@ export default function Footer() {
                   Kurumsal
                 </Link>
               </li>
-              <li>
-                <Link to="/kesfet" className="hover:text-white transition">
-                  Keşfet
-                </Link>
-              </li>
-              <li>
-                <Link to="/travel" className="hover:text-white transition">
-                  Seyahat
-                </Link>
-              </li>
+              {showTravel && (
+                <li>
+                  <Link to="/kesfet" className="hover:text-white transition">
+                    Keşfet
+                  </Link>
+                </li>
+              )}
+              {showTravel && (
+                <li>
+                  <Link to="/travel" className="hover:text-white transition">
+                    Seyahat
+                  </Link>
+                </li>
+              )}
               <li>
                 <Link to="/contact" className="hover:text-white transition">
                   İletişim
                 </Link>
               </li>
-              <li>
-                <Link to="/youtube" className="hover:text-white transition">
-                  YouTube
-                </Link>
-              </li>
+              {showTravel && (
+                <li>
+                  <Link to="/youtube" className="hover:text-white transition">
+                    YouTube
+                  </Link>
+                </li>
+              )}
             </ul>
           </div>
 
@@ -118,90 +164,132 @@ export default function Footer() {
               Yasal
             </h4>
             <ul className="space-y-2 text-gray-400">
-              <li className="text-xs uppercase tracking-wide text-gray-500" style={{ fontFamily: '"Poppins", sans-serif' }}>
-                Doküman Merkezi
-              </li>
-              <li>
-                <Link to="/dokumanlar" className="hover:text-white transition">
-                  Dokümanlar (TR)
-                </Link>
-              </li>
-              <li>
-                <Link to="/dokumanlar?lang=en" className="hover:text-white transition">
-                  Documents (EN)
-                </Link>
-              </li>
-              <li className="pt-2 text-xs uppercase tracking-wide text-gray-500" style={{ fontFamily: '"Poppins", sans-serif' }}>
-                TR
-              </li>
-              <li>
-                <Link to="/dokumanlar?doc=paket-tur-sozlesmesi" className="hover:text-white transition">
-                  Paket Tur Sözleşmesi (TR)
-                </Link>
-              </li>
-              <li>
-                <Link to="/dokumanlar?doc=mesafeli-satis-sozlesmesi" className="hover:text-white transition">
-                  Mesafeli Satış Sözleşmesi (TR)
-                </Link>
-              </li>
-              <li>
-                <Link to="/dokumanlar?doc=on-bilgilendirme-formu" className="hover:text-white transition">
-                  Ön Bilgilendirme Formu (TR)
-                </Link>
-              </li>
-              <li>
-                <Link to="/dokumanlar?doc=iptal-iade-politikasi" className="hover:text-white transition">
-                  İptal / İade Politikası (TR)
-                </Link>
-              </li>
-              <li>
-                <Link to="/dokumanlar?doc=kvkk-aydinlatma-metni" className="hover:text-white transition">
-                  KVKK Aydınlatma Metni
-                </Link>
-              </li>
-              <li>
-                <Link to="/dokumanlar?doc=odeme-yontemleri" className="hover:text-white transition">
-                  Ödeme Yöntemleri
-                </Link>
-              </li>
-              <li>
-                <Link to="/privacy" className="hover:text-white transition">
-                  Gizlilik Politikası
-                </Link>
-              </li>
-              <li className="pt-2 text-xs text-gray-500" style={{ fontFamily: '"Poppins", sans-serif' }}>
-                English
-              </li>
-              <li>
-                <a href="/docs/package-tour-agreement-en.html" target="_blank" rel="noopener noreferrer" className="hover:text-white transition">
-                  Package Tour Agreement (EN)
-                </a>
-              </li>
-              <li>
-                <a href="/docs/distance-sales-agreement-en.html" target="_blank" rel="noopener noreferrer" className="hover:text-white transition">
-                  Distance Sales Agreement (EN)
-                </a>
-              </li>
-              <li>
-                <a href="/docs/pre-information-form-en.html" target="_blank" rel="noopener noreferrer" className="hover:text-white transition">
-                  Pre-Information Form (EN)
-                </a>
-              </li>
-              <li>
-                <a href="/docs/kvkk-information-notice-en.html" target="_blank" rel="noopener noreferrer" className="hover:text-white transition">
-                  KVKK Information Notice (EN)
-                </a>
-              </li>
-              <li>
-                <a
-                  href="/docs/cancellation-refund-policy-en.html"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="hover:text-white transition"
-                >
-                  Cancellation & Refund Policy (EN)
-                </a>
-              </li>
+              {isWeddingOnly ? (
+                <>
+                  <li>
+                    <a
+                      href="/docs/matchmaking-kullanim-sozlesmesi.html"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="hover:text-white transition"
+                    >
+                      Kullanıcı / Üyelik Sözleşmesi
+                    </a>
+                  </li>
+                  <li>
+                    <a
+                      href="/docs/site-kurallari.html"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="hover:text-white transition"
+                    >
+                      Site Kuralları
+                    </a>
+                  </li>
+                  <li>
+                    <a
+                      href="/docs/iptal-iade-politikasi.html"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="hover:text-white transition"
+                    >
+                      İptal / İade Politikası
+                    </a>
+                  </li>
+                  <li>
+                    <Link to="/privacy" className="hover:text-white transition">
+                      Gizlilik Politikası
+                    </Link>
+                  </li>
+                </>
+              ) : (
+                <>
+                  <li className="text-xs uppercase tracking-wide text-gray-500" style={{ fontFamily: '"Poppins", sans-serif' }}>
+                    Doküman Merkezi
+                  </li>
+                  <li>
+                    <Link to="/dokumanlar" className="hover:text-white transition">
+                      Dokümanlar (TR)
+                    </Link>
+                  </li>
+                  <li>
+                    <Link to="/dokumanlar?lang=en" className="hover:text-white transition">
+                      Documents (EN)
+                    </Link>
+                  </li>
+                  <li className="pt-2 text-xs uppercase tracking-wide text-gray-500" style={{ fontFamily: '"Poppins", sans-serif' }}>
+                    TR
+                  </li>
+                  <li>
+                    <Link to="/dokumanlar?doc=paket-tur-sozlesmesi" className="hover:text-white transition">
+                      Paket Tur Sözleşmesi (TR)
+                    </Link>
+                  </li>
+                  <li>
+                    <Link to="/dokumanlar?doc=mesafeli-satis-sozlesmesi" className="hover:text-white transition">
+                      Mesafeli Satış Sözleşmesi (TR)
+                    </Link>
+                  </li>
+                  <li>
+                    <Link to="/dokumanlar?doc=on-bilgilendirme-formu" className="hover:text-white transition">
+                      Ön Bilgilendirme Formu (TR)
+                    </Link>
+                  </li>
+                  <li>
+                    <Link to="/dokumanlar?doc=iptal-iade-politikasi" className="hover:text-white transition">
+                      İptal / İade Politikası (TR)
+                    </Link>
+                  </li>
+                  <li>
+                    <Link to="/dokumanlar?doc=kvkk-aydinlatma-metni" className="hover:text-white transition">
+                      KVKK Aydınlatma Metni
+                    </Link>
+                  </li>
+                  <li>
+                    <Link to="/dokumanlar?doc=odeme-yontemleri" className="hover:text-white transition">
+                      Ödeme Yöntemleri
+                    </Link>
+                  </li>
+                  <li>
+                    <Link to="/privacy" className="hover:text-white transition">
+                      Gizlilik Politikası
+                    </Link>
+                  </li>
+                  <li className="pt-2 text-xs text-gray-500" style={{ fontFamily: '"Poppins", sans-serif' }}>
+                    English
+                  </li>
+                  <li>
+                    <a href="/docs/package-tour-agreement-en.html" target="_blank" rel="noopener noreferrer" className="hover:text-white transition">
+                      Package Tour Agreement (EN)
+                    </a>
+                  </li>
+                  <li>
+                    <a href="/docs/distance-sales-agreement-en.html" target="_blank" rel="noopener noreferrer" className="hover:text-white transition">
+                      Distance Sales Agreement (EN)
+                    </a>
+                  </li>
+                  <li>
+                    <a href="/docs/pre-information-form-en.html" target="_blank" rel="noopener noreferrer" className="hover:text-white transition">
+                      Pre-Information Form (EN)
+                    </a>
+                  </li>
+                  <li>
+                    <a href="/docs/kvkk-information-notice-en.html" target="_blank" rel="noopener noreferrer" className="hover:text-white transition">
+                      KVKK Information Notice (EN)
+                    </a>
+                  </li>
+                  <li>
+                    <a
+                      href="/docs/cancellation-refund-policy-en.html"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="hover:text-white transition"
+                    >
+                      Cancellation & Refund Policy (EN)
+                    </a>
+                  </li>
+                </>
+              )}
             </ul>
           </div>
 

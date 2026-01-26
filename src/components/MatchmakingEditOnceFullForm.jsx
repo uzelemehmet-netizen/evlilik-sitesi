@@ -67,6 +67,36 @@ export default function MatchmakingEditOnceFullForm({
     [t, i18n.language]
   );
 
+  const partnerMaritalStatusOptions = useMemo(
+    () => [
+      { id: '', label: t('matchmakingPage.form.options.common.select') },
+      { id: 'single', label: t('matchmakingPage.form.options.maritalStatus.single') },
+      { id: 'widowed', label: t('matchmakingPage.form.options.maritalStatus.widowed') },
+      { id: 'divorced', label: t('matchmakingPage.form.options.maritalStatus.divorced') },
+      { id: 'doesnt_matter', label: t('matchmakingPage.form.options.maritalStatus.doesnt_matter') },
+    ],
+    [t, i18n.language]
+  );
+
+  const religiousValuesOptions = useMemo(
+    () => [
+      { id: '', label: t('matchmakingPage.form.options.common.select') },
+      { id: 'weak', label: t('matchmakingPage.form.options.religiousValues.weak') },
+      { id: 'medium', label: t('matchmakingPage.form.options.religiousValues.medium') },
+      { id: 'conservative', label: t('matchmakingPage.form.options.religiousValues.conservative') },
+    ],
+    [t, i18n.language]
+  );
+
+  const partnerCommunicationMethodOptions = useMemo(
+    () => [
+      { id: 'own_language', label: t('matchmakingPage.form.options.partnerCommunicationMethods.ownLanguage') },
+      { id: 'foreign_language', label: t('matchmakingPage.form.options.partnerCommunicationMethods.foreignLanguage') },
+      { id: 'translation_app', label: t('matchmakingPage.form.options.partnerCommunicationMethods.translationApp') },
+    ],
+    [t, i18n.language]
+  );
+
   const educationOptions = useMemo(
     () => [
       { id: '', label: t('matchmakingPage.form.options.common.select') },
@@ -338,16 +368,58 @@ export default function MatchmakingEditOnceFullForm({
     });
   };
 
-  const onPartnerTranslationAppChange = (e) => {
-    const next = e?.target?.value || '';
+  const getPartnerCommunicationMethodsForUi = (partner, details) => {
+    if (partner && Array.isArray(partner.communicationMethods) && partner.communicationMethods.length) {
+      return partner.communicationMethods.filter(Boolean);
+    }
+
+    const native = String(details?.languages?.native?.code || '');
+    const legacy = [];
+
+    const legacyCommLang = String(partner?.communicationLanguage || '');
+    if (legacyCommLang) {
+      if (legacyCommLang === 'translation_app') legacy.push('translation_app');
+      else if (native && legacyCommLang === native) legacy.push('own_language');
+      else legacy.push('foreign_language');
+    }
+
+    const legacyTranslation = String(partner?.translationAppPreference || '');
+    if (legacyTranslation === 'yes' || partner?.canCommunicateWithTranslationApp === true) {
+      if (!legacy.includes('translation_app')) legacy.push('translation_app');
+    }
+
+    return legacy;
+  };
+
+  const togglePartnerCommunicationMethod = (id) => {
     setValue((prev) => {
-      const p = prev.partnerPreferences || {};
+      const details = prev.details || {};
+      const partnerPreferences = prev.partnerPreferences || {};
+      const current = getPartnerCommunicationMethodsForUi(partnerPreferences, details);
+      const next = current.includes(id) ? current.filter((x) => x !== id) : [...current, id];
+
+      // Legacy alanlar (api/admin ekranlar için) - best effort türetme
+      const native = String(details?.languages?.native?.code || '');
+      const foreignCodes = Array.isArray(details?.languages?.foreign?.codes) ? details.languages.foreign.codes : [];
+      const foreignCandidate =
+        foreignCodes.find((c) => c && c !== 'none' && c !== 'other' && c !== 'translation_app') || '';
+
+      let communicationLanguage = String(partnerPreferences.communicationLanguage || '');
+      if (!next.includes('translation_app') && communicationLanguage === 'translation_app') communicationLanguage = '';
+
+      if (next.includes('own_language') && native) communicationLanguage = native;
+      else if (next.includes('foreign_language') && foreignCandidate) communicationLanguage = foreignCandidate;
+      else if (!communicationLanguage && next.includes('translation_app')) communicationLanguage = 'translation_app';
+
       return {
         ...prev,
         partnerPreferences: {
-          ...p,
-          translationAppPreference: next,
-          canCommunicateWithTranslationApp: next === 'yes',
+          ...partnerPreferences,
+          communicationMethods: next,
+          communicationLanguage,
+          communicationLanguageOther: '',
+          canCommunicateWithTranslationApp: next.includes('translation_app'),
+          translationAppPreference: next.includes('translation_app') ? 'yes' : 'no',
         },
       };
     });
@@ -361,12 +433,53 @@ export default function MatchmakingEditOnceFullForm({
   const partnerAgeMaxForUi = ageNum !== null && older !== null ? Math.min(99, ageNum + older) : null;
 
   const nativeCode = String(value?.details?.languages?.native?.code || '');
+  const nativeOther = String(value?.details?.languages?.native?.other || '').trim();
   const foreignCodes = Array.isArray(value?.details?.languages?.foreign?.codes)
     ? value.details.languages.foreign.codes
     : [];
+  const foreignOther = String(value?.details?.languages?.foreign?.other || '').trim();
 
   const communicationLang = String(value?.details?.communicationLanguage || '');
-  const partnerCommLang = String(value?.partnerPreferences?.communicationLanguage || '');
+  const partnerCommunicationMethodsForUi = getPartnerCommunicationMethodsForUi(
+    value?.partnerPreferences || {},
+    value?.details || {}
+  );
+
+  const partnerForeignLanguageLabelForUi = (() => {
+    const base = t('matchmakingPage.form.options.partnerCommunicationMethods.foreignLanguage');
+    const labels = [];
+
+    const codes = foreignCodes.filter((c) => c && c !== 'none' && c !== 'other' && c !== 'translation_app');
+    for (const c of codes) {
+      labels.push(communicationLanguageOptions.find((opt) => opt.id === c)?.label || c);
+    }
+
+    if (foreignCodes.includes('other') && foreignOther) {
+      labels.push(`${t('matchmakingPage.form.options.commLanguage.other')}: ${foreignOther}`);
+    }
+
+    if (!labels.length) return base;
+
+    const maxShown = 3;
+    const shown = labels.slice(0, maxShown);
+    const remaining = labels.length - shown.length;
+    const detail = `${shown.join(', ')}${remaining > 0 ? ` +${remaining}` : ''}`;
+    return `${base} (${detail})`;
+  })();
+
+  const partnerOwnLanguageLabelForUi = (() => {
+    const base = t('matchmakingPage.form.options.partnerCommunicationMethods.ownLanguage');
+    if (!nativeCode) return base;
+
+    if (nativeCode === 'other') {
+      if (!nativeOther) return base;
+      return `${base} (${t('matchmakingPage.form.options.commLanguage.other')}: ${nativeOther})`;
+    }
+
+    const label = communicationLanguageOptions.find((opt) => opt.id === nativeCode)?.label;
+    if (!label) return base;
+    return `${base} (${label})`;
+  })();
 
   const partnerHeightMin = String(value?.partnerPreferences?.heightMinCm ?? '');
   const partnerHeightMax = String(value?.partnerPreferences?.heightMaxCm ?? '');
@@ -693,7 +806,7 @@ export default function MatchmakingEditOnceFullForm({
               </label>
 
               {communicationLanguageOptions
-                .filter((opt) => opt.id !== nativeCode)
+                .filter((opt) => opt.id !== nativeCode && opt.id !== 'translation_app')
                 .map((opt) => (
                   <label key={opt.id} className="block">
                     <input
@@ -802,12 +915,17 @@ export default function MatchmakingEditOnceFullForm({
 
           <div className="md:col-span-2">
             <label className="block text-sm text-white/70">{t('matchmakingPage.form.labels.religiousValues')}</label>
-            <textarea
+            <select
               value={value?.details?.religiousValues || ''}
               onChange={onDetailsChange('religiousValues')}
-              className="mt-1 w-full min-h-[80px] rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-white/40"
-              placeholder={t('matchmakingPage.form.placeholders.religiousValues')}
-            />
+              className="mt-1 w-full rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-sm text-white"
+            >
+              {religiousValuesOptions.map((opt) => (
+                <option key={opt.id} value={opt.id} className="text-slate-900">
+                  {opt.label}
+                </option>
+              ))}
+            </select>
           </div>
 
           <div className="md:col-span-2">
@@ -1004,11 +1122,11 @@ export default function MatchmakingEditOnceFullForm({
           <div>
             <label className="block text-sm text-white/70">{t('matchmakingPage.form.labels.partnerMaritalStatus')}</label>
             <select
-              value={value?.partnerPreferences?.maritalStatus || ''}
+              value={String(value?.partnerPreferences?.maritalStatus || '') === 'other' ? 'doesnt_matter' : (value?.partnerPreferences?.maritalStatus || '')}
               onChange={onPartnerChange('maritalStatus')}
               className="mt-1 w-full rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-sm text-white"
             >
-              {maritalStatusOptions.map((opt) => (
+              {partnerMaritalStatusOptions.map((opt) => (
                 <option key={opt.id} value={opt.id} className="text-slate-900">
                   {opt.label}
                 </option>
@@ -1031,47 +1149,34 @@ export default function MatchmakingEditOnceFullForm({
             </select>
           </div>
 
-          <div>
+          <div className="md:col-span-2">
             <label className="block text-sm text-white/70">{t('matchmakingPage.form.labels.partnerCommunicationLanguages')}</label>
-            <select
-              value={partnerCommLang}
-              onChange={onPartnerChange('communicationLanguage')}
-              className="mt-1 w-full rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-sm text-white"
-            >
-              <option value="" className="text-slate-900">{t('matchmakingPage.form.options.common.select')}</option>
-              {communicationLanguageOptions.map((opt) => (
-                <option key={opt.id} value={opt.id} className="text-slate-900">
-                  {opt.label}
-                </option>
-              ))}
-            </select>
-          </div>
+            <p className="mt-1 text-xs text-white/60">{t('matchmakingPage.form.hints.multiSelect')}</p>
 
-          {partnerCommLang === 'other' && (
-            <div>
-              <label className="block text-sm text-white/70">{t('matchmakingPage.form.labels.partnerCommunicationLanguageOther')}</label>
-              <input
-                value={value?.partnerPreferences?.communicationLanguageOther || ''}
-                onChange={onPartnerChange('communicationLanguageOther')}
-                className="mt-1 w-full rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-white/40"
-                placeholder={t('matchmakingPage.form.placeholders.partnerCommunicationLanguageOther')}
-              />
+            <div className="mt-2 grid grid-cols-2 md:grid-cols-3 gap-2">
+              {partnerCommunicationMethodOptions.map((opt) => (
+                <label key={opt.id} className="block">
+                  <input
+                    type="checkbox"
+                    className="peer sr-only"
+                    checked={partnerCommunicationMethodsForUi.includes(opt.id)}
+                    onChange={() => togglePartnerCommunicationMethod(opt.id)}
+                  />
+                  <div className="relative flex items-center rounded-xl border border-white/15 bg-white/5 pl-10 pr-3 py-2 text-sm font-semibold text-white/90 transition hover:border-white/25 peer-checked:border-amber-200/60 peer-checked:bg-amber-500/30">
+                    <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 inline-flex h-4 w-4 items-center justify-center rounded border border-white/30 bg-black/10">
+                      <span className="text-[11px] leading-none opacity-0 transition peer-checked:opacity-100">✓</span>
+                    </span>
+                    <span className="truncate">
+                      {opt.id === 'own_language'
+                        ? partnerOwnLanguageLabelForUi
+                        : opt.id === 'foreign_language'
+                          ? partnerForeignLanguageLabelForUi
+                          : opt.label}
+                    </span>
+                  </div>
+                </label>
+              ))}
             </div>
-          )}
-
-          <div>
-            <label className="block text-sm text-white/70">{t('matchmakingPage.form.labels.partnerTranslationApp')}</label>
-            <select
-              value={value?.partnerPreferences?.translationAppPreference || ''}
-              onChange={onPartnerTranslationAppChange}
-              className="mt-1 w-full rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-sm text-white"
-            >
-              {yesNoDoesntMatterOptions.map((opt) => (
-                <option key={opt.id} value={opt.id} className="text-slate-900">
-                  {opt.label}
-                </option>
-              ))}
-            </select>
           </div>
 
           <div>
@@ -1205,7 +1310,7 @@ export default function MatchmakingEditOnceFullForm({
         <div className="space-y-3">
           <label className="flex items-start gap-3 text-sm text-white/90">
             <input type="checkbox" checked={!!consents?.consent18Plus} disabled={disableConsents} onChange={() => {}} className="mt-1" />
-            <span>{t('matchmakingPage.form.consents.age')}</span>
+            <span>{t('matchmakingPage.form.consents.age', { minAge: (value?.nationality || '') === 'id' ? 21 : 18 })}</span>
           </label>
           <label className="flex items-start gap-3 text-sm text-white/90">
             <input type="checkbox" checked={!!consents?.consentPrivacy} disabled={disableConsents} onChange={() => {}} className="mt-1" />

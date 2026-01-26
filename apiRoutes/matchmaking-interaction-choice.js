@@ -24,6 +24,13 @@ export default async function handler(req, res) {
     return;
   }
 
+  // Yeni akış: İlk 48 saat site içi chat zorunlu.
+  // Contact paylaşımı artık request/approve ile yapılır.
+  res.statusCode = 410;
+  res.setHeader('content-type', 'application/json');
+  res.end(JSON.stringify({ ok: false, error: 'deprecated' }));
+  return;
+
   try {
     const decoded = await requireIdToken(req);
     const uid = decoded.uid;
@@ -46,6 +53,7 @@ export default async function handler(req, res) {
 
     let resolvedMode = '';
     let otherChoice = '';
+    const tsMs = Date.now();
 
     await db.runTransaction(async (tx) => {
       const matchSnap = await tx.get(matchRef);
@@ -150,9 +158,15 @@ export default async function handler(req, res) {
           patch.interactionMode = resolvedMode;
           patch.interactionChosenAt = FieldValue.serverTimestamp();
 
+          if (resolvedMode === 'chat') {
+            patch.chatEnabledAt = FieldValue.serverTimestamp();
+            patch.chatEnabledAtMs = tsMs;
+          }
+
           if (resolvedMode === 'contact' || resolvedMode === 'offsite') {
             patch.status = 'contact_unlocked';
             patch.contactUnlockedAt = FieldValue.serverTimestamp();
+            patch.contactUnlockedAtMs = tsMs;
           }
 
           if (resolvedMode === 'cancel') {

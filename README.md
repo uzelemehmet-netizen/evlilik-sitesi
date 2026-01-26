@@ -38,6 +38,12 @@ Notlar:
 - "Missing or insufficient permissions" hatası Firestore Rules kaynaklıdır; daha kapsamlı snippet için [FIRESTORE_RULES_SNIPPET.md](FIRESTORE_RULES_SNIPPET.md) dosyasına bakın.
 - Firebase Storage CORS hataları için [FIREBASE_STORAGE_CORS.md](FIREBASE_STORAGE_CORS.md) adımlarını izleyin.
 
+## Deployment notları (uniqah.com)
+
+- Google ile girişte `auth/unauthorized-domain` görürseniz: Firebase Console → Authentication → Settings → **Authorized domains** kısmına `uniqah.com` ve `www.uniqah.com` ekleyin.
+- Prod ortamında `.env`/Vercel env değerlerinde `VITE_FIREBASE_*` değişkenlerinin (özellikle `VITE_FIREBASE_AUTH_DOMAIN`, `VITE_FIREBASE_PROJECT_ID`) doğru Firebase projesini işaret ettiğini doğrulayın.
+- Fotoğraflar/Storage istekleri CORS yüzünden bloklanıyorsa: [FIREBASE_STORAGE_CORS.md](FIREBASE_STORAGE_CORS.md) dosyasındaki adımlarla bucket CORS ayarına `uniqah.com` originlerini ekleyin.
+
 ## Admin Panel Görsel Yükleme (Cloudinary)
 
 Admin panelde lokal dosyadan görsel yükleme için Cloudinary "unsigned upload preset" gerekir.
@@ -55,6 +61,30 @@ VITE_CLOUDINARY_CLOUD_NAME=your_cloud_name
 Not: Vite env değişiklikleri için `npm run dev` sürecini yeniden başlatmanız gerekir.
 
 Canlı (deploy) sitede ise `.env.local` okunmaz; `VITE_*` değişkenleri build sırasında gömülür. Bu yüzden Vercel proje ayarlarından **Environment Variables** kısmına `VITE_CLOUDINARY_UPLOAD_PRESET` (ve gerekirse `VITE_CLOUDINARY_CLOUD_NAME`) ekleyip **yeniden deploy** etmelisiniz.
+
+## Sohbet Manuel Çeviri (DeepL)
+
+Bu projede sohbet çevirisi **manuel** çalışır: kullanıcı "Çevir" butonuna basınca `/api/matchmaking-chat-translate` DeepL'e istek atar ve sonucu mesaj dokümanına cache'ler.
+
+Localde çalıştırmak için `.env.local` içine şunları ekleyin (gizli anahtarları paylaşmayın):
+
+```dotenv
+TRANSLATE_PROVIDER=deepl
+DEEPL_API_KEY=YOUR_DEEPL_KEY
+
+# Free plan kullanıyorsanız:
+DEEPL_API_URL=https://api-free.deepl.com/v2/translate
+
+# Pro plan kullanıyorsanız:
+# DEEPL_API_URL=https://api.deepl.com/v2/translate
+```
+
+Notlar:
+- `DEEPL_API_KEY` yoksa API `501 translate_not_configured` döner ve UI "Çeviri servisi ayarlı değil" mesajını gösterir.
+- Çeviri istekleri server-side yapıldığı için tarayıcı CSP ayarları DeepL'i etkilemez.
+- Çeviri yetkileri ve kotalar server-side uygulanır (paket/limit mantığı).
+
+Vercel deploy için aynı değişkenleri Vercel → Project → Settings → **Environment Variables** bölümüne ekleyip yeniden deploy edin.
 
 ## Admin Panel Firestore İzinleri
 

@@ -23,6 +23,19 @@
 			"command": "npm run dev",
 			"isBackground": true,
 			"problemMatcher": []
+		},
+		{
+			"label": "build (vite)",
+			"type": "shell",
+			"command": "npm",
+			"args": [
+				"run",
+				"build"
+			],
+			"isBackground": false,
+			"problemMatcher": [
+				"$tsc"
+			]
 		}
 	]
 }

@@ -55,36 +55,92 @@ export default function MatchmakingPaymentsTab() {
   const [err, setErr] = useState('');
   const [status, setStatus] = useState('pending'); // pending | approved | rejected
   const [copiedMsg, setCopiedMsg] = useState('');
+  const [usingIndexFallback, setUsingIndexFallback] = useState(false);
+  const [tierByPaymentId, setTierByPaymentId] = useState({});
+
+  const normalizeTier = (v) => {
+    const s = typeof v === 'string' ? v.toLowerCase().trim() : '';
+    return s === 'eco' || s === 'standard' || s === 'pro' ? s : 'pro';
+  };
+
+  const tierLabel = (tier) => {
+    const t = normalizeTier(tier);
+    if (t === 'eco') return 'Eko';
+    if (t === 'standard') return 'Standart';
+    return 'Pro';
+  };
+
+  const isIndexRequiredError = (e) => {
+    const code = String(e?.code || e?.name || '');
+    const message = String(e?.message || '');
+    // Firestore web SDK: "failed-precondition" + "The query requires an index"
+    return code === 'failed-precondition' || message.includes('requires an index');
+  };
 
   useEffect(() => {
     setLoading(true);
-    const q = query(
+    setUsingIndexFallback(false);
+
+    const primaryQuery = query(
       collection(db, 'matchmakingPayments'),
       where('status', '==', status),
       orderBy('createdAt', 'desc'),
       limit(50)
     );
 
-    const unsub = onSnapshot(
-      q,
-      (snap) => {
-        const rows = [];
-        snap.forEach((d) => rows.push({ id: d.id, ...d.data() }));
-        setItems(rows);
-        setLoading(false);
-      },
-      (e) => {
-        console.error('matchmakingPayments load failed:', e);
-        setLoading(false);
-      }
-    );
+    const fallbackQuery = query(collection(db, 'matchmakingPayments'), orderBy('createdAt', 'desc'), limit(50));
 
-    return unsub;
+    let unsub = null;
+    let fellBack = false;
+
+    const subscribe = (q, { filterStatus }) => {
+      return onSnapshot(
+        q,
+        (snap) => {
+          const rows = [];
+          snap.forEach((d) => rows.push({ id: d.id, ...d.data() }));
+          const next = filterStatus ? rows.filter((r) => String(r?.status || '') === String(status)) : rows;
+          setItems(next);
+          setLoading(false);
+        },
+        (e) => {
+          console.error('matchmakingPayments load failed:', e);
+
+          // Index yoksa otomatik fallback: orderBy(createdAt) + client-side filter.
+          if (!fellBack && isIndexRequiredError(e)) {
+            fellBack = true;
+            setUsingIndexFallback(true);
+            setErr('');
+            setMsg('');
+            try {
+              if (typeof unsub === 'function') unsub();
+            } catch {
+              // ignore
+            }
+            setLoading(true);
+            unsub = subscribe(fallbackQuery, { filterStatus: true });
+            return;
+          }
+
+          setLoading(false);
+        }
+      );
+    };
+
+    unsub = subscribe(primaryQuery, { filterStatus: false });
+    return () => {
+      try {
+        if (typeof unsub === 'function') unsub();
+      } catch {
+        // ignore
+      }
+    };
   }, [status]);
 
-  const approve = async (paymentId, ok) => {
+  const approve = async (paymentId, ok, tier) => {
+    const appliedTier = normalizeTier(tier);
     const confirmText = ok
-      ? 'Bu ödeme bildirimi ONAYLANACAK ve üyelik aktif edilecek. Devam edilsin mi?'
+      ? `Bu ödeme bildirimi ONAYLANACAK ve "${tierLabel(appliedTier)}" paketi aktif edilecek. Devam edilsin mi?`
       : 'Bu ödeme bildirimi REDDEDİLECEK. Devam edilsin mi?';
 
     if (!window.confirm(confirmText)) return;
@@ -96,7 +152,7 @@ export default function MatchmakingPaymentsTab() {
       const data = await authFetch('/api/matchmaking-admin-approve-payment', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ paymentId, approve: ok }),
+        body: JSON.stringify({ paymentId, approve: ok, tier: ok ? appliedTier : undefined }),
       });
 
       if (ok) {
@@ -136,6 +192,11 @@ export default function MatchmakingPaymentsTab() {
 
         {msg ? (
           <div className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-emerald-900 text-sm">{msg}</div>
+        ) : null}
+        {usingIndexFallback ? (
+          <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-amber-900 text-sm">
+            Not: Firestore index olmadığı için "fallback" listeleme kullanılıyor (biraz daha yavaş olabilir).
+          </div>
         ) : null}
         {err ? (
           <div className="mt-3 rounded-xl border border-rose-200 bg-rose-50 p-3 text-rose-900 text-sm">{err}</div>
@@ -203,6 +264,29 @@ export default function MatchmakingPaymentsTab() {
                 <div key={p.id} className="rounded-xl border border-slate-200 bg-slate-50 p-4">
                   <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
                     <div className="min-w-0">
+                      {(() => {
+                        const selectedTier = normalizeTier(tierByPaymentId?.[p.id] ?? p?.appliedTier ?? p?.tier ?? 'pro');
+                        return (
+                          <div className="mb-2 flex flex-wrap items-center gap-2 text-xs text-slate-600">
+                            <span>
+                              Paket: <span className="font-semibold text-slate-900">{tierLabel(selectedTier)}</span>
+                            </span>
+                            {status === 'pending' ? (
+                              <select
+                                value={selectedTier}
+                                onChange={(e) => setTierByPaymentId((prev) => ({ ...(prev || {}), [p.id]: e.target.value }))}
+                                className="rounded-md border border-slate-300 bg-white px-2 py-1 text-xs text-slate-800"
+                                disabled={acting}
+                              >
+                                <option value="eco">Eko</option>
+                                <option value="standard">Standart</option>
+                                <option value="pro">Pro</option>
+                              </select>
+                            ) : null}
+                          </div>
+                        );
+                      })()}
+
                       <p className="text-sm font-semibold text-slate-900">{fmtMoney(p?.amount, p?.currency)}</p>
                       <p className="text-xs text-slate-600 mt-1">
                         Yöntem: <span className="font-semibold">{p?.method || '-'}</span>
@@ -355,7 +439,10 @@ export default function MatchmakingPaymentsTab() {
                         <button
                           type="button"
                           disabled={acting}
-                          onClick={() => approve(p.id, true)}
+                          onClick={() => {
+                            const selectedTier = normalizeTier(tierByPaymentId?.[p.id] ?? p?.appliedTier ?? p?.tier ?? 'pro');
+                            approve(p.id, true, selectedTier);
+                          }}
                           className="px-4 py-2 rounded-full bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700 disabled:opacity-60"
                         >
                           Onayla

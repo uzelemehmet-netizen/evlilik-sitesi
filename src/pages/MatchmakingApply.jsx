@@ -184,11 +184,21 @@ export default function MatchmakingApply() {
                 partner?.ageMaxYoungerYears === 0 || partner?.ageMaxYoungerYears
                   ? String(partner.ageMaxYoungerYears)
                   : String(prev.partnerAgeMaxYoungerYears || ''),
-              partnerMaritalStatus: String(partner?.maritalStatus || prev.partnerMaritalStatus || ''),
+              partnerMaritalStatus: String((partner?.maritalStatus === 'other' ? 'doesnt_matter' : partner?.maritalStatus) || prev.partnerMaritalStatus || ''),
               partnerReligion: String(partner?.religion || prev.partnerReligion || ''),
-              partnerCommunicationLanguage: String(partner?.communicationLanguage || prev.partnerCommunicationLanguage || ''),
-              partnerCommunicationLanguageOther: String(partner?.communicationLanguageOther || prev.partnerCommunicationLanguageOther || ''),
-              partnerCanCommunicateWithTranslationApp: String(partner?.translationAppPreference || prev.partnerCanCommunicateWithTranslationApp || ''),
+              partnerCommunicationMethods: (() => {
+                const fromArray = partner?.communicationMethods;
+                if (Array.isArray(fromArray)) return fromArray.filter(Boolean);
+
+                const methods = [];
+                const legacyLang = String(partner?.communicationLanguage || '').trim();
+                const legacyTranslation = String(partner?.translationAppPreference || '').trim();
+
+                // Eski sistemde partner için dil seçildiyse, bunu "yabancı dil" olarak yorumlayıp taşırız.
+                if (legacyLang) methods.push('foreign_language');
+                if (legacyTranslation === 'yes') methods.push('translation_app');
+                return methods;
+              })(),
               partnerLivingCountry: String(partner?.livingCountry || prev.partnerLivingCountry || ''),
               partnerSmokingPreference: String(partner?.smokingPreference || prev.partnerSmokingPreference || ''),
               partnerAlcoholPreference: String(partner?.alcoholPreference || prev.partnerAlcoholPreference || ''),
@@ -262,6 +272,17 @@ export default function MatchmakingApply() {
       { id: 'widowed', label: t('matchmakingPage.form.options.maritalStatus.widowed') },
       { id: 'divorced', label: t('matchmakingPage.form.options.maritalStatus.divorced') },
       { id: 'other', label: t('matchmakingPage.form.options.maritalStatus.other') },
+    ],
+    [t, i18n.language]
+  );
+
+  const partnerMaritalStatusOptions = useMemo(
+    () => [
+      { id: '', label: t('matchmakingPage.form.options.common.select') },
+      { id: 'single', label: t('matchmakingPage.form.options.maritalStatus.single') },
+      { id: 'widowed', label: t('matchmakingPage.form.options.maritalStatus.widowed') },
+      { id: 'divorced', label: t('matchmakingPage.form.options.maritalStatus.divorced') },
+      { id: 'doesnt_matter', label: t('matchmakingPage.form.options.maritalStatus.doesnt_matter') },
     ],
     [t, i18n.language]
   );
@@ -390,6 +411,25 @@ export default function MatchmakingApply() {
     [t, i18n.language]
   );
 
+  const partnerCommunicationMethodOptions = useMemo(
+    () => [
+      { id: 'own_language', label: t('matchmakingPage.form.options.partnerCommunicationMethods.ownLanguage') },
+      { id: 'foreign_language', label: t('matchmakingPage.form.options.partnerCommunicationMethods.foreignLanguage') },
+      { id: 'translation_app', label: t('matchmakingPage.form.options.partnerCommunicationMethods.translationApp') },
+    ],
+    [t, i18n.language]
+  );
+
+  const religiousValuesOptions = useMemo(
+    () => [
+      { id: '', label: t('matchmakingPage.form.options.common.select') },
+      { id: 'weak', label: t('matchmakingPage.form.options.religiousValues.weak') },
+      { id: 'medium', label: t('matchmakingPage.form.options.religiousValues.medium') },
+      { id: 'conservative', label: t('matchmakingPage.form.options.religiousValues.conservative') },
+    ],
+    [t, i18n.language]
+  );
+
   const livingCountryOptions = useMemo(
     () => [
       { id: '', label: t('matchmakingPage.form.options.common.select') },
@@ -469,9 +509,7 @@ export default function MatchmakingApply() {
     partnerAgeMaxYoungerYears: '',
     partnerMaritalStatus: '',
     partnerReligion: '',
-    partnerCommunicationLanguage: '',
-    partnerCommunicationLanguageOther: '',
-    partnerCanCommunicateWithTranslationApp: '',
+    partnerCommunicationMethods: [],
     partnerLivingCountry: '',
     partnerSmokingPreference: '',
     partnerAlcoholPreference: '',
@@ -487,6 +525,47 @@ export default function MatchmakingApply() {
     consentTerms: false,
     hpCompany: '',
   });
+
+  const partnerForeignLanguageLabelForUi = useMemo(() => {
+    const base = t('matchmakingPage.form.options.partnerCommunicationMethods.foreignLanguage');
+
+    const foreign = Array.isArray(form.foreignLanguages) ? form.foreignLanguages.filter(Boolean) : [];
+    const otherValue = String(form.foreignLanguageOther || '').trim();
+
+    const codes = foreign.filter((c) => c && c !== 'none' && c !== 'other' && c !== 'translation_app');
+    const labels = codes
+      .map((c) => communicationLanguageOptions.find((opt) => opt.id === c)?.label || c)
+      .filter(Boolean);
+
+    if (foreign.includes('other') && otherValue) {
+      labels.push(`${t('matchmakingPage.form.options.commLanguage.other')}: ${otherValue}`);
+    }
+
+    if (!labels.length) return base;
+
+    const maxShown = 3;
+    const shown = labels.slice(0, maxShown);
+    const remaining = labels.length - shown.length;
+    const detail = `${shown.join(', ')}${remaining > 0 ? ` +${remaining}` : ''}`;
+    return `${base} (${detail})`;
+  }, [t, i18n.language, communicationLanguageOptions, form.foreignLanguages, form.foreignLanguageOther]);
+
+  const partnerOwnLanguageLabelForUi = useMemo(() => {
+    const base = t('matchmakingPage.form.options.partnerCommunicationMethods.ownLanguage');
+
+    const code = String(form.nativeLanguage || '').trim();
+    if (!code) return base;
+
+    if (code === 'other') {
+      const otherValue = String(form.nativeLanguageOther || '').trim();
+      if (!otherValue) return base;
+      return `${base} (${t('matchmakingPage.form.options.commLanguage.other')}: ${otherValue})`;
+    }
+
+    const label = communicationLanguageOptions.find((opt) => opt.id === code)?.label;
+    if (!label) return base;
+    return `${base} (${label})`;
+  }, [t, i18n.language, communicationLanguageOptions, form.nativeLanguage, form.nativeLanguageOther]);
 
   const [photoFiles, setPhotoFiles] = useState({ photo1: null, photo2: null, photo3: null });
   const [formOpenedAt] = useState(() => Date.now());
@@ -571,6 +650,8 @@ export default function MatchmakingApply() {
     setSuccess(false);
     setLastApplicationId('');
 
+    const minApplicantAge = form.nationality === 'id' ? 21 : 18;
+
     // Honeypot (botlar genelde doldurur)
     // Not: Bazı tarayıcı/eklenti autofill'leri gizli alanları doldurabiliyor.
     // Bu yüzden burada "başarılı" gösterip kaydı yutmuyoruz; kullanıcıya net uyarı veriyoruz.
@@ -597,7 +678,7 @@ export default function MatchmakingApply() {
     // Firestore rules, başvuru kaydı için bu onayların true olmasını bekliyor.
     // Diğer tüm alanlar opsiyonel kalsa bile, bu 3 onay olmadan gönderim engellenir.
     if (!form.consent18Plus || !form.consentPrivacy || !form.consentPhotoShare || !form.consentTerms) {
-      return setError(t('matchmakingPage.form.errors.consentsRequired'));
+      return setError(t('matchmakingPage.form.errors.consentsRequired', { minAge: minApplicantAge }));
     }
 
     let recaptchaToken = '';
@@ -688,13 +769,10 @@ export default function MatchmakingApply() {
     if (!requiredValue(form.partnerAgeMaxYoungerYears)) return setError(t('matchmakingPage.form.errors.partnerAgeMaxYoungerYears'));
     if (!requiredValue(form.partnerMaritalStatus)) return setError(t('matchmakingPage.form.errors.partnerMaritalStatus'));
     if (!requiredValue(form.partnerReligion)) return setError(t('matchmakingPage.form.errors.partnerReligion'));
-    if (!requiredValue(form.partnerCommunicationLanguage)) return setError(t('matchmakingPage.form.errors.partnerCommunicationLanguage'));
-    if (form.partnerCommunicationLanguage === 'other' && !requiredValue(form.partnerCommunicationLanguageOther)) {
-      return setError(t('matchmakingPage.form.errors.partnerCommunicationLanguageOther'));
-    }
-    if (!requiredValue(form.partnerCanCommunicateWithTranslationApp)) {
-      return setError(t('matchmakingPage.form.errors.partnerTranslationApp'));
-    }
+    const partnerCommunicationMethods = Array.isArray(form.partnerCommunicationMethods)
+      ? form.partnerCommunicationMethods.filter(Boolean)
+      : [];
+    if (!partnerCommunicationMethods.length) return setError(t('matchmakingPage.form.errors.partnerCommunicationLanguage'));
     if (!requiredValue(form.partnerLivingCountry)) return setError(t('matchmakingPage.form.errors.partnerLivingCountry'));
     if (!requiredValue(form.partnerSmokingPreference)) return setError(t('matchmakingPage.form.errors.partnerSmokingPreference'));
     if (!requiredValue(form.partnerAlcoholPreference)) return setError(t('matchmakingPage.form.errors.partnerAlcoholPreference'));
@@ -718,8 +796,8 @@ export default function MatchmakingApply() {
 
     const ageStr = String(form.age ?? '').trim();
     const ageNum = ageStr ? Number(ageStr) : null;
-    if (ageStr && (!Number.isFinite(ageNum) || ageNum < 18 || ageNum > 99)) {
-      return setError(t('matchmakingPage.form.errors.ageRange'));
+    if (ageStr && (!Number.isFinite(ageNum) || ageNum < minApplicantAge || ageNum > 99)) {
+      return setError(t('matchmakingPage.form.errors.ageRange', { minAge: minApplicantAge }));
     }
 
     const childrenCountNum = toNumberOrNull(form.childrenCount);
@@ -771,36 +849,19 @@ export default function MatchmakingApply() {
       }
 
       const colRef = collection(db, 'matchmakingApplications');
-      const docId = isEditOnceMode ? String(existingApplication?.id || '') : '';
-      const docRef = isEditOnceMode ? (docId ? doc(colRef, docId) : null) : doc(colRef);
+      // Firestore rules, başkalarının başvurularını okumaya izin vermediği için
+      // client-side uniqueness query'leri permission-denied ile kırılır.
+      // Bu yüzden benzersizliği docId üzerinden enforce ediyoruz (case-insensitive).
+      const docId = isEditOnceMode ? String(existingApplication?.id || '') : String(normalizedUsername || '').trim();
+      const docRef = docId ? doc(colRef, docId) : null;
       if (isEditOnceMode && !docRef) {
         return setError(t('matchmakingPage.form.errors.submitFailed'));
       }
-
-      // Kullanıcı adı benzersiz olmalı (case-insensitive).
-      // EditOnce modunda kullanıcı adı değiştirilemez; sadece ilk kayıtta kontrol edilir.
-      if (!isEditOnceMode) {
-        try {
-          const qLower = query(collection(db, 'matchmakingApplications'), where('usernameLower', '==', normalizedUsername), limit(1));
-          const snapLower = await getDocs(qLower);
-          if (!snapLower.empty) {
-            return setError(t('matchmakingPage.form.errors.usernameTaken'));
-          }
-
-          const exact = String(form.username || '').trim();
-          if (exact) {
-            const qExact = query(collection(db, 'matchmakingApplications'), where('username', '==', exact), limit(1));
-            const snapExact = await getDocs(qExact);
-            if (!snapExact.empty) {
-              return setError(t('matchmakingPage.form.errors.usernameTaken'));
-            }
-          }
-        } catch (e) {
-          // Hata olursa, kullanıcıyı yanlış yönlendirmemek için gönderimi durdur.
-          console.error('username uniqueness check failed:', e);
-          return setError(t('matchmakingPage.form.errors.submitFailed'));
-        }
+      if (!isEditOnceMode && !docRef) {
+        return setError(t('matchmakingPage.form.errors.username'));
       }
+
+      // Not: username uniqueness check artık docId üzerinden çalışır.
 
       const compressed1 = photoFiles.photo1 ? await compressImageToJpeg(photoFiles.photo1) : null;
       const compressed2 = photoFiles.photo2 ? await compressImageToJpeg(photoFiles.photo2) : null;
@@ -924,7 +985,7 @@ export default function MatchmakingApply() {
           childrenCount: childrenCountNum,
           incomeLevel: form.incomeLevel || '',
           religion: form.religion || '',
-          religiousValues: (form.religiousValues || '').trim(),
+          religiousValues: String(form.religiousValues || '').trim(),
           familyApprovalStatus: form.familyApprovalStatus || '',
           marriageTimeline: form.marriageTimeline || '',
           relocationWillingness: form.relocationWillingness || '',
@@ -957,11 +1018,10 @@ export default function MatchmakingApply() {
           ageMax: partnerAgeMax,
           maritalStatus: form.partnerMaritalStatus || '',
           religion: form.partnerReligion || '',
-          communicationLanguage: form.partnerCommunicationLanguage || '',
-          communicationLanguageOther:
-            form.partnerCommunicationLanguage === 'other' ? String(form.partnerCommunicationLanguageOther).trim() : '',
-          canCommunicateWithTranslationApp: form.partnerCanCommunicateWithTranslationApp === 'yes',
-          translationAppPreference: form.partnerCanCommunicateWithTranslationApp || '',
+          communicationMethods: partnerCommunicationMethods,
+          // geriye dönük: eski alanlar (admin/raporlar için)
+          canCommunicateWithTranslationApp: partnerCommunicationMethods.includes('translation_app'),
+          translationAppPreference: partnerCommunicationMethods.includes('translation_app') ? 'yes' : 'no',
           livingCountry: form.partnerLivingCountry || '',
           smokingPreference: form.partnerSmokingPreference || '',
           alcoholPreference: form.partnerAlcoholPreference || '',
@@ -1049,7 +1109,13 @@ export default function MatchmakingApply() {
       console.error('matchmaking submit error:', err);
       const code = err?.code || err?.name || '';
       if (code === 'permission-denied') {
-        setError(t('matchmakingPage.form.errors.permissionDenied'));
+        // Bu sayfada create izinleri dar; permission-denied en sık "doc zaten var" (username taken)
+        // veya gerçek yetki problemi olur. EditOnce modunda update zaten admin'e ait.
+        if (!isEditOnceMode) {
+          setError(t('matchmakingPage.form.errors.usernameTaken'));
+        } else {
+          setError(t('matchmakingPage.form.errors.permissionDenied'));
+        }
       } else if (code === 'unauthenticated') {
         setError(t('matchmakingPage.form.errors.mustLogin'));
       } else if (typeof code === 'string' && (code.startsWith('storage/') || code.startsWith('cloudinary/'))) {
@@ -1154,12 +1220,12 @@ export default function MatchmakingApply() {
             <p className="mt-4 text-sm text-white/60">{t('matchmakingPage.authGate.note')}</p>
           </div>
         ) : (
-          <div className="mt-6 rounded-[28px] border border-slate-200/80 bg-slate-100 text-slate-900 shadow-[0_30px_90px_rgba(0,0,0,0.35)] p-5 md:p-6">
+          <div className="mt-6 text-white md:text-slate-900 p-0 md:rounded-[28px] md:border md:border-slate-200/80 md:bg-slate-100 md:shadow-[0_30px_90px_rgba(0,0,0,0.35)] md:p-6">
           <form
             onSubmit={onSubmit}
-            className="relative overflow-hidden space-y-6 rounded-2xl bg-slate-50 p-4 md:p-6 border border-slate-200/80 shadow-[0_20px_60px_rgba(15,23,42,0.10)] [&_input]:bg-white [&_select]:bg-white [&_textarea]:bg-white [&_input]:shadow-sm [&_select]:shadow-sm [&_textarea]:shadow-sm [&_input:focus-visible]:outline-none [&_select:focus-visible]:outline-none [&_textarea:focus-visible]:outline-none [&_input:focus-visible]:ring-2 [&_select:focus-visible]:ring-2 [&_textarea:focus-visible]:ring-2 [&_input:focus-visible]:ring-amber-300/60 [&_select:focus-visible]:ring-amber-300/60 [&_textarea:focus-visible]:ring-amber-300/60 [&_input:focus-visible]:border-amber-300 [&_select:focus-visible]:border-amber-300 [&_textarea:focus-visible]:border-amber-300"
+            className="relative space-y-6 bg-transparent p-0 border-0 shadow-none md:rounded-2xl md:bg-slate-50 md:p-6 md:border md:border-slate-200/80 md:shadow-[0_20px_60px_rgba(15,23,42,0.10)] [&_input]:bg-white [&_select]:bg-white [&_textarea]:bg-white [&_input]:text-slate-900 [&_select]:text-slate-900 [&_textarea]:text-slate-900 [&_input]:placeholder:text-slate-400 [&_textarea]:placeholder:text-slate-400 [&_select]:placeholder:text-slate-400 [&_option]:text-slate-900 [&_input]:shadow-sm [&_select]:shadow-sm [&_textarea]:shadow-sm [&_input:focus-visible]:outline-none [&_select:focus-visible]:outline-none [&_textarea:focus-visible]:outline-none [&_input:focus-visible]:ring-2 [&_select:focus-visible]:ring-2 [&_textarea:focus-visible]:ring-2 [&_input:focus-visible]:ring-amber-300/60 [&_select:focus-visible]:ring-amber-300/60 [&_textarea:focus-visible]:ring-amber-300/60 [&_input:focus-visible]:border-amber-300 [&_select:focus-visible]:border-amber-300 [&_textarea:focus-visible]:border-amber-300"
           >
-          <div aria-hidden="true" className="pointer-events-none absolute inset-0">
+          <div aria-hidden="true" className="pointer-events-none absolute inset-0 hidden md:block">
             <div className="absolute -top-24 -right-20 w-72 h-72 bg-[radial-gradient(circle_at_center,rgba(245,158,11,0.18),rgba(245,158,11,0)_62%)]" />
             <div className="absolute -bottom-24 -left-20 w-80 h-80 bg-[radial-gradient(circle_at_center,rgba(99,102,241,0.14),rgba(99,102,241,0)_60%)]" />
           </div>
@@ -1189,7 +1255,7 @@ export default function MatchmakingApply() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-semibold text-slate-800">{t('matchmakingPage.form.labels.username')}</label>
+              <label className="block text-sm font-semibold text-white/90 md:text-slate-800">{t('matchmakingPage.form.labels.username')}</label>
               <input
                 value={form.username}
                 onChange={onChange('username')}
@@ -1198,11 +1264,11 @@ export default function MatchmakingApply() {
                 placeholder={t('matchmakingPage.form.placeholders.username')}
               />
               {isEditOnceMode ? (
-                <p className="mt-1 text-xs text-slate-600">{t('matchmakingPage.form.editOnce.usernameLocked')}</p>
+                <p className="mt-1 text-xs text-white/60 md:text-slate-600">{t('matchmakingPage.form.editOnce.usernameLocked')}</p>
               ) : null}
             </div>
             <div>
-              <label className="block text-sm font-semibold text-slate-800">{t('matchmakingPage.form.labels.fullName')}</label>
+              <label className="block text-sm font-semibold text-white/90 md:text-slate-800">{t('matchmakingPage.form.labels.fullName')}</label>
               <input
                 value={form.fullName}
                 onChange={onChange('fullName')}
@@ -1211,7 +1277,7 @@ export default function MatchmakingApply() {
               />
             </div>
             <div>
-              <label className="block text-sm font-semibold text-slate-800">{t('matchmakingPage.form.labels.age')}</label>
+              <label className="block text-sm font-semibold text-white/90 md:text-slate-800">{t('matchmakingPage.form.labels.age')}</label>
               <input
                 value={form.age}
                 onChange={onChange('age')}
@@ -1221,7 +1287,7 @@ export default function MatchmakingApply() {
               />
             </div>
             <div>
-              <label className="block text-sm font-semibold text-slate-800">{t('matchmakingPage.form.labels.city')}</label>
+              <label className="block text-sm font-semibold text-white/90 md:text-slate-800">{t('matchmakingPage.form.labels.city')}</label>
               <input
                 value={form.city}
                 onChange={onChange('city')}
@@ -1230,7 +1296,7 @@ export default function MatchmakingApply() {
               />
             </div>
             <div>
-              <label className="block text-sm font-semibold text-slate-800">{t('matchmakingPage.form.labels.country')}</label>
+              <label className="block text-sm font-semibold text-white/90 md:text-slate-800">{t('matchmakingPage.form.labels.country')}</label>
               <input
                 value={form.country}
                 onChange={onChange('country')}
@@ -1239,7 +1305,7 @@ export default function MatchmakingApply() {
               />
             </div>
             <div>
-              <label className="block text-sm font-semibold text-slate-800">{t('matchmakingPage.form.labels.whatsapp')}</label>
+              <label className="block text-sm font-semibold text-white/90 md:text-slate-800">{t('matchmakingPage.form.labels.whatsapp')}</label>
               <input
                 value={form.whatsapp}
                 onChange={onChange('whatsapp')}
@@ -1248,7 +1314,7 @@ export default function MatchmakingApply() {
               />
             </div>
             <div>
-              <label className="block text-sm font-semibold text-slate-800">{t('matchmakingPage.form.labels.email')}</label>
+              <label className="block text-sm font-semibold text-white/90 md:text-slate-800">{t('matchmakingPage.form.labels.email')}</label>
               <input
                 value={form.email}
                 onChange={onChange('email')}
@@ -1257,7 +1323,7 @@ export default function MatchmakingApply() {
               />
             </div>
             <div>
-              <label className="block text-sm font-semibold text-slate-800">{t('matchmakingPage.form.labels.instagram')}</label>
+              <label className="block text-sm font-semibold text-white/90 md:text-slate-800">{t('matchmakingPage.form.labels.instagram')}</label>
               <input
                 value={form.instagram}
                 onChange={onChange('instagram')}
@@ -1267,11 +1333,11 @@ export default function MatchmakingApply() {
             </div>
           </div>
 
-          <div className="rounded-xl border border-slate-200 p-4">
-            <p className="text-sm font-semibold text-slate-900">{t('matchmakingPage.form.sections.moreDetails')}</p>
+          <div className="rounded-none border-0 md:rounded-xl md:border md:border-slate-200 p-0 md:p-4">
+            <p className="text-sm font-semibold text-white md:text-slate-900">{t('matchmakingPage.form.sections.moreDetails')}</p>
             <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3">
               <div>
-                <label className="block text-sm text-slate-700">{t('matchmakingPage.form.labels.height')}</label>
+                <label className="block text-sm text-white/80 md:text-slate-700">{t('matchmakingPage.form.labels.height')}</label>
                 <input
                   value={form.heightCm}
                   onChange={onChange('heightCm')}
@@ -1281,7 +1347,7 @@ export default function MatchmakingApply() {
                 />
               </div>
               <div>
-                <label className="block text-sm text-slate-700">{t('matchmakingPage.form.labels.weight')}</label>
+                <label className="block text-sm text-white/80 md:text-slate-700">{t('matchmakingPage.form.labels.weight')}</label>
                 <input
                   value={form.weightKg}
                   onChange={onChange('weightKg')}
@@ -1292,7 +1358,7 @@ export default function MatchmakingApply() {
               </div>
 
               <div>
-                <label className="block text-sm text-slate-700">{t('matchmakingPage.form.labels.occupation')}</label>
+                <label className="block text-sm text-white/80 md:text-slate-700">{t('matchmakingPage.form.labels.occupation')}</label>
                 <select
                   value={form.occupation}
                   onChange={onChange('occupation')}
@@ -1306,7 +1372,7 @@ export default function MatchmakingApply() {
                 </select>
               </div>
               <div>
-                <label className="block text-sm text-slate-700">{t('matchmakingPage.form.labels.education')}</label>
+                <label className="block text-sm text-white/80 md:text-slate-700">{t('matchmakingPage.form.labels.education')}</label>
                 <select
                   value={form.education}
                   onChange={onEducationChange}
@@ -1322,7 +1388,7 @@ export default function MatchmakingApply() {
 
               {(form.education === 'university' || form.education === 'masters' || form.education === 'phd') && (
                 <div>
-                  <label className="block text-sm text-slate-700">{t('matchmakingPage.form.labels.educationDepartment')}</label>
+                  <label className="block text-sm text-white/80 md:text-slate-700">{t('matchmakingPage.form.labels.educationDepartment')}</label>
                   <input
                     value={form.educationDepartment}
                     onChange={onChange('educationDepartment')}
@@ -1333,7 +1399,7 @@ export default function MatchmakingApply() {
               )}
 
               <div>
-                <label className="block text-sm text-slate-700">{t('matchmakingPage.form.labels.maritalStatus')}</label>
+                <label className="block text-sm text-white/80 md:text-slate-700">{t('matchmakingPage.form.labels.maritalStatus')}</label>
                 <select
                   value={form.maritalStatus}
                   onChange={onChange('maritalStatus')}
@@ -1347,7 +1413,7 @@ export default function MatchmakingApply() {
                 </select>
               </div>
               <div>
-                <label className="block text-sm text-slate-700">{t('matchmakingPage.form.labels.hasChildren')}</label>
+                <label className="block text-sm text-white/80 md:text-slate-700">{t('matchmakingPage.form.labels.hasChildren')}</label>
                 <select
                   value={form.hasChildren}
                   onChange={onChange('hasChildren')}
@@ -1363,7 +1429,7 @@ export default function MatchmakingApply() {
 
               {form.hasChildren === 'yes' && (
                 <div>
-                  <label className="block text-sm text-slate-700">{t('matchmakingPage.form.labels.childrenCount')}</label>
+                  <label className="block text-sm text-white/80 md:text-slate-700">{t('matchmakingPage.form.labels.childrenCount')}</label>
                   <input
                     value={form.childrenCount}
                     onChange={onChange('childrenCount')}
@@ -1375,7 +1441,7 @@ export default function MatchmakingApply() {
               )}
 
               <div>
-                <label className="block text-sm text-slate-700">{t('matchmakingPage.form.labels.incomeLevel')}</label>
+                <label className="block text-sm text-white/80 md:text-slate-700">{t('matchmakingPage.form.labels.incomeLevel')}</label>
                 <select
                   value={form.incomeLevel}
                   onChange={onChange('incomeLevel')}
@@ -1390,7 +1456,7 @@ export default function MatchmakingApply() {
               </div>
 
               <div>
-                <label className="block text-sm text-slate-700">{t('matchmakingPage.form.labels.religion')}</label>
+                <label className="block text-sm text-white/80 md:text-slate-700">{t('matchmakingPage.form.labels.religion')}</label>
                 <select
                   value={form.religion}
                   onChange={onChange('religion')}
@@ -1405,7 +1471,7 @@ export default function MatchmakingApply() {
               </div>
 
               <div>
-                <label className="block text-sm text-slate-700">{t('matchmakingPage.form.labels.nativeLanguage')}</label>
+                <label className="block text-sm text-white/80 md:text-slate-700">{t('matchmakingPage.form.labels.nativeLanguage')}</label>
                 <select
                   value={form.nativeLanguage}
                   onChange={onNativeLanguageChange}
@@ -1422,7 +1488,7 @@ export default function MatchmakingApply() {
 
               {form.nativeLanguage === 'other' && (
                 <div>
-                  <label className="block text-sm text-slate-700">{t('matchmakingPage.form.labels.nativeLanguageOther')}</label>
+                  <label className="block text-sm text-white/80 md:text-slate-700">{t('matchmakingPage.form.labels.nativeLanguageOther')}</label>
                   <input
                     value={form.nativeLanguageOther}
                     onChange={onChange('nativeLanguageOther')}
@@ -1433,9 +1499,9 @@ export default function MatchmakingApply() {
               )}
 
               <div className="md:col-span-2">
-                <label className="block text-sm text-slate-700">{t('matchmakingPage.form.labels.foreignLanguages')}</label>
-                <p className="mt-1 text-xs text-slate-600">{t('matchmakingPage.form.hints.multiSelect')}</p>
-                <div className="mt-2 grid grid-cols-2 md:grid-cols-4 gap-2">
+                <label className="block text-sm text-white/80 md:text-slate-700">{t('matchmakingPage.form.labels.foreignLanguages')}</label>
+                <p className="mt-1 text-xs text-white/60 md:text-slate-600">{t('matchmakingPage.form.hints.multiSelect')}</p>
+                <div className="mt-2 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
                   <label className="block">
                     <input
                       type="checkbox"
@@ -1443,15 +1509,15 @@ export default function MatchmakingApply() {
                       checked={Array.isArray(form.foreignLanguages) ? form.foreignLanguages.includes('none') : false}
                       onChange={toggleForeignLanguage('none')}
                     />
-                    <div className="relative flex items-center rounded-xl border border-slate-200 bg-white pl-10 pr-3 py-2 text-sm font-semibold text-slate-800 shadow-sm transition hover:border-slate-300 peer-checked:border-amber-200 peer-checked:bg-gradient-to-r peer-checked:from-amber-300 peer-checked:to-amber-500 peer-checked:text-slate-950">
+                    <div className="relative flex items-center rounded-xl border border-slate-200 bg-white pl-9 pr-2 py-1.5 text-[13px] md:pl-10 md:pr-3 md:py-2 md:text-sm font-semibold text-slate-800 shadow-sm transition hover:border-slate-300 peer-checked:border-amber-200 peer-checked:bg-gradient-to-r peer-checked:from-amber-300 peer-checked:to-amber-500 peer-checked:text-slate-950">
                       <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 inline-flex h-4 w-4 items-center justify-center rounded border border-slate-400 bg-white/80">
                         <span className="text-[11px] leading-none opacity-0 transition peer-checked:opacity-100">✓</span>
                       </span>
-                      <span className="truncate">{t('matchmakingPage.form.options.foreignLanguages.none')}</span>
+                      <span className="flex-1 whitespace-normal break-words leading-snug">{t('matchmakingPage.form.options.foreignLanguages.none')}</span>
                     </div>
                   </label>
                   {communicationLanguageOptions
-                    .filter((opt) => opt.id !== form.nativeLanguage)
+                    .filter((opt) => opt.id !== form.nativeLanguage && opt.id !== 'translation_app')
                     .map((opt) => (
                       <label key={opt.id} className="block">
                         <input
@@ -1460,21 +1526,21 @@ export default function MatchmakingApply() {
                           checked={Array.isArray(form.foreignLanguages) ? form.foreignLanguages.includes(opt.id) : false}
                           onChange={toggleForeignLanguage(opt.id)}
                         />
-                        <div className="relative flex items-center rounded-xl border border-slate-200 bg-white pl-10 pr-3 py-2 text-sm font-semibold text-slate-800 shadow-sm transition hover:border-slate-300 peer-checked:border-amber-200 peer-checked:bg-gradient-to-r peer-checked:from-amber-300 peer-checked:to-amber-500 peer-checked:text-slate-950">
+                        <div className="relative flex items-center rounded-xl border border-slate-200 bg-white pl-9 pr-2 py-1.5 text-[13px] md:pl-10 md:pr-3 md:py-2 md:text-sm font-semibold text-slate-800 shadow-sm transition hover:border-slate-300 peer-checked:border-amber-200 peer-checked:bg-gradient-to-r peer-checked:from-amber-300 peer-checked:to-amber-500 peer-checked:text-slate-950">
                           <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 inline-flex h-4 w-4 items-center justify-center rounded border border-slate-400 bg-white/80">
                             <span className="text-[11px] leading-none opacity-0 transition peer-checked:opacity-100">✓</span>
                           </span>
-                          <span className="truncate">{opt.label}</span>
+                          <span className="flex-1 whitespace-normal break-words leading-snug">{opt.label}</span>
                         </div>
                       </label>
                     ))}
                 </div>
-                <p className="mt-1 text-xs text-slate-600">{t('matchmakingPage.form.hints.foreignLanguages')}</p>
+                <p className="mt-1 text-xs text-white/60 md:text-slate-600">{t('matchmakingPage.form.hints.foreignLanguages')}</p>
               </div>
 
               {(form.foreignLanguages || []).includes('other') && (
                 <div className="md:col-span-2">
-                  <label className="block text-sm text-slate-700">{t('matchmakingPage.form.labels.foreignLanguageOther')}</label>
+                  <label className="block text-sm text-white/80 md:text-slate-700">{t('matchmakingPage.form.labels.foreignLanguageOther')}</label>
                   <input
                     value={form.foreignLanguageOther}
                     onChange={onChange('foreignLanguageOther')}
@@ -1485,7 +1551,7 @@ export default function MatchmakingApply() {
               )}
 
               <div>
-                <label className="block text-sm text-slate-700">{t('matchmakingPage.form.labels.communicationLanguages')}</label>
+                <label className="block text-sm text-white/80 md:text-slate-700">{t('matchmakingPage.form.labels.communicationLanguages')}</label>
                 <select
                   value={form.communicationLanguage}
                   onChange={onChange('communicationLanguage')}
@@ -1502,7 +1568,7 @@ export default function MatchmakingApply() {
 
               {form.communicationLanguage === 'other' && (
                 <div>
-                  <label className="block text-sm text-slate-700">{t('matchmakingPage.form.labels.communicationLanguageOther')}</label>
+                  <label className="block text-sm text-white/80 md:text-slate-700">{t('matchmakingPage.form.labels.communicationLanguageOther')}</label>
                   <input
                     value={form.communicationLanguageOther}
                     onChange={onChange('communicationLanguageOther')}
@@ -1513,7 +1579,7 @@ export default function MatchmakingApply() {
               )}
 
               <div>
-                <label className="block text-sm text-slate-700">{t('matchmakingPage.form.labels.smoking')}</label>
+                <label className="block text-sm text-white/80 md:text-slate-700">{t('matchmakingPage.form.labels.smoking')}</label>
                 <select
                   value={form.smoking}
                   onChange={onChange('smoking')}
@@ -1528,7 +1594,7 @@ export default function MatchmakingApply() {
               </div>
 
               <div>
-                <label className="block text-sm text-slate-700">{t('matchmakingPage.form.labels.alcohol')}</label>
+                <label className="block text-sm text-white/80 md:text-slate-700">{t('matchmakingPage.form.labels.alcohol')}</label>
                 <select
                   value={form.alcohol}
                   onChange={onChange('alcohol')}
@@ -1543,17 +1609,22 @@ export default function MatchmakingApply() {
               </div>
 
               <div className="md:col-span-2">
-                <label className="block text-sm text-slate-700">{t('matchmakingPage.form.labels.religiousValues')}</label>
-                <textarea
+                <label className="block text-sm text-white/80 md:text-slate-700">{t('matchmakingPage.form.labels.religiousValues')}</label>
+                <select
                   value={form.religiousValues}
                   onChange={onChange('religiousValues')}
-                  className="mt-1 w-full min-h-[80px] rounded-lg border border-slate-300 px-3 py-2 text-sm"
-                  placeholder={t('matchmakingPage.form.placeholders.religiousValues')}
-                />
+                  className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                >
+                  {religiousValuesOptions.map((opt) => (
+                    <option key={opt.id} value={opt.id}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div className="md:col-span-2">
-                <label className="block text-sm text-slate-700">{t('matchmakingPage.form.labels.familyApprovalStatus')}</label>
+                <label className="block text-sm text-white/80 md:text-slate-700">{t('matchmakingPage.form.labels.familyApprovalStatus')}</label>
                 <select
                   value={form.familyApprovalStatus}
                   onChange={onChange('familyApprovalStatus')}
@@ -1568,7 +1639,7 @@ export default function MatchmakingApply() {
               </div>
 
               <div>
-                <label className="block text-sm text-slate-700">{t('matchmakingPage.form.labels.marriageTimeline')}</label>
+                <label className="block text-sm text-white/80 md:text-slate-700">{t('matchmakingPage.form.labels.marriageTimeline')}</label>
                 <select
                   value={form.marriageTimeline}
                   onChange={onChange('marriageTimeline')}
@@ -1583,7 +1654,7 @@ export default function MatchmakingApply() {
               </div>
 
               <div>
-                <label className="block text-sm text-slate-700">{t('matchmakingPage.form.labels.relocationWillingness')}</label>
+                <label className="block text-sm text-white/80 md:text-slate-700">{t('matchmakingPage.form.labels.relocationWillingness')}</label>
                 <select
                   value={form.relocationWillingness}
                   onChange={onChange('relocationWillingness')}
@@ -1598,7 +1669,7 @@ export default function MatchmakingApply() {
               </div>
 
               <div className="md:col-span-2">
-                <label className="block text-sm text-slate-700">{t('matchmakingPage.form.labels.preferredLivingCountry')}</label>
+                <label className="block text-sm text-white/80 md:text-slate-700">{t('matchmakingPage.form.labels.preferredLivingCountry')}</label>
                 <select
                   value={form.preferredLivingCountry}
                   onChange={onChange('preferredLivingCountry')}
@@ -1615,11 +1686,11 @@ export default function MatchmakingApply() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="rounded-xl border border-slate-200 p-4">
-              <p className="text-sm font-semibold text-slate-900">{t('matchmakingPage.form.sections.me')}</p>
+            <div className="rounded-none border-0 md:rounded-xl md:border md:border-slate-200 p-0 md:p-4">
+              <p className="text-sm font-semibold text-white md:text-slate-900">{t('matchmakingPage.form.sections.me')}</p>
               <div className="mt-3 grid grid-cols-1 gap-3">
                 <div>
-                  <label className="block text-sm text-slate-700">{t('matchmakingPage.form.labels.nationality')}</label>
+                  <label className="block text-sm text-white/80 md:text-slate-700">{t('matchmakingPage.form.labels.nationality')}</label>
                   <select
                     value={form.nationality}
                     onChange={onChange('nationality')}
@@ -1633,7 +1704,7 @@ export default function MatchmakingApply() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm text-slate-700">{t('matchmakingPage.form.labels.gender')}</label>
+                  <label className="block text-sm text-white/80 md:text-slate-700">{t('matchmakingPage.form.labels.gender')}</label>
                   <select
                     value={form.gender}
                     onChange={onChange('gender')}
@@ -1649,11 +1720,11 @@ export default function MatchmakingApply() {
               </div>
             </div>
 
-            <div className="rounded-xl border border-slate-200 p-4">
-              <p className="text-sm font-semibold text-slate-900">{t('matchmakingPage.form.sections.lookingFor')}</p>
+            <div className="rounded-none border-0 md:rounded-xl md:border md:border-slate-200 p-0 md:p-4">
+              <p className="text-sm font-semibold text-white md:text-slate-900">{t('matchmakingPage.form.sections.lookingFor')}</p>
               <div className="mt-3 grid grid-cols-1 gap-3">
                 <div>
-                  <label className="block text-sm text-slate-700">{t('matchmakingPage.form.labels.lookingForNationality')}</label>
+                  <label className="block text-sm text-white/80 md:text-slate-700">{t('matchmakingPage.form.labels.lookingForNationality')}</label>
                   <select
                     value={form.lookingForNationality}
                     onChange={onChange('lookingForNationality')}
@@ -1667,7 +1738,7 @@ export default function MatchmakingApply() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm text-slate-700">{t('matchmakingPage.form.labels.lookingForGender')}</label>
+                  <label className="block text-sm text-white/80 md:text-slate-700">{t('matchmakingPage.form.labels.lookingForGender')}</label>
                   <select
                     value={form.lookingForGender}
                     onChange={onChange('lookingForGender')}
@@ -1685,14 +1756,14 @@ export default function MatchmakingApply() {
           </div>
 
           <div>
-            <label className="block text-sm font-semibold text-slate-800">{t('matchmakingPage.form.labels.photos')}</label>
+            <label className="block text-sm font-semibold text-white/90 md:text-slate-800">{t('matchmakingPage.form.labels.photos')}</label>
             {isEditOnceMode ? (
-              <p className="mt-2 text-xs text-slate-600">{t('matchmakingPage.form.editOnce.photosLocked')}</p>
+              <p className="mt-2 text-xs text-white/60 md:text-slate-600">{t('matchmakingPage.form.editOnce.photosLocked')}</p>
             ) : (
               <>
                 <div className="mt-2 space-y-3">
                   <div>
-                    <label className="block text-xs font-semibold text-slate-700">{t('matchmakingPage.form.labels.photo1')}</label>
+                    <label className="block text-xs font-semibold text-white/80 md:text-slate-700">{t('matchmakingPage.form.labels.photo1')}</label>
                     <div className="mt-1 flex items-center gap-3">
                       <input
                         id="matchmaking-photo1"
@@ -1707,13 +1778,13 @@ export default function MatchmakingApply() {
                       >
                         {t('matchmakingPage.form.photo.choose')}
                       </label>
-                      <span className="min-w-0 flex-1 truncate text-xs text-slate-600">
+                      <span className="min-w-0 flex-1 text-xs text-white/60 md:text-slate-600 break-all">
                         {photoFiles.photo1?.name || t('matchmakingPage.form.photo.noFileChosen')}
                       </span>
                     </div>
                   </div>
                   <div>
-                    <label className="block text-xs font-semibold text-slate-700">{t('matchmakingPage.form.labels.photo2')}</label>
+                    <label className="block text-xs font-semibold text-white/80 md:text-slate-700">{t('matchmakingPage.form.labels.photo2')}</label>
                     <div className="mt-1 flex items-center gap-3">
                       <input
                         id="matchmaking-photo2"
@@ -1728,13 +1799,13 @@ export default function MatchmakingApply() {
                       >
                         {t('matchmakingPage.form.photo.choose')}
                       </label>
-                      <span className="min-w-0 flex-1 truncate text-xs text-slate-600">
+                      <span className="min-w-0 flex-1 text-xs text-white/60 md:text-slate-600 break-all">
                         {photoFiles.photo2?.name || t('matchmakingPage.form.photo.noFileChosen')}
                       </span>
                     </div>
                   </div>
                   <div>
-                    <label className="block text-xs font-semibold text-slate-700">{t('matchmakingPage.form.labels.photo3')}</label>
+                    <label className="block text-xs font-semibold text-white/80 md:text-slate-700">{t('matchmakingPage.form.labels.photo3')}</label>
                     <div className="mt-1 flex items-center gap-3">
                       <input
                         id="matchmaking-photo3"
@@ -1749,32 +1820,32 @@ export default function MatchmakingApply() {
                       >
                         {t('matchmakingPage.form.photo.choose')}
                       </label>
-                      <span className="min-w-0 flex-1 truncate text-xs text-slate-600">
+                      <span className="min-w-0 flex-1 text-xs text-white/60 md:text-slate-600 break-all">
                         {photoFiles.photo3?.name || t('matchmakingPage.form.photo.noFileChosen')}
                       </span>
                     </div>
                   </div>
                 </div>
-                <p className="mt-2 text-xs text-slate-600">{t('matchmakingPage.form.photoHint')}</p>
+                <p className="mt-2 text-xs text-white/60 md:text-slate-600">{t('matchmakingPage.form.photoHint')}</p>
               </>
             )}
           </div>
 
           <div>
-            <label className="block text-sm font-semibold text-slate-800">{t('matchmakingPage.form.labels.about')}</label>
+            <label className="block text-sm font-semibold text-white/90 md:text-slate-800">{t('matchmakingPage.form.labels.about')}</label>
             <textarea
               value={form.about}
               onChange={onChange('about')}
-              className="mt-1 w-full min-h-[110px] rounded-lg border border-slate-300 px-3 py-2 text-sm"
+              className="mt-1 w-full min-h-[110px] rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-amber-300/60"
               placeholder={t('matchmakingPage.form.placeholders.about')}
             />
           </div>
 
-          <div className="rounded-xl border border-slate-200 p-4">
-            <p className="text-sm font-semibold text-slate-900">{t('matchmakingPage.form.sections.partnerPreferences')}</p>
+          <div className="rounded-none border-0 md:rounded-xl md:border md:border-slate-200 p-0 md:p-4">
+            <p className="text-sm font-semibold text-white md:text-slate-900">{t('matchmakingPage.form.sections.partnerPreferences')}</p>
             <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3">
               <div>
-                <label className="block text-sm text-slate-700">{t('matchmakingPage.form.labels.partnerHeightMin')}</label>
+                <label className="block text-sm text-white/80 md:text-slate-700">{t('matchmakingPage.form.labels.partnerHeightMin')}</label>
                 <select
                   value={form.partnerHeightMinCm}
                   onChange={onChange('partnerHeightMinCm')}
@@ -1790,7 +1861,7 @@ export default function MatchmakingApply() {
                 </select>
               </div>
               <div>
-                <label className="block text-sm text-slate-700">{t('matchmakingPage.form.labels.partnerHeightMax')}</label>
+                <label className="block text-sm text-white/80 md:text-slate-700">{t('matchmakingPage.form.labels.partnerHeightMax')}</label>
                 <select
                   value={form.partnerHeightMaxCm}
                   onChange={onChange('partnerHeightMaxCm')}
@@ -1809,7 +1880,7 @@ export default function MatchmakingApply() {
               <div className="md:col-span-2">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-sm text-slate-700">{t('matchmakingPage.form.labels.partnerAgeMaxOlderYears')}</label>
+                    <label className="block text-sm text-white/80 md:text-slate-700">{t('matchmakingPage.form.labels.partnerAgeMaxOlderYears')}</label>
                     <select
                       value={form.partnerAgeMaxOlderYears}
                       onChange={onChange('partnerAgeMaxOlderYears')}
@@ -1823,7 +1894,7 @@ export default function MatchmakingApply() {
                     </select>
                   </div>
                   <div>
-                    <label className="block text-sm text-slate-700">{t('matchmakingPage.form.labels.partnerAgeMaxYoungerYears')}</label>
+                    <label className="block text-sm text-white/80 md:text-slate-700">{t('matchmakingPage.form.labels.partnerAgeMaxYoungerYears')}</label>
                     <select
                       value={form.partnerAgeMaxYoungerYears}
                       onChange={onChange('partnerAgeMaxYoungerYears')}
@@ -1839,22 +1910,22 @@ export default function MatchmakingApply() {
                 </div>
 
                 {partnerAgeMinForUi !== null && partnerAgeMaxForUi !== null ? (
-                  <p className="mt-1 text-xs text-slate-600">
+                  <p className="mt-1 text-xs text-white/60 md:text-slate-600">
                     {t('matchmakingPage.form.hints.partnerAgeComputed', { min: partnerAgeMinForUi, max: partnerAgeMaxForUi })}
                   </p>
                 ) : (
-                  <p className="mt-1 text-xs text-slate-600">{t('matchmakingPage.form.hints.partnerAgeNeedsYourAge')}</p>
+                  <p className="mt-1 text-xs text-white/60 md:text-slate-600">{t('matchmakingPage.form.hints.partnerAgeNeedsYourAge')}</p>
                 )}
               </div>
 
               <div>
-                <label className="block text-sm text-slate-700">{t('matchmakingPage.form.labels.partnerMaritalStatus')}</label>
+                <label className="block text-sm text-white/80 md:text-slate-700">{t('matchmakingPage.form.labels.partnerMaritalStatus')}</label>
                 <select
                   value={form.partnerMaritalStatus}
                   onChange={onChange('partnerMaritalStatus')}
                   className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
                 >
-                  {maritalStatusOptions.map((opt) => (
+                  {partnerMaritalStatusOptions.map((opt) => (
                     <option key={opt.id} value={opt.id}>
                       {opt.label}
                     </option>
@@ -1863,7 +1934,7 @@ export default function MatchmakingApply() {
               </div>
 
               <div>
-                <label className="block text-sm text-slate-700">{t('matchmakingPage.form.labels.partnerReligion')}</label>
+                <label className="block text-sm text-white/80 md:text-slate-700">{t('matchmakingPage.form.labels.partnerReligion')}</label>
                 <select
                   value={form.partnerReligion}
                   onChange={onChange('partnerReligion')}
@@ -1877,51 +1948,43 @@ export default function MatchmakingApply() {
                 </select>
               </div>
 
-              <div>
-                <label className="block text-sm text-slate-700">{t('matchmakingPage.form.labels.partnerCommunicationLanguages')}</label>
-                <select
-                  value={form.partnerCommunicationLanguage}
-                  onChange={onChange('partnerCommunicationLanguage')}
-                  className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
-                >
-                  <option value="">{t('matchmakingPage.form.options.common.select')}</option>
-                  {communicationLanguageOptions.map((opt) => (
-                    <option key={opt.id} value={opt.id}>
-                      {opt.label}
-                    </option>
+              <div className="md:col-span-2">
+                <label className="block text-sm text-white/80 md:text-slate-700">{t('matchmakingPage.form.labels.partnerCommunicationLanguages')}</label>
+                <p className="mt-1 text-xs text-white/60 md:text-slate-600">{t('matchmakingPage.form.hints.multiSelect')}</p>
+                <div className="mt-2 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 gap-2">
+                  {partnerCommunicationMethodOptions.map((opt) => (
+                    <label key={opt.id} className="block">
+                      <input
+                        type="checkbox"
+                        className="peer sr-only"
+                        checked={Array.isArray(form.partnerCommunicationMethods) ? form.partnerCommunicationMethods.includes(opt.id) : false}
+                        onChange={() => {
+                          setForm((prev) => {
+                            const list = Array.isArray(prev.partnerCommunicationMethods) ? prev.partnerCommunicationMethods : [];
+                            const next = list.includes(opt.id) ? list.filter((x) => x !== opt.id) : [...list, opt.id];
+                            return { ...prev, partnerCommunicationMethods: next };
+                          });
+                        }}
+                      />
+                      <div className="relative flex items-center rounded-xl border border-slate-200 bg-white pl-9 pr-2 py-1.5 text-[13px] md:pl-10 md:pr-3 md:py-2 md:text-sm font-semibold text-slate-800 shadow-sm transition hover:border-slate-300 peer-checked:border-amber-200 peer-checked:bg-gradient-to-r peer-checked:from-amber-300 peer-checked:to-amber-500 peer-checked:text-slate-950">
+                        <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 inline-flex h-4 w-4 items-center justify-center rounded border border-slate-400 bg-white/80">
+                          <span className="text-[11px] leading-none opacity-0 transition peer-checked:opacity-100">✓</span>
+                        </span>
+                        <span className="flex-1 whitespace-normal break-words leading-snug">
+                          {opt.id === 'own_language'
+                            ? partnerOwnLanguageLabelForUi
+                            : opt.id === 'foreign_language'
+                              ? partnerForeignLanguageLabelForUi
+                              : opt.label}
+                        </span>
+                      </div>
+                    </label>
                   ))}
-                </select>
-              </div>
-
-              {form.partnerCommunicationLanguage === 'other' && (
-                <div>
-                  <label className="block text-sm text-slate-700">{t('matchmakingPage.form.labels.partnerCommunicationLanguageOther')}</label>
-                  <input
-                    value={form.partnerCommunicationLanguageOther}
-                    onChange={onChange('partnerCommunicationLanguageOther')}
-                    className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
-                    placeholder={t('matchmakingPage.form.placeholders.partnerCommunicationLanguageOther')}
-                  />
                 </div>
-              )}
-
-              <div>
-                <label className="block text-sm text-slate-700">{t('matchmakingPage.form.labels.partnerTranslationApp')}</label>
-                <select
-                  value={form.partnerCanCommunicateWithTranslationApp}
-                  onChange={onChange('partnerCanCommunicateWithTranslationApp')}
-                  className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
-                >
-                  {yesNoDoesntMatterOptions.map((opt) => (
-                    <option key={opt.id} value={opt.id}>
-                      {opt.label}
-                    </option>
-                  ))}
-                </select>
               </div>
 
               <div>
-                <label className="block text-sm text-slate-700">{t('matchmakingPage.form.labels.partnerLivingCountry')}</label>
+                <label className="block text-sm text-white/80 md:text-slate-700">{t('matchmakingPage.form.labels.partnerLivingCountry')}</label>
                 <select
                   value={form.partnerLivingCountry}
                   onChange={onChange('partnerLivingCountry')}
@@ -1936,7 +1999,7 @@ export default function MatchmakingApply() {
               </div>
 
               <div>
-                <label className="block text-sm text-slate-700">{t('matchmakingPage.form.labels.partnerSmokingPreference')}</label>
+                <label className="block text-sm text-white/80 md:text-slate-700">{t('matchmakingPage.form.labels.partnerSmokingPreference')}</label>
                 <select
                   value={form.partnerSmokingPreference}
                   onChange={onChange('partnerSmokingPreference')}
@@ -1951,7 +2014,7 @@ export default function MatchmakingApply() {
               </div>
 
               <div>
-                <label className="block text-sm text-slate-700">{t('matchmakingPage.form.labels.partnerAlcoholPreference')}</label>
+                <label className="block text-sm text-white/80 md:text-slate-700">{t('matchmakingPage.form.labels.partnerAlcoholPreference')}</label>
                 <select
                   value={form.partnerAlcoholPreference}
                   onChange={onChange('partnerAlcoholPreference')}
@@ -1965,7 +2028,7 @@ export default function MatchmakingApply() {
                 </select>
               </div>
               <div>
-                <label className="block text-sm text-slate-700">{t('matchmakingPage.form.labels.partnerChildrenPreference')}</label>
+                <label className="block text-sm text-white/80 md:text-slate-700">{t('matchmakingPage.form.labels.partnerChildrenPreference')}</label>
                 <select
                   value={form.partnerChildrenPreference}
                   onChange={onChange('partnerChildrenPreference')}
@@ -1980,7 +2043,7 @@ export default function MatchmakingApply() {
               </div>
 
               <div>
-                <label className="block text-sm text-slate-700">{t('matchmakingPage.form.labels.partnerEducationPreference')}</label>
+                <label className="block text-sm text-white/80 md:text-slate-700">{t('matchmakingPage.form.labels.partnerEducationPreference')}</label>
                 <select
                   value={form.partnerEducationPreference}
                   onChange={onChange('partnerEducationPreference')}
@@ -1994,7 +2057,7 @@ export default function MatchmakingApply() {
                 </select>
               </div>
               <div>
-                <label className="block text-sm text-slate-700">{t('matchmakingPage.form.labels.partnerOccupationPreference')}</label>
+                <label className="block text-sm text-white/80 md:text-slate-700">{t('matchmakingPage.form.labels.partnerOccupationPreference')}</label>
                 <select
                   value={form.partnerOccupationPreference}
                   onChange={onChange('partnerOccupationPreference')}
@@ -2009,7 +2072,7 @@ export default function MatchmakingApply() {
               </div>
 
               <div className="md:col-span-2">
-                <label className="block text-sm text-slate-700">{t('matchmakingPage.form.labels.partnerFamilyValuesPreference')}</label>
+                <label className="block text-sm text-white/80 md:text-slate-700">{t('matchmakingPage.form.labels.partnerFamilyValuesPreference')}</label>
                 <select
                   value={form.partnerFamilyValuesPreference}
                   onChange={onChange('partnerFamilyValuesPreference')}
@@ -2025,22 +2088,22 @@ export default function MatchmakingApply() {
             </div>
 
             <div className="mt-4">
-              <label className="block text-sm font-semibold text-slate-800">{t('matchmakingPage.form.labels.expectations')}</label>
+              <label className="block text-sm font-semibold text-white/90 md:text-slate-800">{t('matchmakingPage.form.labels.expectations')}</label>
               <textarea
                 value={form.expectations}
                 onChange={onChange('expectations')}
-                className="mt-1 w-full min-h-[90px] rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                className="mt-1 w-full min-h-[90px] rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-amber-300/60"
                 placeholder={t('matchmakingPage.form.placeholders.expectations')}
               />
             </div>
           </div>
 
-          <div className="space-y-3 rounded-xl border border-slate-200 p-4">
-            <label className="flex items-start gap-3 text-sm text-slate-800">
+          <div className="space-y-3 rounded-none border-0 md:rounded-xl md:border md:border-slate-200 p-0 md:p-4">
+            <label className="flex items-start gap-3 text-sm text-white/80 md:text-slate-800">
               <input type="checkbox" checked={form.consent18Plus} onChange={onChange('consent18Plus')} className="mt-1" />
-              <span>{t('matchmakingPage.form.consents.age')}</span>
+              <span>{t('matchmakingPage.form.consents.age', { minAge: form.nationality === 'id' ? 21 : 18 })}</span>
             </label>
-            <label className="flex items-start gap-3 text-sm text-slate-800">
+            <label className="flex items-start gap-3 text-sm text-white/80 md:text-slate-800">
               <input type="checkbox" checked={form.consentPrivacy} onChange={onChange('consentPrivacy')} className="mt-1" />
               <span>
                 <Trans
@@ -2051,14 +2114,14 @@ export default function MatchmakingApply() {
                         href="/privacy"
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-sky-700 hover:underline font-semibold"
+                        className="text-sky-200 md:text-sky-700 hover:underline font-semibold"
                       />
                     ),
                   }}
                 />
               </span>
             </label>
-            <label className="flex items-start gap-3 text-sm text-slate-800">
+            <label className="flex items-start gap-3 text-sm text-white/80 md:text-slate-800">
               <input type="checkbox" checked={form.consentTerms} onChange={onChange('consentTerms')} className="mt-1" />
               <span>
                 <Trans
@@ -2069,14 +2132,14 @@ export default function MatchmakingApply() {
                         href="/docs/matchmaking-kullanim-sozlesmesi.html"
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-sky-700 hover:underline font-semibold"
+                        className="text-sky-200 md:text-sky-700 hover:underline font-semibold"
                       />
                     ),
                   }}
                 />
               </span>
             </label>
-            <label className="flex items-start gap-3 text-sm text-slate-800">
+            <label className="flex items-start gap-3 text-sm text-white/80 md:text-slate-800">
               <input type="checkbox" checked={form.consentPhotoShare} onChange={onChange('consentPhotoShare')} className="mt-1" />
               <span>{t('matchmakingPage.form.consents.photo')}</span>
             </label>
@@ -2092,13 +2155,13 @@ export default function MatchmakingApply() {
           <button
             type="submit"
             disabled={submitting}
-            className="w-full rounded-full bg-gradient-to-r from-amber-300 to-amber-500 text-slate-950 font-semibold py-3 shadow-[0_16px_40px_rgba(245,158,11,0.25)] hover:brightness-110 transition disabled:opacity-60 active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/60 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+            className="w-full sm:w-56 sm:mx-auto rounded-full bg-gradient-to-r from-amber-300 to-amber-500 text-slate-950 font-semibold py-3 shadow-[0_16px_40px_rgba(245,158,11,0.25)] hover:brightness-110 transition disabled:opacity-60 active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/60 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
             aria-busy={submitting ? 'true' : 'false'}
           >
             {submitting ? t('matchmakingPage.form.submitting') : t('matchmakingPage.form.submit')}
           </button>
 
-          <p className="text-xs text-slate-500">{t('matchmakingPage.bottomNote')}</p>
+          <p className="text-xs text-white/60 md:text-slate-500">{t('matchmakingPage.bottomNote')}</p>
           </div>
           </form>
           </div>

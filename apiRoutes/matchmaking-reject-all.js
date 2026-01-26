@@ -128,6 +128,8 @@ export default async function handler(req, res) {
             cancelledAt: FieldValue.serverTimestamp(),
             cancelledByUserId: uid,
             cancelledReason: 'rejected_all',
+            rejectionCount: FieldValue.increment(1),
+            lastRejectedAtMs: Date.now(),
             updatedAt: FieldValue.serverTimestamp(),
           },
           { merge: true }

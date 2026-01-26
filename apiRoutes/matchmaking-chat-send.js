@@ -1,12 +1,34 @@
 import { getAdmin, normalizeBody, requireIdToken } from './_firebaseAdmin.js';
-import { ensureEligibleOrThrow } from './_matchmakingEligibility.js';
+import { ensureEligibleOrThrow, isMembershipActive } from './_matchmakingEligibility.js';
+
+function isDevBypassEnabled() {
+  const raw = String(process.env.MATCHMAKING_DEV_BYPASS || '').toLowerCase().trim();
+  return raw === '1' || raw === 'true' || raw === 'yes';
+}
 
 function safeStr(v) {
   return typeof v === 'string' ? v.trim() : '';
 }
 
+function normalizeLangHint(v) {
+  const s = safeStr(v).toLowerCase();
+  if (s === 'tr' || s === 'id' || s === 'en') return s;
+  return '';
+}
+
 function nowMs() {
   return Date.now();
+}
+
+const PROPOSED_CHAT_LIMIT_TOTAL = 20;
+
+function hasActiveLock(userDoc, exceptMatchId) {
+  const lock = userDoc?.matchmakingLock || null;
+  const active = !!lock?.active;
+  const matchId = typeof lock?.matchId === 'string' ? lock.matchId : '';
+  if (!active) return false;
+  if (!matchId) return true;
+  return matchId !== String(exceptMatchId || '');
 }
 
 // Eligibility kontrolü artık ortak helper üzerinden.
@@ -50,6 +72,7 @@ export default async function handler(req, res) {
     const body = normalizeBody(req);
     const matchId = safeStr(body?.matchId);
     const text = safeStr(body?.text);
+    const langHint = normalizeLangHint(body?.langHint);
 
     if (!matchId || !text) {
       res.statusCode = 400;
@@ -72,10 +95,13 @@ export default async function handler(req, res) {
       return;
     }
 
+    // Yeni model: Kullanıcı kendi dilinde yazar; çeviri sadece gelen mesajlarda manuel yapılır.
+
     const { db, FieldValue } = getAdmin();
 
     const matchRef = db.collection('matchmakingMatches').doc(matchId);
     const meRef = db.collection('matchmakingUsers').doc(uid);
+    const matchNoCounterRef = db.collection('counters').doc('matchmakingMatchNo');
 
     const ts = nowMs();
     let messageId = '';
@@ -92,15 +118,13 @@ export default async function handler(req, res) {
 
       const match = matchSnap.data() || {};
       const status = String(match.status || '');
-      if (status !== 'mutual_accepted') {
-        const err = new Error('chat_not_available');
-        err.statusCode = 400;
-        throw err;
-      }
 
-      const mode = typeof match?.interactionMode === 'string' ? match.interactionMode : '';
-      if (mode !== 'chat') {
-        const err = new Error('chat_not_enabled');
+      const proposedChatPause = match?.proposedChatPause && typeof match.proposedChatPause === 'object' ? match.proposedChatPause : null;
+      const proposedChatPaused = status === 'proposed' && !!proposedChatPause?.active;
+      const proposedChatFocusUid = proposedChatPaused ? safeStr(proposedChatPause?.focusUid) : '';
+
+      if (status !== 'mutual_accepted' && status !== 'proposed') {
+        const err = new Error('chat_not_available');
         err.statusCode = 400;
         throw err;
       }
@@ -133,12 +157,38 @@ export default async function handler(req, res) {
       const myGender = uid === aUid ? aGender : bGender;
 
       ensureEligibleOrThrow(me, myGender);
+
+      // Bu projede “ücretsiz üyelikte mesaj yok” kuralı: mesaj göndermek için ücretli üyelik şart.
+      // Local dev/testte MATCHMAKING_DEV_BYPASS=1 iken bu kapıyı bypass edebiliriz.
+      if (!isDevBypassEnabled() && !isMembershipActive(me, ts)) {
+        const err = new Error('membership_required');
+        err.statusCode = 402;
+        throw err;
+      }
+
+      // Başka bir match'e aktif kilit varsa, diğer match'lere mesaj engeli.
+      if (hasActiveLock(me, matchId)) {
+        const err = new Error('user_locked');
+        err.statusCode = 409;
+        throw err;
+      }
       // Not: Mesaj göndermek için alıcının eligibility şartlarını zorlamıyoruz.
       // Amaç: Diğer taraf offline/uygunsuz durumda olsa bile mesaj kuyruk gibi düşsün,
       // karşı taraf panele girince unread/bildirim görsün.
       // (Aksiyonlar / contact unlock gibi adımlar kendi kurallarıyla ayrıca korunur.)
 
       // Not: Bu akışta chat süre sınırı yok; iptal/evlilik kararı ile kapanır.
+
+      // proposed aşamasında kontrollü sohbet: mesaj limiti dolunca karar aşamasına geç.
+      // Not: sohbet beklemede ise (pause) limit uygulanmaz; mesajlar bekletilir.
+      if (status === 'proposed' && !proposedChatPaused) {
+        const reachedAt = typeof match?.proposedChatLimitReachedAtMs === 'number' ? match.proposedChatLimitReachedAtMs : 0;
+        if (reachedAt > 0) {
+          const err = new Error('chat_limit_reached');
+          err.statusCode = 409;
+          throw err;
+        }
+      }
 
       const last = match?.chatLastMessageAtMs && typeof match.chatLastMessageAtMs[uid] === 'number' ? match.chatLastMessageAtMs[uid] : 0;
       if (last && ts - last < 1500) {
@@ -150,34 +200,108 @@ export default async function handler(req, res) {
       const msgRef = matchRef.collection('messages').doc();
       messageId = msgRef.id;
 
-      tx.set(msgRef, {
-        matchId,
-        userId: uid,
-        text,
-        createdAt: FieldValue.serverTimestamp(),
-        createdAtMs: ts,
-      });
+      if (proposedChatPaused) {
+        // Odak kullanıcı bu sohbeti kullanamaz.
+        if (proposedChatFocusUid && proposedChatFocusUid === uid) {
+          const err = new Error('chat_paused');
+          err.statusCode = 409;
+          throw err;
+        }
 
-      tx.set(
-        matchRef,
-        {
-          chatLastMessageAtMs: {
-            ...(match.chatLastMessageAtMs || {}),
-            [uid]: ts,
+        // Diğer taraf mesaj atabilir ama mesaj teslim edilmez (bekletilir).
+        tx.set(msgRef, {
+          matchId,
+          userId: uid,
+          text,
+          ...(langHint ? { langHint } : {}),
+          createdAt: FieldValue.serverTimestamp(),
+          createdAtMs: ts,
+          delivery: {
+            state: 'held',
+            heldForUid: proposedChatFocusUid,
+            reason: 'focus_active',
           },
-          chatLastMessageAtMsAny: ts,
-          chatLastMessageByUid: uid,
-          chatLastMessageId: messageId,
-          chatLastMessagePreview: text.slice(0, 120),
-          chatUnreadByUid: {
-            ...(match.chatUnreadByUid || {}),
-            [uid]: 0,
-            [otherUid]: (typeof (match.chatUnreadByUid || {})?.[otherUid] === 'number' ? (match.chatUnreadByUid || {})[otherUid] : 0) + 1,
-          },
-          updatedAt: FieldValue.serverTimestamp(),
+        });
+      } else {
+        tx.set(msgRef, {
+          matchId,
+          userId: uid,
+          text,
+          ...(langHint ? { langHint } : {}),
+          createdAt: FieldValue.serverTimestamp(),
+          createdAtMs: ts,
+        });
+      }
+
+
+      const patch = {
+        chatLastMessageAtMs: {
+          ...(match.chatLastMessageAtMs || {}),
+          [uid]: ts,
         },
-        { merge: true }
-      );
+        chatLastMessageAtMsAny: ts,
+        chatLastMessageByUid: uid,
+        chatLastMessageId: messageId,
+        chatLastMessagePreview: text.slice(0, 120),
+        chatUnreadByUid: {
+          ...(match.chatUnreadByUid || {}),
+          [uid]: 0,
+          [otherUid]: (typeof (match.chatUnreadByUid || {})?.[otherUid] === 'number' ? (match.chatUnreadByUid || {})[otherUid] : 0) + 1,
+        },
+        updatedAt: FieldValue.serverTimestamp(),
+      };
+
+      // proposed aşamasında: limit sayacı (beklemede değilse)
+      if (status === 'proposed' && !proposedChatPaused) {
+        const counts = match?.proposedChatCountByUid && typeof match.proposedChatCountByUid === 'object' ? { ...match.proposedChatCountByUid } : {};
+        const myPrev = typeof counts?.[uid] === 'number' && Number.isFinite(counts[uid]) ? counts[uid] : 0;
+        counts[uid] = myPrev + 1;
+
+        let total = 0;
+        for (const v of Object.values(counts)) {
+          const n = typeof v === 'number' && Number.isFinite(v) ? v : 0;
+          total += n;
+        }
+
+        patch.proposedChatCountByUid = counts;
+        patch.proposedChatTotalCount = total;
+        patch.proposedChatLimitTotal = PROPOSED_CHAT_LIMIT_TOTAL;
+
+        if (total >= PROPOSED_CHAT_LIMIT_TOTAL) {
+          patch.proposedChatLimitReachedAtMs = ts;
+          patch.proposedChatLimitReachedAt = FieldValue.serverTimestamp();
+        }
+
+        const starterUid = safeStr(match?.dmStarterUid);
+        if (!starterUid) {
+          patch.dmStarterUid = uid;
+          patch.dmStartedAtMs = ts;
+        }
+      } else if (status === 'proposed' && proposedChatPaused) {
+        // Beklemede de starter'ı set edelim (first message bilgisi kalsın)
+        const starterUid = safeStr(match?.dmStarterUid);
+        if (!starterUid) {
+          patch.dmStarterUid = uid;
+          patch.dmStartedAtMs = ts;
+        }
+      } else {
+        // mutual_accepted: backward-compat olarak chat mode'u boşsa set et.
+        const currentMode = typeof match?.interactionMode === 'string' ? match.interactionMode : '';
+        if (currentMode !== 'chat') {
+          if (!currentMode) {
+            patch.interactionMode = 'chat';
+            patch.interactionChosenAt = FieldValue.serverTimestamp();
+            patch.chatEnabledAt = FieldValue.serverTimestamp();
+            patch.chatEnabledAtMs = ts;
+          } else {
+            const err = new Error('chat_not_enabled');
+            err.statusCode = 400;
+            throw err;
+          }
+        }
+      }
+
+      tx.set(matchRef, patch, { merge: true });
     });
 
     res.statusCode = 200;

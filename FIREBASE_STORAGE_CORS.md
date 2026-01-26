@@ -1,4 +1,4 @@
-# Firebase Storage CORS (endonezyakasifi.com)
+# Firebase Storage CORS (endonezyakasifi.com / uniqah.com)
 
 Bu proje Firebase Storage'a tarayıcıdan (web) fotoğraf yüklüyor. Kendi domain'iniz (örn. `https://www.endonezyakasifi.com`) üzerinden upload yaparken aşağıdaki hata görülürse:
 
@@ -10,6 +10,8 @@ Bu proje Firebase Storage'a tarayıcıdan (web) fotoğraf yüklüyor. Kendi doma
 ## 1) CORS JSON dosyası
 
 Repo içinde hazır dosya var: `cors.firebase-storage.json`
+
+Not: Bu dosyada `https://uniqah.com` ve `https://www.uniqah.com` originleri de tanımlıdır.
 
 İçeriği (gerekirse domain ekleyin):
 

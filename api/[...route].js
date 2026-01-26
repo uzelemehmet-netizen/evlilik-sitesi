@@ -7,6 +7,7 @@ import matchmakingAdminApprovePayment from '../apiRoutes/matchmaking-admin-appro
 import matchmakingAdminPhotoUpdateDecide from '../apiRoutes/matchmaking-admin-photo-update-decide.js';
 import matchmakingAdminCancel from '../apiRoutes/matchmaking-admin-cancel.js';
 import matchmakingAdminConfirm from '../apiRoutes/matchmaking-admin-confirm.js';
+import matchmakingConfirm from '../apiRoutes/matchmaking-confirm.js';
 import matchmakingAdminCreateMatch from '../apiRoutes/matchmaking-admin-create-match.js';
 import matchmakingAdminIdentityVerify from '../apiRoutes/matchmaking-admin-identity-verify.js';
 import matchmakingAllocateProfileNo from '../apiRoutes/matchmaking-allocate-profile-no.js';
@@ -15,7 +16,13 @@ import matchmakingPhotoUpdateRequest from '../apiRoutes/matchmaking-photo-update
 import matchmakingChatDecision from '../apiRoutes/matchmaking-chat-decision.js';
 import matchmakingChatMarkRead from '../apiRoutes/matchmaking-chat-mark-read.js';
 import matchmakingChatSend from '../apiRoutes/matchmaking-chat-send.js';
+import matchmakingChatReleaseHeld from '../apiRoutes/matchmaking-chat-release-held.js';
+import matchmakingChatTranslate from '../apiRoutes/matchmaking-chat-translate.js';
+import matchmakingChatTranslationRevoke from '../apiRoutes/matchmaking-chat-translation-revoke.js';
+import matchmakingMatchCancel from '../apiRoutes/matchmaking-match-cancel.js';
 import matchmakingContact from '../apiRoutes/matchmaking-contact.js';
+import matchmakingContactRequest from '../apiRoutes/matchmaking-contact-request.js';
+import matchmakingContactApprove from '../apiRoutes/matchmaking-contact-approve.js';
 import matchmakingDecision from '../apiRoutes/matchmaking-decision.js';
 import matchmakingDismiss from '../apiRoutes/matchmaking-dismiss.js';
 import matchmakingFreeMembershipApply from '../apiRoutes/matchmaking-free-membership-apply.js';
@@ -31,6 +38,7 @@ import matchmakingRun from '../apiRoutes/matchmaking-run.js';
 import matchmakingSubmitPayment from '../apiRoutes/matchmaking-submit-payment.js';
 import matchmakingVerificationSelect from '../apiRoutes/matchmaking-verification-select.js';
 import recaptchaAssess from '../apiRoutes/recaptcha-assess.js';
+import matchmakingQuickQuestions from '../apiRoutes/matchmaking-quick-questions.js';
 
 const handlers = {
   'admin-matchmaking-user-stats': adminMatchmakingUserStats,
@@ -41,6 +49,7 @@ const handlers = {
   'matchmaking-admin-photo-update-decide': matchmakingAdminPhotoUpdateDecide,
   'matchmaking-admin-cancel': matchmakingAdminCancel,
   'matchmaking-admin-confirm': matchmakingAdminConfirm,
+  'matchmaking-confirm': matchmakingConfirm,
   'matchmaking-admin-create-match': matchmakingAdminCreateMatch,
   'matchmaking-admin-identity-verify': matchmakingAdminIdentityVerify,
   'matchmaking-allocate-profile-no': matchmakingAllocateProfileNo,
@@ -49,7 +58,13 @@ const handlers = {
   'matchmaking-chat-decision': matchmakingChatDecision,
   'matchmaking-chat-mark-read': matchmakingChatMarkRead,
   'matchmaking-chat-send': matchmakingChatSend,
+  'matchmaking-chat-release-held': matchmakingChatReleaseHeld,
+  'matchmaking-chat-translate': matchmakingChatTranslate,
+  'matchmaking-chat-translation-revoke': matchmakingChatTranslationRevoke,
+  'matchmaking-match-cancel': matchmakingMatchCancel,
   'matchmaking-contact': matchmakingContact,
+  'matchmaking-contact-request': matchmakingContactRequest,
+  'matchmaking-contact-approve': matchmakingContactApprove,
   'matchmaking-decision': matchmakingDecision,
   'matchmaking-dismiss': matchmakingDismiss,
   'matchmaking-free-membership-apply': matchmakingFreeMembershipApply,
@@ -63,6 +78,7 @@ const handlers = {
   'matchmaking-request-new': matchmakingRequestNew,
   'matchmaking-run': matchmakingRun,
   'matchmaking-submit-payment': matchmakingSubmitPayment,
+  'matchmaking-quick-questions': matchmakingQuickQuestions,
   'matchmaking-verification-select': matchmakingVerificationSelect,
   'matchmaking-verification-manual-submit': matchmakingVerificationManualSubmit,
   'recaptcha-assess': recaptchaAssess,

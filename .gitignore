@@ -7,6 +7,9 @@ dist/
 .vercel
 .env*.local
 
+# Tooling caches
+.eslintcache
+
 # Temp / backup files
 .tmp-debug.txt
 .tmp-dev-api-port

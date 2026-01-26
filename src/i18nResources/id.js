@@ -45,6 +45,7 @@ const overrides = {
     documents: "Dokumen",
     youtube: "YouTube",
     contact: "Kontak",
+    language: "Bahasa",
   },
 
   home: {
@@ -152,6 +153,7 @@ const overrides = {
       ],
     },
     cta: {
+        open: 'Pesan',
       eyebrow: 'Jangan ragu bertanya',
       title: 'Mari kita jelaskan semua hal tentang Indonesia bersama-sama',
       description:
@@ -283,12 +285,12 @@ const overrides = {
           desc: "Sukai profil yang Anda minati; jika saling suka, tahap pertama selesai.",
         },
         {
-          title: "Pilih metode kontak",
-          desc: "Pilih “bagikan kontak saya” atau “chat di dalam situs”.",
+          title: "Chat di dalam situs 48 jam",
+          desc: "Setelah saling menerima, 48 jam pertama hanya chat di dalam situs untuk saling mengenal dengan aman.",
         },
         {
-          title: "Mulai komunikasi",
-          desc: "Jika keduanya berbagi kontak, detail muncul; jika keduanya memilih chat, ruang chat terbuka di panel.",
+          title: "Minta berbagi kontak",
+          desc: "Setelah 48 jam, Anda bisa mengirim permintaan kontak; jika disetujui, nomor telepon akan terlihat.",
         },
       ],
     },
@@ -334,9 +336,9 @@ const overrides = {
   matchmakingPage: {
     title: 'Pengajuan Pencocokan Pernikahan',
     intro:
-      'Halaman ini adalah formulir pengajuan untuk pencocokan yang berfokus pada pernikahan. Profil tidak dipublikasikan; pengajuan hanya ditinjau oleh tim kami. Jika ada kecocokan yang sesuai, kami akan menghubungi Anda.',
+      'Halaman ini adalah formulir pengajuan untuk pencocokan yang berfokus pada pernikahan. Profil tidak dipublikasikan; pengajuan hanya ditinjau oleh tim kami. Profil yang cocok akan ditampilkan di halaman Profil Anda.',
     privacyNote:
-      'Catatan privasi: Data pengajuan Anda diproses untuk pencocokan dan keamanan; profil Anda tidak ditampilkan secara publik. Jika ada pelanggaran aturan, Anda bisa menghubungi dukungan dengan bukti (screenshot, dll.).',
+      'Catatan privasi: Data pengajuan Anda diproses untuk pencocokan dan keamanan; profil Anda tidak ditampilkan secara publik. Jika ada pelanggaran aturan, Anda bisa menghubungi dukungan dengan bukti (screenshot, dll.). Pastikan informasi yang Anda isi akurat; Anda bertanggung jawab atas informasi yang Anda masukkan di formulir ini, dan pencocokan dilakukan berdasarkan informasi tersebut. Pengguna yang sengaja memberikan informasi palsu akan diblokir; jika memiliki keanggotaan aktif, akan dibatalkan dan tidak ada pengembalian dana.',
     authGate: {
       message: 'Untuk mengirim pengajuan pencocokan, silakan masuk atau buat akun.',
       login: 'Masuk',
@@ -413,6 +415,7 @@ const overrides = {
         partnerMaritalStatus: 'Status pernikahan pasangan',
         partnerReligion: 'Agama pasangan',
         partnerCommunicationLanguages: 'Bahasa komunikasi pasangan',
+        partnerCommunicationMethods: 'Metode komunikasi pasangan',
         partnerCommunicationLanguageOther: 'Bahasa lain untuk pasangan (tuliskan)',
         partnerTranslationApp: 'Aplikasi terjemahan untuk pasangan',
         partnerLivingCountry: 'Negara tinggal pasangan',
@@ -466,6 +469,17 @@ const overrides = {
           widowed: 'Duda/Janda (ditinggal)',
           divorced: 'Bercerai',
           other: 'Lainnya',
+          doesnt_matter: 'Tidak masalah',
+        },
+        religiousValues: {
+          weak: 'Rendah',
+          medium: 'Sedang',
+          conservative: 'Konservatif',
+        },
+        partnerCommunicationMethods: {
+          ownLanguage: 'Bahasa saya',
+          foreignLanguage: 'Bahasa asing',
+          translationApp: 'Aplikasi terjemahan',
         },
         education: {
           secondary: 'SMP',
@@ -648,7 +662,9 @@ const overrides = {
     forceInfo:
       "Aksi ini meminta login ulang. Silakan masuk kembali.",
     googleCta: "Lanjut dengan Google",
+    googleSignupCta: "Daftar dengan Google",
     redirecting: "Mengarahkan ke masuk Google…",
+    signupGuide: "Untuk mendaftar, pilih jenis kelamin dan kewarganegaraan, lalu konfirmasi batas usia.",
     or: "atau",
     labels: {
       email: 'Email',
@@ -676,6 +692,8 @@ const overrides = {
       nationalityTr: 'Turki',
       nationalityId: 'Indonesia',
       nationalityOther: 'Lainnya',
+      ageConfirm: 'Saya mengonfirmasi bahwa saya berusia minimal {{minAge}} tahun. (Buka perjanjian untuk detail)',
+      ageConfirmLink: 'Perjanjian',
     },
     forgotHint: {
       prefix: 'Jika Anda lupa kata sandi, klik',
@@ -683,7 +701,7 @@ const overrides = {
     },
     legal: {
       prefix: 'Dengan melanjutkan, Anda menyetujui',
-      contract: 'Kontrak paket tur',
+      contract: 'Perjanjian Pengguna / Keanggotaan',
       cancelRefund: 'Kebijakan pembatalan & refund',
       privacy: 'Kebijakan Privasi',
     },
@@ -698,6 +716,7 @@ const overrides = {
       genderRequired: 'Pilih jenis kelamin untuk mendaftar.',
       nationalityRequired: 'Pilih kewarganegaraan untuk mendaftar.',
       nationalityOtherRequired: 'Tuliskan kewarganegaraan Anda.',
+      ageConfirmRequired: 'Untuk mendaftar, Anda harus mengonfirmasi bahwa Anda berusia minimal {{minAge}} tahun.',
       loginFailed: 'Gagal masuk.',
       resetEmailRequired: 'Masukkan email untuk mereset kata sandi.',
       resetFailed: 'Tidak dapat mengirim email reset kata sandi.',
@@ -709,6 +728,14 @@ const overrides = {
   },
 
   matchmakingPanel: {
+        profile: {
+          guidanceAfterConfirm: {
+            title: 'Dukungan setelah konfirmasi',
+            body:
+              'Setelah keputusan kecocokan final, Anda bisa mendapatkan layanan dari tim pendamping kami melalui halaman panduan pernikahan untuk membantu membangun kepercayaan antar kandidat serta dukungan seperti komunikasi antar keluarga, penerjemah, verifikasi kebenaran informasi sebelum keputusan pernikahan, dan banyak kemudahan lainnya.',
+            cta: 'Buka panduan pernikahan',
+          },
+        },
     title: 'Profil Saya',
     subtitle: 'Langkah pencocokan, keanggotaan, dan kontak Anda akan tampil di sini.',
     tabs: {
@@ -787,6 +814,11 @@ const overrides = {
       requestingNew: 'Mengirim permintaan…',
       requestNewQuotaHint: 'Kuota harian: {{remaining}}/{{limit}}',
       requestNewSuccess: 'Permintaan Anda diterima. Kandidat baru akan muncul jika tersedia.',
+      freeSlot: 'Kosongkan slot (harian 1)',
+      freeSlotHint: 'Ini membuka slot khusus untuk pendaftar baru. Slot akan tetap kosong sampai muncul kecocokan {{threshold}}+ dari pengguna baru. Jika ingin kandidat langsung dari pool yang ada, gunakan “Minta kecocokan baru”.',
+      freeSlotConfirm: 'Hapus kandidat ini dan buka slot pendaftar baru? (Harian 1)',
+      freeSlotSuccess: 'Slot dikosongkan. {{creditGranted}} kredit diberikan. Slot akan tetap kosong sampai pendaftar baru ({{threshold}}+) cocok dengan Anda. Cooldown: {{remaining}}',
+      removedCreditNotice: 'Kecocokan ini dihapus dari daftar Anda. 1 kredit diberikan untuk meminta kecocokan baru. Cooldown: {{remaining}}',
     },
     profileForm: {
       loading: 'Memuat formulir…',
@@ -794,6 +826,12 @@ const overrides = {
       openOriginalEditOnce: 'Buka formulir asli (edit satu kali)',
       detailsToggle: 'Tampilkan detail pengajuan',
       applicationId: 'ID Pengajuan',
+      applicantNationality: 'Kewarganegaraan Anda',
+      applicantGender: 'Jenis kelamin Anda',
+      partnerNationality: 'Kewarganegaraan orang yang Anda cari',
+      partnerGender: 'Jenis kelamin orang yang Anda cari',
+      moreDetailsTitle: 'Detail lainnya',
+      partnerPrefsTitle: 'Preferensi pasangan',
       editOnceTitle: 'Perbaiki formulir (satu kali)',
       editOnceLead:
         'Jika Anda meninggalkan kolom kosong atau mengisi sesuatu dengan salah, Anda dapat memperbaruinya di sini. Ini hanya bisa digunakan satu kali (setelah disimpan tidak bisa diubah lagi).',
@@ -842,10 +880,15 @@ const overrides = {
       otherUserMatched: 'Orang ini sudah cocok dengan orang lain.',
       alreadyMatched: 'Anda sudah memiliki kecocokan.',
       userLocked: 'Proses kecocokan Anda terkunci. Aksi ini tidak diizinkan.',
+      pendingContinueExists: 'Anda sudah memilih seseorang untuk dilanjutkan. Putuskan dulu di kecocokan itu.',
       requestNewFailed: 'Tidak bisa meminta kecocokan baru.',
       requestNewRateLimited: 'Anda terlalu sering meminta. Silakan coba lagi nanti.',
       requestNewQuotaExhausted: 'Kuota permintaan kecocokan baru hari ini sudah habis (3/3). Silakan coba lagi besok.',
       requestNewFreeActiveBlocked: 'Anda tidak bisa meminta kecocokan baru karena hak keanggotaan aktif gratis Anda dibatalkan. Anda perlu keanggotaan berbayar untuk mengaktifkan kembali.',
+      freeSlotFailed: 'Aksi mengosongkan slot gagal.',
+      freeSlotQuotaExhausted: 'Kuota mengosongkan slot hari ini sudah habis (1/1). Silakan coba lagi besok.',
+      cooldownActive: 'Silakan tunggu sebentar sebelum mencoba lagi. Sisa: {{remaining}}',
+      newUserSlotAlreadyActive: 'Slot pendaftar baru Anda sudah aktif. Tunggu pendaftar baru yang cocok, atau gunakan refresh normal.',
     },
     afterSubmit: {
       title: 'Pengajuan Anda diterima.',
@@ -975,7 +1018,7 @@ const overrides = {
         'Pencocokan dan pratinjau profil tidak memerlukan keanggotaan. Untuk setuju/tolak atau menghubungi pasangan, Anda perlu verifikasi identitas + free active membership atau keanggotaan berbayar.',
       points: [
         'Profil tidak bersifat publik. Hanya pengguna yang cocok yang bisa melihat detail satu sama lain.',
-        'Di panel Anda ditampilkan maksimal 3 kandidat. Menandai satu kandidat tidak menghapus kandidat lain; Anda bisa memilih untuk menampilkan hanya pilihan Anda.',
+        'Di panel Anda ditampilkan maksimal 3 / 5 / 10 kandidat sesuai paket. Menandai satu kandidat tidak menghapus kandidat lain; Anda bisa memilih untuk menampilkan hanya pilihan Anda.',
         'Langkah 1: Tinjau kandidat → Setuju atau Tolak. Jika salah satu menolak, kecocokan dibatalkan.',
         'Langkah 2: Jika kedua pihak setuju, pilih langkah berikutnya (chat di dalam situs atau berbagi kontak). Langkah aktif hanya jika kedua pihak memilih opsi yang sama.',
         'Kunci: Saat langkah 2 disepakati, proses terkunci dan Anda tidak bisa meminta kecocokan baru sampai selesai/dibatalkan.',
@@ -986,6 +1029,19 @@ const overrides = {
     rules: {
       title: 'Janji, aturan, dan keamanan',
       lead: 'Aturan dibuat untuk menjaga keamanan dan keseriusan. Pelanggaran dengan bukti dapat berujung blokir permanen.',
+      why: {
+        title: 'Mengapa aturannya banyak?',
+        body:
+          'Aturan ini bukan untuk menghukum pengguna. Tujuannya menjaga sistem tetap aman dan fokus untuk orang yang serius ingin menikah, serta menyaring penipuan, profil palsu, dan penggunaan “sekadar hiburan” sedini mungkin.',
+        points: [
+          'Keamanan: mengurangi penipuan, permintaan uang, pelecehan, dan profil palsu.',
+          'Keseriusan: mempersulit niat di luar pernikahan untuk bertahan di sistem.',
+          'Kualitas: mencegah pool macet dan siklus kandidat yang berulang.',
+          'Kejelasan: limit/cooldown/langkah 48 jam mengurangi ketidakpastian proses.',
+        ],
+        note:
+          'Jika tujuan utama hanya meningkatkan interaksi, kami bisa membuat aturan jauh lebih longgar dan membiarkan komunikasi lebih bebas.\nNamun sistem ini dibuat untuk orang yang ingin membangun keluarga — kualitas lebih penting daripada kuantitas.',
+      },
       promise: {
         title: 'Janji kami',
         p1Title: 'Privasi',
@@ -1086,6 +1142,7 @@ const overrides = {
       loading: 'Memproses…',
       alreadyActive: 'Keanggotaan Anda sudah aktif',
       successActivated: 'Keanggotaan Anda diaktifkan.',
+      promoActivated: 'Paket Eco Anda diaktifkan gratis. Berakhir pada {{date}} (sisa {{count}} hari).',
       successCancelled: 'Keanggotaan Anda dibatalkan.',
     },
 
@@ -1155,14 +1212,101 @@ const overrides = {
 
     lock: {
       title: 'Proses kecocokan Anda sedang berjalan.',
-      body: 'Kunci aktif setelah kedua pihak saling menerima lalu memilih keputusan yang sama (lanjut di luar situs). Saat terkunci, Anda tidak bisa meminta kecocokan baru. Untuk mengakhiri kecocokan, kedua pihak harus memilih “batalkan kecocokan”.',
+      body: 'Setelah saling menerima, kecocokan ini menjadi proses aktif Anda. 48 jam pertama hanya chat di dalam situs. Setelah 48 jam, Anda bisa mengirim permintaan kontak; nomor telepon hanya terlihat jika pihak lain menyetujui.',
       matchId: 'Kode Kecocokan',
     },
 
     matches: {
+      presence: {
+        online: 'Online',
+        lastSeen: 'Terakhir aktif: {{time}}',
+        unknown: 'Terakhir aktif: -',
+      },
+      progress: {
+        title: 'Progres',
+        steps: {
+          proposed: 'Perkenalan',
+          mutualAccepted: 'Saling setuju',
+          confirm48h: 'Konfirmasi 48 jam',
+          contact: 'Kontak',
+        },
+        remaining: 'Sisa waktu: {{h}} jam {{m}} mnt',
+      },
+
+      quickQuestions: {
+        title: '3 pertanyaan singkat',
+        lead: 'Kalau mau, jawab 3 pertanyaan singkat dengan sekali tap untuk saling mengenal lebih cepat. Opsional.',
+        yourAnswer: 'Kamu',
+        otherAnswer: 'Dia',
+        pickOne: 'Pilih satu',
+        otherAnswered: 'Sudah jawab',
+        otherNotAnswered: 'Belum jawab',
+        questions: {
+          q1: {
+            title: 'Kamu prefer pace seperti apa?',
+            options: {
+              slow: 'Pelan',
+              normal: 'Normal',
+              fast: 'Cepat',
+            },
+          },
+          q2: {
+            title: 'Keluarga vs kemandirian?',
+            options: {
+              family: 'Fokus keluarga',
+              balanced: 'Seimbang',
+              independent: 'Mandiri',
+            },
+          },
+          q3: {
+            title: 'Pindah kota / relokasi?',
+            options: {
+              local: 'Kota yang sama',
+              open: 'Terbuka',
+              flexible: 'Fleksibel',
+            },
+          },
+        },
+      },
+
+      matchTest: {
+        button: 'Tes kecocokan',
+        title: 'Tes kecocokan',
+        lead: 'Lihat seberapa cocok kalian lewat 3 pertanyaan singkat.',
+        score: 'Skor: {{points}} / {{max}}',
+        close: 'Tutup',
+        questionCounter: 'Pertanyaan {{cur}} / {{total}}',
+        sameAnswer: 'Jawaban sama: +10 poin',
+        differentAnswer: 'Jawaban berbeda',
+        prev: 'Sebelumnya',
+        next: 'Berikutnya',
+      },
       title: 'Kecocokan Anda',
-      subtitle: 'Maksimal 3 kandidat ditampilkan.',
-      empty: 'Saat ini tidak ada kecocokan untuk ditampilkan.',
+      subtitle: 'Maksimal 3 / 5 / 10 kandidat ditampilkan sesuai paket Anda.',
+      inactivityNotice: {
+        title: 'Aturan tidak aktif (24 jam)',
+        body:
+          'Jika Anda tidak aktif lebih dari 24 jam, daftar kecocokan Anda akan direset. Orang-orang di daftar Anda akan dikembalikan ke pool kecocokan. Saat Anda aktif kembali, Anda bisa meminta kecocokan lagi nanti—namun Anda akan kehilangan kecocokan saat ini.',
+      },
+      newUserSlotNotice: {
+        title: 'Slot pendaftar baru aktif',
+        body:
+          'Anda telah membuka slot khusus untuk pendaftar baru. Slot ini akan tetap kosong sampai muncul kecocokan {{threshold}}+ dari pengguna baru (yang mendaftar setelah Anda membuka slot). Selama slot ini aktif, Anda tidak akan menerima kandidat dari pool umum.',
+      },
+      inactiveReset: {
+        title: 'Kecocokan direset karena tidak aktif',
+        body: 'Kecocokan ini dibatalkan dan dikembalikan ke pool karena salah satu pihak tidak aktif lebih dari 24 jam.',
+      },
+      focusActiveReset: {
+        title: 'Kecocokan ini ditutup',
+        body: 'Pihak lain sedang melanjutkan satu jendela perkenalan yang lain. Ini bukan penilaian negatif tentang Anda; sistem akan menampilkan kandidat baru jika sudah waktunya.',
+      },
+      empty: 'Ketika ditemukan kecocokan yang sesuai dengan profil Anda, akan muncul di sini. Simpan halaman ini di ponsel atau komputer Anda agar mudah dibuka kembali saat ingin mengecek.',
+      savePage: 'Simpan halaman',
+      savePageAlready: 'Halaman ini sudah ditambahkan ke layar utama / terpasang sebagai aplikasi.',
+      savePageIosHint: 'iPhone/iPad: Di Safari, ketuk Bagikan → “Tambah ke Layar Utama”. (Tautan disalin.)',
+      savePageAndroidHint: 'Android: Dari menu browser pilih “Tambahkan ke layar utama” atau “Instal aplikasi”. (Tautan disalin.)',
+      savePageDesktopHint: 'Komputer: Dari menu browser pilih “Instal aplikasi” (jika ada) atau tambahkan bookmark (Ctrl+D). (Tautan disalin.)',
       waitingOther: 'Menunggu jawaban pihak lain.',
       mutualAcceptedNotice: 'Kedua pihak menyetujui. Anda bisa memilih langkah berikutnya.',
       rejectedByOther: {
@@ -1209,11 +1353,28 @@ const overrides = {
         errors: {
           sendFailed: 'Pesan gagal dikirim.',
         },
+
+        confirm48h: {
+          title: '48 jam berlalu: Konfirmasi kecocokan',
+          body:
+            'Mulai tahap ini, kecocokan Anda akan ditandai sebagai “terkonfirmasi” dan fitur berbagi kontak (nomor telepon) akan diaktifkan. Setelah konfirmasi, saran lain di slot kecocokan Anda bisa dihapus.',
+          note: 'Setelah Anda konfirmasi, kami akan menunggu konfirmasi dari pihak lain juga.',
+          confirmButton: 'Konfirmasi kecocokan',
+          cancelButton: 'Batal',
+          waitingOther: 'Anda sudah konfirmasi. Menunggu konfirmasi pihak lain.',
+          confirmed: 'Kecocokan terkonfirmasi. Anda dapat meminta berbagi kontak.',
+          contactLockedUntilConfirm: 'Untuk meminta berbagi kontak, Anda harus mengonfirmasi kecocokan ini terlebih dahulu.',
+          errors: {
+            locked: 'Tidak bisa dikonfirmasi sebelum 48 jam berlalu.',
+            confirmRequired: 'Berbagi kontak memerlukan konfirmasi kecocokan terlebih dahulu.',
+          },
+        },
       },
       candidate: {
         fallbackName: 'Kandidat',
         verifiedBadge: 'Identitas terverifikasi',
         proBadge: 'PRO',
+        standardBadge: 'STANDAR',
         matchedProfile: 'Profil kecocokan',
         score: 'Skor kecocokan',
         likeBadge: '♥ Anda mendapat like',
@@ -1249,6 +1410,8 @@ const overrides = {
     activating: 'Mengaktifkan…',
     activated: 'Keanggotaan diaktifkan.',
     activatedUntil: 'Keanggotaan diaktifkan. Berlaku sampai: {{date}}',
+    freeActivatedInfo:
+      'Keanggotaan gratis Anda berlaku sampai {{date}}.\nDengan keanggotaan ini, Anda dapat like/tolak profil kecocokan dan menggunakan {{translatedCount}} pesan terjemahan.\nBatas ganti kecocokan harian Anda adalah {{dailyLimit}}.',
     promoExpired: 'Promo berakhir. Setelah {{date}}, aktivasi berbayar dan aktif setelah pembayaran.',
     activateFailed: 'Tidak dapat mengaktifkan keanggotaan. Silakan coba lagi.',
     errors: {
@@ -2984,7 +3147,7 @@ export default {
             fullName: 'Nama lengkap',
             age: 'Usia',
             city: 'Kota',
-            country: 'Negara',
+            country: 'Negara tempat tinggal',
             whatsapp: 'Nomor WhatsApp',
             email: 'Email',
             instagram: 'Instagram (opsional)',
@@ -3176,18 +3339,18 @@ export default {
           photoHint:
             'Unggah file gambar saja. Sistem akan mengompres dan mengunggah otomatis (disarankan: foto jelas, terbaru, wajah terlihat).',
           consents: {
-            age: 'Saya mengonfirmasi bahwa saya berusia 18+.',
+            age: 'Saya mengonfirmasi bahwa saya berusia {{minAge}}+.',
             privacy: 'Saya telah membaca <privacyLink>Kebijakan Privasi</privacyLink> dan menyetujui pemrosesan data untuk evaluasi/komunikasi.',
             terms: 'Saya telah membaca dan menyetujui <termsLink>Syarat & Ketentuan</termsLink>.',
             photo: 'Saya menyetujui foto saya dilihat oleh tim admin untuk evaluasi (tidak dipublikasikan secara umum).',
           },
           submit: 'Kirim Pendaftaran',
           submitting: 'Mengirim…',
-          success: 'Pendaftaran Anda sudah kami terima. Jika ada kecocokan yang sesuai, kami akan menghubungi Anda.',
+          success: 'Pendaftaran Anda sudah kami terima. Profil yang cocok akan ditampilkan di halaman Profil Anda.',
           errors: {
             mustLogin: 'Anda harus masuk untuk mengirim pendaftaran.',
             blocked: 'Akun Anda diblokir dari pengiriman formulir ini.',
-            consentsRequired: 'Untuk mengirim, Anda harus menyetujui kotak persetujuan (18+, Kebijakan Privasi, Syarat & Ketentuan, persetujuan foto).',
+            consentsRequired: 'Untuk mengirim, Anda harus menyetujui kotak persetujuan ({{minAge}}+, Kebijakan Privasi, Syarat & Ketentuan, persetujuan foto).',
             permissionDenied: 'Gagal mengirim (kesalahan izin). Silakan masuk dengan akun yang benar atau periksa aturan Firestore.',
             honeypotTriggered: 'Gagal mengirim. Autofill browser mungkin mengisi field tersembunyi. Refresh halaman dan coba lagi dengan autofill dimatikan.',
             photoUploadFailed: 'Gagal mengunggah foto. Project ini memakai Cloudinary SIGNED upload secara default. Biasanya berarti `/api/cloudinary-signature` tidak jalan atau env server belum lengkap. Solusi: jalankan `npm run dev` (API + web) dan pastikan `.env.local` punya `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET`. (Upload preset unsigned hanya dipakai jika diaktifkan secara khusus.)',
@@ -3195,7 +3358,7 @@ export default {
             usernameTaken: 'Nama pengguna sudah dipakai. Silakan pilih nama lain.',
             fullName: 'Silakan masukkan nama lengkap.',
             age: 'Silakan masukkan usia.',
-            ageRange: 'Usia harus antara 18 dan 99.',
+            ageRange: 'Usia harus antara {{minAge}} dan 99.',
             email: 'Silakan masukkan email.',
             instagram: 'Silakan masukkan username Instagram.',
             nationality: 'Silakan pilih kewarganegaraan Anda.',
@@ -3260,7 +3423,7 @@ export default {
             about: 'Silakan tulis perkenalan singkat.',
             photoRequired: 'Silakan unggah foto.',
             photoType: 'Silakan pilih file gambar yang valid.',
-            consent18Plus: 'Konfirmasi 18+ diperlukan untuk melanjutkan.',
+            consent18Plus: 'Konfirmasi {{minAge}}+ diperlukan untuk melanjutkan.',
             consentPrivacy: 'Persetujuan privasi diperlukan untuk melanjutkan.',
             consentPhotoShare: 'Persetujuan foto diperlukan untuk melanjutkan.',
             submitFailed: 'Pendaftaran gagal dikirim. Silakan coba lagi.',
@@ -3403,6 +3566,8 @@ export default {
       nationalityTr: 'Turki',
       nationalityId: 'Indonesia',
       nationalityOther: 'Lainnya',
+      ageConfirm: 'Saya mengonfirmasi bahwa saya berusia minimal {{minAge}} tahun. (Buka perjanjian untuk detail)',
+      ageConfirmLink: 'Perjanjian',
     },
     forgotHint: {
       prefix: 'Jika Anda lupa kata sandi, klik',
@@ -3410,7 +3575,7 @@ export default {
     },
     legal: {
       prefix: 'Dengan melanjutkan, Anda menyetujui',
-      contract: 'Kontrak paket tur',
+      contract: 'Perjanjian Pengguna / Keanggotaan',
       cancelRefund: 'Kebijakan pembatalan & refund',
       privacy: 'Kebijakan Privasi',
     },
@@ -3425,6 +3590,7 @@ export default {
       genderRequired: 'Pilih jenis kelamin untuk mendaftar.',
       nationalityRequired: 'Pilih kewarganegaraan untuk mendaftar.',
       nationalityOtherRequired: 'Tuliskan kewarganegaraan Anda.',
+      ageConfirmRequired: 'Untuk mendaftar, Anda harus mengonfirmasi bahwa Anda berusia minimal {{minAge}} tahun.',
       loginFailed: 'Gagal masuk.',
       resetEmailRequired: 'Masukkan email untuk mereset kata sandi.',
       resetFailed: 'Tidak dapat mengirim email reset kata sandi.',
@@ -3666,13 +3832,70 @@ export default {
     },
     lock: {
       title: 'Proses kecocokan Anda sedang berjalan.',
-      body: 'Setelah sama-sama setuju, proses terkunci saat kedua pihak memilih keputusan yang sama (lanjut di luar situs). Saat terkunci, Anda tidak bisa meminta kecocokan baru. Untuk mengakhiri kecocokan, kedua pihak harus memilih “batalkan kecocokan”.',
+      body: 'Setelah saling menerima, kecocokan ini menjadi proses aktif Anda. 48 jam pertama hanya chat di dalam situs. Setelah 48 jam, Anda bisa mengirim permintaan kontak; nomor telepon hanya terlihat jika pihak lain menyetujui.',
       matchId: 'Kode Kecocokan',
     },
     matches: {
+      presence: {
+        online: 'Online',
+        lastSeen: 'Terakhir aktif: {{time}}',
+        unknown: 'Terakhir aktif: -',
+      },
+
+      progress: {
+        title: 'Progres',
+        steps: {
+          proposed: 'Perkenalan',
+          mutualAccepted: 'Saling setuju',
+          confirm48h: 'Konfirmasi 48 jam',
+          contact: 'Kontak',
+        },
+        remaining: 'Sisa waktu: {{h}} jam {{m}} mnt',
+      },
+
+      quickQuestions: {
+        title: '3 pertanyaan singkat',
+        lead: 'Kalau mau, jawab 3 pertanyaan singkat dengan sekali tap untuk saling mengenal lebih cepat. Opsional.',
+        yourAnswer: 'Kamu',
+        otherAnswer: 'Dia',
+        pickOne: 'Pilih satu',
+        otherAnswered: 'Sudah jawab',
+        otherNotAnswered: 'Belum jawab',
+        questions: {
+          q1: {
+            title: 'Kamu prefer pace seperti apa?',
+            options: {
+              slow: 'Pelan',
+              normal: 'Normal',
+              fast: 'Cepat',
+            },
+          },
+          q2: {
+            title: 'Keluarga vs kemandirian?',
+            options: {
+              family: 'Fokus keluarga',
+              balanced: 'Seimbang',
+              independent: 'Mandiri',
+            },
+          },
+          q3: {
+            title: 'Pindah kota / relokasi?',
+            options: {
+              local: 'Kota yang sama',
+              open: 'Terbuka',
+              flexible: 'Fleksibel',
+            },
+          },
+        },
+      },
       title: 'Kecocokan Anda',
-      subtitle: 'Maksimal 3 kandidat ditampilkan.',
-      empty: 'Saat ini tidak ada kecocokan untuk ditampilkan.',
+      subtitle: 'Maksimal 3 / 5 / 10 kandidat ditampilkan sesuai paket Anda.',
+      empty: 'Ketika ditemukan kecocokan yang sesuai dengan profil Anda, akan muncul di sini. Simpan halaman ini di ponsel atau komputer Anda agar mudah dibuka kembali saat ingin mengecek.',
+      savePage: 'Simpan halaman',
+      savePageAlready: 'Halaman ini sudah ditambahkan ke layar utama / terpasang sebagai aplikasi.',
+      savePageIosHint: 'iPhone/iPad: Di Safari, ketuk Bagikan → “Tambah ke Layar Utama”. (Tautan disalin.)',
+      savePageAndroidHint: 'Android: Dari menu browser pilih “Tambahkan ke layar utama” atau “Instal aplikasi”. (Tautan disalin.)',
+      savePageDesktopHint: 'Komputer: Dari menu browser pilih “Instal aplikasi” (jika ada) atau tambahkan bookmark (Ctrl+D). (Tautan disalin.)',
       waitingOther: 'Menunggu jawaban pihak lain.',
       mutualAcceptedNotice: 'Kedua pihak menyetujui. Anda bisa memilih langkah berikutnya.',
       rejectedByOther: {
@@ -3699,6 +3922,7 @@ export default {
         offsiteWaiting: 'Pilihan Anda tersimpan. Menunggu pihak lain memilih opsi yang sama.',
       },
       chat: {
+        open: 'Pesan',
         title: 'Chat di Dalam Situs',
         lead: 'Anda bisa ngobrol di sini sebelum memutuskan. Berbagi kontak/IG/FB/link diblokir.',
         enableNotifications: 'Aktifkan notifikasi',
@@ -3716,6 +3940,45 @@ export default {
         send: 'Kirim',
         continue: 'Lanjut (Setuju)',
         reject: 'Tidak cocok (Tolak)',
+        proposedLimit: {
+          counter: 'Chat: {{used}} / {{limit}}',
+          reachedTitle: 'Saatnya memutuskan',
+          reachedBody: 'Batas pesan sudah tercapai. Setujui untuk lanjut atau tolak jika tidak cocok.',
+          startActive: 'Mulai kecocokan aktif',
+          pendingYou: 'Permintaan kecocokan aktif Anda sudah dikirim. Menunggu persetujuan lawan bicara.',
+          pendingIncomingTitle: '{{name}} meminta kecocokan aktif',
+          pendingIncomingBody: 'Setujui untuk memulai kecocokan aktif.',
+        },
+        rejectReasons: {
+          hint: 'Alasan menolak (opsional):',
+          notFeeling: 'Kurang cocok',
+          values: 'Nilai/kecocokan',
+          distance: 'Jarak/lokasi',
+          communication: 'Gaya komunikasi',
+          notReady: 'Belum siap saat ini',
+          other: 'Lainnya',
+        },
+        pause: {
+          focusTitle: 'Chat ini sedang ditahan',
+          focusBody: 'Karena Anda sedang melanjutkan kecocokan lain, chat ini sementara dijeda. Anda tidak bisa mengirim pesan.',
+          otherTitle: 'Chat sementara ditahan',
+          otherBody: 'Pesan Anda belum dikirim sekarang; chat akan lanjut otomatis saat tersedia.',
+          heldBadge: 'Ditahan (belum terkirim)',
+          deliveredBadge: 'Terkirim',
+        },
+        heldSummary: {
+          title: '{{count}} pesan ditahan',
+          body: 'Saat chat ini ditahan, pihak lain mengirim pesan. Anda bisa memilih untuk melihatnya sekarang.',
+          show: 'Tampilkan pesan',
+          keepHidden: 'Sembunyikan dulu',
+          releaseFailed: 'Pesan tidak dapat dibuka. Silakan coba lagi.',
+        },
+        limitReachedNotice: {
+          title: 'Anda mencapai batas pesan',
+          body:
+            'Untuk melanjutkan percakapan, Anda perlu memulai kecocokan aktif. Memulai kecocokan aktif akan menahan kecocokan lain, dan Anda hanya akan melanjutkan chat dengan kecocokan aktif Anda.',
+          dismiss: 'OK',
+        },
         errors: {
           filtered: 'Pesan Anda terdeteksi berisi kontak/sosmed/link dan diblokir.',
           rateLimited: 'Anda mengirim terlalu cepat. Tunggu sebentar.',
@@ -3723,6 +3986,8 @@ export default {
           notEnabled: 'Chat di dalam situs tidak diaktifkan untuk kecocokan ini.',
           membershipRequired: 'Keanggotaan aktif diperlukan untuk chat.',
           verificationRequired: 'Verifikasi identitas diperlukan untuk chat.',
+          limitReached: 'Batas pesan tercapai. Anda perlu memutuskan.',
+          chatPaused: 'Chat ini sementara ditahan.',
           sendFailed: 'Pesan gagal dikirim.',
           decisionFailed: 'Keputusan gagal disimpan.',
         },
@@ -3730,6 +3995,15 @@ export default {
       candidate: {
         fallbackName: 'Kandidat',
         verifiedBadge: 'Identitas terverifikasi',
+        proBadge: 'PRO',
+        standardBadge: 'STANDAR',
+        badges: {
+          activeRecent: 'Baru aktif',
+          mutualAccepted: 'Saling setuju',
+          confirmed: 'Terkonfirmasi',
+          contactUnlocked: 'Kontak terbuka',
+          contactPending: 'Permintaan kontak menunggu',
+        },
         matchedProfile: 'Profil kecocokan',
         score: 'Skor kecocokan',
         likeBadge: '♥ Anda mendapat like',
@@ -3752,6 +4026,10 @@ export default {
         title: 'Berbagi kontak sudah terbuka.',
         body: 'Anda bisa membuka detail kontak dari panel. Harap tetap sopan dan patuhi aturan.',
       },
+      contactLocked: {
+        title: 'Detail kontak (terkunci 48 jam)',
+        body: 'Detail kontak akan terbuka 48 jam setelah chat aktif. Sementara itu, Anda bisa chat di dalam situs.',
+      },
       paymentStatus: {
         pending: 'Pemberitahuan pembayaran Anda masih menunggu. Keanggotaan akan aktif setelah disetujui admin.',
         rejected: 'Pemberitahuan pembayaran terakhir Anda ditolak. Periksa bukti bayar/referensi lalu kirim ulang.',
@@ -3763,8 +4041,11 @@ export default {
       contactUnlock: {
         membershipActiveTitle: 'Anda memenuhi syarat',
         membershipActiveBody: 'Klik tombol untuk membuka detail kontak. (Pihak lain juga harus memenuhi aturan kelayakan.)',
+        lockedTitle: 'Kontak terkunci',
+        lockedBody: 'Detail kontak terbuka 48 jam setelah chat dimulai. Sisa waktu: {{time}}',
+        lockedBodyNoTime: 'Detail kontak terbuka 48 jam setelah chat dimulai.',
         opening: 'Membuka…',
-        open: 'Buka detail kontak',
+        open: 'Bagikan info kontak saya',
         verificationRequired: 'Verifikasi identitas diperlukan untuk membuka detail kontak.',
       },
       payment: {
@@ -3774,6 +4055,24 @@ export default {
         trTitle: 'Turki',
         idTitle: 'Indonesia',
         amount: 'Jumlah',
+        package: 'Paket',
+        packageEco: 'Eco',
+        packageStandard: 'Standar',
+        packagePro: 'Pro',
+        perMonth: 'langganan bulanan',
+        badgeValue: 'Paling hemat',
+        badgePopular: 'Populer',
+        badgePro: 'Tertinggi',
+        descEco: 'Akses dasar dan terjemahan secukupnya.',
+        descStandard: 'Lebih banyak kandidat dan terjemahan sponsor.',
+        descPro: 'Kandidat maksimum dan kuota terjemahan tinggi.',
+        featureMaxCandidates: 'Maks. {{count}} kandidat di panel',
+        featureTranslateMonthly: '{{count}} pesan diterjemahkan / bulan',
+        sponsoredIfOther: 'Bisa disponsori jika lawan bicara Standard/Pro',
+        sponsorsOthers: 'Terjemahan sponsor untuk lawan bicara (biaya ditagihkan ke Anda)',
+        feature48hLock: 'Bagikan kontak: setujui setelah 48 jam chat',
+        translationCostEstimate: 'Perkiraan biaya API terjemahan: ~$ {{amount}} / bulan',
+        packageHelp: 'Harga dan izin diterapkan sesuai paket yang dipilih.',
         recipient: 'Penerima',
         iban: 'IBAN',
         detailsSoon: 'Detail rekening akan segera ditambahkan.',
@@ -3782,6 +4081,7 @@ export default {
         currency: 'Mata uang',
         currencyTRY: 'TRY (Turki)',
         currencyIDR: 'IDR (Indonesia)',
+        currencyUSD: 'USD (Dolar)',
         method: 'Metode pembayaran',
         methodEftFast: 'EFT / FAST',
         methodSwiftWise: 'SWIFT / Wise',
@@ -3809,7 +4109,7 @@ export default {
       eligibilityPointFemale: 'Pencocokan dan melihat info profil terbatas di dalam situs tidak memerlukan keanggotaan. Untuk setuju/tolak dan menghubungi pasangan, Anda harus mengajukan keanggotaan aktif gratis dengan verifikasi identitas atau membeli keanggotaan berbayar.',
       points: [
         'Profil tidak bersifat publik. Hanya pengguna yang cocok yang bisa melihat detail satu sama lain.',
-        'Maksimal 3 kandidat ditampilkan. Menandai/memilih kandidat tidak menghapus kandidat lain; Anda bisa memilih untuk menampilkan hanya pilihan Anda.',
+        'Maksimal 3 / 5 / 10 kandidat ditampilkan sesuai paket. Menandai/memilih kandidat tidak menghapus kandidat lain; Anda bisa memilih untuk menampilkan hanya pilihan Anda.',
         'Langkah 1: Tinjau kandidat → Setuju atau Tolak. Jika salah satu menolak, kecocokan dibatalkan.',
         'Langkah 2 (persetujuan kedua): Jika kedua pihak setuju, pilih langkah berikutnya di panel (chat di dalam situs atau berbagi kontak). Langkah aktif hanya jika kedua pihak memilih opsi yang sama.',
         'Kunci: Saat langkah 2 disepakati, proses terkunci dan Anda tidak bisa meminta kecocokan baru sampai selesai/dibatalkan.',
@@ -3880,6 +4180,42 @@ export default {
         s1: 'Tetap waspada saat proses perkenalan; berhati-hati saat membagikan informasi pribadi.',
         s2: 'Jangan pernah mengirim uang; jika ada permintaan uang, segera laporkan.',
         s3: 'Memverifikasi informasi profil adalah tanggung jawab pengguna; jika ragu, minta dukungan.',
+      },
+
+      quickQuestions: {
+        title: '3 pertanyaan singkat',
+        lead: 'Kalau mau, jawab 3 pertanyaan singkat dengan sekali tap untuk saling mengenal lebih cepat. Opsional.',
+        yourAnswer: 'Kamu',
+        otherAnswer: 'Dia',
+        pickOne: 'Pilih satu',
+        otherAnswered: 'Sudah jawab',
+        otherNotAnswered: 'Belum jawab',
+        questions: {
+          q1: {
+            title: 'Kamu prefer pace seperti apa?',
+            options: {
+              slow: 'Pelan',
+              normal: 'Normal',
+              fast: 'Cepat',
+            },
+          },
+          q2: {
+            title: 'Keluarga vs kemandirian?',
+            options: {
+              family: 'Fokus keluarga',
+              balanced: 'Seimbang',
+              independent: 'Mandiri',
+            },
+          },
+          q3: {
+            title: 'Pindah kota / relokasi?',
+            options: {
+              local: 'Kota yang sama',
+              open: 'Terbuka',
+              flexible: 'Fleksibel',
+            },
+          },
+        },
       },
     },
   },

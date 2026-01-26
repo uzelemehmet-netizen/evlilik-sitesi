@@ -165,49 +165,27 @@ export default async function handler(req, res) {
     const matchId = `${userIdsSorted[0]}__${userIdsSorted[1]}`;
 
     const matchRef = db.collection('matchmakingMatches').doc(matchId);
-    const matchNoCounterRef = db.collection('counters').doc('matchmakingMatchNo');
-
     let skippedBecauseExists = false;
 
-    await db.runTransaction(async (tx) => {
-      const existing = await tx.get(matchRef);
-      if (existing.exists && !overwrite) {
-        skippedBecauseExists = true;
-        return;
-      }
-
-      // Kısa eşleşme kodu (ES-<no>) - var olan dokümanda varsa koru.
-      const existingData = existing.exists ? (existing.data() || {}) : {};
-      let matchNo = typeof existingData?.matchNo === 'number' && Number.isFinite(existingData.matchNo) ? existingData.matchNo : null;
-      let matchCode = safeStr(existingData?.matchCode);
-
-      if (!matchCode) {
-        if (matchNo === null) {
-          const cSnap = await tx.get(matchNoCounterRef);
-          const cur = cSnap.exists ? (cSnap.data() || {}) : {};
-          const next = typeof cur.next === 'number' && Number.isFinite(cur.next) ? cur.next : 10000;
-          matchNo = next;
-          tx.set(
-            matchNoCounterRef,
-            {
-              next: matchNo + 1,
-              updatedAt: FieldValue.serverTimestamp(),
-              updatedBy: admin.uid,
-            },
-            { merge: true }
-          );
-        }
-
-        matchCode = matchNo !== null ? `ES-${matchNo}` : '';
-      }
-
+    // Manual admin action: avoid Firestore transaction pitfalls.
+    // We only need deterministic matchId; matchCode can be generated when missing.
+    const existing = await matchRef.get();
+    if (existing.exists && !overwrite) {
+      skippedBecauseExists = true;
+    } else {
       const [aUserSnap, bUserSnap] = await Promise.all([
-        tx.get(db.collection('matchmakingUsers').doc(aUserId)),
-        tx.get(db.collection('matchmakingUsers').doc(bUserId)),
+        db.collection('matchmakingUsers').doc(aUserId).get(),
+        db.collection('matchmakingUsers').doc(bUserId).get(),
       ]);
 
       const aUserDoc = aUserSnap.exists ? (aUserSnap.data() || {}) : null;
       const bUserDoc = bUserSnap.exists ? (bUserSnap.data() || {}) : null;
+
+      const existingData = existing.exists ? (existing.data() || {}) : {};
+      const matchNo = typeof existingData?.matchNo === 'number' && Number.isFinite(existingData.matchNo) ? existingData.matchNo : null;
+      const existingMatchCode = safeStr(existingData?.matchCode);
+      const manualSuffix = Math.random().toString(36).slice(2, 8).toUpperCase();
+      const matchCode = existingMatchCode || `ES-MANUAL-${Date.now()}-${manualSuffix}`;
 
       const baseDoc = {
         matchNo,
@@ -226,7 +204,7 @@ export default async function handler(req, res) {
           a: buildProfileSnapshot(aApp, aUserDoc),
           b: buildProfileSnapshot(bApp, bUserDoc),
         },
-        createdAt: existing.exists ? (existing.data() || {})?.createdAt || FieldValue.serverTimestamp() : FieldValue.serverTimestamp(),
+        createdAt: existing.exists ? existingData?.createdAt || FieldValue.serverTimestamp() : FieldValue.serverTimestamp(),
         updatedAt: FieldValue.serverTimestamp(),
         createdByAdminId: admin.uid,
       };
@@ -247,12 +225,11 @@ export default async function handler(req, res) {
         baseDoc.contactUnlockedAt = FieldValue.serverTimestamp();
       }
 
-      tx.set(matchRef, baseDoc, { merge: false });
+      await matchRef.set(baseDoc, { merge: false });
 
       if (clearLocks) {
         for (const uid of [aUserId, bUserId]) {
-          tx.set(
-            db.collection('matchmakingUsers').doc(uid),
+          await db.collection('matchmakingUsers').doc(uid).set(
             {
               matchmakingLock: { active: false, matchId: '', matchCode: '' },
               matchmakingChoice: { active: false, matchId: '', matchCode: '' },
@@ -263,11 +240,9 @@ export default async function handler(req, res) {
         }
       }
 
-      // If contact_unlocked, lock the users to this match (as per normal flow)
       if (status === 'contact_unlocked') {
         for (const uid of [aUserId, bUserId]) {
-          tx.set(
-            db.collection('matchmakingUsers').doc(uid),
+          await db.collection('matchmakingUsers').doc(uid).set(
             {
               matchmakingLock: { active: true, matchId, matchCode },
               matchmakingChoice: { active: true, matchId, matchCode },
@@ -277,7 +252,7 @@ export default async function handler(req, res) {
           );
         }
       }
-    });
+    }
 
     const snap = await matchRef.get();
 

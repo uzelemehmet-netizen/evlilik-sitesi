@@ -14,6 +14,7 @@ export default {
     documents: "Dokümanlar",
     youtube: "YouTube",
     contact: "İletişim",
+    language: "Dil",
   },
 
   matchmakingHub: {
@@ -64,12 +65,12 @@ export default {
           desc: 'İlgilendiğin profili beğenirsin; karşılıklı beğeni olduğunda ilk adım tamamlanır.',
         },
         {
-          title: 'İletişim yöntemi seç',
-          desc: '“İletişim bilgilerimi paylaş” veya “Site içinden konuşmak istiyorum” seçeneklerinden birini seçersin.',
+          title: '48 saat site içi sohbet',
+          desc: 'Karşılıklı beğeni sonrası ilk 48 saat sadece panel içi sohbet ederek güvenli şekilde tanışırsınız.',
         },
         {
-          title: 'İletişime geç',
-          desc: 'İki taraf da iletişim paylaşırsa bilgiler görünür olur; iki taraf da site içi konuşmayı seçerse chat alanı açılır.',
+          title: 'İletişim isteği gönder',
+          desc: '48 saat dolunca iletişim isteği gönderirsin; karşı taraf onaylarsa telefon numaraları görünür.',
         },
       ],
     },
@@ -142,9 +143,9 @@ export default {
   matchmakingPage: {
     title: 'Evlilik Eşleştirme Başvurusu',
     intro:
-      'Bu sayfa, evlilik amacıyla uygun aday eşleştirmesi için yapılan başvuru formudur. Profiller herkese açık olarak yayınlanmaz; başvurular sadece ekibimiz tarafından görüntülenir. Uygun bir eşleşme olduğunda sizinle iletişime geçeriz.',
+      'Bu sayfa, evlilik amacıyla uygun aday eşleştirmesi için yapılan başvuru formudur. Profiller herkese açık olarak yayınlanmaz; başvurular sadece ekibimiz tarafından görüntülenir. Sistem profilinizle eşleşen kişileri Profilim sayfasında gösterecektir.',
     privacyNote:
-      'Önemli: Bu sayfa herkese açık “profil arama/gezme” alanı değildir. Paylaştığınız bilgiler yalnızca değerlendirme ve iletişim amacıyla kullanılır.',
+      'Önemli: Bu sayfa herkese açık “profil arama/gezme” alanı değildir. Paylaştığınız bilgiler yalnızca değerlendirme ve iletişim amacıyla kullanılır. Doldurduğunuz bilgilerin doğruluğundan emin olun; bu formda paylaştığınız bilgilerden siz sorumlusunuz ve eşleştirmeleriniz bu bilgiler üzerinden gerçekleşir. Kasıtlı olarak yanlış bilgi verenler sistemden engellenir; aktif üyeliği varsa iptal edilir ve geri ödeme yapılmaz.',
     authGate: {
       message: 'Eşleştirme başvurusu gönderebilmek için lütfen giriş yapın veya yeni hesap oluşturun.',
       login: 'Giriş yap',
@@ -172,11 +173,11 @@ export default {
         fullName: 'Ad Soyad',
         age: 'Yaş',
         city: 'Şehir',
-        country: 'Ülke',
+        country: 'Yaşadığınız ülke',
         whatsapp: 'WhatsApp numarası',
         email: 'E-posta',
         instagram: 'Instagram (opsiyonel)',
-        nationality: 'Uyruk',
+        nationality: 'Uyruğunuz',
         gender: 'Cinsiyet',
         lookingForNationality: 'Uyruk',
         lookingForGender: 'Cinsiyet',
@@ -214,6 +215,7 @@ export default {
         smoking: 'Sigara kullanıyor musunuz?',
         alcohol: 'Alkol kullanıyor musunuz?',
         partnerCommunicationLanguages: 'Aradığınız kişiyle iletişim dili',
+        partnerCommunicationMethods: 'Aradığınız kişiyle iletişim yöntemi',
         partnerCommunicationLanguageOther: 'Aradığınız kişi için diğer dil (yazın)',
         partnerTranslationApp: 'Aradığınız kişi ile çeviri uygulamasıyla konuşmak ister misiniz?',
         partnerLivingCountry: 'Yaşanacak ülke tercihi',
@@ -248,11 +250,6 @@ export default {
         about: 'Kısaca kendinizi tanıtın (yaşam tarzı, dil, iş, aile planı vb.)',
         expectations: 'Örn: İletişim, yaşam tarzı, yaş/boy tercihi, aile değerleri…',
       },
-
-      editOnce: {
-        usernameLocked: 'Edit modunda kullanıcı adı değiştirilemez (1 defalık düzeltme hakkı).',
-        photosLocked: 'Edit modunda fotoğraf güncelleme kapalı. Sadece form alanlarını düzeltebilirsiniz.',
-      },
       options: {
         common: {
           select: 'Seçin',
@@ -275,6 +272,17 @@ export default {
           widowed: 'Dul (eşi vefat etmiş)',
           divorced: 'Boşanmış',
           other: 'Diğer',
+          doesnt_matter: 'Farketmez',
+        },
+        religiousValues: {
+          weak: 'Zayıf',
+          medium: 'Orta',
+          conservative: 'Muhafazakar',
+        },
+        partnerCommunicationMethods: {
+          ownLanguage: 'Kendi dilim',
+          foreignLanguage: 'Yabancı dil bilgim',
+          translationApp: 'Çeviri uygulaması',
         },
         education: {
           secondary: 'Ortaöğretim',
@@ -359,7 +367,7 @@ export default {
       photoHint:
         'Sadece resim dosyası yükleyin. Sistem otomatik olarak sıkıştırıp yükler (öneri: net, güncel ve yüzünüzün göründüğü bir fotoğraf).',
       consents: {
-        age: '18 yaşından büyük olduğumu onaylıyorum.',
+        age: '{{minAge}} yaşından büyük olduğumu onaylıyorum.',
         privacy: '<privacyLink>Gizlilik Politikası</privacyLink>’nı okudum ve verilerimin değerlendirme/iletişim amacıyla işlenmesini kabul ediyorum.',
         terms: '<termsLink>Kullanım Sözleşmesi</termsLink>’ni okudum ve kabul ediyorum.',
         photo: 'Fotoğrafımı, değerlendirme amacıyla admin ekibinin görmesini kabul ediyorum (profil herkese açık yayınlanmaz).',
@@ -367,11 +375,11 @@ export default {
       submit: 'Başvuruyu Gönder',
       submitting: 'Gönderiliyor…',
       success:
-        'Başvurunuz alındı. Uygun bir eşleşme olduğunda sizinle iletişime geçeceğiz.',
+        'Başvurunuz alındı. Profilinizle eşleşen kişiler Profilim sayfanızda görüntülenecektir.',
       errors: {
         blocked: 'Bu hesap evlilik başvurularında engellenmiş. Eğer bunun hata olduğunu düşünüyorsanız bizimle iletişime geçin.',
         mustLogin: 'Başvuruyu göndermek için giriş yapmanız gerekir.',
-        consentsRequired: 'Başvuru için onay kutularını (18+, Gizlilik Politikası, Kullanım Sözleşmesi, Fotoğraf paylaşımı) işaretlemeniz gerekir.',
+        consentsRequired: 'Başvuru için onay kutularını ({{minAge}}+, Gizlilik Politikası, Kullanım Sözleşmesi, Fotoğraf paylaşımı) işaretlemeniz gerekir.',
         permissionDenied: 'Başvuru gönderilemedi (izin hatası). Lütfen doğru hesapla giriş yapın veya Firestore kurallarını kontrol edin.',
         honeypotTriggered: 'Form gönderilemedi. Tarayıcı otomatik doldurma (autofill) gizli alanı doldurmuş olabilir. Lütfen sayfayı yenileyin ve otomatik doldurmayı kapatıp tekrar deneyin.',
         photoUploadFailed: 'Fotoğraf yüklenemedi. Bu projede Cloudinary yükleme varsayılan olarak SIGNED (imzalı) çalışır. Bu yüzden genelde sebep: `/api/cloudinary-signature` çalışmıyor veya server env eksik. Çözüm: Lokal geliştirmede `npm run dev` çalıştırın (API + Web birlikte) ve `.env.local` içinde `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET` tanımlı olsun. (Unsigned preset ancak özellikle açarsanız kullanılır.)',
@@ -379,7 +387,7 @@ export default {
         usernameTaken: 'Bu kullanıcı adı kullanımda. Lütfen başka bir kullanıcı adı seçin.',
         fullName: 'Lütfen ad soyad girin.',
         age: 'Lütfen yaş girin.',
-        ageRange: 'Yaş 18–99 arasında olmalı.',
+        ageRange: 'Yaş {{minAge}}–99 arasında olmalı.',
         email: 'Lütfen e-posta adresinizi girin.',
         instagram: 'Lütfen Instagram kullanıcı adınızı girin.',
         nationality: 'Lütfen uyruk seçin.',
@@ -445,7 +453,7 @@ export default {
         about: 'Lütfen kısa bir tanıtım yazın.',
         photoRequired: 'Lütfen bir fotoğraf yükleyin.',
         photoType: 'Lütfen geçerli bir resim dosyası seçin.',
-        consent18Plus: 'Devam etmek için 18+ onayı gerekli.',
+        consent18Plus: 'Devam etmek için {{minAge}}+ onayı gerekli.',
         consentPrivacy: 'Devam etmek için gizlilik onayı gerekli.',
         consentPhotoShare: 'Devam etmek için fotoğraf onayı gerekli.',
         submitFailed: 'Başvuru gönderilemedi. Lütfen tekrar deneyin.',
@@ -2100,7 +2108,9 @@ export default {
     },
     forceInfo: 'Bu işlem için yeniden giriş yapmanız istendi. Lütfen tekrar giriş yapın.',
     googleCta: 'Google ile devam et',
+    googleSignupCta: 'Google ile kayıt ol',
     redirecting: 'Google girişine yönlendiriliyorsunuz…',
+    signupGuide: 'Kayıt için önce cinsiyet ve uyruk seçip yaş onayını işaretleyin.',
     or: 'veya',
     labels: {
       email: 'E-posta',
@@ -2128,6 +2138,8 @@ export default {
       nationalityTr: 'Türkiye',
       nationalityId: 'Endonezya',
       nationalityOther: 'Diğer',
+      ageConfirm: '{{minAge}} yaşından büyük olduğumu onaylıyorum. (Detaylar için sözleşmeyi aç)',
+      ageConfirmLink: 'Sözleşme',
     },
     forgotHint: {
       prefix: 'Şifrenizi unuttuysanız',
@@ -2135,7 +2147,7 @@ export default {
     },
     legal: {
       prefix: 'Devam ederek',
-      contract: 'Paket tur sözleşmesi',
+      contract: 'Kullanıcı / Üyelik sözleşmesi',
       cancelRefund: 'İptal / iade politikası',
       privacy: 'Gizlilik Politikası',
     },
@@ -2150,6 +2162,7 @@ export default {
       genderRequired: 'Kayıt olmak için cinsiyet seçin.',
       nationalityRequired: 'Kayıt olmak için uyruk seçin.',
       nationalityOtherRequired: 'Lütfen uyruğunuzu yazın.',
+      ageConfirmRequired: 'Kayıt olmak için en az {{minAge}} yaşında olduğunuzu onaylamalısınız.',
       loginFailed: 'Giriş başarısız.',
       resetEmailRequired: 'Şifre sıfırlamak için e-posta girin.',
       resetFailed: 'Şifre sıfırlama e-postası gönderilemedi.',
@@ -2161,6 +2174,14 @@ export default {
   },
 
   matchmakingPanel: {
+        profile: {
+          guidanceAfterConfirm: {
+            title: 'Kesin eşleşme sonrası destek',
+            body:
+              'Kesin eşleşme kararından sonra eş adaylarının birbirine güven kazanması ve evlilik adımlarında aileler arası iletişim, tercümanlık, evlilik kararı öncesi eş adaylarının verdiği bilgilerin doğruluğunu araştırma ve daha birçok kolaylıktan faydalanmak için sitemizde bulunan evlilik rehberliği sayfamız aracılığıyla rehberlik ekibimizden hizmet alabilirsiniz.',
+            cta: 'Evlilik rehberliği sayfasını aç',
+          },
+        },
     title: 'Profilim',
     subtitle: 'Evlilik eşleştirme, üyelik ve iletişim adımlarınız burada görünecek.',
     tabs: {
@@ -2239,6 +2260,11 @@ export default {
       requestingNew: 'Talep gönderiliyor…',
       requestNewQuotaHint: 'Günlük hak: {{remaining}}/{{limit}}',
       requestNewSuccess: 'Yeni eşleşme talebiniz alındı. Uygun aday bulunduğunda panelde görünecek.',
+      freeSlot: 'Slotu boşalt (günlük 1)',
+      freeSlotHint: 'Bu işlem, "yeni kayıt" adaylar için ayrılmış bir slot açar. Slot, profilinize uygun {{threshold}}+ puanlı yeni kayıt gelene kadar boş kalır. Hemen yeni aday istiyorsanız "Yeni eşleşme talep et" butonunu kullanın.',
+      freeSlotConfirm: 'Bu adayı listenden çıkarıp yeni kayıt slotunu açmak istiyor musun? (Günlük 1 hak)',
+      freeSlotSuccess: 'Slot boşaltıldı. {{creditGranted}} kredi tanımlandı. Yeni kayıt ({{threshold}}+ puan) gelene kadar slot boş kalacak. Yeni aday talebi için bekleme: {{remaining}}',
+      removedCreditNotice: 'Bu eşleşme listenizden çıkarıldı. Yeni eşleşme isteme hakkınız için 1 kredi tanımlandı. Bekleme: {{remaining}}',
     },
     profileForm: {
       loading: 'Form yükleniyor…',
@@ -2246,6 +2272,12 @@ export default {
       openOriginalEditOnce: 'Orijinal formu aç (1 kez düzelt)',
       detailsToggle: 'Başvuru bilgilerini göster',
       applicationId: 'Başvuru ID',
+      applicantNationality: 'Kendi uyruğunuz',
+      applicantGender: 'Kendi cinsiyetiniz',
+      partnerNationality: 'Aradığınız kişinin uyruğu',
+      partnerGender: 'Aradığınız kişinin cinsiyeti',
+      moreDetailsTitle: 'Diğer bilgiler',
+      partnerPrefsTitle: 'Aradığınız kişi tercihleri',
       editOnceTitle: 'Formu 1 defaya mahsus düzelt',
       editOnceLead:
         'Başvuruda yanlış/eksik bilgi varsa burada güncelleyebilirsiniz. Bu işlem sadece 1 kez yapılabilir (gönderince tekrar değiştirilemez).',
@@ -2307,6 +2339,10 @@ export default {
       requestNewRateLimited: 'Yeni eşleşme talebini çok sık gönderiyorsunuz. Lütfen daha sonra tekrar deneyin.',
       requestNewQuotaExhausted: 'Bugünkü yeni eşleşme hakkınız bitti (3/3). Yarın tekrar deneyin.',
       requestNewFreeActiveBlocked: 'Ücretsiz aktif üyelik hakkınız iptal edildiği için yeni eşleşme talep edemezsiniz. Tekrar aktif olmanız için ücretli üyelik gerekir.',
+      freeSlotFailed: 'Slot boşaltma işlemi başarısız.',
+      freeSlotQuotaExhausted: 'Bugünkü slot boşaltma hakkınız bitti (1/1). Yarın tekrar deneyin.',
+      cooldownActive: 'Bu işlem için biraz beklemeniz gerekir. Kalan süre: {{remaining}}',
+      newUserSlotAlreadyActive: 'Yeni kayıt slotunuz zaten açık. Uygun yeni kayıt gelene kadar bekleyin veya normal yenileme kullanın.',
     },
     afterSubmit: {
       title: 'Başvurunuz alındı.',
@@ -2479,6 +2515,7 @@ export default {
       loading: 'İşlem yapılıyor…',
       alreadyActive: 'Üyeliğiniz zaten aktif',
       successActivated: 'Üyeliğiniz aktif edildi.',
+      promoActivated: 'Üyeliğiniz Eko pakette ücretsiz aktif edildi. Bitiş: {{date}} ({{count}} gün kaldı).',
       successCancelled: 'Üyeliğiniz iptal edildi.',
     },
     membershipGate: {
@@ -2491,13 +2528,101 @@ export default {
     },
     lock: {
       title: 'Eşleşme süreciniz devam ediyor.',
-      body: 'Kilit, karşılıklı onaydan sonra iki taraf da panelde aynı kararı verdiğinde devreye girer (site dışında devam). Kilitliyken yeni aday talep edemezsiniz. Eşleşmeyi sonlandırmak için iki taraf da “eşleşmeyi iptal et” seçeneğini işaretlemelidir.',
+      body: 'Karşılıklı onaydan sonra bu eşleşme aktif süreciniz olur. İlk 48 saat sadece site içi sohbet edilir. 48 saat dolunca iletişim isteği gönderebilirsiniz; telefon numaraları yalnızca karşı taraf onaylarsa görünür.',
       matchId: 'Eşleşme Kodu',
     },
     matches: {
+      presence: {
+        online: 'Çevrimiçi',
+        lastSeen: 'Son aktif: {{time}}',
+        unknown: 'Son aktif: -',
+      },
+      progress: {
+        title: 'Süreç',
+        steps: {
+          proposed: 'Tanışma',
+          mutualAccepted: 'Karşılıklı onay',
+          confirm48h: '48 saat kesinleştirme',
+          contact: 'İletişim',
+        },
+        remaining: 'Kalan süre: {{h}}sa {{m}}dk',
+      },
+
+      quickQuestions: {
+        title: '3 kısa soru',
+        lead: 'İsterseniz birbirinizi daha hızlı tanımak için 3 kısa soruya tek tıkla cevap verin. Zorunlu değil.',
+        yourAnswer: 'Sen',
+        otherAnswer: 'O',
+        pickOne: 'Bir seçenek seç',
+        otherAnswered: 'Cevapladı',
+        otherNotAnswered: 'Henüz cevaplamadı',
+        questions: {
+          q1: {
+            title: 'Tanışma hızın nasıl olsun?',
+            options: {
+              slow: 'Yavaş',
+              normal: 'Normal',
+              fast: 'Hızlı',
+            },
+          },
+          q2: {
+            title: 'Aile ve bağımsızlık dengesi?',
+            options: {
+              family: 'Aile odaklı',
+              balanced: 'Dengeli',
+              independent: 'Bağımsız',
+            },
+          },
+          q3: {
+            title: 'Taşınma / şehir değişimi?',
+            options: {
+              local: 'Aynı şehir',
+              open: 'Açığım',
+              flexible: 'Esnek',
+            },
+          },
+        },
+      },
+
+      matchTest: {
+        button: 'Eşleşme testi',
+        title: 'Eşleşme testi',
+        lead: '3 kısa soruda ne kadar uyumlusunuz?',
+        score: 'Skor: {{points}} / {{max}}',
+        close: 'Kapat',
+        questionCounter: 'Soru {{cur}} / {{total}}',
+        sameAnswer: 'Aynı cevap: +10 puan',
+        differentAnswer: 'Farklı cevap',
+        prev: 'Geri',
+        next: 'İleri',
+      },
       title: 'Eşleşmeleriniz',
-      subtitle: 'Size özel en fazla 3 aday gösterilir.',
-      empty: 'Şu an gösterilecek bir eşleşmeniz yok.',
+      subtitle: 'Paketinize göre en fazla 3 / 5 / 10 aday gösterilir.',
+      inactivityNotice: {
+        title: 'Pasiflik kuralı (24 saat)',
+        body:
+          '24 saatin üzerindeki pasif sürelerde eşleşme listeniz sıfırlanır. Eşleşme listenizdeki kişiler eşleşme havuzuna dahil edilir ve yeniden aktif olduğunuzda eşleşme talep etme hakkınızı daha sonra kullanabilirsiniz; fakat mevcut eşleşmelerinizi kaybedersiniz.',
+      },
+      newUserSlotNotice: {
+        title: 'Yeni kayıt slotu açık',
+        body:
+          'Slot boş kaldı. Slot açıldıktan sonra sisteme katılan yeni kayıtlar içinden profilinize uygun {{threshold}}+ puanlı bir aday bulunduğunda otomatik dolacak. Hemen yeni aday istiyorsanız "Yeni eşleşme talep et" butonunu kullanın.',
+      },
+      inactiveReset: {
+        title: 'Eşleşme pasiflik nedeniyle sıfırlandı',
+        body: 'Taraflardan biri 24 saatten uzun süre pasif kaldığı için bu eşleşme iptal edildi ve havuza geri alındı.',
+      },
+      focusActiveReset: {
+        title: 'Bu eşleşme kapatıldı',
+        body: 'Karşı taraf şu an başka bir tanışma penceresini ilerletiyor. Bu sizinle ilgili olumsuz bir değerlendirme değildir; sistem uygun olduğunda yeni adaylar gösterecektir.',
+      },
+        pendingContinueExists: 'Devam etmek için zaten bir aday seçtiniz. Önce o eşleşmede karar verin.',
+      empty: 'Profilinize uygun bir eşleşme bulunduğunda burada görünecektir. Sayfayı telefonunuza ya da bilgisayarınıza kaydedip tekrar kontrol etmek istediğinizde kolayca ulaşmak için kaydedin.',
+      savePage: 'Sayfayı kaydet',
+      savePageAlready: 'Bu sayfa zaten ana ekrana/uygulama olarak ekli görünüyor.',
+      savePageIosHint: 'iPhone/iPad: Safari\'de Paylaş → “Ana Ekrana Ekle” seçin. (Bağlantı kopyalandı.)',
+      savePageAndroidHint: 'Android: Tarayıcı menüsünden “Ana ekrana ekle” veya “Uygulamayı yükle” seçin. (Bağlantı kopyalandı.)',
+      savePageDesktopHint: 'Bilgisayar: Tarayıcı menüsünden “Uygulamayı yükle” (varsa) veya yer imlerine ekle (Ctrl+D). (Bağlantı kopyalandı.)',
       waitingOther: 'Karşı tarafın cevabı bekleniyor.',
       mutualAcceptedNotice: 'Her iki taraf da onayladı. Bir sonraki adımı seçebilirsiniz.',
       rejectedByOther: {
@@ -2507,6 +2632,10 @@ export default {
       contactUnlocked: {
         title: 'İletişim paylaşımı karşılıklı onaylandı.',
         body: 'İletişim bilgilerini panelden açabilir ve konuşmaya başlayabilirsiniz. Kurallara aykırı davranışları kanıtıyla bildirirseniz kalıcı engel uygulanır ve geri ödeme talep edilemez.',
+      },
+      contactLocked: {
+        title: 'İletişim bilgileri (48 saat kilitli)',
+        body: 'İletişim bilgileri, sohbet aktif olduktan 48 saat sonra açılır. Bu sürede site içinden konuşabilirsiniz.',
       },
       interaction: {
         title: 'Bir sonraki adım',
@@ -2528,6 +2657,7 @@ export default {
         offsiteWaiting: 'Seçiminiz kaydedildi. Karşı tarafın aynı seçimi yapması bekleniyor.',
       },
       chat: {
+        open: 'Mesajlar',
         title: 'Site İçi Mesajlaşma',
         lead: 'Karar vermeden önce burada konuşabilirsiniz. İletişim/IG/FB/link paylaşımı engellenir.',
         enableNotifications: 'Bildirimleri aç',
@@ -2545,6 +2675,45 @@ export default {
         send: 'Gönder',
         continue: 'Devam edelim (Onay)',
         reject: 'Uymadı (Reddet)',
+        proposedLimit: {
+          counter: 'Sohbet: {{used}} / {{limit}}',
+          reachedTitle: 'Karar zamanı',
+          reachedBody: 'Mesaj limiti doldu. Devam etmek için onaylayın veya uygun değilse reddedin.',
+          startActive: 'Aktif eşleşmeyi başlat',
+          pendingYou: 'Aktif eşleşme talebin gönderildi. Karşı tarafın onayı bekleniyor.',
+          pendingIncomingTitle: '{{name}} aktif eşleşme talebinde bulundu',
+          pendingIncomingBody: 'Aktif eşleşmeyi başlatmak için onaylayın.',
+        },
+        rejectReasons: {
+          hint: 'Ret gerekçesi (opsiyonel):',
+          notFeeling: 'İçime sinmedi',
+          values: 'Uyum/değerler',
+          distance: 'Mesafe/şehir',
+          communication: 'İletişim tarzı',
+          notReady: 'Şu an uygun değilim',
+          other: 'Diğer',
+        },
+        pause: {
+          focusTitle: 'Bu sohbet beklemede',
+          focusBody: 'Şu an başka bir tanışma penceresini ilerlettiğiniz için bu sohbet geçici olarak durduruldu. Mesaj gönderemezsiniz.',
+          otherTitle: 'Sohbet geçici olarak beklemede',
+          otherBody: 'Mesajlarınız karşı tarafa şu an iletilmez; uygun olduğunda otomatik olarak devam eder.',
+          heldBadge: 'Beklemede (henüz iletilmedi)',
+          deliveredBadge: 'Teslim edildi',
+        },
+        heldSummary: {
+          title: '{{count}} mesaj beklemede',
+          body: 'Bu sohbet daha önce beklemedeyken karşı taraftan mesaj gelmiş. İsterseniz şimdi görüntüleyebilirsiniz.',
+          show: 'Mesajları göster',
+          keepHidden: 'Şimdilik gizli kalsın',
+          releaseFailed: 'Mesajlar açılamadı. Lütfen tekrar deneyin.',
+        },
+        limitReachedNotice: {
+          title: 'Mesaj limitine ulaştınız',
+          body:
+            'Konuşmaya devam etmek için aktif eşleşme başlatmanız gerekiyor. Aktif eşleşme başlatmak diğer eşleşmelerinizi beklemeye alacak ve sadece aktif eşleşmenizle konuşmaya devam edeceksiniz.',
+          dismiss: 'Tamam',
+        },
         errors: {
           filtered: 'Mesajınız iletişim bilgisi/sosyal medya/link içerdiği için gönderilemedi.',
           rateLimited: 'Çok hızlı mesaj gönderiyorsunuz. Lütfen biraz bekleyin.',
@@ -2552,15 +2721,42 @@ export default {
           notEnabled: 'Bu eşleşmede site içi konuşma aktif değil.',
           membershipRequired: 'Mesajlaşma için üyeliğiniz aktif olmalıdır.',
           verificationRequired: 'Mesajlaşma için kimlik doğrulaması gerekir.',
+          limitReached: 'Mesaj limiti doldu. Karar vermeniz gerekiyor.',
+          chatPaused: 'Bu sohbet geçici olarak beklemede.',
           serverNotConfigured: 'Local sunucuda Firebase Admin ayarlı değil. .env.local içine FIREBASE_SERVICE_ACCOUNT_JSON_FILE ekleyip dev sürecini yeniden başlatın.',
           authRequired: 'Mesaj göndermek için giriş yapmanız gerekir. (Anonim hesapla olmaz.)',
           sendFailed: 'Mesaj gönderilemedi.',
           decisionFailed: 'Karar kaydedilemedi.',
         },
+
+        confirm48h: {
+          title: '48 saat doldu: Eşleşmeyi kesinleştirme',
+          body:
+            'Bu aşamadan sonra eşleşmeniz “kesinleşmiş” olarak işaretlenecek ve iletişim paylaşımı (telefon numarası) adımı aktif edilecektir. Kesinleşince eşleşme slotunuzdaki diğer öneriler silinebilir.',
+          note: 'Onay verdiğinizde karşı tarafın da onayı beklenir.',
+          confirmButton: 'Kesinleştirmeyi onayla',
+          cancelButton: 'Vazgeç',
+          waitingOther: 'Onay verdiniz. Karşı tarafın onayı bekleniyor.',
+          confirmed: 'Eşleşme kesinleşti. İletişim isteği gönderebilirsiniz.',
+          contactLockedUntilConfirm: 'İletişim isteği gönderebilmek için önce bu eşleşmeyi kesinleştirmelisiniz.',
+          errors: {
+            locked: '48 saat dolmadan kesinleştirilemez.',
+            confirmRequired: 'İletişim için önce kesinleştirme onayı gereklidir.',
+          },
+        },
       },
       candidate: {
         fallbackName: 'Aday',
         verifiedBadge: 'Kimliği doğrulanmış',
+        proBadge: 'PRO',
+        standardBadge: 'STANDART',
+        badges: {
+          activeRecent: 'Yakın zamanda aktif',
+          mutualAccepted: 'Karşılıklı onay',
+          confirmed: 'Kesinleşti',
+          contactUnlocked: 'İletişim açıldı',
+          contactPending: 'İletişim isteği bekliyor',
+        },
         matchedProfile: 'Eşleşme profili',
         score: 'Eşleşme skoru',
         likeBadge: '♥ Beğeni aldınız',
@@ -2590,8 +2786,11 @@ export default {
       contactUnlock: {
         membershipActiveTitle: 'Kullanıma uygun durumdasınız',
         membershipActiveBody: 'İletişimi açmak için butona tıklayın. (Karşı tarafın da kurallara göre uygun olması gerekir.)',
+        lockedTitle: 'İletişim kilitli',
+        lockedBody: 'İletişim bilgileri sohbet başladıktan 48 saat sonra açılır. Kalan süre: {{time}}',
+        lockedBodyNoTime: 'İletişim bilgileri sohbet başladıktan 48 saat sonra açılır.',
         opening: 'Açılıyor…',
-        open: 'İletişim bilgilerini aç',
+        open: 'İletişim bilgilerimi paylaş',
         verificationRequired: 'İletişim bilgilerini açmak için kimlik doğrulaması gerekir.',
       },
       payment: {
@@ -2601,6 +2800,24 @@ export default {
         trTitle: 'Türkiye',
         idTitle: 'Endonezya',
         amount: 'Tutar',
+        package: 'Paket',
+        packageEco: 'Eko',
+        packageStandard: 'Standart',
+        packagePro: 'Pro',
+        perMonth: 'aylık üyelik',
+        badgeValue: 'Avantajlı',
+        badgePopular: 'Popüler',
+        badgePro: 'En yüksek',
+        descEco: 'Temel erişim ve ölçülü çeviri.',
+        descStandard: 'Daha fazla aday ve sponsorlu çeviri.',
+        descPro: 'Maksimum aday ve yüksek çeviri hakkı.',
+        featureMaxCandidates: 'Panelde en fazla {{count}} aday',
+        featureTranslateMonthly: 'Aylık {{count}} mesaj çeviri',
+        sponsoredIfOther: 'Karşı taraf Standard/Pro ise sponsorlu çeviri olabilir',
+        sponsorsOthers: 'Karşı taraf için sponsorlu çeviri (maliyet sizden)',
+        feature48hLock: 'İletişim paylaşımı: 48 saat sohbet sonrası onayla',
+        translationCostEstimate: 'Tahmini çeviri API maliyeti: ~$ {{amount}} / ay',
+        packageHelp: 'Seçtiğiniz pakete göre tutar ve yetkiler uygulanır.',
         recipient: 'Alıcı',
         iban: 'IBAN',
         detailsSoon: 'Hesap bilgileri yakında eklenecek.',
@@ -2609,6 +2826,7 @@ export default {
         currency: 'Para birimi',
         currencyTRY: 'TRY (Türkiye)',
         currencyIDR: 'IDR (Endonezya)',
+        currencyUSD: 'USD (Dolar)',
         method: 'Ödeme yöntemi',
         methodEftFast: 'EFT / FAST',
         methodSwiftWise: 'SWIFT / Wise',
@@ -2636,7 +2854,7 @@ export default {
       eligibilityPointFemale: 'Site içinde eşleşme ve eşleşen kullanıcının kısıtlı profil bilgisini görmek için üyelik satın almaya gerek yoktur. Eşleşen kullanıcıya beğeni göndermek, reddetmek ve iletişime geçebilmek için ücretsiz aktif üye başvurusu ve kimlik doğrulama işlemi yapmanız ya da ücretli üyelik satın almanız gerekmektedir.',
       points: [
         'Profiller herkese açık değildir; yalnızca eşleşme teklifi alan kişiler birbirini görür.',
-        'Panelde size en fazla 3 aday gösterilir. Bir adayı işaretlemeniz diğer adayları otomatik olarak kaldırmaz; isterseniz “sadece seçtiğim adayı göster” seçeneğini kullanabilirsiniz.',
+        'Panelde size paketinize göre en fazla 3 / 5 / 10 aday gösterilir. Bir adayı işaretlemeniz diğer adayları otomatik olarak kaldırmaz; isterseniz “sadece seçtiğim adayı göster” seçeneğini kullanabilirsiniz.',
         'Adım 1: Adayı inceleyin → “Onayla” veya “Reddet” deyin. Bir taraf reddederse eşleşme iptal olur.',
         'Adım 2 (2. onay): İki taraf da onayladıysa panelden “site içi konuşma” veya “iletişim paylaşımı” seçilir. İki taraf aynı seçimi yapınca o adım açılır.',
         'Kilit: 2. adımda uzlaşı olunca kilit devreye girer; bu eşleşme sonuçlanmadan yeni aday talep edemezsiniz.',
@@ -2645,11 +2863,60 @@ export default {
         '{{eligibilityPoint}}',
         'Güvenlik: Kural ihlalleri (yalan bilgi, hakaret/taciz, cinsel istismar, maddi çıkar, flört/eğlence niyeti vb.) ekran görüntüsü/kanıt ile doğrulanırsa kalıcı engel uygulanır ve geri ödeme talep edilemez.',
       ],
+
+      quickQuestions: {
+        title: '3 kısa soru',
+        lead: 'İsterseniz birbirinizi daha hızlı tanımak için 3 kısa soruya tek tıkla cevap verin. Zorunlu değil.',
+        yourAnswer: 'Sen',
+        otherAnswer: 'O',
+        pickOne: 'Bir seçenek seç',
+        otherAnswered: 'Cevapladı',
+        otherNotAnswered: 'Henüz cevaplamadı',
+        questions: {
+          q1: {
+            title: 'Tanışma hızın nasıl olsun?',
+            options: {
+              slow: 'Yavaş',
+              normal: 'Normal',
+              fast: 'Hızlı',
+            },
+          },
+          q2: {
+            title: 'Aile ve bağımsızlık dengesi?',
+            options: {
+              family: 'Aile odaklı',
+              balanced: 'Dengeli',
+              independent: 'Bağımsız',
+            },
+          },
+          q3: {
+            title: 'Taşınma / şehir değişimi?',
+            options: {
+              local: 'Aynı şehir',
+              open: 'Açığım',
+              flexible: 'Esnek',
+            },
+          },
+        },
+      },
     },
     rules: {
       title: 'Evlilik Eşleştirme: Vaadimiz, Kurallar ve Güvenlik',
       lead: 'Bu platform flört/eğlence için değildir. Evlilik niyetiyle tanışmayı daha güvenli ve kontrollü hale getirmek için tasarlanmıştır.',
       open: 'Kuralları ve işleyişi görüntüle',
+      why: {
+        title: 'Neden bu kadar kural var?',
+        body:
+          'Bu kurallar kullanıcıyı cezalandırmak için değil; gerçekten evlilik niyeti olanların güvenle kalabilmesi için var. Amacımız sahte/aldatıcı niyetleri, dolandırıcılığı ve “sadece eğlenmek” isteyenleri mümkün olduğunca erken elemek.',
+        points: [
+          'Güvenlik: para talebi, sahte profil, taciz gibi riskleri azaltır.',
+          'Ciddiyet: evlilik dışı niyetle gelenlerin sistemde tutunmasını zorlaştırır.',
+          'Kalite: havuzun tıkanmasını ve aynı kişilerin dönüp durmasını azaltır.',
+          'Şeffaflık: limit/cooldown/48saat gibi kurallar süreçte belirsizliği azaltır.',
+        ],
+        note:
+          'Eğer hedef sadece daha fazla etkileşim ve “eğlence” olsaydı; daha az kural, daha serbest iletişim ve daha fazla açık profil ile çok daha fazla kullanım üretmek mümkündü.\nAma biz bu sistemi “aile kurmak isteyenler” için tasarladık; kaliteyi niceliğin önüne koyuyoruz.',
+      },
       promise: {
         title: 'Ne vaat ediyoruz?',
         p1Title: 'Evlilik odaklı sistem',
@@ -2726,6 +2993,8 @@ export default {
     activating: 'Aktifleştiriliyor…',
     activated: 'Üyelik aktifleştirildi.',
     activatedUntil: 'Üyelik aktifleştirildi. Bitiş: {{date}}',
+    freeActivatedInfo:
+      '{{date}} tarihine kadar ücretsiz üyeliğiniz tanımlanmıştır.\nÜyelik kapsamında eşleşme profilini beğenip reddetme ve {{translatedCount}} çevirili mesaj hakkından faydalanabilirsiniz.\nGünlük eşleşme değiştirme hakkınız {{dailyLimit}} ile sınırlıdır.',
     promoExpired: 'Kampanya süresi doldu. {{date}} sonrası aktivasyonlar ücretlidir ve ödeme sonrası aktif olur.',
     activateFailed: 'Üyelik aktifleştirilemedi. Lütfen tekrar deneyin.',
     errors: {

@@ -14,6 +14,7 @@ export default {
     documents: "Documents",
     youtube: "YouTube",
     contact: "Contact",
+    language: "Language",
   },
 
   matchmakingHub: {
@@ -23,6 +24,24 @@ export default {
     description:
       'A closed matchmaking system that brings together people who are serious about marriage—on equal and safe terms. Profiles are not public; the system shows the most compatible candidates in your panel and helps you find the right person faster.',
     actions: {
+        package: 'Package',
+        packageEco: 'Eco',
+        packageStandard: 'Standard',
+        packagePro: 'Pro',
+        perMonth: 'monthly subscription',
+        badgeValue: 'Best value',
+        badgePopular: 'Popular',
+        badgePro: 'Top',
+        descEco: 'Basic access and moderate translation.',
+        descStandard: 'More candidates and sponsored translation.',
+        descPro: 'Max candidates and high translation allowance.',
+        featureMaxCandidates: 'Up to {{count}} candidates in your panel',
+        featureTranslateMonthly: '{{count}} translated messages / month',
+        sponsoredIfOther: 'May be sponsored if the other user is Standard/Pro',
+        sponsorsOthers: 'Sponsored translation for the other user (cost billed to you)',
+        feature48hLock: 'Contact sharing: approve after 48h of chat',
+        translationCostEstimate: 'Estimated translation API cost: ~$ {{amount}} / month',
+        packageHelp: 'Price and permissions are applied based on the selected package.',
       apply: 'Apply for matchmaking',
       goPanel: 'My profile',
       backWedding: 'Back to wedding page',
@@ -42,22 +61,22 @@ export default {
         hideEmptyFields: 'Hide empty fields',
         partnerAgeMin: 'Min age',
         partnerAgeMax: 'Max age',
-        partnerAgeMin: 'Min age',
-        partnerAgeMax: 'Max age',
-      panel: {
-        title: 'Manage in your panel',
-        desc: 'You manage previews, matches and next steps from your panel.',
-      },
-    },
-    how: {
-      title: 'How does it work?',
-      subtitle: 'From signup to communication, the flow is controlled and clear.',
+        progress: {
+          title: 'Progress',
+          steps: {
+            proposed: 'Intro',
+            mutualAccepted: 'Mutual approval',
+            confirm48h: '48h confirmation',
+            contact: 'Contact',
+          },
+          remaining: 'Time left: {{h}}h {{m}}m',
+        },
       steps: [
         { title: 'Sign up and create a profile', desc: 'After signup, you create your profile by filling out the form.' },
         { title: 'See matched profiles in your panel', desc: 'The system lists the most compatible profiles (limited preview).' },
         { title: 'Like / pass', desc: 'Like a profile you are interested in; mutual likes complete the first step.' },
-        { title: 'Choose a contact method', desc: 'Pick “share my contact info” or “chat inside the site”.' },
-        { title: 'Start communicating', desc: 'If both share contact, details are revealed; if both choose chat, a chat opens in your panel.' },
+        { title: '48-hour in-site chat', desc: 'After mutual acceptance, the first 48 hours are in-site chat only, to get to know each other safely.' },
+        { title: 'Request contact sharing', desc: 'After 48 hours, you can send a contact request; if the other person approves, phone numbers become visible.' },
       ],
     },
     safety: {
@@ -1715,9 +1734,9 @@ export default {
       matchmakingPage: {
         title: 'Marriage Matchmaking Application',
         intro:
-          'This page is an application form for marriage-focused matchmaking. Profiles are not published publicly; applications are reviewed only by our team. If we find a suitable match, we will contact you.',
+          'This page is an application form for marriage-focused matchmaking. Profiles are not published publicly; applications are reviewed only by our team. Matching profiles will appear on your Profile page.',
         privacyNote:
-          'Important: This is not a public “browse/search profiles” area. Your information is used only for evaluation and communication purposes.',
+          'Important: This is not a public “browse/search profiles” area. Your information is used only for evaluation and communication purposes. Please make sure the information you provide is accurate; you are responsible for the information you enter in this form, and your matches are made based on it. Users who intentionally provide false information will be blocked; if they have an active membership, it will be cancelled and no refund will be issued.',
         authGate: {
           message: 'To submit a matchmaking application, please log in or create an account.',
           login: 'Log in',
@@ -1745,11 +1764,11 @@ export default {
             fullName: 'Full name',
             age: 'Age',
             city: 'City',
-            country: 'Country',
+            country: 'Country of residence',
             whatsapp: 'WhatsApp number',
             email: 'Email',
             instagram: 'Instagram (optional)',
-            nationality: 'Nationality',
+            nationality: 'Citizenship (nationality)',
             gender: 'Gender',
             lookingForNationality: 'Nationality',
             lookingForGender: 'Gender',
@@ -1793,6 +1812,7 @@ export default {
             smoking: 'Do you smoke?',
             alcohol: 'Do you drink alcohol?',
             partnerCommunicationLanguages: 'Partner communication language',
+            partnerCommunicationMethods: 'Partner communication methods',
             partnerCommunicationLanguageOther: 'Other language for partner (please specify)',
             partnerTranslationApp: 'Would you prefer to use a translation app with your partner?',
             partnerLivingCountry: 'Preferred country to live in',
@@ -1850,6 +1870,17 @@ export default {
               widowed: 'Widowed (spouse passed away)',
               divorced: 'Divorced',
               other: 'Other',
+              doesnt_matter: "Doesn't matter",
+            },
+            religiousValues: {
+              weak: 'Low',
+              medium: 'Moderate',
+              conservative: 'Conservative',
+            },
+            partnerCommunicationMethods: {
+              ownLanguage: 'My language',
+              foreignLanguage: 'Foreign language',
+              translationApp: 'Via translation app',
             },
             education: {
               secondary: 'Secondary',
@@ -1940,7 +1971,7 @@ export default {
           photoHint:
             'Upload an image file only. The system will automatically compress and upload it (recommended: clear, recent, face-visible photo).',
           consents: {
-            age: 'I confirm that I am 18+.',
+            age: 'I confirm that I am {{minAge}}+.',
             privacy:
               'I have read the <privacyLink>Privacy Policy</privacyLink> and consent to processing my data for evaluation/communication purposes.',
             terms: 'I have read and accept the <termsLink>Terms of Use</termsLink>.',
@@ -1948,11 +1979,11 @@ export default {
           },
           submit: 'Submit Application',
           submitting: 'Submitting…',
-          success: 'We received your application. If we find a suitable match, we will contact you.',
+          success: 'We received your application. Matching profiles will appear on your Profile page.',
           errors: {
             mustLogin: 'You must be logged in to submit the application.',
             blocked: 'Your account is blocked from submitting this form.',
-            consentsRequired: 'To submit, you must accept the consent checkboxes (18+, Privacy Policy, Terms of Use, photo consent).',
+            consentsRequired: 'To submit, you must accept the consent checkboxes ({{minAge}}+, Privacy Policy, Terms of Use, photo consent).',
             permissionDenied: 'Could not submit (permission error). Please log in with the correct account or check Firestore rules.',
             honeypotTriggered: 'Could not submit. Browser autofill may have filled a hidden field. Refresh the page and try again with autofill disabled.',
             photoUploadFailed: 'Photo upload failed. This project uses Cloudinary SIGNED uploads by default. This usually means `/api/cloudinary-signature` is not running or server env is missing. Fix: run `npm run dev` (starts API + web) and ensure `.env.local` includes `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET`. (Unsigned preset uploads are only used if explicitly enabled.)',
@@ -1960,7 +1991,7 @@ export default {
             usernameTaken: 'This username is already taken. Please choose another one.',
             fullName: 'Please enter your full name.',
             age: 'Please enter your age.',
-            ageRange: 'Age must be between 18 and 99.',
+            ageRange: 'Age must be between {{minAge}} and 99.',
             email: 'Please enter your email.',
             instagram: 'Please enter your Instagram username.',
             nationality: 'Please select your nationality.',
@@ -2026,7 +2057,7 @@ export default {
             about: 'Please write a short introduction.',
             photoRequired: 'Please upload a photo.',
             photoType: 'Please select a valid image file.',
-            consent18Plus: '18+ confirmation is required to continue.',
+            consent18Plus: '{{minAge}}+ confirmation is required to continue.',
             consentPrivacy: 'Privacy consent is required to continue.',
             consentPhotoShare: 'Photo consent is required to continue.',
             submitFailed: 'Could not submit the application. Please try again.',
@@ -2141,7 +2172,9 @@ export default {
     },
     forceInfo: 'A fresh sign-in was requested for this action. Please sign in again.',
     googleCta: 'Continue with Google',
+    googleSignupCta: 'Sign up with Google',
     redirecting: 'Redirecting to Google sign-in…',
+    signupGuide: 'To sign up, select gender and nationality, then confirm the age requirement.',
     or: 'or',
     labels: {
       email: 'Email',
@@ -2169,6 +2202,8 @@ export default {
       nationalityTr: 'Turkey',
       nationalityId: 'Indonesia',
       nationalityOther: 'Other',
+      ageConfirm: 'I confirm that I am at least {{minAge}} years old. (Open the agreement for details)',
+      ageConfirmLink: 'Agreement',
     },
     forgotHint: {
       prefix: 'If you forgot your password, click',
@@ -2176,7 +2211,7 @@ export default {
     },
     legal: {
       prefix: 'By continuing, you agree to the',
-      contract: 'Package tour contract',
+      contract: 'User / Membership agreement',
       cancelRefund: 'Cancellation & refund policy',
       privacy: 'Privacy Policy',
     },
@@ -2191,6 +2226,7 @@ export default {
       genderRequired: 'Please select your gender to sign up.',
       nationalityRequired: 'Please select your nationality to sign up.',
       nationalityOtherRequired: 'Please specify your nationality.',
+      ageConfirmRequired: 'To sign up, you must confirm that you are at least {{minAge}} years old.',
       loginFailed: 'Sign-in failed.',
       resetEmailRequired: 'Enter your email to reset your password.',
       resetFailed: 'Could not send password reset email.',
@@ -2202,6 +2238,14 @@ export default {
   },
 
   matchmakingPanel: {
+        profile: {
+          guidanceAfterConfirm: {
+            title: 'Support after confirmation',
+            body:
+              'After the final match confirmation, you can get services from our guidance team via our wedding guidance page to help build trust between candidates and support steps such as family-to-family communication, interpreting, verifying the accuracy of the information provided before the wedding decision, and many other conveniences.',
+            cta: 'Open wedding guidance',
+          },
+        },
     title: 'My Profile',
     subtitle: 'Your matchmaking, membership and contact steps will appear here.',
     tabs: {
@@ -2280,6 +2324,11 @@ export default {
       requestingNew: 'Requesting…',
       requestNewQuotaHint: 'Daily quota: {{remaining}}/{{limit}}',
       requestNewSuccess: 'Your request was received. A new candidate will appear when available.',
+      freeSlot: 'Free a slot (daily 1)',
+      freeSlotHint: 'This opens a dedicated slot for new sign-ups. The slot will stay empty until a {{threshold}}+ match from a newly signed-up user appears. If you want an immediate candidate from the existing pool, use “Request a new match”.',
+      freeSlotConfirm: 'Remove this candidate and open the new-user slot? (Daily 1)',
+      freeSlotSuccess: 'Slot freed. {{creditGranted}} credit granted. The slot will stay empty until a new sign-up ({{threshold}}+) matches you. Cooldown: {{remaining}}',
+      removedCreditNotice: 'This match was removed from your list. 1 credit was granted for requesting a new match. Cooldown: {{remaining}}',
     },
     profileForm: {
       loading: 'Loading form…',
@@ -2287,6 +2336,12 @@ export default {
       openOriginalEditOnce: 'Open original form (edit once)',
       detailsToggle: 'Show application details',
       applicationId: 'Application ID',
+      applicantNationality: 'Your nationality',
+      applicantGender: 'Your gender',
+      partnerNationality: "The person you're looking for: nationality",
+      partnerGender: "The person you're looking for: gender",
+      moreDetailsTitle: 'More details',
+      partnerPrefsTitle: 'Partner preferences',
       editOnceTitle: 'Fix the form (one-time)',
       editOnceLead:
         'If you left fields empty or entered something wrong, you can update it here. This can be used only once (cannot be changed again after saving).',
@@ -2345,10 +2400,15 @@ export default {
       otherUserMatched: 'This person is already matched with someone else.',
       alreadyMatched: 'You already have a match.',
       userLocked: 'Your match process is locked. This action is not allowed.',
+      pendingContinueExists: 'You already selected someone to continue with. Decide on that match first.',
       requestNewFailed: 'Could not request a new match.',
       requestNewRateLimited: 'You are requesting too often. Please try again later.',
       requestNewQuotaExhausted: 'You have used up today’s new match quota (3/3). Please try again tomorrow.',
       requestNewFreeActiveBlocked: 'You cannot request a new match because your free active membership privilege was cancelled. You need a paid membership to reactivate.',
+      freeSlotFailed: 'Free slot action failed.',
+      freeSlotQuotaExhausted: 'You have used today\'s free slot quota (1/1). Please try again tomorrow.',
+      cooldownActive: 'Please wait a bit before doing this again. Remaining: {{remaining}}',
+      newUserSlotAlreadyActive: 'Your new-user slot is already active. Please wait for a suitable new sign-up, or use the normal refresh.',
     },
     afterSubmit: {
       title: 'Application received.',
@@ -2411,14 +2471,13 @@ export default {
     membership: {
       title: 'Membership terms',
       active: 'Your membership is active.',
-        lead: 'Membership terms:',
+      lead: 'Membership terms:',
       inactiveMale: 'Membership is not active. For men, membership is required to use matching actions (accept/reject, chat/contact).',
       inactiveFemale: 'Membership is not active. Matching and preview are available without membership. To take actions, you need free active membership (with verification) or a paid membership.',
       activeViaVerification: 'You are identity-verified. To take actions, you can apply for free active membership or buy a paid membership.',
       freeActiveActive: 'Your free active membership is active (via identity verification).',
       freeActiveTermsTitle: 'Free active membership terms',
       freeActiveTermsBody: 'If you get free active membership via identity verification and you are inactive for 48 hours, the free active membership is cancelled. On re-application, the window drops to 24 hours. If you are inactive again, you cannot get free active membership until you purchase a paid membership, and you cannot request a new match.',
-        lead: 'Membership terms:',
       freeActiveApplying: 'Applying…',
       freeActiveApplied: 'Free active membership enabled. Window: {{hours}} hours.',
       daysLeft_one: 'Time left: {{count}} day.',
@@ -2521,6 +2580,7 @@ export default {
       loading: 'Working…',
       alreadyActive: 'Your membership is already active',
       successActivated: 'Your membership was activated.',
+      promoActivated: 'Your Eco plan was activated for free. Ends on {{date}} ({{count}} days left).',
       successCancelled: 'Your membership was cancelled.',
     },
     membershipGate: {
@@ -2533,13 +2593,101 @@ export default {
     },
     lock: {
       title: 'Your match process is ongoing.',
-      body: 'After mutual acceptance, the process gets locked when both sides choose the same decision (continue off-site). While locked, you cannot request a new match. To end the match, both sides must choose “cancel match”.',
+      body: 'After mutual acceptance, this match becomes your active process. The first 48 hours are in-site chat only. After 48 hours, you can send a contact request; phone numbers are shown only if the other person approves.',
       matchId: 'Match Code',
     },
     matches: {
+      presence: {
+        online: 'Online',
+        lastSeen: 'Last active: {{time}}',
+        unknown: 'Last active: -',
+      },
+
+      progress: {
+        title: 'Progress',
+        steps: {
+          proposed: 'Intro',
+          mutualAccepted: 'Mutual approval',
+          confirm48h: '48h confirmation',
+          contact: 'Contact',
+        },
+        remaining: 'Time left: {{h}}h {{m}}m',
+      },
+
+      quickQuestions: {
+        title: '3 quick questions',
+        lead: 'If you want, answer 3 quick questions with one tap to get to know each other faster. Optional.',
+        yourAnswer: 'You',
+        otherAnswer: 'Them',
+        pickOne: 'Pick one',
+        otherAnswered: 'Answered',
+        otherNotAnswered: 'Not answered yet',
+        questions: {
+          q1: {
+            title: 'What pace do you prefer?',
+            options: {
+              slow: 'Slow',
+              normal: 'Normal',
+              fast: 'Fast',
+            },
+          },
+          q2: {
+            title: 'Family vs independence?',
+            options: {
+              family: 'Family-focused',
+              balanced: 'Balanced',
+              independent: 'Independent',
+            },
+          },
+          q3: {
+            title: 'Relocation / changing cities?',
+            options: {
+              local: 'Same city',
+              open: 'Open to it',
+              flexible: 'Flexible',
+            },
+          },
+        },
+      },
+
+      matchTest: {
+        button: 'Match test',
+        title: 'Match test',
+        lead: 'See how compatible you are in 3 quick questions.',
+        score: 'Score: {{points}} / {{max}}',
+        close: 'Close',
+        questionCounter: 'Question {{cur}} / {{total}}',
+        sameAnswer: 'Same answer: +10 points',
+        differentAnswer: 'Different answer',
+        prev: 'Prev',
+        next: 'Next',
+      },
       title: 'Your Matches',
-      subtitle: 'Up to 3 candidates are shown.',
+      subtitle: 'Up to 3 / 5 / 10 candidates are shown depending on your plan.',
+      inactivityNotice: {
+        title: 'Inactivity rule (24 hours)',
+        body:
+          'If you are inactive for more than 24 hours, your match list will be reset. People in your list will be returned to the match pool. When you become active again, you can request matches later—but you will lose your current matches.',
+      },
+      newUserSlotNotice: {
+        title: 'New-user slot is active',
+        body:
+          'This slot is currently empty. It will be filled automatically when a newly signed-up user produces a {{threshold}}+ match with your profile. If you want an immediate candidate, use “Request a new match”.',
+      },
+      inactiveReset: {
+        title: 'Match reset due to inactivity',
+        body: 'This match was cancelled and returned to the pool because one side was inactive for more than 24 hours.',
+      },
+      focusActiveReset: {
+        title: 'This match was closed',
+        body: 'The other person is currently progressing another introduction window. This is not a negative judgement about you; the system will show new candidates when appropriate.',
+      },
       empty: 'There are no matches to show right now.',
+      savePage: 'Save page',
+      savePageAlready: 'This page already looks like it is added to your home screen / installed as an app.',
+      savePageIosHint: "iPhone/iPad: In Safari, tap Share → ‘Add to Home Screen’. (Link copied.)",
+      savePageAndroidHint: 'Android: From the browser menu choose “Add to Home screen” or “Install app”. (Link copied.)',
+      savePageDesktopHint: 'Desktop: From the browser menu choose “Install app” (if available) or add a bookmark (Ctrl+D). (Link copied.)',
       waitingOther: "Waiting for the other person's response.",
       mutualAcceptedNotice: 'Both sides accepted. You can choose the next step.',
       rejectedByOther: {
@@ -2566,8 +2714,15 @@ export default {
         offsiteWaiting: 'Your choice is saved. Waiting for the other person to choose the same option.',
       },
       chat: {
+        open: 'Messages',
         title: 'In-site Chat',
         lead: 'You can chat here before deciding. Sharing contact/IG/FB/links is blocked.',
+        enableNotifications: 'Enable notifications',
+        notificationsEnabled: 'Notifications enabled.',
+        notificationsDenied: 'Notification permission denied.',
+        notificationsNotSupported: 'This browser does not support notifications.',
+        notificationTitle: 'New message',
+        notificationBody: 'You have a new message from your match.',
         timeLeft: 'Time left: {{minutes}} min',
         timeUnknown: 'Time left: -',
         rulesTitle: 'Rules',
@@ -2577,6 +2732,45 @@ export default {
         send: 'Send',
         continue: 'Continue (Approve)',
         reject: 'Not a fit (Reject)',
+        proposedLimit: {
+          counter: 'Chat: {{used}} / {{limit}}',
+          reachedTitle: 'Decision time',
+          reachedBody: 'The message limit is reached. Approve to continue or reject if it’s not a fit.',
+          startActive: 'Start active match',
+          pendingYou: 'Your active match request was sent. Waiting for the other person to approve.',
+          pendingIncomingTitle: '{{name}} requested an active match',
+          pendingIncomingBody: 'Approve to start the active match.',
+        },
+        rejectReasons: {
+          hint: 'Rejection reason (optional):',
+          notFeeling: 'Not feeling it',
+          values: 'Values/compatibility',
+          distance: 'Distance/location',
+          communication: 'Communication style',
+          notReady: 'Not ready right now',
+          other: 'Other',
+        },
+        pause: {
+          focusTitle: 'This chat is on hold',
+          focusBody: 'Because you are currently progressing another match, this chat is temporarily paused. You can’t send messages.',
+          otherTitle: 'Chat temporarily on hold',
+          otherBody: 'Your messages are not delivered right now; it will automatically resume when available.',
+          heldBadge: 'On hold (not delivered yet)',
+          deliveredBadge: 'Delivered',
+        },
+        heldSummary: {
+          title: '{{count}} messages on hold',
+          body: 'While this chat was on hold, the other person sent messages. You can choose to view them now.',
+          show: 'Show messages',
+          keepHidden: 'Keep hidden for now',
+          releaseFailed: 'Could not open messages. Please try again.',
+        },
+        limitReachedNotice: {
+          title: 'You reached the message limit',
+          body:
+            'To keep talking, you need to start an active match. Starting an active match will put your other matches on hold, and you will only continue chatting with your active match.',
+          dismiss: 'OK',
+        },
         errors: {
           filtered: 'Your message looks like contact/social/link and was blocked.',
           rateLimited: 'You are sending too fast. Please wait a moment.',
@@ -2584,15 +2778,42 @@ export default {
           notEnabled: 'In-site chat is not enabled for this match.',
           membershipRequired: 'An active membership is required to chat.',
           verificationRequired: 'Identity verification is required to chat.',
+          limitReached: 'Message limit reached. You need to decide.',
+          chatPaused: 'This chat is temporarily on hold.',
           serverNotConfigured: 'Firebase Admin is not configured in local dev. Add FIREBASE_SERVICE_ACCOUNT_JSON_FILE to .env.local and restart the dev process.',
           authRequired: 'You must be logged in to send messages (anonymous users are not supported).',
           sendFailed: 'Message could not be sent.',
           decisionFailed: 'Decision could not be saved.',
         },
+
+        confirm48h: {
+          title: '48 hours passed: Confirm this match',
+          body:
+            'From this point, your match will be marked as “confirmed” and the contact-sharing step (phone number) will be enabled. After confirmation, other suggestions in your match slots may be removed.',
+          note: 'After you confirm, we will wait for the other person to confirm as well.',
+          confirmButton: 'Confirm match',
+          cancelButton: 'Cancel',
+          waitingOther: 'You confirmed. Waiting for the other person to confirm.',
+          confirmed: 'Match confirmed. You can request contact sharing.',
+          contactLockedUntilConfirm: 'To request contact sharing, you must confirm this match first.',
+          errors: {
+            locked: 'You cannot confirm before 48 hours pass.',
+            confirmRequired: 'Contact sharing requires match confirmation first.',
+          },
+        },
       },
       candidate: {
         fallbackName: 'Candidate',
         verifiedBadge: 'Identity verified',
+        proBadge: 'PRO',
+        standardBadge: 'STANDARD',
+        badges: {
+          activeRecent: 'Active recently',
+          mutualAccepted: 'Mutual approval',
+          confirmed: 'Confirmed',
+          contactUnlocked: 'Contact unlocked',
+          contactPending: 'Contact request pending',
+        },
         matchedProfile: 'Match profile',
         score: 'Match score',
         likeBadge: '♥ You received a like',
@@ -2613,6 +2834,10 @@ export default {
         title: 'Contact sharing is unlocked.',
         body: 'You can open contact details from the panel. Please keep communication respectful and follow the rules.',
       },
+      contactLocked: {
+        title: 'Contact details (locked for 48 hours)',
+        body: 'Contact details unlock 48 hours after the chat becomes active. Until then, you can chat inside the site.',
+      },
       paymentStatus: {
         pending: 'Your payment notice is pending. Membership will be activated after admin approval.',
         rejected: 'Your last payment notice was rejected. Please check your receipt/reference details and submit again.',
@@ -2624,8 +2849,11 @@ export default {
       contactUnlock: {
         membershipActiveTitle: 'You are eligible',
         membershipActiveBody: 'Click the button to unlock contact details. (The other person must also meet the eligibility rules.)',
+        lockedTitle: 'Contact locked',
+        lockedBody: 'Contact details unlock 48 hours after chat starts. Time left: {{time}}',
+        lockedBodyNoTime: 'Contact details unlock 48 hours after chat starts.',
         opening: 'Opening…',
-        open: 'Unlock contact details',
+        open: 'Share my contact details',
         verificationRequired: 'Identity verification is required to unlock contact details.',
       },
       payment: {
@@ -2635,6 +2863,24 @@ export default {
         trTitle: 'Turkey',
         idTitle: 'Indonesia',
         amount: 'Amount',
+        package: 'Package',
+        packageEco: 'Eco',
+        packageStandard: 'Standard',
+        packagePro: 'Pro',
+        perMonth: 'monthly subscription',
+        badgeValue: 'Best value',
+        badgePopular: 'Popular',
+        badgePro: 'Top',
+        descEco: 'Basic access and moderate translation.',
+        descStandard: 'More candidates and sponsored translation.',
+        descPro: 'Max candidates and high translation allowance.',
+        featureMaxCandidates: 'Up to {{count}} candidates in your panel',
+        featureTranslateMonthly: '{{count}} translated messages / month',
+        sponsoredIfOther: 'May be sponsored if the other user is Standard/Pro',
+        sponsorsOthers: 'Sponsored translation for the other user (cost billed to you)',
+        feature48hLock: 'Contact sharing: approve after 48h of chat',
+        translationCostEstimate: 'Estimated translation API cost: ~$ {{amount}} / month',
+        packageHelp: 'Amounts and permissions apply based on the selected plan.',
         recipient: 'Recipient',
         iban: 'IBAN',
         detailsSoon: 'Account details will be added soon.',
@@ -2643,6 +2889,7 @@ export default {
         currency: 'Currency',
         currencyTRY: 'TRY (Turkey)',
         currencyIDR: 'IDR (Indonesia)',
+        currencyUSD: 'USD (Dollar)',
         method: 'Payment method',
         methodEftFast: 'EFT / FAST',
         methodSwiftWise: 'SWIFT / Wise',
@@ -2670,7 +2917,7 @@ export default {
       eligibilityPointFemale: 'Matching and viewing limited profile info inside the site do not require membership. To accept/reject and contact the matched person, you must either apply for free active membership with identity verification or purchase a paid membership.',
       points: [
         'Profiles are not public. Only matched users can view each other’s details.',
-        'Up to 3 candidates are shown. Marking/liking a candidate does not delete the others; you can choose to show only your marked candidate if you want.',
+        'Up to 3 / 5 / 10 candidates are shown depending on your plan. Marking/liking a candidate does not delete the others; you can choose to show only your marked candidate if you want.',
         'Step 1: Review the candidate → Accept or Reject. If one side rejects, the match is canceled.',
         'Step 2 (second approval): If both sides accept, choose the next step in the panel (in-site chat or contact sharing). The step activates only when both sides choose the same option.',
         'Lock: When step 2 is agreed, the process is locked and you cannot request a new match until it is resolved/canceled.',
@@ -2679,11 +2926,60 @@ export default {
         '{{eligibilityPoint}}',
         'Safety: If rules are violated (false info, insults/harassment, sexual abuse, financial exploitation, dating/entertainment intent) and proven with screenshots/evidence, the user is permanently banned and cannot request refunds.',
       ],
+
+      quickQuestions: {
+        title: '3 quick questions',
+        lead: 'If you want, answer 3 quick questions with one tap to get to know each other faster. Optional.',
+        yourAnswer: 'You',
+        otherAnswer: 'Them',
+        pickOne: 'Pick one',
+        otherAnswered: 'Answered',
+        otherNotAnswered: 'Not answered yet',
+        questions: {
+          q1: {
+            title: 'What pace do you prefer?',
+            options: {
+              slow: 'Slow',
+              normal: 'Normal',
+              fast: 'Fast',
+            },
+          },
+          q2: {
+            title: 'Family vs independence?',
+            options: {
+              family: 'Family-focused',
+              balanced: 'Balanced',
+              independent: 'Independent',
+            },
+          },
+          q3: {
+            title: 'Relocation / changing cities?',
+            options: {
+              local: 'Same city',
+              open: 'Open to it',
+              flexible: 'Flexible',
+            },
+          },
+        },
+      },
     },
     rules: {
       title: 'Matchmaking: Our Promise, Rules & Safety',
       lead: 'This platform is not for dating/entertainment. It is designed to make marriage-focused introductions safer and more controlled.',
       open: 'View rules and process',
+      why: {
+        title: 'Why are there so many rules?',
+        body:
+          'These rules are not meant to punish users. They exist to keep the platform safe and focused for people who genuinely intend to marry, and to filter out scams, fake profiles, and “just for fun” usage as early as possible.',
+        points: [
+          'Safety: reduces fraud, money requests, harassment, and fake profiles.',
+          'Serious intent: makes it harder for non-marriage intent users to stay in the system.',
+          'Quality: prevents pool congestion and repeated low-quality loops.',
+          'Clarity: limits/cooldowns/48h steps reduce uncertainty in the process.',
+        ],
+        note:
+          'If the goal were only maximum engagement, we could remove many of these safeguards and allow looser communication and more public browsing.\nBut we built this specifically for people who want to build a family — quality over quantity.',
+      },
       promise: {
         title: 'What do we promise?',
         p1Title: 'Marriage-focused system',
@@ -2764,6 +3060,8 @@ export default {
     activating: 'Activating…',
     activated: 'Membership activated.',
     activatedUntil: 'Membership activated. Valid until: {{date}}',
+    freeActivatedInfo:
+      'Your free membership is assigned until {{date}}.\nWith this membership, you can like/reject match profiles and use {{translatedCount}} translated messages.\nYour daily match-change limit is {{dailyLimit}}.',
     promoExpired: 'Promo expired. After {{date}}, activations are paid and become active after payment.',
     activateFailed: 'Could not activate membership. Please try again.',
     errors: {
