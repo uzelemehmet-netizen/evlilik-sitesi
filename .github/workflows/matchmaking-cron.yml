@@ -32,18 +32,33 @@ jobs:
           echo "Calling: ${CRON_URL}"
           resp_file="response.json"
 
-          curl -sS --fail \
+          status_file="status.txt"
+
+          curl -sS --fail -L \
             --retry 3 --retry-delay 5 \
             -H "x-cron-secret: ${CRON_SECRET}" \
+            -H "accept: application/json" \
+            -w "%{http_code}" \
             "${CRON_URL}" \
-            -o "${resp_file}"
+            -o "${resp_file}" > "${status_file}"
+
+          echo "HTTP status: $(cat "${status_file}")"
 
           echo "Response:"; cat "${resp_file}"; echo
 
-          python - <<'PY'
-import json
-with open('response.json', 'r', encoding='utf-8') as f:
-    data = json.load(f)
-assert data.get('ok') is True, data
-print('ok=true')
-PY
+            python - <<'PY'
+      import json
+
+      with open('response.json', 'r', encoding='utf-8') as f:
+        raw = f.read().strip()
+
+      try:
+        data = json.loads(raw)
+      except Exception as e:
+        raise SystemExit(f"Response is not JSON. First 200 chars: {raw[:200]!r}. Error: {e}")
+
+      if data.get('ok') is not True:
+        raise SystemExit(f"ok!=true. Response: {data}")
+
+      print('ok=true')
+      PY
