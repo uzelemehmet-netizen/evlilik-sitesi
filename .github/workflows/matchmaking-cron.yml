@@ -1,0 +1,49 @@
+name: Matchmaking Cron
+
+on:
+  schedule:
+    # GitHub Actions schedule minimum ~5 minutes (best-effort).
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Call matchmaking cron endpoint
+        shell: bash
+        env:
+          CRON_URL: ${{ secrets.MATCHMAKING_CRON_URL }}
+          CRON_SECRET: ${{ secrets.MATCHMAKING_CRON_SECRET }}
+        run: |
+          set -euo pipefail
+
+          if [[ -z "${CRON_URL}" ]]; then
+            echo "Missing secret: MATCHMAKING_CRON_URL" >&2
+            exit 1
+          fi
+          if [[ -z "${CRON_SECRET}" ]]; then
+            echo "Missing secret: MATCHMAKING_CRON_SECRET" >&2
+            exit 1
+          fi
+
+          echo "Calling: ${CRON_URL}"
+          resp_file="response.json"
+
+          curl -sS --fail \
+            --retry 3 --retry-delay 5 \
+            -H "x-cron-secret: ${CRON_SECRET}" \
+            "${CRON_URL}" \
+            -o "${resp_file}"
+
+          echo "Response:"; cat "${resp_file}"; echo
+
+          python - <<'PY'
+import json
+with open('response.json', 'r', encoding='utf-8') as f:
+    data = json.load(f)
+assert data.get('ok') is True, data
+print('ok=true')
+PY
