@@ -34,10 +34,13 @@ jobs:
 
           status_file="status.txt"
 
-          curl -sS --fail -L \
+          curl -sS -L \
             --retry 3 --retry-delay 5 \
+            -X POST \
+            -H "content-type: application/json" \
             -H "x-cron-secret: ${CRON_SECRET}" \
             -H "accept: application/json" \
+            -d '{}' \
             -w "%{http_code}" \
             "${CRON_URL}" \
             -o "${resp_file}" > "${status_file}"
@@ -46,11 +49,18 @@ jobs:
 
           echo "Response:"; cat "${resp_file}"; echo
 
-          python - <<'PY'
+            python - <<'PY'
           import json
+            import sys
 
           with open('response.json', 'r', encoding='utf-8') as f:
               raw = f.read().strip()
+
+            with open('status.txt', 'r', encoding='utf-8') as f:
+              status = f.read().strip()
+
+            if status and status != '200':
+              raise SystemExit(f"HTTP status {status}. Response (first 300 chars): {raw[:300]!r}")
 
           try:
               data = json.loads(raw)
