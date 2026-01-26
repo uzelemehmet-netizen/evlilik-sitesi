@@ -46,19 +46,21 @@ jobs:
 
           echo "Response:"; cat "${resp_file}"; echo
 
-            python - <<'PY'
-      import json
+          python - <<'PY'
+          import json
 
-      with open('response.json', 'r', encoding='utf-8') as f:
-        raw = f.read().strip()
+          with open('response.json', 'r', encoding='utf-8') as f:
+              raw = f.read().strip()
 
-      try:
-        data = json.loads(raw)
-      except Exception as e:
-        raise SystemExit(f"Response is not JSON. First 200 chars: {raw[:200]!r}. Error: {e}")
+          try:
+              data = json.loads(raw)
+          except Exception as e:
+              raise SystemExit(
+                  f"Response is not JSON. First 200 chars: {raw[:200]!r}. Error: {e}"
+              )
 
-      if data.get('ok') is not True:
-        raise SystemExit(f"ok!=true. Response: {data}")
+          if data.get('ok') is not True:
+              raise SystemExit(f"ok!=true. Response: {data}")
 
-      print('ok=true')
-      PY
+          print('ok=true')
+          PY
