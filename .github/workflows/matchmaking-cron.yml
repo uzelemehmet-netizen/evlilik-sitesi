@@ -32,13 +32,15 @@ jobs:
           echo "Calling: ${CRON_URL}"
           resp_file="response.json"
 
+            payload='{"dryRun":false}'
+
             status=$(curl -sS -L \
             --retry 3 --retry-delay 5 \
             -X POST \
             -H "content-type: application/json" \
             -H "x-cron-secret: ${CRON_SECRET}" \
             -H "accept: application/json" \
-            -d '{}' \
+              -d "${payload}" \
             -o "${resp_file}" \
             -w "%{http_code}" \
             "${CRON_URL}")
