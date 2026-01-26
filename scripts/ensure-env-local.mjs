@@ -6,6 +6,12 @@ const envLocalPath = path.join(projectRoot, '.env.local');
 
 const REQUIRED_VARS = [
   {
+    key: 'MATCHMAKING_CRON_SECRET',
+    value: 'local-dev-secret',
+    comment: 'Matchmaking cron/job endpointleri için shared secret (local/dev). /api/matchmaking-run çağrılarında x-cron-secret header ile gönderilir.',
+    mustHaveValue: true,
+  },
+  {
     key: 'MATCHMAKING_FREE_PROMO_ENABLED',
     value: '1',
     comment: "Matchmaking Eko promo ücretsiz aktivasyon (2026-02-10'a kadar) - localde varsayılan AÇIK. Kapatmak için: 0 / false / no / off / disabled",

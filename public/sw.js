@@ -1,8 +1,10 @@
-/* Minimal service worker for PWA installability (no caching). */
-self.addEventListener('install', (event) => {
-  self.skipWaiting();
+/* Minimal service worker for PWA installability (no caching).
+   Avoid aggressive control changes (skipWaiting/clients.claim) to prevent rare refresh loops. */
+
+self.addEventListener('install', () => {
+  // No-op
 });
 
-self.addEventListener('activate', (event) => {
-  event.waitUntil(self.clients.claim());
+self.addEventListener('activate', () => {
+  // No-op
 });

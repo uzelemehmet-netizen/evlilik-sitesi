@@ -617,6 +617,10 @@ export default async function handler(req, res) {
     // - mutual_accepted: 48 saat sonunda "kesinleşmiş" kabul edilir ve diğer proposed slotları boşaltılır
     const expiredProposed = await expireOldProposedMatches({ db, FieldValue, nowMs, ttlMs: PROPOSED_TTL_MS });
 
+    // 48 saat dolmuş mutual_accepted match'leri kesinleşmiş say (auto-confirm) ve diğer proposed slotlarını boşalt.
+    // Not: cleanupInactiveMatches'ten önce çağırıyoruz ki confirmed match'ler pasiflik kuralıyla iptal edilmesin.
+    const autoConfirmed = await autoConfirmOldMutualAccepted({ db, FieldValue, nowMs, ttlMs: PROPOSED_TTL_MS });
+
     // 24 saat pasif kullanıcılar: eşleşmeleri iptal et ve kilitleri aç.
     const inactiveCleanup = await cleanupInactiveMatches({ db, FieldValue, nowMs, ttlMs: INACTIVE_TTL_MS });
 
@@ -1018,8 +1022,8 @@ export default async function handler(req, res) {
         apps: apps.length,
         expiredProposed,
         inactiveCleanup,
-        autoConfirmed: 0,
-        clearedSlots: 0,
+        autoConfirmed: autoConfirmed?.confirmed || 0,
+        clearedSlots: autoConfirmed?.slotsCleared || 0,
       })
     );
   } catch (e) {

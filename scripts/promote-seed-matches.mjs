@@ -68,6 +68,7 @@ const limit = Math.max(1, Math.min(50, Number(args.limit || 3)));
 const seedTag = safeStr(args.seedTag) || 'mk_seed';
 const batch = safeStr(args.batch);
 const to = safeStr(args.to) || 'mutual_accepted';
+const interaction = safeStr(args.interaction);
 
 if (to !== 'mutual_accepted' && to !== 'contact_unlocked') {
   // eslint-disable-next-line no-console
@@ -114,13 +115,40 @@ async function run() {
       decisions: { a: 'accept', b: 'accept' },
     };
 
+    const matchId = String(m.id || '');
+    const data = m.data || {};
+    const userIds = Array.isArray(data.userIds) ? data.userIds.map(String).filter(Boolean) : [];
+    const aUserId = safeStr(data.aUserId) || userIds[0] || '';
+    const bUserId = safeStr(data.bUserId) || userIds[1] || '';
+
     if (to === 'mutual_accepted') {
+      const nowMs = Date.now();
       patch.status = 'mutual_accepted';
       patch.mutualAcceptedAt = FieldValue.serverTimestamp();
-      patch.interactionMode = null;
-      patch.interactionChosenAt = null;
+      patch.mutualAcceptedAtMs = nowMs;
+      patch.interactionMode = interaction === 'chat' ? 'chat' : null;
+      patch.interactionChosenAt = interaction === 'chat' ? FieldValue.serverTimestamp() : null;
       patch.interactionChoices = {};
       patch.contactUnlockedAt = null;
+
+      if (interaction === 'chat') {
+        patch.chatEnabledAt = FieldValue.serverTimestamp();
+        patch.chatEnabledAtMs = nowMs;
+      }
+
+      // Seed testlerinde gerçek akışa daha yakın olsun diye iki tarafı da bu match'e kilitle.
+      // (Normalde bu kilit, /api/matchmaking-decision mutual accept sırasında yazılır.)
+      if (matchId && aUserId && bUserId) {
+        const lockPatch = {
+          matchmakingLock: { active: true, matchId, matchCode: '' },
+          matchmakingChoice: { active: true, matchId, matchCode: '' },
+          updatedAt: FieldValue.serverTimestamp(),
+        };
+        await Promise.all([
+          db.collection('matchmakingUsers').doc(aUserId).set(lockPatch, { merge: true }),
+          db.collection('matchmakingUsers').doc(bUserId).set(lockPatch, { merge: true }),
+        ]);
+      }
     } else {
       // Basit demo: contact_unlocked için gerekli alanları set ediyoruz.
       // Not: Bu demo, kullanıcı kilidi (matchmakingLock) da açsın istiyorsan ekleyebiliriz.

@@ -35,6 +35,21 @@ function getPendingContinueMatchId(userDoc) {
   return active && matchId ? matchId : '';
 }
 
+const REJECT_REASON_CODES = new Set([
+  'not_feeling',
+  'values',
+  'distance',
+  'communication',
+  'not_ready',
+  'other',
+]);
+
+function normalizeRejectReasonCode(v) {
+  const s = safeStr(v).toLowerCase();
+  if (!s) return '';
+  return REJECT_REASON_CODES.has(s) ? s : '';
+}
+
 // Eligibility kontrolü artık ortak helper üzerinden.
 
 // Yeni kural: Mutual accept anında chat otomatik aktif olur.
@@ -54,11 +69,19 @@ export default async function handler(req, res) {
     const body = normalizeBody(req);
     const matchId = String(body?.matchId || '').trim();
     const decision = normalizeDecision(body?.decision);
+    const rejectReasonCode = normalizeRejectReasonCode(body?.reason);
 
     if (!matchId || !decision) {
       res.statusCode = 400;
       res.setHeader('content-type', 'application/json');
       res.end(JSON.stringify({ ok: false, error: 'bad_request' }));
+      return;
+    }
+
+    if (decision === 'reject' && safeStr(body?.reason) && !rejectReasonCode) {
+      res.statusCode = 400;
+      res.setHeader('content-type', 'application/json');
+      res.end(JSON.stringify({ ok: false, error: 'bad_reason' }));
       return;
     }
 
@@ -137,6 +160,15 @@ export default async function handler(req, res) {
 
         const nowMs = Date.now();
         const COOLDOWN_MS = 1 * 60 * 60 * 1000;
+
+        if (rejectReasonCode) {
+          patch.rejectionFeedback = {
+            code: rejectReasonCode,
+            byUserId: uid,
+            atMs: nowMs,
+          };
+          patch.rejectionFeedbackAt = FieldValue.serverTimestamp();
+        }
 
         patch.status = 'cancelled';
         patch.cancelledAt = FieldValue.serverTimestamp();

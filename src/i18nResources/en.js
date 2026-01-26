@@ -61,16 +61,16 @@ export default {
         hideEmptyFields: 'Hide empty fields',
         partnerAgeMin: 'Min age',
         partnerAgeMax: 'Max age',
-        partnerAgeMin: 'Min age',
-        partnerAgeMax: 'Max age',
-      panel: {
-        title: 'Manage in your panel',
-        desc: 'You manage previews, matches and next steps from your panel.',
-      },
-    },
-    how: {
-      title: 'How does it work?',
-      subtitle: 'From signup to communication, the flow is controlled and clear.',
+        progress: {
+          title: 'Progress',
+          steps: {
+            proposed: 'Intro',
+            mutualAccepted: 'Mutual approval',
+            confirm48h: '48h confirmation',
+            contact: 'Contact',
+          },
+          remaining: 'Time left: {{h}}h {{m}}m',
+        },
       steps: [
         { title: 'Sign up and create a profile', desc: 'After signup, you create your profile by filling out the form.' },
         { title: 'See matched profiles in your panel', desc: 'The system lists the most compatible profiles (limited preview).' },
@@ -2471,14 +2471,13 @@ export default {
     membership: {
       title: 'Membership terms',
       active: 'Your membership is active.',
-        lead: 'Membership terms:',
+      lead: 'Membership terms:',
       inactiveMale: 'Membership is not active. For men, membership is required to use matching actions (accept/reject, chat/contact).',
       inactiveFemale: 'Membership is not active. Matching and preview are available without membership. To take actions, you need free active membership (with verification) or a paid membership.',
       activeViaVerification: 'You are identity-verified. To take actions, you can apply for free active membership or buy a paid membership.',
       freeActiveActive: 'Your free active membership is active (via identity verification).',
       freeActiveTermsTitle: 'Free active membership terms',
       freeActiveTermsBody: 'If you get free active membership via identity verification and you are inactive for 48 hours, the free active membership is cancelled. On re-application, the window drops to 24 hours. If you are inactive again, you cannot get free active membership until you purchase a paid membership, and you cannot request a new match.',
-        lead: 'Membership terms:',
       freeActiveApplying: 'Applying…',
       freeActiveApplied: 'Free active membership enabled. Window: {{hours}} hours.',
       daysLeft_one: 'Time left: {{count}} day.',
@@ -2603,6 +2602,66 @@ export default {
         lastSeen: 'Last active: {{time}}',
         unknown: 'Last active: -',
       },
+
+      progress: {
+        title: 'Progress',
+        steps: {
+          proposed: 'Intro',
+          mutualAccepted: 'Mutual approval',
+          confirm48h: '48h confirmation',
+          contact: 'Contact',
+        },
+        remaining: 'Time left: {{h}}h {{m}}m',
+      },
+
+      quickQuestions: {
+        title: '3 quick questions',
+        lead: 'If you want, answer 3 quick questions with one tap to get to know each other faster. Optional.',
+        yourAnswer: 'You',
+        otherAnswer: 'Them',
+        pickOne: 'Pick one',
+        otherAnswered: 'Answered',
+        otherNotAnswered: 'Not answered yet',
+        questions: {
+          q1: {
+            title: 'What pace do you prefer?',
+            options: {
+              slow: 'Slow',
+              normal: 'Normal',
+              fast: 'Fast',
+            },
+          },
+          q2: {
+            title: 'Family vs independence?',
+            options: {
+              family: 'Family-focused',
+              balanced: 'Balanced',
+              independent: 'Independent',
+            },
+          },
+          q3: {
+            title: 'Relocation / changing cities?',
+            options: {
+              local: 'Same city',
+              open: 'Open to it',
+              flexible: 'Flexible',
+            },
+          },
+        },
+      },
+
+      matchTest: {
+        button: 'Match test',
+        title: 'Match test',
+        lead: 'See how compatible you are in 3 quick questions.',
+        score: 'Score: {{points}} / {{max}}',
+        close: 'Close',
+        questionCounter: 'Question {{cur}} / {{total}}',
+        sameAnswer: 'Same answer: +10 points',
+        differentAnswer: 'Different answer',
+        prev: 'Prev',
+        next: 'Next',
+      },
       title: 'Your Matches',
       subtitle: 'Up to 3 / 5 / 10 candidates are shown depending on your plan.',
       inactivityNotice: {
@@ -2658,6 +2717,12 @@ export default {
         open: 'Messages',
         title: 'In-site Chat',
         lead: 'You can chat here before deciding. Sharing contact/IG/FB/links is blocked.',
+        enableNotifications: 'Enable notifications',
+        notificationsEnabled: 'Notifications enabled.',
+        notificationsDenied: 'Notification permission denied.',
+        notificationsNotSupported: 'This browser does not support notifications.',
+        notificationTitle: 'New message',
+        notificationBody: 'You have a new message from your match.',
         timeLeft: 'Time left: {{minutes}} min',
         timeUnknown: 'Time left: -',
         rulesTitle: 'Rules',
@@ -2671,6 +2736,19 @@ export default {
           counter: 'Chat: {{used}} / {{limit}}',
           reachedTitle: 'Decision time',
           reachedBody: 'The message limit is reached. Approve to continue or reject if it’s not a fit.',
+          startActive: 'Start active match',
+          pendingYou: 'Your active match request was sent. Waiting for the other person to approve.',
+          pendingIncomingTitle: '{{name}} requested an active match',
+          pendingIncomingBody: 'Approve to start the active match.',
+        },
+        rejectReasons: {
+          hint: 'Rejection reason (optional):',
+          notFeeling: 'Not feeling it',
+          values: 'Values/compatibility',
+          distance: 'Distance/location',
+          communication: 'Communication style',
+          notReady: 'Not ready right now',
+          other: 'Other',
         },
         pause: {
           focusTitle: 'This chat is on hold',
@@ -2678,6 +2756,20 @@ export default {
           otherTitle: 'Chat temporarily on hold',
           otherBody: 'Your messages are not delivered right now; it will automatically resume when available.',
           heldBadge: 'On hold (not delivered yet)',
+          deliveredBadge: 'Delivered',
+        },
+        heldSummary: {
+          title: '{{count}} messages on hold',
+          body: 'While this chat was on hold, the other person sent messages. You can choose to view them now.',
+          show: 'Show messages',
+          keepHidden: 'Keep hidden for now',
+          releaseFailed: 'Could not open messages. Please try again.',
+        },
+        limitReachedNotice: {
+          title: 'You reached the message limit',
+          body:
+            'To keep talking, you need to start an active match. Starting an active match will put your other matches on hold, and you will only continue chatting with your active match.',
+          dismiss: 'OK',
         },
         errors: {
           filtered: 'Your message looks like contact/social/link and was blocked.',
@@ -2715,6 +2807,13 @@ export default {
         verifiedBadge: 'Identity verified',
         proBadge: 'PRO',
         standardBadge: 'STANDARD',
+        badges: {
+          activeRecent: 'Active recently',
+          mutualAccepted: 'Mutual approval',
+          confirmed: 'Confirmed',
+          contactUnlocked: 'Contact unlocked',
+          contactPending: 'Contact request pending',
+        },
         matchedProfile: 'Match profile',
         score: 'Match score',
         likeBadge: '♥ You received a like',
@@ -2827,6 +2926,42 @@ export default {
         '{{eligibilityPoint}}',
         'Safety: If rules are violated (false info, insults/harassment, sexual abuse, financial exploitation, dating/entertainment intent) and proven with screenshots/evidence, the user is permanently banned and cannot request refunds.',
       ],
+
+      quickQuestions: {
+        title: '3 quick questions',
+        lead: 'If you want, answer 3 quick questions with one tap to get to know each other faster. Optional.',
+        yourAnswer: 'You',
+        otherAnswer: 'Them',
+        pickOne: 'Pick one',
+        otherAnswered: 'Answered',
+        otherNotAnswered: 'Not answered yet',
+        questions: {
+          q1: {
+            title: 'What pace do you prefer?',
+            options: {
+              slow: 'Slow',
+              normal: 'Normal',
+              fast: 'Fast',
+            },
+          },
+          q2: {
+            title: 'Family vs independence?',
+            options: {
+              family: 'Family-focused',
+              balanced: 'Balanced',
+              independent: 'Independent',
+            },
+          },
+          q3: {
+            title: 'Relocation / changing cities?',
+            options: {
+              local: 'Same city',
+              open: 'Open to it',
+              flexible: 'Flexible',
+            },
+          },
+        },
+      },
     },
     rules: {
       title: 'Matchmaking: Our Promise, Rules & Safety',

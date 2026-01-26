@@ -153,8 +153,12 @@ export default async function handler(req, res) {
         now: ts,
       });
 
-      // Revoked ise: sponsorlu akış devre dışı; self’e düş.
-      if (computed.mode === 'sponsored' && revoke.revoked) {
+      // Direkt mesaj (proposed) aşamasında: herkes kendi çeviri kotasından kullanır.
+      // Mutual accepted sonrası: hibrit politika geçerli olabilir.
+      if (status === 'proposed') {
+        billing = { mode: 'self', uid, monthlyLimit: computed.selfMonthlyLimit };
+      } else if (computed.mode === 'sponsored' && revoke.revoked) {
+        // Revoked ise: sponsorlu akış devre dışı; self’e düş.
         billing = { mode: 'self', uid, monthlyLimit: computed.selfMonthlyLimit };
       } else {
         billing = { mode: computed.mode, uid: computed.billingUid, monthlyLimit: computed.monthlyLimit };
@@ -268,10 +272,13 @@ export default async function handler(req, res) {
           now: ts,
         });
 
+        const status2 = String(match?.status || '');
         const effectiveBilling =
-          computed.mode === 'sponsored' && revoke.revoked
+          status2 === 'proposed'
             ? { mode: 'self', billingUid: uid, monthlyLimit: computed.selfMonthlyLimit }
-            : computed;
+            : (computed.mode === 'sponsored' && revoke.revoked
+                ? { mode: 'self', billingUid: uid, monthlyLimit: computed.selfMonthlyLimit }
+                : computed);
 
         const cur = msgSnap2.data() || {};
         const existing = cur?.translations && typeof cur.translations === 'object' ? safeStr(cur.translations[targetLang]) : '';

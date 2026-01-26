@@ -1223,7 +1223,7 @@ export default function MatchmakingApply() {
           <div className="mt-6 text-white md:text-slate-900 p-0 md:rounded-[28px] md:border md:border-slate-200/80 md:bg-slate-100 md:shadow-[0_30px_90px_rgba(0,0,0,0.35)] md:p-6">
           <form
             onSubmit={onSubmit}
-            className="relative space-y-6 bg-transparent p-0 border-0 shadow-none md:rounded-2xl md:bg-slate-50 md:p-6 md:border md:border-slate-200/80 md:shadow-[0_20px_60px_rgba(15,23,42,0.10)] [&_input]:bg-white [&_select]:bg-white [&_textarea]:bg-white [&_input]:shadow-sm [&_select]:shadow-sm [&_textarea]:shadow-sm [&_input:focus-visible]:outline-none [&_select:focus-visible]:outline-none [&_textarea:focus-visible]:outline-none [&_input:focus-visible]:ring-2 [&_select:focus-visible]:ring-2 [&_textarea:focus-visible]:ring-2 [&_input:focus-visible]:ring-amber-300/60 [&_select:focus-visible]:ring-amber-300/60 [&_textarea:focus-visible]:ring-amber-300/60 [&_input:focus-visible]:border-amber-300 [&_select:focus-visible]:border-amber-300 [&_textarea:focus-visible]:border-amber-300"
+            className="relative space-y-6 bg-transparent p-0 border-0 shadow-none md:rounded-2xl md:bg-slate-50 md:p-6 md:border md:border-slate-200/80 md:shadow-[0_20px_60px_rgba(15,23,42,0.10)] [&_input]:bg-white [&_select]:bg-white [&_textarea]:bg-white [&_input]:text-slate-900 [&_select]:text-slate-900 [&_textarea]:text-slate-900 [&_input]:placeholder:text-slate-400 [&_textarea]:placeholder:text-slate-400 [&_select]:placeholder:text-slate-400 [&_option]:text-slate-900 [&_input]:shadow-sm [&_select]:shadow-sm [&_textarea]:shadow-sm [&_input:focus-visible]:outline-none [&_select:focus-visible]:outline-none [&_textarea:focus-visible]:outline-none [&_input:focus-visible]:ring-2 [&_select:focus-visible]:ring-2 [&_textarea:focus-visible]:ring-2 [&_input:focus-visible]:ring-amber-300/60 [&_select:focus-visible]:ring-amber-300/60 [&_textarea:focus-visible]:ring-amber-300/60 [&_input:focus-visible]:border-amber-300 [&_select:focus-visible]:border-amber-300 [&_textarea:focus-visible]:border-amber-300"
           >
           <div aria-hidden="true" className="pointer-events-none absolute inset-0 hidden md:block">
             <div className="absolute -top-24 -right-20 w-72 h-72 bg-[radial-gradient(circle_at_center,rgba(245,158,11,0.18),rgba(245,158,11,0)_62%)]" />
@@ -1836,7 +1836,7 @@ export default function MatchmakingApply() {
             <textarea
               value={form.about}
               onChange={onChange('about')}
-              className="mt-1 w-full min-h-[110px] rounded-lg border border-slate-300 px-3 py-2 text-sm"
+              className="mt-1 w-full min-h-[110px] rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-amber-300/60"
               placeholder={t('matchmakingPage.form.placeholders.about')}
             />
           </div>
@@ -2092,7 +2092,7 @@ export default function MatchmakingApply() {
               <textarea
                 value={form.expectations}
                 onChange={onChange('expectations')}
-                className="mt-1 w-full min-h-[90px] rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                className="mt-1 w-full min-h-[90px] rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-amber-300/60"
                 placeholder={t('matchmakingPage.form.placeholders.expectations')}
               />
             </div>

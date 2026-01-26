@@ -250,11 +250,6 @@ export default {
         about: 'Kısaca kendinizi tanıtın (yaşam tarzı, dil, iş, aile planı vb.)',
         expectations: 'Örn: İletişim, yaşam tarzı, yaş/boy tercihi, aile değerleri…',
       },
-
-      editOnce: {
-        usernameLocked: 'Edit modunda kullanıcı adı değiştirilemez (1 defalık düzeltme hakkı).',
-        photosLocked: 'Edit modunda fotoğraf güncelleme kapalı. Sadece form alanlarını düzeltebilirsiniz.',
-      },
       options: {
         common: {
           select: 'Seçin',
@@ -2542,6 +2537,65 @@ export default {
         lastSeen: 'Son aktif: {{time}}',
         unknown: 'Son aktif: -',
       },
+      progress: {
+        title: 'Süreç',
+        steps: {
+          proposed: 'Tanışma',
+          mutualAccepted: 'Karşılıklı onay',
+          confirm48h: '48 saat kesinleştirme',
+          contact: 'İletişim',
+        },
+        remaining: 'Kalan süre: {{h}}sa {{m}}dk',
+      },
+
+      quickQuestions: {
+        title: '3 kısa soru',
+        lead: 'İsterseniz birbirinizi daha hızlı tanımak için 3 kısa soruya tek tıkla cevap verin. Zorunlu değil.',
+        yourAnswer: 'Sen',
+        otherAnswer: 'O',
+        pickOne: 'Bir seçenek seç',
+        otherAnswered: 'Cevapladı',
+        otherNotAnswered: 'Henüz cevaplamadı',
+        questions: {
+          q1: {
+            title: 'Tanışma hızın nasıl olsun?',
+            options: {
+              slow: 'Yavaş',
+              normal: 'Normal',
+              fast: 'Hızlı',
+            },
+          },
+          q2: {
+            title: 'Aile ve bağımsızlık dengesi?',
+            options: {
+              family: 'Aile odaklı',
+              balanced: 'Dengeli',
+              independent: 'Bağımsız',
+            },
+          },
+          q3: {
+            title: 'Taşınma / şehir değişimi?',
+            options: {
+              local: 'Aynı şehir',
+              open: 'Açığım',
+              flexible: 'Esnek',
+            },
+          },
+        },
+      },
+
+      matchTest: {
+        button: 'Eşleşme testi',
+        title: 'Eşleşme testi',
+        lead: '3 kısa soruda ne kadar uyumlusunuz?',
+        score: 'Skor: {{points}} / {{max}}',
+        close: 'Kapat',
+        questionCounter: 'Soru {{cur}} / {{total}}',
+        sameAnswer: 'Aynı cevap: +10 puan',
+        differentAnswer: 'Farklı cevap',
+        prev: 'Geri',
+        next: 'İleri',
+      },
       title: 'Eşleşmeleriniz',
       subtitle: 'Paketinize göre en fazla 3 / 5 / 10 aday gösterilir.',
       inactivityNotice: {
@@ -2625,6 +2679,19 @@ export default {
           counter: 'Sohbet: {{used}} / {{limit}}',
           reachedTitle: 'Karar zamanı',
           reachedBody: 'Mesaj limiti doldu. Devam etmek için onaylayın veya uygun değilse reddedin.',
+          startActive: 'Aktif eşleşmeyi başlat',
+          pendingYou: 'Aktif eşleşme talebin gönderildi. Karşı tarafın onayı bekleniyor.',
+          pendingIncomingTitle: '{{name}} aktif eşleşme talebinde bulundu',
+          pendingIncomingBody: 'Aktif eşleşmeyi başlatmak için onaylayın.',
+        },
+        rejectReasons: {
+          hint: 'Ret gerekçesi (opsiyonel):',
+          notFeeling: 'İçime sinmedi',
+          values: 'Uyum/değerler',
+          distance: 'Mesafe/şehir',
+          communication: 'İletişim tarzı',
+          notReady: 'Şu an uygun değilim',
+          other: 'Diğer',
         },
         pause: {
           focusTitle: 'Bu sohbet beklemede',
@@ -2632,6 +2699,20 @@ export default {
           otherTitle: 'Sohbet geçici olarak beklemede',
           otherBody: 'Mesajlarınız karşı tarafa şu an iletilmez; uygun olduğunda otomatik olarak devam eder.',
           heldBadge: 'Beklemede (henüz iletilmedi)',
+          deliveredBadge: 'Teslim edildi',
+        },
+        heldSummary: {
+          title: '{{count}} mesaj beklemede',
+          body: 'Bu sohbet daha önce beklemedeyken karşı taraftan mesaj gelmiş. İsterseniz şimdi görüntüleyebilirsiniz.',
+          show: 'Mesajları göster',
+          keepHidden: 'Şimdilik gizli kalsın',
+          releaseFailed: 'Mesajlar açılamadı. Lütfen tekrar deneyin.',
+        },
+        limitReachedNotice: {
+          title: 'Mesaj limitine ulaştınız',
+          body:
+            'Konuşmaya devam etmek için aktif eşleşme başlatmanız gerekiyor. Aktif eşleşme başlatmak diğer eşleşmelerinizi beklemeye alacak ve sadece aktif eşleşmenizle konuşmaya devam edeceksiniz.',
+          dismiss: 'Tamam',
         },
         errors: {
           filtered: 'Mesajınız iletişim bilgisi/sosyal medya/link içerdiği için gönderilemedi.',
@@ -2669,6 +2750,13 @@ export default {
         verifiedBadge: 'Kimliği doğrulanmış',
         proBadge: 'PRO',
         standardBadge: 'STANDART',
+        badges: {
+          activeRecent: 'Yakın zamanda aktif',
+          mutualAccepted: 'Karşılıklı onay',
+          confirmed: 'Kesinleşti',
+          contactUnlocked: 'İletişim açıldı',
+          contactPending: 'İletişim isteği bekliyor',
+        },
         matchedProfile: 'Eşleşme profili',
         score: 'Eşleşme skoru',
         likeBadge: '♥ Beğeni aldınız',
@@ -2775,6 +2863,42 @@ export default {
         '{{eligibilityPoint}}',
         'Güvenlik: Kural ihlalleri (yalan bilgi, hakaret/taciz, cinsel istismar, maddi çıkar, flört/eğlence niyeti vb.) ekran görüntüsü/kanıt ile doğrulanırsa kalıcı engel uygulanır ve geri ödeme talep edilemez.',
       ],
+
+      quickQuestions: {
+        title: '3 kısa soru',
+        lead: 'İsterseniz birbirinizi daha hızlı tanımak için 3 kısa soruya tek tıkla cevap verin. Zorunlu değil.',
+        yourAnswer: 'Sen',
+        otherAnswer: 'O',
+        pickOne: 'Bir seçenek seç',
+        otherAnswered: 'Cevapladı',
+        otherNotAnswered: 'Henüz cevaplamadı',
+        questions: {
+          q1: {
+            title: 'Tanışma hızın nasıl olsun?',
+            options: {
+              slow: 'Yavaş',
+              normal: 'Normal',
+              fast: 'Hızlı',
+            },
+          },
+          q2: {
+            title: 'Aile ve bağımsızlık dengesi?',
+            options: {
+              family: 'Aile odaklı',
+              balanced: 'Dengeli',
+              independent: 'Bağımsız',
+            },
+          },
+          q3: {
+            title: 'Taşınma / şehir değişimi?',
+            options: {
+              local: 'Aynı şehir',
+              open: 'Açığım',
+              flexible: 'Esnek',
+            },
+          },
+        },
+      },
     },
     rules: {
       title: 'Evlilik Eşleştirme: Vaadimiz, Kurallar ve Güvenlik',

@@ -49,6 +49,8 @@ export default function Login() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [info, setInfo] = useState("");
+  const [debugAuth, setDebugAuth] = useState(null);
+  const [redirectCheckDone, setRedirectCheckDone] = useState(false);
   const [forceLogin, setForceLogin] = useState(false);
   const [signupNudge, setSignupNudge] = useState(0);
   const [signupHighlight, setSignupHighlight] = useState(false);
@@ -399,6 +401,7 @@ export default function Login() {
         // ignore redirect result errors
       } finally {
         authFlowBusyRef.current = false;
+        if (isActive) setRedirectCheckDone(true);
       }
     };
 
@@ -414,7 +417,9 @@ export default function Login() {
 
   useEffect(() => {
     if (hasNavigatedRef.current) return;
-    if (authFlowBusyRef.current) return;
+    // Redirect sonucu kontrolü bitmeden (getRedirectResult) email login akışı da bekleyebiliyordu.
+    // Bu kontrol bittiğinde tekrar çalışıp kesin yönlendirelim.
+    if (!redirectCheckDone) return;
     if (user) {
       (async () => {
         const target = resolvePostAuthTarget(false);
@@ -425,7 +430,7 @@ export default function Login() {
       })();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user]);
+  }, [user, redirectCheckDone]);
 
   useEffect(() => {
     if (hasNavigatedRef.current) return;
@@ -446,7 +451,47 @@ export default function Login() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [redirectTarget.from, redirectTarget.fromState]);
 
-  if (user) return null;
+  if (user) {
+    // Kullanıcı login olduysa bu sayfada form göstermeyelim.
+    // Önceden `return null` yapıyordu; yönlendirme async gecikince beyaz ekran oluşuyordu.
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-white via-slate-50 to-emerald-50/40">
+        <Navigation />
+        <section className="max-w-lg mx-auto px-4 py-16">
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-5 md:p-6">
+            <h1 className="text-xl md:text-2xl font-bold text-gray-900">Yönlendiriliyorsun…</h1>
+            <p className="text-sm text-gray-600 mt-2">
+              Profil sayfası açılıyor. Bu ekran uzun sürerse aşağıdan devam edebilirsin.
+            </p>
+
+            <div className="mt-5 flex gap-2">
+              <button
+                type="button"
+                onClick={() => navigate('/profilim', { replace: true })}
+                className="px-4 py-2 rounded-xl bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700"
+              >
+                Profilime Git
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  try {
+                    window.location.reload();
+                  } catch {
+                    // ignore
+                  }
+                }}
+                className="px-4 py-2 rounded-xl border border-slate-300 bg-white text-slate-800 text-sm font-semibold hover:bg-slate-50"
+              >
+                Yenile
+              </button>
+            </div>
+          </div>
+        </section>
+        <Footer />
+      </div>
+    );
+  }
 
   const resolveLanguageFromNationality = (value) => {
     if (value === 'tr') return 'tr';
@@ -593,9 +638,16 @@ export default function Login() {
     setBusy(true);
     setError("");
     setInfo("");
+    setDebugAuth(null);
 
     try {
-      if (!email || !password) {
+      const normalizedEmail = String(email || '').trim().toLowerCase();
+
+      // Copy/paste sırasında şifrenin başına/sonuna boşluk gelmesi çok yaygın.
+      const rawPassword = String(password || '');
+      const passwordToUse = rawPassword.trim();
+
+      if (!normalizedEmail || !passwordToUse) {
         setError(t("authPage.errors.emailPasswordRequired"));
         return;
       }
@@ -620,7 +672,7 @@ export default function Login() {
 
       if (mode === "signup") {
         // Signup'ta zaten kayıtlı email ise kullanıcıyı uyar.
-        const methods = await fetchSignInMethodsForEmail(auth, email);
+        const methods = await fetchSignInMethodsForEmail(auth, normalizedEmail);
         if (Array.isArray(methods) && methods.length > 0) {
           setError(t('authPage.errors.emailAlreadyInUse'));
           return;
@@ -628,19 +680,14 @@ export default function Login() {
         // Yeni kullanıcı kaydı sonrası her zaman form sayfasına yönlendir.
         // (Kullanıcı login'e hangi sayfadan gelmiş olursa olsun.)
         writeForcedTarget(SIGNUP_FORM_TARGET);
-        const cred = await createUserWithEmailAndPassword(auth, email, password);
+        const cred = await createUserWithEmailAndPassword(auth, normalizedEmail, passwordToUse);
         await ensureProfileSaved(cred?.user?.uid, signupGender, signupNationality, signupNationalityOther);
         clearAuthIntent();
         clearSignupProfile();
       } else {
-        // Login'de email hiç kayıtlı değilse "kaydınız bulunamadı" uyar.
-        const methods = await fetchSignInMethodsForEmail(auth, email);
-        if (!Array.isArray(methods) || methods.length === 0) {
-          setMode('signup');
-          showNoAccountFoundMessage();
-          return;
-        }
-        await signInWithEmailAndPassword(auth, email, password);
+        // Login: bazı Firebase konfiglerinde fetchSignInMethodsForEmail boş dönebilir.
+        // Yanlış "kayıt bulunamadı" göstermemek için direkt signIn dene.
+        await signInWithEmailAndPassword(auth, normalizedEmail, passwordToUse);
         clearAuthIntent();
         clearSignupProfile();
       }
@@ -649,7 +696,24 @@ export default function Login() {
     } catch (e2) {
       const code = String(e2?.code || '').trim();
 
-      if (code === 'auth/invalid-credential' || code === 'auth/wrong-password' || code === 'auth/user-not-found') {
+      if (import.meta.env.DEV) {
+        setDebugAuth({
+          code,
+          message: String(e2?.message || ''),
+          name: String(e2?.name || ''),
+          email: String(e2?.customData?.email || ''),
+        });
+        // eslint-disable-next-line no-console
+        console.error('[auth] email/password failed', e2);
+      }
+
+      if (code === 'auth/user-not-found') {
+        setMode('signup');
+        showNoAccountFoundMessage();
+        return;
+      }
+
+      if (code === 'auth/invalid-credential' || code === 'auth/wrong-password') {
         setError(t('authPage.errors.invalidCredential'));
         return;
       }
@@ -713,6 +777,23 @@ export default function Login() {
             <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">{info}</div>
           )}
 
+          {import.meta.env.DEV && debugAuth ? (
+            <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
+              <div className="text-[11px] font-semibold text-slate-800">DEV: Firebase Auth debug</div>
+              <div className="mt-1 text-[11px] text-slate-700">
+                <span className="font-semibold">code:</span> {debugAuth.code || '-'}
+              </div>
+              <div className="text-[11px] text-slate-700">
+                <span className="font-semibold">message:</span> {debugAuth.message || '-'}
+              </div>
+              {debugAuth.email ? (
+                <div className="text-[11px] text-slate-700">
+                  <span className="font-semibold">email:</span> {debugAuth.email}
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+
           <div className="mt-5 grid grid-cols-1 gap-2">
             <button
               type="button"
@@ -740,6 +821,7 @@ export default function Login() {
             <div>
               <label className="block text-xs font-semibold text-slate-700">{t("authPage.labels.email")}</label>
               <input
+                data-testid="login-email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 type="email"
@@ -752,6 +834,7 @@ export default function Login() {
             <div>
               <label className="block text-xs font-semibold text-slate-700">{t("authPage.labels.password")}</label>
               <input
+                data-testid="login-password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 type="password"
@@ -869,6 +952,7 @@ export default function Login() {
             )}
 
             <button
+              data-testid="login-submit"
               type="submit"
               disabled={busy}
               className="w-full px-5 py-3 rounded-2xl bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700 disabled:opacity-60"

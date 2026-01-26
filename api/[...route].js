@@ -16,6 +16,7 @@ import matchmakingPhotoUpdateRequest from '../apiRoutes/matchmaking-photo-update
 import matchmakingChatDecision from '../apiRoutes/matchmaking-chat-decision.js';
 import matchmakingChatMarkRead from '../apiRoutes/matchmaking-chat-mark-read.js';
 import matchmakingChatSend from '../apiRoutes/matchmaking-chat-send.js';
+import matchmakingChatReleaseHeld from '../apiRoutes/matchmaking-chat-release-held.js';
 import matchmakingChatTranslate from '../apiRoutes/matchmaking-chat-translate.js';
 import matchmakingChatTranslationRevoke from '../apiRoutes/matchmaking-chat-translation-revoke.js';
 import matchmakingMatchCancel from '../apiRoutes/matchmaking-match-cancel.js';
@@ -37,6 +38,7 @@ import matchmakingRun from '../apiRoutes/matchmaking-run.js';
 import matchmakingSubmitPayment from '../apiRoutes/matchmaking-submit-payment.js';
 import matchmakingVerificationSelect from '../apiRoutes/matchmaking-verification-select.js';
 import recaptchaAssess from '../apiRoutes/recaptcha-assess.js';
+import matchmakingQuickQuestions from '../apiRoutes/matchmaking-quick-questions.js';
 
 const handlers = {
   'admin-matchmaking-user-stats': adminMatchmakingUserStats,
@@ -56,6 +58,7 @@ const handlers = {
   'matchmaking-chat-decision': matchmakingChatDecision,
   'matchmaking-chat-mark-read': matchmakingChatMarkRead,
   'matchmaking-chat-send': matchmakingChatSend,
+  'matchmaking-chat-release-held': matchmakingChatReleaseHeld,
   'matchmaking-chat-translate': matchmakingChatTranslate,
   'matchmaking-chat-translation-revoke': matchmakingChatTranslationRevoke,
   'matchmaking-match-cancel': matchmakingMatchCancel,
@@ -75,6 +78,7 @@ const handlers = {
   'matchmaking-request-new': matchmakingRequestNew,
   'matchmaking-run': matchmakingRun,
   'matchmaking-submit-payment': matchmakingSubmitPayment,
+  'matchmaking-quick-questions': matchmakingQuickQuestions,
   'matchmaking-verification-select': matchmakingVerificationSelect,
   'matchmaking-verification-manual-submit': matchmakingVerificationManualSubmit,
   'recaptcha-assess': recaptchaAssess,

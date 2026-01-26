@@ -36,6 +36,7 @@ import NotFound from './pages/NotFound';
 import RequireAuth from './auth/RequireAuth';
 import FloatingWhatsApp from './components/FloatingWhatsApp';
 import { isFeatureEnabled } from './config/siteVariant';
+import DevOverlay from './components/DevOverlay';
 
 function ScrollToTop() {
   const location = useLocation();
@@ -144,6 +145,7 @@ function App() {
       <TitleManager />
       <AnalyticsTracker />
       <FloatingWhatsApp />
+      {import.meta.env.DEV ? <DevOverlay /> : null}
       <Routes>
         <Route path="/" element={isWeddingOnly ? <Wedding /> : <Home />} />
         <Route path="/about" element={<About />} />

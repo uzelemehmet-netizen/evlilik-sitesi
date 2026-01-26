@@ -1,6 +1,11 @@
 import { getAdmin, normalizeBody, requireIdToken } from './_firebaseAdmin.js';
 import { ensureEligibleOrThrow, isMembershipActive } from './_matchmakingEligibility.js';
 
+function isDevBypassEnabled() {
+  const raw = String(process.env.MATCHMAKING_DEV_BYPASS || '').toLowerCase().trim();
+  return raw === '1' || raw === 'true' || raw === 'yes';
+}
+
 function safeStr(v) {
   return typeof v === 'string' ? v.trim() : '';
 }
@@ -154,7 +159,8 @@ export default async function handler(req, res) {
       ensureEligibleOrThrow(me, myGender);
 
       // Bu projede “ücretsiz üyelikte mesaj yok” kuralı: mesaj göndermek için ücretli üyelik şart.
-      if (!isMembershipActive(me, ts)) {
+      // Local dev/testte MATCHMAKING_DEV_BYPASS=1 iken bu kapıyı bypass edebiliriz.
+      if (!isDevBypassEnabled() && !isMembershipActive(me, ts)) {
         const err = new Error('membership_required');
         err.statusCode = 402;
         throw err;

@@ -1222,6 +1222,65 @@ const overrides = {
         lastSeen: 'Terakhir aktif: {{time}}',
         unknown: 'Terakhir aktif: -',
       },
+      progress: {
+        title: 'Progres',
+        steps: {
+          proposed: 'Perkenalan',
+          mutualAccepted: 'Saling setuju',
+          confirm48h: 'Konfirmasi 48 jam',
+          contact: 'Kontak',
+        },
+        remaining: 'Sisa waktu: {{h}} jam {{m}} mnt',
+      },
+
+      quickQuestions: {
+        title: '3 pertanyaan singkat',
+        lead: 'Kalau mau, jawab 3 pertanyaan singkat dengan sekali tap untuk saling mengenal lebih cepat. Opsional.',
+        yourAnswer: 'Kamu',
+        otherAnswer: 'Dia',
+        pickOne: 'Pilih satu',
+        otherAnswered: 'Sudah jawab',
+        otherNotAnswered: 'Belum jawab',
+        questions: {
+          q1: {
+            title: 'Kamu prefer pace seperti apa?',
+            options: {
+              slow: 'Pelan',
+              normal: 'Normal',
+              fast: 'Cepat',
+            },
+          },
+          q2: {
+            title: 'Keluarga vs kemandirian?',
+            options: {
+              family: 'Fokus keluarga',
+              balanced: 'Seimbang',
+              independent: 'Mandiri',
+            },
+          },
+          q3: {
+            title: 'Pindah kota / relokasi?',
+            options: {
+              local: 'Kota yang sama',
+              open: 'Terbuka',
+              flexible: 'Fleksibel',
+            },
+          },
+        },
+      },
+
+      matchTest: {
+        button: 'Tes kecocokan',
+        title: 'Tes kecocokan',
+        lead: 'Lihat seberapa cocok kalian lewat 3 pertanyaan singkat.',
+        score: 'Skor: {{points}} / {{max}}',
+        close: 'Tutup',
+        questionCounter: 'Pertanyaan {{cur}} / {{total}}',
+        sameAnswer: 'Jawaban sama: +10 poin',
+        differentAnswer: 'Jawaban berbeda',
+        prev: 'Sebelumnya',
+        next: 'Berikutnya',
+      },
       title: 'Kecocokan Anda',
       subtitle: 'Maksimal 3 / 5 / 10 kandidat ditampilkan sesuai paket Anda.',
       inactivityNotice: {
@@ -3777,6 +3836,58 @@ export default {
       matchId: 'Kode Kecocokan',
     },
     matches: {
+      presence: {
+        online: 'Online',
+        lastSeen: 'Terakhir aktif: {{time}}',
+        unknown: 'Terakhir aktif: -',
+      },
+
+      progress: {
+        title: 'Progres',
+        steps: {
+          proposed: 'Perkenalan',
+          mutualAccepted: 'Saling setuju',
+          confirm48h: 'Konfirmasi 48 jam',
+          contact: 'Kontak',
+        },
+        remaining: 'Sisa waktu: {{h}} jam {{m}} mnt',
+      },
+
+      quickQuestions: {
+        title: '3 pertanyaan singkat',
+        lead: 'Kalau mau, jawab 3 pertanyaan singkat dengan sekali tap untuk saling mengenal lebih cepat. Opsional.',
+        yourAnswer: 'Kamu',
+        otherAnswer: 'Dia',
+        pickOne: 'Pilih satu',
+        otherAnswered: 'Sudah jawab',
+        otherNotAnswered: 'Belum jawab',
+        questions: {
+          q1: {
+            title: 'Kamu prefer pace seperti apa?',
+            options: {
+              slow: 'Pelan',
+              normal: 'Normal',
+              fast: 'Cepat',
+            },
+          },
+          q2: {
+            title: 'Keluarga vs kemandirian?',
+            options: {
+              family: 'Fokus keluarga',
+              balanced: 'Seimbang',
+              independent: 'Mandiri',
+            },
+          },
+          q3: {
+            title: 'Pindah kota / relokasi?',
+            options: {
+              local: 'Kota yang sama',
+              open: 'Terbuka',
+              flexible: 'Fleksibel',
+            },
+          },
+        },
+      },
       title: 'Kecocokan Anda',
       subtitle: 'Maksimal 3 / 5 / 10 kandidat ditampilkan sesuai paket Anda.',
       empty: 'Ketika ditemukan kecocokan yang sesuai dengan profil Anda, akan muncul di sini. Simpan halaman ini di ponsel atau komputer Anda agar mudah dibuka kembali saat ingin mengecek.',
@@ -3833,6 +3944,19 @@ export default {
           counter: 'Chat: {{used}} / {{limit}}',
           reachedTitle: 'Saatnya memutuskan',
           reachedBody: 'Batas pesan sudah tercapai. Setujui untuk lanjut atau tolak jika tidak cocok.',
+          startActive: 'Mulai kecocokan aktif',
+          pendingYou: 'Permintaan kecocokan aktif Anda sudah dikirim. Menunggu persetujuan lawan bicara.',
+          pendingIncomingTitle: '{{name}} meminta kecocokan aktif',
+          pendingIncomingBody: 'Setujui untuk memulai kecocokan aktif.',
+        },
+        rejectReasons: {
+          hint: 'Alasan menolak (opsional):',
+          notFeeling: 'Kurang cocok',
+          values: 'Nilai/kecocokan',
+          distance: 'Jarak/lokasi',
+          communication: 'Gaya komunikasi',
+          notReady: 'Belum siap saat ini',
+          other: 'Lainnya',
         },
         pause: {
           focusTitle: 'Chat ini sedang ditahan',
@@ -3840,6 +3964,20 @@ export default {
           otherTitle: 'Chat sementara ditahan',
           otherBody: 'Pesan Anda belum dikirim sekarang; chat akan lanjut otomatis saat tersedia.',
           heldBadge: 'Ditahan (belum terkirim)',
+          deliveredBadge: 'Terkirim',
+        },
+        heldSummary: {
+          title: '{{count}} pesan ditahan',
+          body: 'Saat chat ini ditahan, pihak lain mengirim pesan. Anda bisa memilih untuk melihatnya sekarang.',
+          show: 'Tampilkan pesan',
+          keepHidden: 'Sembunyikan dulu',
+          releaseFailed: 'Pesan tidak dapat dibuka. Silakan coba lagi.',
+        },
+        limitReachedNotice: {
+          title: 'Anda mencapai batas pesan',
+          body:
+            'Untuk melanjutkan percakapan, Anda perlu memulai kecocokan aktif. Memulai kecocokan aktif akan menahan kecocokan lain, dan Anda hanya akan melanjutkan chat dengan kecocokan aktif Anda.',
+          dismiss: 'OK',
         },
         errors: {
           filtered: 'Pesan Anda terdeteksi berisi kontak/sosmed/link dan diblokir.',
@@ -3857,6 +3995,15 @@ export default {
       candidate: {
         fallbackName: 'Kandidat',
         verifiedBadge: 'Identitas terverifikasi',
+        proBadge: 'PRO',
+        standardBadge: 'STANDAR',
+        badges: {
+          activeRecent: 'Baru aktif',
+          mutualAccepted: 'Saling setuju',
+          confirmed: 'Terkonfirmasi',
+          contactUnlocked: 'Kontak terbuka',
+          contactPending: 'Permintaan kontak menunggu',
+        },
         matchedProfile: 'Profil kecocokan',
         score: 'Skor kecocokan',
         likeBadge: '♥ Anda mendapat like',
@@ -4033,6 +4180,42 @@ export default {
         s1: 'Tetap waspada saat proses perkenalan; berhati-hati saat membagikan informasi pribadi.',
         s2: 'Jangan pernah mengirim uang; jika ada permintaan uang, segera laporkan.',
         s3: 'Memverifikasi informasi profil adalah tanggung jawab pengguna; jika ragu, minta dukungan.',
+      },
+
+      quickQuestions: {
+        title: '3 pertanyaan singkat',
+        lead: 'Kalau mau, jawab 3 pertanyaan singkat dengan sekali tap untuk saling mengenal lebih cepat. Opsional.',
+        yourAnswer: 'Kamu',
+        otherAnswer: 'Dia',
+        pickOne: 'Pilih satu',
+        otherAnswered: 'Sudah jawab',
+        otherNotAnswered: 'Belum jawab',
+        questions: {
+          q1: {
+            title: 'Kamu prefer pace seperti apa?',
+            options: {
+              slow: 'Pelan',
+              normal: 'Normal',
+              fast: 'Cepat',
+            },
+          },
+          q2: {
+            title: 'Keluarga vs kemandirian?',
+            options: {
+              family: 'Fokus keluarga',
+              balanced: 'Seimbang',
+              independent: 'Mandiri',
+            },
+          },
+          q3: {
+            title: 'Pindah kota / relokasi?',
+            options: {
+              local: 'Kota yang sama',
+              open: 'Terbuka',
+              flexible: 'Fleksibel',
+            },
+          },
+        },
       },
     },
   },
