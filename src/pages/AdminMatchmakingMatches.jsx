@@ -31,6 +31,29 @@ function appIdOf(m, side) {
   return v;
 }
 
+function safeStr(v) {
+  return typeof v === 'string' ? v.trim() : '';
+}
+
+function shortenId(id) {
+  const s = typeof id === 'string' ? id : '';
+  if (!s) return '';
+  if (s.length <= 18) return s;
+  return `${s.slice(0, 10)}…${s.slice(-6)}`;
+}
+
+function displayUserLabel(m, side) {
+  const p = m?.profiles?.[side] || null;
+  const username = safeStr(p?.username);
+  if (username) return `@${username}`;
+  const fullName = safeStr(p?.fullName);
+  if (fullName) return fullName;
+  const code = profileCodeOf(p);
+  if (code) return code;
+  const uid = safeStr(side === 'a' ? m?.aUserId : m?.bUserId);
+  return uid ? shortenId(uid) : side.toUpperCase();
+}
+
 export default function AdminMatchmakingMatches() {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -256,7 +279,7 @@ export default function AdminMatchmakingMatches() {
                   {grouped.mutual.map((m) => (
                     <div key={m.id} className="rounded-xl border border-slate-200 bg-slate-50 p-4">
                       <p className="text-sm font-semibold text-slate-900">
-                        {m?.profiles?.a?.fullName || 'A'} ↔ {m?.profiles?.b?.fullName || 'B'}
+                        {displayUserLabel(m, 'a')} ↔ {displayUserLabel(m, 'b')}
                       </p>
                       {(() => {
                         const aCode = profileCodeOf(m?.profiles?.a);
@@ -312,7 +335,7 @@ export default function AdminMatchmakingMatches() {
                   {grouped.contactUnlocked.map((m) => (
                     <div key={m.id} className="rounded-xl border border-slate-200 bg-slate-50 p-4">
                       <p className="text-sm font-semibold text-slate-900">
-                        {m?.profiles?.a?.fullName || 'A'} ↔ {m?.profiles?.b?.fullName || 'B'}
+                        {displayUserLabel(m, 'a')} ↔ {displayUserLabel(m, 'b')}
                       </p>
                       {(() => {
                         const aCode = profileCodeOf(m?.profiles?.a);

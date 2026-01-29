@@ -143,6 +143,11 @@ const server = http.createServer(async (req, res) => {
 
     await apiHandler(req, res);
   } catch (e) {
+    // eslint-disable-next-line no-console
+    console.error('[dev-api] Unhandled API error:', {
+      message: String(e?.message || 'server_error'),
+      stack: e?.stack ? String(e.stack) : null,
+    });
     if (!res.headersSent) {
       res.statusCode = 500;
       res.setHeader('content-type', 'application/json');

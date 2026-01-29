@@ -12,18 +12,10 @@ function buildWhatsappLink(pathname, t) {
 
   if (path.startsWith("/wedding") && isFeatureEnabled('wedding')) {
     message = t("floatingWhatsapp.messages.wedding");
-  } else if (path.startsWith("/travel")) {
-    message = t("floatingWhatsapp.messages.travel");
-  } else if (path.startsWith("/kesfet")) {
-    message = t("floatingWhatsapp.messages.explore");
   } else if (path.startsWith("/youtube")) {
     message = t("floatingWhatsapp.messages.youtube");
   } else if (path.startsWith("/contact")) {
     message = t("floatingWhatsapp.messages.contact");
-  } else if (path.startsWith("/tours")) {
-    message = t("floatingWhatsapp.messages.tours");
-  } else if (path.startsWith("/dokumanlar")) {
-    message = t("floatingWhatsapp.messages.documents");
   } else if (path === "/") {
     message = t("floatingWhatsapp.messages.home");
   }

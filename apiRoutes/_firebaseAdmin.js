@@ -3,6 +3,8 @@ import { getAuth } from 'firebase-admin/auth';
 import { FieldValue, getFirestore } from 'firebase-admin/firestore';
 import fs from 'node:fs';
 
+let cachedProjectId = '';
+
 function parseAdminEmails() {
   const raw = process.env.ADMIN_EMAILS || process.env.VITE_ADMIN_EMAILS || '';
   const envList = String(raw)
@@ -86,6 +88,8 @@ export function getAdmin() {
       throw err;
     }
 
+    cachedProjectId = String(serviceAccount?.project_id || '').trim();
+
     initializeApp({ credential: cert(serviceAccount) });
   }
 
@@ -93,6 +97,7 @@ export function getAdmin() {
     auth: getAuth(),
     db: getFirestore(),
     FieldValue,
+    projectId: cachedProjectId,
   };
 }
 

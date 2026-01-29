@@ -27,12 +27,8 @@ export default function RequireAuth({ children }) {
       path.startsWith('/evlilik') ||
       path.startsWith('/uniqah') ||
       path.startsWith('/eslestirme') ||
-      path.startsWith('/travel') ||
-      path.startsWith('/tours') ||
-      path.startsWith('/kesfet') ||
       path.startsWith('/youtube') ||
       path.startsWith('/gallery') ||
-      path.startsWith('/dokumanlar') ||
       path.startsWith('/docs/')
     );
   };

@@ -51,15 +51,7 @@ export default function About() {
             <p className="text-sm text-gray-700 mt-3" style={{ fontFamily: '"Poppins", sans-serif' }}>
               {t('about.brand.p2')}
             </p>
-            <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
-              <Link to="/tours" className="p-4 rounded-2xl bg-white border border-emerald-100 shadow-sm hover:shadow-md transition block">
-                <p className="text-xs uppercase tracking-wide text-emerald-700 mb-1" style={{ fontFamily: '"Poppins", sans-serif' }}>
-                  {t('about.brand.cards.toursTitle')}
-                </p>
-                <p className="text-sm text-gray-700" style={{ fontFamily: '"Poppins", sans-serif' }}>
-                  {t('about.brand.cards.toursDesc')}
-                </p>
-              </Link>
+            <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
               {isFeatureEnabled('wedding') && (
                 <Link to="/wedding" className="p-4 rounded-2xl bg-white border border-emerald-100 shadow-sm hover:shadow-md transition block">
                   <p className="text-xs uppercase tracking-wide text-emerald-700 mb-1" style={{ fontFamily: '"Poppins", sans-serif' }}>
@@ -142,11 +134,11 @@ export default function About() {
                 i18nKey="about.philosophy.outro"
                 components={[
                   <span key="0" />,
-                  <Link key="1" to="/kesfet" className="text-emerald-700 font-semibold hover:underline" />,
+                  <span key="1" className="text-emerald-700 font-semibold" />,
                   <span key="2" />,
-                  <Link key="3" to="/tours" className="text-emerald-700 font-semibold hover:underline" />,
+                  <span key="3" className="text-emerald-700 font-semibold" />,
                   <span key="4" />,
-                  <Link key="5" to="/tours/groups" className="text-emerald-700 font-semibold hover:underline" />,
+                  <span key="5" className="text-emerald-700 font-semibold" />,
                 ]}
               />
             </p>
@@ -183,22 +175,6 @@ export default function About() {
               {t('about.support.title')}
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* 1. Kart: Toplu turlara bireysel / aile katılım */}
-              <Link
-                to="/tours"
-                className="p-4 rounded-2xl bg-sky-50 border border-sky-100 shadow-sm hover:shadow-md transition block"
-              >
-                <h4
-                  className="text-base font-semibold text-gray-900 mb-1"
-                  style={{ fontFamily: '"Poppins", sans-serif' }}
-                >
-                  {t('about.support.items.joinScheduled.title')}
-                </h4>
-                <p className="text-sm text-gray-700">
-                  {t('about.support.items.joinScheduled.description')}
-                </p>
-              </Link>
-
               {/* 2. Kart: Çeviri ve iletişim desteği */}
               <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-100 shadow-sm">
                 <h4
@@ -211,38 +187,6 @@ export default function About() {
                   {t('about.support.items.translation.description')}
                 </p>
               </div>
-
-              {/* 3. Kart: Bireysel seyahat ve balayı planlama */}
-              <Link
-                to="/travel"
-                className="p-4 rounded-2xl bg-teal-50 border border-teal-100 shadow-sm hover:shadow-md transition block"
-              >
-                <h4
-                  className="text-base font-semibold text-gray-900 mb-1"
-                  style={{ fontFamily: '"Poppins", sans-serif' }}
-                >
-                  {t('about.support.items.privatePlan.title')}
-                </h4>
-                <p className="text-sm text-gray-700">
-                  {t('about.support.items.privatePlan.description')}
-                </p>
-              </Link>
-
-              {/* 4. Kart: Kurumsal ve arkadaş grupları için özel turlar */}
-              <Link
-                to="/tours/groups"
-                className="p-4 rounded-2xl bg-violet-50 border border-violet-100 shadow-sm hover:shadow-md transition block"
-              >
-                <h4
-                  className="text-base font-semibold text-gray-900 mb-1"
-                  style={{ fontFamily: '"Poppins", sans-serif' }}
-                >
-                  {t('about.support.items.privateGroups.title')}
-                </h4>
-                <p className="text-sm text-gray-700">
-                  {t('about.support.items.privateGroups.description')}
-                </p>
-              </Link>
               {/* 5. Kart: Konaklama ve ulaşım planlama */}
               <div className="p-4 rounded-2xl bg-amber-50 border border-amber-100 shadow-sm">
                 <h4

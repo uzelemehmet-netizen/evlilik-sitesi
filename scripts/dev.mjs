@@ -125,7 +125,9 @@ process.on('SIGTERM', () => shutdown(0));
   const apiPort = await waitForPortFile({ timeoutMs: 60000, intervalMs: 150 });
 
   // Vite proxy target should follow the chosen API port.
-  const proxyTarget = `http://localhost:${apiPort}`;
+  // Windows + WSL ortamlarında `localhost` bazen ::1'e çözülüp WSL relay'e gidebiliyor.
+  // IPv4 loopback'e sabitleyerek /api proxy 503 sorunlarını azaltıyoruz.
+  const proxyTarget = `http://127.0.0.1:${apiPort}`;
   // eslint-disable-next-line no-console
   console.log(`[dev] Vite proxy: /api -> ${proxyTarget}`);
 

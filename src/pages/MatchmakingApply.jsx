@@ -36,6 +36,57 @@ function normalizeUsername(value) {
   return String(value || '').trim().toLowerCase();
 }
 
+function safeStr(v) {
+  return typeof v === 'string' ? v.trim() : '';
+}
+
+function asMs(v) {
+  if (!v) return 0;
+  if (typeof v === 'number' && Number.isFinite(v)) return v;
+  if (typeof v?.toMillis === 'function') {
+    try {
+      return v.toMillis();
+    } catch {
+      return 0;
+    }
+  }
+  const seconds = typeof v?.seconds === 'number' ? v.seconds : null;
+  const nanoseconds = typeof v?.nanoseconds === 'number' ? v.nanoseconds : 0;
+  if (seconds !== null) return Math.floor(seconds * 1000 + nanoseconds / 1e6);
+  return 0;
+}
+
+function pickBestNonStubApplication(items) {
+  const list = Array.isArray(items) ? items : [];
+  if (!list.length) return null;
+
+  const scored = list
+    .map((a) => {
+      const source = safeStr(a?.source).toLowerCase();
+      const isStub = source === 'auto_stub';
+      const ms =
+        (typeof a?.createdAtMs === 'number' && Number.isFinite(a.createdAtMs) ? a.createdAtMs : 0) ||
+        asMs(a?.createdAt);
+      const score = (isStub ? 0 : 1000) + (ms > 0 ? ms : 0);
+      return { a, isStub, score };
+    })
+    .sort((x, y) => y.score - x.score);
+
+  const best = scored.find((x) => !x.isStub) || null;
+  return best ? best.a : null;
+}
+
+function computeAgeGroup(age, groupYears = 5) {
+  const a = typeof age === 'number' && Number.isFinite(age) ? age : null;
+  const g = typeof groupYears === 'number' && Number.isFinite(groupYears) && groupYears > 0 ? groupYears : 5;
+  if (a === null) return null;
+  const base = 18;
+  const idx = Math.max(0, Math.floor((a - base) / g));
+  const start = base + idx * g;
+  const end = start + g - 1;
+  return { years: g, index: idx, start, end, key: `${start}-${end}` };
+}
+
 async function compressImageToJpeg(file, { maxWidth = 1600, maxHeight = 1600, quality = 0.82 } = {}) {
   const img = document.createElement('img');
   const url = URL.createObjectURL(file);
@@ -105,13 +156,17 @@ export default function MatchmakingApply() {
 
     (async () => {
       try {
-        const q = query(collection(db, 'matchmakingApplications'), where('userId', '==', user.uid), limit(1));
+        const q = query(collection(db, 'matchmakingApplications'), where('userId', '==', user.uid), limit(10));
         const snap = await getDocs(q);
         if (cancelled) return;
         if (!snap.empty) {
-          const docSnap = snap.docs[0];
-          const id = docSnap?.id;
-          const data = docSnap?.data?.() || {};
+          const items = snap.docs.map((d) => ({ id: d.id, ...(d.data() || {}) }));
+          const best = pickBestNonStubApplication(items);
+          // Sadece auto_stub varsa: kullanıcı formu doldurabilsin.
+          if (!best) return;
+
+          const id = best?.id;
+          const data = best || {};
 
           if (!isEditOnceMode) {
             navigate('/profilim', { replace: true, state: { from: 'applyRedirectExisting', applicationId: id } });
@@ -476,10 +531,10 @@ export default function MatchmakingApply() {
     whatsapp: '',
     email: '',
     instagram: '',
-    nationality: 'tr',
-    gender: 'male',
-    lookingForNationality: 'id',
-    lookingForGender: 'female',
+    nationality: '',
+    gender: '',
+    lookingForNationality: '',
+    lookingForGender: '',
     heightCm: '',
     weightKg: '',
     occupation: '',
@@ -962,6 +1017,13 @@ export default function MatchmakingApply() {
         usernameLower: normalizedUsername,
         fullName: String(form.fullName || '').trim(),
         age: ageNum,
+        ageGroup: computeAgeGroup(
+          ageNum,
+          (() => {
+            const raw = Number(import.meta.env.VITE_MATCHMAKING_AGE_GROUP_YEARS || 5);
+            return Number.isFinite(raw) && raw > 0 ? raw : 5;
+          })()
+        ),
         city: String(form.city || '').trim(),
         country: String(form.country || '').trim(),
         whatsapp: String(form.whatsapp || '').trim(),
@@ -1058,6 +1120,12 @@ export default function MatchmakingApply() {
           token: recaptchaToken,
         },
         createdAt: serverTimestamp(),
+        pool: {
+          active: true,
+          addedAt: serverTimestamp(),
+          addedAtMs: Date.now(),
+          reason: isEditOnceMode ? 'edit_once' : 'apply_submit',
+        },
         status: 'new',
       };
 
@@ -1331,6 +1399,10 @@ export default function MatchmakingApply() {
                 placeholder={t('matchmakingPage.form.placeholders.instagram')}
               />
             </div>
+          </div>
+
+          <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+            {t('matchmakingPage.form.contactPrivacyNotice')}
           </div>
 
           <div className="rounded-none border-0 md:rounded-xl md:border md:border-slate-200 p-0 md:p-4">

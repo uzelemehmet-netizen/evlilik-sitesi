@@ -1,7 +1,7 @@
 import Navigation from '../components/Navigation';
 import Footer from '../components/Footer';
 import HeroSocialButtons from '../components/HeroSocialButtons';
-import { Plane, MapPin, Users, FileText, BadgeCheck, Heart, Video, IceCream, MessageCircle } from 'lucide-react';
+import { MapPin, FileText, BadgeCheck, Heart, Video, IceCream, MessageCircle } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { isFeatureEnabled } from '../config/siteVariant';
 import { buildWhatsAppUrl } from '../utils/whatsapp';
@@ -62,20 +62,11 @@ export default function Home() {
 
           <div className="mt-6 flex flex-wrap items-center justify-center gap-2">
             <a
-              href="/tours"
+              href="/uniqah"
               className="inline-flex items-center justify-center gap-2 px-5 py-2 rounded-full bg-emerald-500 text-white font-semibold text-sm shadow-md hover:bg-emerald-600 transition"
             >
-              <Plane size={18} />
-              {t('home.hero.ctaTours')}
-            </a>
-            <a
-              href="/docs/tur-brosurleri.html"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center justify-center gap-2 px-5 py-2 rounded-full bg-white/10 text-white font-semibold text-sm border border-white/25 hover:bg-white/15 transition"
-            >
-              <FileText size={18} />
-              {t('home.hero.ctaBrochures')}
+              <Heart size={18} />
+              {t('navigation.matchmaking')}
             </a>
             <a
               href="/kurumsal"
@@ -113,63 +104,6 @@ export default function Home() {
             {t('home.services.title')}
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {/* 1. Kart: Toplu turlara katılım */}
-            <a
-              href="/tours"
-              className="relative group rounded-2xl overflow-hidden shadow-md hover:shadow-2xl transition-transform duration-300 transform hover:-translate-y-1 cursor-pointer flex flex-col"
-            >
-              <div
-                className="absolute inset-0 bg-cover bg-center transition-transform duration-500 group-hover:scale-105"
-                style={{ backgroundImage: "url('/bali-island-tropical-beach-temple.jpg')" }}
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/55 to-black/25" />
-              <div className="relative z-10 p-6 flex flex-col h-full">
-                <Plane className="text-emerald-200 mb-2" size={30} />
-                <h3 className="text-base md:text-lg font-medium mb-1 text-white">{t('home.services.cards.joinTours.title')}</h3>
-                <p className="text-sm text-emerald-50/95 flex-1">
-                  {t('home.services.cards.joinTours.description')}
-                </p>
-              </div>
-            </a>
-
-            {/* 2. Kart: Kurumsal tur organizasyonu */}
-            <a
-              href="/tours/groups"
-              className="relative group rounded-2xl overflow-hidden shadow-md hover:shadow-2xl transition-transform duration-300 transform hover:-translate-y-1 cursor-pointer flex flex-col"
-            >
-              <div
-                className="absolute inset-0 bg-cover bg-center transition-transform duration-500 group-hover:scale-105"
-                style={{ backgroundImage: "url('/tanah-lot-temple-sunset-ocean.jpg')" }}
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/55 to-black/25" />
-              <div className="relative z-10 p-6 flex flex-col h-full">
-                <Users className="text-emerald-200 mb-2" size={30} />
-                <h3 className="text-base md:text-lg font-medium mb-1 text-white">{t('home.services.cards.groupTours.title')}</h3>
-                <p className="text-sm text-emerald-50/95 flex-1">
-                  {t('home.services.cards.groupTours.description')}
-                </p>
-              </div>
-            </a>
-
-            {/* 3. Kart: Bireysel / aile seyahati */}
-            <a
-              href="/travel"
-              className="relative group rounded-2xl overflow-hidden shadow-md hover:shadow-2xl transition-transform duration-300 transform hover:-translate-y-1 cursor-pointer flex flex-col"
-            >
-              <div
-                className="absolute inset-0 bg-cover bg-center transition-transform duration-500 group-hover:scale-105"
-                style={{ backgroundImage: "url('/bali-luxury-pool-villa.jpg')" }}
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/55 to-black/25" />
-              <div className="relative z-10 p-6 flex flex-col h-full">
-                <MapPin className="text-emerald-200 mb-2" size={30} />
-                <h3 className="text-base md:text-lg font-medium mb-1 text-white">{t('home.services.cards.privateTravel.title')}</h3>
-                <p className="text-sm text-emerald-50/95 flex-1">
-                  {t('home.services.cards.privateTravel.description')}
-                </p>
-              </div>
-            </a>
-
             {isFeatureEnabled('wedding') && (
               <a
                 href="/wedding"
@@ -264,10 +198,10 @@ export default function Home() {
                 ))}
             </div>
             <div className="mt-4 flex flex-wrap items-center gap-2">
-              <a href="/tours" className="inline-flex items-center gap-2 rounded-full bg-emerald-600 text-white px-4 py-2 text-sm font-semibold hover:bg-emerald-700 transition">
-                <Plane size={18} /> {t('home.howItWorks.ctaTours')}
-              </a>
-              <a href="/dokumanlar" className="inline-flex items-center gap-2 rounded-full bg-white border border-slate-200 px-4 py-2 text-sm font-semibold hover:shadow-sm transition">
+                <a href="/uniqah" className="inline-flex items-center gap-2 rounded-full bg-emerald-600 text-white px-4 py-2 text-sm font-semibold hover:bg-emerald-700 transition">
+                  <Heart size={18} /> {t('navigation.matchmaking')}
+                </a>
+              <a href="/docs/on-kayit-bilgi-paketi.html" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 rounded-full bg-white border border-slate-200 px-4 py-2 text-sm font-semibold hover:shadow-sm transition">
                 <BadgeCheck size={18} className="text-emerald-700" /> {t('home.howItWorks.ctaDocuments')}
               </a>
             </div>
@@ -317,7 +251,7 @@ export default function Home() {
               {t('home.cta.ctaContact')}
             </a>
             <a
-              href={buildWhatsAppUrl("Merhaba, Endonezya'da seyahat ve tur planlarımla ilgili bir sorum olacaktı.")}
+              href={buildWhatsAppUrl("Merhaba, Uniqah eşleşme sistemi hakkında bilgi almak istiyorum.")}
               target="_blank"
               rel="noopener noreferrer"
               className="bg-green-500 text-white px-6 py-2.5 rounded-full font-medium hover:bg-green-600 transition text-center inline-flex items-center justify-center gap-2 shadow-md hover:shadow-lg text-sm md:text-base"

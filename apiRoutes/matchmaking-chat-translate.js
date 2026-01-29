@@ -24,6 +24,8 @@ function toUsagePercent(usedCount, limit) {
   return Math.max(0, Math.min(100, pct));
 }
 
+const MAX_TRANSLATE_TEXT_LEN = 150;
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     res.statusCode = 405;
@@ -82,7 +84,7 @@ export default async function handler(req, res) {
 
       const match = matchSnap.data() || {};
       const status = String(match.status || '');
-      if (!['mutual_accepted', 'proposed'].includes(status)) {
+      if (!['mutual_accepted', 'proposed', 'mutual_interest', 'contact_unlocked'].includes(status)) {
         const err = new Error('chat_not_available');
         err.statusCode = 400;
         throw err;
@@ -192,6 +194,12 @@ export default async function handler(req, res) {
         throw err;
       }
 
+      if (text.length > MAX_TRANSLATE_TEXT_LEN) {
+        const err = new Error('translate_too_long');
+        err.statusCode = 413;
+        throw err;
+      }
+
       // Not: Mesaj başına ayrı limit yok; kullanım hesap geneli aylık havuzdan düşer.
 
       const existing = msg?.translations && typeof msg.translations === 'object' ? safeStr(msg.translations[targetLang]) : '';
@@ -231,6 +239,13 @@ export default async function handler(req, res) {
         res.statusCode = 400;
         res.setHeader('content-type', 'application/json');
         res.end(JSON.stringify({ ok: false, error: 'bad_request' }));
+        return;
+      }
+
+      if (text.length > MAX_TRANSLATE_TEXT_LEN) {
+        res.statusCode = 413;
+        res.setHeader('content-type', 'application/json');
+        res.end(JSON.stringify({ ok: false, error: 'translate_too_long' }));
         return;
       }
 

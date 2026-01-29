@@ -1,7 +1,119 @@
 import { getAdmin, normalizeBody, requireCronSecret } from './_firebaseAdmin.js';
+import {
+  decideAgeGroupExpandCount,
+  getAgeGroupMaxExpandFromEnv,
+  getMinAgeFromEnv,
+  getStrictGroupMinCandidatesFromEnv,
+  ageGroupDistanceByAges,
+} from './_matchmakingAgePolicy.js';
+
+const MIN_AGE = getMinAgeFromEnv();
 
 function asNum(v) {
   return typeof v === 'number' && Number.isFinite(v) ? v : null;
+}
+
+function toNumOrNull(v, { min = -Infinity, max = Infinity } = {}) {
+  if (v === null || v === undefined) return null;
+  if (typeof v === 'number' && Number.isFinite(v)) {
+    if (v < min || v > max) return null;
+    return v;
+  }
+  const s = String(v).trim();
+  if (!s) return null;
+  const n = Number(s.replace(',', '.'));
+  if (!Number.isFinite(n)) return null;
+  if (n < min || n > max) return null;
+  return n;
+}
+
+function ageFromBirthYearMaybe(v) {
+  const year = toNumOrNull(v, { min: 1900, max: 2100 });
+  if (year === null) return null;
+  const nowYear = new Date().getFullYear();
+  const age = nowYear - year;
+  return age >= MIN_AGE && age <= 99 ? age : null;
+}
+
+function ageFromDateMaybe(v) {
+  if (!v) return null;
+  let d = null;
+  if (typeof v === 'number' && Number.isFinite(v)) {
+    d = new Date(v);
+  } else if (typeof v === 'string') {
+    const s = v.trim();
+    if (!s) return null;
+    const parsed = Date.parse(s);
+    if (Number.isFinite(parsed)) d = new Date(parsed);
+  } else if (typeof v?.toDate === 'function') {
+    try {
+      d = v.toDate();
+    } catch {
+      d = null;
+    }
+  }
+  if (!d || Number.isNaN(d.getTime())) return null;
+  const now = new Date();
+  let age = now.getFullYear() - d.getFullYear();
+  const m = now.getMonth() - d.getMonth();
+  if (m < 0 || (m === 0 && now.getDate() < d.getDate())) age -= 1;
+  return age >= MIN_AGE && age <= 99 ? age : null;
+}
+
+function getAge(app) {
+  const direct = toNumOrNull(app?.age, { min: MIN_AGE, max: 99 });
+  if (direct !== null) return direct;
+
+  const details = app?.details || {};
+  const nested = toNumOrNull(details?.age, { min: MIN_AGE, max: 99 });
+  if (nested !== null) return nested;
+
+  const byYear = ageFromBirthYearMaybe(details?.birthYear ?? app?.birthYear);
+  if (byYear !== null) return byYear;
+
+  const byDate =
+    ageFromDateMaybe(details?.birthDateMs ?? app?.birthDateMs) ??
+    ageFromDateMaybe(details?.birthDate ?? app?.birthDate) ??
+    ageFromDateMaybe(details?.dob ?? app?.dob);
+  if (byDate !== null) return byDate;
+
+  return null;
+}
+
+function ageGroupDistance(aAge, bAge) {
+  return ageGroupDistanceByAges(aAge, bAge);
+}
+
+function isSeedApplication(app) {
+  const userId = safeStr(app?.userId);
+  if (!userId) return false;
+  if (userId === 'test1' || userId === 'test2') return true;
+  if (userId.startsWith('seed_')) return true;
+
+  const source = safeStr(app?.source).toLowerCase();
+  if (source === 'seed') return true;
+
+  const seedTag = safeStr(app?.seedTag).toLowerCase();
+  if (seedTag === 'mk_seed') return true;
+
+  const seedBatchId = safeStr(app?.seedBatchId);
+  if (seedBatchId) return true;
+
+  return false;
+}
+
+function dedupeAppsByUserIdKeepFirst(apps) {
+  const list = Array.isArray(apps) ? apps : [];
+  const seen = new Set();
+  const out = [];
+  for (const a of list) {
+    const uid = safeStr(a?.userId);
+    if (!uid) continue;
+    if (seen.has(uid)) continue;
+    seen.add(uid);
+    out.push(a);
+  }
+  return out;
 }
 
 function safeStr(v) {
@@ -22,6 +134,34 @@ function tsToMs(v) {
   const nanoseconds = typeof v?.nanoseconds === 'number' ? v.nanoseconds : 0;
   if (seconds !== null) return Math.floor(seconds * 1000 + nanoseconds / 1e6);
   return 0;
+}
+
+function membershipMaxMatchesFromUserDoc(userDoc, nowMs) {
+  const m = userDoc?.membership || null;
+  const plan = typeof m?.plan === 'string' ? String(m.plan).toLowerCase().trim() : '';
+  const validUntilMs = typeof m?.validUntilMs === 'number' && Number.isFinite(m.validUntilMs) ? m.validUntilMs : 0;
+  const active = !!m?.active && validUntilMs > nowMs;
+  if (!active) return 3;
+  if (plan === 'pro') return 10;
+  if (plan === 'standard') return 5;
+  return 3;
+}
+
+function countsAsActiveSlotForUser(match, uid) {
+  const st = safeStr(match?.status);
+  if (st !== 'proposed' && st !== 'mutual_accepted' && st !== 'contact_unlocked') return false;
+
+  // Kullanıcı dismiss ettiyse UI'da slotu boş görür; backend'de de slotu boş sayalım.
+  const d = match?.dismissals && typeof match.dismissals === 'object' ? match.dismissals : null;
+  if (d && uid && d[uid]) return false;
+
+  return true;
+}
+
+function incrementMap(map, key, inc = 1) {
+  if (!key) return;
+  const prev = map.get(key) || 0;
+  map.set(key, prev + inc);
 }
 
 function safeStr2(v) {
@@ -79,6 +219,9 @@ function hasEverActiveMatch(match) {
 }
 
 function canRematchMatchDoc(match, nowMs) {
+  // Yeni ürün kuralı:
+  // - Reject edilen eşleşmeler bir daha asla üretilmez.
+  // - Reject dışındaki cancel durumlarında (örn. admin_rollback) yeniden üretime izin verilebilir.
   if (!match) return false;
   if (hasEverActiveMatch(match)) return false;
 
@@ -86,16 +229,7 @@ function canRematchMatchDoc(match, nowMs) {
   if (status !== 'cancelled') return false;
 
   const reason = safeStr(match?.cancelledReason);
-  if (reason !== 'rejected' && reason !== 'rejected_all') return false;
-
-  const rejectionCount = typeof match?.rejectionCount === 'number' && Number.isFinite(match.rejectionCount) ? match.rejectionCount : 0;
-  if (rejectionCount >= 2) return false;
-
-  const cancelledAtMs = matchCancelledAtMs(match);
-  const REMATCH_COOLDOWN_MS = 7 * 24 * 60 * 60 * 1000;
-  if (!cancelledAtMs) return false;
-  if (nowMs - cancelledAtMs < REMATCH_COOLDOWN_MS) return false;
-
+  if (reason === 'rejected' || reason === 'rejected_all') return false;
   return true;
 }
 
@@ -107,164 +241,224 @@ function countryCodeFromFreeText(country) {
   return 'other';
 }
 
+function normalizeNatCode(v) {
+  const raw = safeStr(v);
+  if (!raw) return '';
+  const low = raw.toLowerCase();
+  if (low === 'tr' || low === 'id' || low === 'other') return low;
+  return countryCodeFromFreeText(raw);
+}
+
 function setHas(list, v) {
   return Array.isArray(list) && v ? list.includes(v) : false;
 }
 
-function computeFitScore(seeker, candidate) {
-  const seekerAge = asNum(seeker?.age);
-  const candAge = asNum(candidate?.age);
+function ageCompatibleOneWay(seeker, candidate) {
+  const seekerAge = getAge(seeker);
+  const candAge = getAge(candidate);
+  if (seekerAge === null || candAge === null) return false;
 
   const p = seeker?.partnerPreferences || {};
+
+  const min = asNum(p?.ageMin);
+  const max = asNum(p?.ageMax);
+  if (min !== null || max !== null) {
+    return (min === null || candAge >= min) && (max === null || candAge <= max);
+  }
+
+  const older = asNum(p?.ageMaxOlderYears);
+  const younger = asNum(p?.ageMaxYoungerYears);
+  if (older !== null || younger !== null) {
+    const o = older ?? 0;
+    const y = younger ?? 0;
+    return candAge >= Math.max(MIN_AGE, seekerAge - y) && candAge <= Math.min(99, seekerAge + o);
+  }
+
+  // Tercih yoksa: yaş aralığı kuralı kısıt üretmesin.
+  return true;
+}
+
+function relaxedAgeWindowYears() {
+  const n = Number(process.env.MATCHMAKING_RELAXED_AGE_WINDOW_YEARS || 7);
+  return Number.isFinite(n) && n > 0 ? Math.round(n) : 7;
+}
+
+function ageCompatibleBoth(a, b) {
+  return ageCompatibleOneWay(a, b) && ageCompatibleOneWay(b, a);
+}
+
+function ageCompatibleBothRelaxed(a, b, windowYears) {
+  const aa = getAge(a);
+  const ab = getAge(b);
+  if (aa === null || ab === null) return true;
+  const w = Number.isFinite(windowYears) && windowYears > 0 ? windowYears : 7;
+  return Math.abs(aa - ab) <= w;
+}
+
+function ageCompatibleBothWithMode(a, b, { relaxAge } = {}) {
+  if (relaxAge) return ageCompatibleBothRelaxed(a, b, relaxedAgeWindowYears());
+  return ageCompatibleBoth(a, b);
+}
+
+function minPoolForStrictFilters() {
+  const n = Number(process.env.MATCHMAKING_MIN_POOL_FOR_STRICT_FILTERS || 50);
+  return Number.isFinite(n) && n >= 0 ? Math.floor(n) : 50;
+}
+
+function maritalCompatibleOneWay(seeker, candidate) {
+  // Ürün kararı: ilk aşamada puanlama yok.
+  // Eşleşme kriteri sadece yaş + cinsiyet + yaş aralığı uyumu.
+  // Bu yüzden tüm adayları eşit skorla değerlendiriyoruz.
+  return 50;
+  const ra = incomeRank(a);
+  const rb = incomeRank(b);
+  if (ra === null || rb === null) return null;
+  const d = Math.abs(ra - rb);
+  if (d === 0) return 100;
+  if (d === 1) return 70;
+  if (d === 2) return 40;
+  return 10;
+}
+
+function incomeRank(raw) {
+  const s = safeStr(raw).toLowerCase();
+  if (!s || s === 'prefer_not_to_say') return null;
+  if (s === 'low') return 1;
+  if (s === 'medium') return 2;
+  if (s === 'good') return 3;
+  if (s === 'very_good') return 4;
+  return null;
+}
+
+function incomeSimilarityScore(aIncome, bIncome) {
+  const ra = incomeRank(aIncome);
+  const rb = incomeRank(bIncome);
+  if (ra === null || rb === null) return null;
+  const d = Math.abs(ra - rb);
+  if (d === 0) return 100;
+  if (d === 1) return 70;
+  if (d === 2) return 40;
+  return 10;
+}
+
+function heightClosenessOneWay(seeker, candidate) {
+  const p = seeker?.partnerPreferences || {};
+  const candDetails = candidate?.details || {};
+  const candHeight = asNum(candDetails?.heightCm);
+  if (candHeight === null) return null;
+
+  const minH = asNum(p?.heightMinCm);
+  const maxH = asNum(p?.heightMaxCm);
+  if (minH === null && maxH === null) return null;
+
+  const center = minH !== null && maxH !== null ? (minH + maxH) / 2 : (minH ?? maxH);
+  const dist = Math.abs(candHeight - center);
+  // 0cm => 100, 10cm => 50, 20cm => 0
+  return Math.max(0, Math.min(100, Math.round(100 - dist * 5)));
+}
+
+function ageGapScore(a, b) {
+  const aa = getAge(a);
+  const ab = getAge(b);
+  if (aa === null || ab === null) return null;
+  const d = Math.abs(aa - ab);
+  // 0 => 100, 5 => 50, 10 => 0
+  return Math.max(0, Math.min(100, Math.round(100 - d * 10)));
+}
+
+function computeTieBreakOneWay(seeker, candidate) {
   const seekerDetails = seeker?.details || {};
   const candDetails = candidate?.details || {};
 
   const weights = {
-    age: 18,
-    height: 10,
-    maritalStatus: 8,
-    religion: 8,
-    livingCountry: 10,
-    communicationLanguage: 10,
-    translationApp: 4,
-    smoking: 6,
-    alcohol: 6,
-    children: 8,
-    education: 6,
-    occupation: 4,
-    familyValues: 6,
+    income: 60,
+    heightClose: 25,
+    ageGap: 15,
   };
 
   let total = 0;
   let earned = 0;
 
-  // Yaş
-  if (seekerAge !== null && candAge !== null && (asNum(p?.ageMin) !== null || asNum(p?.ageMax) !== null)) {
-    const min = asNum(p?.ageMin);
-    const max = asNum(p?.ageMax);
-    total += weights.age;
-    const ok = (min === null || candAge >= min) && (max === null || candAge <= max);
-    if (ok) earned += weights.age;
-  } else if (seekerAge !== null && candAge !== null && (asNum(p?.ageMaxOlderYears) !== null || asNum(p?.ageMaxYoungerYears) !== null)) {
-    const older = asNum(p?.ageMaxOlderYears) ?? 0;
-    const younger = asNum(p?.ageMaxYoungerYears) ?? 0;
-    total += weights.age;
-    const ok = candAge >= Math.max(18, seekerAge - younger) && candAge <= Math.min(99, seekerAge + older);
-    if (ok) earned += weights.age;
+  const incomeScore = incomeSimilarityScore(seekerDetails?.incomeLevel, candDetails?.incomeLevel);
+  if (incomeScore !== null) {
+    total += weights.income;
+    earned += Math.round((incomeScore / 100) * weights.income);
+  }
+
+  const heightScore = heightClosenessOneWay(seeker, candidate);
+  if (heightScore !== null) {
+    total += weights.heightClose;
+    earned += Math.round((heightScore / 100) * weights.heightClose);
+  }
+
+  const gapScore = ageGapScore(seeker, candidate);
+  if (gapScore !== null) {
+    total += weights.ageGap;
+    earned += Math.round((gapScore / 100) * weights.ageGap);
+  }
+
+  if (!total) return 0;
+  return Math.max(0, Math.min(100, Math.round((earned / total) * 100)));
+}
+
+function computeFitScore(seeker, candidate) {
+  // Yeni yaklaşım: eşleşmenin temelini yaş+cinsiyet oluşturur.
+  // Buradaki skor, sadece “ilk bakışta” kriterlerden (medeni durum/çocuk/boy) gelir.
+  const p = seeker?.partnerPreferences || {};
+  const candDetails = candidate?.details || {};
+
+  const weights = {
+    maritalStatus: 40,
+    children: 35,
+    height: 25,
+  };
+
+  let total = 0;
+  let earned = 0;
+  let bonus = 0;
+
+  // Medeni hal
+  const prefMarital = safeStr(p?.maritalStatus);
+  if (prefMarital) {
+    total += weights.maritalStatus;
+    if (prefMarital === 'doesnt_matter') {
+      earned += weights.maritalStatus;
+      bonus += 2;
+    } else {
+      const candMarital = safeStr(candDetails?.maritalStatus);
+      if (candMarital && candMarital === prefMarital) earned += weights.maritalStatus;
+    }
+  }
+
+  // Çocuk
+  const prefChildren = safeStr(p?.childrenPreference);
+  if (prefChildren) {
+    total += weights.children;
+    if (prefChildren === 'doesnt_matter') {
+      earned += weights.children;
+    } else {
+      const has = safeStr(candDetails?.hasChildren);
+      const ok = (prefChildren === 'want_children' && has === 'yes') || (prefChildren === 'no_children' && has === 'no');
+      if (ok) earned += weights.children;
+    }
   }
 
   // Boy
   const candHeight = asNum(candDetails?.heightCm);
   const minH = asNum(p?.heightMinCm);
   const maxH = asNum(p?.heightMaxCm);
-  if (candHeight !== null && (minH !== null || maxH !== null)) {
+  if (minH !== null || maxH !== null) {
     total += weights.height;
-    const ok = (minH === null || candHeight >= minH) && (maxH === null || candHeight <= maxH);
-    if (ok) earned += weights.height;
-  }
-
-  // Medeni hal
-  if (safeStr(p?.maritalStatus)) {
-    total += weights.maritalStatus;
-    const ok = safeStr(p.maritalStatus) === safeStr(candDetails?.maritalStatus);
-    if (ok) earned += weights.maritalStatus;
-  }
-
-  // Din
-  if (safeStr(p?.religion)) {
-    total += weights.religion;
-    const ok = safeStr(p.religion) === safeStr(candDetails?.religion);
-    if (ok) earned += weights.religion;
-  }
-
-  // Yaşadığı ülke
-  if (safeStr(p?.livingCountry) && safeStr(p.livingCountry) !== 'doesnt_matter') {
-    total += weights.livingCountry;
-    const candC = countryCodeFromFreeText(candidate?.country);
-    const ok = safeStr(p.livingCountry) === candC;
-    if (ok) earned += weights.livingCountry;
-  }
-
-  // İletişim dili
-  if (safeStr(p?.communicationLanguage) && safeStr(p.communicationLanguage) !== 'doesnt_matter') {
-    total += weights.communicationLanguage;
-    const candLang = candDetails?.languages || {};
-    const native = safeStr(candLang?.native?.code || candDetails?.communicationLanguage);
-    const foreignCodes = Array.isArray(candLang?.foreign?.codes) ? candLang.foreign.codes : [];
-    const knows = (code) => code && (native === code || setHas(foreignCodes, code));
-
-    const pref = safeStr(p.communicationLanguage);
-    const ok = knows(pref);
-    if (ok) {
-      earned += weights.communicationLanguage;
-    } else {
-      // Çeviri uygulaması ile idare edebilir mi? (yarım puan)
-      const canTranslate = !!candDetails?.canCommunicateWithTranslationApp;
-      if (canTranslate && pref !== 'other') {
-        earned += Math.round(weights.communicationLanguage * 0.5);
-      }
+    if (candHeight !== null) {
+      const ok = (minH === null || candHeight >= minH) && (maxH === null || candHeight <= maxH);
+      if (ok) earned += weights.height;
     }
   }
 
-  // Çeviri uygulaması şartı
-  if (typeof p?.canCommunicateWithTranslationApp === 'boolean') {
-    total += weights.translationApp;
-    const candCan = !!candDetails?.canCommunicateWithTranslationApp;
-    const ok = p.canCommunicateWithTranslationApp ? candCan : true;
-    if (ok) earned += weights.translationApp;
-  }
-
-  // Sigara
-  if (safeStr(p?.smokingPreference)) {
-    total += weights.smoking;
-    const ok = safeStr(p.smokingPreference) === safeStr(candDetails?.smoking);
-    if (ok) earned += weights.smoking;
-  }
-
-  // Alkol
-  if (safeStr(p?.alcoholPreference)) {
-    total += weights.alcohol;
-    const ok = safeStr(p.alcoholPreference) === safeStr(candDetails?.alcohol);
-    if (ok) earned += weights.alcohol;
-  }
-
-  // Çocuk
-  const prefChildren = safeStr(p?.childrenPreference);
-  if (prefChildren && prefChildren !== 'doesnt_matter') {
-    total += weights.children;
-    const has = safeStr(candDetails?.hasChildren);
-    const ok =
-      (prefChildren === 'want_children' && has === 'yes') ||
-      (prefChildren === 'no_children' && has === 'no');
-    if (ok) earned += weights.children;
-  }
-
-  // Eğitim
-  const prefEdu = safeStr(p?.educationPreference);
-  if (prefEdu && prefEdu !== 'doesnt_matter') {
-    total += weights.education;
-    const ok = prefEdu === safeStr(candDetails?.education);
-    if (ok) earned += weights.education;
-  }
-
-  // Meslek
-  const prefOcc = safeStr(p?.occupationPreference);
-  if (prefOcc && prefOcc !== 'doesnt_matter') {
-    total += weights.occupation;
-    const ok = prefOcc === safeStr(candDetails?.occupation);
-    if (ok) earned += weights.occupation;
-  }
-
-  // Aile değerleri
-  const prefFam = safeStr(p?.familyValuesPreference);
-  if (prefFam && prefFam !== 'doesnt_matter') {
-    total += weights.familyValues;
-    const ok = prefFam === safeStr(seekerDetails?.religiousValues || '') || prefFam === safeStr(candDetails?.religiousValues || '');
-    if (ok) earned += weights.familyValues;
-  }
-
-  if (!total) return 0;
-  return Math.max(0, Math.min(100, Math.round((earned / total) * 100)));
+  // Hiç kriter yoksa: nötr skor.
+  if (!total) return 50;
+  const base = Math.round((earned / total) * 100);
+  return Math.max(0, Math.min(100, base + bonus));
 }
 
 function buildPublicProfile(app, userStatus) {
@@ -280,7 +474,7 @@ function buildPublicProfile(app, userStatus) {
     profileNo: asNum(app?.profileNo),
     profileCode: safeStr(app?.profileCode),
     username: safeStr(app?.username),
-    age: asNum(app?.age),
+    age: getAge(app),
     city: safeStr(app?.city),
     country: safeStr(app?.country),
     photoUrls: Array.isArray(app?.photoUrls) ? app.photoUrls.filter((u) => typeof u === 'string' && u.trim()) : [],
@@ -348,15 +542,12 @@ async function expireOldProposedMatches({ db, FieldValue, nowMs, ttlMs, maxToPro
         .where('status', '==', 'proposed')
         .where('createdAt', '<=', new Date(cutoffMs))
         .orderBy('createdAt', 'asc')
-        .limit(maxToProcess - processed)
+        .limit(Math.max(1, maxToProcess - processed))
         .get();
 
       if (!snap2.empty) {
         const batch2 = db.batch();
         snap2.docs.forEach((d) => {
-          const data = d.data() || {};
-          const createdAtMs = typeof data.createdAtMs === 'number' ? data.createdAtMs : tsToMs(data.createdAt);
-          if (createdAtMs && createdAtMs > cutoffMs) return;
           batch2.set(
             d.ref,
             {
@@ -548,81 +739,95 @@ async function autoConfirmOldMutualAccepted({ db, FieldValue, nowMs, ttlMs, maxT
       { merge: true }
     );
     confirmed += 1;
-
-    // 2) İki kullanıcı için diğer proposed slotlarını iptal et.
-    for (const uid of [u1, u2]) {
-      try {
-        const snap = await db
-          .collection('matchmakingMatches')
-          .where('status', '==', 'proposed')
-          .where('userIds', 'array-contains', uid)
-          .limit(60)
-          .get();
-
-        if (snap.empty) continue;
-
-        const batch = db.batch();
-        snap.docs.forEach((d) => {
-          if (d.id === matchId) return;
-          batch.set(
-            d.ref,
-            {
-              status: 'cancelled',
-              cancelledAt: FieldValue.serverTimestamp(),
-              cancelledAtMs: nowMs,
-              cancelledByUserId: 'system',
-              cancelledReason: 'confirmed_elsewhere',
-              confirmedMatchId: matchId,
-              updatedAt: FieldValue.serverTimestamp(),
-            },
-            { merge: true }
-          );
-          slotsCleared += 1;
-        });
-        await batch.commit();
-      } catch {
-        // ignore
-      }
-    }
   }
 
   return { confirmed, slotsCleared };
 }
 
 export default async function handler(req, res) {
-  if (req.method !== 'POST') {
+  if (req.method !== 'POST' && req.method !== 'GET') {
     res.statusCode = 405;
     res.setHeader('content-type', 'application/json');
     res.end(JSON.stringify({ ok: false, error: 'method_not_allowed' }));
     return;
   }
 
+  let db = null;
+  let FieldValue = null;
+  let firebaseProjectId = '';
+  const startedAtMs = Date.now();
   try {
     // Bu endpoint cron/job için tasarlandı.
     requireCronSecret(req);
 
     const body = normalizeBody(req);
-    const threshold = typeof body.threshold === 'number' ? body.threshold : 70;
-    const limitApps = typeof body.limitApps === 'number' ? body.limitApps : 400;
+    const qs = req?.query && typeof req.query === 'object' ? req.query : {};
+    const thresholdRaw = req.method === 'GET' ? qs?.threshold : body.threshold;
+    const limitAppsRaw = req.method === 'GET' ? qs?.limitApps : body.limitApps;
+    const includeSeedsRaw = req.method === 'GET' ? qs?.includeSeeds : body.includeSeeds;
+    const dryRunRaw = req.method === 'GET' ? qs?.dryRun : body.dryRun;
 
-    const { db, FieldValue } = getAdmin();
+    const thresholdNum = typeof thresholdRaw === 'number' ? thresholdRaw : Number(thresholdRaw);
+    const limitAppsNum = typeof limitAppsRaw === 'number' ? limitAppsRaw : Number(limitAppsRaw);
+    // İlk aşama: skor eşiği yok.
+    const threshold = 0;
+    const limitApps = Number.isFinite(limitAppsNum) ? limitAppsNum : 400;
+
+    const parseBoolish = (value) => {
+      if (value === true || value === false) return value;
+      if (value === null || typeof value === 'undefined') return undefined;
+      const s = String(value).toLowerCase().trim();
+      if (!s) return undefined;
+      if (['1', 'true', 'yes', 'y', 'on'].includes(s)) return true;
+      if (['0', 'false', 'no', 'n', 'off'].includes(s)) return false;
+      return undefined;
+    };
+
+    const includeSeeds =
+      String(process.env.MATCHMAKING_INCLUDE_SEEDS || '').trim() === '1' ||
+      ['1', 'true', 'yes', 'y'].includes(String(includeSeedsRaw || '').toLowerCase().trim());
+
+    const dryRunFromReq = parseBoolish(dryRunRaw);
+    const dryRunFromEnv = String(process.env.MATCHMAKING_DRY_RUN || '').trim() === '1';
+    const dryRun = typeof dryRunFromReq === 'boolean' ? dryRunFromReq : dryRunFromEnv;
+    const dryRunSource = typeof dryRunFromReq === 'boolean' ? 'request' : dryRunFromEnv ? 'env' : 'default';
+
+    ({ db, FieldValue, projectId: firebaseProjectId } = getAdmin());
+
+    const headers = req?.headers || {};
+    const runMeta = {
+      startedAtMs,
+      startedAt: FieldValue.serverTimestamp(),
+      // Kaynak ipucu (cron mu manuel mi?)
+      triggeredBy: String(headers?.['x-vercel-cron'] || headers?.['X-Vercel-Cron'] ? 'vercel_cron' : 'secret'),
+      vercelId: String(headers?.['x-vercel-id'] || headers?.['X-Vercel-Id'] || ''),
+      userAgent: String(headers?.['user-agent'] || headers?.['User-Agent'] || ''),
+      updatedAt: FieldValue.serverTimestamp(),
+    };
+
+    // Best-effort: start log
+    try {
+      await db.collection('matchmakingRuns').doc('last').set(runMeta, { merge: true });
+    } catch {
+      // ignore
+    }
 
     const nowMs = Date.now();
     const PROPOSED_TTL_MS = 48 * 60 * 60 * 1000;
-    const INACTIVE_TTL_MS = 24 * 60 * 60 * 1000;
+    // Küçük havuzlarda 24 saat çok agresif ve havuzu sıfırlayabiliyor.
+    // Varsayılanı 7 gün yaptık; istenirse env ile düşürülebilir.
+    const ttlHours = Number(process.env.MATCHMAKING_INACTIVE_TTL_HOURS || 24 * 7);
+    const INACTIVE_TTL_MS = (Number.isFinite(ttlHours) && ttlHours > 0 ? ttlHours : 24 * 7) * 60 * 60 * 1000;
     const inactiveCutoffMs = nowMs - INACTIVE_TTL_MS;
 
     // 48 saat kuralı:
     // - proposed: 48 saat sonunda expire
     // - mutual_accepted: 48 saat sonunda "kesinleşmiş" kabul edilir ve diğer proposed slotları boşaltılır
-    const expiredProposed = await expireOldProposedMatches({ db, FieldValue, nowMs, ttlMs: PROPOSED_TTL_MS });
+    const expiredProposed = dryRun ? 0 : await expireOldProposedMatches({ db, FieldValue, nowMs, ttlMs: PROPOSED_TTL_MS });
 
     // 48 saat dolmuş mutual_accepted match'leri kesinleşmiş say (auto-confirm) ve diğer proposed slotlarını boşalt.
     // Not: cleanupInactiveMatches'ten önce çağırıyoruz ki confirmed match'ler pasiflik kuralıyla iptal edilmesin.
-    const autoConfirmed = await autoConfirmOldMutualAccepted({ db, FieldValue, nowMs, ttlMs: PROPOSED_TTL_MS });
-
-    // 24 saat pasif kullanıcılar: eşleşmeleri iptal et ve kilitleri aç.
-    const inactiveCleanup = await cleanupInactiveMatches({ db, FieldValue, nowMs, ttlMs: INACTIVE_TTL_MS });
+    const autoConfirmed = dryRun ? { confirmed: 0, slotsCleared: 0 } : await autoConfirmOldMutualAccepted({ db, FieldValue, nowMs, ttlMs: PROPOSED_TTL_MS });
 
     const appsSnap = await db
       .collection('matchmakingApplications')
@@ -630,9 +835,31 @@ export default async function handler(req, res) {
       .limit(Math.max(50, Math.min(2000, limitApps)))
       .get();
 
-    const apps = appsSnap.docs
-      .map((d) => ({ id: d.id, ...(d.data() || {}) }))
-      .filter((a) => a?.userId && a?.gender && a?.lookingForGender);
+    const rawApps = appsSnap.docs.map((d) => ({ id: d.id, ...(d.data() || {}) }));
+    const seedTagged = rawApps.filter((a) => isSeedApplication(a)).length;
+    // appsSnap createdAt desc geliyor; aynı userId için ilk kayıt en yenidir.
+    const rawAppsUnique = dedupeAppsByUserIdKeepFirst(rawApps);
+    const apps = rawAppsUnique
+      .filter(
+        (a) =>
+          a?.userId &&
+          (a?.gender === 'male' || a?.gender === 'female')
+      )
+      .filter((a) => (includeSeeds ? true : !isSeedApplication(a)));
+
+    const minPool = minPoolForStrictFilters();
+    // Yaş tercihlerini gevşetme yok.
+    const relaxFilters = false;
+    // Ürün kararı: pasiflik/online filtresi yok.
+    // Kullanıcılar kaç gündür pasif olduğuna bakılmaksızın eşleştirmeye dahil edilir.
+    // (İstenirse ileride env ile tekrar açılabilir.)
+    const applyInactivityRules = false;
+
+    // Pasif kullanıcılar: küçük havuzda devre dışı bırak (aksi halde havuz sıfırlanabiliyor).
+    const inactiveCleanup =
+      !applyInactivityRules || dryRun
+        ? { cancelledProposed: 0, cancelledMutualAccepted: 0, freedLocks: 0, creditsGranted: 0 }
+        : await cleanupInactiveMatches({ db, FieldValue, nowMs, ttlMs: INACTIVE_TTL_MS });
 
     // Daha önce oluşturulmuş eşleşmeler: aynı iki kullanıcıyı tekrar eşleştirmemek için.
     // Not: Basit MVP; çok büyürse burada daha hedefli query gerekir.
@@ -641,6 +868,10 @@ export default async function handler(req, res) {
       .orderBy('createdAt', 'desc')
       .limit(5000)
       .get();
+
+    // Slot doluluğu: kullanıcı bazında aktif match sayısı.
+    // Not: Bu sayım lockActive'den bağımsızdır; UI'daki "boş slot" algısıyla uyumlu olmalıdır.
+    const activeMatchCountByUserId = new Map();
 
     // key: "uidA__uidB" -> match summary
     const existingByPairKey = new Map();
@@ -659,6 +890,10 @@ export default async function handler(req, res) {
           chatEnabledAtMs: typeof m?.chatEnabledAtMs === 'number' ? m.chatEnabledAtMs : tsToMs(m?.chatEnabledAt),
           firstCreatedAtMs: typeof m?.firstCreatedAtMs === 'number' ? m.firstCreatedAtMs : (typeof m?.createdAtMs === 'number' ? m.createdAtMs : 0),
         });
+
+        for (const uid of userIds) {
+          if (countsAsActiveSlotForUser(m, uid)) incrementMap(activeMatchCountByUserId, uid, 1);
+        }
       }
     });
 
@@ -681,17 +916,25 @@ export default async function handler(req, res) {
         const newUserSlotActive = !!newUserSlot?.active;
         const newUserSlotSinceMs = typeof newUserSlot?.sinceMs === 'number' && Number.isFinite(newUserSlot.sinceMs) ? newUserSlot.sinceMs : 0;
         const newUserSlotThreshold = typeof newUserSlot?.threshold === 'number' && Number.isFinite(newUserSlot.threshold) ? newUserSlot.threshold : 70;
+
+        const maxMatches = null;
+        const activeMatchCount = activeMatchCountByUserId.get(d.id) || 0;
+        const hasFreeSlot = true;
+
         userStatusById.set(d.id, {
           blocked: !!data.blocked,
           lockActive: !!data?.matchmakingLock?.active,
           lastSeenAtMs: lastSeenMsFromUserDoc(data),
-          cooldownUntilMs: typeof data?.newMatchCooldownUntilMs === 'number' && Number.isFinite(data.newMatchCooldownUntilMs) ? data.newMatchCooldownUntilMs : 0,
+          cooldownUntilMs: 0,
           newUserSlotActive,
           newUserSlotSinceMs,
           newUserSlotThreshold,
           identityVerified: isIdentityVerifiedUserDoc(data),
           membershipActive: isMembershipActiveUserDoc(data),
           membershipPlan: typeof data?.membership?.plan === 'string' ? String(data.membership.plan).toLowerCase().trim() : '',
+          maxMatches,
+          activeMatchCount,
+          hasFreeSlot,
         });
       });
     }
@@ -705,20 +948,79 @@ export default async function handler(req, res) {
     let created = 0;
     let skippedExisting = 0;
 
+    const debug = {
+      runtime: {
+        firebaseProjectId: firebaseProjectId || null,
+        envFlags: {
+          hasMatchmakingDryRun: typeof process.env.MATCHMAKING_DRY_RUN !== 'undefined',
+          matchmakingDryRunIs1: String(process.env.MATCHMAKING_DRY_RUN || '').trim() === '1',
+          hasMatchmakingCronSecret: !!String(process.env.MATCHMAKING_CRON_SECRET || '').trim(),
+          hasFirebaseServiceAccountInline: !!String(process.env.FIREBASE_SERVICE_ACCOUNT_JSON || process.env.FIREBASE_SERVICE_ACCOUNT || '').trim(),
+          hasFirebaseServiceAccountFile: !!String(process.env.FIREBASE_SERVICE_ACCOUNT_JSON_FILE || process.env.FIREBASE_SERVICE_ACCOUNT_FILE || '').trim(),
+        },
+      },
+      params: {
+        threshold,
+        limitApps,
+        includeSeeds,
+        dryRun,
+        dryRunSource,
+        relaxFilters,
+        applyInactivityRules,
+        minPoolForStrictFilters: minPool,
+        agePolicy: {
+          minAge: MIN_AGE,
+          strictGroupMinCandidates: getStrictGroupMinCandidatesFromEnv(),
+          maxGroupExpand: getAgeGroupMaxExpandFromEnv(),
+        },
+        inactiveTtlHours: Number.isFinite(ttlHours) ? ttlHours : null,
+        inactiveCutoffMs,
+        nowMs,
+      },
+      apps: {
+        fetched: rawApps.length,
+        seedTagged,
+        usable: apps.length,
+      },
+      seekers: {
+        total: 0,
+        processed: 0,
+        skipped: {
+          blocked_or_locked: 0,
+          cooldown: 0,
+          inactive: 0,
+          invalid_want_gender: 0,
+          same_gender_guard: 0,
+          no_pool_candidates: 0,
+        },
+        fallbacks: {
+          allowInactiveSlotCandidates: 0,
+          allowInactiveCandidates: 0,
+        },
+        agePolicy: {
+          expandGroups: { '0': 0, '1': 0, '2': 0 },
+          expandGroupsOther: 0,
+        },
+        withCandidates: 0,
+      },
+      matches: {
+        writeAttempts: 0,
+        written: 0,
+        skippedExisting: 0,
+      },
+      samples: [],
+    };
+
     // Kaba bir yaklaşım: her başvuru için aday üret.
     // Not: Pro aktif üyeler için top-3 kısıtını kaldırıyoruz.
     for (const seeker of apps) {
+      debug.seekers.total += 1;
       const seekerUserId = seeker.userId;
 
-      const seekerStatus = userStatusById.get(String(seekerUserId)) || { blocked: false, lockActive: false };
-      // Engelli veya kilitliyse: yeni eşleşme üretme.
-      if (seekerStatus.blocked || seekerStatus.lockActive) {
-        continue;
-      }
-
-      // Birini listesinden çıkaran kullanıcı 6 saat beklesin (cooldown).
-      const cooldownUntilMs = typeof seekerStatus?.cooldownUntilMs === 'number' ? seekerStatus.cooldownUntilMs : 0;
-      if (cooldownUntilMs > nowMs) {
+      const seekerStatus = userStatusById.get(String(seekerUserId)) || { blocked: false };
+      // Engelli kullanıcılar: yeni eşleşme üretme.
+      if (seekerStatus.blocked) {
+        debug.seekers.skipped.blocked_or_locked += 1;
         continue;
       }
 
@@ -726,30 +1028,58 @@ export default async function handler(req, res) {
       const seekerSeen = typeof seekerStatus?.lastSeenAtMs === 'number' ? seekerStatus.lastSeenAtMs : 0;
       const seekerCreatedAtMs = typeof seeker?.createdAtMs === 'number' ? seeker.createdAtMs : tsToMs(seeker?.createdAt);
       const seekerInactive = seekerSeen > 0 ? seekerSeen <= inactiveCutoffMs : seekerCreatedAtMs > 0 && seekerCreatedAtMs <= inactiveCutoffMs;
-      if (seekerInactive) continue;
+      if (applyInactivityRules && seekerInactive) {
+        debug.seekers.skipped.inactive += 1;
+        continue;
+      }
 
-      const wantGender = seeker.lookingForGender;
-      const wantNat = seeker.lookingForNationality;
+      const seekerGender = safeStr(seeker.gender);
+      const wantGender = seekerGender === 'male' ? 'female' : seekerGender === 'female' ? 'male' : '';
+      // Ürün kararı: milliyet/ülke filtresi yok.
+      const seekerNatCode = '';
+      const wantNat = '';
+      const wantNatCode = '';
+
+      // Sistemsel hata dahil: aynı cinsiyet eşleşmesi üretme.
+      if (wantGender !== 'male' && wantGender !== 'female') {
+        debug.seekers.skipped.invalid_want_gender += 1;
+        continue;
+      }
+      if (seekerGender && seekerGender === safeStr(wantGender)) {
+        debug.seekers.skipped.same_gender_guard += 1;
+        continue;
+      }
+
+      debug.seekers.processed += 1;
 
       // New-user slot aktifse: sadece slot açıldıktan sonra gelen yeni kayıtlardan (>=threshold) 1 eşleşme üret.
       if (seekerStatus?.newUserSlotActive && seekerStatus?.newUserSlotSinceMs > 0) {
+        const seekerAge = getAge(seeker);
+        if (seekerAge === null) {
+          debug.seekers.skipped.no_pool_candidates += 1;
+          continue;
+        }
+
         const sinceMs = seekerStatus.newUserSlotSinceMs;
         const slotThreshold = typeof seekerStatus?.newUserSlotThreshold === 'number' ? seekerStatus.newUserSlotThreshold : 70;
 
-        const poolNew = (byGender[wantGender] || []).filter((cand) => {
-          if (!cand?.userId || cand.userId === seekerUserId) return false;
+        let allowInactiveSlotCandidates = false;
 
-          const candStatus = userStatusById.get(String(cand.userId)) || { blocked: false, lockActive: false };
-          if (candStatus.blocked || candStatus.lockActive) return false;
+        let poolNewStrict = (byGender[wantGender] || []).filter((cand) => {
+          if (!cand?.userId || cand.userId === seekerUserId) return false;
+          if (safeStr(cand.gender) === safeStr(seeker.gender)) return false;
+
+          const candStatus = userStatusById.get(String(cand.userId)) || { blocked: false };
+          if (candStatus.blocked) return false;
 
           const candSeen = typeof candStatus?.lastSeenAtMs === 'number' ? candStatus.lastSeenAtMs : 0;
           const candCreatedAtMs = typeof cand?.createdAtMs === 'number' ? cand.createdAtMs : tsToMs(cand?.createdAt);
           const candInactive = candSeen > 0 ? candSeen <= inactiveCutoffMs : candCreatedAtMs > 0 && candCreatedAtMs <= inactiveCutoffMs;
-          if (candInactive) return false;
+          if (applyInactivityRules && candInactive && !allowInactiveSlotCandidates) return false;
 
           // Yalnızca slot açıldıktan sonra kaydolanlar.
           const createdMs = candCreatedAtMs;
-          if (!(createdMs > sinceMs)) return false;
+          if (createdMs > 0 && !(createdMs > sinceMs)) return false;
 
           // Re-match politikası: reddedilen çiftleri cooldown sonrası tekrar önerebiliriz.
           const pairKey = [String(seekerUserId), String(cand.userId)].sort().join('__');
@@ -759,33 +1089,179 @@ export default async function handler(req, res) {
 
           // Karşı tarafın da seeker ile uyumu
           if (safeStr(cand.lookingForGender) && safeStr(cand.lookingForGender) !== safeStr(seeker.gender)) return false;
-          if (safeStr(cand.lookingForNationality) && safeStr(cand.lookingForNationality) !== safeStr(seeker.nationality)) return false;
+          // Milliyet/ülke filtresi yok.
 
-          if (wantNat && wantNat !== 'other') {
-            return safeStr(cand.nationality) === safeStr(wantNat);
-          }
+          // Yaş+cinsiyet “yarı eşleşme” havuzu (iki yönlü)
+          if (!ageCompatibleBothWithMode(seeker, cand, { relaxAge: relaxFilters })) return false;
+
           return true;
         });
 
-        const scoredNew = [];
-        for (const cand of poolNew) {
-          const scoreA = computeFitScore(seeker, cand);
-          const scoreB = computeFitScore(cand, seeker);
-          const score = Math.round((scoreA + scoreB) / 2);
-          if (score >= slotThreshold && scoreA >= slotThreshold && scoreB >= slotThreshold) {
-            scoredNew.push({ cand, score, scoreA, scoreB });
+        // Fallback tier'larda yalnızca milliyet kontrollerini gevşet.
+        let poolNewRelax = (byGender[wantGender] || []).filter((cand) => {
+          if (!cand?.userId || cand.userId === seekerUserId) return false;
+          if (safeStr(cand.gender) === safeStr(seeker.gender)) return false;
+
+          const candStatus = userStatusById.get(String(cand.userId)) || { blocked: false };
+          if (candStatus.blocked) return false;
+
+          const candSeen = typeof candStatus?.lastSeenAtMs === 'number' ? candStatus.lastSeenAtMs : 0;
+          const candCreatedAtMs = typeof cand?.createdAtMs === 'number' ? cand.createdAtMs : tsToMs(cand?.createdAt);
+          const candInactive = candSeen > 0 ? candSeen <= inactiveCutoffMs : candCreatedAtMs > 0 && candCreatedAtMs <= inactiveCutoffMs;
+          if (applyInactivityRules && candInactive && !allowInactiveSlotCandidates) return false;
+
+          const createdMs = candCreatedAtMs;
+          if (createdMs > 0 && !(createdMs > sinceMs)) return false;
+
+          const pairKey = [String(seekerUserId), String(cand.userId)].sort().join('__');
+          if (producedPairKeys.has(pairKey)) return false;
+          const existing = existingByPairKey.get(pairKey) || null;
+          if (existing && !canRematchMatchDoc(existing, nowMs)) return false;
+
+          if (safeStr(cand.lookingForGender) && safeStr(cand.lookingForGender) !== safeStr(seeker.gender)) return false;
+          if (!ageCompatibleBothWithMode(seeker, cand, { relaxAge: relaxFilters })) return false;
+          // nationality filters relaxed
+          return true;
+        });
+
+        // New-user slot için de aynı yaş grubu politikası.
+        {
+          const strictSameGroupCandidateCount = poolNewStrict.filter((cand) => {
+            const ca = getAge(cand);
+            if (ca === null) return false;
+            return ageGroupDistance(seekerAge, ca) === 0;
+          }).length;
+
+          const localExpandGroups = decideAgeGroupExpandCount({
+            strictSameGroupCandidateCount,
+            strictMinCandidates: getStrictGroupMinCandidatesFromEnv(),
+            maxExpand: getAgeGroupMaxExpandFromEnv(),
+          });
+
+          const withinGroupPolicy = (cand) => {
+            const ca = getAge(cand);
+            if (ca === null) return false;
+            const dist = ageGroupDistance(seekerAge, ca);
+            if (!Number.isFinite(dist)) return false;
+            return localExpandGroups > 0 ? dist <= localExpandGroups : dist === 0;
+          };
+
+          poolNewStrict = poolNewStrict.filter(withinGroupPolicy);
+          poolNewRelax = poolNewRelax.filter(withinGroupPolicy);
+        }
+
+        // Slot havuzu sadece "pasiflik" filtresi yüzünden boş kalıyorsa, son çare pasifleri de dahil et.
+        if (poolNewStrict.length === 0 && poolNewRelax.length === 0) {
+          allowInactiveSlotCandidates = true;
+          poolNewStrict = (byGender[wantGender] || []).filter((cand) => {
+            if (!cand?.userId || cand.userId === seekerUserId) return false;
+            if (safeStr(cand.gender) === safeStr(seeker.gender)) return false;
+
+            const candStatus = userStatusById.get(String(cand.userId)) || { blocked: false };
+            if (candStatus.blocked) return false;
+
+            const candSeen = typeof candStatus?.lastSeenAtMs === 'number' ? candStatus.lastSeenAtMs : 0;
+            const candCreatedAtMs = typeof cand?.createdAtMs === 'number' ? cand.createdAtMs : tsToMs(cand?.createdAt);
+            const candInactive = candSeen > 0 ? candSeen <= inactiveCutoffMs : candCreatedAtMs > 0 && candCreatedAtMs <= inactiveCutoffMs;
+            if (applyInactivityRules && candInactive && !allowInactiveSlotCandidates) return false;
+
+            const createdMs = candCreatedAtMs;
+            if (createdMs > 0 && !(createdMs > sinceMs)) return false;
+
+            const pairKey = [String(seekerUserId), String(cand.userId)].sort().join('__');
+            if (producedPairKeys.has(pairKey)) return false;
+            const existing = existingByPairKey.get(pairKey) || null;
+            if (existing && !canRematchMatchDoc(existing, nowMs)) return false;
+
+            if (safeStr(cand.lookingForGender) && safeStr(cand.lookingForGender) !== safeStr(seeker.gender)) return false;
+            // Milliyet/ülke filtresi yok.
+
+            if (!ageCompatibleBothWithMode(seeker, cand, { relaxAge: relaxFilters })) return false;
+
+            return true;
+          });
+
+          poolNewRelax = (byGender[wantGender] || []).filter((cand) => {
+            if (!cand?.userId || cand.userId === seekerUserId) return false;
+            if (safeStr(cand.gender) === safeStr(seeker.gender)) return false;
+
+            const candStatus = userStatusById.get(String(cand.userId)) || { blocked: false };
+            if (candStatus.blocked) return false;
+
+            const candSeen = typeof candStatus?.lastSeenAtMs === 'number' ? candStatus.lastSeenAtMs : 0;
+            const candCreatedAtMs = typeof cand?.createdAtMs === 'number' ? cand.createdAtMs : tsToMs(cand?.createdAt);
+            const candInactive = candSeen > 0 ? candSeen <= inactiveCutoffMs : candCreatedAtMs > 0 && candCreatedAtMs <= inactiveCutoffMs;
+            if (applyInactivityRules && candInactive && !allowInactiveSlotCandidates) return false;
+
+            const createdMs = candCreatedAtMs;
+            if (createdMs > 0 && !(createdMs > sinceMs)) return false;
+
+            const pairKey = [String(seekerUserId), String(cand.userId)].sort().join('__');
+            if (producedPairKeys.has(pairKey)) return false;
+            const existing = existingByPairKey.get(pairKey) || null;
+            if (existing && !canRematchMatchDoc(existing, nowMs)) return false;
+
+            if (safeStr(cand.lookingForGender) && safeStr(cand.lookingForGender) !== safeStr(seeker.gender)) return false;
+            if (!ageCompatibleBothWithMode(seeker, cand, { relaxAge: relaxFilters })) return false;
+            return true;
+          });
+
+          if (poolNewStrict.length > 0 || poolNewRelax.length > 0) {
+            debug.seekers.fallbacks.allowInactiveSlotCandidates += 1;
           }
         }
 
-        scoredNew.sort((x, y) => y.score - x.score);
-        const pickedNew = scoredNew.slice(0, 1);
+        const scoredNewStrict = [];
+        for (const cand of poolNewStrict) {
+          const scoreA = computeFitScore(seeker, cand);
+          const scoreB = computeFitScore(cand, seeker);
+          const score = Math.round((scoreA + scoreB) / 2);
+          const tieA = computeTieBreakOneWay(seeker, cand);
+          const tieB = computeTieBreakOneWay(cand, seeker);
+          const tie = Math.round((tieA + tieB) / 2);
+          scoredNewStrict.push({ cand, score, scoreA, scoreB, tie });
+        }
 
+        // Eşik: iki tarafın tek tek değil, ortalama skoruna göre.
+        const eligibleNew = scoredNewStrict.filter((x) => x.score >= slotThreshold);
+
+        let pickedNew = [];
+        let matchTier = 'age_gender_pool';
+        if (eligibleNew.length) {
+          eligibleNew.sort((x, y) => y.score - x.score);
+          pickedNew = eligibleNew.slice(0, 1);
+          matchTier = 'score_threshold';
+        } else {
+          const scoredNewRelax = [];
+          for (const cand of poolNewRelax) {
+            const scoreA = computeFitScore(seeker, cand);
+            const scoreB = computeFitScore(cand, seeker);
+            const score = Math.round((scoreA + scoreB) / 2);
+            const tieA = computeTieBreakOneWay(seeker, cand);
+            const tieB = computeTieBreakOneWay(cand, seeker);
+            const tie = Math.round((tieA + tieB) / 2);
+            scoredNewRelax.push({ cand, score, scoreA, scoreB, tie });
+          }
+
+          const combined = [...scoredNewStrict, ...scoredNewRelax];
+          combined.sort((x, y) => {
+            if (y.score !== x.score) return y.score - x.score;
+            const tx = typeof x.tie === 'number' ? x.tie : 0;
+            const ty = typeof y.tie === 'number' ? y.tie : 0;
+            if (ty !== tx) return ty - tx;
+            return 0;
+          });
+          pickedNew = combined.slice(0, 1);
+        }
+
+        let filledSlot = false;
         if (pickedNew.length) {
           const row = pickedNew[0];
           const aUserId = seekerUserId;
           const bUserId = row.cand.userId;
           const userIdsSorted = [aUserId, bUserId].sort();
           const matchId = `${userIdsSorted[0]}__${userIdsSorted[1]}`;
+          const pairKey = matchId;
 
           const ref = db.collection('matchmakingMatches').doc(matchId);
           const existing = await ref.get();
@@ -806,6 +1282,7 @@ export default async function handler(req, res) {
                   scoreAtoB: row.scoreA,
                   scoreBtoA: row.scoreB,
                   score: row.score,
+                  matchTier,
                   status: 'proposed',
                   decisions: { a: null, b: null },
                   profiles: {
@@ -837,7 +1314,8 @@ export default async function handler(req, res) {
                 { merge: true }
               );
               created += 1;
-              producedPairKeys.add(matchId);
+              producedPairKeys.add(pairKey);
+              filledSlot = true;
             } else {
               skippedExisting += 1;
             }
@@ -851,6 +1329,7 @@ export default async function handler(req, res) {
               scoreAtoB: row.scoreA,
               scoreBtoA: row.scoreB,
               score: row.score,
+              matchTier,
               status: 'proposed',
               decisions: { a: null, b: null },
               profiles: {
@@ -866,7 +1345,8 @@ export default async function handler(req, res) {
               updatedAt: FieldValue.serverTimestamp(),
             });
             created += 1;
-            producedPairKeys.add(matchId);
+            producedPairKeys.add(pairKey);
+            filledSlot = true;
           }
 
           // Slot doldu: kapat.
@@ -886,20 +1366,32 @@ export default async function handler(req, res) {
           );
         }
 
-        // Slot açıkken otomatik normal havuzdan üretim yapma.
+        // Slot dolmadıysa normal havuza da düş: aksi halde kullanıcı "boş slot" görüp hiç match alamayabiliyor.
+        if (filledSlot) continue;
+      }
+
+      const seekerAge = getAge(seeker);
+      if (seekerAge === null) {
+        debug.seekers.skipped.no_pool_candidates += 1;
         continue;
       }
 
-      const pool = (byGender[wantGender] || []).filter((cand) => {
-        if (!cand?.userId || cand.userId === seekerUserId) return false;
+      let expandGroups = 0;
 
-        const candStatus = userStatusById.get(String(cand.userId)) || { blocked: false, lockActive: false };
-        if (candStatus.blocked || candStatus.lockActive) return false;
+      let poolStrict = (byGender[wantGender] || []).filter((cand) => {
+        if (!cand?.userId || cand.userId === seekerUserId) return false;
+        if (safeStr(cand.gender) === safeStr(seeker.gender)) return false;
+
+        const candAge = getAge(cand);
+        if (candAge === null) return false;
+
+        const candStatus = userStatusById.get(String(cand.userId)) || { blocked: false };
+        if (candStatus.blocked) return false;
 
         const candSeen = typeof candStatus?.lastSeenAtMs === 'number' ? candStatus.lastSeenAtMs : 0;
         const candCreatedAtMs = typeof cand?.createdAtMs === 'number' ? cand.createdAtMs : tsToMs(cand?.createdAt);
         const candInactive = candSeen > 0 ? candSeen <= inactiveCutoffMs : candCreatedAtMs > 0 && candCreatedAtMs <= inactiveCutoffMs;
-        if (candInactive) return false;
+        if (applyInactivityRules && candInactive) return false;
 
         // Re-match politikası: reddedilen çiftleri cooldown sonrası (2 kez sınırıyla) tekrar önerebiliriz.
         const pairKey = [String(seekerUserId), String(cand.userId)].sort().join('__');
@@ -909,35 +1401,254 @@ export default async function handler(req, res) {
 
         // Karşı tarafın da "ben kimi arıyorum" kısmı seeker ile uyumlu mu?
         if (safeStr(cand.lookingForGender) && safeStr(cand.lookingForGender) !== safeStr(seeker.gender)) return false;
-        if (safeStr(cand.lookingForNationality) && safeStr(cand.lookingForNationality) !== safeStr(seeker.nationality)) return false;
+        // Milliyet/ülke filtresi yok.
 
-        if (wantNat && wantNat !== 'other') {
-          return safeStr(cand.nationality) === safeStr(wantNat);
-        }
+        if (!ageCompatibleBothWithMode(seeker, cand, { relaxAge: relaxFilters })) return false;
+
         return true;
       });
 
-      const scored = [];
-      for (const cand of pool) {
+      let allowInactiveCandidates = false;
+
+      let poolRelax = (byGender[wantGender] || []).filter((cand) => {
+        if (!cand?.userId || cand.userId === seekerUserId) return false;
+        if (safeStr(cand.gender) === safeStr(seeker.gender)) return false;
+
+        const candAge = getAge(cand);
+        if (candAge === null) return false;
+
+        const candStatus = userStatusById.get(String(cand.userId)) || { blocked: false };
+        if (candStatus.blocked) return false;
+
+        const candSeen = typeof candStatus?.lastSeenAtMs === 'number' ? candStatus.lastSeenAtMs : 0;
+        const candCreatedAtMs = typeof cand?.createdAtMs === 'number' ? cand.createdAtMs : tsToMs(cand?.createdAt);
+        const candInactive = candSeen > 0 ? candSeen <= inactiveCutoffMs : candCreatedAtMs > 0 && candCreatedAtMs <= inactiveCutoffMs;
+        if (applyInactivityRules && candInactive && !allowInactiveCandidates) return false;
+
+        const pairKey = [String(seekerUserId), String(cand.userId)].sort().join('__');
+        if (producedPairKeys.has(pairKey)) return false;
+        const existing = existingByPairKey.get(pairKey) || null;
+        if (existing && !canRematchMatchDoc(existing, nowMs)) return false;
+
+        if (safeStr(cand.lookingForGender) && safeStr(cand.lookingForGender) !== safeStr(seeker.gender)) return false;
+        if (!ageCompatibleBothWithMode(seeker, cand, { relaxAge: relaxFilters })) return false;
+        // nationality filters relaxed
+        return true;
+      });
+
+      // Yaş grubu kuralı: varsayılan sadece aynı 5'li grup.
+      // Eğer (karşılıklı yaş aralığına rağmen) aynı grupta yeterli aday yoksa, ±2 yaş grubuna kadar esnet.
+      {
+        const strictSameGroupCandidateCount = poolStrict.filter((cand) => {
+          const ca = getAge(cand);
+          if (ca === null) return false;
+          return ageGroupDistance(seekerAge, ca) === 0;
+        }).length;
+
+        expandGroups = decideAgeGroupExpandCount({
+          strictSameGroupCandidateCount,
+          strictMinCandidates: getStrictGroupMinCandidatesFromEnv(),
+          maxExpand: getAgeGroupMaxExpandFromEnv(),
+        });
+
+        const withinGroupPolicy = (cand) => {
+          const ca = getAge(cand);
+          if (ca === null) return false;
+          const dist = ageGroupDistance(seekerAge, ca);
+          if (!Number.isFinite(dist)) return false;
+          return expandGroups > 0 ? dist <= expandGroups : dist === 0;
+        };
+
+        poolStrict = poolStrict.filter(withinGroupPolicy);
+        poolRelax = poolRelax.filter(withinGroupPolicy);
+      }
+
+      // Havuz sadece "pasiflik" filtresi yüzünden boşsa, son çare pasifleri dahil et.
+      if (poolStrict.length === 0 && poolRelax.length === 0) {
+        allowInactiveCandidates = true;
+        poolRelax = (byGender[wantGender] || []).filter((cand) => {
+          if (!cand?.userId || cand.userId === seekerUserId) return false;
+          if (safeStr(cand.gender) === safeStr(seeker.gender)) return false;
+
+          const candStatus = userStatusById.get(String(cand.userId)) || { blocked: false };
+          if (candStatus.blocked) return false;
+
+          const candSeen = typeof candStatus?.lastSeenAtMs === 'number' ? candStatus.lastSeenAtMs : 0;
+          const candCreatedAtMs = typeof cand?.createdAtMs === 'number' ? cand.createdAtMs : tsToMs(cand?.createdAt);
+          const candInactive = candSeen > 0 ? candSeen <= inactiveCutoffMs : candCreatedAtMs > 0 && candCreatedAtMs <= inactiveCutoffMs;
+          if (applyInactivityRules && candInactive && !allowInactiveCandidates) return false;
+
+          const pairKey = [String(seekerUserId), String(cand.userId)].sort().join('__');
+          if (producedPairKeys.has(pairKey)) return false;
+          const existing = existingByPairKey.get(pairKey) || null;
+          if (existing && !canRematchMatchDoc(existing, nowMs)) return false;
+
+          if (safeStr(cand.lookingForGender) && safeStr(cand.lookingForGender) !== safeStr(seeker.gender)) return false;
+          if (!ageCompatibleBothWithMode(seeker, cand, { relaxAge: relaxFilters })) return false;
+          return true;
+        });
+
+        if (poolRelax.length > 0) {
+          debug.seekers.fallbacks.allowInactiveCandidates += 1;
+        }
+      }
+
+      // Pasiflik fallback'i sonrası tekrar uygula (age policy delinmesin).
+      if (poolRelax.length > 0) {
+        const withinGroupPolicy2 = (cand) => {
+          const ca = getAge(cand);
+          if (ca === null) return false;
+          const dist = ageGroupDistance(seekerAge, ca);
+          if (!Number.isFinite(dist)) return false;
+          return expandGroups > 0 ? dist <= expandGroups : dist === 0;
+        };
+        poolRelax = poolRelax.filter(withinGroupPolicy2);
+      }
+
+      // expandGroups dağılımını debug'a yaz.
+      {
+        const k = String(expandGroups);
+        if (Object.prototype.hasOwnProperty.call(debug.seekers.agePolicy.expandGroups, k)) {
+          debug.seekers.agePolicy.expandGroups[k] += 1;
+        } else {
+          debug.seekers.agePolicy.expandGroupsOther += 1;
+        }
+      }
+
+      if (poolStrict.length === 0 && poolRelax.length === 0) {
+        debug.seekers.skipped.no_pool_candidates += 1;
+      } else {
+        debug.seekers.withCandidates += 1;
+      }
+
+      // 70+ tier strict (milliyet dahil) havuzundan gelsin.
+      const scoredStrict = [];
+      for (const cand of poolStrict) {
         const scoreA = computeFitScore(seeker, cand);
         const scoreB = computeFitScore(cand, seeker);
         const score = Math.round((scoreA + scoreB) / 2);
-        scored.push({ cand, score, scoreA, scoreB });
+        const tieA = computeTieBreakOneWay(seeker, cand);
+        const tieB = computeTieBreakOneWay(cand, seeker);
+        const tie = Math.round((tieA + tieB) / 2);
+        scoredStrict.push({ cand, score, scoreA, scoreB, tie });
       }
 
-      // Eğer threshold'u geçen yoksa (özellikle yeni kullanıcılar için) en yüksek puanlıları göster.
-      const eligible = scored.filter((x) => x.score >= threshold && x.scoreA >= threshold && x.scoreB >= threshold);
-      const picked = eligible.length ? eligible : scored;
-      picked.sort((x, y) => y.score - x.score);
+      // Eşik: iki tarafın tek tek değil, ortalama skoruna göre.
+      const eligible = scoredStrict.filter((x) => x.score >= threshold);
+
+      // Fallback tier'lar: milliyet gevşek havuzdan gelsin.
+      const scored = [];
+      for (const cand of poolRelax) {
+        const scoreA = computeFitScore(seeker, cand);
+        const scoreB = computeFitScore(cand, seeker);
+        const score = Math.round((scoreA + scoreB) / 2);
+        const tieA = computeTieBreakOneWay(seeker, cand);
+        const tieB = computeTieBreakOneWay(cand, seeker);
+        const tie = Math.round((tieA + tieB) / 2);
+        scored.push({ cand, score, scoreA, scoreB, tie });
+      }
+
+      let picked = [];
+      let matchTier = 'age_gender_pool';
+      if (eligible.length) {
+        picked = eligible;
+        matchTier = 'score_threshold';
+      } else {
+        // Yaş+cinsiyet havuzu zaten uygulanmış durumda; burada sadece puana göre seç.
+        picked = scored.length ? scored : scoredStrict;
+      }
+
       const plan = seekerStatus.membershipActive ? String(seekerStatus.membershipPlan || '') : '';
       const maxMatches = plan === 'pro' ? 10 : plan === 'standard' ? 5 : 3;
+
+      // Eğer kullanıcı limiti > mevcut aday sayısı ise, yaş aralığı karşılıklı uyumunda çok dar kalmış olabilir.
+      // Bu durumda son çare: aynı yaş grubundaki (örn 5'lik dilimler) adayları da ekle.
+      if (picked.length < maxMatches) {
+        const seekerAge = getAge(seeker);
+        const seenIds = new Set(picked.map((x) => String(x?.cand?.userId || '')).filter(Boolean));
+        const extra = [];
+
+        if (seekerAge !== null) {
+          for (const cand of byGender[wantGender] || []) {
+            if (!cand?.userId || cand.userId === seekerUserId) continue;
+            if (seenIds.has(String(cand.userId))) continue;
+            if (safeStr(cand.gender) === safeStr(seeker.gender)) continue;
+
+            const candStatus = userStatusById.get(String(cand.userId)) || { blocked: false };
+            if (candStatus.blocked) continue;
+
+            const candSeen = typeof candStatus?.lastSeenAtMs === 'number' ? candStatus.lastSeenAtMs : 0;
+            const candCreatedAtMs = typeof cand?.createdAtMs === 'number' ? cand.createdAtMs : tsToMs(cand?.createdAt);
+            const candInactive = candSeen > 0 ? candSeen <= inactiveCutoffMs : candCreatedAtMs > 0 && candCreatedAtMs <= inactiveCutoffMs;
+            if (applyInactivityRules && candInactive) continue;
+
+            const pairKey = [String(seekerUserId), String(cand.userId)].sort().join('__');
+            if (producedPairKeys.has(pairKey)) continue;
+            const existing = existingByPairKey.get(pairKey) || null;
+            if (existing && !canRematchMatchDoc(existing, nowMs)) continue;
+
+            if (safeStr(cand.lookingForGender) && safeStr(cand.lookingForGender) !== safeStr(seeker.gender)) continue;
+
+            const candAge = getAge(cand);
+            if (candAge === null) continue;
+            // Bu fallback bloğu artık yaş grubu kuralını DELMEZ; sadece mevcut politika kapsamındaki adayları ekler.
+            const dist = ageGroupDistance(seekerAge, candAge);
+            if (!(expandGroups > 0 ? dist <= expandGroups : dist === 0)) continue;
+
+            const scoreA = computeFitScore(seeker, cand);
+            const scoreB = computeFitScore(cand, seeker);
+            const score = Math.round((scoreA + scoreB) / 2);
+            const tieA = computeTieBreakOneWay(seeker, cand);
+            const tieB = computeTieBreakOneWay(cand, seeker);
+            const tie = Math.round((tieA + tieB) / 2);
+            extra.push({ cand, score, scoreA, scoreB, tie, matchTier: 'age_group_pool' });
+            seenIds.add(String(cand.userId));
+          }
+        }
+
+        if (extra.length) {
+          picked = picked.concat(extra);
+        }
+      }
+
+      picked.sort((x, y) => {
+        if (y.score !== x.score) return y.score - x.score;
+        const tx = typeof x.tie === 'number' ? x.tie : 0;
+        const ty = typeof y.tie === 'number' ? y.tie : 0;
+        if (ty !== tx) return ty - tx;
+        return 0;
+      });
       const top = picked.slice(0, maxMatches);
 
+      if (debug.samples.length < 12) {
+        const topOne = top[0] || null;
+        debug.samples.push({
+          seekerUserId: String(seekerUserId),
+          seekerAge: getAge(seeker),
+          wantGender,
+          poolStrict: poolStrict.length,
+          poolRelax: poolRelax.length,
+          tier: matchTier,
+          top: topOne
+            ? {
+                candUserId: String(topOne.cand?.userId || ''),
+                candAge: getAge(topOne.cand),
+                score: topOne.score,
+                scoreA: topOne.scoreA,
+                scoreB: topOne.scoreB,
+                tie: typeof topOne.tie === 'number' ? topOne.tie : null,
+              }
+            : null,
+        });
+      }
+
       for (const row of top) {
+        debug.matches.writeAttempts += 1;
         const aUserId = seekerUserId;
         const bUserId = row.cand.userId;
         const userIdsSorted = [aUserId, bUserId].sort();
         const matchId = `${userIdsSorted[0]}__${userIdsSorted[1]}`;
+        const pairKey = matchId;
 
         const ref = db.collection('matchmakingMatches').doc(matchId);
         const existing = await ref.get();
@@ -945,8 +1656,16 @@ export default async function handler(req, res) {
           const ex = existing.data() || {};
           if (!canRematchMatchDoc(ex, nowMs)) {
             skippedExisting += 1;
+            debug.matches.skippedExisting += 1;
             continue;
           }
+        }
+
+        if (dryRun) {
+          created += 1;
+          debug.matches.written += 1;
+          producedPairKeys.add(pairKey);
+          continue;
         }
 
         const base = {
@@ -959,6 +1678,8 @@ export default async function handler(req, res) {
           scoreAtoB: row.scoreA,
           scoreBtoA: row.scoreB,
           score: row.score,
+          tie: typeof row.tie === 'number' ? row.tie : null,
+          matchTier: safeStr(row?.matchTier) || matchTier,
           status: 'proposed',
           decisions: { a: null, b: null },
           profiles: {
@@ -1006,14 +1727,42 @@ export default async function handler(req, res) {
         }
 
         created += 1;
+        debug.matches.written += 1;
 
         // Aynı çalıştırma içinde tekrar üretimi engelle.
-        producedPairKeys.add(matchId);
+        producedPairKeys.add(pairKey);
       }
     }
 
     res.statusCode = 200;
     res.setHeader('content-type', 'application/json');
+
+    // Best-effort: success log
+    try {
+      await db.collection('matchmakingRuns').doc('last').set(
+        {
+          ok: true,
+          error: '',
+          finishedAtMs: Date.now(),
+          finishedAt: FieldValue.serverTimestamp(),
+          summary: {
+            created,
+            skippedExisting,
+            apps: apps.length,
+            expiredProposed,
+            inactiveCleanup,
+            autoConfirmed: autoConfirmed?.confirmed || 0,
+            clearedSlots: autoConfirmed?.slotsCleared || 0,
+            debug,
+          },
+          updatedAt: FieldValue.serverTimestamp(),
+        },
+        { merge: true }
+      );
+    } catch {
+      // ignore
+    }
+
     res.end(
       JSON.stringify({
         ok: true,
@@ -1024,9 +1773,28 @@ export default async function handler(req, res) {
         inactiveCleanup,
         autoConfirmed: autoConfirmed?.confirmed || 0,
         clearedSlots: autoConfirmed?.slotsCleared || 0,
+        debug,
       })
     );
   } catch (e) {
+    // Best-effort: failure log
+    try {
+      if (db && FieldValue) {
+        await db.collection('matchmakingRuns').doc('last').set(
+          {
+            ok: false,
+            error: String(e?.message || 'server_error'),
+            finishedAtMs: Date.now(),
+            finishedAt: FieldValue.serverTimestamp(),
+            updatedAt: FieldValue.serverTimestamp(),
+          },
+          { merge: true }
+        );
+      }
+    } catch {
+      // ignore
+    }
+
     res.statusCode = e?.statusCode || 500;
     res.setHeader('content-type', 'application/json');
     res.end(JSON.stringify({ ok: false, error: String(e?.message || 'server_error') }));

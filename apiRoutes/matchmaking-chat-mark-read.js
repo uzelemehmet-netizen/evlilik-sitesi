@@ -45,33 +45,13 @@ export default async function handler(req, res) {
       const match = matchSnap.data() || {};
 
       const status = String(match.status || '');
-      if (status !== 'mutual_accepted') {
+      if (status !== 'mutual_accepted' && status !== 'proposed' && status !== 'contact_unlocked' && status !== 'mutual_interest') {
         const err = new Error('chat_not_available');
         err.statusCode = 400;
         throw err;
       }
 
-      const currentMode = typeof match?.interactionMode === 'string' ? match.interactionMode : '';
-      if (currentMode !== 'chat') {
-        // Backward-compat: eski match'lerde interactionMode boş kalmış olabilir.
-        if (!currentMode) {
-          tx.set(
-            matchRef,
-            {
-              interactionMode: 'chat',
-              interactionChosenAt: FieldValue.serverTimestamp(),
-              chatEnabledAt: FieldValue.serverTimestamp(),
-              chatEnabledAtMs: ts,
-              updatedAt: FieldValue.serverTimestamp(),
-            },
-            { merge: true }
-          );
-        } else {
-          const err = new Error('chat_not_enabled');
-          err.statusCode = 400;
-          throw err;
-        }
-      }
+      // Mark-read kısa/uzun tüm modlarda çalışmalı; interactionMode burada zorunlu değil.
 
       const userIds = Array.isArray(match.userIds) ? match.userIds.map(String).filter(Boolean) : [];
       if (userIds.length !== 2 || !userIds.includes(uid)) {

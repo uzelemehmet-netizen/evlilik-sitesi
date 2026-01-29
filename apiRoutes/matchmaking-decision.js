@@ -1,5 +1,4 @@
 import { getAdmin, normalizeBody, requireIdToken } from './_firebaseAdmin.js';
-import { ensureEligibleOrThrow } from './_matchmakingEligibility.js';
 
 function normalizeDecision(v) {
   const s = String(v || '').toLowerCase().trim();
@@ -17,6 +16,14 @@ function hasActiveLock(userDoc, exceptMatchId) {
   return matchId !== String(exceptMatchId || '');
 }
 
+function getActiveLockMatchId(userDoc) {
+  const lock = userDoc?.matchmakingLock || null;
+  const active = !!lock?.active;
+  const matchId = typeof lock?.matchId === 'string' ? lock.matchId : '';
+  const s = safeStr(matchId);
+  return active && s ? s : '';
+}
+
 function getChoiceMatchId(userDoc) {
   const choice = userDoc?.matchmakingChoice || null;
   const active = !!choice?.active;
@@ -26,6 +33,12 @@ function getChoiceMatchId(userDoc) {
 
 function safeStr(v) {
   return typeof v === 'string' ? v.trim() : '';
+}
+
+function isTwoStepActiveStartEnabled() {
+  const mode = safeStr(process.env.MATCHMAKING_ACTIVE_START_MODE || '').toLowerCase();
+  if (!mode) return true; // default: two-step
+  return mode !== 'legacy';
 }
 
 function getPendingContinueMatchId(userDoc) {
@@ -122,9 +135,10 @@ export default async function handler(req, res) {
       const meUser = meSnap.exists ? (meSnap.data() || {}) : {};
       const otherUser = otherUserSnap.exists ? (otherUserSnap.data() || {}) : {};
 
-      // İkinci adım kilidi aktifse (başka bir match'e kilitliyse) diğer profillerde kabul/ret kapalı.
-      if (hasActiveLock(meUser, matchId)) {
-        const err = new Error('user_locked');
+      // Yeni ürün kuralı: Aktif eşleşme varken diğer profillerle etkileşim yok.
+      const myActiveLockMatchId = getActiveLockMatchId(meUser);
+      if (myActiveLockMatchId && myActiveLockMatchId !== matchId) {
+        const err = new Error('active_match_locked');
         err.statusCode = 409;
         throw err;
       }
@@ -156,10 +170,7 @@ export default async function handler(req, res) {
       };
 
       if (decision === 'reject') {
-        ensureEligibleOrThrow(meUser, myGender);
-
         const nowMs = Date.now();
-        const COOLDOWN_MS = 1 * 60 * 60 * 1000;
 
         if (rejectReasonCode) {
           patch.rejectionFeedback = {
@@ -175,12 +186,15 @@ export default async function handler(req, res) {
         patch.cancelledAtMs = nowMs;
         patch.cancelledByUserId = uid;
         patch.cancelledReason = 'rejected';
+        // Kalıcı DM engeli: reject alan taraf, reject edene mesaj atamasın.
+        patch.rejectBlockByUid = uid;
+        patch.rejectBlockAtMs = nowMs;
         patch.rejectionCount = FieldValue.increment(1);
         patch.lastRejectedAtMs = nowMs;
         status = 'cancelled';
 
-        creditGranted = 1;
-        cooldownUntilMs = nowMs + COOLDOWN_MS;
+        creditGranted = 0;
+        cooldownUntilMs = 0;
 
         // Kullanıcıların seçim/lock alanlarını temizle (bu eşleşmeye bağlıysa)
         const meChoice = getChoiceMatchId(meUser);
@@ -208,8 +222,6 @@ export default async function handler(req, res) {
           meRef,
           {
             matchmakingLock: { active: false, matchId: '' },
-            newMatchReplacementCredits: FieldValue.increment(1),
-            newMatchCooldownUntilMs: cooldownUntilMs,
             lastMatchRemovalAtMs: nowMs,
             lastMatchRemovalReason: 'rejected',
             updatedAt: FieldValue.serverTimestamp(),
@@ -223,40 +235,36 @@ export default async function handler(req, res) {
         );
       } else {
         // accept
-        ensureEligibleOrThrow(meUser, myGender);
-
-        // Aynı anda sadece 1 kişiyle "devam" isteği: ikinci seçenek hissini ve suistimali engeller.
-        const myPending = getPendingContinueMatchId(meUser);
-        if (myPending && myPending !== matchId) {
-          const err = new Error('pending_continue_exists');
-          err.statusCode = 409;
-          throw err;
-        }
-
-        // Karşı taraf başka biriyle karşılıklı eşleşmiş/kilitli ise beğeni gönderme
-        if (hasActiveLock(otherUser, matchId)) {
-          const err = new Error('other_user_matched');
-          err.statusCode = 409;
-          throw err;
-        }
+        // pending/lock kısıtları kaldırıldı.
 
         const other = decisions[otherSide];
         if (other === 'accept') {
-          patch.status = 'mutual_accepted';
           const acceptedAtMs = Date.now();
-          patch.mutualAcceptedAtMs = acceptedAtMs;
 
-          if (!data?.everMutualAcceptedAtMs) {
-            patch.everMutualAcceptedAtMs = Date.now();
-            patch.everMutualAcceptedAt = FieldValue.serverTimestamp();
+          if (isTwoStepActiveStartEnabled()) {
+            // Yeni kural: karşılıklı beğeni sadece "mutual_interest" yaratır.
+            // Aktif eşleşme (kilit + uzun sohbet) ayrıca karşılıklı onayla başlatılır.
+            patch.status = 'mutual_interest';
+            patch.mutualInterestAtMs = acceptedAtMs;
+            patch.mutualInterestAt = FieldValue.serverTimestamp();
+            status = 'mutual_interest';
+          } else {
+            // Legacy: karşılıklı accept anında aktif eşleşme başlat.
+            patch.status = 'mutual_accepted';
+            patch.mutualAcceptedAtMs = acceptedAtMs;
+
+            if (!data?.everMutualAcceptedAtMs) {
+              patch.everMutualAcceptedAtMs = Date.now();
+              patch.everMutualAcceptedAt = FieldValue.serverTimestamp();
+            }
+
+            // Chat otomatik aktif: 48 saat kilidi bu başlangıçtan hesaplanır.
+            patch.interactionMode = 'chat';
+            patch.interactionChosenAt = FieldValue.serverTimestamp();
+            patch.chatEnabledAt = FieldValue.serverTimestamp();
+            patch.chatEnabledAtMs = acceptedAtMs;
+            patch.interactionChoices = {};
           }
-
-          // Chat otomatik aktif: 48 saat kilidi bu başlangıçtan hesaplanır.
-          patch.interactionMode = 'chat';
-          patch.interactionChosenAt = FieldValue.serverTimestamp();
-          patch.chatEnabledAt = FieldValue.serverTimestamp();
-          patch.chatEnabledAtMs = acceptedAtMs;
-          patch.interactionChoices = {};
 
           // Kısa eşleşme kodu (ES-<no>) - eksik olabilir; burada lazy üret.
           const existingMatchCode = safeStr(data?.matchCode);
@@ -284,15 +292,19 @@ export default async function handler(req, res) {
             if (matchCode) patch.matchCode = matchCode;
           }
 
-          // İki kullanıcıyı bu match'e kilitle (yeni eşleşme akışını kontrol etmek için)
-          // Not: iptal/reject akışları zaten lock temizliyor.
-          const lockPatch = {
-            matchmakingLock: { active: true, matchId, matchCode: matchCode || '' },
-            matchmakingChoice: { active: true, matchId, matchCode: matchCode || '' },
-            updatedAt: FieldValue.serverTimestamp(),
-          };
-          tx.set(meRef, lockPatch, { merge: true });
-          tx.set(otherUserRef, lockPatch, { merge: true });
+          if (!isTwoStepActiveStartEnabled()) {
+            // İki kullanıcıyı bu match'e kilitle (yeni eşleşme akışını kontrol etmek için)
+            // Not: iptal/reject akışları zaten lock temizliyor.
+            const lockPatch = {
+              matchmakingLock: { active: true, matchId, matchCode: matchCode || '' },
+              matchmakingChoice: { active: true, matchId, matchCode: matchCode || '' },
+              updatedAt: FieldValue.serverTimestamp(),
+            };
+            tx.set(meRef, lockPatch, { merge: true });
+            tx.set(otherUserRef, lockPatch, { merge: true });
+
+            status = 'mutual_accepted';
+          }
 
           // Pending temizliği (mutual_accepted artık aktif kilit ile yönetilir)
           if (myPending === matchId) {
@@ -302,8 +314,6 @@ export default async function handler(req, res) {
           if (otherPending === matchId) {
             tx.set(otherUserRef, { matchmakingPendingContinue: { active: false, matchId: '' }, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
           }
-
-          status = 'mutual_accepted';
 
         } else {
           status = String(data?.status || 'proposed');

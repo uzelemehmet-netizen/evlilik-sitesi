@@ -17,6 +17,317 @@ export default {
     language: "Dil",
   },
 
+  studio: {
+    common: {
+      back: 'Geri',
+      close: 'Kapat',
+      cancel: 'Vazgeç',
+      send: 'Gönder',
+      loading: 'Yükleniyor…',
+      processing: 'İşleniyor…',
+      match: 'Eşleşme',
+      profile: 'Profil',
+      verified: 'Doğrulanmış',
+    },
+    myInfo: {
+      title: 'Bilgilerim',
+      subtitle: 'Başvuruda verdiğin bilgilerin özeti.',
+      noProfile: 'Profil kaydı bulunamadı.',
+      appMissing: 'Başvuru formu bilgileri bulunamadı. (Uygulama kaydı ya da kullanıcı profil verisi eksik olabilir.)',
+      sections: {
+        basic: 'Temel bilgiler',
+        contact: 'İletişim',
+        details: 'Detaylar',
+        partner: 'Eş adayı tercihleri',
+        about: 'Kendini anlat',
+        membership: 'Üyelik ve doğrulama',
+      },
+      fields: {
+        username: 'Kullanıcı adı',
+        fullName: 'Ad Soyad',
+        age: 'Yaş',
+        gender: 'Cinsiyet',
+        city: 'Şehir',
+        country: 'Ülke',
+        nationality: 'Uyruk',
+        whatsapp: 'WhatsApp',
+        email: 'E-posta',
+        instagram: 'Instagram',
+        heightCm: 'Boy (cm)',
+        weightKg: 'Kilo (kg)',
+        occupation: 'Meslek',
+        education: 'Eğitim',
+        educationDepartment: 'Bölüm',
+        maritalStatus: 'Medeni durum',
+        hasChildren: 'Çocuk',
+        childrenCount: 'Çocuk sayısı',
+        familyApprovalStatus: 'Aile onayı',
+        religion: 'Din',
+        religiousValues: 'Dini hassasiyet',
+        incomeLevel: 'Gelir',
+        marriageTimeline: 'Evlilik zamanı',
+        relocationWillingness: 'Taşınma',
+        preferredLivingCountry: 'Tercih edilen ülke',
+        communicationLanguage: 'İletişim dili',
+        communicationLanguageOther: 'İletişim dili (diğer)',
+        smoking: 'Sigara',
+        alcohol: 'Alkol',
+        nativeLanguage: 'Ana dil',
+        nativeLanguageOther: 'Ana dil (diğer)',
+        foreignLanguages: 'Yabancı diller',
+        foreignLanguageOther: 'Yabancı dil (diğer)',
+        lookingForGender: 'Aradığı cinsiyet',
+        lookingForNationality: 'Aradığı uyruk',
+        partnerAgeMin: 'Yaş (min)',
+        partnerAgeMax: 'Yaş (max)',
+        partnerHeightMinCm: 'Boy (min cm)',
+        partnerHeightMaxCm: 'Boy (max cm)',
+        partnerMaritalStatus: 'Medeni durum',
+        partnerReligion: 'Din',
+        partnerCommunicationMethods: 'İletişim yöntemleri',
+        partnerLivingCountry: 'Yaşadığı ülke',
+        partnerSmokingPreference: 'Sigara',
+        partnerAlcoholPreference: 'Alkol',
+        partnerChildrenPreference: 'Çocuk',
+        partnerEducationPreference: 'Eğitim',
+        partnerOccupationPreference: 'Meslek',
+        partnerFamilyValuesPreference: 'Aile değerleri',
+        about: 'Hakkında',
+        expectations: 'Beklentiler',
+        membershipPlan: 'Üyelik planı',
+        membershipActive: 'Üyelik aktif',
+        membershipValidUntil: 'Üyelik bitiş',
+        identityVerified: 'Kimlik doğrulandı',
+        identityStatus: 'Kimlik durumu',
+        identityMethod: 'Kimlik yöntemi',
+        identityRef: 'Referans',
+      },
+      developerView: 'Geliştirici görünümü (JSON)',
+      developerHint: 'Gerektiğinde adminle paylaşabilirsin.',
+    },
+    match: {
+      status: {
+        proposed: 'Ön aşama',
+        mutual_interest: 'Karşılıklı beğeni',
+        mutual_accepted: 'Aktif',
+        contact_unlocked: 'İletişim açık',
+        cancelled: 'İptal',
+      },
+      avatarAlt: '{{name}} profil fotoğrafı',
+      actions: {
+        like: 'Beğen',
+        liked: 'Beğendin',
+        message: 'Mesaj yaz',
+      },
+      banners: {
+        locked: 'Aktif eşleşmen var — diğer profiller kilitli',
+        newMessage: 'Yeni mesaj',
+      },
+    },
+    matches: {
+      title: 'Eşleşmelerim',
+      showingCount: '{{count}} eşleşme görüntüleniyor.',
+      emptyHint: 'Eşleşmelerin burada listelenir.',
+      backToProfile: '← Profile dön',
+      findNew: 'Yeni eşleşme ara',
+      finding: 'Eşleşme aranıyor…',
+      howTitle: 'Nasıl çalışır?',
+      howItems: {
+        likeFirst: 'Önce profili Beğen (karşılıklı olursa “Karşılıklı beğeni” oluşur).',
+        startActive: 'Karşılıklı beğeniden sonra iki taraf da Aktif eşleşmeyi başlat onayı verirse uzun sohbet açılır.',
+        onlyOneActive: 'Sadece 1 kişiyle aktif eşleşme başlatılabilir.',
+        lockUntilCancel: 'Aktif eşleşme karşılıklı iptal edilmeden diğer profillerle beğeni/mesajlaşma kilitlidir.',
+      },
+      activeLockTitle: 'Aktif eşleşmen var',
+      activeLockBody: 'Diğer profillerle etkileşim kilitli. Aktif eşleşmeyi yönetmek için <link>aktif eşleşme sayfasına</link> git.',
+      requestFailed: 'Eşleşme isteği başarısız: {{error}}',
+      requestOk: 'İstek gönderildi. Birkaç saniye içinde listene düşebilir.',
+      loading: 'Yükleniyor…',
+      loadFailed: 'Eşleşmeler yüklenemedi. ({{error}})',
+      noneTitle: 'Henüz eşleşmen yok.',
+      noneBody: 'Yeni profil oluşturduysan, ilk eşleşme birkaç saniye içinde üretilebilir. İstersen buradan manuel tetikleyebilirsin.',
+      shortModal: {
+        subtitle: 'Kısa mesaj (5 limit) • profil dışı kısa bilgi için',
+        remaining: 'Kalan hak: {{remaining}} / {{limit}}',
+        noMessages: 'Henüz mesaj yok.',
+        translateError: 'Çeviri hatası: {{error}}',
+        translating: 'Çevriliyor…',
+        translate: 'Çevir',
+        placeholder: 'Kısa bir soru yaz…',
+      },
+      errors: {
+        activeLocked: 'Aktif eşleşmen varken diğer profillerle mesajlaşamazsın. Önce aktif eşleşmeni karşılıklı iptal et.',
+        shortLimit: 'Kısa mesaj hakkın bitti (5 mesaj). Devam etmek için karşılıklı beğeni sonrası aktif eşleşmeyi başlatmalısınız.',
+      },
+    },
+    chat: {
+      backToMatches: '← Eşleşmelere dön',
+      chatTitle: 'Chat',
+      emoji: 'Emoji',
+      emojiHint: 'Emoji ekleyebilirsiniz',
+      shortAreaTitle: 'Kısa mesaj alanı',
+      shortAreaDesc:
+        'Bu alan yalnızca bu kişi hakkında daha fazla bilgi edinmek için kullanılır (profilde olmayan konular, karakteri hakkında kısa sorular).',
+      shortAreaLimit: 'Mesaj hakkın {{limit}} mesaj ile sınırlıdır. Kalan: {{remaining}}',
+      otherActiveLock: 'Aktif eşleşmen başka biriyle olduğu için bu eşleşmede uzun sohbet açılmaz.',
+      noMessages: 'Henüz mesaj yok. İlk mesajı sen gönder.',
+      matchLoading: 'Eşleşme yükleniyor…',
+      matchNotFound: 'Eşleşme bulunamadı.',
+      messagesLoading: 'Mesajlar yükleniyor…',
+      sendFailed: 'Mesaj gönderilemedi: {{error}}',
+      inputPlaceholderLong: 'Mesaj yaz…',
+      inputPlaceholderShort: 'Kısa soru/mesaj yaz…',
+      notAvailable: 'Mesajlaşma şu an kullanılamıyor.',
+      lockedTitle: 'Diğer eşleşmeler geçici olarak kilitli',
+      lockedBody: 'Şu an aktif eşleşmen varken diğer eşleşmelerde mesajlaşma kapalı. Kilit süresi dolunca tekrar açılır.',
+      notAllowed: 'Bu sohbeti görüntüleme yetkin yok.',
+      notOpenTitle: 'Mesajlaşma henüz açık değil',
+      notOpenBody: 'Eşleşme aktif olduktan sonra (karşılıklı onay) mesajlaşma açılır.',
+      you: 'Sen',
+      remainingTime: '{{hours}}s {{minutes}}dk',
+      lock48h: {
+        title: '48 saat özel sohbet + iletişim paylaşımı',
+        subtitle: 'Karşılıklı onay ve süre tamamlandıktan sonra iletişim bilgileri paylaşılabilir.',
+        lockedRemaining: 'Kilit açık değil. Kalan süre: {{time}}',
+        confirming: 'Onaylanıyor…',
+        confirmed: 'Onaylandı',
+        confirm: '48 saati onayla',
+        requesting: 'İstek gönderiliyor…',
+        requestContact: 'İletişim isteği gönder',
+        approving: 'Onaylanıyor…',
+        approveContact: 'İletişimi onayla',
+        confirmStatusLabel: 'Onay durumu:',
+        confirmStatus: {
+          both: 'Karşılıklı onaylandı',
+          you: 'Siz onayladınız (diğer taraf bekleniyor)',
+          other: 'Diğer taraf onayladı (sizin onayınız bekleniyor)',
+          none: 'Henüz onay yok',
+        },
+        contactStatusLabel: 'İletişim paylaşımı:',
+        contactStatus: {
+          approved: 'Paylaşıldı',
+          pendingMine: 'İstek gönderildi (onay bekleniyor)',
+          pendingOther: 'Karşı taraf istek gönderdi (onaylayabilirsiniz)',
+          closed: 'Kapalı',
+        },
+        confirmError: 'Onay hatası: {{error}}',
+        contactRequestError: 'İletişim isteği hatası: {{error}}',
+        contactApproveError: 'İletişim onayı hatası: {{error}}',
+        whatsappTitle: 'WhatsApp',
+        openInWhatsApp: "WhatsApp'ta aç",
+      },
+    },
+
+    matchProfile: {
+      askShort: 'Kısa bir şey sor',
+      viewProfile: 'Profili incele',
+      hideProfile: 'Profili gizle',
+      profileTitle: 'Profil bilgileri',
+      contactHidden:
+        'İletişim bilgileri gizlidir. Bu bilgiler formu doldururken de uygulamada görünmez. Yalnızca 48 saatlik aktif eşleşme süreci sonunda kesin eşleşme sağlanırsa ve sizin onayınız olursa paylaşılabilir.',
+      rulesTitle: 'Kurallar (kısaca)',
+      rules: {
+        likeFirst: 'Beğeni karşılıklı olursa “Karşılıklı beğeni” oluşur.',
+        startActive: 'İki taraf da “Aktif eşleşmeyi başlat” onayı verince uzun sohbet açılır.',
+        onlyOneActive: 'Sadece 1 aktif eşleşme olabilir; aktifken diğer profillerle beğeni/mesajlaşma kilitlenir.',
+        unlockAfterCancel: 'Diğer profillerin tekrar açılması için aktif eşleşmenin karşılıklı iptal edilmesi gerekir.',
+      },
+      activeStart: {
+        starting: 'Başlatılıyor…',
+        waiting: 'Onay bekleniyor',
+        start: 'Aktif eşleşmeyi başlat',
+        confirmPrompt:
+          'Aktif eşleşmeyi başlatmak üzeresin.\n\n- Sadece 1 kişiyle aktif eşleşme olur (diğer profiller kilitlenir).\n- Aktifleşince ilk 2 saat iptal edemezsiniz.\n\nOnaylıyor musun?',
+      },
+      cancel: {
+        title: 'Aktif eşleşmeyi iptal',
+        desc: 'İptal işlemi karşılıklıdır. Sen iptal edince karşı tarafın da iptal etmesi gerekir.',
+        cooldown: 'Suistimali önlemek için aktif eşleşme başladıktan sonraki ilk 2 saat iptal kapalı. Kalan süre: {{time}}',
+        request: 'Aktif eşleşmeyi iptal et',
+        requestSent: 'İptal isteği gönderildi',
+        waitingOther: 'Karşı tarafın iptali bekleniyor.',
+        confirmPrompt:
+          'Aktif eşleşmeyi iptal etmek üzeresin.\n\n- İptal karşılıklıdır: iki taraf da iptal edince eşleşme kapanır.\n- İptal olunca diğer profillerle etkileşim kilidi kalkar.\n\nOnaylıyor musun?',
+      },
+      mutualLike: {
+        title: 'Karşılıklı beğeni var',
+        body: 'Uzun sohbet yalnızca iki taraf da “Aktif eşleşmeyi başlat” onayı verince açılır.',
+      },
+      longChatClosedTitle: 'Uzun sohbet kapalı',
+      longChatClosedBody: 'Uzun sohbet yalnızca aktif eşleşme başlatıldığında görünür. Bu aşamada sadece kısa mesaj ile bilgi alabilirsiniz.',
+      shortModal: {
+        title: 'Kısa mesaj',
+      },
+      time: {
+        minutes: '{{minutes}} dk',
+        hours: '{{hours}} saat',
+        hm: '{{hours}} saat {{minutes}} dk',
+      },
+      errors: {
+        activeMatchLocked: 'Aktif eşleşmen varken başka bir profille işlem yapamazsın. Önce aktif eşleşmeni karşılıklı iptal et.',
+        otherUserActiveMatch: 'Karşı tarafın şu anda aktif bir eşleşmesi var. Bu eşleşme aktifleştirilemez.',
+        cancelCooldown: 'Suistimali önlemek için aktif eşleşme başladıktan sonraki ilk 2 saat iptal kapalı. Kalan süre: {{time}}',
+        notAvailable: 'Bu işlem bu aşamada yapılamıyor.',
+        forbidden: 'Bu işlem için yetkin yok.',
+        activeStartLocked: 'Başka bir aktif eşleşmen varken yeni aktif eşleşme başlatılamaz.',
+      },
+    },
+
+    profile: {
+      membershipLabel: 'Üyelik',
+      membershipActive: 'Aktif',
+      membershipPassive: 'Pasif',
+      endsAt: 'Bitiş',
+      editProfile: 'Profili Düzenle',
+      myMatches: 'Eşleşmelerim',
+      logout: 'Çıkış',
+      bannerAlt: 'Profil banner',
+      aboutTitle: 'Hakkımda',
+      noBio: 'Henüz bir açıklama eklenmemiş.',
+      subscriptionTitle: 'Abonelik',
+      subscriptionActiveDesc: 'Üyeliğiniz aktif. Tüm özelliklere erişebilirsiniz.',
+      subscriptionPassiveDesc: 'Üyeliğiniz pasif. Üyelik olmadan bazı aksiyonlar kısıtlı olabilir.',
+      buySoon: 'Üyelik Satın Al (yakında)',
+      activateMembership: 'Üyeliğimi Aktif Et',
+      cancelMembership: 'Üyeliği İptal Et',
+      membershipActivated: 'Üyelik aktif edildi.',
+      membershipCancelled: 'Üyelik iptal edildi.',
+      confirmCancelMembership: 'Üyeliğini iptal etmek istiyor musun?',
+      myInfo: 'Bilgilerim',
+      identityTitle: 'Kimlik Doğrulama',
+      identityVerified: 'Kimliğin doğrulanmış görünüyor.',
+      identityStatus: 'Durum',
+      verifyNow: 'Kimliğimi Doğrula',
+      identityHelp: 'Kimliğini doğrulayarak güven puanını artırabilir ve üyelik/özellik kısıtlarını kaldırabilirsin.',
+      accountTitle: 'Hesap',
+      accountDeleteDesc: 'Hesabınızı ve ilişkili verileri kalıcı olarak silebilirsiniz.',
+      deleteAccount: 'Hesabı Sil',
+      deleting: 'Siliniyor…',
+      oldPanel: 'Eski panel (geçici)',
+      verifyModalTitle: 'Kimlik doğrulama',
+      idType: 'Kimlik türü',
+      idTypeTrId: 'T.C. Kimlik',
+      idTypePassport: 'Pasaport',
+      idTypeDriver: 'Ehliyet',
+      verifyPhotosHint: 'Fotoğraflar sadece doğrulama için kullanılır.',
+      idFront: 'Kimlik ön yüz',
+      idBack: 'Kimlik arka yüz',
+      selfie: 'Selfie',
+      verifyMissingFiles: 'Lütfen kimlik ön/arka ve selfie yükleyin.',
+      verifySubmitted: 'Kimlik doğrulama talebin alındı. İnceleniyor.',
+      submitVerification: 'Gönder',
+      confirmDelete: 'Hesabınızı kalıcı olarak silmek istiyor musunuz? Bu işlem geri alınamaz.',
+    },
+    errors: {
+      profileNotFound: 'Profil kaydı bulunamadı.',
+      activeLocked: 'Aktif eşleşmen varken başka bir profille işlem yapamazsın. Önce aktif eşleşmeni karşılıklı iptal et.',
+      shortLimit: 'Kısa mesaj hakkın bitti (5 mesaj). Devam etmek için karşılıklı beğeni sonrası aktif eşleşmeyi başlatmalısınız.',
+      notAvailable: 'Bu işlem bu aşamada yapılamıyor.',
+      forbidden: 'Bu işlem için yetkin yok.',
+      cancelCooldown: 'Suistimali önlemek için iptal geçici olarak kapalı. Kalan süre: {{time}}',
+    },
+  },
+
   matchmakingHub: {
     metaTitle: 'Uniqah',
     badge: 'Gizli ve kontrollü süreç',
@@ -722,113 +1033,6 @@ export default {
     },
   },
 
-  kesfet: {
-    analyticsTitle: "Keşfet - Adaları Keşfedin",
-    heroTitle: "Endonezya'yı Keşfedin",
-    heroSubtitle:
-      "Cennet adaları, egzotik kültürler ve unutulmaz anılar sizi bekliyor. Hayalinizdeki balayı veya tatil için mükemmel destinasyonu keşfedin.",
-    stats: {
-      islands: "{{count}} ada",
-      destinations: "{{count}}+ destinasyon",
-      suggestions: "Balayı ve tatil önerileri",
-    },
-    sectionTitle: "Adaları Keşfedin",
-    sectionSubtitle: "Her ada, benzersiz deneyimler ve unutulmaz anılar sunuyor",
-    filters: {
-      hepsi: "Tümü",
-      balayi: "Balayı",
-      aile: "Aile",
-      macera: "Macera",
-      sakin: "Sakinlik",
-    },
-    tagLabels: {
-      balayi: "Balayı için ideal",
-      aile: "Aile dostu",
-      macera: "Macera & keşif",
-      sakin: "Sakin kaçış",
-    },
-    card: {
-      overlayExplore: "{{name}}'yi daha yakından keşfet",
-      categoryLabel: "Endonezya Adaları",
-      destinations: "{{count}} Destinasyon",
-      viewDetails: "Detayları gör",
-    },
-    videoNotFound: "Video bağlantısı bulunamadı",
-  },
-
-  kesfetIsland: {
-    analyticsTitle: "Keşfet - {{island}}",
-    heroAlt: "{{name}} adası",
-    backToIslands: "Adalara Dön",
-    stats: {
-      destinations: "{{count}} destinasyon",
-      recommendedStay: "Önerilen süre: {{stay}}",
-      averageBudget: "Ortalama bütçe: {{budget}}",
-    },
-    sectionTitle: "Popüler Destinasyonlar",
-    sectionSubtitle: "{{count}} destinasyon sizi bekliyor",
-    card: {
-      details: "Detaylar →",
-    },
-  },
-
-  kesfetSidebar: {
-    closeMenu: "Menüyü kapat",
-    title: "Keşfet",
-    back: "Geri Dön",
-    planTravel: "Seyahatinizi Planlayın",
-    whatsapp: "WhatsApp",
-    youtube: "YouTube Kanalı",
-    whatsappMessage: "Endonezya'nın tatil destinasyonları hakkında bilgi almak istiyorum",
-  },
-
-  kesfetDestination: {
-    breadcrumb: {
-      indonesia: "Endonezya",
-    },
-    backToIsland: "{{island}} adasına dön",
-    weather: {
-      today: "Bugün ortalama hava: {{air}} · Deniz: {{sea}} (tahmini)",
-    },
-    tabs: {
-      places: "Gezilecek Yerler",
-      activities: "Aktiviteler",
-      food: "Yiyecek & İçecek",
-      stay: "Konaklama",
-      shopping: "Alışveriş",
-    },
-    places: {
-      title: "{{destination}}'de önce nereleri görmelisin?",
-      subtitle: "Manzaradan tarihe, {{destination}}'i gerçekten hissettirecek durakları burada topladık.",
-      tip: "{{destination}}'e ilk kez geliyorsan, günde en fazla 2-3 noktayı planlayıp aralara mola koyman hem havayı hem de ritmi daha iyi hissetmeni sağlar.",
-    },
-    activities: {
-      title: "{{destination}}'de neler yapmadan dönmemelisin?",
-      subtitle: "Sakin bir gün planlamak ya da adrenalin peşine düşmek, aşağıdan hangisini seçeceğine bağlı.",
-      tip: "Aynı gün içinde hem çok hareketli hem de çok sakin aktiviteleri karıştırmak, {{destination}}'de geçirdiğin zamanı daha dengeli ve akılda kalıcı yapar.",
-    },
-    food: {
-      title: "{{destination}}'de nelerin tadına bakmalısın?",
-      subtitle: "Sokak lezzetlerinden sakin akşam yemeklerine kadar, pişman olmadan denemen gereken tatları derledik.",
-    },
-    stay: {
-      title: "{{destination}}'de nasıl bir yerde kalmak sana iyi gelir?",
-      subtitle: "Bütçene, konfor beklentine ve manzara hayaline göre seçenekleri yan yana görebilirsin.",
-      recommendedDuration: "Önerilen Süre",
-      totalBudget: "Toplam Ortalama Bütçe ({{duration}})",
-      foodTip: "Çok acıkmadan önce hafif bir sokak lezzeti, akşam için ise daha sakin bir restoran seçmek {{destination}}'de gününü daha keyifli dengeler.",
-      locationTip: "{{destination}}'de konaklama seçerken, ilk geceyi daha merkezi bir bölgede, devam eden günleri ise daha sakin bir bölgede planlamak adaptasyonu kolaylaştırır.",
-    },
-    shopping: {
-      title: "{{destination}}'da hem ihtiyacın hem hediyen için neler bulabilirsin?",
-      subtitle: "Acil ihtiyaçların, aktiviteler için ekipmanlar ve sana burayı hatırlatacak küçük şeyler için fikirler burada.",
-      tip: "Hatıralık alışverişi genelde son güne bırakma; {{destination}}'de beğendiğin şeyleri gördüğün gün almak, hem pazarlıkta hem seçimlerde daha rahat olmanı sağlar.",
-    },
-    gallery: {
-      alt: "{{destination}} - {{tab}} görünüm {{index}}",
-    },
-  },
-
   documentsHub: {
     title: "Dokümanlar",
     subtitle:
@@ -1150,7 +1354,7 @@ export default {
         },
       },
       outro:
-        "Endonezya kültürü, ada ada rota önerileri ve detaylı yazılar için <1>Keşfet</1> bölümünde hazırladığımız içeriklere göz atabilir; planlı Endonezya tur paketleri için <3>Toplu Tur Paketleri</3> sayfasını, şirket veya okul grupları için özel organizasyonlar adına ise <5>Grup Turları</5> sayfamızı ziyaret edebilirsiniz.",
+        "Uniqah eşleştirme sistemi ve Endonezya’da evlilik rehberliği hakkında daha fazla bilgi için <1>Uniqah</1> ve <3>Evlilik</3> sayfalarına göz atabilir; resmi dokümanlar için <5>Dokümanlar</5> bölümünü kullanabilirsiniz.",
     },
     story: {
       title: "Kısa hikâyemiz",
@@ -1248,812 +1452,6 @@ export default {
     },
   },
 
-  tours: {
-    whatsapp: {
-      preRegRequestTitle: "Toplu tur ön kayıt talebi (liste sayfası)",
-      missingNumberWarn: "VITE_WHATSAPP_NUMBER tanımlı değil.",
-      quickInfoGreeting: "Merhaba, Endonezya tur paketleri hakkında bilgi almak istiyorum.",
-      quickInfoQuestion: "Bireysel / aile katılımı için uygun tarih ve güncel fiyat bilgisini paylaşabilir misiniz?",
-      labels: {
-        tour: "Tur",
-        fullName: "Ad Soyad",
-        email: "E-posta",
-        phone: "Telefon",
-        participationType: "Katılım türü",
-        requestedTour: "Katılmak istenilen tur",
-        peopleCount: "Katılımcı sayısı",
-        notes: "Ek notlar",
-      },
-    },
-
-    ui: {
-      heroTitle: "Endonezya Toplu Tur Paketleri",
-      click: "Tıkla",
-      personalToursCta: "Kişisel / Aile Olarak Katılacağım Turlar",
-      groupToursCta: "Gruplar İçin Tur Organizasyonu",
-      heroDescription:
-        "Bu sayfadaki turlar; belirli dönemlerde, sınırlı kontenjanla planlanan toplu Endonezya turlarımızdır. Bireysel, çift veya ailenizle bu turlara ön kayıt bırakabilir, ayrıntılı program ve güncel fiyat bilgisini size özel olarak iletmemizi isteyebilirsiniz.",
-
-      trust: {
-        transparentTitle: "Şeffaf süreç",
-        transparentDesc: "Ön kayıt sonrası program, kapsam ve güncel fiyat bilgisini yazılı olarak paylaşıyoruz.",
-        confirmTitle: "Kesin kayıt adımı",
-        confirmDesc: "Kesin kayıt; sözleşme onayı ve ödeme süreci tamamlandıktan sonra gerçekleşir.",
-        fastContactTitle: "Hızlı iletişim",
-        fastContactDesc: "Aklınızdaki soruları WhatsApp üzerinden hızlıca sorabilirsiniz.",
-      },
-
-      steps: {
-        1: { title: "1) Tur seç", desc: "Size uygun turu seçip ön kayıt bırakın." },
-        2: { title: "2) Bilgilendirme", desc: "Program + kapsam + fiyatı yazılı iletelim." },
-        3: { title: "3) Kesin kayıt", desc: "Sözleşme onayı ve ödeme adımı tamamlanır." },
-        4: { title: "4) Hazırlık", desc: "Uçuş/otel ve yolculuk öncesi bilgilendirme." },
-      },
-
-      flightNoteShort: "uçak bileti kişi başı {{limit}}’a kadar dahildir",
-      flightNoteReason:
-        "Uçuş fiyatları çok değişken olduğu için limit sabitlenmiştir; limit üzeri fark ayrıca yansıtılır.",
-
-      perks: {
-        hotel: "4–5 yıldızlı otel konaklaması",
-        breakfastTransfers: "Kahvaltı + transferler",
-        support: "7/24 Türkçe destek",
-        supportShort: "Türkçe destek",
-        sharedRoom: "2 kişilik oda paylaşımı (çift veya arkadaş)",
-        breakfastHotels: "Otellerde sabah kahvaltısı",
-        airportHotelTransfers: "Havalimanı–otel–aktivite alanları arası ulaşım",
-        supportFull: "7/24 ulaşılabilir Türkçe destek ve yerel ekip",
-        roadTripNature: "Road trip konsepti (doğa & macera)",
-        breakfastRouteTransfers: "Kahvaltı + rota transferleri",
-        roadTripTrains: "Road trip + tren geçişleri",
-        guidedAndFreeTime: "Rehberli günler + serbest zaman",
-        boatFocus: "Tekne odaklı ada keşfi",
-        opsSafety: "Operasyon & güvenlik koordinasyonu",
-        flightHeavy: "Uçuş ağırlıklı rota (uzun kara yolu yok)",
-        stayBreakfast: "Konaklama + kahvaltı",
-        transfersCoord: "Transfer/koordinasyon",
-
-        roadTripFewStops: "Road trip konsepti: az konaklama noktası, farklı atmosferler",
-        hotel34Boutique: "3–4 yıldızlı otel ve bölgesel butik konaklama",
-        medanRouteTransfers: "Medan ↔ Bukit Lawang ↔ Samosir rota transferleri",
-        trainRoad: "Tren + kara yolu geçişleri (Bandung dahil)",
-        guidedBalance: "Rehberli günler + serbest zaman dengesi",
-        opsCoordination: "Rota içi transferler ve operasyon koordinasyonu",
-        boatMaxSeaDays: "Tekne odaklı ada keşfi: az konaklama noktası, maksimum deniz günü",
-        guidedBoatBalance: "Rehberli tekne günleri + serbest zaman dengesi",
-        parkOpsSafety: "Milli park girişleri, tekne operasyonu ve güvenlik koordinasyonu",
-        flightFlowNoLongRoad: "Uçuş ağırlıklı rota: uzun kara yolu yok, tempolu ama konforlu akış",
-        domesticFlights: "Makassar → Manado → Jakarta iç hat uçuşları (aktarmalı olabilir)",
-        guidedBalanceLocations: "Rehberli günler + serbest zaman dengesi (Bunaken/Tangkoko/Tomohon)",
-        hotel34: "3-4 yıldızlı oteller",
-        privateBusTours: "Özel otobüs turları",
-        localGuide247: "7/24 yerel rehber hizmeti",
-      },
-
-      promoLabel: "Kampanya",
-      promoDontMiss: "Bu fırsatı kaçırmayın",
-
-      price: {
-        discountedSpecial: "Kişi başı, rezervasyonunu tamamlayan ilk 5 kişi için %{{percent}} indirimli özel fiyat",
-        currentPerPerson: "Kişi başı güncel fiyat",
-        premium: "Premium",
-        total: "Toplam",
-        discounted: "İndirimli fiyat",
-        premiumPackagePrice: "Premium paket fiyatı",
-        startingFrom: "Başlayan fiyatlarla",
-        comingSoon: "Fiyat bilgisi yakında",
-      },
-
-      notes: {
-        company:
-          "Endonezya Kaşifi, Endonezya’da kayıtlı PT MoonStar Global Indonesia şirketinin markasıdır; Endonezya’da resmi olarak faaliyet gösteren Türk girişimci tarafından yürütülen bir tur organizasyonudur.",
-        paymentFlow:
-          "Ödeme akışı: Sözleşme/onay sonrası kapora alınır; tur programı yeterli katılıma ulaşıp operasyon kesinleşince kalan tutar ödemesi açılır ve ödeme tamamlandığında rezervasyon kesinleşir.",
-      },
-
-      plannedDatesLabel: "Planlanan Tur Tarihleri",
-
-      includes: {
-        someIncluded: "Pakete dahil bazı hizmetler:",
-        moreItems: "+ {{count}} madde daha",
-      },
-
-      cta: {
-        preReg: "Bu tur için ön kayıt bırak",
-        viewDetails: "Detayları gör",
-      },
-
-      shorts: {
-        title: "Kısa videolar (YouTube Shorts)",
-        description:
-          "Aşağıdaki videolar, rota ve atmosfer hakkında hızlı fikir verir. Dilerseniz WhatsApp üzerinden program detaylarını isteyebilirsiniz.",
-        closeAria: "Videoyu kapat",
-        close: "Kapat",
-        playAria: "YouTube Shorts {{index}} oynat",
-        thumbnailAlt: "YouTube Shorts {{index}} kapak",
-        noPreview: "Video önizleme yok",
-        tapToPlay: "Dokunarak oynat",
-        missingUrl: "Video bağlantısı bulunamadı",
-      },
-
-      legal: {
-        title: "Şeffaflık ve resmi metinler",
-        description:
-          "Ön kayıt sonrası süreç, sözleşme onayı ve kişisel verilerin kullanımıyla ilgili metinlere buradan ulaşabilirsiniz.",
-        whatsappCta: "WhatsApp’tan bilgi al",
-        cards: {
-          preRegInfoPack: {
-            title: "Ön Kayıt Bilgi Paketi",
-            desc: "WhatsApp üzerinden paylaşılan paket (PDF)",
-          },
-          brochures: {
-            title: "Tur Broşürleri",
-            desc: "Bali, Lombok, Java, Sumatra, Komodo, Sulawesi",
-          },
-          kvkk: {
-            title: "KVKK Aydınlatma Metni",
-            desc: "Kişisel verilerin işlenmesi ve saklanması",
-          },
-          preInfo: {
-            title: "Ön Bilgilendirme Formu",
-            desc: "Satın alma öncesi genel bilgilendirme",
-          },
-          packageAgreement: {
-            title: "Paket Tur Sözleşmesi",
-            desc: "Kesin kayıt ve katılım şartları",
-          },
-          privacy: {
-            title: "Gizlilik Politikası",
-            desc: "Formlar ve iletişim izinleri",
-          },
-        },
-      },
-
-      preRegNote:
-        "Not: Ön kayıt bir “bilgi talebi” adımıdır; kesin kayıt sözleşme ve ödeme süreci tamamlandıktan sonra oluşur.",
-
-      faq: {
-        title: "Sık sorulan sorular",
-        q1: {
-          question: "Ön kayıt ücretli mi?",
-          answer:
-            "Ön kayıt; uygunluk ve bilgi paylaşımı için iletişim formudur. Kesin kayıt, sözleşme ve ödeme adımı tamamlandıktan sonra oluşur.",
-        },
-        q2: {
-          question: "Fiyata neler dahil?",
-          answer:
-            "Her turun dahil olan hizmetleri kart üzerinde özetlenir. Net kapsamı tur detay sayfasında ve size iletilecek program dokümanında görebilirsiniz.",
-        },
-        q3: {
-          question: "Uçak bileti nasıl dahil ediliyor?",
-          answerPrefix: "Uçak bileti kişi başı ",
-          answerSuffix:
-            "’a kadar pakete dahildir. Uçuş fiyatları çok değişken olduğu için bu limit tüm turlarda sabitlenmiştir; limit üzeri fark ayrıca yansıtılır.",
-        },
-        q4: {
-          question: "Sorularım var, hemen kiminle konuşabilirim?",
-          answer: "WhatsApp üzerinden mesaj atabilirsiniz; uygun olduğumuzda hızlıca dönüş yaparız.",
-          whatsappCta: "WhatsApp’tan sor",
-        },
-      },
-
-      warnings: {
-        title: "Önemli Açıklamalar ve Uyarılar",
-        description:
-          "Bu sayfadaki tüm turlar için geçerli genel bilgilendirme ve katılım kurallarının kısa özetidir. Detaylı hali tur detay sayfalarında yer almaktadır.",
-        items: {
-          1: "Turlara son kayıt tarihi, tur başlangıç tarihinden en geç {{days}} gün öncesidir.",
-          2: "Ön kayıttan sonra kesin kayıtlar için sözleşme onayı ve ödeme işleminin eksiksiz tamamlanmış olması gerekmektedir.",
-          3: "Tur rota planları ve aktiviteler, operasyonel sebepler ya da hava şartlarına bağlı olarak tarafımızca güncellenebilir.",
-          4: "Uçak bileti kişi başı ${{limit}}’a kadar pakete dahildir. Uçuş fiyatları değişken olduğu için limit sabitlenmiştir; limit üzeri fark ayrıca yansıtılır.",
-          5: "Endonezya'ya gelmeden önce seyahat sağlık sigortası yaptırılması zorunludur.",
-          6: "Önemli bir sağlık sorununuz varsa lütfen başvuru formunu doldururken \"Ek istekler\" bölümünde belirtiniz.",
-          7: "Tur programına kesin kayıt yaptıran misafirlerimizin tur kurallarına uyması ve bireysel hareket etmemesi beklenir.",
-          8: "Pasaportlarınızın, seyahat dönüş tarihinden sonra en az {{months}} ay geçerlilik süresi olmasına dikkat ediniz.",
-          9: "Endonezya devleti, Türk vatandaşları için vize uygulamasını kaldırmıştır; pasaportunuz, size göndereceğimiz otel rezervasyonunuz ve uçak biletinizi göstermeniz giriş için yeterli olacaktır.",
-          10: "Vize ve ülkeye giriş kuralları, resmi makamların uygulamalarına bağlı olarak zaman içinde değişiklik gösterebilir.",
-          11: "Seyahatiniz boyunca, sizi havaalanına uğurlayana kadar her türlü istek, talep ve şikayetinizi grup için atanacak rehberiniz vasıtasıyla bize iletebilirsiniz.",
-          12: "Seyahatinizin konforlu, güven içinde ve memnuniyet odaklı geçmesi bizim için son derece önemlidir.",
-          13: "Tura katılım sözleşmesini imzalayıp kesin kayıtlarını tamamlayan misafirlerimiz, bu açıklama ve uyarıları okumuş ve kabul etmiş sayılır.",
-        },
-      },
-
-      groupCta: {
-        title: "Kendi grubunuz için özel Endonezya turu mu planlıyorsunuz?",
-        description:
-          "Eğer şirket, okul, dernek veya arkadaş grubunuz için kişi sayısını ve tarihleri sizin belirleyeceğiniz özel bir tur istiyorsanız, Grup Turları sayfasından detaylı teklif formunu doldurabilirsiniz.",
-        button: "Grup Turları Sayfasına Git",
-      },
-
-      common: {
-        close: "Kapat",
-      },
-
-      preRegModal: {
-        title: "{{tourName}} toplu turu için bireysel / aile ön kayıt",
-        description:
-          "İletişim ve kontenjan uygunluğu için temel bilgilerinizi bırakın; size WhatsApp veya e-posta ile dönüş yapalım.",
-        warningsIntro:
-          "Aşağıdaki maddeler, tüm Endonezya tur paketlerimiz için genel bilgilendirme ve katılım kurallarını özetler. Detaylı versiyonunu tur detay sayfalarında da bulabilirsiniz.",
-      },
-
-      form: {
-        fullName: "Ad Soyad",
-        fullNamePlaceholder: "Adınız ve soyadınız",
-        email: "E-posta",
-        emailPlaceholder: "ornek@email.com",
-        phone: "Telefon",
-        phonePlaceholder: "+90 5xx xxx xx xx",
-        participationType: "Katılım Türü",
-        participationOptions: {
-          individual: "Bireysel",
-          family: "Aile",
-          couple: "Çift",
-          friends: "Arkadaş grubu",
-          other: "Diğer",
-        },
-        requestedTour: "Katılmak İstenilen Tur",
-        peopleCount: "Katılımcı Sayısı",
-        peopleCountPlaceholder: "Kaç kişi?",
-        notes: "Ek Notlar",
-        notesPlaceholder: "Özel talepleriniz, çocuk sayısı vb.",
-        privacyConsentText:
-          "Gizlilik politikasını okudum, kabul ediyorum ve paylaştığım bilgilerin yalnızca tur ön kayıt ve bilgilendirme amacıyla kullanılmasını onaylıyorum.",
-        privacyPolicyLink: "Gizlilik Politikası",
-        submit: "Ön Kayıt Talebimi Gönder",
-      },
-
-      sticky: {
-        whatsapp: "WhatsApp",
-        preReg: "Ön Kayıt",
-        tours: "Turlar",
-      },
-
-      tourPicker: {
-        title: "Ön kayıt için tur seçin",
-      },
-    },
-
-    data: {
-      // TR'de kart datası zaten TOURS_CONFIG üzerinden geliyor; bu alan opsiyonel.
-    },
-  },
-
-  tourDetail: {
-    nav: {
-      backAria: "Önceki sayfaya dön",
-      backText: "Önceki sayfaya dön",
-    },
-    notFound: {
-      title: "Tur bulunamadı",
-      description: "Görmek istediğiniz tur paketi mevcut değil veya kaldırılmış olabilir.",
-    },
-    promo: {
-      label: "Kampanya",
-      earlyBird: "Erken rezervasyon indirimini kaçırmayın",
-    },
-    tags: {
-      experienceGroupHoliday: "Deneyim odaklı toplu tatil",
-    },
-    brochure: {
-      open: "{{tourName}} broşürünü aç",
-      pdfHint: "PDF için: Açılan sayfada \"Yazdır > PDF olarak kaydet\" adımlarını izleyebilirsiniz.",
-    },
-    flight: {
-      shortNote: "(uçak bileti kişi başı ${{flightLimit}}’a kadar dahildir)",
-      longNote:
-        "Uçak bileti kişi başı ${{flightLimit}}’a kadar pakete dahildir. Uçuş fiyatları çok değişken olduğu için bu limit sabitlenmiştir; limit üzeri fark ayrıca yansıtılır.",
-    },
-    durationConcept: {
-      title: "Süre & Konsept",
-      plannedDatesLabel: "Planlanan Tur Tarihleri",
-      bullets: [
-        "Bu bir gezi turu değil, deneyim odaklı toplu tatil organizasyonudur.",
-        "Odak; saray/tapınak listesi değil, gerçekten yaşanan aktiviteler ve deniz & doğa deneyimidir.",
-        "Programda hem dolu dolu rehberli günler hem de özgürce değerlendirilebilen serbest zamanlar bulunur.",
-        "Program boyunca seçili otellerde konaklama ve 7/24 ulaşılabilir Türkçe destek sağlanır.",
-        "Sürpriz ödemeler yerine; hangi gün, hangi deneyim için ne ödediğiniz baştan yazılıdır.",
-      ],
-      note:
-        "Not: Tüm paketlerde gidiş-dönüş uçak bileti, konaklama ve sabah kahvaltısı sabittir; konaklamalar iki kişilik paylaşımlı odalarda planlanır (çiftler veya aynı odada kalmak isteyen arkadaşlar birlikte yerleştirilir); aktivitelerin kapsamı ve dahil edilen günler seçtiğiniz paket seviyesine göre değişir.",
-    },
-    packages: {
-      intro: "Paketleri kıyasla, sana en uygun olanı seç.",
-      title: "Tur Paket Seçenekleri",
-      javaOnly:
-        "Bu Java tatil turu yalnızca Premium paket olarak planlanmıştır. Temel ve Standart paket fiyatları 0 olarak gösterilir; bu paketler satışta değildir.",
-      variants:
-        "Aynı rota için üç farklı seviye hazırladık: bütçe dostu Temel paket, dengeli Plus seçeneği ve bu sayfadaki detaylı programı referans alan Premium paket. Aşağıdaki kartlardan bütçe ve beklentinize en uygun olanı seçebilirsiniz; sayfadaki gün gün program Premium içindir, Temel ve Plus paketler bu programın sadeleştirilmiş hâlleridir. Tüm paketlerde, rota yapısına uygun seçili otel havuzu kullanılır; oda tipi, yemek kapsamı ve dahil edilen aktiviteler paket seviyesine göre değişir.",
-      toggle: {
-        show: "Tüm paket detaylarını göster",
-        hide: "Paket detaylarını gizle",
-      },
-      premiumDifferences: "Premium paket ile farkları",
-      premiumDifferencesByTour: {
-        bali: {
-          temel: [
-            "Ayung Nehri rafting deneyimi bu pakete dahil değildir (isteğe bağlı eklenebilir).",
-            "Tam gün tekne turu ve bazı ekstra aktiviteler bu fiyata dahil değildir.",
-            "Otel konforu ve dahil öğün sayısı Premium'a göre daha sade tutulur; bütçeyi korumaya odaklıdır.",
-          ],
-          plus: [
-            "Tam gün tekne turu bu pakete dahil değildir (isterseniz opsiyonel olarak eklenebilir).",
-            "Yemekler ve ekstra aktiviteler Premium pakete göre daha sınırlıdır.",
-          ],
-        },
-        lombok: {
-          temel: [
-            "Gili Adaları tekne turu bu pakete dahil değildir (isteğe bağlı eklenebilir).",
-            "Güney plajları & sörf deneyimi bu pakete dahil değildir (isteğe bağlı eklenebilir).",
-            "Senaru şelaleleri & Rinjani manzara turu bu pakete dahil değildir.",
-          ],
-          plus: [
-            "Senaru şelaleleri & Rinjani manzara turu bu pakete dahil değildir (isterseniz opsiyonel olarak eklenebilir).",
-            "Pink Beach tekne turu gibi ek deneyimler bu pakete dahil değildir.",
-          ],
-        },
-        sumatra: {
-          temel: [
-            "Orangutan trekking & tubing deneyimi bu pakete dahil değildir (isteğe bağlı eklenebilir).",
-            "Batak kültür & ada turu bu pakete dahil değildir (isteğe bağlı eklenebilir).",
-            "Tele Observation Tower / panorama turu gibi ek turlar bu fiyata dahil değildir.",
-          ],
-          plus: [
-            "Batak kültür & ada turu bu pakete dahil değildir (isterseniz opsiyonel olarak eklenebilir).",
-            "Tele Observation Tower / panorama turu gibi ek turlar bu pakete dahil değildir.",
-          ],
-        },
-      },
-      highlights: {
-        duration: "Süre: {{duration}}",
-        concept: "Konsept: {{concept}}",
-        route: "Rota: {{route}}",
-      },
-      fallback: {
-        basic: {
-          name: "Temel Paket",
-          badge: "Başlangıç",
-          headline: "Program akışını koruyan, daha esnek içerikli başlangıç paketi.",
-          notes:
-            "Bu tur için dahil/haric kapsam, seçilen paket seviyesine göre değişebilir. Net kapsam ve operasyon detayları rezervasyon öncesinde yazılı paylaşılır.",
-        },
-        standard: {
-          name: "Standart Paket",
-          badge: "Dengeli",
-          headline: "Daha dolu içerik ve daha az belirsizlik isteyenler için dengeli seçenek.",
-          notes:
-            "Standart paket, programın ana akışını referans alır ve kapsamı netleştirir. Operasyonel detaylar (saat/rota gibi) rezervasyon sonrası yazılı olarak paylaşılır.",
-        },
-        premium: {
-          name: "Premium Paket",
-          badge: "En kapsamlı",
-          headline: "Daha kapsamlı planlama ve daha yüksek konfor beklentisi olanlar için üst seviye paket.",
-          notes:
-            "Premium paket, daha kapsamlı bir planlama hedefler. Operasyonel detaylar (saat/rota gibi) rezervasyon sonrası yazılı olarak paylaşılır.",
-        },
-      },
-    },
-
-    ctaTop: {
-      images: {
-        leftAlt: {
-          bali: "Bali - dalış ve mercan resifi",
-          lombok: "Lombok - su sporu",
-          java: "Java - tur görseli",
-          sumatra: "Sumatra - yağmur ormanı",
-          komodo: "Komodo - sahil yürüyüşü",
-          sulawesi: "Sulawesi - tur görseli",
-        },
-        rightAlt: {
-          bali: "Bali - teknede kutlama ve arkadaş grubu",
-          lombok: "Lombok - teknede kutlama ve arkadaş grubu",
-          java: "Java - tur görseli",
-          sumatra: "Sumatra - Lake Toba",
-          komodo: "Labuan Bajo - tekne manzarası",
-          sulawesi: "Sulawesi - uçuş ağırlıklı rota",
-        },
-      },
-      title: "{{tourName}} için hızlıca teklif al",
-      description: "Tarih aralığı, paket ve ödeme seçenekleri için 1 dakikada bilgi isteyin.",
-      steps: {
-        1: { title: "FORMU DOLDUR", desc: "Kısaca tur tercihini ve notlarını yaz." },
-        2: { title: "TALEBİ İLET", desc: "WhatsApp veya e-posta ile hızlı dönüş al." },
-        3: { title: "TEKLİFİ AL", desc: "Size yazılı olarak teklif ve kapsam paylaşalım." },
-      },
-      pdfs: {
-        preRegPack: "Ön Kayıt Bilgi Paketi",
-        brochure: "Tur Broşürü",
-        open: "Aç",
-      },
-      actions: {
-        wantInfo: "Bilgi iste / Ön kayıt",
-        groupOffer: "Grup teklifi iste",
-        paymentOptions: "Ödeme / Kapora",
-      },
-    },
-
-    forms: {
-      planned: {
-        title: "{{tourName}} için ön kayıt",
-        description: "Kısa formu doldurun; sizinle WhatsApp/E-posta üzerinden iletişime geçelim.",
-        fields: {
-          fullName: { label: "Ad Soyad *", placeholder: "Adınız ve soyadınız" },
-          email: { label: "E-posta *", placeholder: "ornek@email.com" },
-          phone: { label: "Telefon *", placeholder: "+90 5xx xxx xx xx" },
-          participation: {
-            label: "Katılım tipi *",
-            options: {
-              individual: "Bireysel",
-              family: "Aile",
-              couple: "Çift",
-              friends: "Arkadaş",
-              other: "Diğer",
-            },
-          },
-          requestedTour: {
-            label: "Katılmak istenilen tur *",
-            placeholderExample: "Örn: Bali - 7 gün / 6 gece",
-          },
-          peopleCount: { label: "Katılımcı sayısı *", placeholder: "Kaç kişi?" },
-          notes: { label: "Ek notlar", placeholder: "Uçuş şehriniz, özel talepleriniz vb." },
-        },
-        privacy: {
-          text: "Gizlilik politikasını okudum ve kabul ediyorum.",
-          link: "Gizlilik Politikası",
-        },
-        submit: "Gönder",
-      },
-      group: {
-        title: "{{tourName}} için grup teklifi",
-        description: "5+ kişi için özel grup teklifi isteyin; sizinle hızlıca iletişime geçelim.",
-        fields: {
-          fullName: { label: "Ad Soyad *", placeholder: "Adınız ve soyadınız" },
-          email: { label: "E-posta *", placeholder: "ornek@email.com" },
-          phone: { label: "Telefon *", placeholder: "+90 5xx xxx xx xx" },
-          organization: { label: "Kurum / Grup adı", placeholder: "Örn: ABC Şirketi" },
-          groupType: {
-            label: "Grup tipi *",
-            placeholder: "Seçiniz",
-            options: {
-              company: "Şirket",
-              school: "Okul",
-              association: "Dernek / Kulüp",
-              friends: "Arkadaş grubu",
-              other: "Diğer",
-            },
-          },
-          peopleCount: { label: "Katılımcı sayısı *", placeholder: "En az 5 kişi" },
-          dates: { label: "Planlanan tarihler *", placeholder: "Örn: Temmuz 2026" },
-          routes: { label: "İlgilenilen bölgeler / rotalar", placeholder: "Örn: Bali, Lombok" },
-          budget: {
-            label: "Kişi başı bütçe",
-            placeholder: "Seçiniz",
-            options: {
-              "5000plus": "5000$+",
-              other: "Diğer",
-            },
-          },
-          budgetOther: { label: "Diğer bütçe", placeholder: "Örn: 6000$" },
-          notes: { label: "Ek notlar", placeholder: "Otel beklentisi, özel istekler vb." },
-        },
-        privacy: { text: "Gizlilik politikasını okudum ve kabul ediyorum." },
-        submit: "Teklif iste",
-      },
-    },
-    pricing: {
-      startingPrice: {
-        default: "Başlangıç Fiyatı",
-        basic: "Başlangıç Fiyatı – Temel Paket",
-        javaPremium: "Başlangıç Fiyatı – Premium Paket",
-      },
-      discountFallback:
-        "Kişi başı, rezervasyonunu tamamlayan ilk 5 kişi için %{{discountPercent}} indirimli özel fiyattır.",
-      perPersonStartEconomy: "Kişi başı, en ekonomik paket başlangıç fiyatıdır.",
-      perPersonCurrent: "Kişi başı, güncel paket fiyatıdır.",
-      sulawesiDomesticFlightsIncluded:
-        "Program kapsamındaki Endonezya iç hatlar uçuşları paket kapsamındadır, fiyata dahildir.",
-      priceInfoSoon: "Fiyat bilgisi yakında güncellenecek.",
-      programNoteJava:
-        "Bu sayfadaki gün gün program ve kapsam Premium paket içindir. Bu Java turu yalnızca Premium paket olarak planlanmıştır.",
-      programNoteDefault:
-        "Bu sayfadaki gün gün program ve kapsam, Premium paket içindir. Temel ve Plus paketler, bu programın sadeleştirilmiş versiyonlarıdır.",
-      whyThisPrice:
-        "Neden bu fiyat? Çünkü biz boş tur paketi değil, gerçek bir tatil deneyimi satıyoruz. Gereksiz bilgilerle doldurulmuş ve sadece \"burada da fotoğraf çekelim\" diye durulan klasik gezi turları mantığında değiliz; tekne turları, su aktiviteleri, doğa yürüyüşleri ve konforlu konaklamayı baştan pakete koyuyoruz. Buraya şehir şehir gezip sadece fotoğraf çekmek için değil, tatil yapmak için geliyorsanız doğru yerdesiniz; fiyat da tam olarak bu doluluk ve şeffaflık seviyesini yansıtır.",
-    },
-    email: {
-      participation: {
-        full: "dogrudan-kesin-rezervasyon",
-        deposit: "kaporali-on-rezervasyon",
-      },
-      summaryPrefix: {
-        full: "Doğrudan kesin rezervasyon özeti:\n\n",
-        deposit: "Kaporalı ön rezervasyon özeti:\n\n",
-      },
-    },
-    whatsapp: {
-      missingNumberWarn: "VITE_WHATSAPP_NUMBER tanımlı değil.",
-      planned: {
-        title: "Toplu tatil organizasyonu ön kayıt talebi",
-      },
-      group: {
-        title: "Toplu tatil organizasyonu için grup teklif talebi",
-      },
-      labels: {
-        tour: "Tur",
-        referenceRoute: "Referans rota / tatil",
-        fullName: "Ad Soyad",
-        email: "E-posta",
-        phone: "Telefon",
-        participationType: "Katılım tipi",
-        requestedTour: "Katılmak istenilen tur",
-        peopleCount: "Katılımcı sayısı",
-        notes: "Ek notlar",
-        organization: "Kurum / Grup adı",
-        groupType: "Grup tipi",
-        dates: "Planlanan tarihler",
-        routes: "İlgilenilen bölgeler / rotalar",
-        budget: "Kişi başı bütçe",
-      },
-      deposit: {
-        noExtras: "Seçili opsiyonel ekstra aktivite yok.",
-        type: {
-          full: "doğrudan kesin rezervasyon",
-          deposit: "kaporalı ön rezervasyon",
-        },
-        title: "Endonezya turu için {{type}} talebi",
-        labels: {
-          packageTotal: "Tahmini paket toplamı",
-          extrasSelected: "Seçilen opsiyonel aktiviteler:",
-          grandTotal: "Genel toplam (tahmini)",
-          depositToPayNow: "Ödenmesi gereken kapora (tahmini)",
-        },
-      },
-    },
-    deposit: {
-      intro: {
-        title: "Ödeme / Kapora ile Ön Rezervasyon",
-        p1: "Paketinizi seçin; <b>kaporalı ön rezervasyon</b> ya da <b>doğrudan kesin kayıt</b> ile talebinizi gönderin.",
-        p2: "Formu gönderdikten sonra size WhatsApp üzerinden yazılı teyit ve ödeme adımlarını ileteceğiz.",
-      },
-      ui: {
-        packageSelectionLabel: "Paket Seçimi *",
-        perPersonPrice: "kişi başı: ${{price}}",
-        reservationTypeLabel: "Rezervasyon Türünü Seçiniz *",
-        reservationType: {
-          full: "Doğrudan kesin kayıt (toplam bedel)",
-          deposit: "Kaporalı ön rezervasyon (kısmi ödeme)",
-        },
-        flightPolicyLabel: "Uçak bileti politikası:",
-        optionalExtras: {
-          title: "Opsiyonel Ekstra Aktiviteler",
-          description:
-            "Aşağıdaki aktiviteler paket fiyatına dahil değildir ✕; katılım gösterdiğiniz kadar ekstra ücretlendirilir. Fiyatlar, kişi başı ortalama değerlerdir.",
-          priceToday: "(bugüne özel kişi başı {{price}} USD)",
-          priceEstimatedPremiumDiscount: "(tahmini kişi başı {{price}} USD, Premium paket için yaklaşık %25 indirimli)",
-          priceEstimated: "(tahmini kişi başı {{price}} USD)",
-          priceContactUs: "(tahmini fiyat için lütfen bizimle iletişime geçin)",
-        },
-        summary: {
-          title: "Tahmini Tutar Özeti",
-          packageTotal: "Paket toplamı (tüm katılımcılar)",
-          extrasTotal: "Seçilen opsiyonel aktiviteler (toplam)",
-          grandTotal: "Genel toplam",
-          depositPercent: "Kapora oranı",
-          depositToPayNow: "Ödenmesi gereken kapora (tahmini)",
-          totalToPay: "Ödenmesi gereken toplam tur bedeli",
-          note: "Not: Opsiyonel aktiviteler için belirtilen kişi başı tutarlar ortalama değerlerdir.",
-        },
-        submit: "Rezervasyonu tamamla",
-      },
-      form: {
-        fullNameLabel: "Ad Soyad *",
-        fullNamePlaceholder: "Adınız ve soyadınız",
-        emailLabel: "E-posta *",
-        emailPlaceholder: "ornek@email.com",
-        phoneLabel: "Telefon *",
-        phonePlaceholder: "+90 5xx xxx xx xx",
-        peopleCountLabel: "Katılımcı Sayısı *",
-        peopleCountPlaceholder: "Kaç kişi?",
-        notesLabel: "Ek Notlar",
-        notesPlaceholder: "Uçuş şehriniz, özel talepleriniz vb.",
-      },
-      terms: {
-        contract: {
-          title: "1) Sözleşme ve kurallar",
-          text:
-            "<agreementLink>Paket tur sözleşmesini</agreementLink> ve <rulesLink>tur kurallarını</rulesLink> okudum; sözleşmede yer alan iptal/iade koşulları dahil tüm hükümleri kabul ediyorum.",
-        },
-        distanceSales: {
-          title: "2) Mesafeli satış sözleşmesi",
-          text: "<link>Mesafeli Satış Sözleşmesi’ni</link> okudum ve kabul ediyorum.",
-        },
-        pricingScope: {
-          title: "3) Fiyata dahil/haric ve uçak bileti limiti",
-          linkText: "Fiyata dahil olanlar / olmayanlar",
-          text: {
-            part1: "bilgilendirmesini okudum. Uçak bileti kişi başı",
-            part2: "’a kadar fiyata dahildir; bilet kesim tarihinde uçuş firmasının güncel fiyatının esas alınacağını ve",
-            overLabel: "üzerindeki farkı",
-            part3: "tarafımca karşılayacağımı okudum ve onayladım.",
-          },
-        },
-        kvkk: {
-          title: "4) KVKK",
-          text: "<link>KVKK Aydınlatma Metni’ni</link> okudum; iletişim ve tekliflendirme amacıyla işlenmesini onaylıyorum.",
-        },
-        depositApproval: {
-          title: "Kaporalı ödeme onayı",
-          text: "Kaporalı ödeme koşullarını ve sözleşmede geçen iptal/iade koşullarını okudum, anladım ve kabul ediyorum.",
-        },
-        englishDocs: {
-          title: "İngilizce hukuki dokümanlar",
-          description:
-            "Ödeme sağlayıcısı incelemesi amaçlıdır. Türkçe dokümanlar ve yazılı resmi teklif/ekler esastır.",
-          links: {
-            hub: "Dokümanlar (EN) merkezi",
-            packageTour: "Paket Tur (EN)",
-            distanceSales: "Mesafeli Satış (EN)",
-            preInformation: "Ön Bilgilendirme (EN)",
-            cancellationRefund: "İptal/İade (EN)",
-            kvkkNotice: "KVKK Notice (EN)",
-          },
-        },
-      },
-      validation: {
-        alertPrefix: "Lütfen devam etmeden önce aşağıdaki alanları doldurun/onaylayın:",
-        missing: {
-          package: "Paket seçimi",
-          peopleCount: "Katılımcı sayısı",
-          fullName: "Ad Soyad",
-          email: "E-posta",
-          phone: "Telefon",
-          acceptTerms: "Paket tur sözleşmesi ve tur kuralları onayı",
-          acceptDistanceSales: "Mesafeli satış sözleşmesi onayı",
-          acceptPricingScope: "Fiyata dahil/haric ve uçak bileti limiti onayı",
-          acceptKvkk: "KVKK aydınlatma metni onayı",
-          acceptDepositTerms: "Kaporalı ödeme koşulları onayı",
-        },
-      },
-    },
-
-    itinerary: {
-      title: "Tur Programı – Gün Gün Akış",
-      missing: "Bu tur için detaylı günlük program henüz eklenmedi.",
-      dayNumber: "Gün {{dayNumber}}",
-      dayImageAlt: "{{dayTitle}} görseli",
-      optionalExtra: {
-        badge: "Opsiyonel Ekstra Aktivite (Ücretli)",
-        hint: {
-          open: "Detayları görmek için karta tıklayabilirsiniz.",
-          close: "Detayları kapatmak için tekrar tıklayabilirsiniz.",
-        },
-      },
-    },
-
-    scope: {
-      title: "Tur Kapsamı ve Hizmet Yaklaşımı",
-      premiumBadge: "Bu tur deneyim odaklı bir premium pakettir",
-      premiumDescription:
-        "Premium paket; daha dolu program, daha yüksek konfor ve daha şeffaf kapsam hedefler. Seçtiğiniz pakete göre bazı detaylar sadeleşebilir.",
-      approachFallback:
-        "Bu sayfadaki içerik, seçilen paket seviyesine göre uyarlanabilen bir tur akışını temsil eder. Net kapsam ve operasyon detayları rezervasyon öncesinde yazılı olarak paylaşılır.",
-      includedTitle: "Fiyata Dahil Olanlar",
-      notIncludedTitle: "Fiyata Dahil Olmayanlar",
-      fallbackIncluded: [
-        "Tur akışı ve operasyon planlaması",
-        "Programda belirtilen ana rota ve temel koordinasyon",
-        "Rezervasyon sürecinde yazılı olarak netleştirilen hizmet kapsamı",
-      ],
-      fallbackNotIncluded: [
-        "Kişisel harcamalar ve bireysel tercihler",
-        "Programda yer alsa bile seçime bağlı opsiyonel deneyimler",
-        "Resmi vergiler/harçlar (varsa) ve yurtdışı çıkış harcı",
-      ],
-      freeTimeTitle: "Serbest Zaman Yaklaşımımız",
-      freeTimeFallback:
-        "Serbest zaman dilimleri, katılımcıların kendi ritmi ve tercihleriyle hareket edebilmesi için esnek bırakılır. Dilerseniz bu zamanlara opsiyonel aktiviteler eklenebilir.",
-      disciplineTitle: "Grup Disiplini ve Uyum",
-      disciplineFallback:
-        "Programın sağlıklı ilerlemesi için zamanlamaya uyum ve grup düzenine saygı esastır. Güvenlik brifingleri ve rehber yönlendirmelerine uyulması beklenir.",
-    },
-
-    importantNotes: {
-      title: "Önemli Açıklamalar ve Uyarılar",
-      subtitle: {
-        open: "Tüm önemli açıklamaları aşağıda görebilirsiniz.",
-        closed: "Tüm tur paketlerimiz için geçerli genel bilgilendirme ve katılım kurallarının özetini görmek için tıklayın.",
-      },
-      lead: "Aşağıdaki maddeler, tüm Endonezya tur paketlerimiz için genel bilgilendirme ve katılım kurallarını özetler.",
-      plannedBoxDescription: "Rezervasyon öncesi bilmeniz gereken kritik maddeler:",
-      items: {
-        registrationDeadline:
-          "<strong>Ön kayıt</strong> formu bağlayıcı rezervasyon değildir; ancak operasyon planlaması için önemlidir.",
-        preInfoAndContract:
-          "Ödeme öncesinde <b>ön bilgilendirme</b> ve <b>paket tur sözleşmesi</b> yazılı olarak paylaşılır.",
-        plansMayChange:
-          "Uçuş/otel/aktivite gibi detaylar mevsim, hava ve operasyon koşullarına göre küçük değişiklikler gösterebilir.",
-        travelInsurance:
-          "Seyahat sağlık sigortası önerilir; talep halinde yönlendirme yapılır.",
-        healthIssue:
-          "Kronik rahatsızlık/ilaç kullanımı gibi durumları başvuru notuna ekleyin.",
-        followRules:
-          "Rehber yönlendirmeleri ve güvenlik kurallarına uyulması beklenir.",
-        passportValidity:
-          "<strong>Pasaport</strong> geçerlilik sürenizin seyahat bitişinden sonra en az 6 ay olmasına dikkat edin.",
-        visaRemovedForTurkishCitizens:
-          "Türk vatandaşları için vize muafiyeti mevcut olabilir; güncel resmi kaynaklar esas alınır.",
-        entryRulesMayChange:
-          "Ülkeye giriş kuralları değişebilir; pasaport/sağlık/vergiler gibi resmi şartlar katılımcı sorumluluğundadır.",
-        contactThroughGuide:
-          "Tur boyunca iletişim kanalı rehber/operasyon ekibidir; acil durumlarda 7/24 destek verilir.",
-        comfortPriority:
-          "Konfor ve güvenlik önceliğimizdir; grup düzeni buna göre planlanır.",
-        allNotesAccepted:
-          "Formu göndererek yukarıdaki bilgilendirmeyi okuduğunuzu kabul etmiş olursunuz.",
-      },
-      flightPolicy:
-        "Uçak bileti kişi başı ${{flightLimit}}’a kadar pakete dahildir. Uçuş fiyatları çok değişken olduğu için bu limit sabitlenmiştir; limit üzeri fark katılımcı tarafından ayrıca karşılanır.",
-    },
-
-    trust: {
-      title: "Neden bize güvenebilirsiniz?",
-      bullets: [
-        "Endonezya'da yaşayan ve bölgeyi yakından tanıyan yerel operasyon ekibi",
-        "Sürpriz masraf yerine; fiyata dahil olan ve olmayan hizmetlerin şeffaf şekilde belirtilmesi",
-        "Deneyim odaklı, gün boyu dolu programlar ve bilinçli bırakılan serbest zamanlar",
-        "Küçük grup veya butik yaklaşım ile daha sakin ve kişisel bir tatil deneyimi",
-      ],
-      testimonials: {
-        1: {
-          text: "Her şey yazılı ve şeffaftı. WhatsApp üzerinden hızlı yanıt aldık; program beklentimizin üstündeydi.",
-          person: "Ece K.",
-          meta: "Bali • Premium paket",
-        },
-        2: {
-          text: "Tur boyunca koordinasyon çok iyiydi. Serbest zamanlar da tam kararındaydı; tekrar gelmek isteriz.",
-          person: "Mert A.",
-          meta: "Lombok • Plus paket",
-        },
-      },
-    },
-
-    about: {
-      title: "Ada hakkında",
-      nature: "Doğa",
-      culture: "Kültür",
-      lifestyle: "Yaşam",
-    },
-
-    routes: {
-      title: "Rotalar & Ziyaret Noktaları",
-      missing: "Bu tur için rota detayları yakında eklenecek.",
-    },
-
-    gallery: {
-      title: "Galeri",
-    },
-
-    priceSummary: {
-      title: "Fiyat özeti",
-      description: "Başlangıç fiyatı ve uçuş limiti dahil genel görünüm.",
-      perPersonLabel: "Kişi başı",
-    },
-
-    ctaBottom: {
-      title: "Hazır mısınız?",
-      description: "Ön kayıt formunu doldurun ya da WhatsApp üzerinden sorun.",
-      actions: {
-        preRegister: "Ön kayıt oluştur",
-        whatsappMessage: "Merhaba, {{tourName}} turu hakkında bilgi almak istiyorum.",
-        askWhatsapp: "WhatsApp'tan sor",
-      },
-    },
-
-    footerNav: {
-      back: "Geri dön",
-      allTours: "Tüm turları gör",
-    },
-  },
 
   contact: {
     hero: {
@@ -2532,6 +1930,7 @@ export default {
       matchId: 'Eşleşme Kodu',
     },
     matches: {
+      autoRunNotice: 'Otomatik eşleştirme sistemimiz yaklaşık her {{minutes}} dakikada bir çalışır. İsterseniz buradan manuel yeni eşleşme talep edebilirsiniz.',
       presence: {
         online: 'Çevrimiçi',
         lastSeen: 'Son aktif: {{time}}',
@@ -2996,6 +2395,7 @@ export default {
     freeActivatedInfo:
       '{{date}} tarihine kadar ücretsiz üyeliğiniz tanımlanmıştır.\nÜyelik kapsamında eşleşme profilini beğenip reddetme ve {{translatedCount}} çevirili mesaj hakkından faydalanabilirsiniz.\nGünlük eşleşme değiştirme hakkınız {{dailyLimit}} ile sınırlıdır.',
     promoExpired: 'Kampanya süresi doldu. {{date}} sonrası aktivasyonlar ücretlidir ve ödeme sonrası aktif olur.',
+    promoDisabled: 'Kampanya şu an kapalı. Lütfen daha sonra tekrar deneyin.',
     activateFailed: 'Üyelik aktifleştirilemedi. Lütfen tekrar deneyin.',
     errors: {
       notAuthenticated: 'Oturum doğrulanamadı. Lütfen çıkış yapıp tekrar giriş yapın.',

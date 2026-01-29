@@ -12,6 +12,7 @@ function isConfigured() {
   const provider = safeStr(process.env.TRANSLATE_PROVIDER || '').toLowerCase();
   if (provider === 'deepl') return !!safeStr(process.env.DEEPL_API_KEY);
   if (provider === 'libretranslate') return !!safeStr(process.env.LIBRETRANSLATE_URL);
+  if (provider === 'google') return !!safeStr(process.env.GOOGLE_TRANSLATE_API_KEY);
   return false;
 }
 
@@ -109,6 +110,55 @@ async function translateWithLibreTranslate(text, targetLang) {
   return s;
 }
 
+function decodeHtmlEntities(s) {
+  // Google Translate v2 bazen HTML entity döndürebiliyor.
+  return String(s || '')
+    .replaceAll('&amp;', '&')
+    .replaceAll('&lt;', '<')
+    .replaceAll('&gt;', '>')
+    .replaceAll('&quot;', '"')
+    .replaceAll('&#39;', "'");
+}
+
+async function translateWithGoogle(text, targetLang) {
+  const apiKey = safeStr(process.env.GOOGLE_TRANSLATE_API_KEY);
+  if (!apiKey) {
+    const err = new Error('translate_not_configured');
+    err.statusCode = 501;
+    throw err;
+  }
+
+  // Google Cloud Translation API v2 (API key ile en kolay entegrasyon)
+  // Doküman: https://cloud.google.com/translate/docs/reference/rest/v2/translate
+  const url = `https://translation.googleapis.com/language/translate/v2?key=${encodeURIComponent(apiKey)}`;
+
+  const resp = await fetch(url, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      q: text,
+      target: targetLang,
+      format: 'text',
+    }),
+  });
+
+  if (!resp.ok) {
+    const err = new Error('translate_failed');
+    err.statusCode = 502;
+    throw err;
+  }
+
+  const json = await resp.json();
+  const out = json?.data?.translations?.[0]?.translatedText;
+  const s = safeStr(decodeHtmlEntities(out));
+  if (!s) {
+    const err = new Error('translate_failed');
+    err.statusCode = 502;
+    throw err;
+  }
+  return s;
+}
+
 export function normalizeChatLang(v) {
   return normalizeLang(v);
 }
@@ -135,6 +185,7 @@ export async function translateText({ text, targetLang }) {
   const provider = safeStr(process.env.TRANSLATE_PROVIDER || '').toLowerCase();
   if (provider === 'deepl') return translateWithDeepL(t, lang);
   if (provider === 'libretranslate') return translateWithLibreTranslate(t, lang);
+  if (provider === 'google') return translateWithGoogle(t, lang);
 
   const err = new Error('translate_not_configured');
   err.statusCode = 501;

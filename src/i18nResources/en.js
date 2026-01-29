@@ -17,6 +17,319 @@ export default {
     language: "Language",
   },
 
+  studio: {
+    common: {
+      back: 'Back',
+      close: 'Close',
+      cancel: 'Cancel',
+      send: 'Send',
+      loading: 'Loading…',
+      processing: 'Processing…',
+      match: 'Match',
+      profile: 'Profile',
+      verified: 'Verified',
+    },
+    myInfo: {
+      title: 'My info',
+      subtitle: 'A summary of the information you provided in your application.',
+      noProfile: 'Profile record not found.',
+      appMissing: 'Application details not found. (Application record or user profile data may be missing.)',
+      sections: {
+        basic: 'Basic info',
+        contact: 'Contact',
+        details: 'Details',
+        partner: 'Partner preferences',
+        about: 'About you',
+        membership: 'Membership & verification',
+      },
+
+      contactPrivacyNotice:
+        'Your contact details (WhatsApp/email/Instagram) are private. They are not shown publicly while you fill the form or in the app UI. They may only be shared with the person you are definitively matched with after the 48-hour active match period, and only with your approval.',
+      fields: {
+        username: 'Username',
+        fullName: 'Full name',
+        age: 'Age',
+        gender: 'Gender',
+        city: 'City',
+        country: 'Country',
+        nationality: 'Nationality',
+        whatsapp: 'WhatsApp',
+        email: 'Email',
+        instagram: 'Instagram',
+        heightCm: 'Height (cm)',
+        weightKg: 'Weight (kg)',
+        occupation: 'Occupation',
+        education: 'Education',
+        educationDepartment: 'Department',
+        maritalStatus: 'Marital status',
+        hasChildren: 'Children',
+        childrenCount: 'Children count',
+        familyApprovalStatus: 'Family approval',
+        religion: 'Religion',
+        religiousValues: 'Religious values',
+        incomeLevel: 'Income',
+        marriageTimeline: 'Marriage timeline',
+        relocationWillingness: 'Relocation',
+        preferredLivingCountry: 'Preferred living country',
+        communicationLanguage: 'Communication language',
+        communicationLanguageOther: 'Communication language (other)',
+        smoking: 'Smoking',
+        alcohol: 'Alcohol',
+        nativeLanguage: 'Native language',
+        nativeLanguageOther: 'Native language (other)',
+        foreignLanguages: 'Foreign languages',
+        foreignLanguageOther: 'Foreign language (other)',
+        lookingForGender: 'Looking for (gender)',
+        lookingForNationality: 'Looking for (nationality)',
+        partnerAgeMin: 'Age (min)',
+        partnerAgeMax: 'Age (max)',
+        partnerHeightMinCm: 'Height (min cm)',
+        partnerHeightMaxCm: 'Height (max cm)',
+        partnerMaritalStatus: 'Marital status',
+        partnerReligion: 'Religion',
+        partnerCommunicationMethods: 'Communication methods',
+        partnerLivingCountry: 'Living country',
+        partnerSmokingPreference: 'Smoking',
+        partnerAlcoholPreference: 'Alcohol',
+        partnerChildrenPreference: 'Children',
+        partnerEducationPreference: 'Education',
+        partnerOccupationPreference: 'Occupation',
+        partnerFamilyValuesPreference: 'Family values',
+        about: 'About',
+        expectations: 'Expectations',
+        membershipPlan: 'Membership plan',
+        membershipActive: 'Membership active',
+        membershipValidUntil: 'Membership ends',
+        identityVerified: 'Identity verified',
+        identityStatus: 'Identity status',
+        identityMethod: 'Verification method',
+        identityRef: 'Reference',
+      },
+      developerView: 'Developer view (JSON)',
+      developerHint: 'You can share this with admin if needed.',
+    },
+    match: {
+      status: {
+        proposed: 'Intro',
+        mutual_interest: 'Mutual like',
+        mutual_accepted: 'Active',
+        contact_unlocked: 'Contact unlocked',
+        cancelled: 'Cancelled',
+      },
+      avatarAlt: "{{name}}'s profile photo",
+      actions: {
+        like: 'Like',
+        liked: 'Liked',
+        message: 'Message',
+      },
+      banners: {
+        locked: 'You have an active match — others are locked',
+        newMessage: 'New message',
+      },
+    },
+    matches: {
+      title: 'My matches',
+      showingCount: 'Showing {{count}} matches.',
+      emptyHint: 'Your matches will appear here.',
+      backToProfile: '← Back to profile',
+      findNew: 'Find new match',
+      finding: 'Searching…',
+      howTitle: 'How it works',
+      howItems: {
+        likeFirst: 'First, Like a profile (if mutual, “Mutual like” is created).',
+        startActive: 'After mutual like, if both sides confirm “Start active match”, long chat opens.',
+        onlyOneActive: 'You can start only 1 active match at a time.',
+        lockUntilCancel: 'Until the active match is mutually cancelled, likes/messaging with other profiles are locked.',
+      },
+      activeLockTitle: 'You have an active match',
+      activeLockBody: 'Interactions with other profiles are locked. Go to the <link>active match page</link> to manage it.',
+      requestFailed: 'Match request failed: {{error}}',
+      requestOk: 'Request sent. It may appear in your list within seconds.',
+      loading: 'Loading…',
+      loadFailed: 'Matches could not be loaded. ({{error}})',
+      noneTitle: 'No matches yet.',
+      noneBody: 'If you just created a profile, the first match can be generated within seconds. You can also trigger it manually here.',
+      shortModal: {
+        subtitle: 'Short message (limit 5) • for quick, profile-external info',
+        remaining: 'Remaining: {{remaining}} / {{limit}}',
+        noMessages: 'No messages yet.',
+        translateError: 'Translation error: {{error}}',
+        translating: 'Translating…',
+        translate: 'Translate',
+        placeholder: 'Write a short question…',
+      },
+      errors: {
+        activeLocked: 'You cannot message other profiles while you have an active match. First, mutually cancel your active match.',
+        shortLimit: 'You have used all your short messages (5). To continue, after mutual like you must start the active match.',
+      },
+    },
+    chat: {
+      backToMatches: '← Back to matches',
+      chatTitle: 'Chat',
+      emoji: 'Emoji',
+      emojiHint: 'You can add emojis',
+      shortAreaTitle: 'Short message area',
+      shortAreaDesc:
+        'This area is only for learning more about the person (topics not in the profile, short questions about character).',
+      shortAreaLimit: 'Your limit is {{limit}} messages. Remaining: {{remaining}}',
+      otherActiveLock: 'Because your active match is with someone else, long chat is not available in this match.',
+      noMessages: 'No messages yet. Send the first message.',
+      matchLoading: 'Loading match…',
+      matchNotFound: 'Match not found.',
+      messagesLoading: 'Loading messages…',
+      sendFailed: 'Message could not be sent: {{error}}',
+      inputPlaceholderLong: 'Write a message…',
+      inputPlaceholderShort: 'Write a short question/message…',
+      notAvailable: 'Messaging is currently unavailable.',
+      lockedTitle: 'Other matches are temporarily locked',
+      lockedBody: 'While you have an active match, messaging in other matches is disabled. It will re-open when the lock expires.',
+      notAllowed: 'You are not allowed to view this chat.',
+      notOpenTitle: 'Messaging is not open yet',
+      notOpenBody: 'Messaging opens after the match becomes active (mutual approval).',
+      you: 'You',
+      remainingTime: '{{hours}}h {{minutes}}m',
+      lock48h: {
+        title: '48-hour private chat + contact sharing',
+        subtitle: 'After mutual confirmation and the timer completes, contact details can be shared.',
+        lockedRemaining: 'Still locked. Remaining: {{time}}',
+        confirming: 'Confirming…',
+        confirmed: 'Confirmed',
+        confirm: 'Confirm 48 hours',
+        requesting: 'Sending request…',
+        requestContact: 'Request contact sharing',
+        approving: 'Approving…',
+        approveContact: 'Approve contact sharing',
+        confirmStatusLabel: 'Confirmation status:',
+        confirmStatus: {
+          both: 'Mutually confirmed',
+          you: 'You confirmed (waiting for the other side)',
+          other: 'Other side confirmed (waiting for you)',
+          none: 'No confirmations yet',
+        },
+        contactStatusLabel: 'Contact sharing:',
+        contactStatus: {
+          approved: 'Shared',
+          pendingMine: 'Request sent (waiting for approval)',
+          pendingOther: 'Other side requested (you can approve)',
+          closed: 'Closed',
+        },
+        confirmError: 'Confirmation error: {{error}}',
+        contactRequestError: 'Contact request error: {{error}}',
+        contactApproveError: 'Contact approval error: {{error}}',
+        whatsappTitle: 'WhatsApp',
+        openInWhatsApp: 'Open in WhatsApp',
+      },
+    },
+
+    matchProfile: {
+      askShort: 'Ask a short question',
+      viewProfile: 'View profile',
+      hideProfile: 'Hide profile',
+      profileTitle: 'Profile info',
+      contactHidden:
+        'Contact details are hidden. They are not shown while filling the form or in the app UI. They may only be shared after the 48-hour active match period if a definitive match is achieved, and only with your approval.',
+      rulesTitle: 'Rules (quick)',
+      rules: {
+        likeFirst: 'If the like is mutual, “Mutual like” is created.',
+        startActive: 'Long chat opens after both sides confirm “Start active match”.',
+        onlyOneActive: 'Only 1 active match can exist; while active, likes/messaging with other profiles are locked.',
+        unlockAfterCancel: 'Other profiles re-open only after the active match is mutually cancelled.',
+      },
+      activeStart: {
+        starting: 'Starting…',
+        waiting: 'Waiting for confirmation',
+        start: 'Start active match',
+        confirmPrompt:
+          'You are about to start the active match.\n\n- You can have only 1 active match (other profiles will be locked).\n- After activation, you cannot cancel for the first 2 hours.\n\nDo you confirm?',
+      },
+      cancel: {
+        title: 'Cancel active match',
+        desc: 'Cancellation is mutual. After you cancel, the other side must also cancel.',
+        cooldown: 'To prevent abuse, cancellation is disabled for the first 2 hours after activation. Remaining: {{time}}',
+        request: 'Cancel active match',
+        requestSent: 'Cancel request sent',
+        waitingOther: 'Waiting for the other side to cancel.',
+        confirmPrompt:
+          'You are about to cancel the active match.\n\n- Cancellation is mutual: the match closes only after both sides cancel.\n- After cancellation, the interaction lock with other profiles is removed.\n\nDo you confirm?',
+      },
+      mutualLike: {
+        title: 'You have a mutual like',
+        body: 'Long chat opens only after both sides confirm “Start active match”.',
+      },
+      longChatClosedTitle: 'Long chat is closed',
+      longChatClosedBody: 'Long chat is available only after starting the active match. At this stage you can only use short messages.',
+      shortModal: {
+        title: 'Short message',
+      },
+      time: {
+        minutes: '{{minutes}} min',
+        hours: '{{hours}} h',
+        hm: '{{hours}} h {{minutes}} min',
+      },
+      errors: {
+        activeMatchLocked: 'While you have an active match, you cannot interact with another profile. First, mutually cancel your active match.',
+        otherUserActiveMatch: 'The other side currently has an active match. This match cannot be activated.',
+        cancelCooldown: 'To prevent abuse, cancellation is disabled for the first 2 hours after activation. Remaining: {{time}}',
+        notAvailable: 'This action is not available at this stage.',
+        forbidden: 'You are not allowed to perform this action.',
+        activeStartLocked: 'You cannot start a new active match while you already have an active match.',
+      },
+    },
+    profile: {
+      membershipLabel: 'Membership',
+      membershipActive: 'Active',
+      membershipPassive: 'Inactive',
+      endsAt: 'Ends',
+      editProfile: 'Edit profile',
+      myMatches: 'My matches',
+      logout: 'Logout',
+      bannerAlt: 'Profile banner',
+      aboutTitle: 'About',
+      noBio: 'No description yet.',
+      subscriptionTitle: 'Subscription',
+      subscriptionActiveDesc: 'Your membership is active. You can access all features.',
+      subscriptionPassiveDesc: 'Your membership is inactive. Some actions may be restricted without membership.',
+      buySoon: 'Buy membership (soon)',
+      activateMembership: 'Activate my membership',
+      cancelMembership: 'Cancel membership',
+      membershipActivated: 'Membership activated.',
+      membershipCancelled: 'Membership cancelled.',
+      confirmCancelMembership: 'Do you want to cancel your membership?',
+      myInfo: 'My info',
+      identityTitle: 'Identity verification',
+      identityVerified: 'Your identity appears verified.',
+      identityStatus: 'Status',
+      verifyNow: 'Verify my identity',
+      identityHelp: 'By verifying your identity, you can increase trust and remove membership/feature restrictions.',
+      accountTitle: 'Account',
+      accountDeleteDesc: 'You can permanently delete your account and related data.',
+      deleteAccount: 'Delete account',
+      deleting: 'Deleting…',
+      oldPanel: 'Old panel (temporary)',
+      verifyModalTitle: 'Identity verification',
+      idType: 'ID type',
+      idTypeTrId: 'National ID',
+      idTypePassport: 'Passport',
+      idTypeDriver: 'Driver license',
+      verifyPhotosHint: 'Photos are used only for verification.',
+      idFront: 'ID front',
+      idBack: 'ID back',
+      selfie: 'Selfie',
+      verifyMissingFiles: 'Please upload the front/back of your ID and a selfie.',
+      verifySubmitted: 'Your verification request has been received. It is under review.',
+      submitVerification: 'Submit',
+      confirmDelete: 'Do you want to permanently delete your account? This cannot be undone.',
+    },
+    errors: {
+      profileNotFound: 'Profile record not found.',
+      activeLocked: 'While you have an active match, you cannot interact with another profile. First, mutually cancel your active match.',
+      shortLimit: 'You have used all your short messages (5). To continue, after mutual like you must start the active match.',
+      notAvailable: 'This action is not available at this stage.',
+      forbidden: 'You are not allowed to perform this action.',
+      cancelCooldown: 'To prevent abuse, cancellation is temporarily disabled. Remaining: {{time}}',
+    },
+  },
+
   matchmakingHub: {
     metaTitle: 'Uniqah',
     badge: 'Private & moderated process',
@@ -403,113 +716,6 @@ export default {
     },
   },
 
-  kesfet: {
-    analyticsTitle: "Explore - Discover the Islands",
-    heroTitle: "Explore Indonesia",
-    heroSubtitle:
-      "Paradise islands, exotic cultures, and unforgettable memories await. Discover the perfect destination for your honeymoon or holiday.",
-    stats: {
-      islands: "{{count}} islands",
-      destinations: "{{count}}+ destinations",
-      suggestions: "Honeymoon & vacation ideas",
-    },
-    sectionTitle: "Discover the Islands",
-    sectionSubtitle: "Each island offers unique experiences and unforgettable memories",
-    filters: {
-      hepsi: "All",
-      balayi: "Honeymoon",
-      aile: "Family",
-      macera: "Adventure",
-      sakin: "Calm",
-    },
-    tagLabels: {
-      balayi: "Great for honeymoon",
-      aile: "Family-friendly",
-      macera: "Adventure & exploration",
-      sakin: "Quiet escape",
-    },
-    card: {
-      overlayExplore: "Explore {{name}} in depth",
-      categoryLabel: "Indonesian Islands",
-      destinations: "{{count}} destinations",
-      viewDetails: "View details",
-    },
-    videoNotFound: "Video link not found",
-  },
-
-  kesfetIsland: {
-    analyticsTitle: "Explore - {{island}}",
-    heroAlt: "{{name}} island",
-    backToIslands: "Back to islands",
-    stats: {
-      destinations: "{{count}} destinations",
-      recommendedStay: "Recommended stay: {{stay}}",
-      averageBudget: "Average budget: {{budget}}",
-    },
-    sectionTitle: "Popular Destinations",
-    sectionSubtitle: "{{count}} destinations are waiting for you",
-    card: {
-      details: "Details →",
-    },
-  },
-
-  kesfetSidebar: {
-    closeMenu: "Close menu",
-    title: "Explore",
-    back: "Go back",
-    planTravel: "Plan your trip",
-    whatsapp: "WhatsApp",
-    youtube: "YouTube channel",
-    whatsappMessage: "I'd like to get information about Indonesia's holiday destinations",
-  },
-
-  kesfetDestination: {
-    breadcrumb: {
-      indonesia: "Indonesia",
-    },
-    backToIsland: "Back to {{island}}",
-    weather: {
-      today: "Today's average: Air {{air}} · Sea {{sea}} (est.)",
-    },
-    tabs: {
-      places: "Places to Visit",
-      activities: "Activities",
-      food: "Food & Drinks",
-      stay: "Stay",
-      shopping: "Shopping",
-    },
-    places: {
-      title: "Where should you see first in {{destination}}?",
-      subtitle: "From scenery to history, we've gathered stops that help you truly feel {{destination}}.",
-      tip: "If it's your first time in {{destination}}, planning at most 2–3 spots per day and leaving room for breaks helps you enjoy both the weather and the rhythm.",
-    },
-    activities: {
-      title: "What shouldn't you leave {{destination}} without doing?",
-      subtitle: "Whether you want a calm day or to chase adrenaline depends on what you choose below.",
-      tip: "Mixing high-energy and relaxed activities on the same day makes your time in {{destination}} more balanced and memorable.",
-    },
-    food: {
-      title: "What should you taste in {{destination}}?",
-      subtitle: "From street food to relaxed dinners, we've curated flavors you should try without regret.",
-    },
-    stay: {
-      title: "What kind of place would feel right to stay in {{destination}}?",
-      subtitle: "You can compare options side by side based on your budget, comfort expectations, and your ideal view.",
-      recommendedDuration: "Recommended Duration",
-      totalBudget: "Total Average Budget ({{duration}})",
-      foodTip: "Choosing a light street bite before you get too hungry, and a calmer restaurant for the evening, helps balance your day in {{destination}}.",
-      locationTip: "When choosing where to stay in {{destination}}, booking the first night in a central area and the following days in a quieter area can make adapting easier.",
-    },
-    shopping: {
-      title: "What can you find in {{destination}} for both needs and gifts?",
-      subtitle: "Ideas for essentials, activity gear, and small items that will remind you of this place.",
-      tip: "Don't leave souvenir shopping to the last day; buying what you like when you see it in {{destination}} makes bargaining and choosing easier.",
-    },
-    gallery: {
-      alt: "{{destination}} - {{tab}} view {{index}}",
-    },
-  },
-
   documentsHub: {
     title: "Documents",
     subtitle:
@@ -752,7 +958,7 @@ export default {
         },
       },
       outro:
-        "For Indonesian culture, island-by-island route suggestions and detailed articles, you can check the content we prepared in <1>Explore</1>. For planned tour packages, visit <3>Tours</3>. For custom organizations for company or school groups, visit <5>Group Tours</5>.",
+        "For more information about the <1>Uniqah</1> matchmaking system and <3>Wedding</3> guidance in Indonesia, you can explore these pages. For official texts and policies, use the <5>Documents</5> section.",
     },
     story: {
       title: "Our short story",
@@ -850,1275 +1056,6 @@ export default {
     },
   },
 
-  tours: {
-    whatsapp: {
-      preRegRequestTitle: "Group tour pre-registration request (list page)",
-      missingNumberWarn: "VITE_WHATSAPP_NUMBER is not set.",
-      quickInfoGreeting: "Hi, I would like to get information about Indonesia tour packages.",
-      quickInfoQuestion: "Could you share suitable dates and current pricing for individual / family participation?",
-      labels: {
-        tour: "Tour",
-        fullName: "Full name",
-        email: "Email",
-        phone: "Phone",
-        participationType: "Participation type",
-        requestedTour: "Requested tour",
-        peopleCount: "Number of people",
-        notes: "Notes",
-      },
-    },
-
-    ui: {
-      heroTitle: "Indonesia Scheduled Tour Packages",
-      click: "Tap",
-      personalToursCta: "Tours for Individuals / Families",
-      groupToursCta: "Tour Organization for Groups",
-      heroDescription:
-        "These tours are our scheduled Indonesia group tours, planned for specific periods with limited capacity. You can leave a non-binding pre-registration and ask us to send the detailed program and current pricing via WhatsApp or email.",
-
-      trust: {
-        transparentTitle: "Transparent process",
-        transparentDesc: "After pre-registration, we share the program, scope and current pricing in writing.",
-        confirmTitle: "Confirmation step",
-        confirmDesc: "Registration is confirmed after contract approval and the payment process are completed.",
-        fastContactTitle: "Fast contact",
-        fastContactDesc: "You can quickly ask your questions via WhatsApp.",
-      },
-
-      steps: {
-        1: { title: "1) Choose a tour", desc: "Pick the tour that fits you and leave a pre-registration." },
-        2: { title: "2) Information", desc: "We share program + scope + pricing in writing." },
-        3: { title: "3) Confirmation", desc: "Contract approval and payment step are completed." },
-        4: { title: "4) Preparation", desc: "Pre-trip info for flights/hotels and the journey." },
-      },
-
-      flightNoteShort: "flight ticket included up to {{limit}} per person",
-      flightNoteReason:
-        "Because flight prices vary a lot, the cap is fixed; any difference above the cap is charged separately.",
-
-      perks: {
-        hotel: "4–5 star hotel accommodation",
-        breakfastTransfers: "Breakfast + transfers",
-        support: "24/7 Turkish support",
-        supportShort: "Support",
-        sharedRoom: "Shared double room (couple or friends)",
-        breakfastHotels: "Hotel breakfast every day",
-        airportHotelTransfers: "Transfers between airport–hotel–activities",
-        supportFull: "24/7 reachable Turkish support and local team",
-        roadTripNature: "Road trip concept (nature & adventure)",
-        breakfastRouteTransfers: "Breakfast + route transfers",
-        roadTripTrains: "Road trip + train segments",
-        guidedAndFreeTime: "Guided days + free time",
-        boatFocus: "Boat-focused island exploration",
-        opsSafety: "Operations & safety coordination",
-        flightHeavy: "Flight-heavy route (no long road days)",
-        stayBreakfast: "Stay + breakfast",
-        transfersCoord: "Transfers/coordination",
-
-        roadTripFewStops: "Road trip concept: fewer stays, different atmospheres",
-        hotel34Boutique: "3–4 star hotels and regional boutique stays",
-        medanRouteTransfers: "Medan ↔ Bukit Lawang ↔ Samosir route transfers",
-        trainRoad: "Train + road segments (incl. Bandung)",
-        guidedBalance: "Balance of guided days + free time",
-        opsCoordination: "In-route transfers and operations coordination",
-        boatMaxSeaDays: "Boat-focused island exploration: fewer stays, maximum sea days",
-        guidedBoatBalance: "Guided boat days + free time balance",
-        parkOpsSafety: "National park entries, boat operations and safety coordination",
-        flightFlowNoLongRoad: "Flight-heavy flow: no long road days; fast yet comfortable",
-        domesticFlights: "Makassar → Manado → Jakarta domestic flights (may include connections)",
-        guidedBalanceLocations: "Guided days + free time balance (Bunaken/Tangkoko/Tomohon)",
-        hotel34: "3–4 star hotels",
-        privateBusTours: "Private bus tours",
-        localGuide247: "24/7 local guide service",
-      },
-
-      promoLabel: "Campaign",
-      promoDontMiss: "Don’t miss this offer",
-
-      price: {
-        discountedSpecial: "Special discounted price per person for the first 5 confirmed reservations: {{percent}}% off",
-        currentPerPerson: "Current price per person",
-        premium: "Premium",
-        total: "Total",
-        discounted: "Discounted price",
-        premiumPackagePrice: "Premium package price",
-        startingFrom: "Starting from",
-        comingSoon: "Pricing coming soon",
-      },
-
-      notes: {
-        company:
-          "Indonesia Explorer is a brand of PT MoonStar Global Indonesia registered in Indonesia; a tour operation legally run in Indonesia by a Turkish entrepreneur.",
-        paymentFlow:
-          "Payment flow: After contract/approval, a deposit is collected; once the tour reaches sufficient participation and operations are confirmed, the remaining balance payment is opened. Reservation is confirmed once payment is completed.",
-      },
-
-      plannedDatesLabel: "Planned tour dates",
-
-      includes: {
-        someIncluded: "Some services included in the package:",
-        moreItems: "+ {{count}} more items",
-      },
-
-      cta: {
-        preReg: "Leave a pre-registration for this tour",
-        viewDetails: "View details",
-      },
-
-      shorts: {
-        title: "Short videos (YouTube Shorts)",
-        description:
-          "The videos below give a quick idea of the route and vibe. If you want, you can request program details via WhatsApp.",
-        closeAria: "Close video",
-        close: "Close",
-        playAria: "Play YouTube Short {{index}}",
-        thumbnailAlt: "YouTube Short {{index}} thumbnail",
-        noPreview: "No preview available",
-        tapToPlay: "Tap to play",
-        missingUrl: "Video link not found",
-      },
-
-      legal: {
-        title: "Transparency & official documents",
-        description:
-          "You can access texts about the post pre-registration process, contract approval and personal data usage here.",
-        whatsappCta: "Get info on WhatsApp",
-        cards: {
-          preRegInfoPack: {
-            title: "Pre-registration info pack",
-            desc: "Package shared via WhatsApp (PDF)",
-          },
-          brochures: {
-            title: "Tour brochures",
-            desc: "Bali, Lombok, Java, Sumatra, Komodo, Sulawesi",
-          },
-          kvkk: {
-            title: "Personal Data Notice",
-            desc: "Processing and storage of personal data",
-          },
-          preInfo: {
-            title: "Pre-information form",
-            desc: "General information before purchase",
-          },
-          packageAgreement: {
-            title: "Package Tour Agreement",
-            desc: "Confirmation and participation terms",
-          },
-          privacy: {
-            title: "Privacy policy",
-            desc: "Forms and communication consents",
-          },
-        },
-      },
-
-      preRegNote:
-        "Note: Pre-registration is an information request step; confirmed registration happens after the contract and payment process is completed.",
-
-      faq: {
-        title: "Frequently asked questions",
-        q1: {
-          question: "Is pre-registration paid?",
-          answer:
-            "Pre-registration is a contact form step for availability and information sharing. Confirmed registration happens after contract and payment are completed.",
-        },
-        q2: {
-          question: "What’s included in the price?",
-          answer:
-            "Included services are summarized on each card. You can see the exact scope on the tour detail page and in the program document we send you.",
-        },
-        q3: {
-          question: "How is the flight ticket included?",
-          answerPrefix: "The flight ticket is included up to ",
-          answerSuffix:
-            " per person. Since flight prices vary a lot, this cap is fixed for all tours; any difference above the cap is charged separately.",
-        },
-        q4: {
-          question: "I have questions—who can I talk to right now?",
-          answer: "You can message us on WhatsApp; we’ll get back to you as soon as we can.",
-          whatsappCta: "Ask on WhatsApp",
-        },
-      },
-
-      warnings: {
-        title: "Important notes & warnings",
-        description:
-          "A short summary of general information and participation rules valid for all tours on this page. The detailed version is available on the tour detail pages.",
-        items: {
-          1: "Latest registration deadline is {{days}} days before the tour start date.",
-          2: "After pre-registration, confirmed registration requires contract approval and full completion of payment.",
-          3: "Routes and activities may be updated by us due to operational reasons or weather conditions.",
-          4: "The flight ticket is included up to ${{limit}} per person. Since flight prices vary, the cap is fixed; any difference above the cap is charged separately.",
-          5: "Travel health insurance is mandatory before entering Indonesia.",
-          6: "If you have a serious health condition, please mention it in the “Additional notes” field on the form.",
-          7: "Guests who complete confirmed registration are expected to follow tour rules and avoid acting independently.",
-          8: "Make sure your passport is valid for at least {{months}} months after your return date.",
-          9: "Indonesia has removed visa requirements for Turkish citizens; your passport, hotel reservation and flight ticket are sufficient for entry.",
-          10: "Visa and entry rules may change over time based on official authorities.",
-          11: "During your trip, you can communicate all requests/complaints through the guide assigned to your group until we see you off at the airport.",
-          12: "Your comfort, safety and satisfaction during the trip are extremely important to us.",
-          13: "Guests who sign the participation agreement and complete registration are deemed to have read and accepted these notes and warnings.",
-        },
-      },
-
-      groupCta: {
-        title: "Planning a private Indonesia tour for your own group?",
-        description:
-          "If you want a private tour for your company, school, association or friend group where you set the group size and dates, you can fill in the detailed quotation form on the Group Tours page.",
-        button: "Go to Group Tours",
-      },
-
-      common: {
-        close: "Close",
-      },
-
-      preRegModal: {
-        title: "{{tourName}} group tour — individual/family pre-registration",
-        description:
-          "Leave your basic details for contact and capacity availability; we’ll get back to you via WhatsApp or email.",
-        warningsIntro:
-          "The points below summarize general information and participation rules for all our Indonesia tour packages. You can also find the detailed version on tour detail pages.",
-      },
-
-      form: {
-        fullName: "Full name",
-        fullNamePlaceholder: "Your full name",
-        email: "Email",
-        emailPlaceholder: "name@example.com",
-        phone: "Phone",
-        phonePlaceholder: "+90 5xx xxx xx xx",
-        participationType: "Participation type",
-        participationOptions: {
-          individual: "Individual",
-          family: "Family",
-          couple: "Couple",
-          friends: "Friend group",
-          other: "Other",
-        },
-        requestedTour: "Requested tour",
-        peopleCount: "Number of people",
-        peopleCountPlaceholder: "How many people?",
-        notes: "Additional notes",
-        notesPlaceholder: "Special requests, children count, etc.",
-        privacyConsentText:
-          "I have read and accept the privacy policy, and I consent to my shared information being used only for tour pre-registration and information purposes.",
-        privacyPolicyLink: "Privacy Policy",
-        submit: "Send pre-registration request",
-      },
-
-      sticky: {
-        whatsapp: "WhatsApp",
-        preReg: "Pre-reg",
-        tours: "Tours",
-      },
-
-      tourPicker: {
-        title: "Select a tour for pre-registration",
-      },
-    },
-
-    data: {
-      bali: {
-        name: "Bali Island",
-        description:
-          "Tropical paradise Bali will enchant you with its stunning beaches, mystical temples, green rice terraces, and warm people. This route is designed as a premium holiday package that includes carefully selected experiences such as body rafting and a full-day boat trip—minimizing surprise costs.",
-        duration: "6 Nights 7 Days",
-        concept:
-          "Flight ticket is included up to $750 per person. Because flight prices vary a lot, this cap is fixed; any difference above the cap is paid by the participant.",
-        suitableFor: [
-          "Honeymoon",
-          "Luxury & Relaxation",
-          "Sea & Beach",
-          "Yoga & Wellness",
-          "Adrenaline",
-          "Adventure",
-          "Nature",
-        ],
-        includes: [
-          "Round-trip flight ticket from Istanbul",
-          "6 nights accommodation in Ubud and the beach area",
-          "Hotel breakfast every day",
-          "Selected guided days and transfers in the program",
-        ],
-        dateRange: "28 March - 3 April (7 days / 6 nights)",
-        includesNote:
-          "Hotel stays within the program and daily breakfast are included; on the 2nd and 4th day, lunch is included as a group meal on guided days. Other meals and any food & beverage expenses outside the hotel are not included.",
-      },
-      lombok: {
-        name: "Lombok Island",
-        description:
-          "Lombok—Bali’s calm sister—awaits adventure lovers with untouched beaches and the Mount Rinjani volcano.",
-        duration: "6 Nights 7 Days",
-        concept: "Nature & Beach",
-        suitableFor: ["Nature & Adventure", "Sea & Beach", "Surf", "Adrenaline", "Water sports", "Luxury & Relaxation"],
-        includes: [
-          "Round-trip flight ticket from Istanbul",
-          "6 nights accommodation in Gili and the coastal area",
-          "Hotel breakfast every day",
-          "Selected guided days and transfers in the program",
-        ],
-        dateRange: "Seasonal periods",
-        includesNote:
-          "On the Lombok route, accommodation is planned in Gili and coastal areas; breakfasts are included, and regional transfers plus selected nature tours are part of the program. Some water sports activities and certain guided experiences may not be included and can be offered as optional add-ons.",
-      },
-      java: {
-        name: "Java Island",
-        description:
-          "Experience Java not as a classic city tour, but as a comfortable road trip starting in Jakarta and stretching to the highlands of Bandung, the river & nature routes of Pangandaran, and the UNESCO temples of Yogyakarta.",
-        duration: "10 Nights 11 Days",
-        concept: "Road Trip & Cities (Premium)",
-        suitableFor: ["Road trip", "Cultural discovery", "Nature & Adventure", "Photography", "City trip"],
-        includes: [
-          "Accommodation in Jakarta, Bandung, Pangandaran and Yogyakarta",
-          "In-route transfers (train/vehicle) and operations coordination",
-          "Guided days and transfers in the program",
-          "Written briefing before planning and booking",
-        ],
-        dateRange: "Limited capacity in selected periods",
-        includesNote:
-          "The Java tour is a road-trip concept and is planned only as a Premium package. In-route transfers and the guided day flow are organized within the package; the flight ticket is included up to {{flightLimit}} per person (the cap is fixed because flight prices vary).",
-      },
-      sumatra: {
-        name: "Sumatra Island",
-        description:
-          "Wild Sumatra offers a unique nature experience with rainforests, orangutans, and the impressive Lake Toba.",
-        duration: "8 Nights 9 Days",
-        concept: "Nature & Adventure",
-        suitableFor: ["Nature & Adventure", "Cultural discovery", "Wildlife"],
-        includes: [
-          "Accommodation in Medan, Bukit Lawang and Samosir (Lake Toba)",
-          "In-route private vehicle transfers + ferry crossings",
-          "Hotel breakfast every day",
-          "Guided days and selected activities in the program",
-        ],
-        dateRange: "Limited capacity in selected periods",
-        includesNote:
-          "The Sumatra tour focuses on nature & adventure and is planned with a road-trip approach. Transfers and the guided day flow on the Medan → Bukit Lawang → Samosir (Lake Toba) route are organized within the package. The flight ticket is included up to {{flightLimit}} per person (the cap is fixed because flight prices vary).",
-      },
-      komodo: {
-        name: "Komodo Island",
-        description:
-          "UNESCO World Heritage Komodo National Park combines Komodo dragons, pink beaches and turquoise bays—bringing together wild nature and a boat tour experience.",
-        duration: "6 Nights 7 Days",
-        concept: "Nature & Beach",
-        suitableFor: ["Boat tour", "Nature & Adventure", "Snorkeling", "Photography", "Sea & Beach", "Adrenaline"],
-        includes: [
-          "Round-trip flight ticket from Istanbul",
-          "Labuan Bajo accommodation + hotel breakfast every day",
-          "Boat days and guided trekking routes in the program (depending on package)",
-          "In-route transfers (airport/hotel/harbor) and operations coordination",
-        ],
-        dateRange: "Selected seasons, with limited boat capacity",
-        includesNote:
-          "The Komodo tour is a boat-focused island exploration concept. Boat days, national park operations, and the guided trekking flow are organized within the package. The flight ticket is included up to {{flightLimit}} per person (the cap is fixed because flight prices vary).",
-      },
-      sulawesi: {
-        name: "Sulawesi Island",
-        description:
-          "A flight-heavy exploration route that starts with Makassar’s tropical coast, continues to Manado and Bunaken’s underwater world, strengthens with the Tangkoko rainforest and Tomohon’s volcanic landscapes, and finishes with a metropolitan touch in Jakarta.",
-        duration: "8 Nights 9 Days",
-        concept: "Sea • Nature • Diving • Tropical City",
-        suitableFor: [
-          "Sea & snorkeling",
-          "Diving (optional)",
-          "Nature & wildlife",
-          "Photography",
-          "City & cafe culture",
-          "Adventure",
-        ],
-        includes: [
-          "8 nights total: Makassar (2) + Manado (5) + Jakarta (1)",
-          "Domestic flights Makassar → Manado and Manado → Jakarta (included)",
-          "Airport transfers + in-route operations coordination",
-          "24/7 Turkish support and local team (guided days depending on package)",
-        ],
-        dateRange: "Planned according to special dates and public holidays",
-        includesNote:
-          "The Sulawesi tour follows a flight-heavy flow; long and tiring road days are not planned. Domestic flights and the guided day flow are organized within the package. The flight ticket is included up to {{flightLimit}} per person (the cap is fixed because flight prices vary).",
-      },
-    },
-  },
-
-  tourDetail: {
-    nav: {
-      backAria: "Go back to the previous page",
-      backText: "Go back to the previous page",
-    },
-    notFound: {
-      title: "Tour not found",
-      description: "The tour package you want to view may not be available or may have been removed.",
-    },
-    promo: {
-      label: "Campaign",
-      earlyBird: "Don't miss the early-bird discount",
-    },
-    tags: {
-      experienceGroupHoliday: "Experience-focused group holiday",
-    },
-    brochure: {
-      open: "Open {{tourName}} brochure",
-      pdfHint: "For PDF: on the opened page follow \"Print > Save as PDF\".",
-    },
-    flight: {
-      shortNote: "(flight ticket included up to ${{flightLimit}} per person)",
-      longNote:
-        "Flight ticket is included in the package up to ${{flightLimit}} per person. Because flight prices vary a lot, this cap is fixed; any difference above the cap is charged separately.",
-    },
-    durationConcept: {
-      title: "Duration & Concept",
-      plannedDatesLabel: "Planned tour dates",
-      bullets: [
-        "This is not a checklist-style sightseeing tour; it's an experience-focused group holiday.",
-        "The focus is not a palace/temple list; it's real activities plus sea & nature experiences.",
-        "The program includes both guided full days and flexible free time you can use as you like.",
-        "Selected hotel stays and 24/7 Turkish support are provided throughout the trip.",
-        "Instead of surprise fees, what you pay for each day/experience is written upfront.",
-      ],
-      note:
-        "Note: Round-trip flights, accommodation and breakfast are fixed in all packages; stays are planned in shared double rooms (couples or friends who want to share are placed together); included activities and guided days vary by package level.",
-    },
-    packages: {
-      intro: "Compare packages and choose the best fit.",
-      title: "Tour package options",
-      javaOnly:
-        "This Java holiday tour is planned only as a Premium package. Basic and Standard package prices are shown as 0; these packages are not on sale.",
-      variants:
-        "We prepared three levels for the same route: a budget-friendly Basic package, a balanced Plus option, and a Premium package referencing the detailed program on this page. You can choose what fits your budget and expectations; the day-by-day program shown is for Premium, while Basic and Plus are simplified versions. Hotels, room type, meal coverage and included activities vary by package level.",
-      toggle: {
-        show: "Show all package details",
-        hide: "Hide package details",
-      },
-      premiumDifferences: "Differences vs Premium package",
-      premiumDifferencesByTour: {
-        bali: {
-          temel: [
-            "The Ayung River rafting experience is not included in this package (can be added optionally).",
-            "The full-day boat tour and some extra activities are not included in this price.",
-            "Hotel comfort and the number of included meals are kept simpler compared to Premium; the focus is on protecting the budget.",
-          ],
-          plus: [
-            "The full-day boat tour is not included in this package (you can add it as an optional extra).",
-            "Meals and extra activities are more limited compared to the Premium package.",
-          ],
-        },
-        lombok: {
-          temel: [
-            "The Gili Islands boat tour is not included in this package (can be added optionally).",
-            "The South beaches & surf experience is not included in this package (can be added optionally).",
-            "The Senaru waterfalls & Mount Rinjani viewpoint tour is not included in this package.",
-          ],
-          plus: [
-            "The Senaru waterfalls & Mount Rinjani viewpoint tour is not included in this package (you can add it as an optional extra).",
-            "Additional experiences such as the Pink Beach boat tour are not included in this package.",
-          ],
-        },
-        sumatra: {
-          temel: [
-            "The orangutan trekking & tubing experience is not included in this package (can be added optionally).",
-            "The Batak culture & island tour is not included in this package (can be added optionally).",
-            "Additional tours such as the Tele Observation Tower / panorama tour are not included in this price.",
-          ],
-          plus: [
-            "The Batak culture & island tour is not included in this package (you can add it as an optional extra).",
-            "Additional tours such as the Tele Observation Tower / panorama tour are not included in this package.",
-          ],
-        },
-      },
-      highlights: {
-        duration: "Duration: {{duration}}",
-        concept: "Concept: {{concept}}",
-        route: "Route: {{route}}",
-      },
-      fallback: {
-        basic: {
-          name: "Basic package",
-          badge: "Starter",
-          headline: "A starter package that keeps the flow but stays more flexible.",
-          notes:
-            "Included/excluded scope may vary depending on the selected package level. Exact scope and operational details are shared in writing before booking.",
-        },
-        standard: {
-          name: "Plus package",
-          badge: "Balanced",
-          headline: "A balanced option for those who want more clarity and a fuller plan.",
-          notes:
-            "The Plus package follows the main program flow and clarifies the scope. Operational details (times/routes) are shared in writing after booking.",
-        },
-        premium: {
-          name: "Premium package",
-          badge: "Most comprehensive",
-          headline: "Top-tier package for higher comfort and more comprehensive planning.",
-          notes:
-            "The Premium package targets more comprehensive planning. Operational details (times/routes) are shared in writing after booking.",
-        },
-      },
-    },
-
-    ctaTop: {
-      images: {
-        leftAlt: {
-          bali: "Bali - diving and coral reef",
-          lombok: "Lombok - water sports",
-          java: "Java - tour image",
-          sumatra: "Sumatra - rainforest",
-          komodo: "Komodo - beach walk",
-          sulawesi: "Sulawesi - tour image",
-        },
-        rightAlt: {
-          bali: "Bali - yacht celebration and friends",
-          lombok: "Lombok - yacht celebration and friends",
-          java: "Java - tour image",
-          sumatra: "Sumatra - Lake Toba",
-          komodo: "Labuan Bajo - boat view",
-          sulawesi: "Sulawesi - flight-heavy route",
-        },
-      },
-      title: "Get a quick quote for {{tourName}}",
-      description: "Request info in 1 minute for dates, packages and payment options.",
-      steps: {
-        1: { title: "FILL THE FORM", desc: "Write your preference and notes briefly." },
-        2: { title: "SEND THE REQUEST", desc: "Get a quick reply via WhatsApp or email." },
-        3: { title: "GET THE QUOTE", desc: "We'll share a written quote and scope details." },
-      },
-      pdfs: {
-        preRegPack: "Pre-registration info pack",
-        brochure: "Tour brochure",
-        open: "Open",
-      },
-      actions: {
-        wantInfo: "Request info / Pre-register",
-        groupOffer: "Request group quote",
-        paymentOptions: "Payment / Deposit",
-      },
-    },
-
-    forms: {
-      planned: {
-        title: "Pre-register for {{tourName}}",
-        description: "Fill the short form and we’ll reach out via WhatsApp/email.",
-        fields: {
-          fullName: { label: "Full name *", placeholder: "Your full name" },
-          email: { label: "Email *", placeholder: "example@email.com" },
-          phone: { label: "Phone *", placeholder: "+90 5xx xxx xx xx" },
-          participation: {
-            label: "Participation type *",
-            options: {
-              individual: "Individual",
-              family: "Family",
-              couple: "Couple",
-              friends: "Friends",
-              other: "Other",
-            },
-          },
-          requestedTour: {
-            label: "Requested tour *",
-            placeholderExample: "E.g. Bali - 7 days / 6 nights",
-          },
-          peopleCount: { label: "People count *", placeholder: "How many people?" },
-          notes: { label: "Notes", placeholder: "Departure city, special requests, etc." },
-        },
-        privacy: {
-          text: "I have read and accept the privacy policy.",
-          link: "Privacy policy",
-        },
-        submit: "Send",
-      },
-      group: {
-        title: "Request a group quote for {{tourName}}",
-        description: "Request a custom offer for 5+ people and we’ll contact you quickly.",
-        fields: {
-          fullName: { label: "Full name *", placeholder: "Your full name" },
-          email: { label: "Email *", placeholder: "example@email.com" },
-          phone: { label: "Phone *", placeholder: "+90 5xx xxx xx xx" },
-          organization: { label: "Organization / Group name", placeholder: "e.g. ABC Company" },
-          groupType: {
-            label: "Group type *",
-            placeholder: "Select",
-            options: {
-              company: "Company",
-              school: "School",
-              association: "Association / Club",
-              friends: "Friends group",
-              other: "Other",
-            },
-          },
-          peopleCount: { label: "People count *", placeholder: "At least 5" },
-          dates: { label: "Planned dates *", placeholder: "e.g. July 2026" },
-          routes: { label: "Interested regions / routes", placeholder: "e.g. Bali, Lombok" },
-          budget: {
-            label: "Budget per person",
-            placeholder: "Select",
-            options: {
-              "5000plus": "$5000+",
-              other: "Other",
-            },
-          },
-          budgetOther: { label: "Other budget", placeholder: "e.g. $6000" },
-          notes: { label: "Notes", placeholder: "Hotel expectations, special requests, etc." },
-        },
-        privacy: { text: "I have read and accept the privacy policy." },
-        submit: "Request quote",
-      },
-    },
-    pricing: {
-      startingPrice: {
-        default: "Starting price",
-        basic: "Starting price – Basic package",
-        javaPremium: "Starting price – Premium package",
-      },
-      discountFallback:
-        "Per person, a special price with {{discountPercent}}% discount for the first 5 people who complete the reservation.",
-      perPersonStartEconomy: "Per person, the starting price for the most economical package.",
-      perPersonCurrent: "Per person, the current package price.",
-      sulawesiDomesticFlightsIncluded:
-        "Domestic flights within the itinerary in Indonesia are included in the package.",
-      priceInfoSoon: "Price info will be updated soon.",
-      programNoteJava:
-        "The day-by-day program and scope on this page are for the Premium package. This Java tour is planned only as Premium.",
-      programNoteDefault:
-        "The day-by-day program and scope on this page are for the Premium package. Basic and Plus packages are simplified versions of this program.",
-      whyThisPrice:
-        "Why this price? Because we don't sell an empty tour shell—we sell a real holiday experience. It's not a classic 'stop and take photos' route; we include boat tours, water activities, nature walks and comfortable stays from the start. If you are coming to actually holiday (not just to take photos city to city), you're in the right place—and the price reflects this fullness and transparency.",
-    },
-    email: {
-      participation: {
-        full: "direct-confirmed-reservation",
-        deposit: "deposit-pre-reservation",
-      },
-      summaryPrefix: {
-        full: "Direct confirmed reservation summary:\n\n",
-        deposit: "Deposit pre-reservation summary:\n\n",
-      },
-    },
-    whatsapp: {
-      missingNumberWarn: "VITE_WHATSAPP_NUMBER is not set.",
-      planned: {
-        title: "Group trip pre-registration request",
-      },
-      group: {
-        title: "Group trip quotation request",
-      },
-      labels: {
-        tour: "Tour",
-        referenceRoute: "Reference route / trip",
-        fullName: "Full name",
-        email: "Email",
-        phone: "Phone",
-        participationType: "Participation type",
-        requestedTour: "Requested tour",
-        peopleCount: "People count",
-        notes: "Notes",
-        organization: "Organization / Group name",
-        groupType: "Group type",
-        dates: "Planned dates",
-        routes: "Interested regions / routes",
-        budget: "Budget per person",
-      },
-      deposit: {
-        noExtras: "No optional extra activity selected.",
-        type: {
-          full: "direct confirmed reservation",
-          deposit: "deposit pre-reservation",
-        },
-        title: "Request for {{type}} for Indonesia tour",
-        labels: {
-          packageTotal: "Estimated package total",
-          extrasSelected: "Selected optional activities:",
-          grandTotal: "Grand total (estimated)",
-          depositToPayNow: "Deposit to pay now (estimated)",
-        },
-      },
-    },
-    deposit: {
-      intro: {
-        title: "Payment / Deposit Pre-Reservation",
-        p1: "Choose your package; submit your request as a <b>deposit pre-reservation</b> or a <b>direct confirmed booking</b>.",
-        p2: "After you submit the form, we’ll send written confirmation and payment steps via WhatsApp.",
-      },
-      ui: {
-        packageSelectionLabel: "Package selection *",
-        perPersonPrice: "per person: ${{price}}",
-        reservationTypeLabel: "Select Reservation Type *",
-        reservationType: {
-          full: "Confirm booking (full amount)",
-          deposit: "Deposit pre-reservation (partial payment)",
-        },
-        flightPolicyLabel: "Flight ticket policy:",
-        optionalExtras: {
-          title: "Optional Extra Activities",
-          description:
-            "The activities below are not included in the package price ✕; you will be charged extra only for the ones you join. Prices are average per-person estimates.",
-          priceToday: "(today-only: {{price}} USD per person)",
-          priceEstimatedPremiumDiscount: "(estimated: {{price}} USD per person, ~25% discounted for Premium)",
-          priceEstimated: "(estimated: {{price}} USD per person)",
-          priceContactUs: "(please contact us for an estimated price)",
-        },
-        summary: {
-          title: "Estimated Total Summary",
-          packageTotal: "Package total (all participants)",
-          extrasTotal: "Selected optional activities (total)",
-          grandTotal: "Grand total",
-          depositPercent: "Deposit rate",
-          depositToPayNow: "Deposit due now (estimated)",
-          totalToPay: "Total tour package amount due",
-          note: "Note: Per-person amounts shown for optional activities are average estimates.",
-        },
-        submit: "Complete reservation",
-      },
-      form: {
-        fullNameLabel: "Full Name *",
-        fullNamePlaceholder: "Your full name",
-        emailLabel: "Email *",
-        emailPlaceholder: "example@email.com",
-        phoneLabel: "Phone *",
-        phonePlaceholder: "+90 5xx xxx xx xx",
-        peopleCountLabel: "Number of Participants *",
-        peopleCountPlaceholder: "How many people?",
-        notesLabel: "Additional Notes",
-        notesPlaceholder: "Departure city, special requests, etc.",
-      },
-      terms: {
-        contract: {
-          title: "1) Agreement and rules",
-          text:
-            "I have read and accept the <agreementLink>package tour agreement</agreementLink> and the <rulesLink>tour rules</rulesLink>, including cancellation/refund conditions.",
-        },
-        distanceSales: {
-          title: "2) Distance sales agreement",
-          text: "I have read and accept the <link>Distance Sales Agreement</link>.",
-        },
-        pricingScope: {
-          title: "3) What's included/excluded & flight ticket limit",
-          linkText: "What's included / not included",
-          text: {
-            part1: "I have read the",
-            part2:
-              "information. Flight tickets are included up to ${{flightLimit}} per person; I understand that the airline's current price at the time of ticketing will be used and that I will cover",
-            overLabel: "any difference above this limit",
-            part3: ". I have read and agree.",
-          },
-        },
-        kvkk: {
-          title: "4) Privacy notice",
-          text:
-            "I have read the <link>privacy notice</link>; I consent to processing for communication and quotation purposes.",
-        },
-        depositApproval: {
-          title: "Deposit payment approval",
-          text:
-            "I have read, understood and accept the deposit payment terms and the cancellation/refund conditions stated in the agreement.",
-        },
-        englishDocs: {
-          title: "English legal documents",
-          description:
-            "For payment-provider review purposes. Turkish documents and the written official offer/annexes prevail.",
-          links: {
-            hub: "Documents (EN) hub",
-            packageTour: "Package Tour (EN)",
-            distanceSales: "Distance Sales (EN)",
-            preInformation: "Pre-Information (EN)",
-            cancellationRefund: "Cancellation/Refund (EN)",
-            kvkkNotice: "KVKK Notice (EN)",
-          },
-        },
-      },
-      validation: {
-        alertPrefix: "Please fill/confirm the following before continuing:",
-        missing: {
-          package: "Package selection",
-          peopleCount: "People count",
-          fullName: "Full name",
-          email: "Email",
-          phone: "Phone",
-          acceptTerms: "Package tour agreement and tour rules confirmation",
-          acceptDistanceSales: "Distance sales agreement confirmation",
-          acceptPricingScope: "Included/excluded scope and flight cap confirmation",
-          acceptKvkk: "Privacy notice confirmation",
-          acceptDepositTerms: "Deposit payment terms confirmation",
-        },
-      },
-    },
-
-    itinerary: {
-      title: "Day-by-day itinerary",
-      missing: "The detailed day-by-day itinerary has not been added for this tour yet.",
-      dayNumber: "Day {{dayNumber}}",
-      dayImageAlt: "Image for: {{dayTitle}}",
-      optionalExtra: {
-        badge: "Optional Extra Activity (Paid)",
-        hint: {
-          open: "Click the card to see details.",
-          close: "Click again to hide details.",
-        },
-      },
-    },
-
-    scope: {
-      title: "Tour Scope & Service Approach",
-      premiumBadge: "This tour is an experience-focused premium package",
-      premiumDescription:
-        "The Premium package targets a fuller program, higher comfort and a clearer scope. Some details may be simplified depending on the package you choose.",
-      approachFallback:
-        "The content on this page represents a tour flow that can be adapted by package level. Exact scope and operational details are shared in writing before booking.",
-      includedTitle: "What's Included",
-      notIncludedTitle: "What's Not Included",
-      fallbackIncluded: [
-        "Tour flow and operational planning",
-        "Main route and basic coordination described in the program",
-        "Service scope clarified in writing during the reservation process",
-      ],
-      fallbackNotIncluded: [
-        "Personal expenses and individual preferences",
-        "Optional experiences that may appear in the program",
-        "Official taxes/fees (if any) and international departure tax",
-      ],
-      freeTimeTitle: "Our Free Time Approach",
-      freeTimeFallback:
-        "Free time blocks are intentionally flexible so participants can move at their own pace. Optional activities can be added to these times if desired.",
-      disciplineTitle: "Group Discipline & Harmony",
-      disciplineFallback:
-        "To keep the program running smoothly, punctuality and respect for the group plan are essential. Participants are expected to follow safety briefings and guide instructions.",
-    },
-
-    importantNotes: {
-      title: "Important Notes & Warnings",
-      subtitle: {
-        open: "You can see all important notes below.",
-        closed:
-          "Click to see a summary of the general information and participation rules valid for all our tour packages.",
-      },
-      lead:
-        "The items below summarize the general information and participation rules for all our Indonesia tour packages.",
-      plannedBoxDescription: "Key points to know before booking:",
-      items: {
-        registrationDeadline:
-          "<strong>Pre-registration</strong> is not a binding booking; it’s important for operational planning.",
-        preInfoAndContract:
-          "Before payment, <b>pre-information</b> and the <b>package tour agreement</b> are shared in writing.",
-        plansMayChange:
-          "Details like flights/hotels/activities may slightly change due to season, weather and operational conditions.",
-        travelInsurance:
-          "Travel health insurance is recommended; we can guide you if requested.",
-        healthIssue:
-          "Please mention chronic conditions/medications in your notes.",
-        followRules:
-          "Following guide instructions and safety rules is expected.",
-        passportValidity:
-          "Please make sure your <strong>passport</strong> is valid for at least 6 months after the trip ends.",
-        visaRemovedForTurkishCitizens:
-          "Visa exemption may apply for Turkish citizens; current official sources prevail.",
-        entryRulesMayChange:
-          "Entry rules may change; official requirements (passport/health/taxes) are the participant’s responsibility.",
-        contactThroughGuide:
-          "During the tour, the main contact channel is the guide/operations team; 24/7 support is available for emergencies.",
-        comfortPriority:
-          "Comfort and safety are our priority; group logistics are planned accordingly.",
-        allNotesAccepted:
-          "By submitting the form, you confirm that you have read the information above.",
-      },
-      flightPolicy:
-        "Flight tickets are included up to ${{flightLimit}} per person. Because flight prices vary significantly, this limit is fixed; any amount above the limit is paid by the participant.",
-    },
-
-    trust: {
-      title: "Why you can trust us",
-      bullets: [
-        "A local operations team based in Indonesia who knows the region closely",
-        "Transparent included/excluded scope instead of surprise costs",
-        "Experience-focused full days plus intentionally planned free time",
-        "Small-group/boutique approach for a calmer, more personal holiday",
-      ],
-      testimonials: {
-        1: {
-          text: "Everything was clear and written. We got quick replies on WhatsApp; the program exceeded expectations.",
-
-      matchmakingPage: {
-        title: 'Marriage Matchmaking Application',
-        intro:
-          'This page is an application form for marriage-focused matchmaking. Profiles are not published publicly; applications are reviewed only by our team. Matching profiles will appear on your Profile page.',
-        privacyNote:
-          'Important: This is not a public “browse/search profiles” area. Your information is used only for evaluation and communication purposes. Please make sure the information you provide is accurate; you are responsible for the information you enter in this form, and your matches are made based on it. Users who intentionally provide false information will be blocked; if they have an active membership, it will be cancelled and no refund will be issued.',
-        authGate: {
-          message: 'To submit a matchmaking application, please log in or create an account.',
-          login: 'Log in',
-          signup: 'Sign up',
-          note: 'After logging in, you will be redirected back to this page automatically.',
-        },
-        form: {
-          applicationIdLabel: 'Application ID',
-          editOnce: {
-            usernameLocked: 'In edit mode, the username cannot be changed (one-time fix).',
-            photosLocked: 'In edit mode, photo updates are disabled. You can only fix the form fields.',
-          },
-          photo: {
-            choose: 'Choose file',
-            noFileChosen: 'No file chosen',
-          },
-          sections: {
-            me: 'Me',
-            lookingFor: 'Looking for',
-            moreDetails: 'Additional details',
-            partnerPreferences: 'Preferences for my future spouse',
-          },
-          labels: {
-            username: 'Username',
-            fullName: 'Full name',
-            age: 'Age',
-            city: 'City',
-            country: 'Country of residence',
-            whatsapp: 'WhatsApp number',
-            email: 'Email',
-            instagram: 'Instagram (optional)',
-            nationality: 'Citizenship (nationality)',
-            gender: 'Gender',
-            lookingForNationality: 'Nationality',
-            lookingForGender: 'Gender',
-            height: 'Height (cm)',
-            weight: 'Weight (kg)',
-            occupation: 'Occupation',
-            education: 'Education',
-            educationDepartment: 'Department / Major',
-            maritalStatus: 'Marital status',
-            hasChildren: 'Do you have children?',
-            childrenCount: 'If yes, how many?',
-            incomeLevel: 'Income level',
-            religion: 'Religion',
-            religiousValues: 'Religious values (briefly)',
-            familyObstacle: 'Is there a family-related obstacle for a Turkish–Indonesian marriage?',
-            familyApprovalStatus: 'Would your family approve your marriage to a foreigner?',
-            marriageTimeline: 'When do you want to get married?',
-            relocationWillingness: 'Would you consider living outside your own country?',
-            preferredLivingCountry: 'Where would you prefer to live?',
-            partnerHeightMin: 'Preferred height (min)',
-            partnerHeightMax: 'Preferred height (max)',
-            partnerAgeRange: 'Preferred age range (based on your age)',
-            partnerAgeMaxOlderYears: 'How many years older than me can they be (max)?',
-            partnerAgeMaxYoungerYears: 'How many years younger than me can they be (max)?',
-            partnerMaritalStatus: 'Partner marital status',
-            partnerReligion: 'Partner religion',
-            partnerChildrenPreference: 'Children preference',
-            partnerEducationPreference: 'Education preference',
-            partnerOccupationPreference: 'Occupation preference',
-            partnerFamilyValuesPreference: 'Family values preference',
-            nativeLanguage: 'Your native language',
-            nativeLanguageOther: 'Your native language (please specify)',
-            foreignLanguages: 'Foreign languages',
-            foreignLanguageOther: 'Other foreign language (please specify)',
-            languageLevelTr: 'Turkish level',
-            languageLevelId: 'Indonesian (Bahasa) level',
-            languageLevelEn: 'English level',
-            communicationLanguages: 'How do you plan to communicate with your partner?',
-            communicationLanguageOther: 'Other language (please specify)',
-            translationApp: 'I can communicate using a translation app',
-            smoking: 'Do you smoke?',
-            alcohol: 'Do you drink alcohol?',
-            partnerCommunicationLanguages: 'Partner communication language',
-            partnerCommunicationMethods: 'Partner communication methods',
-            partnerCommunicationLanguageOther: 'Other language for partner (please specify)',
-            partnerTranslationApp: 'Would you prefer to use a translation app with your partner?',
-            partnerLivingCountry: 'Preferred country to live in',
-            partnerSmokingPreference: 'Partner smoking',
-            partnerAlcoholPreference: 'Partner alcohol',
-            photo: 'Photo',
-            photos: 'Photos (3)',
-            photo1: 'Photo 1',
-            photo2: 'Photo 2',
-            photo3: 'Photo 3',
-            about: 'Short introduction',
-            expectations: 'Qualities you are looking for',
-          },
-          placeholders: {
-            username: 'e.g., moonstar_34',
-            fullName: 'e.g., Mehmet Yilmaz',
-            age: 'e.g., 29',
-            city: 'e.g., Istanbul',
-            country: 'e.g., Turkey',
-            whatsapp: 'e.g., +90 5xx xxx xx xx',
-            email: 'e.g., example@mail.com',
-            instagram: 'e.g., @username',
-            height: 'e.g., 175',
-            weight: 'e.g., 72',
-            educationDepartment: 'e.g., Computer Engineering',
-            childrenCount: 'e.g., 1',
-            religiousValues: 'e.g., Religious / balanced / flexible…',
-            familyObstacleDetails: 'Briefly explain…',
-            nativeLanguageOther: 'e.g., French',
-            foreignLanguageOther: 'e.g., French',
-            communicationLanguageOther: 'e.g., Arabic',
-            partnerCommunicationLanguageOther: 'e.g., Arabic',
-            about: 'Briefly introduce yourself (lifestyle, language, work, family plans, etc.)',
-            expectations: 'e.g., communication style, lifestyle, height/age preference, family values…',
-          },
-          options: {
-            common: {
-              select: 'Select',
-              yes: 'Yes',
-              no: 'No',
-              unsure: 'Not sure',
-              doesntMatter: "Doesn't matter",
-            },
-            nationality: {
-              tr: 'Turkish',
-              id: 'Indonesian',
-              other: 'Other',
-            },
-            gender: {
-              male: 'Male',
-              female: 'Female',
-            },
-            maritalStatus: {
-              single: 'Single',
-              widowed: 'Widowed (spouse passed away)',
-              divorced: 'Divorced',
-              other: 'Other',
-              doesnt_matter: "Doesn't matter",
-            },
-            religiousValues: {
-              weak: 'Low',
-              medium: 'Moderate',
-              conservative: 'Conservative',
-            },
-            partnerCommunicationMethods: {
-              ownLanguage: 'My language',
-              foreignLanguage: 'Foreign language',
-              translationApp: 'Via translation app',
-            },
-            education: {
-              secondary: 'Secondary',
-              highSchool: 'High school',
-              university: 'University',
-              masters: "Master's",
-              phd: 'PhD',
-              other: 'Other',
-            },
-            occupation: {
-              civilServant: 'Civil servant',
-              employee: 'Employee',
-              retired: 'Retired',
-              businessOwner: 'Business owner',
-              other: 'Other',
-            },
-            familyValues: {
-              religious: 'Religious',
-              liberal: 'Liberal',
-            },
-            partnerChildren: {
-              wantChildren: 'Should have children',
-              noChildren: 'Should not have children',
-            },
-            income: {
-              low: 'Low',
-              medium: 'Medium',
-              good: 'Good',
-              veryGood: 'Very good',
-              preferNot: 'Prefer not to say',
-            },
-            ageRange: {
-              plusMinus2: '±2 years',
-              plusMinus5: '±5 years',
-              plusMinus10: '±10 years',
-            },
-            ageDiff: {
-              none: '0 (none)',
-              years: '{{count}} years',
-            },
-            religion: {
-              islam: 'Islam',
-              christian: 'Christian',
-              hindu: 'Hindu',
-              buddhist: 'Buddhist',
-              other: 'Other',
-            },
-            languageLevel: {
-              none: 'None',
-              basic: 'Basic',
-              intermediate: 'Intermediate',
-              advanced: 'Advanced',
-              native: 'Native',
-            },
-            commLanguage: {
-              tr: 'Turkish',
-              id: 'Indonesian',
-              en: 'English',
-              translationApp: 'Via translation app',
-              other: 'Other (specify)',
-            },
-            foreignLanguages: {
-              none: "I don't speak a foreign language",
-            },
-            livingCountry: {
-              tr: 'Turkey',
-              id: 'Indonesia',
-            },
-            timeline: {
-              '0_3': 'Within 0–3 months',
-              '3_6': 'Within 3–6 months',
-              '6_12': 'Within 6–12 months',
-              '1_plus': '1 year or later',
-            },
-            familyApproval: {
-              approved: 'Approved',
-              inProgress: 'In discussion',
-              problem: 'There is a concern/problem',
-            },
-          },
-          hints: {
-            partnerAgeComputed: 'Approx. range: {{min}}–{{max}}',
-            partnerAgeNeedsYourAge: 'Note: Enter your age to compute the range.',
-            multiSelect: 'You can select multiple options.',
-            foreignLanguages:
-              "Note: After selecting your native language, it will not appear below. If you don't speak any, select “I don't speak a foreign language”.",
-          },
-          photoHint:
-            'Upload an image file only. The system will automatically compress and upload it (recommended: clear, recent, face-visible photo).',
-          consents: {
-            age: 'I confirm that I am {{minAge}}+.',
-            privacy:
-              'I have read the <privacyLink>Privacy Policy</privacyLink> and consent to processing my data for evaluation/communication purposes.',
-            terms: 'I have read and accept the <termsLink>Terms of Use</termsLink>.',
-            photo: 'I consent to my photo being viewed by the admin team for evaluation (it will not be published publicly).',
-          },
-          submit: 'Submit Application',
-          submitting: 'Submitting…',
-          success: 'We received your application. Matching profiles will appear on your Profile page.',
-          errors: {
-            mustLogin: 'You must be logged in to submit the application.',
-            blocked: 'Your account is blocked from submitting this form.',
-            consentsRequired: 'To submit, you must accept the consent checkboxes ({{minAge}}+, Privacy Policy, Terms of Use, photo consent).',
-            permissionDenied: 'Could not submit (permission error). Please log in with the correct account or check Firestore rules.',
-            honeypotTriggered: 'Could not submit. Browser autofill may have filled a hidden field. Refresh the page and try again with autofill disabled.',
-            photoUploadFailed: 'Photo upload failed. This project uses Cloudinary SIGNED uploads by default. This usually means `/api/cloudinary-signature` is not running or server env is missing. Fix: run `npm run dev` (starts API + web) and ensure `.env.local` includes `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET`. (Unsigned preset uploads are only used if explicitly enabled.)',
-            username: 'Please choose a username.',
-            usernameTaken: 'This username is already taken. Please choose another one.',
-            fullName: 'Please enter your full name.',
-            age: 'Please enter your age.',
-            ageRange: 'Age must be between {{minAge}} and 99.',
-            email: 'Please enter your email.',
-            instagram: 'Please enter your Instagram username.',
-            nationality: 'Please select your nationality.',
-            gender: 'Please select your gender.',
-            lookingForNationality: 'Please select the preferred nationality.',
-            lookingForGender: 'Please select the preferred gender.',
-            heightRequired: 'Please enter your height.',
-            weightRequired: 'Please enter your weight.',
-            occupation: 'Please select an occupation.',
-            education: 'Please select education.',
-            educationDepartment: 'Please enter your department/major.',
-            maritalStatus: 'Please select marital status.',
-            hasChildren: 'Please answer whether you have children.',
-            incomeLevel: 'Please select income level.',
-            religion: 'Please select your religion.',
-            nativeLanguage: 'Please select your native language.',
-            nativeLanguageOther: 'Please specify your native language.',
-            foreignLanguages: 'Please select at least one foreign language.',
-            foreignLanguageOther: 'Please specify the other foreign language.',
-            religiousValues: 'Please briefly describe your religious values.',
-            familyObstacle: 'Please answer the family obstacle question.',
-            familyObstacleDetails: 'Please briefly explain the family obstacle.',
-            familyApprovalStatus: 'Please answer the family approval status question.',
-            marriageTimeline: 'Please select your marriage timeline.',
-            relocationWillingness: 'Please answer the question about living outside your country.',
-            preferredLivingCountry: 'Please select your preferred living country.',
-            partnerHeightMin: 'Please select preferred min height.',
-            partnerHeightMax: 'Please select preferred max height.',
-            partnerAgeRange: 'Please select preferred age range.',
-            partnerAgeMaxOlderYears: 'Please select the maximum age difference (older).',
-            partnerAgeMaxYoungerYears: 'Please select the maximum age difference (younger).',
-            partnerMaritalStatus: 'Please select partner marital status.',
-            partnerReligion: 'Please select partner religion.',
-            expectations: 'Please describe what you are looking for in a spouse.',
-            languageLevelTr: 'Please select your Turkish level.',
-            languageLevelId: 'Please select your Indonesian level.',
-            languageLevelEn: 'Please select your English level.',
-            communicationLanguage: 'Please select a communication language.',
-            communicationLanguageOther: 'Please specify the other language.',
-            translationApp: 'Please answer the translation app question.',
-            smoking: 'Please answer the smoking question.',
-            alcohol: 'Please answer the alcohol question.',
-            partnerCommunicationLanguage: 'Please select a partner communication language.',
-            partnerCommunicationLanguageOther: 'Please specify the other language for partner.',
-            partnerTranslationApp: 'Please select your translation app preference.',
-            partnerLivingCountry: 'Please select the preferred living country.',
-            partnerSmokingPreference: 'Please select partner smoking preference.',
-            partnerAlcoholPreference: 'Please select partner alcohol preference.',
-            partnerChildrenPreference: 'Please select children preference.',
-            partnerEducationPreference: 'Please select education preference.',
-            partnerOccupationPreference: 'Please select occupation preference.',
-            partnerFamilyValuesPreference: 'Please select family values preference.',
-            photo1Required: 'Please upload Photo 1.',
-            photo2Required: 'Please upload Photo 2.',
-            photo3Required: 'Please upload Photo 3.',
-            heightRange: 'Height must be between 120–230 cm (or leave empty).',
-            weightRange: 'Weight must be between 35–250 kg (or leave empty).',
-            partnerHeightRange: 'Preferred min height cannot be greater than max height.',
-            childrenCount: 'Children count must be between 1 and 20.',
-            city: 'Please enter your city.',
-            country: 'Please enter your country.',
-            whatsapp: 'Please enter your WhatsApp number.',
-            about: 'Please write a short introduction.',
-            photoRequired: 'Please upload a photo.',
-            photoType: 'Please select a valid image file.',
-            consent18Plus: '{{minAge}}+ confirmation is required to continue.',
-            consentPrivacy: 'Privacy consent is required to continue.',
-            consentPhotoShare: 'Photo consent is required to continue.',
-            submitFailed: 'Could not submit the application. Please try again.',
-            tooFast: 'The form was submitted too quickly. Please fill it in and try again.',
-            rateLimited: 'Too many attempts in a short time. Please try again in 1 minute.',
-            recaptchaFailed: 'Spam verification failed. Please refresh the page and try again.',
-            recaptchaRejected: 'Your submission was blocked by spam protection. Please try again later.',
-          },
-        },
-        bottomNote:
-          'Note: This is a marriage-focused application; profiles are not listed publicly inside the site.',
-      },
-          person: "Ece K.",
-          meta: "Bali • Premium",
-        },
-        2: {
-          text: "Coordination was great throughout. Free time was perfectly balanced; we’d do it again.",
-          person: "Mert A.",
-          meta: "Lombok • Plus",
-        },
-      },
-            matchmakingApply: 'Matchmaking Application',
-    },
-
-    about: {
-      title: "About the island",
-      nature: "Nature",
-      culture: "Culture",
-      lifestyle: "Lifestyle",
-    },
-
-    routes: {
-      title: "Routes & points of interest",
-      missing: "Route details for this tour will be added soon.",
-    },
-
-    gallery: {
-      title: "Gallery",
-    },
-
-    priceSummary: {
-      title: "Price summary",
-      description: "A quick view including starting price and the flight cap.",
-      perPersonLabel: "Per person",
-    },
-
-    ctaBottom: {
-      title: "Ready to go?",
-      description: "Fill the pre-registration form or ask us on WhatsApp.",
-      actions: {
-        preRegister: "Pre-register",
-        whatsappMessage: "Hi, I’d like to get info about the {{tourName}} tour.",
-        askWhatsapp: "Ask on WhatsApp",
-      },
-    },
-
-    footerNav: {
-      back: "Back",
-      allTours: "See all tours",
-    },
-  },
 
   contact: {
     hero: {
@@ -2597,6 +1534,7 @@ export default {
       matchId: 'Match Code',
     },
     matches: {
+      autoRunNotice: 'Our automatic matching runs approximately every {{minutes}} minutes. You can also request a new match manually here.',
       presence: {
         online: 'Online',
         lastSeen: 'Last active: {{time}}',
@@ -3063,6 +2001,7 @@ export default {
     freeActivatedInfo:
       'Your free membership is assigned until {{date}}.\nWith this membership, you can like/reject match profiles and use {{translatedCount}} translated messages.\nYour daily match-change limit is {{dailyLimit}}.',
     promoExpired: 'Promo expired. After {{date}}, activations are paid and become active after payment.',
+    promoDisabled: 'The promo is currently disabled. Please try again later.',
     activateFailed: 'Could not activate membership. Please try again.',
     errors: {
       notAuthenticated: 'Session could not be verified. Please log out and log in again.',

@@ -48,6 +48,322 @@ const overrides = {
     language: "Bahasa",
   },
 
+  studio: {
+    common: {
+      back: 'Kembali',
+      close: 'Tutup',
+      cancel: 'Batal',
+      send: 'Kirim',
+      loading: 'Memuat…',
+      processing: 'Memproses…',
+      match: 'Pencocokan',
+      profile: 'Profil',
+      verified: 'Terverifikasi',
+    },
+
+    myInfo: {
+      title: 'Info saya',
+      subtitle: 'Ringkasan informasi yang Anda berikan di aplikasi.',
+      noProfile: 'Data profil tidak ditemukan.',
+      appMissing: 'Data formulir aplikasi tidak ditemukan. (Data aplikasi atau profil pengguna mungkin hilang.)',
+      sections: {
+        basic: 'Info dasar',
+        contact: 'Kontak',
+        details: 'Detail',
+        partner: 'Preferensi pasangan',
+        about: 'Tentang Anda',
+        membership: 'Keanggotaan & verifikasi',
+      },
+      fields: {
+        username: 'Nama pengguna',
+        fullName: 'Nama lengkap',
+        age: 'Usia',
+        gender: 'Jenis kelamin',
+        city: 'Kota',
+        country: 'Negara',
+        nationality: 'Kebangsaan',
+        whatsapp: 'WhatsApp',
+        email: 'Email',
+        instagram: 'Instagram',
+        heightCm: 'Tinggi (cm)',
+        weightKg: 'Berat (kg)',
+        occupation: 'Pekerjaan',
+        education: 'Pendidikan',
+        educationDepartment: 'Jurusan',
+        maritalStatus: 'Status pernikahan',
+        hasChildren: 'Anak',
+        childrenCount: 'Jumlah anak',
+        familyApprovalStatus: 'Persetujuan keluarga',
+        religion: 'Agama',
+        religiousValues: 'Nilai agama',
+        incomeLevel: 'Pendapatan',
+        marriageTimeline: 'Rencana waktu menikah',
+        relocationWillingness: 'Bersedia pindah',
+        preferredLivingCountry: 'Negara tinggal yang diinginkan',
+        communicationLanguage: 'Bahasa komunikasi',
+        communicationLanguageOther: 'Bahasa komunikasi (lainnya)',
+        smoking: 'Merokok',
+        alcohol: 'Alkohol',
+        nativeLanguage: 'Bahasa ibu',
+        nativeLanguageOther: 'Bahasa ibu (lainnya)',
+        foreignLanguages: 'Bahasa asing',
+        foreignLanguageOther: 'Bahasa asing (lainnya)',
+        lookingForGender: 'Mencari (gender)',
+        lookingForNationality: 'Mencari (kebangsaan)',
+        partnerAgeMin: 'Usia (min)',
+        partnerAgeMax: 'Usia (maks)',
+        partnerHeightMinCm: 'Tinggi (min cm)',
+        partnerHeightMaxCm: 'Tinggi (maks cm)',
+        partnerMaritalStatus: 'Status pernikahan',
+        partnerReligion: 'Agama',
+        partnerCommunicationMethods: 'Metode komunikasi',
+        partnerLivingCountry: 'Negara tempat tinggal',
+        partnerSmokingPreference: 'Merokok',
+        partnerAlcoholPreference: 'Alkohol',
+        partnerChildrenPreference: 'Anak',
+        partnerEducationPreference: 'Pendidikan',
+        partnerOccupationPreference: 'Pekerjaan',
+        partnerFamilyValuesPreference: 'Nilai keluarga',
+        about: 'Tentang',
+        expectations: 'Harapan',
+        membershipPlan: 'Paket keanggotaan',
+        membershipActive: 'Keanggotaan aktif',
+        membershipValidUntil: 'Keanggotaan berakhir',
+        identityVerified: 'Identitas terverifikasi',
+        identityStatus: 'Status identitas',
+        identityMethod: 'Metode verifikasi',
+        identityRef: 'Referensi',
+      },
+      developerView: 'Tampilan developer (JSON)',
+      developerHint: 'Bisa Anda bagikan ke admin bila diperlukan.',
+    },
+
+    match: {
+      status: {
+        proposed: 'Perkenalan',
+        mutual_interest: 'Suka timbal balik',
+        mutual_accepted: 'Aktif',
+        contact_unlocked: 'Kontak terbuka',
+        cancelled: 'Dibatalkan',
+      },
+      avatarAlt: 'Foto profil {{name}}',
+      actions: {
+        like: 'Suka',
+        liked: 'Disukai',
+        message: 'Kirim pesan',
+      },
+      banners: {
+        locked: 'Anda punya pencocokan aktif — yang lain terkunci',
+        newMessage: 'Pesan baru',
+      },
+    },
+
+    matches: {
+      title: 'Pencocokan saya',
+      showingCount: 'Menampilkan {{count}} pencocokan.',
+      emptyHint: 'Pencocokan Anda akan muncul di sini.',
+      backToProfile: '← Kembali ke profil',
+      findNew: 'Cari pencocokan baru',
+      finding: 'Mencari…',
+      howTitle: 'Bagaimana cara kerja?',
+      howItems: {
+        likeFirst: 'Pertama, sukai profil (jika saling suka, “Suka timbal balik” terbentuk).',
+        startActive: 'Setelah saling suka, jika kedua pihak menyetujui “Mulai pencocokan aktif”, chat panjang terbuka.',
+        onlyOneActive: 'Anda hanya bisa punya 1 pencocokan aktif pada satu waktu.',
+        lockUntilCancel: 'Sampai pencocokan aktif dibatalkan oleh kedua pihak, suka/pesan dengan profil lain terkunci.',
+      },
+      activeLockTitle: 'Anda punya pencocokan aktif',
+      activeLockBody: 'Interaksi dengan profil lain terkunci. Buka <link>halaman pencocokan aktif</link> untuk mengelolanya.',
+      requestFailed: 'Permintaan pencocokan gagal: {{error}}',
+      requestOk: 'Permintaan terkirim. Bisa muncul di daftar dalam beberapa detik.',
+      loading: 'Memuat…',
+      loadFailed: 'Pencocokan tidak bisa dimuat. ({{error}})',
+      noneTitle: 'Belum ada pencocokan.',
+      noneBody: 'Jika Anda baru membuat profil, pencocokan pertama bisa dibuat dalam beberapa detik. Anda juga bisa memicunya secara manual di sini.',
+      shortModal: {
+        subtitle: 'Pesan singkat (batas 5) • untuk info singkat di luar profil',
+        remaining: 'Sisa: {{remaining}} / {{limit}}',
+        noMessages: 'Belum ada pesan.',
+        translateError: 'Kesalahan terjemahan: {{error}}',
+        translating: 'Menerjemahkan…',
+        translate: 'Terjemahkan',
+        placeholder: 'Tulis pertanyaan singkat…',
+      },
+      errors: {
+        activeLocked: 'Saat Anda punya pencocokan aktif, Anda tidak bisa mengirim pesan ke profil lain. Batalkan pencocokan aktif Anda secara mutual terlebih dahulu.',
+        shortLimit: 'Anda sudah menggunakan semua pesan singkat (5). Untuk lanjut, setelah saling suka Anda harus memulai pencocokan aktif.',
+      },
+    },
+
+    chat: {
+      backToMatches: '← Kembali ke pencocokan',
+      chatTitle: 'Chat',
+      emoji: 'Emoji',
+      emojiHint: 'Anda bisa menambahkan emoji',
+      shortAreaTitle: 'Area pesan singkat',
+      shortAreaDesc:
+        'Area ini hanya untuk mengetahui lebih banyak tentang orang tersebut (topik yang tidak ada di profil, pertanyaan singkat tentang karakter).',
+      shortAreaLimit: 'Batas Anda {{limit}} pesan. Sisa: {{remaining}}',
+      otherActiveLock: 'Karena pencocokan aktif Anda dengan orang lain, chat panjang tidak tersedia di pencocokan ini.',
+      noMessages: 'Belum ada pesan. Kirim pesan pertama.',
+      matchLoading: 'Memuat pencocokan…',
+      matchNotFound: 'Pencocokan tidak ditemukan.',
+      messagesLoading: 'Memuat pesan…',
+      sendFailed: 'Pesan tidak bisa dikirim: {{error}}',
+      inputPlaceholderLong: 'Tulis pesan…',
+      inputPlaceholderShort: 'Tulis pertanyaan/pesan singkat…',
+      notAvailable: 'Pesan saat ini tidak tersedia.',
+      lockedTitle: 'Pencocokan lain sementara terkunci',
+      lockedBody: 'Saat Anda memiliki pencocokan aktif, pesan di pencocokan lain dinonaktifkan. Akan terbuka kembali saat lock berakhir.',
+      notAllowed: 'Anda tidak diizinkan melihat chat ini.',
+      notOpenTitle: 'Pesan belum dibuka',
+      notOpenBody: 'Pesan terbuka setelah pencocokan menjadi aktif (persetujuan kedua pihak).',
+      you: 'Anda',
+      remainingTime: '{{hours}}j {{minutes}}m',
+      lock48h: {
+        title: 'Chat privat 48 jam + berbagi kontak',
+        subtitle: 'Setelah konfirmasi mutual dan waktu selesai, kontak dapat dibagikan.',
+        lockedRemaining: 'Masih terkunci. Sisa: {{time}}',
+        confirming: 'Mengonfirmasi…',
+        confirmed: 'Dikonfirmasi',
+        confirm: 'Konfirmasi 48 jam',
+        requesting: 'Mengirim permintaan…',
+        requestContact: 'Minta berbagi kontak',
+        approving: 'Menyetujui…',
+        approveContact: 'Setujui berbagi kontak',
+        confirmStatusLabel: 'Status konfirmasi:',
+        confirmStatus: {
+          both: 'Dikonfirmasi mutual',
+          you: 'Anda sudah konfirmasi (menunggu pihak lain)',
+          other: 'Pihak lain sudah konfirmasi (menunggu Anda)',
+          none: 'Belum ada konfirmasi',
+        },
+        contactStatusLabel: 'Berbagi kontak:',
+        contactStatus: {
+          approved: 'Dibagikan',
+          pendingMine: 'Permintaan terkirim (menunggu persetujuan)',
+          pendingOther: 'Pihak lain meminta (Anda bisa menyetujui)',
+          closed: 'Tertutup',
+        },
+        confirmError: 'Kesalahan konfirmasi: {{error}}',
+        contactRequestError: 'Kesalahan permintaan kontak: {{error}}',
+        contactApproveError: 'Kesalahan persetujuan kontak: {{error}}',
+        whatsappTitle: 'WhatsApp',
+        openInWhatsApp: 'Buka di WhatsApp',
+      },
+    },
+
+    profile: {
+      membershipLabel: 'Keanggotaan',
+      membershipActive: 'Aktif',
+      membershipPassive: 'Tidak aktif',
+      endsAt: 'Berakhir',
+      editProfile: 'Edit profil',
+      myMatches: 'Pencocokan saya',
+      logout: 'Keluar',
+      bannerAlt: 'Banner profil',
+      aboutTitle: 'Tentang',
+      noBio: 'Belum ada deskripsi.',
+      subscriptionTitle: 'Langganan',
+      subscriptionActiveDesc: 'Keanggotaan Anda aktif. Anda dapat mengakses semua fitur.',
+      subscriptionPassiveDesc: 'Keanggotaan Anda tidak aktif. Beberapa tindakan mungkin dibatasi tanpa keanggotaan.',
+      buySoon: 'Beli keanggotaan (segera)',
+      activateMembership: 'Aktifkan keanggotaan saya',
+      cancelMembership: 'Batalkan keanggotaan',
+      membershipActivated: 'Keanggotaan diaktifkan.',
+      membershipCancelled: 'Keanggotaan dibatalkan.',
+      confirmCancelMembership: 'Apakah Anda ingin membatalkan keanggotaan?',
+      myInfo: 'Info saya',
+      identityTitle: 'Verifikasi identitas',
+      identityVerified: 'Identitas Anda tampak terverifikasi.',
+      identityStatus: 'Status',
+      verifyNow: 'Verifikasi identitas saya',
+      identityHelp: 'Dengan memverifikasi identitas, Anda dapat meningkatkan kepercayaan dan menghapus batasan fitur/keanggotaan.',
+      accountTitle: 'Akun',
+      accountDeleteDesc: 'Anda dapat menghapus akun dan data terkait secara permanen.',
+      deleteAccount: 'Hapus akun',
+      deleting: 'Menghapus…',
+      oldPanel: 'Panel lama (sementara)',
+      verifyModalTitle: 'Verifikasi identitas',
+      idType: 'Jenis ID',
+      idTypeTrId: 'ID Nasional',
+      idTypePassport: 'Paspor',
+      idTypeDriver: 'SIM',
+      verifyPhotosHint: 'Foto hanya digunakan untuk verifikasi.',
+      idFront: 'Depan ID',
+      idBack: 'Belakang ID',
+      selfie: 'Selfie',
+      verifyMissingFiles: 'Harap unggah depan/belakang ID dan selfie.',
+      verifySubmitted: 'Permintaan verifikasi Anda telah diterima. Sedang ditinjau.',
+      submitVerification: 'Kirim',
+      confirmDelete: 'Apakah Anda ingin menghapus akun secara permanen? Ini tidak dapat dibatalkan.',
+    },
+
+    matchProfile: {
+      askShort: 'Tanya singkat',
+      viewProfile: 'Lihat profil',
+      hideProfile: 'Sembunyikan profil',
+      profileTitle: 'Info profil',
+      contactHidden:
+        'Detail kontak disembunyikan. Tidak ditampilkan saat mengisi formulir maupun di UI aplikasi. Detail ini hanya dapat dibagikan setelah periode pencocokan aktif 48 jam jika tercapai kecocokan pasti, dan hanya dengan persetujuan Anda.',
+      rulesTitle: 'Aturan (singkat)',
+      rules: {
+        likeFirst: 'Jika suka timbal balik, “Suka timbal balik” terbentuk.',
+        startActive: 'Chat panjang terbuka setelah kedua pihak menyetujui “Mulai pencocokan aktif”.',
+        onlyOneActive: 'Hanya 1 pencocokan aktif; saat aktif, suka/pesan dengan profil lain terkunci.',
+        unlockAfterCancel: 'Profil lain terbuka kembali setelah pencocokan aktif dibatalkan oleh kedua pihak.',
+      },
+      activeStart: {
+        starting: 'Memulai…',
+        waiting: 'Menunggu persetujuan',
+        start: 'Mulai pencocokan aktif',
+        confirmPrompt:
+          'Anda akan memulai pencocokan aktif.\n\n- Anda hanya bisa punya 1 pencocokan aktif (profil lain akan terkunci).\n- Setelah aktif, Anda tidak bisa membatalkan selama 2 jam pertama.\n\nApakah Anda setuju?',
+      },
+      cancel: {
+        title: 'Batalkan pencocokan aktif',
+        desc: 'Pembatalan bersifat mutual. Setelah Anda membatalkan, pihak lain juga harus membatalkan.',
+        cooldown: 'Untuk mencegah penyalahgunaan, pembatalan dinonaktifkan selama 2 jam pertama. Sisa: {{time}}',
+        request: 'Batalkan pencocokan aktif',
+        requestSent: 'Permintaan pembatalan terkirim',
+        waitingOther: 'Menunggu pihak lain membatalkan.',
+        confirmPrompt:
+          'Anda akan membatalkan pencocokan aktif.\n\n- Pembatalan mutual: pencocokan ditutup setelah kedua pihak membatalkan.\n- Setelah dibatalkan, lock interaksi dengan profil lain dihapus.\n\nApakah Anda setuju?',
+      },
+      mutualLike: {
+        title: 'Anda memiliki suka timbal balik',
+        body: 'Chat panjang terbuka hanya setelah kedua pihak menyetujui “Mulai pencocokan aktif”.',
+      },
+      longChatClosedTitle: 'Chat panjang ditutup',
+      longChatClosedBody: 'Chat panjang tersedia hanya setelah memulai pencocokan aktif. Pada tahap ini Anda hanya bisa menggunakan pesan singkat.',
+      shortModal: {
+        title: 'Pesan singkat',
+      },
+      time: {
+        minutes: '{{minutes}} menit',
+        hours: '{{hours}} jam',
+        hm: '{{hours}} jam {{minutes}} menit',
+      },
+      errors: {
+        activeMatchLocked: 'Saat Anda punya pencocokan aktif, Anda tidak bisa berinteraksi dengan profil lain. Batalkan pencocokan aktif Anda secara mutual terlebih dahulu.',
+        otherUserActiveMatch: 'Pihak lain saat ini memiliki pencocokan aktif. Pencocokan ini tidak bisa diaktifkan.',
+        cancelCooldown: 'Untuk mencegah penyalahgunaan, pembatalan dinonaktifkan selama 2 jam pertama. Sisa: {{time}}',
+        notAvailable: 'Tindakan ini tidak tersedia pada tahap ini.',
+        forbidden: 'Anda tidak diizinkan melakukan tindakan ini.',
+        activeStartLocked: 'Anda tidak bisa memulai pencocokan aktif baru saat Anda sudah punya pencocokan aktif.',
+      },
+    },
+
+    errors: {
+      profileNotFound: 'Data profil tidak ditemukan.',
+      activeLocked: 'Saat Anda punya pencocokan aktif, Anda tidak bisa berinteraksi dengan profil lain. Batalkan pencocokan aktif Anda secara mutual terlebih dahulu.',
+      shortLimit: 'Anda sudah menggunakan semua pesan singkat (5). Untuk lanjut, setelah saling suka Anda harus memulai pencocokan aktif.',
+      notAvailable: 'Tindakan ini tidak tersedia pada tahap ini.',
+      forbidden: 'Anda tidak diizinkan melakukan tindakan ini.',
+      cancelCooldown: 'Untuk mencegah penyalahgunaan, pembatalan sementara dinonaktifkan. Sisa: {{time}}',
+    },
+  },
+
   home: {
     hero: {
       badgeCompany: 'Terdaftar di Indonesia: PT MoonStar Global Indonesia',
@@ -363,6 +679,8 @@ const overrides = {
         moreDetails: 'Detail tambahan',
         partnerPreferences: 'Preferensi calon pasangan',
       },
+      contactPrivacyNotice:
+        'Detail kontak Anda (WhatsApp/email/Instagram) bersifat privat. Tidak ditampilkan secara publik saat Anda mengisi formulir maupun di tampilan aplikasi. Detail ini hanya dapat dibagikan kepada orang yang benar-benar cocok dengan Anda setelah periode pencocokan aktif 48 jam, dan hanya dengan persetujuan Anda.',
       labels: {
         username: 'Nama pengguna',
         fullName: 'Nama lengkap',
@@ -1217,6 +1535,7 @@ const overrides = {
     },
 
     matches: {
+      autoRunNotice: 'Pencocokan otomatis berjalan kira-kira setiap {{minutes}} menit. Anda juga bisa meminta kecocokan baru secara manual di sini.',
       presence: {
         online: 'Online',
         lastSeen: 'Terakhir aktif: {{time}}',
@@ -1413,6 +1732,7 @@ const overrides = {
     freeActivatedInfo:
       'Keanggotaan gratis Anda berlaku sampai {{date}}.\nDengan keanggotaan ini, Anda dapat like/tolak profil kecocokan dan menggunakan {{translatedCount}} pesan terjemahan.\nBatas ganti kecocokan harian Anda adalah {{dailyLimit}}.',
     promoExpired: 'Promo berakhir. Setelah {{date}}, aktivasi berbayar dan aktif setelah pembayaran.',
+    promoDisabled: 'Promo saat ini dinonaktifkan. Silakan coba lagi nanti.',
     activateFailed: 'Tidak dapat mengaktifkan keanggotaan. Silakan coba lagi.',
     errors: {
       notAuthenticated: 'Sesi tidak dapat diverifikasi. Silakan keluar lalu masuk kembali.',
@@ -1794,113 +2114,6 @@ export default {
     },
   },
 
-  kesfet: {
-    analyticsTitle: "Jelajahi - Temukan Pulau",
-    heroTitle: "Jelajahi Indonesia",
-    heroSubtitle:
-      "Pulau-pulau surga, budaya eksotis, dan kenangan tak terlupakan menanti. Temukan destinasi terbaik untuk bulan madu atau liburan Anda.",
-    stats: {
-      islands: "{{count}} pulau",
-      destinations: "{{count}}+ destinasi",
-      suggestions: "Rekomendasi bulan madu & liburan",
-    },
-    sectionTitle: "Jelajahi Pulau",
-    sectionSubtitle: "Setiap pulau menawarkan pengalaman unik dan kenangan tak terlupakan",
-    filters: {
-      hepsi: "Semua",
-      balayi: "Bulan Madu",
-      aile: "Keluarga",
-      macera: "Petualangan",
-      sakin: "Tenang",
-    },
-    tagLabels: {
-      balayi: "Cocok untuk bulan madu",
-      aile: "Ramah keluarga",
-      macera: "Petualangan & eksplorasi",
-      sakin: "Pelarian yang tenang",
-    },
-    card: {
-      overlayExplore: "Jelajahi lebih dalam {{name}}",
-      categoryLabel: "Pulau Indonesia",
-      destinations: "{{count}} destinasi",
-      viewDetails: "Lihat detail",
-    },
-    videoNotFound: "Tautan video tidak ditemukan",
-  },
-
-  kesfetIsland: {
-    analyticsTitle: "Jelajahi - {{island}}",
-    heroAlt: "Pulau {{name}}",
-    backToIslands: "Kembali ke pulau",
-    stats: {
-      destinations: "{{count}} destinasi",
-      recommendedStay: "Durasi rekomendasi: {{stay}}",
-      averageBudget: "Anggaran rata-rata: {{budget}}",
-    },
-    sectionTitle: "Destinasi Populer",
-    sectionSubtitle: "{{count}} destinasi menanti Anda",
-    card: {
-      details: "Detail →",
-    },
-  },
-
-  kesfetSidebar: {
-    closeMenu: "Tutup menu",
-    title: "Jelajahi",
-    back: "Kembali",
-    planTravel: "Rencanakan perjalanan",
-    whatsapp: "WhatsApp",
-    youtube: "Kanal YouTube",
-    whatsappMessage: "Saya ingin mendapatkan informasi tentang destinasi liburan di Indonesia",
-  },
-
-  kesfetDestination: {
-    breadcrumb: {
-      indonesia: "Indonesia",
-    },
-    backToIsland: "Kembali ke pulau {{island}}",
-    weather: {
-      today: "Rata-rata hari ini: Udara {{air}} · Laut {{sea}} (perkiraan)",
-    },
-    tabs: {
-      places: "Tempat Dikunjungi",
-      activities: "Aktivitas",
-      food: "Makanan & Minuman",
-      stay: "Menginap",
-      shopping: "Belanja",
-    },
-    places: {
-      title: "Tempat mana yang sebaiknya kamu lihat dulu di {{destination}}?",
-      subtitle: "Dari pemandangan hingga sejarah, kami kumpulkan tempat-tempat yang membuatmu benar-benar merasakan {{destination}}.",
-      tip: "Jika ini pertama kalimu ke {{destination}}, rencanakan maksimal 2–3 spot per hari dan sisakan waktu untuk istirahat agar kamu bisa menikmati cuaca dan ritmenya.",
-    },
-    activities: {
-      title: "Apa yang wajib kamu lakukan sebelum meninggalkan {{destination}}?",
-      subtitle: "Mau hari yang santai atau mengejar adrenalin, semuanya tergantung pilihanmu di bawah.",
-      tip: "Menggabungkan aktivitas yang seru dan yang santai di hari yang sama membuat waktumu di {{destination}} lebih seimbang dan berkesan.",
-    },
-    food: {
-      title: "Apa yang harus kamu cicipi di {{destination}}?",
-      subtitle: "Dari jajanan kaki lima sampai makan malam yang tenang, kami rangkum rasa yang layak kamu coba tanpa penyesalan.",
-    },
-    stay: {
-      title: "Tempat menginap seperti apa yang cocok untukmu di {{destination}}?",
-      subtitle: "Bandingkan pilihan berdasarkan budget, kenyamanan, dan pemandangan yang kamu impikan.",
-      recommendedDuration: "Durasi yang Disarankan",
-      totalBudget: "Total Rata-rata Budget ({{duration}})",
-      foodTip: "Memilih camilan street food sebelum terlalu lapar, lalu restoran yang lebih tenang untuk malam hari, bisa menyeimbangkan harimu di {{destination}}.",
-      locationTip: "Saat memilih tempat menginap di {{destination}}, menginap malam pertama di area yang lebih pusat lalu hari-hari berikutnya di area yang lebih tenang bisa memudahkan adaptasi.",
-    },
-    shopping: {
-      title: "Apa yang bisa kamu temukan di {{destination}} untuk kebutuhan dan oleh-oleh?",
-      subtitle: "Ide untuk kebutuhan mendesak, perlengkapan aktivitas, dan barang kecil yang akan mengingatkanmu pada tempat ini.",
-      tip: "Jangan tunda belanja oleh-oleh sampai hari terakhir; membeli saat kamu melihatnya di {{destination}} membuat tawar-menawar dan memilih jadi lebih mudah.",
-    },
-    gallery: {
-      alt: "{{destination}} - {{tab}} tampilan {{index}}",
-    },
-  },
-
   documentsHub: {
     title: "Dokumen",
     subtitle:
@@ -2143,7 +2356,7 @@ export default {
         },
       },
       outro:
-        "Untuk budaya Indonesia, rekomendasi rute per pulau, dan artikel mendalam, Anda dapat melihat konten yang kami siapkan di <1>Jelajahi</1>. Untuk paket tur terencana, kunjungi <3>Paket Tur</3>. Untuk organisasi khusus bagi grup perusahaan atau sekolah, kunjungi <5>Tur Grup</5>.",
+        "Untuk informasi lebih lanjut tentang sistem matchmaking <1>Uniqah</1> dan panduan <3>Pernikahan</3> di Indonesia, Anda dapat melihat halaman ini. Untuk teks dan kebijakan resmi, gunakan bagian <5>Dokumen</5>.",
     },
     story: {
       title: "Cerita singkat kami",
@@ -2241,1250 +2454,6 @@ export default {
     },
   },
 
-  tours: {
-    whatsapp: {
-      preRegRequestTitle: "Permintaan pra-registrasi tur grup (halaman daftar)",
-      missingNumberWarn: "VITE_WHATSAPP_NUMBER belum diset.",
-      quickInfoGreeting: "Halo, saya ingin mendapatkan informasi tentang paket tur Indonesia.",
-      quickInfoQuestion: "Bisa tolong bagikan tanggal yang tersedia dan harga terbaru untuk ikut sebagai individu/keluarga?",
-      labels: {
-        tour: "Tur",
-        fullName: "Nama lengkap",
-        email: "Email",
-        phone: "Telepon",
-        participationType: "Jenis partisipasi",
-        requestedTour: "Tur yang diinginkan",
-        peopleCount: "Jumlah peserta",
-        notes: "Catatan",
-      },
-    },
-
-    ui: {
-      heroTitle: "Paket Tur Grup Indonesia",
-      click: "Klik",
-      personalToursCta: "Tur untuk Individu / Keluarga",
-      groupToursCta: "Organisasi Tur untuk Grup",
-      heroDescription:
-        "Tur di halaman ini adalah tur grup Indonesia yang terjadwal, direncanakan pada periode tertentu dengan kuota terbatas. Anda bisa mengisi pra-registrasi (tidak mengikat) dan meminta kami mengirim program detail serta harga terbaru via WhatsApp atau email.",
-
-      trust: {
-        transparentTitle: "Proses transparan",
-        transparentDesc: "Setelah pra-registrasi, kami membagikan program, cakupan, dan harga terbaru secara tertulis.",
-        confirmTitle: "Langkah konfirmasi",
-        confirmDesc: "Registrasi dikonfirmasi setelah persetujuan kontrak dan proses pembayaran selesai.",
-        fastContactTitle: "Kontak cepat",
-        fastContactDesc: "Anda bisa bertanya cepat melalui WhatsApp.",
-      },
-
-      steps: {
-        1: { title: "1) Pilih tur", desc: "Pilih tur yang cocok lalu isi pra-registrasi." },
-        2: { title: "2) Informasi", desc: "Kami kirim program + cakupan + harga secara tertulis." },
-        3: { title: "3) Konfirmasi", desc: "Persetujuan kontrak dan langkah pembayaran diselesaikan." },
-        4: { title: "4) Persiapan", desc: "Info sebelum perjalanan untuk penerbangan/hotel dan alur perjalanan." },
-      },
-
-      flightNoteShort: "tiket pesawat termasuk hingga {{limit}} per orang",
-      flightNoteReason:
-        "Karena harga penerbangan sangat bervariasi, batasnya ditetapkan; selisih di atas batas akan dikenakan terpisah.",
-
-      perks: {
-        hotel: "Akomodasi hotel bintang 4–5",
-        breakfastTransfers: "Sarapan + transfer",
-        support: "Dukungan bahasa Turki 24/7",
-        supportShort: "Dukungan",
-        sharedRoom: "Kamar berbagi 2 orang (pasangan atau teman)",
-        breakfastHotels: "Sarapan hotel setiap hari",
-        airportHotelTransfers: "Transfer bandara–hotel–aktivitas",
-        supportFull: "Dukungan bahasa Turki & tim lokal 24/7",
-        roadTripNature: "Konsep road trip (alam & petualangan)",
-        breakfastRouteTransfers: "Sarapan + transfer rute",
-        roadTripTrains: "Road trip + segmen kereta",
-        guidedAndFreeTime: "Hari berpemandu + waktu bebas",
-        boatFocus: "Eksplorasi pulau fokus kapal",
-        opsSafety: "Koordinasi operasional & keamanan",
-        flightHeavy: "Rute dominan penerbangan (tanpa perjalanan darat panjang)",
-        stayBreakfast: "Menginap + sarapan",
-        transfersCoord: "Transfer/koordinasi",
-
-        roadTripFewStops: "Konsep road trip: lebih sedikit tempat menginap, suasana beragam",
-        hotel34Boutique: "Hotel bintang 3–4 dan penginapan butik regional",
-        medanRouteTransfers: "Transfer rute Medan ↔ Bukit Lawang ↔ Samosir",
-        trainRoad: "Kereta + perjalanan darat (termasuk Bandung)",
-        guidedBalance: "Keseimbangan hari berpemandu + waktu bebas",
-        opsCoordination: "Transfer dalam rute dan koordinasi operasional",
-        boatMaxSeaDays: "Eksplorasi pulau fokus kapal: lebih sedikit menginap, lebih banyak hari laut",
-        guidedBoatBalance: "Keseimbangan hari kapal berpemandu + waktu bebas",
-        parkOpsSafety: "Tiket taman nasional, operasi kapal dan koordinasi keamanan",
-        flightFlowNoLongRoad: "Alur dominan penerbangan: tanpa hari darat panjang; cepat namun nyaman",
-        domesticFlights: "Penerbangan domestik Makassar → Manado → Jakarta (bisa transit)",
-        guidedBalanceLocations: "Keseimbangan hari berpemandu + waktu bebas (Bunaken/Tangkoko/Tomohon)",
-        hotel34: "Hotel bintang 3–4",
-        privateBusTours: "Tur bus pribadi",
-        localGuide247: "Layanan pemandu lokal 24/7",
-      },
-
-      promoLabel: "Promo",
-      promoDontMiss: "Jangan lewatkan",
-
-      price: {
-        discountedSpecial: "Harga spesial diskon per orang untuk 5 reservasi pertama yang dikonfirmasi: {{percent}}%",
-        currentPerPerson: "Harga terbaru per orang",
-        premium: "Premium",
-        total: "Total",
-        discounted: "Harga diskon",
-        premiumPackagePrice: "Harga paket Premium",
-        startingFrom: "Mulai dari",
-        comingSoon: "Harga segera tersedia",
-      },
-
-      notes: {
-        company:
-          "Endonezya Kaşifi adalah merek dari PT MoonStar Global Indonesia yang terdaftar di Indonesia; operasi tur dijalankan secara legal di Indonesia oleh wirausahawan Turki.",
-        paymentFlow:
-          "Alur pembayaran: Setelah kontrak/persetujuan, deposit diambil; ketika tur mencapai peserta yang cukup dan operasional dikonfirmasi, pembayaran sisa dibuka. Reservasi dikonfirmasi setelah pembayaran selesai.",
-      },
-
-      plannedDatesLabel: "Tanggal tur terencana",
-
-      includes: {
-        someIncluded: "Beberapa layanan yang termasuk:",
-        moreItems: "+ {{count}} item lagi",
-      },
-
-      cta: {
-        preReg: "Isi pra-registrasi untuk tur ini",
-        viewDetails: "Lihat detail",
-      },
-
-      shorts: {
-        title: "Video singkat (YouTube Shorts)",
-        description:
-          "Video di bawah memberi gambaran cepat tentang rute dan suasana. Jika mau, Anda bisa meminta detail program via WhatsApp.",
-        closeAria: "Tutup video",
-        close: "Tutup",
-        playAria: "Putar YouTube Short {{index}}",
-        thumbnailAlt: "Thumbnail YouTube Short {{index}}",
-        noPreview: "Pratinjau tidak tersedia",
-        tapToPlay: "Ketuk untuk memutar",
-        missingUrl: "Tautan video tidak ditemukan",
-      },
-
-      legal: {
-        title: "Transparansi & dokumen resmi",
-        description:
-          "Anda dapat mengakses teks mengenai proses setelah pra-registrasi, persetujuan kontrak, dan penggunaan data pribadi di sini.",
-        whatsappCta: "Info via WhatsApp",
-        cards: {
-          preRegInfoPack: {
-            title: "Paket info pra-registrasi",
-            desc: "Paket dibagikan via WhatsApp (PDF)",
-          },
-          brochures: {
-            title: "Brosur tur",
-            desc: "Bali, Lombok, Java, Sumatra, Komodo, Sulawesi",
-          },
-          kvkk: {
-            title: "Pemberitahuan data pribadi",
-            desc: "Pemrosesan dan penyimpanan data pribadi",
-          },
-          preInfo: {
-            title: "Form informasi awal",
-            desc: "Informasi umum sebelum pembelian",
-          },
-          packageAgreement: {
-            title: "Perjanjian Paket Tur",
-            desc: "Syarat konfirmasi dan partisipasi",
-          },
-          privacy: {
-            title: "Kebijakan Privasi",
-            desc: "Form dan izin komunikasi",
-          },
-        },
-      },
-
-      preRegNote:
-        "Catatan: Pra-registrasi adalah langkah permintaan informasi; registrasi dikonfirmasi setelah proses kontrak dan pembayaran selesai.",
-
-      faq: {
-        title: "Pertanyaan yang sering diajukan",
-        q1: {
-          question: "Apakah pra-registrasi berbayar?",
-          answer:
-            "Pra-registrasi adalah langkah formulir kontak untuk ketersediaan dan berbagi informasi. Registrasi dikonfirmasi setelah kontrak dan pembayaran selesai.",
-        },
-        q2: {
-          question: "Apa saja yang termasuk dalam harga?",
-          answer:
-            "Layanan yang termasuk diringkas di kartu tur. Cakupan lengkap bisa dilihat di halaman detail tur dan dokumen program yang kami kirim.",
-        },
-        q3: {
-          question: "Bagaimana tiket pesawat termasuk?",
-          answerPrefix: "Tiket pesawat termasuk hingga ",
-          answerSuffix:
-            " per orang. Karena harga penerbangan sangat bervariasi, batas ini ditetapkan untuk semua tur; selisih di atas batas akan dikenakan terpisah.",
-        },
-        q4: {
-          question: "Saya punya pertanyaan—siapa yang bisa saya hubungi sekarang?",
-          answer: "Anda bisa mengirim pesan via WhatsApp; kami akan membalas secepatnya.",
-          whatsappCta: "Tanya via WhatsApp",
-        },
-      },
-
-      warnings: {
-        title: "Catatan penting & peringatan",
-        description:
-          "Ringkasan singkat informasi umum dan aturan partisipasi yang berlaku untuk semua tur di halaman ini. Versi detail tersedia di halaman detail tur.",
-        items: {
-          1: "Batas akhir pendaftaran adalah {{days}} hari sebelum tanggal mulai tur.",
-          2: "Setelah pra-registrasi, registrasi dikonfirmasi setelah persetujuan kontrak dan pembayaran selesai.",
-          3: "Rencana rute dan aktivitas dapat diperbarui karena alasan operasional atau kondisi cuaca.",
-          4: "Tiket pesawat termasuk hingga ${{limit}} per orang. Karena harga penerbangan bervariasi, batas ditetapkan; selisih di atas batas akan dikenakan terpisah.",
-          5: "Asuransi kesehatan perjalanan wajib sebelum masuk Indonesia.",
-          6: "Jika Anda memiliki kondisi kesehatan serius, mohon sebutkan di kolom “Catatan tambahan” pada formulir.",
-          7: "Peserta yang telah konfirmasi diharapkan mengikuti aturan tur dan tidak bertindak sendiri.",
-          8: "Pastikan paspor Anda masih berlaku minimal {{months}} bulan setelah tanggal kepulangan.",
-          9: "Indonesia telah menghapus persyaratan visa untuk warga negara Turki; paspor, reservasi hotel, dan tiket pesawat cukup untuk masuk.",
-          10: "Aturan visa dan masuk negara dapat berubah sesuai kebijakan otoritas resmi.",
-          11: "Selama perjalanan, Anda dapat menyampaikan permintaan/keluhan melalui pemandu yang ditugaskan untuk grup.",
-          12: "Kenyamanan, keamanan, dan kepuasan Anda sangat penting bagi kami.",
-          13: "Peserta yang menandatangani perjanjian dan menyelesaikan pendaftaran dianggap telah membaca dan menyetujui catatan ini.",
-        },
-      },
-
-      groupCta: {
-        title: "Ingin merencanakan tur Indonesia khusus untuk grup Anda sendiri?",
-        description:
-          "Jika Anda ingin tur khusus untuk perusahaan, sekolah, komunitas, atau grup teman dengan jumlah peserta dan tanggal sesuai pilihan Anda, Anda bisa mengisi formulir penawaran detail di halaman Tur Grup.",
-        button: "Ke Halaman Tur Grup",
-      },
-
-      common: {
-        close: "Tutup",
-      },
-
-      preRegModal: {
-        title: "Tur grup {{tourName}} — pra-registrasi individu/keluarga",
-        description:
-          "Tinggalkan data dasar untuk kontak dan ketersediaan kuota; kami akan menghubungi Anda via WhatsApp atau email.",
-        warningsIntro:
-          "Poin-poin di bawah merangkum informasi umum dan aturan partisipasi untuk semua paket tur Indonesia kami. Versi detail juga tersedia di halaman detail tur.",
-      },
-
-      form: {
-        fullName: "Nama lengkap",
-        fullNamePlaceholder: "Nama lengkap Anda",
-        email: "Email",
-        emailPlaceholder: "nama@email.com",
-        phone: "Telepon",
-        phonePlaceholder: "+90 5xx xxx xx xx",
-        participationType: "Jenis partisipasi",
-        participationOptions: {
-          individual: "Individu",
-          family: "Keluarga",
-          couple: "Pasangan",
-          friends: "Grup teman",
-          other: "Lainnya",
-        },
-        requestedTour: "Tur yang diinginkan",
-        peopleCount: "Jumlah peserta",
-        peopleCountPlaceholder: "Berapa orang?",
-        notes: "Catatan tambahan",
-        notesPlaceholder: "Permintaan khusus, jumlah anak, dll.",
-        privacyConsentText:
-          "Saya telah membaca dan menerima kebijakan privasi, dan menyetujui informasi saya digunakan hanya untuk pra-registrasi tur dan keperluan informasi.",
-        privacyPolicyLink: "Kebijakan Privasi",
-        submit: "Kirim permintaan pra-registrasi",
-      },
-
-      sticky: {
-        whatsapp: "WhatsApp",
-        preReg: "Pra-reg",
-        tours: "Tur",
-      },
-
-      tourPicker: {
-        title: "Pilih tur untuk pra-registrasi",
-      },
-    },
-
-    data: {
-      bali: {
-        name: "Pulau Bali",
-        description:
-          "Bali yang tropis akan memikat Anda dengan pantai indah, pura mistis, sawah hijau, dan keramahan penduduknya. Rute ini dirancang sebagai paket liburan premium dengan pengalaman terpilih seperti body rafting dan tur kapal seharian—meminimalkan biaya tak terduga.",
-        duration: "6 Malam 7 Hari",
-        concept:
-          "Tiket pesawat termasuk hingga $750 per orang. Karena harga penerbangan sangat bervariasi, batas ini ditetapkan; selisih di atas batas dibayar oleh peserta.",
-        suitableFor: [
-          "Bulan madu",
-          "Mewah & relaks",
-          "Pantai",
-          "Yoga & wellness",
-          "Adrenalin",
-          "Petualangan",
-          "Alam",
-        ],
-        includes: [
-          "Tiket pesawat pulang-pergi dari Istanbul",
-          "6 malam akomodasi di Ubud dan area pantai",
-          "Sarapan hotel setiap hari",
-          "Hari berpemandu terpilih dan transfer dalam program",
-        ],
-        dateRange: "28 Maret - 3 April (7 hari / 6 malam)",
-        includesNote:
-          "Menginap hotel dalam program dan sarapan setiap hari sudah termasuk; pada hari ke-2 dan ke-4, makan siang termasuk sebagai makan bersama saat hari berpemandu. Makan lainnya serta pengeluaran makanan & minuman di luar hotel tidak termasuk.",
-      },
-      lombok: {
-        name: "Pulau Lombok",
-        description:
-          "Lombok—saudara Bali yang lebih tenang—menunggu pecinta petualangan dengan pantai alami dan Gunung Rinjani.",
-        duration: "6 Malam 7 Hari",
-        concept: "Alam & Pantai",
-        suitableFor: ["Alam & petualangan", "Pantai", "Selancar", "Adrenalin", "Olahraga air", "Mewah & relaks"],
-        includes: [
-          "Tiket pesawat pulang-pergi dari Istanbul",
-          "6 malam akomodasi di Gili dan area pesisir",
-          "Sarapan hotel setiap hari",
-          "Hari berpemandu terpilih dan transfer dalam program",
-        ],
-        dateRange: "Periode musiman",
-        includesNote:
-          "Pada rute Lombok, akomodasi direncanakan di Gili dan area pesisir; sarapan sudah termasuk, dan transfer regional serta tur alam pilihan termasuk dalam program. Beberapa aktivitas olahraga air dan pengalaman berpemandu tertentu mungkin tidak termasuk dan dapat ditawarkan sebagai layanan tambahan opsional.",
-      },
-      java: {
-        name: "Pulau Jawa",
-        description:
-          "Nikmati Jawa bukan seperti tur kota biasa, tetapi road trip nyaman mulai dari Jakarta hingga dataran tinggi Bandung, rute sungai & alam Pangandaran, dan candi UNESCO di Yogyakarta.",
-        duration: "10 Malam 11 Hari",
-        concept: "Road Trip & Kota (Premium)",
-        suitableFor: ["Road trip", "Eksplorasi budaya", "Alam & petualangan", "Fotografi", "Tur kota"],
-        includes: [
-          "Akomodasi Jakarta, Bandung, Pangandaran, dan Yogyakarta",
-          "Transfer dalam rute (kereta/kendaraan) dan koordinasi operasional",
-          "Hari berpemandu dan transfer dalam program",
-          "Briefing tertulis sebelum perencanaan dan pemesanan",
-        ],
-        dateRange: "Kuota terbatas pada periode tertentu",
-        includesNote:
-          "Tur Jawa berkonsep road trip dan direncanakan hanya sebagai paket Premium. Transfer dalam rute dan alur hari berpemandu diorganisir dalam paket; tiket pesawat termasuk hingga {{flightLimit}} per orang (batas ini ditetapkan karena harga penerbangan bervariasi).",
-      },
-      sumatra: {
-        name: "Pulau Sumatra",
-        description:
-          "Sumatra yang liar menawarkan pengalaman alam unik dengan hutan hujan, orangutan, dan Danau Toba yang menakjubkan.",
-        duration: "8 Malam 9 Hari",
-        concept: "Alam & petualangan",
-        suitableFor: ["Alam & petualangan", "Eksplorasi budaya", "Satwa liar"],
-        includes: [
-          "Akomodasi di Medan, Bukit Lawang, dan Samosir (Danau Toba)",
-          "Transfer kendaraan pribadi + penyeberangan feri",
-          "Sarapan hotel setiap hari",
-          "Hari berpemandu dan aktivitas terpilih dalam program",
-        ],
-        dateRange: "Kuota terbatas pada periode tertentu",
-        includesNote:
-          "Tur Sumatra fokus pada alam & petualangan dan direncanakan dengan pendekatan road trip. Transfer serta alur hari berpemandu pada rute Medan → Bukit Lawang → Samosir (Danau Toba) diorganisir dalam paket. Tiket pesawat termasuk hingga {{flightLimit}} per orang (batas ini ditetapkan karena harga penerbangan bervariasi).",
-      },
-      komodo: {
-        name: "Pulau Komodo",
-        description:
-          "Taman Nasional Komodo (Warisan Dunia UNESCO) menggabungkan komodo, pantai pasir merah muda, dan teluk biru—menghadirkan alam liar dan pengalaman tur kapal.",
-        duration: "6 Malam 7 Hari",
-        concept: "Alam & Pantai",
-        suitableFor: ["Tur kapal", "Alam & petualangan", "Snorkeling", "Fotografi", "Pantai", "Adrenalin"],
-        includes: [
-          "Tiket pesawat pulang-pergi dari Istanbul",
-          "Akomodasi Labuan Bajo + sarapan hotel setiap hari",
-          "Hari tur kapal dan rute trekking berpemandu (sesuai paket)",
-          "Transfer (bandara/hotel/pelabuhan) dan koordinasi operasional",
-        ],
-        dateRange: "Musim tertentu, kuota kapal terbatas",
-        includesNote:
-          "Tur Komodo berkonsep eksplorasi pulau yang berfokus pada kapal. Hari kapal, operasi taman nasional, dan alur trekking berpemandu diorganisir dalam paket. Tiket pesawat termasuk hingga {{flightLimit}} per orang (batas ini ditetapkan karena harga penerbangan bervariasi).",
-      },
-      sulawesi: {
-        name: "Pulau Sulawesi",
-        description:
-          "Rute eksplorasi dominan penerbangan: mulai dari pesisir tropis Makassar, lanjut ke dunia bawah laut Manado & Bunaken, diperkuat hutan Tangkoko dan lanskap vulkanik Tomohon, lalu ditutup sentuhan metropolitan di Jakarta.",
-        duration: "8 Malam 9 Hari",
-        concept: "Laut • Alam • Menyelam • Kota Tropis",
-        suitableFor: [
-          "Snorkeling",
-          "Menyelam (opsional)",
-          "Alam & satwa liar",
-          "Fotografi",
-          "Kota & budaya kafe",
-          "Petualangan",
-        ],
-        includes: [
-          "Total 8 malam: Makassar (2) + Manado (5) + Jakarta (1)",
-          "Penerbangan domestik Makassar → Manado dan Manado → Jakarta (termasuk)",
-          "Transfer bandara + koordinasi operasional dalam rute",
-          "Dukungan bahasa Turki 24/7 dan tim lokal (hari berpemandu sesuai paket)",
-        ],
-        dateRange: "Direncanakan sesuai tanggal khusus dan hari libur",
-        includesNote:
-          "Tur Sulawesi mengikuti alur dominan penerbangan; hari perjalanan darat yang panjang dan melelahkan tidak direncanakan. Penerbangan domestik dan alur hari berpemandu diorganisir dalam paket. Tiket pesawat termasuk hingga {{flightLimit}} per orang (batas ini ditetapkan karena harga penerbangan bervariasi).",
-      },
-    },
-  },
-
-  tourDetail: {
-    nav: {
-      backAria: "Kembali ke halaman sebelumnya",
-      backText: "Kembali ke halaman sebelumnya",
-    },
-    notFound: {
-      title: "Tur tidak ditemukan",
-      description: "Paket tur yang ingin Anda lihat mungkin tidak tersedia atau sudah dihapus.",
-    },
-    promo: {
-      label: "Promo",
-      earlyBird: "Jangan lewatkan diskon early-bird",
-    },
-    tags: {
-      experienceGroupHoliday: "Liburan grup berfokus pengalaman",
-    },
-    brochure: {
-      open: "Buka brosur {{tourName}}",
-      pdfHint: "Untuk PDF: di halaman yang terbuka ikuti \"Print > Save as PDF\".",
-    },
-    flight: {
-      shortNote: "(tiket pesawat termasuk hingga ${{flightLimit}} per orang)",
-      longNote:
-        "Tiket pesawat termasuk dalam paket hingga ${{flightLimit}} per orang. Karena harga tiket sangat bervariasi, batas ini bersifat tetap; selisih di atas batas akan ditagihkan terpisah.",
-    },
-    durationConcept: {
-      title: "Durasi & Konsep",
-      plannedDatesLabel: "Tanggal tur yang direncanakan",
-      bullets: [
-        "Ini bukan tur sightseeing daftar-checklist; ini liburan grup berfokus pengalaman.",
-        "Fokusnya bukan daftar istana/kuil; melainkan aktivitas nyata serta pengalaman laut & alam.",
-        "Program mencakup hari-hari penuh dengan pemandu dan juga waktu bebas yang fleksibel.",
-        "Menginap di hotel pilihan dan dukungan bahasa Turki 24/7 tersedia sepanjang perjalanan.",
-        "Tidak ada biaya kejutan; apa yang dibayar untuk tiap hari/pengalaman dijelaskan sejak awal.",
-      ],
-      note:
-        "Catatan: Penerbangan pulang-pergi, akomodasi, dan sarapan tetap di semua paket; menginap direncanakan di kamar double berbagi (pasangan atau teman yang ingin sekamar ditempatkan bersama); aktivitas yang termasuk dan hari berpemandu berbeda sesuai level paket.",
-    },
-    packages: {
-      intro: "Bandingkan paket dan pilih yang paling cocok.",
-      title: "Opsi paket tur",
-      javaOnly:
-        "Tur liburan Java ini direncanakan hanya sebagai paket Premium. Harga paket Basic dan Standard ditampilkan 0; paket ini tidak dijual.",
-      variants:
-        "Untuk rute yang sama, kami menyiapkan tiga level: paket Basic yang ramah anggaran, opsi Plus yang seimbang, dan paket Premium yang merujuk program detail di halaman ini. Program hari-per-hari yang ditampilkan adalah untuk Premium; Basic dan Plus adalah versi yang disederhanakan. Hotel, tipe kamar, cakupan makan, dan aktivitas yang termasuk berbeda sesuai level paket.",
-      toggle: {
-        show: "Tampilkan semua detail paket",
-        hide: "Sembunyikan detail paket",
-      },
-      premiumDifferences: "Perbedaan dibanding paket Premium",
-      premiumDifferencesByTour: {
-        bali: {
-          temel: [
-            "Pengalaman rafting Sungai Ayung tidak termasuk dalam paket ini (bisa ditambahkan secara opsional).",
-            "Tur kapal seharian dan beberapa aktivitas ekstra tidak termasuk dalam harga ini.",
-            "Kenyamanan hotel dan jumlah makan yang termasuk dibuat lebih sederhana dibanding Premium; fokusnya menjaga anggaran.",
-          ],
-          plus: [
-            "Tur kapal seharian tidak termasuk dalam paket ini (bisa ditambahkan sebagai ekstra opsional).",
-            "Makan dan aktivitas ekstra lebih terbatas dibanding paket Premium.",
-          ],
-        },
-        lombok: {
-          temel: [
-            "Tur kapal Kepulauan Gili tidak termasuk dalam paket ini (bisa ditambahkan secara opsional).",
-            "Pengalaman pantai selatan & selancar tidak termasuk dalam paket ini (bisa ditambahkan secara opsional).",
-            "Tur air terjun Senaru & titik pandang Gunung Rinjani tidak termasuk dalam paket ini.",
-          ],
-          plus: [
-            "Tur air terjun Senaru & titik pandang Gunung Rinjani tidak termasuk dalam paket ini (bisa ditambahkan sebagai ekstra opsional).",
-            "Pengalaman tambahan seperti tur kapal Pink Beach tidak termasuk dalam paket ini.",
-          ],
-        },
-        sumatra: {
-          temel: [
-            "Pengalaman trekking orangutan & tubing tidak termasuk dalam paket ini (bisa ditambahkan secara opsional).",
-            "Tur budaya Batak & tur pulau tidak termasuk dalam paket ini (bisa ditambahkan secara opsional).",
-            "Tur tambahan seperti Tele Observation Tower / tur panorama tidak termasuk dalam harga ini.",
-          ],
-          plus: [
-            "Tur budaya Batak & tur pulau tidak termasuk dalam paket ini (bisa ditambahkan sebagai ekstra opsional).",
-            "Tur tambahan seperti Tele Observation Tower / tur panorama tidak termasuk dalam paket ini.",
-          ],
-        },
-      },
-      highlights: {
-        duration: "Durasi: {{duration}}",
-        concept: "Konsep: {{concept}}",
-        route: "Rute: {{route}}",
-      },
-      fallback: {
-        basic: {
-          name: "Paket Basic",
-          badge: "Pemula",
-          headline: "Paket awal yang mempertahankan alur namun lebih fleksibel.",
-          notes:
-            "Cakupan termasuk/tidak termasuk dapat berubah tergantung level paket yang dipilih. Cakupan pasti dan detail operasional akan dibagikan secara tertulis sebelum reservasi.",
-        },
-        standard: {
-          name: "Paket Plus",
-          badge: "Seimbang",
-          headline: "Opsi seimbang untuk rencana yang lebih jelas dan lebih lengkap.",
-          notes:
-            "Paket Plus mengikuti alur utama program dan memperjelas cakupan. Detail operasional (jam/rute) dibagikan tertulis setelah reservasi.",
-        },
-        premium: {
-          name: "Paket Premium",
-          badge: "Paling lengkap",
-          headline: "Paket tingkat atas untuk kenyamanan lebih dan perencanaan lebih menyeluruh.",
-          notes:
-            "Paket Premium menargetkan perencanaan yang lebih menyeluruh. Detail operasional (jam/rute) dibagikan tertulis setelah reservasi.",
-        },
-      },
-    },
-
-    ctaTop: {
-      images: {
-        leftAlt: {
-          bali: "Bali - menyelam dan terumbu karang",
-          lombok: "Lombok - olahraga air",
-          java: "Java - gambar tur",
-          sumatra: "Sumatra - hutan hujan",
-          komodo: "Komodo - berjalan di pantai",
-          sulawesi: "Sulawesi - gambar tur",
-        },
-        rightAlt: {
-          bali: "Bali - perayaan di yacht dan teman",
-          lombok: "Lombok - perayaan di yacht dan teman",
-          java: "Java - gambar tur",
-          sumatra: "Sumatra - Danau Toba",
-          komodo: "Labuan Bajo - pemandangan kapal",
-          sulawesi: "Sulawesi - rute banyak penerbangan",
-        },
-      },
-      title: "Dapatkan penawaran cepat untuk {{tourName}}",
-      description: "Minta info 1 menit untuk tanggal, paket, dan opsi pembayaran.",
-      steps: {
-        1: { title: "ISI FORM", desc: "Tulis preferensi dan catatan Anda secara singkat." },
-        2: { title: "KIRIM PERMINTAAN", desc: "Dapatkan balasan cepat via WhatsApp atau email." },
-        3: { title: "TERIMA PENAWARAN", desc: "Kami akan kirim penawaran dan detail cakupan tertulis." },
-      },
-      pdfs: {
-        preRegPack: "Paket info pra-pendaftaran",
-        brochure: "Brosur tur",
-        open: "Buka",
-      },
-      actions: {
-        wantInfo: "Minta info / Pra-daftar",
-        groupOffer: "Minta penawaran grup",
-        paymentOptions: "Pembayaran / Deposit",
-      },
-    },
-
-    forms: {
-      planned: {
-        title: "Pra-daftar untuk {{tourName}}",
-        description: "Isi formulir singkat dan kami akan menghubungi via WhatsApp/email.",
-        fields: {
-          fullName: { label: "Nama lengkap *", placeholder: "Nama lengkap Anda" },
-          email: { label: "Email *", placeholder: "contoh@email.com" },
-          phone: { label: "Telepon *", placeholder: "+62 ..." },
-          participation: {
-            label: "Jenis partisipasi *",
-            options: {
-              individual: "Individu",
-              family: "Keluarga",
-              couple: "Pasangan",
-              friends: "Teman",
-              other: "Lainnya",
-            },
-          },
-          requestedTour: {
-            label: "Tur yang diinginkan *",
-            placeholderExample: "Contoh: Bali - 7 hari / 6 malam",
-          },
-          peopleCount: { label: "Jumlah peserta *", placeholder: "Berapa orang?" },
-          notes: { label: "Catatan", placeholder: "Kota keberangkatan, permintaan khusus, dll." },
-        },
-        privacy: {
-          text: "Saya telah membaca dan menyetujui kebijakan privasi.",
-          link: "Kebijakan privasi",
-        },
-        submit: "Kirim",
-      },
-      group: {
-        title: "Minta penawaran grup untuk {{tourName}}",
-        description: "Minta penawaran khusus untuk 5+ orang dan kami akan segera menghubungi Anda.",
-        fields: {
-          fullName: { label: "Nama lengkap *", placeholder: "Nama lengkap Anda" },
-          email: { label: "Email *", placeholder: "contoh@email.com" },
-          phone: { label: "Telepon *", placeholder: "+62 ..." },
-          organization: { label: "Organisasi / nama grup", placeholder: "contoh: ABC Company" },
-          groupType: {
-            label: "Tipe grup *",
-            placeholder: "Pilih",
-            options: {
-              company: "Perusahaan",
-              school: "Sekolah",
-              association: "Asosiasi / Klub",
-              friends: "Grup teman",
-              other: "Lainnya",
-            },
-          },
-          peopleCount: { label: "Jumlah peserta *", placeholder: "Minimal 5" },
-          dates: { label: "Tanggal rencana *", placeholder: "contoh: Juli 2026" },
-          routes: { label: "Wilayah / rute yang diminati", placeholder: "contoh: Bali, Lombok" },
-          budget: {
-            label: "Anggaran per orang",
-            placeholder: "Pilih",
-            options: {
-              "5000plus": "$5000+",
-              other: "Lainnya",
-            },
-          },
-          budgetOther: { label: "Anggaran lain", placeholder: "contoh: $6000" },
-          notes: { label: "Catatan", placeholder: "Ekspektasi hotel, permintaan khusus, dll." },
-        },
-        privacy: { text: "Saya telah membaca dan menyetujui kebijakan privasi." },
-        submit: "Minta penawaran",
-      },
-    },
-    pricing: {
-      startingPrice: {
-        default: "Harga mulai",
-        basic: "Harga mulai – paket Basic",
-        javaPremium: "Harga mulai – paket Premium",
-      },
-      discountFallback:
-        "Per orang, harga spesial dengan diskon {{discountPercent}}% untuk 5 orang pertama yang menyelesaikan reservasi.",
-      perPersonStartEconomy: "Per orang, harga mulai untuk paket paling ekonomis.",
-      perPersonCurrent: "Per orang, harga paket saat ini.",
-      sulawesiDomesticFlightsIncluded:
-        "Penerbangan domestik Indonesia dalam program termasuk dalam paket.",
-      priceInfoSoon: "Info harga akan segera diperbarui.",
-      programNoteJava:
-        "Program hari-per-hari dan cakupan di halaman ini adalah untuk paket Premium. Tur Java ini hanya direncanakan sebagai Premium.",
-      programNoteDefault:
-        "Program hari-per-hari dan cakupan di halaman ini adalah untuk paket Premium. Paket Basic dan Plus adalah versi yang disederhanakan.",
-      whyThisPrice:
-        "Mengapa harganya seperti ini? Karena kami tidak menjual paket tur kosong—kami menjual pengalaman liburan nyata. Ini bukan rute klasik 'berhenti untuk foto'; kami memasukkan tur kapal, aktivitas air, jalan alam, dan penginapan nyaman sejak awal. Jika Anda datang untuk benar-benar berlibur (bukan hanya foto dari kota ke kota), Anda ada di tempat yang tepat—dan harga mencerminkan kelengkapan dan transparansi ini.",
-    },
-    email: {
-      participation: {
-        full: "reservasi-langsung-terkonfirmasi",
-        deposit: "pra-reservasi-dengan-deposit",
-      },
-      summaryPrefix: {
-        full: "Ringkasan reservasi langsung terkonfirmasi:\n\n",
-        deposit: "Ringkasan pra-reservasi dengan deposit:\n\n",
-      },
-    },
-    whatsapp: {
-      missingNumberWarn: "VITE_WHATSAPP_NUMBER belum diset.",
-      planned: {
-        title: "Permintaan pra-registrasi perjalanan grup",
-      },
-      group: {
-        title: "Permintaan penawaran untuk perjalanan grup",
-      },
-      labels: {
-        tour: "Tur",
-        referenceRoute: "Rute / perjalanan referensi",
-        fullName: "Nama lengkap",
-        email: "Email",
-        phone: "Telepon",
-        participationType: "Jenis partisipasi",
-        requestedTour: "Tur yang diinginkan",
-        peopleCount: "Jumlah peserta",
-        notes: "Catatan",
-        organization: "Organisasi / nama grup",
-        groupType: "Tipe grup",
-        dates: "Tanggal rencana",
-        routes: "Wilayah / rute yang diminati",
-        budget: "Anggaran per orang",
-      },
-      deposit: {
-        noExtras: "Tidak ada aktivitas ekstra opsional yang dipilih.",
-        type: {
-          full: "reservasi pasti langsung",
-          deposit: "pra-reservasi dengan deposit",
-        },
-        title: "Permintaan {{type}} untuk tur Indonesia",
-        labels: {
-          packageTotal: "Total paket (perkiraan)",
-          extrasSelected: "Aktivitas opsional yang dipilih:",
-          grandTotal: "Total keseluruhan (perkiraan)",
-          depositToPayNow: "Deposit yang harus dibayar sekarang (perkiraan)",
-        },
-      },
-    },
-    deposit: {
-      intro: {
-        title: "Pembayaran / Pra-Reservasi dengan Deposit",
-        p1: "Pilih paket Anda; kirim permintaan sebagai <b>pra-reservasi dengan deposit</b> atau <b>reservasi langsung terkonfirmasi</b>.",
-        p2: "Setelah Anda mengirim formulir, kami akan mengirim konfirmasi tertulis dan langkah pembayaran via WhatsApp.",
-      },
-      ui: {
-        packageSelectionLabel: "Pilihan paket *",
-        perPersonPrice: "per orang: ${{price}}",
-        reservationTypeLabel: "Pilih Jenis Reservasi *",
-        reservationType: {
-          full: "Konfirmasi reservasi (total pembayaran)",
-          deposit: "Pra-reservasi dengan deposit (pembayaran sebagian)",
-        },
-        flightPolicyLabel: "Kebijakan tiket pesawat:",
-        optionalExtras: {
-          title: "Aktivitas Ekstra Opsional",
-          description:
-            "Aktivitas di bawah ini tidak termasuk dalam harga paket ✕; Anda hanya akan dikenakan biaya tambahan untuk yang Anda ikuti. Harga adalah perkiraan rata-rata per orang.",
-          priceToday: "(khusus hari ini: {{price}} USD per orang)",
-          priceEstimatedPremiumDiscount: "(perkiraan: {{price}} USD per orang, ~25% diskon untuk Premium)",
-          priceEstimated: "(perkiraan: {{price}} USD per orang)",
-          priceContactUs: "(silakan hubungi kami untuk perkiraan harga)",
-        },
-        summary: {
-          title: "Ringkasan Perkiraan Total",
-          packageTotal: "Total paket (semua peserta)",
-          extrasTotal: "Aktivitas opsional yang dipilih (total)",
-          grandTotal: "Total keseluruhan",
-          depositPercent: "Persentase deposit",
-          depositToPayNow: "Deposit yang harus dibayar sekarang (perkiraan)",
-          totalToPay: "Total biaya paket tur yang harus dibayar",
-          note: "Catatan: Nominal per orang untuk aktivitas opsional adalah perkiraan rata-rata.",
-        },
-        submit: "Selesaikan reservasi",
-      },
-      form: {
-        fullNameLabel: "Nama Lengkap *",
-        fullNamePlaceholder: "Nama lengkap Anda",
-        emailLabel: "Email *",
-        emailPlaceholder: "contoh@email.com",
-        phoneLabel: "Telepon *",
-        phonePlaceholder: "+62 ...",
-        peopleCountLabel: "Jumlah Peserta *",
-        peopleCountPlaceholder: "Berapa orang?",
-        notesLabel: "Catatan Tambahan",
-        notesPlaceholder: "Kota keberangkatan, permintaan khusus, dll.",
-      },
-      terms: {
-        contract: {
-          title: "1) Perjanjian dan aturan",
-          text:
-            "Saya telah membaca dan menyetujui <agreementLink>perjanjian paket tur</agreementLink> dan <rulesLink>aturan tur</rulesLink>, termasuk ketentuan pembatalan/pengembalian dana.",
-        },
-        distanceSales: {
-          title: "2) Perjanjian penjualan jarak jauh",
-          text: "Saya telah membaca dan menyetujui <link>Perjanjian Penjualan Jarak Jauh</link>.",
-        },
-        pricingScope: {
-          title: "3) Termasuk/tidak termasuk & batas tiket pesawat",
-          linkText: "Yang termasuk / tidak termasuk",
-          text: {
-            part1: "Saya telah membaca",
-            part2:
-              "informasi. Tiket pesawat termasuk hingga ${{flightLimit}} per orang; saya memahami bahwa harga terkini maskapai pada saat penerbitan tiket akan digunakan dan saya akan menanggung",
-            overLabel: "selisih di atas batas ini",
-            part3: ". Saya telah membaca dan menyetujui.",
-          },
-        },
-        kvkk: {
-          title: "4) Pemberitahuan privasi",
-          text:
-            "Saya telah membaca <link>pemberitahuan privasi</link>; saya menyetujui pemrosesan untuk tujuan komunikasi dan penawaran.",
-        },
-        depositApproval: {
-          title: "Persetujuan pembayaran deposit",
-          text:
-            "Saya telah membaca, memahami, dan menyetujui ketentuan pembayaran deposit serta ketentuan pembatalan/pengembalian dana dalam perjanjian.",
-        },
-        englishDocs: {
-          title: "Dokumen hukum berbahasa Inggris",
-          description:
-            "Untuk keperluan peninjauan penyedia pembayaran. Dokumen Turki dan penawaran resmi tertulis/lampiran tetap berlaku.",
-          links: {
-            hub: "Pusat dokumen (EN)",
-            packageTour: "Paket Tur (EN)",
-            distanceSales: "Penjualan Jarak Jauh (EN)",
-            preInformation: "Pra-Informasi (EN)",
-            cancellationRefund: "Pembatalan/Refund (EN)",
-            kvkkNotice: "KVKK Notice (EN)",
-          },
-        },
-      },
-      validation: {
-        alertPrefix: "Sebelum lanjut, mohon isi/konfirmasi hal berikut:",
-        missing: {
-          package: "Pilihan paket",
-          peopleCount: "Jumlah peserta",
-          fullName: "Nama lengkap",
-          email: "Email",
-          phone: "Telepon",
-          acceptTerms: "Persetujuan perjanjian paket tur dan aturan tur",
-          acceptDistanceSales: "Persetujuan perjanjian penjualan jarak jauh",
-          acceptPricingScope: "Persetujuan cakupan termasuk/tidak termasuk dan batas tiket pesawat",
-          acceptKvkk: "Persetujuan pemberitahuan privasi",
-          acceptDepositTerms: "Persetujuan ketentuan pembayaran deposit",
-        },
-      },
-    },
-
-    itinerary: {
-      title: "Rencana perjalanan hari demi hari",
-      missing: "Rencana perjalanan harian detail untuk tur ini belum ditambahkan.",
-      dayNumber: "Hari {{dayNumber}}",
-      dayImageAlt: "Gambar untuk: {{dayTitle}}",
-      optionalExtra: {
-        badge: "Aktivitas Ekstra Opsional (Berbayar)",
-        hint: {
-          open: "Klik kartu untuk melihat detail.",
-          close: "Klik lagi untuk menutup detail.",
-        },
-      },
-    },
-
-    scope: {
-      title: "Cakupan Tur & Pendekatan Layanan",
-      premiumBadge: "Tur ini adalah paket premium berfokus pengalaman",
-      premiumDescription:
-        "Paket Premium menargetkan program yang lebih penuh, kenyamanan lebih tinggi, dan cakupan yang lebih jelas. Beberapa detail dapat disederhanakan tergantung paket yang Anda pilih.",
-      approachFallback:
-        "Konten di halaman ini mewakili alur tur yang dapat disesuaikan menurut level paket. Cakupan pasti dan detail operasional akan dibagikan secara tertulis sebelum reservasi.",
-      includedTitle: "Yang Termasuk",
-      notIncludedTitle: "Yang Tidak Termasuk",
-      fallbackIncluded: [
-        "Alur tur dan perencanaan operasional",
-        "Rute utama dan koordinasi dasar yang dijelaskan dalam program",
-        "Cakupan layanan yang diperjelas secara tertulis selama proses reservasi",
-      ],
-      fallbackNotIncluded: [
-        "Pengeluaran pribadi dan preferensi individu",
-        "Pengalaman opsional yang mungkin tercantum di program",
-        "Pajak/biaya resmi (jika ada) dan pajak keberangkatan internasional",
-      ],
-      freeTimeTitle: "Pendekatan Waktu Bebas Kami",
-      freeTimeFallback:
-        "Waktu bebas dibuat fleksibel agar peserta bisa bergerak sesuai ritme sendiri. Aktivitas opsional bisa ditambahkan jika diinginkan.",
-      disciplineTitle: "Disiplin & Kekompakan Grup",
-      disciplineFallback:
-        "Agar program berjalan lancar, ketepatan waktu dan menghormati rencana grup sangat penting. Peserta diharapkan mengikuti briefing keselamatan dan arahan pemandu.",
-    },
-
-    importantNotes: {
-      title: "Catatan Penting & Peringatan",
-      subtitle: {
-        open: "Anda dapat melihat semua catatan penting di bawah.",
-        closed:
-          "Klik untuk melihat ringkasan informasi umum dan aturan partisipasi yang berlaku untuk semua paket tur kami.",
-      },
-      lead:
-        "Poin-poin di bawah merangkum informasi umum dan aturan partisipasi untuk semua paket tur Indonesia kami.",
-      plannedBoxDescription: "Poin penting sebelum reservasi:",
-      items: {
-        registrationDeadline:
-          "<strong>Pra-registrasi</strong> bukan reservasi yang mengikat; ini penting untuk perencanaan operasional.",
-        preInfoAndContract:
-          "Sebelum pembayaran, <b>pra-informasi</b> dan <b>perjanjian paket tur</b> dibagikan secara tertulis.",
-        plansMayChange:
-          "Detail seperti penerbangan/hotel/aktivitas dapat sedikit berubah karena musim, cuaca, dan kondisi operasional.",
-        travelInsurance:
-          "Asuransi kesehatan perjalanan direkomendasikan; kami dapat membantu jika diminta.",
-        healthIssue:
-          "Silakan cantumkan kondisi kronis/obat yang dikonsumsi di catatan.",
-        followRules:
-          "Peserta diharapkan mengikuti arahan pemandu dan aturan keselamatan.",
-        passportValidity:
-          "Pastikan <strong>paspor</strong> Anda masih berlaku minimal 6 bulan setelah perjalanan berakhir.",
-        visaRemovedForTurkishCitizens:
-          "Bebas visa mungkin berlaku untuk warga Turki; sumber resmi terbaru menjadi acuan.",
-        entryRulesMayChange:
-          "Aturan masuk dapat berubah; persyaratan resmi (paspor/kesehatan/pajak) menjadi tanggung jawab peserta.",
-        contactThroughGuide:
-          "Selama tur, kanal kontak utama adalah pemandu/tim operasi; dukungan 24/7 tersedia untuk keadaan darurat.",
-        comfortPriority:
-          "Kenyamanan dan keselamatan adalah prioritas kami; logistik grup direncanakan sesuai hal ini.",
-        allNotesAccepted:
-          "Dengan mengirim formulir, Anda mengonfirmasi telah membaca informasi di atas.",
-      },
-      flightPolicy:
-        "Tiket pesawat termasuk hingga ${{flightLimit}} per orang. Karena harga tiket sangat bervariasi, batas ini bersifat tetap; selisih di atas batas ditanggung oleh peserta.",
-    },
-
-    trust: {
-      title: "Mengapa Anda dapat percaya pada kami",
-      bullets: [
-        "Tim operasi lokal yang tinggal di Indonesia dan mengenal wilayah dengan baik",
-        "Cakupan termasuk/tidak termasuk yang transparan tanpa biaya kejutan",
-        "Program penuh berfokus pengalaman plus waktu bebas yang direncanakan",
-        "Pendekatan grup kecil/butik untuk liburan yang lebih personal",
-      ],
-      testimonials: {
-        1: {
-          text: "Semuanya jelas dan tertulis. Balasan WhatsApp cepat; programnya melampaui ekspektasi.",
-
-      matchmakingPage: {
-        title: 'Formulir Pendaftaran Pencocokan Pernikahan',
-        intro:
-          'Halaman ini adalah formulir pendaftaran untuk pencocokan yang berfokus pada pernikahan. Profil tidak dipublikasikan secara umum; pendaftaran hanya ditinjau oleh tim kami. Jika ada kecocokan yang sesuai, kami akan menghubungi Anda.',
-        privacyNote:
-          'Penting: Ini bukan area publik untuk “mencari/menelusuri profil”. Informasi Anda digunakan hanya untuk evaluasi dan komunikasi.',
-        authGate: {
-          message: 'Untuk mengirim pendaftaran pencocokan, silakan masuk atau buat akun baru.',
-          login: 'Masuk',
-          signup: 'Daftar',
-          note: 'Setelah masuk, Anda akan otomatis diarahkan kembali ke halaman ini.',
-        },
-        form: {
-          applicationIdLabel: 'ID Pengajuan',
-          sections: {
-            me: 'Saya',
-            lookingFor: 'Mencari',
-            moreDetails: 'Detail tambahan',
-            partnerPreferences: 'Preferensi pasangan yang saya cari',
-          },
-          labels: {
-            username: 'Nama pengguna',
-            fullName: 'Nama lengkap',
-            age: 'Usia',
-            city: 'Kota',
-            country: 'Negara tempat tinggal',
-            whatsapp: 'Nomor WhatsApp',
-            email: 'Email',
-            instagram: 'Instagram (opsional)',
-            nationality: 'Kewarganegaraan',
-            gender: 'Jenis kelamin',
-            lookingForNationality: 'Kewarganegaraan',
-            lookingForGender: 'Jenis kelamin',
-            height: 'Tinggi (cm)',
-            weight: 'Berat (kg)',
-            occupation: 'Pekerjaan',
-            education: 'Pendidikan',
-            maritalStatus: 'Status pernikahan',
-            hasChildren: 'Apakah Anda punya anak?',
-            childrenCount: 'Jika ya, berapa?',
-            incomeLevel: 'Tingkat penghasilan',
-            religion: 'Agama',
-            religiousValues: 'Nilai agama (singkat)',
-            familyObstacle: 'Apakah ada hambatan keluarga untuk pernikahan Turki–Indonesia?',
-            familyApprovalStatus: 'Apakah keluarga Anda menyetujui pernikahan dengan warga asing?',
-            marriageTimeline: 'Kapan Anda ingin menikah?',
-            relocationWillingness: 'Apakah Anda bersedia tinggal di luar negara Anda sendiri?',
-            preferredLivingCountry: 'Anda ingin tinggal di negara mana?',
-            partnerHeightMin: 'Preferensi tinggi (min)',
-            partnerHeightMax: 'Preferensi tinggi (max)',
-            partnerAgeRange: 'Rentang usia (berdasarkan usia Anda)',
-            partnerAgeMaxOlderYears: 'Maksimal berapa tahun lebih tua dari saya?',
-            partnerAgeMaxYoungerYears: 'Maksimal berapa tahun lebih muda dari saya?',
-            partnerMaritalStatus: 'Status pernikahan pasangan',
-            partnerReligion: 'Agama pasangan',
-            partnerChildrenPreference: 'Preferensi soal anak',
-            partnerEducationPreference: 'Preferensi pendidikan',
-            partnerOccupationPreference: 'Preferensi pekerjaan',
-            partnerFamilyValuesPreference: 'Preferensi nilai keluarga',
-            nativeLanguage: 'Bahasa ibu',
-            nativeLanguageOther: 'Bahasa ibu (tulis)',
-            foreignLanguages: 'Bahasa asing',
-            foreignLanguageOther: 'Bahasa asing lain (tulis)',
-            languageLevelTr: 'Level bahasa Turki',
-            languageLevelId: 'Level bahasa Indonesia',
-            languageLevelEn: 'Level bahasa Inggris',
-            communicationLanguages: 'Bagaimana Anda berencana berkomunikasi dengan pasangan?',
-            communicationLanguageOther: 'Bahasa lain (tulis)',
-            translationApp: 'Saya bisa berkomunikasi dengan aplikasi terjemahan',
-            smoking: 'Apakah Anda merokok?',
-            alcohol: 'Apakah Anda minum alkohol?',
-            partnerCommunicationLanguages: 'Bahasa komunikasi pasangan',
-            partnerCommunicationLanguageOther: 'Bahasa lain untuk pasangan (tulis)',
-            partnerTranslationApp: 'Apakah Anda ingin memakai aplikasi terjemahan dengan pasangan?',
-            partnerLivingCountry: 'Preferensi negara untuk tinggal',
-            partnerSmokingPreference: 'Preferensi pasangan soal rokok',
-            partnerAlcoholPreference: 'Preferensi pasangan soal alkohol',
-            photo: 'Foto',
-            photos: 'Foto (3)',
-            photo1: 'Foto 1',
-            photo2: 'Foto 2',
-            photo3: 'Foto 3',
-            about: 'Perkenalan singkat',
-            expectations: 'Kriteria/hal yang Anda cari',
-          },
-          placeholders: {
-            username: 'contoh: moonstar_34',
-            fullName: 'contoh: Mehmet Yilmaz',
-            age: 'contoh: 29',
-            city: 'contoh: Istanbul',
-            country: 'contoh: Turki',
-            whatsapp: 'contoh: +90 5xx xxx xx xx',
-            email: 'contoh: example@mail.com',
-            instagram: 'contoh: @username',
-            height: 'contoh: 175',
-            weight: 'contoh: 72',
-            childrenCount: 'contoh: 1',
-            religiousValues: 'contoh: Religius / seimbang / fleksibel…',
-            familyObstacleDetails: 'Jelaskan singkat…',
-            nativeLanguageOther: 'contoh: Prancis',
-            foreignLanguageOther: 'contoh: Prancis',
-            communicationLanguageOther: 'contoh: Arab',
-            partnerCommunicationLanguageOther: 'contoh: Arab',
-            about: 'Perkenalkan diri Anda secara singkat (gaya hidup, bahasa, pekerjaan, rencana keluarga, dll.)',
-            expectations: 'contoh: gaya komunikasi, gaya hidup, preferensi tinggi/usia, nilai keluarga…',
-          },
-          options: {
-            common: {
-              select: 'Pilih',
-              yes: 'Ya',
-              no: 'Tidak',
-              unsure: 'Belum yakin',
-              doesntMatter: 'Tidak masalah',
-            },
-            nationality: {
-              tr: 'Turki',
-              id: 'Indonesia',
-              other: 'Lainnya',
-            },
-            gender: {
-              male: 'Pria',
-              female: 'Wanita',
-            },
-            maritalStatus: {
-              single: 'Lajang',
-              widowed: 'Duda/Janda (pasangan meninggal)',
-              divorced: 'Cerai',
-              other: 'Lainnya',
-            },
-            education: {
-              secondary: 'Menengah',
-              university: 'Universitas',
-              masters: 'Magister',
-              phd: 'Doktor',
-              other: 'Lainnya',
-            },
-            occupation: {
-              civilServant: 'Pegawai negeri',
-              employee: 'Karyawan',
-              retired: 'Pensiunan',
-              businessOwner: 'Pemilik usaha',
-              other: 'Lainnya',
-            },
-            familyValues: {
-              religious: 'Religius',
-              liberal: 'Liberal',
-            },
-            partnerChildren: {
-              wantChildren: 'Harus punya anak',
-              noChildren: 'Tidak boleh punya anak',
-            },
-            income: {
-              low: 'Rendah',
-              medium: 'Sedang',
-              good: 'Baik',
-              veryGood: 'Sangat baik',
-              preferNot: 'Tidak ingin menyebutkan',
-            },
-            ageRange: {
-              plusMinus2: '±2 tahun',
-              plusMinus5: '±5 tahun',
-              plusMinus10: '±10 tahun',
-            },
-            ageDiff: {
-              none: '0 (tidak)',
-              years: '{{count}} tahun',
-            },
-            religion: {
-              islam: 'Islam',
-              christian: 'Kristen',
-              hindu: 'Hindu',
-              buddhist: 'Buddha',
-              other: 'Lainnya',
-            },
-            languageLevel: {
-              none: 'Tidak ada',
-              basic: 'Dasar',
-              intermediate: 'Menengah',
-              advanced: 'Mahir',
-              native: 'Bahasa ibu',
-            },
-            commLanguage: {
-              tr: 'Turki',
-              id: 'Indonesia',
-              en: 'Inggris',
-              translationApp: 'Melalui aplikasi terjemahan',
-              other: 'Lainnya (tulis)',
-            },
-            foreignLanguages: {
-              none: 'Saya tidak bisa bahasa asing',
-            },
-            livingCountry: {
-              tr: 'Turki',
-              id: 'Indonesia',
-            },
-            timeline: {
-              '0_3': 'Dalam 0–3 bulan',
-              '3_6': 'Dalam 3–6 bulan',
-              '6_12': 'Dalam 6–12 bulan',
-              '1_plus': '1 tahun atau lebih',
-            },
-            familyApproval: {
-              approved: 'Disetujui',
-              inProgress: 'Dalam pembahasan',
-              problem: 'Ada kendala/masalah',
-            },
-          },
-          hints: {
-            partnerAgeComputed: 'Perkiraan rentang: {{min}}–{{max}}',
-            partnerAgeNeedsYourAge: 'Catatan: Masukkan usia Anda untuk menghitung rentang.',
-            multiSelect: 'Anda dapat memilih lebih dari satu opsi.',
-            foreignLanguages:
-              'Catatan: Setelah memilih bahasa ibu, bahasa itu tidak akan muncul di daftar bawah. Jika Anda tidak bisa bahasa asing, pilih “Saya tidak bisa bahasa asing”.',
-          },
-          photoHint:
-            'Unggah file gambar saja. Sistem akan mengompres dan mengunggah otomatis (disarankan: foto jelas, terbaru, wajah terlihat).',
-          consents: {
-            age: 'Saya mengonfirmasi bahwa saya berusia {{minAge}}+.',
-            privacy: 'Saya telah membaca <privacyLink>Kebijakan Privasi</privacyLink> dan menyetujui pemrosesan data untuk evaluasi/komunikasi.',
-            terms: 'Saya telah membaca dan menyetujui <termsLink>Syarat & Ketentuan</termsLink>.',
-            photo: 'Saya menyetujui foto saya dilihat oleh tim admin untuk evaluasi (tidak dipublikasikan secara umum).',
-          },
-          submit: 'Kirim Pendaftaran',
-          submitting: 'Mengirim…',
-          success: 'Pendaftaran Anda sudah kami terima. Profil yang cocok akan ditampilkan di halaman Profil Anda.',
-          errors: {
-            mustLogin: 'Anda harus masuk untuk mengirim pendaftaran.',
-            blocked: 'Akun Anda diblokir dari pengiriman formulir ini.',
-            consentsRequired: 'Untuk mengirim, Anda harus menyetujui kotak persetujuan ({{minAge}}+, Kebijakan Privasi, Syarat & Ketentuan, persetujuan foto).',
-            permissionDenied: 'Gagal mengirim (kesalahan izin). Silakan masuk dengan akun yang benar atau periksa aturan Firestore.',
-            honeypotTriggered: 'Gagal mengirim. Autofill browser mungkin mengisi field tersembunyi. Refresh halaman dan coba lagi dengan autofill dimatikan.',
-            photoUploadFailed: 'Gagal mengunggah foto. Project ini memakai Cloudinary SIGNED upload secara default. Biasanya berarti `/api/cloudinary-signature` tidak jalan atau env server belum lengkap. Solusi: jalankan `npm run dev` (API + web) dan pastikan `.env.local` punya `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET`. (Upload preset unsigned hanya dipakai jika diaktifkan secara khusus.)',
-            username: 'Silakan tentukan nama pengguna.',
-            usernameTaken: 'Nama pengguna sudah dipakai. Silakan pilih nama lain.',
-            fullName: 'Silakan masukkan nama lengkap.',
-            age: 'Silakan masukkan usia.',
-            ageRange: 'Usia harus antara {{minAge}} dan 99.',
-            email: 'Silakan masukkan email.',
-            instagram: 'Silakan masukkan username Instagram.',
-            nationality: 'Silakan pilih kewarganegaraan Anda.',
-            gender: 'Silakan pilih jenis kelamin Anda.',
-            lookingForNationality: 'Silakan pilih kewarganegaraan yang Anda cari.',
-            lookingForGender: 'Silakan pilih jenis kelamin yang Anda cari.',
-            heightRequired: 'Silakan masukkan tinggi badan.',
-            weightRequired: 'Silakan masukkan berat badan.',
-            occupation: 'Silakan pilih pekerjaan.',
-            education: 'Silakan pilih pendidikan.',
-            maritalStatus: 'Silakan pilih status pernikahan.',
-            hasChildren: 'Silakan jawab apakah Anda punya anak.',
-            incomeLevel: 'Silakan pilih tingkat penghasilan.',
-            religion: 'Silakan pilih agama Anda.',
-            nativeLanguage: 'Silakan pilih bahasa ibu Anda.',
-            nativeLanguageOther: 'Silakan tulis bahasa ibu Anda.',
-            foreignLanguages: 'Silakan pilih minimal satu bahasa asing.',
-            foreignLanguageOther: 'Silakan tulis bahasa asing lainnya.',
-            religiousValues: 'Silakan jelaskan singkat nilai agama Anda.',
-            familyObstacle: 'Silakan jawab pertanyaan hambatan keluarga.',
-            familyObstacleDetails: 'Silakan jelaskan singkat hambatan keluarga.',
-            familyApprovalStatus: 'Silakan jawab pertanyaan status persetujuan keluarga.',
-            marriageTimeline: 'Silakan pilih rencana waktu pernikahan.',
-            relocationWillingness: 'Silakan jawab pertanyaan tentang tinggal di luar negara Anda.',
-            preferredLivingCountry: 'Silakan pilih preferensi negara tempat tinggal.',
-            partnerHeightMin: 'Silakan pilih tinggi min yang diinginkan.',
-            partnerHeightMax: 'Silakan pilih tinggi max yang diinginkan.',
-            partnerAgeRange: 'Silakan pilih rentang usia yang diinginkan.',
-            partnerAgeMaxOlderYears: 'Silakan pilih batas maksimal selisih usia (lebih tua).',
-            partnerAgeMaxYoungerYears: 'Silakan pilih batas maksimal selisih usia (lebih muda).',
-            partnerMaritalStatus: 'Silakan pilih status pernikahan pasangan.',
-            partnerReligion: 'Silakan pilih agama pasangan.',
-            expectations: 'Silakan jelaskan kriteria pasangan yang Anda cari.',
-            languageLevelTr: 'Silakan pilih level bahasa Turki Anda.',
-            languageLevelId: 'Silakan pilih level bahasa Indonesia Anda.',
-            languageLevelEn: 'Silakan pilih level bahasa Inggris Anda.',
-            communicationLanguage: 'Silakan pilih bahasa komunikasi.',
-            communicationLanguageOther: 'Silakan tulis bahasa lainnya.',
-            translationApp: 'Silakan jawab pertanyaan aplikasi terjemahan.',
-            smoking: 'Silakan jawab pertanyaan merokok.',
-            alcohol: 'Silakan jawab pertanyaan alkohol.',
-            partnerCommunicationLanguage: 'Silakan pilih bahasa komunikasi pasangan.',
-            partnerCommunicationLanguageOther: 'Silakan tulis bahasa lain untuk pasangan.',
-            partnerTranslationApp: 'Silakan pilih preferensi aplikasi terjemahan.',
-            partnerLivingCountry: 'Silakan pilih preferensi negara untuk tinggal.',
-            partnerSmokingPreference: 'Silakan pilih preferensi pasangan soal rokok.',
-            partnerAlcoholPreference: 'Silakan pilih preferensi pasangan soal alkohol.',
-            partnerChildrenPreference: 'Silakan pilih preferensi tentang anak.',
-            partnerEducationPreference: 'Silakan pilih preferensi pendidikan.',
-            partnerOccupationPreference: 'Silakan pilih preferensi pekerjaan.',
-            partnerFamilyValuesPreference: 'Silakan pilih preferensi nilai keluarga.',
-            photo1Required: 'Silakan unggah Foto 1.',
-            photo2Required: 'Silakan unggah Foto 2.',
-            photo3Required: 'Silakan unggah Foto 3.',
-            heightRange: 'Tinggi harus 120–230 cm (atau kosongkan).',
-            weightRange: 'Berat harus 35–250 kg (atau kosongkan).',
-            partnerHeightRange: 'Tinggi min tidak boleh lebih besar dari tinggi max.',
-            childrenCount: 'Jumlah anak harus antara 1 dan 20.',
-            city: 'Silakan masukkan kota.',
-            country: 'Silakan masukkan negara.',
-            whatsapp: 'Silakan masukkan nomor WhatsApp.',
-            about: 'Silakan tulis perkenalan singkat.',
-            photoRequired: 'Silakan unggah foto.',
-            photoType: 'Silakan pilih file gambar yang valid.',
-            consent18Plus: 'Konfirmasi {{minAge}}+ diperlukan untuk melanjutkan.',
-            consentPrivacy: 'Persetujuan privasi diperlukan untuk melanjutkan.',
-            consentPhotoShare: 'Persetujuan foto diperlukan untuk melanjutkan.',
-            submitFailed: 'Pendaftaran gagal dikirim. Silakan coba lagi.',
-            tooFast: 'Formulir dikirim terlalu cepat. Silakan isi terlebih dahulu lalu coba lagi.',
-            rateLimited: 'Terlalu banyak percobaan dalam waktu singkat. Silakan coba lagi dalam 1 menit.',
-            recaptchaFailed: 'Verifikasi spam gagal. Silakan refresh halaman dan coba lagi.',
-            recaptchaRejected: 'Pendaftaran Anda diblokir oleh perlindungan spam. Silakan coba lagi nanti.',
-          },
-        },
-        bottomNote:
-          'Catatan: Ini adalah pendaftaran berfokus pada pernikahan; profil tidak ditampilkan secara publik di situs.',
-      },
-          person: "Ece K.",
-          meta: "Bali • Premium",
-        },
-        2: {
-          text: "Koordinasi sangat baik sepanjang perjalanan. Waktu bebas pas; kami ingin ikut lagi.",
-          person: "Mert A.",
-          meta: "Lombok • Plus",
-        },
-      },
-            matchmakingApply: 'Form Pendaftaran Pencocokan',
-    },
-
-    about: {
-      title: "Tentang pulau",
-      nature: "Alam",
-      culture: "Budaya",
-      lifestyle: "Gaya hidup",
-    },
-
-    routes: {
-      title: "Rute & tempat yang dikunjungi",
-      missing: "Detail rute untuk tur ini akan segera ditambahkan.",
-    },
-
-    gallery: {
-      title: "Galeri",
-    },
-
-    priceSummary: {
-      title: "Ringkasan harga",
-      description: "Tampilan singkat termasuk harga mulai dan batas tiket pesawat.",
-      perPersonLabel: "Per orang",
-    },
-
-    ctaBottom: {
-      title: "Siap berangkat?",
-      description: "Isi formulir pra-daftar atau tanyakan via WhatsApp.",
-      actions: {
-        preRegister: "Pra-daftar",
-        whatsappMessage: "Halo, saya ingin mendapatkan info tentang tur {{tourName}}.",
-        askWhatsapp: "Tanya via WhatsApp",
-      },
-    },
-
-    footerNav: {
-      back: "Kembali",
-      allTours: "Lihat semua tur",
-    },
-  },
 
   contact: {
     hero: {
@@ -3836,6 +2805,7 @@ export default {
       matchId: 'Kode Kecocokan',
     },
     matches: {
+      autoRunNotice: 'Pencocokan otomatis berjalan kira-kira setiap {{minutes}} menit. Anda juga bisa meminta kecocokan baru secara manual di sini.',
       presence: {
         online: 'Online',
         lastSeen: 'Terakhir aktif: {{time}}',

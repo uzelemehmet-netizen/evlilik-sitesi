@@ -4,16 +4,10 @@ import { useTranslation } from "react-i18next";
 
 const DOCS = [
   {
-    id: "paket-tur-sozlesmesi",
-    title: "Paket Tur Sözleşmesi",
-    file: "/docs/paket-tur-sozlesmesi.html",
+    id: "matchmaking-kullanim-sozlesmesi",
+    title: "Uniqah – Kullanıcı / Üyelik Sözleşmesi",
+    file: "/docs/matchmaking-kullanim-sozlesmesi.html",
     lang: "tr",
-  },
-  {
-    id: "package-tour-agreement-en",
-    title: "Package Tour Agreement (EN)",
-    file: "/docs/package-tour-agreement-en.html",
-    lang: "en",
   },
   {
     id: "mesafeli-satis-sozlesmesi",

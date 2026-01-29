@@ -39,9 +39,17 @@ import matchmakingSubmitPayment from '../apiRoutes/matchmaking-submit-payment.js
 import matchmakingVerificationSelect from '../apiRoutes/matchmaking-verification-select.js';
 import recaptchaAssess from '../apiRoutes/recaptcha-assess.js';
 import matchmakingQuickQuestions from '../apiRoutes/matchmaking-quick-questions.js';
+import matchmakingAdminDebugByEmail from '../apiRoutes/matchmaking-admin-debug-by-email.js';
+import adminMatchmakingPool from '../apiRoutes/admin-matchmaking-pool.js';
+import adminMatchmakingRunNow from '../apiRoutes/admin-matchmaking-run-now.js';
+import adminMatchmakingRollbackLastRun from '../apiRoutes/admin-matchmaking-rollback-last-run.js';
+import matchmakingApplicationBootstrap from '../apiRoutes/matchmaking-application-bootstrap.js';
 
 const handlers = {
   'admin-matchmaking-user-stats': adminMatchmakingUserStats,
+  'admin-matchmaking-pool': adminMatchmakingPool,
+  'admin-matchmaking-run-now': adminMatchmakingRunNow,
+  'admin-matchmaking-rollback-last-run': adminMatchmakingRollbackLastRun,
   'client-ip': clientIp,
   'cloudinary-signature': cloudinarySignature,
   'identity-kyc-webhook': identityKycWebhook,
@@ -52,6 +60,7 @@ const handlers = {
   'matchmaking-confirm': matchmakingConfirm,
   'matchmaking-admin-create-match': matchmakingAdminCreateMatch,
   'matchmaking-admin-identity-verify': matchmakingAdminIdentityVerify,
+  'matchmaking-admin-debug-by-email': matchmakingAdminDebugByEmail,
   'matchmaking-allocate-profile-no': matchmakingAllocateProfileNo,
   'matchmaking-application-edit-once': matchmakingApplicationEditOnce,
   'matchmaking-photo-update-request': matchmakingPhotoUpdateRequest,
@@ -73,6 +82,7 @@ const handlers = {
   'matchmaking-membership-activate-free': matchmakingMembershipActivateFree,
   'matchmaking-membership-cancel': matchmakingMembershipCancel,
   'matchmaking-account-delete': matchmakingAccountDelete,
+  'matchmaking-application-bootstrap': matchmakingApplicationBootstrap,
   'matchmaking-profile': matchmakingProfile,
   'matchmaking-reject-all': matchmakingRejectAll,
   'matchmaking-request-new': matchmakingRequestNew,
@@ -110,6 +120,13 @@ export default async function handler(req, res) {
       res.statusCode = e?.statusCode || 500;
       res.setHeader('content-type', 'application/json');
     }
-    res.end(JSON.stringify({ ok: false, error: String(e?.message || 'server_error') }));
+    const isProd = String(process.env.NODE_ENV || '').toLowerCase().trim() === 'production';
+    res.end(
+      JSON.stringify({
+        ok: false,
+        error: String(e?.message || 'server_error'),
+        ...(!isProd && e?.stack ? { stack: String(e.stack) } : {}),
+      })
+    );
   }
 }

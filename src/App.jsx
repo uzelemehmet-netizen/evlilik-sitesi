@@ -7,25 +7,20 @@ import Home from './pages/Home';
 import About from './pages/About';
 import Corporate from './pages/Corporate';
 import Contact from './pages/Contact';
-import Travel from './pages/Travel';
-import Tours from './pages/Tours';
-import GroupTours from './pages/GroupTours';
-import TourDetail from './pages/TourDetail';
-import Payment from './pages/Payment';
 import Login from './pages/Login';
 import Panel from './pages/Panel';
-import ReservationsPanel from './pages/ReservationsPanel';
+import StudioProfile from './pages/studio/StudioProfile';
+import StudioMyInfo from './pages/studio/StudioMyInfo';
+import StudioMatches from './pages/studio/StudioMatches';
+import StudioChat from './pages/studio/StudioChat';
+import StudioMatchProfile from './pages/studio/StudioMatchProfile';
 import Wedding from './pages/Wedding';
 import MatchmakingApply from './pages/MatchmakingApply';
 import MatchmakingHub from './pages/MatchmakingHub';
 import MatchmakingMembership from './pages/MatchmakingMembership';
 import YouTube from './pages/YouTube';
 import Privacy from './pages/Privacy';
-import Kesfet from './pages/Kesfet';
-import KesfetIsland from './pages/KesfetIsland';
-import { DestinationDetailPage as KesfetDestination } from './pages/KesfetDestination';
 import Gallery from './pages/Gallery';
-import DocumentsHub from './pages/DocumentsHub';
 import AdminLogin from './pages/AdminLogin';
 import AdminDashboard from './pages/AdminDashboard';
 import AdminMatchmakingDetail from './pages/AdminMatchmakingDetail';
@@ -37,6 +32,8 @@ import RequireAuth from './auth/RequireAuth';
 import FloatingWhatsApp from './components/FloatingWhatsApp';
 import { isFeatureEnabled } from './config/siteVariant';
 import DevOverlay from './components/DevOverlay';
+import { useAuth } from './auth/AuthProvider.jsx';
+import { authFetch } from './utils/authFetch.js';
 
 function ScrollToTop() {
   const location = useLocation();
@@ -84,11 +81,6 @@ function TitleManager() {
       pageTitle = `${t('meta.pages.corporate.title')} | ${base}`;
     } else if (path === '/contact') {
       pageTitle = `${t('meta.pages.contact.title')} | ${base}`;
-    } else if (path.startsWith('/tours')) {
-      pageTitle = `${t('meta.pages.tours.title')} | ${base}`;
-      description = t('meta.pages.tours.description');
-    } else if (path.startsWith('/travel')) {
-      pageTitle = `${t('meta.pages.travel.title')} | ${base}`;
     } else if (
       (path === '/wedding/apply' ||
         path === '/evlilik/eslestirme-basvuru' ||
@@ -109,16 +101,12 @@ function TitleManager() {
     ) {
       pageTitle = `${t('meta.pages.wedding.title')} | ${base}`;
       description = t('meta.pages.wedding.description');
-    } else if (path.startsWith('/kesfet')) {
-      pageTitle = `${t('meta.pages.explore.title')} | ${base}`;
     } else if (path.startsWith('/youtube')) {
       pageTitle = `${t('meta.pages.youtube.title')} | ${base}`;
     } else if (path.startsWith('/gallery')) {
       pageTitle = `${t('meta.pages.gallery.title')} | ${base}`;
     } else if (path === '/privacy') {
       pageTitle = `${t('meta.pages.privacy.title')} | ${base}`;
-    } else if (path.startsWith('/dokumanlar')) {
-      pageTitle = `${t('meta.pages.documents.title')} | ${base}`;
     }
 
     document.title = pageTitle;
@@ -132,18 +120,70 @@ function TitleManager() {
   return null;
 }
 
+function MatchmakingHeartbeatGlobal() {
+  const { user, loading } = useAuth();
+
+  useEffect(() => {
+    if (loading) return;
+    if (!user?.uid) return;
+    if (user?.isAnonymous) return;
+
+    let alive = true;
+
+    const ping = async () => {
+      try {
+        await authFetch('/api/matchmaking-heartbeat', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({}),
+        });
+      } catch {
+        // noop
+      }
+    };
+
+    const onFocus = () => ping();
+
+    // İlk girişte + odak değişimlerinde lastSeen güncellensin.
+    ping();
+
+    try {
+      window.addEventListener('focus', onFocus);
+    } catch {
+      // noop
+    }
+
+    // Çok sık ping atmayalım; sadece "ben buradayım" sinyali.
+    const interval = setInterval(() => {
+      if (!alive) return;
+      ping();
+    }, 5 * 60 * 1000);
+
+    return () => {
+      alive = false;
+      clearInterval(interval);
+      try {
+        window.removeEventListener('focus', onFocus);
+      } catch {
+        // noop
+      }
+    };
+  }, [loading, user?.uid, user?.isAnonymous]);
+
+  return null;
+}
+
 function App() {
   console.log('App component loaded');
-  const showTravel = isFeatureEnabled('travel');
   const showWedding = isFeatureEnabled('wedding');
-  const isWeddingOnly = showWedding && !showTravel;
-  const showDocuments = isFeatureEnabled('documents');
+  const isWeddingOnly = showWedding;
 
   return (
     <Router>
       <ScrollToTop />
       <TitleManager />
       <AnalyticsTracker />
+      <MatchmakingHeartbeatGlobal />
       <FloatingWhatsApp />
       {import.meta.env.DEV ? <DevOverlay /> : null}
       <Routes>
@@ -151,14 +191,25 @@ function App() {
         <Route path="/about" element={<About />} />
         <Route path="/kurumsal" element={<Corporate />} />
         <Route path="/contact" element={<Contact />} />
-        {showTravel && <Route path="/travel" element={<Travel />} />}
-        {showDocuments && <Route path="/dokumanlar" element={<DocumentsHub />} />}
-        {isFeatureEnabled('tours') && <Route path="/tours" element={<Tours />} />}
-        {isFeatureEnabled('tours') && <Route path="/tours/groups" element={<GroupTours />} />}
-        {isFeatureEnabled('tours') && <Route path="/tours/:id" element={<TourDetail />} />}
         <Route path="/login" element={<Login />} />
         <Route
           path="/profilim"
+          element={
+            <RequireAuth>
+              <StudioProfile />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/profilim/bilgilerim"
+          element={
+            <RequireAuth>
+              <StudioMyInfo />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/profilim-eski"
           element={
             <RequireAuth>
               <Panel />
@@ -166,26 +217,33 @@ function App() {
           }
         />
         <Route path="/panel" element={<Navigate to="/profilim" replace />} />
+
+        {/* Studio UI (matchmaking) */}
         <Route
-          path="/rezervasyonlar"
+          path="/app/matches"
           element={
             <RequireAuth>
-              <ReservationsPanel />
+              <StudioMatches />
             </RequireAuth>
           }
         />
         <Route
-          path="/payment"
+          path="/app/match/:matchId"
           element={
             <RequireAuth>
-              <Payment />
+              <StudioMatchProfile />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/app/chat/:matchId"
+          element={
+            <RequireAuth>
+              <StudioChat />
             </RequireAuth>
           }
         />
         <Route path="/gallery" element={<Gallery />} />
-        {isFeatureEnabled('explore') && <Route path="/kesfet" element={<Kesfet />} />}
-        {isFeatureEnabled('explore') && <Route path="/kesfet/:island" element={<KesfetIsland />} />}
-        {isFeatureEnabled('explore') && <Route path="/kesfet/:island/:destination" element={<KesfetDestination />} />}
 
         {showWedding && <Route path="/wedding" element={<Wedding />} />}
         {showWedding && <Route path="/uniqah" element={<MatchmakingHub />} />}

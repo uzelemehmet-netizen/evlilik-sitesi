@@ -230,6 +230,7 @@ export default function AdminIdentityVerifications() {
         {rows.map((u) => {
           const userId = u.id;
           const method = safeStr(u?.identityVerification?.method) || '-';
+          const idType = safeStr(u?.identityVerification?.idType);
           const ref = safeStr(u?.identityVerification?.referenceCode) || '-';
           const requestedAt = u?.identityVerification?.requestedAt || u?.updatedAt || null;
           const files = u?.identityVerification?.files || null;
@@ -256,6 +257,12 @@ export default function AdminIdentityVerifications() {
                     {profileCode ? (
                       <span className="inline-flex items-center px-2.5 py-1 rounded-full bg-white border border-slate-200 text-xs font-semibold text-slate-800">
                         Kullanıcı Kodu: <span className="ml-1 font-mono">{profileCode}</span>
+                      </span>
+                    ) : null}
+
+                    {idType ? (
+                      <span className="inline-flex items-center px-2.5 py-1 rounded-full bg-white border border-slate-200 text-xs font-semibold text-slate-800">
+                        Kimlik Türü: <span className="ml-1">{idType}</span>
                       </span>
                     ) : null}
 

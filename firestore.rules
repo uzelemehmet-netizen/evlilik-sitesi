@@ -65,15 +65,12 @@ service cloud.firestore {
         && request.resource.data.createdAt == request.time
         && request.resource.data.updatedAt == request.time;
 
-      // Sonradan değişim kapalı: sadece ilk set (boş/null ise).
+      // Yeni iskelet uyumu: kullanıcı kendi temel profil alanlarını gerektiğinde güncelleyebilsin.
+      // Güvenlik: sadece whitelist alanlar değişebilsin; kritik alanlar (blocked/lock vb.) client'tan set edilemesin.
       allow update: if isAdmin() || (isSelf()
         && request.resource.data.diff(resource.data).changedKeys().hasOnly(['gender', 'nationality', 'nationalityOther', 'updatedAt'])
-        && (!request.resource.data.diff(resource.data).changedKeys().hasAny(['gender'])
-            || ((resource.data.gender == null || resource.data.gender == '') && isValidGenderWrite()))
-        && (!request.resource.data.diff(resource.data).changedKeys().hasAny(['nationality'])
-            || ((resource.data.nationality == null || resource.data.nationality == '') && isValidNationalityWrite()))
-        && (!request.resource.data.diff(resource.data).changedKeys().hasAny(['nationalityOther'])
-            || (resource.data.nationalityOther == null || resource.data.nationalityOther == ''))
+        && (!request.resource.data.diff(resource.data).changedKeys().hasAny(['gender']) || isValidGenderWrite())
+        && (!request.resource.data.diff(resource.data).changedKeys().hasAny(['nationality']) || isValidNationalityWrite())
         && request.resource.data.updatedAt == request.time
       );
 
@@ -113,6 +110,20 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // Matchmaking Automation (cron/heartbeat lock gibi kontrol dokümanları)
+    // Not: Bu koleksiyonlar sadece server-side (Admin SDK) tarafından yazılmalıdır.
+    match /matchmakingAutomation/{docId} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+
+    // Matchmaking Runs (son çalıştırma raporları / telemetri)
+    // Not: Debug için admin panel/script okuyabilir; client yazımı kapalı.
+    match /matchmakingRuns/{runId} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+
     // Counters (profil numarası sayaçları)
     // Not: Bu sayaçlar yalnızca server-side transaction ile güncellenmeli.
     match /counters/{id} {
@@ -134,6 +145,13 @@ service cloud.firestore {
     }
 
     match /siteSettings/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Tours (tur içerikleri)
+    // Not: Tur listesi public sayfalarda okunur; sadece admin yazabilmelidir.
+    match /tours/{tourId} {
       allow read: if true;
       allow write: if isAdmin();
     }

@@ -40,6 +40,22 @@ function shortenId(id) {
   return `${s.slice(0, 10)}…${s.slice(-6)}`;
 }
 
+function safeStr(v) {
+  return typeof v === 'string' ? v.trim() : '';
+}
+
+function displayUserLabel(m, side) {
+  const p = m?.profiles?.[side] || null;
+  const username = safeStr(p?.username);
+  if (username) return `@${username}`;
+  const fullName = safeStr(p?.fullName);
+  if (fullName) return fullName;
+  const code = profileCodeOf(p);
+  if (code) return code;
+  const uid = safeStr(side === 'a' ? m?.aUserId : m?.bUserId);
+  return uid ? shortenId(uid) : side.toUpperCase();
+}
+
 async function copyText(text) {
   const s = String(text || '');
   if (!s) return false;
@@ -338,7 +354,7 @@ export default function MatchmakingMatchesTab() {
                 {grouped.mutual.map((m) => (
                   <div key={m.id} className="rounded-xl border border-slate-200 bg-slate-50 p-4">
                     <p className="text-sm font-semibold text-slate-900">
-                      {m?.profiles?.a?.fullName || 'A'} ↔ {m?.profiles?.b?.fullName || 'B'}
+                      {displayUserLabel(m, 'a')} ↔ {displayUserLabel(m, 'b')}
                     </p>
                     {(() => {
                       const aCode = profileCodeOf(m?.profiles?.a);
@@ -408,7 +424,7 @@ export default function MatchmakingMatchesTab() {
                 {grouped.contactUnlocked.map((m) => (
                   <div key={m.id} className="rounded-xl border border-slate-200 bg-slate-50 p-4">
                     <p className="text-sm font-semibold text-slate-900">
-                      {m?.profiles?.a?.fullName || 'A'} ↔ {m?.profiles?.b?.fullName || 'B'}
+                      {displayUserLabel(m, 'a')} ↔ {displayUserLabel(m, 'b')}
                     </p>
                     {(() => {
                       const aCode = profileCodeOf(m?.profiles?.a);

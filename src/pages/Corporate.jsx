@@ -53,21 +53,14 @@ export default function Corporate() {
               <span className="font-semibold">{brand}</span> {t('corporatePage.summary.brandLine', { company: COMPANY.legalName })}
             </p>
             <div className="mt-3 flex flex-wrap gap-2">
-              <Link
-                to="/dokumanlar"
+              <a
+                href="/docs/on-kayit-bilgi-paketi.html"
+                target="_blank"
+                rel="noopener noreferrer"
                 className="inline-flex items-center gap-2 rounded-full bg-white border border-emerald-200 px-4 py-2 text-sm hover:shadow-sm transition"
               >
                 <BadgeCheck size={16} className="text-emerald-700" />
                 {t('corporatePage.summary.documents')}
-              </Link>
-              <a
-                href="/docs/tur-brosurleri.html"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 rounded-full bg-white border border-slate-200 px-4 py-2 text-sm hover:shadow-sm transition"
-              >
-                <BadgeCheck size={16} className="text-slate-700" />
-                {t('corporatePage.summary.brochures')}
               </a>
             </div>
           </div>
@@ -206,22 +199,19 @@ export default function Corporate() {
                   {t('corporatePage.documents.body')}
                 </p>
                 <div className="mt-3">
-                  <Link to="/dokumanlar" className="inline-flex items-center gap-2 rounded-full bg-white border border-emerald-200 px-4 py-2 text-sm hover:shadow-sm transition">
+                  <a
+                    href="/docs/on-kayit-bilgi-paketi.html"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 rounded-full bg-white border border-emerald-200 px-4 py-2 text-sm hover:shadow-sm transition"
+                  >
                     <BadgeCheck size={16} className="text-emerald-700" />
                     {t('corporatePage.documents.cta')}
-                  </Link>
+                  </a>
                 </div>
               </div>
             </div>
 
-            <div className="mt-4 p-4 rounded-2xl bg-white border border-slate-200">
-              <p className="text-sm text-gray-700" style={{ fontFamily: '"Poppins", sans-serif' }}>
-                {t('corporatePage.documents.brochureNote')}{' '}
-                <a className="text-emerald-700 font-semibold hover:underline" href="/docs/tur-brosurleri.html" target="_blank" rel="noopener noreferrer">
-                  {t('corporatePage.documents.brochureLink')}
-                </a>
-              </p>
-            </div>
           </div>
 
           <div className="mt-10 p-6 rounded-2xl border border-slate-200 bg-white">

@@ -10,12 +10,8 @@ export default function Navigation() {
   const location = useLocation();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
-  const showTravel = isFeatureEnabled('travel');
-  const showTours = isFeatureEnabled('tours');
-  const showExplore = isFeatureEnabled('explore');
   const showWedding = isFeatureEnabled('wedding');
-  const showDocuments = isFeatureEnabled('documents');
-  const isWeddingOnly = showWedding && !showTravel;
+  const isWeddingOnly = showWedding;
 
   const currentLang = (i18n.language || "tr").split("-")[0];
 
@@ -36,9 +32,6 @@ export default function Navigation() {
       { to: "/", label: t("navigation.home"), active: isActive("/") },
       { to: "/about", label: t("navigation.about"), active: isActive("/about") },
       { to: "/kurumsal", label: t("navigation.corporate"), active: isActive("/kurumsal") },
-      ...(showTravel ? [{ to: "/travel", label: t("navigation.travel"), active: isActive("/travel") }] : []),
-      ...(showTours ? [{ to: "/tours", label: t("navigation.tours"), active: isActive("/tours") }] : []),
-      ...(showExplore ? [{ to: "/kesfet", label: t("navigation.explore"), active: isActive("/kesfet") }] : []),
       ...(showWedding
         ? [{ to: "/uniqah", label: t("navigation.matchmaking"), active: isActive("/uniqah") }]
         : []),
@@ -46,13 +39,10 @@ export default function Navigation() {
       ...(showWedding
         ? [{ to: "/wedding", label: t("navigation.wedding"), active: isActive("/wedding") }]
         : []),
-      ...(showDocuments
-        ? [{ to: "/dokumanlar", label: t("navigation.documents"), active: isActive("/dokumanlar") }]
-        : []),
       { to: "/youtube", label: t("navigation.youtube"), active: isActive("/youtube") },
       { to: "/contact", label: t("navigation.contact"), active: isActive("/contact") },
     ],
-    [location.pathname, showDocuments, showExplore, showTours, showTravel, showWedding, t]
+    [location.pathname, showWedding, t]
   );
 
   return (
@@ -149,33 +139,6 @@ export default function Navigation() {
             }`} style={{ fontFamily: '"Poppins", sans-serif' }}>
               {t('navigation.corporate')}
             </Link>
-            {showTravel && (
-              <Link to="/travel" className={`px-2 sm:px-3 py-1.5 rounded-full text-xs sm:text-sm font-medium transition-all duration-200 shadow-md hover:shadow-lg whitespace-nowrap ${
-                isActive('/travel')
-                  ? 'bg-emerald-500 text-white shadow-lg'
-                  : 'text-gray-700 hover:bg-emerald-500 hover:text-white'
-              }`} style={{ fontFamily: '"Poppins", sans-serif' }}>
-                {t('navigation.travel')}
-              </Link>
-            )}
-            {showTours && (
-              <Link to="/tours" className={`px-2 sm:px-3 py-1.5 rounded-full text-xs sm:text-sm font-medium transition-all duration-200 shadow-md hover:shadow-lg whitespace-nowrap ${
-                isActive('/tours')
-                  ? 'bg-emerald-500 text-white shadow-lg'
-                  : 'text-gray-700 hover:bg-emerald-500 hover:text-white'
-              }`} style={{ fontFamily: '"Poppins", sans-serif' }}>
-                {t('navigation.tours')}
-              </Link>
-            )}
-            {showExplore && (
-              <Link to="/kesfet" className={`px-2 sm:px-3 py-1.5 rounded-full text-xs sm:text-sm font-medium transition-all duration-200 shadow-md hover:shadow-lg whitespace-nowrap ${
-                isActive('/kesfet')
-                  ? 'bg-orange-500 text-white shadow-lg'
-                  : 'text-gray-700 hover:bg-orange-500 hover:text-white'
-              }`} style={{ fontFamily: '"Poppins", sans-serif' }}>
-                {t('navigation.explore')}
-              </Link>
-            )}
             {showWedding && (
               <Link to="/uniqah" className={`px-2 sm:px-3 py-1.5 rounded-full text-xs sm:text-sm font-medium transition-all duration-200 shadow-md hover:shadow-lg whitespace-nowrap ${
                 isActive('/uniqah')
@@ -201,15 +164,6 @@ export default function Navigation() {
                   : 'text-gray-700 hover:bg-emerald-500 hover:text-white'
               }`} style={{ fontFamily: '"Poppins", sans-serif' }}>
                 {t('navigation.wedding')}
-              </Link>
-            )}
-            {showDocuments && (
-              <Link to="/dokumanlar" className={`px-2 sm:px-3 py-1.5 rounded-full text-xs sm:text-sm font-medium transition-all duration-200 shadow-md hover:shadow-lg whitespace-nowrap ${
-                isActive('/dokumanlar')
-                  ? 'bg-sky-600 text-white shadow-lg'
-                  : 'text-sky-700 hover:bg-sky-600 hover:text-white'
-              }`} style={{ fontFamily: '"Poppins", sans-serif' }}>
-                {t('navigation.documents')}
               </Link>
             )}
             <Link to="/youtube" className={`px-2 sm:px-3 py-1.5 rounded-full text-xs sm:text-sm font-medium transition-all duration-200 shadow-md hover:shadow-lg whitespace-nowrap ${
@@ -259,7 +213,6 @@ export default function Navigation() {
                   className="inline-flex items-center justify-center w-10 h-10 rounded-full border border-slate-200 bg-white"
                   aria-label="Kapat"
                 >
-                  <X size={18} />
                 </button>
               </div>
 

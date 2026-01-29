@@ -4,8 +4,6 @@ import { signOut } from 'firebase/auth';
 import { useNavigate } from 'react-router-dom';
 import { LogOut, Edit2, Upload } from 'lucide-react';
 import { collection, getDocs, doc, setDoc, getDoc, limit, onSnapshot, orderBy, query, where } from 'firebase/firestore';
-import { TOURS_CONFIG } from './Tours';
-import ReservationsTab from '../components/admin/ReservationsTab';
 import MatchmakingTab from '../components/admin/MatchmakingTab';
 import WeddingMediaTab from '../components/admin/WeddingMediaTab';
 import MatchmakingIdentityTab from '../components/admin/MatchmakingIdentityTab';
@@ -13,7 +11,11 @@ import MatchmakingPaymentsTab from '../components/admin/MatchmakingPaymentsTab';
 import MatchmakingMatchesTab from '../components/admin/MatchmakingMatchesTab';
 import MatchmakingUserToolsTab from '../components/admin/MatchmakingUserToolsTab';
 import MatchmakingPhotoUpdatesTab from '../components/admin/MatchmakingPhotoUpdatesTab';
+import MatchmakingPoolTab from '../components/admin/MatchmakingPoolTab';
 import { isFeatureEnabled } from '../config/siteVariant';
+
+// Travel/Tours modülü kaldırıldığı için admin panelde tur konfigi boş.
+const TOURS_CONFIG = [];
 
 // Tüm ada ve destinasyonlar
 const ISLANDS_DATA = {
@@ -116,7 +118,7 @@ const STATIC_PUBLIC_IMAGES = [
 ];
 
 export default function AdminDashboard() {
-  const weddingOnly = isFeatureEnabled('wedding') && !isFeatureEnabled('travel');
+  const weddingOnly = isFeatureEnabled('wedding');
   const [activeTab, setActiveTab] = useState(() => (weddingOnly ? 'matchmaking' : 'islands'));
   const [selectedIsland, setSelectedIsland] = useState('bali');
   const [editingId, setEditingId] = useState(null);
@@ -1066,6 +1068,10 @@ export default function AdminDashboard() {
         return <MatchmakingUserToolsTab />;
       }
 
+      if (activeTab === 'pool') {
+        return <MatchmakingPoolTab />;
+      }
+
       if (activeTab === 'weddingMedia') {
         return <WeddingMediaTab />;
       }
@@ -1085,10 +1091,6 @@ export default function AdminDashboard() {
           onMarkAllRead={markMatchmakingAllRead}
         />
       );
-    }
-
-    if (activeTab === 'reservations') {
-      return <ReservationsTab />;
     }
 
     if (activeTab === 'islands') {
@@ -1695,6 +1697,17 @@ export default function AdminDashboard() {
               </button>
 
               <button
+                onClick={() => setActiveTab('pool')}
+                className={`px-6 py-3 font-semibold transition whitespace-nowrap ${
+                  activeTab === 'pool'
+                    ? 'text-indigo-600 border-b-2 border-indigo-600'
+                    : 'text-gray-600 hover:text-gray-800'
+                }`}
+              >
+                Eşleştirme Havuzu
+              </button>
+
+              <button
                 onClick={() => setActiveTab('weddingMedia')}
                 className={`px-6 py-3 font-semibold transition whitespace-nowrap ${
                   activeTab === 'weddingMedia'
@@ -1835,16 +1848,6 @@ export default function AdminDashboard() {
               </span>
             )}
           </button>
-    <button
-      onClick={() => setActiveTab('reservations')}
-      className={`px-6 py-3 font-semibold transition whitespace-nowrap ${
-        activeTab === 'reservations'
-          ? 'text-indigo-600 border-b-2 border-indigo-600'
-          : 'text-gray-600 hover:text-gray-800'
-      }`}
-    >
-      Rezervasyonlar
-    </button>
 	  <button
 	    onClick={() => setActiveTab('shorts')}
 	    className={`px-6 py-3 font-semibold transition whitespace-nowrap ${

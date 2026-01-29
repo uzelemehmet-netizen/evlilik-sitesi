@@ -15,7 +15,7 @@ jobs:
       - name: Call matchmaking cron endpoint
         shell: bash
         env:
-          CRON_URL: ${{ secrets.MATCHMAKING_CRON_URL }}
+          CRON_URL: ${{ vars.MATCHMAKING_CRON_URL || secrets.MATCHMAKING_CRON_URL || 'https://uniqah.com/api/matchmaking-run' }}
           CRON_SECRET: ${{ secrets.MATCHMAKING_CRON_SECRET }}
         run: |
           set -euo pipefail
@@ -32,25 +32,25 @@ jobs:
           echo "Calling: ${CRON_URL}"
           resp_file="response.json"
 
-            payload='{"dryRun":false}'
+          payload='{"dryRun":false}'
 
-            status=$(curl -sS -L \
+          status=$(curl -sS -L \
             --retry 3 --retry-delay 5 \
             -X POST \
             -H "content-type: application/json" \
             -H "x-cron-secret: ${CRON_SECRET}" \
             -H "accept: application/json" \
-              -d "${payload}" \
+            -d "${payload}" \
             -o "${resp_file}" \
             -w "%{http_code}" \
             "${CRON_URL}")
 
-            echo "HTTP status: ${status}"
-            echo "Response:"; cat "${resp_file}"; echo
+          echo "HTTP status: ${status}"
+          echo "Response:"; cat "${resp_file}"; echo
 
-            if [[ "${status}" != "200" ]]; then
+          if [[ "${status}" != "200" ]]; then
             echo "Non-200 response" >&2
             exit 1
-            fi
+          fi
 
-            python -c "import json; data=json.load(open('response.json','r',encoding='utf-8')); assert data.get('ok') is True, data; print('ok=true')"
+          python -c "import json; data=json.load(open('response.json','r',encoding='utf-8')); assert data.get('ok') is True, data; print('ok=true')"

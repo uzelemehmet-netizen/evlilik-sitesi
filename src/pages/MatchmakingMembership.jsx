@@ -65,6 +65,8 @@ export default function MatchmakingMembership() {
       const mapped =
         msg === 'promo_expired'
           ? t('matchmakingMembership.promoExpired', { date: cutoffText })
+          : msg === 'promo_disabled'
+            ? t('matchmakingMembership.promoDisabled')
           : msg === 'missing_auth' || msg === 'invalid_auth' || msg === 'not_authenticated'
             ? t('matchmakingMembership.errors.notAuthenticated')
             : msg === 'firebase_admin_not_configured'

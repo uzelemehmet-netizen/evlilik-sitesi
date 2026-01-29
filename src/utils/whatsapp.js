@@ -1,6 +1,6 @@
 import { COMPANY } from "../config/company";
 import { isGlobalVariant } from "../config/siteVariant";
-import { normalizePhoneForWhatsApp } from "./reservationStatus";
+import { normalizePhoneForWhatsApp } from "./phone";
 
 export function getWhatsAppNumber() {
   const fromEnv = import.meta.env.VITE_WHATSAPP_NUMBER;

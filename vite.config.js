@@ -17,7 +17,9 @@ function readDevApiPortFromFile() {
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
   const devApiPort = readDevApiPortFromFile();
-  const fallbackTarget = devApiPort ? `http://localhost:${devApiPort}` : 'http://localhost:3000';
+  // Windows + WSL ortamlarında `localhost` bazen ::1'e çözülüp WSL relay'e gidebiliyor.
+  // Varsayılanı IPv4 loopback'e sabitleyerek /api proxy 503 sorunlarını azaltıyoruz.
+  const fallbackTarget = devApiPort ? `http://127.0.0.1:${devApiPort}` : 'http://127.0.0.1:3000';
   const apiTarget = env.VITE_API_PROXY_TARGET || fallbackTarget;
 
   return {
@@ -28,7 +30,7 @@ export default defineConfig(({ mode }) => {
     },
     server: {
       port: 5173,
-      strictPort: true,
+      strictPort: false,
       open: true,
       proxy: {
         '/api': {

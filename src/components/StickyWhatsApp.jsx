@@ -11,10 +11,6 @@ export default function StickyWhatsApp() {
 
     if (location.pathname.startsWith("/wedding") && isFeatureEnabled('wedding')) {
       message = "Endonezya'da evlilik hakkında bilgi almak istiyorum";
-    } else if (location.pathname.startsWith("/travel")) {
-      message = "Endonezya seyahati hakkında bilgi almak istiyorum";
-    } else if (location.pathname.startsWith("/kesfet")) {
-      message = "Endonezya'nın tatil destinasyonları hakkında bilgi almak istiyorum";
     } else if (location.pathname.startsWith("/youtube")) {
       message = "Merhaba, YouTube sayfanızı ziyaret ettim ve size bir şey sormak istiyorum";
     } else if (location.pathname.startsWith("/contact")) {

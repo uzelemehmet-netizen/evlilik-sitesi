@@ -234,10 +234,6 @@ export default function Login() {
     const stored = readStoredRedirect();
     const candidate = stored?.from || redirectTarget.from || '';
 
-    // Ödeme / rezervasyon gibi akışlarda, kullanıcının kaldığı yerden devam etmesi daha doğru.
-    if (candidate === '/payment' || candidate.startsWith('/payment/')) return candidate;
-    if (candidate === '/rezervasyonlar' || candidate.startsWith('/rezervasyonlar/')) return candidate;
-
     // Kullanıcı "başvuru" sayfasına gitmek istediyse onu koru.
     if (isMatchmakingApplyPath(candidate)) return candidate;
 
@@ -306,12 +302,37 @@ export default function Login() {
     await setDoc(ref, payload, { merge: true });
   };
 
+  const bootstrapMatchmakingApplication = async (userOrUid, profile) => {
+    try {
+      const uid = typeof userOrUid === 'string' ? userOrUid : String(userOrUid?.uid || '').trim();
+      if (!uid) return;
+
+      // Token: mümkünse ilgili user objesinden; yoksa auth.currentUser'dan.
+      const token =
+        (typeof userOrUid?.getIdToken === 'function' ? await userOrUid.getIdToken() : '') ||
+        (typeof auth?.currentUser?.getIdToken === 'function' ? await auth.currentUser.getIdToken() : '');
+      if (!token) return;
+
+      await fetch('/api/matchmaking-application-bootstrap', {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          gender: profile?.gender,
+          nationality: profile?.nationality,
+          nationalityOther: profile?.nationalityOther,
+          ageConfirmed: profile?.ageConfirmed === true,
+        }),
+      });
+    } catch {
+      // best-effort
+    }
+  };
+
   const contextMessage = useMemo(() => {
     const from = redirectTarget.from || "/profilim";
-
-    if (from === "/payment") {
-      return t("authPage.context.payment");
-    }
 
     if (from === "/profilim") {
       return t("authPage.context.panel");
@@ -389,6 +410,12 @@ export default function Login() {
             const p = readSignupProfile() || {};
             clearSignupProfile();
             await ensureProfileSaved(result?.user?.uid, p?.gender, p?.nationality, p?.nationalityOther);
+            await bootstrapMatchmakingApplication(result?.user, {
+              gender: p?.gender,
+              nationality: p?.nationality,
+              nationalityOther: p?.nationalityOther,
+              ageConfirmed: true,
+            });
           }
 
           const target = resolvePostAuthTarget(isNewUser);
@@ -564,6 +591,12 @@ export default function Login() {
 
       if (mode === "signup" && info2?.isNewUser) {
         await ensureProfileSaved(result?.user?.uid, signupGender, signupNationality, signupNationalityOther);
+        await bootstrapMatchmakingApplication(result?.user, {
+          gender: signupGender,
+          nationality: signupNationality,
+          nationalityOther: signupNationalityOther,
+          ageConfirmed: signupAgeConfirmed,
+        });
       }
       const target = resolvePostAuthTarget(!!info2?.isNewUser);
       const state = info2?.isNewUser ? null : resolvePostAuthState();
@@ -682,6 +715,12 @@ export default function Login() {
         writeForcedTarget(SIGNUP_FORM_TARGET);
         const cred = await createUserWithEmailAndPassword(auth, normalizedEmail, passwordToUse);
         await ensureProfileSaved(cred?.user?.uid, signupGender, signupNationality, signupNationalityOther);
+        await bootstrapMatchmakingApplication(cred?.user, {
+          gender: signupGender,
+          nationality: signupNationality,
+          nationalityOther: signupNationalityOther,
+          ageConfirmed: signupAgeConfirmed,
+        });
         clearAuthIntent();
         clearSignupProfile();
       } else {
