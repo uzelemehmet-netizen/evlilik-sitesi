@@ -7,6 +7,7 @@ import { db } from '../../config/firebase';
 import Navigation from '../../components/Navigation';
 import Footer from '../../components/Footer';
 import StudioMatchCard from '../../components/studio/StudioMatchCard';
+import StudioInboxModal from '../../components/studio/StudioInboxModal';
 import { authFetch } from '../../utils/authFetch';
 import { translateStudioApiError } from '../../utils/studioErrorI18n';
 
@@ -23,7 +24,26 @@ export default function StudioMatches() {
   const [matches, setMatches] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [requestNewState, setRequestNewState] = useState({ loading: false, error: '', ok: false });
+
+  const [inboxLikes, setInboxLikes] = useState([]);
+  const [inboxAction, setInboxAction] = useState({ loadingId: '', error: '' });
+
+  const [inboxAccess, setInboxAccess] = useState([]); // pre-match requests
+  const [inboxProfileAccess, setInboxProfileAccess] = useState([]); // profile access requests
+  const [accessAction, setAccessAction] = useState({ loadingId: '', error: '' });
+
+  const [inboxMessages, setInboxMessages] = useState([]);
+
+  const [inboxModal, setInboxModal] = useState({ open: false, mode: 'requests' });
+
+  const [inboxLoad, setInboxLoad] = useState({ loading: false, error: '', lastSource: '' });
+  const clientProjectId = useMemo(() => {
+    try {
+      return db?.app?.options?.projectId || '';
+    } catch {
+      return '';
+    }
+  }, []);
 
   const [shortModal, setShortModal] = useState({ open: false, matchId: '', displayName: '' });
   const [shortText, setShortText] = useState('');
@@ -35,6 +55,15 @@ export default function StudioMatches() {
   const [translateState, setTranslateState] = useState({ loadingId: '', error: '' });
 
   const [myLock, setMyLock] = useState({ active: false, matchId: '' });
+  const [myMembership, setMyMembership] = useState({ active: false });
+  const [paywallNotice, setPaywallNotice] = useState('');
+
+  const asMs = (v) => {
+    if (typeof v === 'number' && Number.isFinite(v)) return v;
+    if (v && typeof v.toMillis === 'function') return v.toMillis();
+    if (v && typeof v.seconds === 'number' && Number.isFinite(v.seconds)) return v.seconds * 1000;
+    return 0;
+  };
 
   useEffect(() => {
     const uid = String(user?.uid || '').trim();
@@ -49,8 +78,19 @@ export default function StudioMatches() {
         const active = !!lock?.active;
         const matchId = typeof lock?.matchId === 'string' ? String(lock.matchId).trim() : '';
         setMyLock({ active, matchId });
+
+        const membershipObj = d?.membership && typeof d.membership === 'object' ? d.membership : null;
+        const membershipValidUntilMs = asMs(membershipObj?.validUntilMs);
+        const now = Date.now();
+        const membershipActive =
+          (membershipValidUntilMs > 0 && membershipValidUntilMs > now) ||
+          (!!membershipObj?.active && (!membershipValidUntilMs || membershipValidUntilMs > now));
+        setMyMembership({ active: membershipActive });
       },
-      () => setMyLock({ active: false, matchId: '' })
+      () => {
+        setMyLock({ active: false, matchId: '' });
+        setMyMembership({ active: false });
+      }
     );
 
     return () => {
@@ -61,6 +101,228 @@ export default function StudioMatches() {
       }
     };
   }, [user?.uid]);
+
+  // Gelen beğeniler (inbox)
+  useEffect(() => {
+    const uid = String(user?.uid || '').trim();
+    if (!uid) {
+      setInboxLikes([]);
+      return;
+    }
+
+    const qInbox = query(
+      collection(db, 'matchmakingUsers', uid, 'inboxLikes'),
+      orderBy('createdAtMs', 'desc'),
+      limit(20)
+    );
+
+    const unsub = onSnapshot(
+      qInbox,
+      (snap) => {
+        const items = [];
+        snap.forEach((d) => items.push({ id: d.id, ...d.data() }));
+        setInboxLikes(items);
+        setInboxLoad((s) => (s.lastSource === 'api' ? s : { ...s, error: '', lastSource: 'firestore' }));
+      },
+      (e) => {
+        setInboxLikes([]);
+        const code = String(e?.code || '').trim();
+        const msg = String(e?.message || '').trim();
+        const hint =
+          code === 'permission-denied'
+            ? `Firestore okuma izni yok (permission-denied). Firebase projesi: ${clientProjectId || '?'} (Sunucudan yenile deneyin)`
+            : `Firestore beğeni inbox dinlemesi hata verdi: ${code || msg || 'unknown_error'} (Sunucudan yenile deneyin)`;
+        setInboxLoad((s) => ({ ...s, error: hint, lastSource: s.lastSource || 'firestore' }));
+        refreshInboxViaApi();
+      }
+    );
+
+    return () => {
+      try {
+        unsub();
+      } catch {
+        // noop
+      }
+    };
+  }, [user?.uid]);
+
+  // Gelen ön eşleşme istekleri
+  useEffect(() => {
+    const uid = String(user?.uid || '').trim();
+    if (!uid) {
+      setInboxAccess([]);
+      return;
+    }
+
+    const qInbox = query(
+      collection(db, 'matchmakingUsers', uid, 'inboxPreMatchRequests'),
+      orderBy('createdAtMs', 'desc'),
+      limit(25)
+    );
+
+    const unsub = onSnapshot(
+      qInbox,
+      (snap) => {
+        const items = [];
+        snap.forEach((d) => items.push({ id: d.id, ...d.data() }));
+        setInboxAccess(items);
+        setInboxLoad((s) => (s.lastSource === 'api' ? s : { ...s, error: '', lastSource: 'firestore' }));
+      },
+      (e) => {
+        setInboxAccess([]);
+        const code = String(e?.code || '').trim();
+        const msg = String(e?.message || '').trim();
+        const hint =
+          code === 'permission-denied'
+            ? `Firestore okuma izni yok (permission-denied). Firebase projesi: ${clientProjectId || '?'} (Sunucudan yenile deneyin)`
+            : `Firestore istek inbox dinlemesi hata verdi: ${code || msg || 'unknown_error'} (Sunucudan yenile deneyin)`;
+        setInboxLoad((s) => ({ ...s, error: hint, lastSource: s.lastSource || 'firestore' }));
+        refreshInboxViaApi();
+      }
+    );
+
+    return () => {
+      try {
+        unsub();
+      } catch {
+        // noop
+      }
+    };
+  }, [user?.uid]);
+
+  // Gelen profil erişim istekleri
+  useEffect(() => {
+    const uid = String(user?.uid || '').trim();
+    if (!uid) {
+      setInboxProfileAccess([]);
+      return;
+    }
+
+    const qInbox = query(
+      collection(db, 'matchmakingUsers', uid, 'inboxAccessRequests'),
+      orderBy('createdAtMs', 'desc'),
+      limit(25)
+    );
+
+    const unsub = onSnapshot(
+      qInbox,
+      (snap) => {
+        const items = [];
+        snap.forEach((d) => items.push({ id: d.id, ...d.data() }));
+        setInboxProfileAccess(items);
+        setInboxLoad((s) => (s.lastSource === 'api' ? s : { ...s, error: '', lastSource: 'firestore' }));
+      },
+      (e) => {
+        setInboxProfileAccess([]);
+        const code = String(e?.code || '').trim();
+        const msg = String(e?.message || '').trim();
+        const hint =
+          code === 'permission-denied'
+            ? `Firestore okuma izni yok (permission-denied). Firebase projesi: ${clientProjectId || '?'} (Sunucudan yenile deneyin)`
+            : `Firestore profil izin inbox dinlemesi hata verdi: ${code || msg || 'unknown_error'} (Sunucudan yenile deneyin)`;
+        setInboxLoad((s) => ({ ...s, error: hint, lastSource: s.lastSource || 'firestore' }));
+        refreshInboxViaApi();
+      }
+    );
+
+    return () => {
+      try {
+        unsub();
+      } catch {
+        // noop
+      }
+    };
+  }, [user?.uid]);
+
+  // Gelen direkt mesajlar (inbox)
+  useEffect(() => {
+    const uid = String(user?.uid || '').trim();
+    if (!uid) {
+      setInboxMessages([]);
+      return;
+    }
+
+    const qInbox = query(
+      collection(db, 'matchmakingUsers', uid, 'inboxMessages'),
+      orderBy('createdAtMs', 'desc'),
+      limit(40)
+    );
+
+    const unsub = onSnapshot(
+      qInbox,
+      (snap) => {
+        const items = [];
+        snap.forEach((d) => items.push({ id: d.id, ...d.data() }));
+        setInboxMessages(items);
+        setInboxLoad((s) => (s.lastSource === 'api' ? s : { ...s, error: '', lastSource: 'firestore' }));
+      },
+      (e) => {
+        setInboxMessages([]);
+        const code = String(e?.code || '').trim();
+        const msg = String(e?.message || '').trim();
+        const hint =
+          code === 'permission-denied'
+            ? `Firestore okuma izni yok (permission-denied). Firebase projesi: ${clientProjectId || '?'} (Sunucudan yenile deneyin)`
+            : `Firestore mesaj inbox dinlemesi hata verdi: ${code || msg || 'unknown_error'} (Sunucudan yenile deneyin)`;
+        setInboxLoad((s) => ({ ...s, error: hint, lastSource: s.lastSource || 'firestore' }));
+        refreshInboxViaApi();
+      }
+    );
+
+    return () => {
+      try {
+        unsub();
+      } catch {
+        // noop
+      }
+    };
+  }, [user?.uid]);
+
+  const respondInboxLike = async ({ matchId, decision }) => {
+    const uid = String(user?.uid || '').trim();
+    const mid = String(matchId || '').trim();
+    const d = String(decision || '').trim();
+    if (!uid || !mid || (d !== 'accept' && d !== 'reject')) return;
+    if (inboxAction.loadingId) return;
+
+    setInboxAction({ loadingId: mid, error: '' });
+    try {
+      await authFetch('/api/matchmaking-decision', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ matchId: mid, decision: d }),
+      });
+      setInboxAction({ loadingId: '', error: '' });
+    } catch (e) {
+      const msg = String(e?.message || '').trim();
+      setInboxAction({ loadingId: '', error: translateStudioApiError(t, msg) || msg || 'action_failed' });
+    }
+  };
+
+  const respondAccessRequest = async ({ fromUid, decision, type }) => {
+    const uid = String(user?.uid || '').trim();
+    const from = String(fromUid || '').trim();
+    const d = String(decision || '').trim();
+    if (!uid || !from || (d !== 'approve' && d !== 'reject')) return;
+    if (accessAction.loadingId) return;
+
+    const reqType = String(type || '').trim();
+    const endpoint = reqType === 'profile_access' ? '/api/matchmaking-profile-access-respond' : '/api/matchmaking-pre-match-respond';
+    const loadingKey = `${reqType || 'pre_match'}:${from}`;
+
+    setAccessAction({ loadingId: loadingKey, error: '' });
+    try {
+      await authFetch(endpoint, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ fromUid: from, decision: d }),
+      });
+      setAccessAction({ loadingId: '', error: '' });
+    } catch (e) {
+      const msg = String(e?.message || '').trim();
+      setAccessAction({ loadingId: '', error: translateStudioApiError(t, msg) || msg || 'action_failed' });
+    }
+  };
 
   useEffect(() => {
     const uid = String(user?.uid || '').trim();
@@ -161,7 +423,7 @@ export default function StudioMatches() {
 
   const shortOtherName = useMemo(() => {
     const n =
-      String(shortOther?.username || shortOther?.fullName || shortOther?.name || '').trim() ||
+      String(shortOther?.username || '').trim() ||
       String(shortModal?.displayName || '').trim();
     return n || t('studio.common.match');
   }, [shortModal?.displayName, shortOther, t]);
@@ -219,19 +481,79 @@ export default function StudioMatches() {
     });
   }, [matches]);
 
-  const requestNewMatch = async () => {
-    if (!user?.uid || requestNewState.loading) return;
-    setRequestNewState({ loading: true, error: '', ok: false });
+  const pendingAccessRequests = useMemo(() => {
+    const list1 = Array.isArray(inboxAccess) ? inboxAccess : [];
+    const list2 = Array.isArray(inboxProfileAccess) ? inboxProfileAccess : [];
+    return [...list1, ...list2].filter((x) => String(x?.status || '').trim() === 'pending');
+  }, [inboxAccess, inboxProfileAccess]);
+
+  const unreadMessageCount = useMemo(() => {
+    const list = Array.isArray(inboxMessages) ? inboxMessages : [];
+    return list.filter((x) => {
+      const msg = String(x?.text || '').trim();
+      if (!msg) return false;
+      const readMs = typeof x?.readAtMs === 'number' && Number.isFinite(x.readAtMs) ? x.readAtMs : 0;
+      return readMs <= 0;
+    }).length;
+  }, [inboxMessages]);
+
+  const markInboxMessageRead = async ({ requestId, fromUid }) => {
+    // accessRequests mesajı (opsiyonel)
+    if (requestId || fromUid) {
+      try {
+        await authFetch('/api/matchmaking-inbox-mark-read', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ requestId, fromUid }),
+        });
+      } catch {
+        // best-effort
+      }
+      return;
+    }
+  };
+
+  const markDirectMessageRead = async ({ messageId }) => {
+    const id = String(messageId || '').trim();
+    if (!id) return;
     try {
-      await authFetch('/api/matchmaking-request-new', {
+      await authFetch('/api/matchmaking-inbox-message-mark-read', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ maxMatches: 3 }),
+        body: JSON.stringify({ messageId: id }),
       });
-      setRequestNewState({ loading: false, error: '', ok: true });
+    } catch {
+      // best-effort
+    }
+  };
+
+  const refreshInboxViaApi = async () => {
+    const uid = String(user?.uid || '').trim();
+    if (!uid || inboxLoad.loading) return;
+    setInboxLoad({ loading: true, error: '', lastSource: inboxLoad.lastSource || '' });
+    try {
+      const data = await authFetch('/api/matchmaking-inbox-summary', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ limit: 60 }),
+      });
+      setInboxLikes(Array.isArray(data?.inboxLikes) ? data.inboxLikes : []);
+      setInboxAccess(Array.isArray(data?.inboxPreMatchRequests) ? data.inboxPreMatchRequests : []);
+      setInboxProfileAccess(Array.isArray(data?.inboxAccessRequests) ? data.inboxAccessRequests : []);
+      setInboxMessages(Array.isArray(data?.inboxMessages) ? data.inboxMessages : []);
+      setInboxLoad({ loading: false, error: '', lastSource: 'api' });
     } catch (e) {
-      const msg = String(e?.message || '').trim();
-      setRequestNewState({ loading: false, error: msg || 'request_new_failed', ok: false });
+      const msg = String(e?.message || '').trim() || 'inbox_refresh_failed';
+      setInboxLoad({ loading: false, error: translateStudioApiError(t, msg) || msg, lastSource: 'api' });
+    }
+  };
+
+  const requirePaid = () => {
+    setPaywallNotice(t('studio.paywall.upgradeToInteract'));
+    try {
+      if (typeof window !== 'undefined') window.scrollTo({ top: 0, behavior: 'smooth' });
+    } catch {
+      // noop
     }
   };
 
@@ -263,12 +585,24 @@ export default function StudioMatches() {
 
   const sendShort = async (e) => {
     e?.preventDefault?.();
-
     const uid = String(user?.uid || '').trim();
     const mid = String(shortModal?.matchId || '').trim();
     const text = String(shortText || '').trim();
+
     if (!uid || !mid || !text) return;
+
+    // Ücretsiz kullanıcılar kısa mesaj gönderemez.
+    if (!myMembership?.active) {
+      requirePaid();
+      setShortState({ loading: false, error: t('studio.paywall.upgradeToReply') });
+      return;
+    }
+
     if (shortState.loading) return;
+    if (shortLimitInfo.remaining <= 0) {
+      setShortState({ loading: false, error: t('studio.errors.shortLimit') });
+      return;
+    }
 
     setShortState({ loading: true, error: '' });
     try {
@@ -281,8 +615,11 @@ export default function StudioMatches() {
       setShortState({ loading: false, error: '' });
     } catch (err) {
       const msg = String(err?.message || '').trim();
-      const translated = translateStudioApiError(t, msg);
-      setShortState({ loading: false, error: translated || msg || 'send_failed' });
+      if (msg === 'short_message_limit' || msg === 'short_message_daily_limit' || msg === 'chat_limit_reached') {
+        setShortState({ loading: false, error: t('studio.errors.shortLimit') });
+      } else {
+        setShortState({ loading: false, error: translateStudioApiError(t, msg) || msg || 'send_failed' });
+      }
     }
   };
 
@@ -312,6 +649,156 @@ export default function StudioMatches() {
       <Navigation />
 
       <main className="container mx-auto px-4 py-8">
+        {inboxLoad.error ? (
+          <div className="mb-6 mx-auto max-w-5xl rounded-xl border border-rose-200 bg-rose-50 p-4 text-rose-900 shadow-sm">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="font-semibold">Inbox senkron problemi</p>
+              <button
+                type="button"
+                onClick={refreshInboxViaApi}
+                disabled={inboxLoad.loading}
+                className="inline-flex items-center justify-center rounded-md bg-rose-700 px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-rose-800 disabled:opacity-60"
+              >
+                {inboxLoad.loading ? 'Yenileniyor…' : 'Sunucudan yenile'}
+              </button>
+            </div>
+            <p className="mt-2 text-sm whitespace-pre-wrap">{inboxLoad.error}</p>
+            <p className="mt-2 text-xs text-rose-700">
+              Not: Bu buton, Firestore dinlemesi bozulsa bile server (Admin SDK) üzerinden aynı veriyi getirir.
+            </p>
+          </div>
+        ) : null}
+
+        {pendingAccessRequests.length ? (
+          <div className="mb-6 mx-auto max-w-5xl rounded-xl border border-indigo-200 bg-indigo-50 p-4 text-indigo-950 shadow-sm">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="font-semibold">
+                {t('studio.accessInbox.title', { count: pendingAccessRequests.length })}
+              </p>
+              {accessAction.error ? <p className="text-sm text-rose-700">{accessAction.error}</p> : null}
+            </div>
+
+            <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {pendingAccessRequests.map((it) => {
+                const p = it?.fromProfile && typeof it.fromProfile === 'object' ? it.fromProfile : null;
+                const name = String(p?.username || '').trim() || t('studio.common.profile');
+                const age = typeof p?.age === 'number' ? String(p.age) : '';
+                const photo = String(p?.photoUrl || '').trim();
+                const fromUid = String(it?.fromUid || '').trim();
+                const type = String(it?.type || '').trim();
+                const isPreMatch = type === 'pre_match';
+                const acting = !!accessAction.loadingId && accessAction.loadingId === `${type || 'pre_match'}:${fromUid}`;
+                const subtitle = isPreMatch ? 'Ön eşleşme isteği' : t('studio.accessInbox.requested');
+
+                return (
+                  <div key={it.id} className="rounded-lg border border-indigo-200 bg-white p-3">
+                    <div className="flex items-center gap-3">
+                      {photo ? (
+                        <img src={photo} alt={name} className="h-10 w-10 rounded-full object-cover" />
+                      ) : (
+                        <div className="h-10 w-10 rounded-full bg-slate-100" />
+                      )}
+                      <div className="min-w-0">
+                        <p className="truncate font-semibold">{name}{age ? `, ${age}` : ''}</p>
+                        <p className="text-xs text-slate-600">{subtitle}</p>
+                      </div>
+                    </div>
+
+                    <div className="mt-3 flex flex-wrap items-center gap-2">
+                      <button
+                        type="button"
+                        disabled={acting || !fromUid}
+                        onClick={() => respondAccessRequest({ fromUid, decision: 'approve', type })}
+                        className="inline-flex items-center justify-center rounded-md bg-emerald-600 px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 disabled:opacity-60"
+                      >
+                        {acting ? t('studio.common.processing') : isPreMatch ? 'Onayla' : t('studio.accessInbox.approve')}
+                      </button>
+
+                      <button
+                        type="button"
+                        disabled={acting || !fromUid}
+                        onClick={() => respondAccessRequest({ fromUid, decision: 'reject', type })}
+                        className="inline-flex items-center justify-center rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-800 shadow-sm transition hover:bg-rose-100 disabled:opacity-60"
+                      >
+                        {t('studio.accessInbox.reject')}
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        ) : null}
+
+        {inboxLikes.length ? (
+          <div className="mb-6 mx-auto max-w-5xl rounded-xl border border-amber-200 bg-amber-50 p-4 text-amber-950 shadow-sm">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="font-semibold">
+                {t('studio.inbox.likesTitle', { count: inboxLikes.length })}
+              </p>
+              {inboxAction.error ? (
+                <p className="text-sm text-rose-700">{inboxAction.error}</p>
+              ) : null}
+            </div>
+
+            <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {inboxLikes.map((it) => {
+                const p = it?.fromProfile && typeof it.fromProfile === 'object' ? it.fromProfile : null;
+                const name = String(p?.username || '').trim() || t('studio.common.match');
+                const age = typeof p?.age === 'number' ? String(p.age) : '';
+                const photo = Array.isArray(p?.photoUrls) && p.photoUrls.length ? String(p.photoUrls[0] || '').trim() : '';
+                const mid = String(it?.matchId || it?.id || '').trim();
+                const acting = inboxAction.loadingId && inboxAction.loadingId === mid;
+
+                return (
+                  <div key={it.id} className="rounded-lg border border-amber-200 bg-white p-3">
+                    <div className="flex items-center gap-3">
+                      {photo ? (
+                        <img src={photo} alt={name} className="h-10 w-10 rounded-full object-cover" />
+                      ) : (
+                        <div className="h-10 w-10 rounded-full bg-slate-100" />
+                      )}
+                      <div className="min-w-0">
+                        <p className="truncate font-semibold">{name}{age ? `, ${age}` : ''}</p>
+                        <p className="text-xs text-slate-600">{t('studio.inbox.likeReceived')}</p>
+                      </div>
+                    </div>
+
+                    <div className="mt-3 flex flex-wrap items-center gap-2">
+                      {mid ? (
+                        <Link
+                          to={`/app/match/${mid}`}
+                          className="inline-flex items-center justify-center rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 shadow-sm transition hover:bg-slate-50"
+                        >
+                          {t('studio.inbox.viewProfile')}
+                        </Link>
+                      ) : null}
+
+                      <button
+                        type="button"
+                        disabled={acting || !mid}
+                        onClick={() => respondInboxLike({ matchId: mid, decision: 'accept' })}
+                        className="inline-flex items-center justify-center rounded-md bg-emerald-600 px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 disabled:opacity-60"
+                      >
+                        {acting ? t('studio.common.processing') : t('studio.inbox.accept')}
+                      </button>
+
+                      <button
+                        type="button"
+                        disabled={acting || !mid}
+                        onClick={() => respondInboxLike({ matchId: mid, decision: 'reject' })}
+                        className="inline-flex items-center justify-center rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-800 shadow-sm transition hover:bg-rose-100 disabled:opacity-60"
+                      >
+                        {t('studio.inbox.reject')}
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        ) : null}
+
         <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h1 className="text-3xl md:text-4xl font-bold text-emerald-700">{t('studio.matches.title')}</h1>
@@ -322,23 +809,64 @@ export default function StudioMatches() {
             </p>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setInboxModal({ open: true, mode: 'requests' })}
+              className="inline-flex items-center justify-center rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 shadow-sm transition hover:bg-slate-50"
+            >
+              İstekler
+              {pendingAccessRequests.length ? (
+                <span className="ml-2 inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-rose-600 px-2 py-0.5 text-xs font-bold text-white">
+                  {pendingAccessRequests.length}
+                </span>
+              ) : null}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setInboxModal({ open: true, mode: 'messages' })}
+              className="inline-flex items-center justify-center rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 shadow-sm transition hover:bg-slate-50"
+            >
+              Mesajlar
+              {unreadMessageCount ? (
+                <span className="ml-2 inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-emerald-600 px-2 py-0.5 text-xs font-bold text-white">
+                  {unreadMessageCount}
+                </span>
+              ) : null}
+            </button>
+
             <Link
               to="/profilim"
               className="inline-flex items-center justify-center rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 shadow-sm transition hover:bg-slate-50"
             >
               {t('studio.matches.backToProfile')}
             </Link>
-            <button
-              type="button"
-              onClick={requestNewMatch}
-              disabled={requestNewState.loading || !user?.uid}
-              className="inline-flex items-center justify-center rounded-md bg-emerald-600 px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 disabled:opacity-60"
+            <Link
+              to="/app/pool"
+              className="inline-flex items-center justify-center rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 shadow-sm transition hover:bg-slate-50"
             >
-              {requestNewState.loading ? t('studio.matches.finding') : t('studio.matches.findNew')}
-            </button>
+              {t('studio.pool.title')}
+            </Link>
           </div>
         </div>
+
+        <StudioInboxModal
+          open={!!inboxModal?.open}
+          onClose={() => setInboxModal({ open: false, mode: 'requests' })}
+          title={inboxModal?.mode === 'messages' ? 'Mesajlar' : 'İstekler'}
+          items={
+            inboxModal?.mode === 'messages'
+              ? inboxMessages
+              : [...(Array.isArray(inboxAccess) ? inboxAccess : []), ...(Array.isArray(inboxProfileAccess) ? inboxProfileAccess : [])]
+          }
+          mode={inboxModal?.mode}
+          onMarkRead={inboxModal?.mode === 'messages' ? markDirectMessageRead : markInboxMessageRead}
+          onApprove={inboxModal?.mode === 'messages' ? null : ({ fromUid, type }) => respondAccessRequest({ fromUid, decision: 'approve', type })}
+          onReject={inboxModal?.mode === 'messages' ? null : ({ fromUid, type }) => respondAccessRequest({ fromUid, decision: 'reject', type })}
+          loadingId={accessAction.loadingId}
+          error={accessAction.error}
+        />
 
         <div className="mb-4 mx-auto max-w-4xl rounded-xl border border-slate-200 bg-white p-4 text-sm text-slate-700 shadow-sm">
           <p className="font-semibold text-slate-900">{t('studio.matches.howTitle')}</p>
@@ -364,13 +892,24 @@ export default function StudioMatches() {
           </div>
         ) : null}
 
-        {requestNewState.error ? (
-          <div className="mb-4 mx-auto max-w-2xl rounded-lg border border-rose-200 bg-rose-50 p-4 text-rose-800">
-            {t('studio.matches.requestFailed', { error: requestNewState.error })}
-          </div>
-        ) : requestNewState.ok ? (
-          <div className="mb-4 mx-auto max-w-2xl rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-emerald-900">
-            {t('studio.matches.requestOk')}
+        {paywallNotice ? (
+          <div className="mb-4 mx-auto max-w-4xl rounded-xl border border-amber-200 bg-amber-50 p-4 text-amber-900">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="font-semibold">{t('studio.paywall.upgradeTitle')}</p>
+              <button
+                type="button"
+                onClick={() => setPaywallNotice('')}
+                className="rounded-md px-2 py-1 text-sm font-semibold text-amber-900/70 hover:bg-amber-100"
+              >
+                {t('studio.common.close')}
+              </button>
+            </div>
+            <p className="mt-1 text-sm text-amber-900/80">{paywallNotice}</p>
+            <div className="mt-3">
+              <Link to="/profilim" className="text-sm font-semibold underline">
+                {t('studio.paywall.upgradeCta')}
+              </Link>
+            </div>
           </div>
         ) : null}
 
@@ -387,14 +926,12 @@ export default function StudioMatches() {
               {t('studio.matches.noneBody')}
             </p>
             <div className="mt-4 flex items-center justify-center gap-2">
-              <button
-                type="button"
-                onClick={requestNewMatch}
-                disabled={requestNewState.loading || !user?.uid}
-                className="inline-flex items-center justify-center rounded-md bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 disabled:opacity-60"
+              <Link
+                to="/app/pool"
+                className="inline-flex items-center justify-center rounded-md bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700"
               >
-                {requestNewState.loading ? t('studio.matches.finding') : t('studio.matches.findNew')}
-              </button>
+                {t('studio.pool.title')}
+              </Link>
               <Link
                 to="/profilim"
                 className="inline-flex items-center justify-center rounded-md border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-800 shadow-sm transition hover:bg-slate-50"
@@ -411,6 +948,9 @@ export default function StudioMatches() {
                 match={m}
                 currentUid={String(user?.uid || '')}
                 onOpenShort={openShort}
+                canSeeFullProfiles={myMembership.active}
+                canInteract={myMembership.active}
+                onRequirePaid={requirePaid}
                 activeLockMatchId={myLock?.active ? myLock?.matchId : ''}
               />
             ))}

@@ -3,9 +3,18 @@ import { Link } from 'react-router-dom';
 import { Heart, MessageCircle, ShieldCheck } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { authFetch } from '../../utils/authFetch';
+import { translateStudioApiError } from '../../utils/studioErrorI18n';
 
 function safeStr(v) {
   return typeof v === 'string' ? v.trim() : '';
+}
+
+function genderLabelTR(raw) {
+  const s = safeStr(raw).toLowerCase();
+  if (!s) return '';
+  if (s === 'female' || s === 'f' || s === 'kadin' || s === 'kadın') return 'Kadın';
+  if (s === 'male' || s === 'm' || s === 'erkek') return 'Erkek';
+  return '';
 }
 
 function maritalStatusToKey(v) {
@@ -21,7 +30,46 @@ function maritalStatusToKey(v) {
   return map[s] || '';
 }
 
-export default function StudioMatchCard({ match, currentUid, onOpenShort, activeLockMatchId }) {
+function yesNoLabel(t, rawValue) {
+  const s = safeStr(rawValue).toLowerCase();
+  if (s === 'yes' || s === 'true' || s === '1') return t('matchmakingPage.form.options.common.yes');
+  if (s === 'no' || s === 'false' || s === '0') return t('matchmakingPage.form.options.common.no');
+  if (s === 'unsure') return t('matchmakingPage.form.options.common.unsure');
+  return safeStr(rawValue);
+}
+
+function clipText(raw, maxLen) {
+  const s = safeStr(raw);
+  if (!s) return '';
+  return s.length > maxLen ? `${s.slice(0, maxLen)}…` : s;
+}
+
+function normalizeEnumValue(raw) {
+  const s = safeStr(raw);
+  if (!s) return '';
+  const parts = s.split(/[_\s-]+/).filter(Boolean);
+  if (!parts.length) return '';
+  return parts.map((p, i) => (i === 0 ? p : p.slice(0, 1).toUpperCase() + p.slice(1))).join('');
+}
+
+function childrenLivingSituationLabel(t, rawValue) {
+  const v = safeStr(rawValue);
+  if (!v) return '';
+  const key = normalizeEnumValue(v);
+  const fullKey = `matchmakingPage.form.options.childrenLivingSituation.${key}`;
+  const label = t(fullKey);
+  return label && label !== fullKey ? label : v;
+}
+
+export default function StudioMatchCard({
+  match,
+  currentUid,
+  onOpenShort,
+  activeLockMatchId,
+  canSeeFullProfiles = true,
+  canInteract = true,
+  onRequirePaid,
+}) {
   const { t } = useTranslation();
   const [likeState, setLikeState] = useState({ loading: false, error: '' });
   const [photoIndex, setPhotoIndex] = useState(0);
@@ -40,6 +88,7 @@ export default function StudioMatchCard({ match, currentUid, onOpenShort, active
   }, [currentUid, match]);
 
   const status = safeStr(match?.status);
+  const tier = safeStr(match?.matchTier || match?.debug?.matchTier);
   const statusMeta = useMemo(() => {
     if (status === 'proposed') return { label: t('studio.match.status.proposed'), cls: 'bg-slate-100 text-slate-700 border-slate-200' };
     if (status === 'mutual_interest') return { label: t('studio.match.status.mutual_interest'), cls: 'bg-emerald-50 text-emerald-800 border-emerald-200' };
@@ -49,17 +98,41 @@ export default function StudioMatchCard({ match, currentUid, onOpenShort, active
     return { label: status || t('studio.match.status.proposed'), cls: 'bg-slate-100 text-slate-700 border-slate-200' };
   }, [status, t]);
 
-  const displayName = safeStr(other?.username || other?.fullName || other?.name) || t('studio.common.match');
+  const tierMeta = useMemo(() => {
+    if (tier === 'pre_match') return { label: t('studio.match.tier.pre_match'), cls: 'bg-indigo-50 text-indigo-800 border-indigo-200' };
+    return null;
+  }, [t, tier]);
+
+  const displayName = safeStr(other?.username) || t('studio.common.match');
   const ageText = typeof other?.age === 'number' ? String(other.age) : '';
+  const genderText = genderLabelTR(other?.gender);
   const isVerified = !!other?.identityVerified;
   const rawMarital = safeStr(other?.details?.maritalStatus || other?.maritalStatus);
   const maritalKey = maritalStatusToKey(rawMarital);
   const maritalLabel = maritalKey ? t(maritalKey) : rawMarital;
+  const isSingleMarital = rawMarital === 'single';
   const city = safeStr(other?.city || other?.details?.city);
+
+  const occupationRaw = safeStr(other?.details?.occupation || other?.occupation);
+  const hasChildrenRaw = safeStr(other?.details?.hasChildren);
+  const hasChildrenLabel = hasChildrenRaw ? yesNoLabel(t, hasChildrenRaw) : '';
+  const childrenCount = typeof other?.details?.childrenCount === 'number' ? other.details.childrenCount : null;
+  const childrenLivingRaw = safeStr(other?.details?.childrenLivingSituation);
+  const childrenLivingLabelText = childrenLivingRaw
+    ? childrenLivingSituationLabel(t, childrenLivingRaw)
+    : hasChildrenRaw === 'yes'
+      ? t('studio.common.unknown')
+      : '';
+
+  const about = clipText(other?.about || other?.details?.about || other?.bio || other?.details?.bio, 220);
+  const expectations = clipText(other?.expectations || other?.details?.expectations, 220);
   const photos = useMemo(() => {
     const list = Array.isArray(other?.photoUrls) ? other.photoUrls : [];
-    return list.map((x) => safeStr(x)).filter(Boolean).slice(0, 3);
-  }, [other]);
+    return list
+      .map((x) => safeStr(x))
+      .filter(Boolean)
+      .slice(0, canSeeFullProfiles ? 3 : 1);
+  }, [canSeeFullProfiles, other]);
 
   const photoUrl = photos.length ? photos[Math.min(photoIndex, photos.length - 1)] : '';
 
@@ -85,22 +158,36 @@ export default function StudioMatchCard({ match, currentUid, onOpenShort, active
     return Number.isFinite(n) && n > 0 ? n : 0;
   }, [currentUid, match]);
 
+  const unreadBadgeText = useMemo(() => {
+    if (!unreadCount) return '';
+    return unreadCount > 99 ? '99+' : String(unreadCount);
+  }, [unreadCount]);
+
   const lockedByActiveMatch = !!activeLockMatchId && safeStr(activeLockMatchId) !== safeStr(match?.id);
 
   const like = async () => {
     if (!match?.id || !currentUid) return;
-    if (lockedByActiveMatch) return;
-    if (isLiked || likeState.loading) return;
+    if (lockedByActiveMatch) {
+      setLikeState({ loading: false, error: t('studio.errors.activeLocked') });
+      return;
+    }
+    if (!canInteract) {
+      setLikeState({ loading: false, error: t('studio.paywall.upgradeToInteract') });
+      if (typeof onRequirePaid === 'function') onRequirePaid();
+      return;
+    }
+    if (likeState.loading) return;
     setLikeState({ loading: true, error: '' });
     try {
       await authFetch('/api/matchmaking-decision', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ matchId: match.id, decision: 'accept' }),
+        body: JSON.stringify({ matchId: match.id, decision: isLiked ? 'revoke' : 'accept' }),
       });
       setLikeState({ loading: false, error: '' });
     } catch (e) {
-      setLikeState({ loading: false, error: safeStr(e?.message) || 'like_failed' });
+      const msg = safeStr(e?.message);
+      setLikeState({ loading: false, error: translateStudioApiError(t, msg) || msg || 'like_failed' });
     }
   };
 
@@ -114,7 +201,19 @@ export default function StudioMatchCard({ match, currentUid, onOpenShort, active
     <div className="relative flex flex-col overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm transition-all hover:shadow-md">
       <div className={lockedByActiveMatch ? 'pointer-events-none blur-[1px] opacity-70' : ''}>
         <div className="relative">
-          <div className={`absolute left-3 top-3 rounded-full border px-2 py-1 text-xs font-semibold ${statusMeta.cls}`}>{statusMeta.label}</div>
+          <div
+            className={`pointer-events-none absolute left-3 top-3 rounded-full border px-2 py-1 text-xs font-semibold ${statusMeta.cls}`}
+          >
+            {statusMeta.label}
+          </div>
+
+          {tierMeta ? (
+            <div
+              className={`pointer-events-none absolute right-3 top-3 rounded-full border px-2 py-1 text-xs font-semibold ${tierMeta.cls}`}
+            >
+              {tierMeta.label}
+            </div>
+          ) : null}
           <Link to={`/app/match/${match?.id}`} className="block">
             {photoUrl ? (
               <img
@@ -128,6 +227,14 @@ export default function StudioMatchCard({ match, currentUid, onOpenShort, active
               <div className="h-48 w-full bg-slate-100" />
             )}
           </Link>
+
+            {genderText ? (
+              <div className="pointer-events-none absolute left-3 bottom-3">
+                <span className="inline-flex items-center rounded-full bg-black/60 px-2 py-1 text-[11px] font-semibold text-white">
+                  {genderText}
+                </span>
+              </div>
+            ) : null}
 
           {photos.length > 1 ? (
             <div className="pointer-events-none absolute inset-x-0 bottom-2 flex items-center justify-center gap-1">
@@ -144,7 +251,7 @@ export default function StudioMatchCard({ match, currentUid, onOpenShort, active
           ) : null}
 
           {photos.length > 1 ? (
-            <div className="absolute inset-y-0 left-0 right-0 flex items-center justify-between px-2">
+            <div className="pointer-events-none absolute inset-y-0 left-0 right-0 flex items-center justify-between px-2">
               <button
                 type="button"
                 onClick={(e) => {
@@ -176,7 +283,14 @@ export default function StudioMatchCard({ match, currentUid, onOpenShort, active
           ) : null}
 
           {unreadCount > 0 ? (
-            <div className="absolute right-3 top-3 h-3 w-3 rounded-full bg-emerald-500 ring-2 ring-white" title={t('studio.match.banners.newMessage')} />
+            <div className="pointer-events-none absolute right-3 top-3">
+              <span
+                className="inline-flex min-w-6 items-center justify-center rounded-full bg-emerald-600 px-2 py-0.5 text-[11px] font-extrabold text-white shadow-sm ring-2 ring-white"
+                title={t('studio.match.banners.newMessage')}
+              >
+                {unreadBadgeText}
+              </span>
+            </div>
           ) : null}
         </div>
 
@@ -193,18 +307,45 @@ export default function StudioMatchCard({ match, currentUid, onOpenShort, active
           <div className="mt-2 space-y-1">
             {maritalLabel ? <p className="text-sm text-slate-600">{maritalLabel}</p> : null}
             {city ? <p className="text-sm text-slate-600">{city}</p> : null}
+            {occupationRaw ? <p className="text-sm text-slate-600">{occupationRaw}</p> : null}
+            {!isSingleMarital && hasChildrenRaw === 'yes' && hasChildrenLabel ? (
+              <p className="text-sm text-slate-600">
+                {t('studio.myInfo.fields.hasChildren')}: {hasChildrenLabel}
+                {childrenCount !== null ? ` (${childrenCount})` : ''}
+                {childrenLivingLabelText ? ` • ${childrenLivingLabelText}` : ''}
+              </p>
+            ) : null}
           </div>
+
+          {about || expectations ? (
+            <div className="mt-3 space-y-2">
+              {about ? (
+                <p className="text-sm text-slate-700">
+                  <span className="font-semibold">{t('studio.myInfo.fields.about')}:</span> {about}
+                </p>
+              ) : null}
+              {expectations ? (
+                <p className="text-sm text-slate-700">
+                  <span className="font-semibold">{t('studio.myInfo.fields.expectations')}:</span> {expectations}
+                </p>
+              ) : null}
+            </div>
+          ) : null}
         </div>
 
         <div className="p-4 pt-0 flex items-center justify-between gap-2">
           <button
             type="button"
             onClick={like}
-            disabled={likeState.loading || isLiked || lockedByActiveMatch}
+            disabled={likeState.loading || lockedByActiveMatch}
             className="inline-flex items-center justify-center rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 shadow-sm transition hover:bg-slate-50 active:scale-[0.99] disabled:opacity-60"
           >
             <Heart className={`mr-2 h-5 w-5 ${isLiked ? 'text-rose-600 fill-rose-600' : 'text-slate-500'}`} />
-            {likeState.loading ? t('studio.common.processing') : isLiked ? t('studio.match.actions.liked') : t('studio.match.actions.like')}
+            {likeState.loading
+              ? t('studio.common.processing')
+              : isLiked
+                ? t('studio.match.actions.unlike')
+                : t('studio.match.actions.like')}
           </button>
 
           <button

@@ -24,6 +24,13 @@ function joinList(v) {
   return v.map((x) => String(x || '').trim()).filter(Boolean).join(', ');
 }
 
+function normalizeEnumValue(v) {
+  const s = String(v || '').trim();
+  if (!s) return '';
+  // snake_case -> camelCase (business_owner -> businessOwner)
+  return s.replace(/_([a-z])/g, (_, c) => String(c).toUpperCase());
+}
+
 function maritalStatusToKey(v) {
   const s = safeStr(v);
   if (!s) return '';
@@ -86,6 +93,15 @@ export default function StudioMatchProfile() {
 
   const [myMembership, setMyMembership] = useState({ active: false });
 
+  const [paywallNotice, setPaywallNotice] = useState('');
+
+  const asMs = (v) => {
+    if (typeof v === 'number' && Number.isFinite(v)) return v;
+    if (v && typeof v.toMillis === 'function') return v.toMillis();
+    if (v && typeof v.seconds === 'number' && Number.isFinite(v.seconds)) return v.seconds * 1000;
+    return 0;
+  };
+
   const [messages, setMessages] = useState([]);
   const [messagesLoading, setMessagesLoading] = useState(true);
 
@@ -97,14 +113,22 @@ export default function StudioMatchProfile() {
   const [shortState, setShortState] = useState({ loading: false, error: '' });
 
   const [activeStartState, setActiveStartState] = useState({ loading: false, error: '' });
+  const [activeStartNotice, setActiveStartNotice] = useState('');
   const [translateState, setTranslateState] = useState({ loadingId: '', error: '' });
 
   const [profileOpen, setProfileOpen] = useState(false);
   const [profilePhotoIndex, setProfilePhotoIndex] = useState(0);
+  const [profileReloadKey, setProfileReloadKey] = useState(0);
+
+  const [fullProfile, setFullProfile] = useState(null);
+  const [fullProfileState, setFullProfileState] = useState({ loading: false, error: '' });
+
+  const [profileAccessReq, setProfileAccessReq] = useState({ loading: false, error: '', status: '' });
 
   const scrollRef = useRef(null);
   const shortScrollRef = useRef(null);
   const profileRef = useRef(null);
+  const chatSectionRef = useRef(null);
   const sendInputRef = useRef(null);
   const shortTextareaRef = useRef(null);
 
@@ -147,8 +171,11 @@ export default function StudioMatchProfile() {
         setMyLock({ active, matchId: matchId2 });
 
         const membershipObj = d?.membership && typeof d.membership === 'object' ? d.membership : null;
-        const membershipValidUntilMs = typeof membershipObj?.validUntilMs === 'number' ? membershipObj.validUntilMs : 0;
-        const membershipActive = !!membershipObj?.active && (!membershipValidUntilMs || membershipValidUntilMs > Date.now());
+        const membershipValidUntilMs = asMs(membershipObj?.validUntilMs);
+        const now = Date.now();
+        const membershipActive =
+          (membershipValidUntilMs > 0 && membershipValidUntilMs > now) ||
+          (!!membershipObj?.active && (!membershipValidUntilMs || membershipValidUntilMs > now));
         setMyMembership({ active: membershipActive });
       },
       () => {
@@ -243,17 +270,42 @@ export default function StudioMatchProfile() {
     return p;
   }, [match, mySide]);
 
-  const otherName = safeStr(other?.username || other?.fullName || other?.name) || t('studio.common.profile');
-  const otherAge = asNumber(other?.age);
-  const otherCity = safeStr(other?.city);
-  const otherCountry = safeStr(other?.country);
-  const otherPhoto = Array.isArray(other?.photoUrls) && other.photoUrls.length ? safeStr(other.photoUrls[0]) : '';
-  const otherVerified = !!other?.identityVerified;
+  const otherUid = useMemo(() => {
+    if (!match || !mySide) return '';
+    const otherSide = mySide === 'a' ? 'b' : 'a';
+    const aId = safeStr(match?.aUserId);
+    const bId = safeStr(match?.bUserId);
+    return otherSide === 'a' ? aId : bId;
+  }, [match, mySide]);
+
+  // Match dokümanındaki `profiles` alanı intentionally minimal (server-side). Tam profil için endpoint.
+  const otherMerged = useMemo(() => {
+    const base = other && typeof other === 'object' ? other : {};
+    const full = fullProfile && typeof fullProfile === 'object' ? fullProfile : null;
+    if (!full) return base;
+    const baseDetails = base?.details && typeof base.details === 'object' ? base.details : {};
+    const fullDetails = full?.details && typeof full.details === 'object' ? full.details : {};
+    return { ...base, ...full, details: { ...baseDetails, ...fullDetails } };
+  }, [fullProfile, other]);
+
+  const otherName = safeStr(otherMerged?.username) || t('studio.common.profile');
+  const otherAge = asNumber(otherMerged?.age);
+  const otherCity = safeStr(otherMerged?.city);
+  const otherCountry = safeStr(otherMerged?.country);
+  const otherPhoto = Array.isArray(otherMerged?.photoUrls) && otherMerged.photoUrls.length ? safeStr(otherMerged.photoUrls[0]) : '';
+  const otherVerified = !!otherMerged?.identityVerified;
+
+  const otherOccupation = safeStr(otherMerged?.details?.occupation || otherMerged?.occupation);
+  const otherHasChildrenRaw = safeStr(otherMerged?.details?.hasChildren);
+  const otherChildrenCount = typeof otherMerged?.details?.childrenCount === 'number' ? otherMerged.details.childrenCount : null;
+  const otherChildrenLiving = safeStr(otherMerged?.details?.childrenLivingSituation);
+  const otherAbout = safeStr(otherMerged?.about || otherMerged?.bio || otherMerged?.details?.about || otherMerged?.details?.bio);
+  const otherExpectations = safeStr(otherMerged?.expectations || otherMerged?.details?.expectations);
 
   const otherPhotos = useMemo(() => {
-    const list = Array.isArray(other?.photoUrls) ? other.photoUrls : [];
+    const list = Array.isArray(otherMerged?.photoUrls) ? otherMerged.photoUrls : [];
     return list.map((x) => safeStr(x)).filter(Boolean).slice(0, 3);
-  }, [other]);
+  }, [otherMerged]);
 
   useEffect(() => {
     setProfilePhotoIndex(0);
@@ -270,11 +322,204 @@ export default function StudioMatchProfile() {
   const lockedByOtherActiveMatch = !!myLock?.active && !!myLock?.matchId && myLock.matchId !== mid;
   const longChatAllowed = isParticipant && isActiveMatchForMe && (matchStatus === 'mutual_accepted' || matchStatus === 'contact_unlocked');
 
-  const canSeeFullProfiles = !!myMembership.active;
+  useEffect(() => {
+    if (!longChatAllowed) return;
+    setActiveStartNotice('');
+    setTimeout(() => {
+      try {
+        chatSectionRef.current?.scrollIntoView?.({ behavior: 'smooth', block: 'start' });
+      } catch {
+        // noop
+      }
+      try {
+        const el = scrollRef.current;
+        if (el) el.scrollTop = el.scrollHeight;
+      } catch {
+        // noop
+      }
+      try {
+        sendInputRef.current?.focus?.();
+      } catch {
+        // noop
+      }
+    }, 0);
+  }, [longChatAllowed]);
 
-  const maritalRaw = safeStr(other?.details?.maritalStatus || other?.maritalStatus);
+  // Not: Match snapshot minimal; tam profil erişimini server endpoint belirler.
+  const canSeeFullProfiles = !!fullProfile;
+  const canInteract = isParticipant;
+
+  const tOption = (group, rawValue) => {
+    const value = normalizeEnumValue(rawValue);
+    if (!value) return '';
+    const key = `matchmakingPage.form.options.${group}.${value}`;
+    const label = t(key);
+    return label && label !== key ? label : String(rawValue || '');
+  };
+
+  const tYesNoCommon = (rawValue) => {
+    const s = String(rawValue || '').trim().toLowerCase();
+    if (s === 'yes' || s === 'true' || s === '1') return t('matchmakingPage.form.options.common.yes');
+    if (s === 'no' || s === 'false' || s === '0') return t('matchmakingPage.form.options.common.no');
+    if (s === 'unsure') return t('matchmakingPage.form.options.common.unsure');
+    return rawValue === true
+      ? t('matchmakingPage.form.options.common.yes')
+      : rawValue === false
+        ? t('matchmakingPage.form.options.common.no')
+        : String(rawValue || '');
+  };
+
+  const genderLabel = useMemo(() => tOption('gender', otherMerged?.gender), [otherMerged?.gender, t]);
+  const nationalityLabel = useMemo(() => tOption('nationality', otherMerged?.nationality), [otherMerged?.nationality, t]);
+  const educationLabel = useMemo(
+    () => tOption('education', otherMerged?.details?.education || otherMerged?.education),
+    [otherMerged?.details?.education, otherMerged?.education, t]
+  );
+  const occupationLabel = useMemo(
+    () => tOption('occupation', otherMerged?.details?.occupation || otherMerged?.occupation),
+    [otherMerged?.details?.occupation, otherMerged?.occupation, t]
+  );
+  const religionLabel = useMemo(
+    () => tOption('religion', otherMerged?.details?.religion || otherMerged?.religion),
+    [otherMerged?.details?.religion, otherMerged?.religion, t]
+  );
+  const incomeLabel = useMemo(() => tOption('income', otherMerged?.details?.incomeLevel), [otherMerged?.details?.incomeLevel, t]);
+  const timelineLabel = useMemo(
+    () => tOption('timeline', otherMerged?.details?.marriageTimeline),
+    [otherMerged?.details?.marriageTimeline, t]
+  );
+  const familyApprovalLabel = useMemo(
+    () => tOption('familyApproval', otherMerged?.details?.familyApprovalStatus),
+    [otherMerged?.details?.familyApprovalStatus, t]
+  );
+  const preferredLivingCountryLabel = useMemo(
+    () => tOption('livingCountry', otherMerged?.details?.preferredLivingCountry),
+    [otherMerged?.details?.preferredLivingCountry, t]
+  );
+  const commLanguageLabel = useMemo(
+    () => tOption('commLanguage', otherMerged?.details?.communicationLanguage),
+    [otherMerged?.details?.communicationLanguage, t]
+  );
+  const hasChildrenLabel = useMemo(
+    () => tYesNoCommon(otherMerged?.details?.hasChildren),
+    [otherMerged?.details?.hasChildren, t]
+  );
+  const childrenLivingSituationLabel = useMemo(
+    () => tOption('childrenLivingSituation', otherMerged?.details?.childrenLivingSituation),
+    [otherMerged?.details?.childrenLivingSituation, t]
+  );
+  const smokingLabel = useMemo(() => tYesNoCommon(otherMerged?.details?.smoking), [otherMerged?.details?.smoking, t]);
+  const alcoholLabel = useMemo(() => tYesNoCommon(otherMerged?.details?.alcohol), [otherMerged?.details?.alcohol, t]);
+  const relocationLabel = useMemo(
+    () => tYesNoCommon(otherMerged?.details?.relocationWillingness) || safeStr(otherMerged?.details?.relocationWillingness),
+    [otherMerged?.details?.relocationWillingness, t]
+  );
+
+  const nativeLanguageLabel = useMemo(() => {
+    const languages = otherMerged?.details?.languages && typeof otherMerged.details.languages === 'object' ? otherMerged.details.languages : {};
+    const native = languages?.native && typeof languages.native === 'object' ? languages.native : {};
+    const code = safeStr(native?.code || otherMerged?.details?.nativeLanguage);
+    const otherText = safeStr(native?.other || otherMerged?.details?.nativeLanguageOther);
+    if (!code) return '';
+    if (code === 'other') return otherText;
+    return tOption('commLanguage', code) || code;
+  }, [otherMerged, t]);
+
+  const foreignLanguagesLabel = useMemo(() => {
+    const languages = otherMerged?.details?.languages && typeof otherMerged.details.languages === 'object' ? otherMerged.details.languages : {};
+    const native = languages?.native && typeof languages.native === 'object' ? languages.native : {};
+    const foreign = languages?.foreign && typeof languages.foreign === 'object' ? languages.foreign : {};
+    const nativeCode = safeStr(native?.code);
+    const foreignOther = safeStr(foreign?.other || otherMerged?.details?.foreignLanguageOther);
+    const codes = Array.isArray(foreign?.codes)
+      ? foreign.codes.map((x) => safeStr(x)).filter(Boolean)
+      : Array.isArray(otherMerged?.details?.foreignLanguages)
+        ? otherMerged.details.foreignLanguages.map((x) => safeStr(x)).filter(Boolean)
+        : [];
+    const labels = codes
+      .filter((c) => c && c !== nativeCode)
+      .map((c) => (c === 'other' ? foreignOther : tOption('commLanguage', c) || c))
+      .filter(Boolean);
+    return labels.length ? labels.join(', ') : '';
+  }, [otherMerged, t]);
+
+  const requirePaid = () => {
+    setPaywallNotice(t('studio.paywall.upgradeToInteract'));
+  };
+
+  const visibleOtherPhotos = useMemo(() => {
+    const list = Array.isArray(otherPhotos) ? otherPhotos : [];
+    return list.slice(0, canSeeFullProfiles ? 3 : 1);
+  }, [canSeeFullProfiles, otherPhotos]);
+
+  const maritalRaw = safeStr(otherMerged?.details?.maritalStatus || otherMerged?.maritalStatus);
   const maritalKey = maritalStatusToKey(maritalRaw);
   const maritalLabel = maritalKey ? t(maritalKey) : maritalRaw;
+  const isSingleMarital = maritalRaw === 'single';
+
+  useEffect(() => {
+    if (!profileOpen) return;
+    if (!uid || !mid) return;
+
+    let alive = true;
+    setFullProfileState({ loading: true, error: '' });
+
+    (async () => {
+      try {
+        const data = await authFetch('/api/matchmaking-profile', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ matchId: mid }),
+        });
+
+        if (!alive) return;
+        const p = data && typeof data === 'object' ? data.profile : null;
+        if (!p || typeof p !== 'object') {
+          setFullProfile(null);
+          setFullProfileState({ loading: false, error: 'profile_missing' });
+          return;
+        }
+        setFullProfile(p);
+        setFullProfileState({ loading: false, error: '' });
+      } catch (e) {
+        if (!alive) return;
+        const msg = safeStr(e?.message) || 'membership_required';
+        setFullProfile(null);
+        setFullProfileState({ loading: false, error: msg });
+
+        // no_access: paywall değil; CTA ile izin isteme akışı.
+        if (msg !== 'no_access') {
+          const friendly = friendlyErrorMessage(msg, t);
+          if (friendly) setPaywallNotice(friendly);
+        }
+      }
+    })();
+
+    return () => {
+      alive = false;
+    };
+  }, [mid, profileOpen, profileReloadKey, t, uid]);
+
+  const requestProfileAccess = async () => {
+    if (!uid || !otherUid) return;
+    if (profileAccessReq.loading) return;
+    setProfileAccessReq({ loading: true, error: '', status: '' });
+    try {
+      const data = await authFetch('/api/matchmaking-profile-access-request', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ targetUid: otherUid }),
+      });
+      const status = safeStr(data?.status) || 'pending';
+      setProfileAccessReq({ loading: false, error: '', status });
+      if (status === 'granted' || status === 'approved') {
+        setProfileReloadKey((k) => k + 1);
+      }
+    } catch (e) {
+      const msg = safeStr(e?.message) || 'request_failed';
+      setProfileAccessReq({ loading: false, error: translateStudioApiError(t, msg) || msg, status: '' });
+    }
+  };
 
   const shortLimitInfo = useMemo(() => {
     const limit = 5;
@@ -337,6 +582,8 @@ export default function StudioMatchProfile() {
     e?.preventDefault?.();
     const text = safeStr(shortText);
     if (!uid || !mid || !text) return;
+
+    if (!canInteract) return;
     if (shortState.loading) return;
 
     setShortState({ loading: true, error: '' });
@@ -363,6 +610,8 @@ export default function StudioMatchProfile() {
     const text = safeStr(sendText);
     if (!uid || !mid || !text) return;
     if (!longChatAllowed || sendState.loading) return;
+
+    if (!canInteract) return;
 
     setSendState({ loading: true, error: '' });
     try {
@@ -411,18 +660,41 @@ export default function StudioMatchProfile() {
       setActiveStartState({ loading: false, error: t('studio.matchProfile.errors.activeStartLocked') });
       return;
     }
+
+    if (!canInteract) return;
     if (activeStartState.loading) return;
 
     const ok = typeof window !== 'undefined' ? window.confirm(t('studio.matchProfile.activeStart.confirmPrompt')) : true;
     if (!ok) return;
 
     setActiveStartState({ loading: true, error: '' });
+    setActiveStartNotice('');
     try {
-      await authFetch('/api/matchmaking-active-start', {
+      const data = await authFetch('/api/matchmaking-active-start', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ matchId: mid }),
       });
+
+      const activated = !!data?.activated;
+
+      // activated=true => backend match status + lock set etti. UI’da anında uzun sohbet alanını aç.
+      if (activated) {
+        const ts = Date.now();
+        setMyLock({ active: true, matchId: mid });
+        setMatch((m) => {
+          if (!m || typeof m !== 'object') return m;
+          return {
+            ...m,
+            status: 'mutual_accepted',
+            chatEnabledAtMs: typeof m?.chatEnabledAtMs === 'number' ? m.chatEnabledAtMs : ts,
+          };
+        });
+        setActiveStartNotice(t('studio.matchProfile.activeStart.activatedNotice'));
+      } else {
+        setActiveStartNotice(t('studio.matchProfile.activeStart.waitingNotice'));
+      }
+
       setActiveStartState({ loading: false, error: '' });
     } catch (e) {
       setActiveStartState({ loading: false, error: friendlyErrorMessage(e?.message, t) || 'active_start_failed' });
@@ -470,6 +742,26 @@ export default function StudioMatchProfile() {
       <Navigation />
 
       <main className="container mx-auto px-4 py-6">
+        {paywallNotice ? (
+          <div className="mb-4 mx-auto max-w-4xl rounded-xl border border-amber-200 bg-amber-50 p-4 text-amber-900">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="font-semibold">{t('studio.paywall.upgradeTitle')}</p>
+              <button
+                type="button"
+                onClick={() => setPaywallNotice('')}
+                className="rounded-md px-2 py-1 text-sm font-semibold text-amber-900/70 hover:bg-amber-100"
+              >
+                {t('studio.common.close')}
+              </button>
+            </div>
+            <p className="mt-1 text-sm text-amber-900/80">{paywallNotice}</p>
+            <div className="mt-3">
+              <Link to="/profilim" className="text-sm font-semibold underline">
+                {t('studio.paywall.upgradeCta')}
+              </Link>
+            </div>
+          </div>
+        ) : null}
         <div className="mb-4 flex items-center justify-between gap-3">
           <Link to="/app/matches" className="text-sm font-semibold text-emerald-700 hover:underline">
             {t('studio.chat.backToMatches')}
@@ -482,10 +774,24 @@ export default function StudioMatchProfile() {
         <div className="mx-auto max-w-4xl overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
           <div className="border-b border-slate-200 p-4">
             <div className="flex items-start gap-4">
-              {otherPhoto ? (
-                <img src={otherPhoto} alt={otherName} className="h-16 w-16 rounded-full object-cover" />
+              {visibleOtherPhotos.length ? (
+                <img
+                  src={visibleOtherPhotos[Math.min(profilePhotoIndex, visibleOtherPhotos.length - 1)]}
+                  alt={t('studio.match.avatarAlt', { name: otherName })}
+                  className="h-16 w-16 rounded-full object-cover"
+                  loading="lazy"
+                  decoding="async"
+                />
+              ) : otherPhoto ? (
+                <img
+                  src={otherPhoto}
+                  alt={t('studio.match.avatarAlt', { name: otherName })}
+                  className="h-16 w-16 rounded-full object-cover"
+                  loading="lazy"
+                  decoding="async"
+                />
               ) : (
-                <div className="h-16 w-16 rounded-full bg-slate-100" />
+                <div className="h-16 w-16 rounded-full bg-slate-200" />
               )}
 
               <div className="min-w-0 flex-1">
@@ -493,10 +799,11 @@ export default function StudioMatchProfile() {
                   <p className="truncate text-xl font-semibold">{otherName}{otherAge ? `, ${otherAge}` : ''}</p>
                   {otherVerified ? <ShieldCheck className="h-5 w-5 text-emerald-600" title={t('studio.common.verified')} /> : null}
                 </div>
+
                 <p className="mt-1 text-sm text-slate-600">
                   {(() => {
                     if (!otherCity && !otherCountry) return ' ';
-                    if (!canSeeFullProfiles) return otherCity || ' ';
+                    if (!canSeeFullProfiles) return maritalLabel || ' ';
                     return [otherCity, otherCountry].filter(Boolean).join(' • ') || ' ';
                   })()}
                 </p>
@@ -506,11 +813,10 @@ export default function StudioMatchProfile() {
                     type="button"
                     onClick={openShortModal}
                     disabled={lockedByOtherActiveMatch}
-                    className="relative inline-flex items-center justify-center rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 shadow-sm transition hover:bg-slate-50"
+                    className="inline-flex items-center justify-center rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 shadow-sm transition hover:bg-slate-50 disabled:opacity-60"
                   >
                     <MessageCircle className="mr-2 h-4 w-4" />
                     {t('studio.matchProfile.askShort')}
-                    {unreadCount > 0 ? <span className="absolute -right-1 -top-1 h-3 w-3 rounded-full bg-emerald-500 ring-2 ring-white" /> : null}
                   </button>
 
                   <button
@@ -552,6 +858,7 @@ export default function StudioMatchProfile() {
                   ) : null}
 
                   {activeStartState.error ? <div className="text-sm text-rose-700">{activeStartState.error}</div> : null}
+                  {activeStartNotice ? <div className="text-sm text-emerald-700">{activeStartNotice}</div> : null}
                 </div>
 
                 {matchLoading ? <p className="mt-2 text-sm text-slate-500">{t('studio.chat.matchLoading')}</p> : null}
@@ -576,19 +883,70 @@ export default function StudioMatchProfile() {
                   <p className="text-xs text-slate-600">{t('studio.matchProfile.contactHidden')}</p>
                 </div>
 
-                {otherPhotos.length ? (
+                {!canSeeFullProfiles ? (
+                  <div className="mt-3 rounded-lg border border-slate-200 bg-white p-3">
+                    {fullProfileState.loading ? (
+                      <p className="text-sm text-slate-600">{t('studio.common.loading')}</p>
+                    ) : fullProfileState.error === 'no_access' ? (
+                      <>
+                        <p className="text-sm text-slate-700">
+                          Detay profili görmek için karşı taraftan izin almalısın.
+                        </p>
+
+                        {profileAccessReq.error ? <p className="mt-2 text-sm text-rose-700">{profileAccessReq.error}</p> : null}
+                        {profileAccessReq.status ? (
+                          <p className="mt-2 text-xs text-slate-600">Durum: {profileAccessReq.status}</p>
+                        ) : null}
+
+                        <div className="mt-3 flex flex-wrap items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={requestProfileAccess}
+                            disabled={profileAccessReq.loading || !otherUid}
+                            className="inline-flex items-center justify-center rounded-md bg-emerald-600 px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 disabled:opacity-60"
+                          >
+                            {profileAccessReq.loading ? t('studio.common.processing') : 'İzin iste'}
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => setProfileReloadKey((k) => k + 1)}
+                            className="inline-flex items-center justify-center rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 shadow-sm transition hover:bg-slate-50"
+                          >
+                            Tekrar dene
+                          </button>
+                        </div>
+                      </>
+                    ) : (
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <p className="text-sm text-slate-600">
+                          Detaylar için karşı tarafın onayı gerekebilir.
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() => setProfileReloadKey((k) => k + 1)}
+                          className="inline-flex items-center justify-center rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 shadow-sm transition hover:bg-slate-50"
+                        >
+                          Yenile
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                ) : null}
+
+                {visibleOtherPhotos.length ? (
                   <div className="relative mt-3 overflow-hidden rounded-lg border border-slate-200 bg-white">
                     <img
-                      src={otherPhotos[Math.min(profilePhotoIndex, otherPhotos.length - 1)]}
+                      src={visibleOtherPhotos[Math.min(profilePhotoIndex, visibleOtherPhotos.length - 1)]}
                       alt={t('studio.match.avatarAlt', { name: otherName })}
                       className="h-64 w-full object-cover"
                       loading="lazy"
                       decoding="async"
                     />
 
-                    {otherPhotos.length > 1 ? (
+                    {visibleOtherPhotos.length > 1 ? (
                       <div className="pointer-events-none absolute inset-x-0 bottom-2 flex items-center justify-center gap-1">
-                        {otherPhotos.map((_, idx) => (
+                        {visibleOtherPhotos.map((_, idx) => (
                           <span
                             key={idx}
                             className={
@@ -600,23 +958,23 @@ export default function StudioMatchProfile() {
                       </div>
                     ) : null}
 
-                    {otherPhotos.length > 1 ? (
+                    {visibleOtherPhotos.length > 1 ? (
                       <div className="absolute inset-y-0 left-0 right-0 flex items-center justify-between px-2">
                         <button
                           type="button"
-                          onClick={() => setProfilePhotoIndex((p) => (p - 1 + otherPhotos.length) % otherPhotos.length)}
+                          onClick={() => setProfilePhotoIndex((p) => (p - 1 + visibleOtherPhotos.length) % visibleOtherPhotos.length)}
                           className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-black/40 text-white shadow-sm transition hover:bg-black/55"
-                          aria-label="Prev photo"
-                          title="Prev"
+                          aria-label={t('studio.matchProfile.prevPhoto')}
+                          title={t('studio.matchProfile.prevPhoto')}
                         >
                           ‹
                         </button>
                         <button
                           type="button"
-                          onClick={() => setProfilePhotoIndex((p) => (p + 1) % otherPhotos.length)}
+                          onClick={() => setProfilePhotoIndex((p) => (p + 1) % visibleOtherPhotos.length)}
                           className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-black/40 text-white shadow-sm transition hover:bg-black/55"
-                          aria-label="Next photo"
-                          title="Next"
+                          aria-label={t('studio.matchProfile.nextPhoto')}
+                          title={t('studio.matchProfile.nextPhoto')}
                         >
                           ›
                         </button>
@@ -626,37 +984,71 @@ export default function StudioMatchProfile() {
                 ) : null}
 
                 <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
-                  <InfoRow label={t('studio.myInfo.fields.username')} value={safeStr(other?.username || other?.fullName || other?.name)} />
+                  <InfoRow label={t('studio.myInfo.fields.username')} value={safeStr(otherMerged?.username)} />
                   <InfoRow label={t('studio.myInfo.fields.age')} value={otherAge === null ? '' : String(otherAge)} />
                   <InfoRow label={t('studio.myInfo.fields.maritalStatus')} value={maritalLabel} />
 
+                  {/* Önizleme alanları (full profile gerekmez) */}
+                  <InfoRow label={t('studio.myInfo.fields.city')} value={otherCity} />
+                  {otherOccupation ? <InfoRow label={t('studio.myInfo.fields.occupation')} value={otherOccupation} /> : null}
+                  {!isSingleMarital && otherHasChildrenRaw === 'yes' ? (
+                    <InfoRow
+                      label={t('studio.myInfo.fields.hasChildren')}
+                      value={`${tYesNoCommon(otherHasChildrenRaw)}${otherChildrenCount !== null ? ` (${otherChildrenCount})` : ''}${(() => {
+                        const living = safeStr(childrenLivingSituationLabel) || otherChildrenLiving;
+                        if (living) return ` • ${living}`;
+                        return otherHasChildrenRaw === 'yes' ? ` • ${t('studio.common.unknown')}` : '';
+                      })()}`}
+                    />
+                  ) : null}
+
+                  {otherAbout ? <InfoRow label={t('studio.myInfo.fields.about')} value={otherAbout} /> : null}
+                  {otherExpectations ? <InfoRow label={t('studio.myInfo.fields.expectations')} value={otherExpectations} /> : null}
+
                   {canSeeFullProfiles ? (
                     <>
-                      <InfoRow label={t('studio.myInfo.fields.fullName')} value={safeStr(other?.fullName)} />
-                      <InfoRow label={t('studio.myInfo.fields.gender')} value={safeStr(other?.gender)} />
-                      <InfoRow label={t('studio.myInfo.fields.nationality')} value={safeStr(other?.nationality)} />
-                      <InfoRow label={t('studio.myInfo.fields.city')} value={safeStr(other?.city)} />
-                      <InfoRow label={t('studio.myInfo.fields.country')} value={safeStr(other?.country)} />
-                      <InfoRow label={t('studio.myInfo.fields.heightCm')} value={safeStr(other?.details?.heightCm)} />
-                      <InfoRow label={t('studio.myInfo.fields.weightKg')} value={safeStr(other?.details?.weightKg)} />
-                      <InfoRow label={t('studio.myInfo.fields.education')} value={safeStr(other?.details?.education)} />
-                      <InfoRow label={t('studio.myInfo.fields.educationDepartment')} value={safeStr(other?.details?.educationDepartment)} />
-                      <InfoRow label={t('studio.myInfo.fields.occupation')} value={safeStr(other?.details?.occupation)} />
-                      <InfoRow label={t('studio.myInfo.fields.religion')} value={safeStr(other?.details?.religion)} />
-                      <InfoRow label={t('studio.myInfo.fields.religiousValues')} value={safeStr(other?.details?.religiousValues)} />
-                      <InfoRow label={t('studio.myInfo.fields.incomeLevel')} value={safeStr(other?.details?.incomeLevel)} />
-                      <InfoRow label={t('studio.myInfo.fields.marriageTimeline')} value={safeStr(other?.details?.marriageTimeline)} />
-                      <InfoRow label={t('studio.myInfo.fields.relocationWillingness')} value={safeStr(other?.details?.relocationWillingness)} />
-                      <InfoRow label={t('studio.myInfo.fields.preferredLivingCountry')} value={safeStr(other?.details?.preferredLivingCountry)} />
-                      <InfoRow label={t('studio.myInfo.fields.communicationLanguage')} value={safeStr(other?.details?.communicationLanguage)} />
-                      <InfoRow label={t('studio.myInfo.fields.communicationLanguageOther')} value={safeStr(other?.details?.communicationLanguageOther)} />
-                      <InfoRow label={t('studio.myInfo.fields.smoking')} value={safeStr(other?.details?.smoking)} />
-                      <InfoRow label={t('studio.myInfo.fields.alcohol')} value={safeStr(other?.details?.alcohol)} />
-                      <InfoRow label={t('studio.myInfo.fields.nativeLanguage')} value={safeStr(other?.details?.languages?.native?.code || other?.details?.nativeLanguage)} />
-                      <InfoRow label={t('studio.myInfo.fields.foreignLanguages')} value={joinList(other?.details?.languages?.foreign?.codes || other?.details?.foreignLanguages)} />
-                      <InfoRow label={t('studio.myInfo.fields.foreignLanguageOther')} value={safeStr(other?.details?.languages?.foreign?.other || other?.details?.foreignLanguageOther)} />
-                      <InfoRow label={t('studio.myInfo.fields.about')} value={safeStr(other?.bio || other?.details?.about || other?.details?.bio)} />
-                      <InfoRow label={t('studio.myInfo.fields.expectations')} value={safeStr(other?.details?.expectations)} />
+                      <InfoRow label={t('studio.myInfo.fields.gender')} value={safeStr(genderLabel) || safeStr(otherMerged?.gender)} />
+                      <InfoRow label={t('studio.myInfo.fields.nationality')} value={safeStr(nationalityLabel) || safeStr(otherMerged?.nationality)} />
+                      <InfoRow label={t('studio.myInfo.fields.country')} value={safeStr(otherMerged?.country)} />
+                      <InfoRow label={t('studio.myInfo.fields.heightCm')} value={safeStr(otherMerged?.details?.heightCm)} />
+                      <InfoRow label={t('studio.myInfo.fields.weightKg')} value={safeStr(otherMerged?.details?.weightKg)} />
+                      <InfoRow label={t('studio.myInfo.fields.education')} value={safeStr(educationLabel) || safeStr(otherMerged?.details?.education)} />
+                      <InfoRow label={t('studio.myInfo.fields.educationDepartment')} value={safeStr(otherMerged?.details?.educationDepartment)} />
+                      {/* occupation artık önizleme alanında gösteriliyor; burada tekrar etmiyoruz */}
+                      <InfoRow label={t('studio.myInfo.fields.religion')} value={safeStr(religionLabel) || safeStr(otherMerged?.details?.religion)} />
+                      <InfoRow label={t('studio.myInfo.fields.religiousValues')} value={safeStr(otherMerged?.details?.religiousValues)} />
+                      {/* hasChildren artık önizleme alanında gösteriliyor; burada tekrar etmiyoruz */}
+                      {String(otherMerged?.details?.hasChildren || '').trim() === 'yes' ? (
+                        <>
+                          <InfoRow label={t('studio.myInfo.fields.childrenCount')} value={safeStr(otherMerged?.details?.childrenCount)} />
+                          {(() => {
+                            const v = safeStr(childrenLivingSituationLabel) || safeStr(otherMerged?.details?.childrenLivingSituation);
+                            return v ? <InfoRow label={t('studio.myInfo.fields.childrenLivingSituation')} value={v} /> : null;
+                          })()}
+                        </>
+                      ) : null}
+                      <InfoRow label={t('studio.myInfo.fields.familyApprovalStatus')} value={safeStr(familyApprovalLabel) || safeStr(otherMerged?.details?.familyApprovalStatus)} />
+                      <InfoRow label={t('studio.myInfo.fields.incomeLevel')} value={safeStr(incomeLabel) || safeStr(otherMerged?.details?.incomeLevel)} />
+                      <InfoRow label={t('studio.myInfo.fields.marriageTimeline')} value={safeStr(timelineLabel) || safeStr(otherMerged?.details?.marriageTimeline)} />
+                      <InfoRow label={t('studio.myInfo.fields.relocationWillingness')} value={safeStr(relocationLabel) || safeStr(otherMerged?.details?.relocationWillingness)} />
+                      <InfoRow label={t('studio.myInfo.fields.preferredLivingCountry')} value={safeStr(preferredLivingCountryLabel) || safeStr(otherMerged?.details?.preferredLivingCountry)} />
+                      <InfoRow label={t('studio.myInfo.fields.communicationLanguage')} value={safeStr(commLanguageLabel) || safeStr(otherMerged?.details?.communicationLanguage)} />
+                      <InfoRow label={t('studio.myInfo.fields.communicationLanguageOther')} value={safeStr(otherMerged?.details?.communicationLanguageOther)} />
+                      <InfoRow label={t('studio.myInfo.fields.smoking')} value={safeStr(smokingLabel) || safeStr(otherMerged?.details?.smoking)} />
+                      <InfoRow label={t('studio.myInfo.fields.alcohol')} value={safeStr(alcoholLabel) || safeStr(otherMerged?.details?.alcohol)} />
+                      <InfoRow
+                        label={t('studio.myInfo.fields.nativeLanguage')}
+                        value={safeStr(nativeLanguageLabel) || safeStr(otherMerged?.details?.languages?.native?.code || otherMerged?.details?.nativeLanguage)}
+                      />
+                      <InfoRow
+                        label={t('studio.myInfo.fields.foreignLanguages')}
+                        value={safeStr(foreignLanguagesLabel) || joinList(otherMerged?.details?.languages?.foreign?.codes || otherMerged?.details?.foreignLanguages)}
+                      />
+                      <InfoRow
+                        label={t('studio.myInfo.fields.foreignLanguageOther')}
+                        value={safeStr(otherMerged?.details?.languages?.foreign?.other || otherMerged?.details?.foreignLanguageOther)}
+                      />
+                      {/* about/expectations artık önizleme alanında gösteriliyor; burada tekrar etmiyoruz */}
                     </>
                   ) : null}
                 </div>
@@ -716,7 +1108,7 @@ export default function StudioMatchProfile() {
 
           {/* Long chat area (only active match) */}
           {longChatAllowed ? (
-            <div className="p-4">
+            <div ref={chatSectionRef} className="p-4">
               <div ref={scrollRef} className="h-[52vh] overflow-y-auto rounded-lg border border-slate-200 bg-slate-50 p-3">
                 {messagesLoading ? <p className="text-sm text-slate-500">{t('studio.chat.messagesLoading')}</p> : null}
                 {!messagesLoading && Array.isArray(messages) && messages.length === 0 ? (

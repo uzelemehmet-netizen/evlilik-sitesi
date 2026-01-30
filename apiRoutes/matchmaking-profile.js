@@ -1,5 +1,4 @@
 import { getAdmin, normalizeBody, requireIdToken } from './_firebaseAdmin.js';
-import { ensureEligibleOrThrow } from './_matchmakingEligibility.js';
 
 function safeStr(v) {
   return typeof v === 'string' ? v.trim() : '';
@@ -94,29 +93,26 @@ export default async function handler(req, res) {
     const aAppId = safeStr(match.aApplicationId);
     const bAppId = safeStr(match.bApplicationId);
 
-    // Viewer'ın cinsiyetini kendi application doc'undan al
-    const myAppId = uid === aUserId ? aAppId : bAppId;
-    let myGender = '';
-    if (myAppId) {
-      const myAppSnap = await db.collection('matchmakingApplications').doc(myAppId).get();
-      myGender = myAppSnap.exists ? safeStr((myAppSnap.data() || {})?.gender) : '';
-    }
+    const otherUserId = userIds.find((x) => x !== uid) || '';
+    const otherAppId = otherUserId === aUserId ? aAppId : bAppId;
 
-    // Eşleşmiş çiftlerde, iki tarafın da birbirinin profil detaylarını görebilmesi gerekir.
-    // Bu yüzden mutual_accepted/contact_unlocked durumlarında üyelik/eligibility kapısını bypass ediyoruz.
+    // Ön aşama (proposed/pre_match vb.) için: detay profil, karşı tarafın verdiği profileAccessGranted iznine bağlı.
+    // Eşleşmiş çiftlerde (mutual_accepted/contact_unlocked) iki taraf da birbirini görür.
     if (!isMatchedCouple) {
-      try {
-        ensureEligibleOrThrow(me, myGender);
-      } catch (e) {
-        res.statusCode = e?.statusCode || 402;
+      const grantSnap = await db
+        .collection('matchmakingUsers')
+        .doc(otherUserId)
+        .collection('profileAccessGranted')
+        .doc(uid)
+        .get();
+
+      if (!grantSnap.exists) {
+        res.statusCode = 403;
         res.setHeader('content-type', 'application/json');
-        res.end(JSON.stringify({ ok: false, error: String(e?.message || 'membership_required') }));
+        res.end(JSON.stringify({ ok: false, error: 'no_access' }));
         return;
       }
     }
-
-    const otherUserId = userIds.find((x) => x !== uid) || '';
-    const otherAppId = otherUserId === aUserId ? aAppId : bAppId;
 
     if (!otherUserId || !otherAppId) {
       res.statusCode = 500;

@@ -60,17 +60,28 @@ function usageAndExit() {
   console.log('Usage:');
   console.log('  node scripts/run-matchmaking-cron.mjs');
   console.log('  node scripts/run-matchmaking-cron.mjs --url http://127.0.0.1:5173');
-  console.log('  node scripts/run-matchmaking-cron.mjs --threshold 70 --limitApps 400');
+  console.log('  node scripts/run-matchmaking-cron.mjs --dryRun true');
+  console.log('  node scripts/run-matchmaking-cron.mjs --mode matchmaking --threshold 70 --limitApps 400');
   console.log('');
   console.log('Notes:');
   console.log('  - Requires MATCHMAKING_CRON_SECRET in environment (.env.local)');
-  console.log('  - Calls POST /api/matchmaking-run with header x-cron-secret');
+  console.log('  - Default mode: maintenance (POST /api/matchmaking-maintenance-run)');
+  console.log('  - Mode matchmaking calls: POST /api/matchmaking-run');
   process.exit(1);
 }
+
+const mode = String(argValue('--mode') || 'maintenance').trim().toLowerCase();
 
 const threshold = asNum(argValue('--threshold'), 70);
 const limitApps = asNum(argValue('--limitApps'), 400);
 const urlArg = argValue('--url');
+const dryRun = String(argValue('--dryRun') || '').trim().toLowerCase() === 'true';
+
+const cancelledRetentionDays = asNum(argValue('--cancelledRetentionDays'), 30);
+const deletedUserRetentionDays = asNum(argValue('--deletedUserRetentionDays'), 60);
+const notificationsRetentionDays = asNum(argValue('--notificationsRetentionDays'), 30);
+const maxMatches = asNum(argValue('--maxMatches'), 50);
+const maxGroupDocs = asNum(argValue('--maxGroupDocs'), 300);
 
 loadEnvLocal();
 
@@ -84,7 +95,8 @@ const devApiPort = readDevApiPortFromFile();
 const defaultUrl = devApiPort ? `http://127.0.0.1:${devApiPort}` : 'http://127.0.0.1:3000';
 const baseUrl = String(urlArg || defaultUrl).replace(/\/$/, '');
 
-const endpoint = `${baseUrl}/api/matchmaking-run`;
+const endpoint =
+  mode === 'matchmaking' ? `${baseUrl}/api/matchmaking-run` : `${baseUrl}/api/matchmaking-maintenance-run`;
 
 const res = await fetch(endpoint, {
   method: 'POST',
@@ -92,7 +104,18 @@ const res = await fetch(endpoint, {
     'content-type': 'application/json',
     'x-cron-secret': secret,
   },
-  body: JSON.stringify({ threshold, limitApps }),
+  body: JSON.stringify(
+    mode === 'matchmaking'
+      ? { threshold, limitApps }
+      : {
+          dryRun,
+          maxMatches,
+          maxGroupDocs,
+          cancelledRetentionDays,
+          deletedUserRetentionDays,
+          notificationsRetentionDays,
+        },
+  ),
 });
 
 const text = await res.text();

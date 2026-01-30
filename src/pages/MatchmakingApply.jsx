@@ -207,6 +207,7 @@ export default function MatchmakingApply() {
                 details?.childrenCount === 0 || details?.childrenCount
                   ? String(details.childrenCount)
                   : String(prev.childrenCount || ''),
+              childrenLivingSituation: String(details?.childrenLivingSituation || prev.childrenLivingSituation || ''),
               familyApprovalStatus: String(details?.familyApprovalStatus || prev.familyApprovalStatus || ''),
               religion: String(details?.religion || prev.religion || ''),
               religiousValues: String(details?.religiousValues || prev.religiousValues || ''),
@@ -316,6 +317,15 @@ export default function MatchmakingApply() {
       { id: '', label: t('matchmakingPage.form.options.common.select') },
       { id: 'yes', label: t('matchmakingPage.form.options.common.yes') },
       { id: 'no', label: t('matchmakingPage.form.options.common.no') },
+    ],
+    [t, i18n.language]
+  );
+
+  const childrenLivingSituationOptions = useMemo(
+    () => [
+      { id: '', label: t('matchmakingPage.form.options.common.select') },
+      { id: 'with_children', label: t('matchmakingPage.form.options.childrenLivingSituation.withChildren') },
+      { id: 'separate', label: t('matchmakingPage.form.options.childrenLivingSituation.separate') },
     ],
     [t, i18n.language]
   );
@@ -543,6 +553,7 @@ export default function MatchmakingApply() {
     maritalStatus: '',
     hasChildren: '',
     childrenCount: '',
+    childrenLivingSituation: '',
     familyApprovalStatus: '',
     religion: '',
     religiousValues: '',
@@ -795,6 +806,9 @@ export default function MatchmakingApply() {
     if (form.hasChildren === 'yes' && !requiredValue(form.childrenCount)) {
       return setError(t('matchmakingPage.form.errors.childrenCount'));
     }
+    if (!isEditOnceMode && form.hasChildren === 'yes' && !requiredValue(form.childrenLivingSituation)) {
+      return setError(t('matchmakingPage.form.errors.childrenLivingSituation'));
+    }
     if (!requiredValue(form.incomeLevel)) return setError(t('matchmakingPage.form.errors.incomeLevel'));
     if (!requiredValue(form.religion)) return setError(t('matchmakingPage.form.errors.religion'));
     if (!requiredValue(form.religiousValues)) return setError(t('matchmakingPage.form.errors.religiousValues'));
@@ -855,9 +869,30 @@ export default function MatchmakingApply() {
       return setError(t('matchmakingPage.form.errors.ageRange', { minAge: minApplicantAge }));
     }
 
-    const childrenCountNum = toNumberOrNull(form.childrenCount);
-    if (childrenCountNum !== null && (childrenCountNum < 0 || childrenCountNum > 20)) {
-      return setError(t('matchmakingPage.form.errors.childrenCount'));
+    let childrenCountNum = toNumberOrNull(form.childrenCount);
+    let childrenLivingSituation = String(form.childrenLivingSituation || '').trim() || null;
+    if (String(form.hasChildren || '') === 'yes') {
+      // Evet seçildiyse: 1–20 arası zorunlu.
+      if (childrenCountNum === null || childrenCountNum < 1 || childrenCountNum > 20) {
+        return setError(t('matchmakingPage.form.errors.childrenCount'));
+      }
+
+      const allowed = new Set(['with_children', 'separate']);
+      // Yeni başvurularda zorunlu; editOnce'ta eksikse görmezden gel.
+      if (!isEditOnceMode) {
+        if (!childrenLivingSituation || !allowed.has(childrenLivingSituation)) {
+          return setError(t('matchmakingPage.form.errors.childrenLivingSituation'));
+        }
+      } else {
+        if (childrenLivingSituation && !allowed.has(childrenLivingSituation)) {
+          return setError(t('matchmakingPage.form.errors.childrenLivingSituation'));
+        }
+        if (!childrenLivingSituation) childrenLivingSituation = null;
+      }
+    } else {
+      // Hayır/emin değilim seçildiyse sayıyı saklamayalım.
+      childrenCountNum = null;
+      childrenLivingSituation = null;
     }
 
     const heightNum = toNumberOrNull(form.heightCm);
@@ -1045,6 +1080,7 @@ export default function MatchmakingApply() {
           maritalStatus: form.maritalStatus || '',
           hasChildren: form.hasChildren || '',
           childrenCount: childrenCountNum,
+          childrenLivingSituation,
           incomeLevel: form.incomeLevel || '',
           religion: form.religion || '',
           religiousValues: String(form.religiousValues || '').trim(),
@@ -1431,17 +1467,12 @@ export default function MatchmakingApply() {
 
               <div>
                 <label className="block text-sm text-white/80 md:text-slate-700">{t('matchmakingPage.form.labels.occupation')}</label>
-                <select
+                <input
                   value={form.occupation}
                   onChange={onChange('occupation')}
                   className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
-                >
-                  {occupationOptions.map((opt) => (
-                    <option key={opt.id} value={opt.id}>
-                      {opt.label}
-                    </option>
-                  ))}
-                </select>
+                  placeholder={t('matchmakingPage.form.placeholders.occupation')}
+                />
               </div>
               <div>
                 <label className="block text-sm text-white/80 md:text-slate-700">{t('matchmakingPage.form.labels.education')}</label>
@@ -1509,6 +1540,23 @@ export default function MatchmakingApply() {
                     inputMode="numeric"
                     placeholder={t('matchmakingPage.form.placeholders.childrenCount')}
                   />
+                </div>
+              )}
+
+              {form.hasChildren === 'yes' && (
+                <div>
+                  <label className="block text-sm text-white/80 md:text-slate-700">{t('matchmakingPage.form.labels.childrenLivingSituation')}</label>
+                  <select
+                    value={form.childrenLivingSituation}
+                    onChange={onChange('childrenLivingSituation')}
+                    className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                  >
+                    {childrenLivingSituationOptions.map((opt) => (
+                      <option key={opt.id} value={opt.id}>
+                        {opt.label}
+                      </option>
+                    ))}
+                  </select>
                 </div>
               )}
 

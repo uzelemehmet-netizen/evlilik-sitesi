@@ -56,6 +56,15 @@ export default function MatchmakingEditOnceFullForm({
     [t, i18n.language]
   );
 
+  const childrenLivingSituationOptions = useMemo(
+    () => [
+      { id: '', label: t('matchmakingPage.form.options.common.select') },
+      { id: 'with_children', label: t('matchmakingPage.form.options.childrenLivingSituation.withChildren') },
+      { id: 'separate', label: t('matchmakingPage.form.options.childrenLivingSituation.separate') },
+    ],
+    [t, i18n.language]
+  );
+
   const maritalStatusOptions = useMemo(
     () => [
       { id: '', label: t('matchmakingPage.form.options.common.select') },
@@ -656,17 +665,12 @@ export default function MatchmakingEditOnceFullForm({
 
           <div>
             <label className="block text-sm text-white/70">{t('matchmakingPage.form.labels.occupation')}</label>
-            <select
+            <input
               value={value?.details?.occupation || ''}
               onChange={onDetailsChange('occupation')}
-              className="mt-1 w-full rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-sm text-white"
-            >
-              {occupationOptions.map((opt) => (
-                <option key={opt.id} value={opt.id} className="text-slate-900">
-                  {opt.label}
-                </option>
-              ))}
-            </select>
+              className="mt-1 w-full rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-white/40"
+              placeholder={t('matchmakingPage.form.placeholders.occupation')}
+            />
           </div>
 
           <div>
@@ -724,6 +728,23 @@ export default function MatchmakingEditOnceFullForm({
                 inputMode="numeric"
                 placeholder={t('matchmakingPage.form.placeholders.childrenCount')}
               />
+            </div>
+          )}
+
+          {String(value?.details?.hasChildren || '') === 'yes' && (
+            <div>
+              <label className="block text-sm text-white/70">{t('matchmakingPage.form.labels.childrenLivingSituation')}</label>
+              <select
+                value={value?.details?.childrenLivingSituation || ''}
+                onChange={onDetailsChange('childrenLivingSituation')}
+                className="mt-1 w-full rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-sm text-white"
+              >
+                {childrenLivingSituationOptions.map((opt) => (
+                  <option key={opt.id} value={opt.id} className="text-slate-900">
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
             </div>
           )}
 

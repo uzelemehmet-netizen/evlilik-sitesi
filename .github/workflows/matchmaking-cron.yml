@@ -3,7 +3,7 @@ name: Matchmaking Cron
 on:
   schedule:
     # GitHub Actions schedule minimum ~5 minutes (best-effort).
-    - cron: '*/5 * * * *'
+    - cron: '*/15 * * * *'
   workflow_dispatch:
 
 jobs:
@@ -11,17 +11,21 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
 
+    concurrency:
+      group: matchmaking-maintenance-cron
+      cancel-in-progress: true
+
     steps:
-      - name: Call matchmaking cron endpoint
+      - name: Call maintenance cron endpoint
         shell: bash
         env:
-          CRON_URL: ${{ vars.MATCHMAKING_CRON_URL || secrets.MATCHMAKING_CRON_URL || 'https://uniqah.com/api/matchmaking-run' }}
+          CRON_URL: ${{ vars.MATCHMAKING_MAINTENANCE_URL || secrets.MATCHMAKING_MAINTENANCE_URL || 'https://uniqah.com/api/matchmaking-maintenance-run' }}
           CRON_SECRET: ${{ secrets.MATCHMAKING_CRON_SECRET }}
         run: |
           set -euo pipefail
 
           if [[ -z "${CRON_URL}" ]]; then
-            echo "Missing secret: MATCHMAKING_CRON_URL" >&2
+            echo "Missing URL: set vars.MATCHMAKING_MAINTENANCE_URL or secrets.MATCHMAKING_MAINTENANCE_URL" >&2
             exit 1
           fi
           if [[ -z "${CRON_SECRET}" ]]; then
@@ -32,7 +36,7 @@ jobs:
           echo "Calling: ${CRON_URL}"
           resp_file="response.json"
 
-          payload='{"dryRun":false}'
+          payload='{"dryRun":false,"maxMatches":50,"maxGroupDocs":300,"cancelledRetentionDays":30,"deletedUserRetentionDays":60,"notificationsRetentionDays":30}'
 
           status=$(curl -sS -L \
             --retry 3 --retry-delay 5 \

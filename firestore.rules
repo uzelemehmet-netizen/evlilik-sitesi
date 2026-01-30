@@ -75,6 +75,62 @@ service cloud.firestore {
       );
 
       allow delete: if isAdmin();
+
+      // Kullanıcı gelen beğenilerini (inbox) okuyabilsin.
+      // Not: Yazma sadece server/Admin SDK tarafından yapılır.
+      match /inboxLikes/{likeId} {
+        allow read: if isAdmin() || (isNonAnonymous() && request.auth.uid == userId);
+        allow create, update, delete: if isAdmin();
+      }
+
+      // Profil görme izni istekleri (gelen kutusu)
+      // Not: Yazma sadece server/Admin SDK tarafından yapılır.
+      match /inboxAccessRequests/{requestId} {
+        allow read: if isAdmin() || (isNonAnonymous() && request.auth.uid == userId);
+        allow create, update, delete: if isAdmin();
+      }
+
+      // Ön eşleşme istekleri (gelen kutusu)
+      // Not: Yazma sadece server/Admin SDK tarafından yapılır.
+      match /inboxPreMatchRequests/{requestId} {
+        allow read: if isAdmin() || (isNonAnonymous() && request.auth.uid == userId);
+        allow create, update, delete: if isAdmin();
+      }
+
+      // Profil görme izni istekleri (giden kutusu)
+      // Not: Yazma sadece server/Admin SDK tarafından yapılır.
+      match /outboxAccessRequests/{requestId} {
+        allow read: if isAdmin() || (isNonAnonymous() && request.auth.uid == userId);
+        allow create, update, delete: if isAdmin();
+      }
+
+      // Ön eşleşme istekleri (giden kutusu)
+      // Not: Yazma sadece server/Admin SDK tarafından yapılır.
+      match /outboxPreMatchRequests/{requestId} {
+        allow read: if isAdmin() || (isNonAnonymous() && request.auth.uid == userId);
+        allow create, update, delete: if isAdmin();
+      }
+
+      // Profil görme izni verilmiş kullanıcılar
+      // Not: Yazma sadece server/Admin SDK tarafından yapılır.
+      match /profileAccessGranted/{otherUid} {
+        allow read: if isAdmin() || (isNonAnonymous() && request.auth.uid == userId);
+        allow create, update, delete: if isAdmin();
+      }
+
+      // Direkt mesaj bildirimleri (inbox)
+      // Not: Yazma sadece server/Admin SDK tarafından yapılır.
+      match /inboxMessages/{messageId} {
+        allow read: if isAdmin() || (isNonAnonymous() && request.auth.uid == userId);
+        allow create, update, delete: if isAdmin();
+      }
+
+      // Direkt mesajların giden kutusu (outbox)
+      // Not: Yazma sadece server/Admin SDK tarafından yapılır.
+      match /outboxMessages/{messageId} {
+        allow read: if isAdmin() || (isNonAnonymous() && request.auth.uid == userId);
+        allow create, update, delete: if isAdmin();
+      }
     }
 
     // Matchmaking Matches (kullanıcıya özel eşleşme kartları)

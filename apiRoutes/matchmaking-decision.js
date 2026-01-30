@@ -1,9 +1,11 @@
 import { getAdmin, normalizeBody, requireIdToken } from './_firebaseAdmin.js';
+import { ensureEligibleOrThrow } from './_matchmakingEligibility.js';
 
 function normalizeDecision(v) {
   const s = String(v || '').toLowerCase().trim();
   if (s === 'accept' || s === 'approved') return 'accept';
   if (s === 'reject' || s === 'decline') return 'reject';
+  if (s === 'revoke' || s === 'undo' || s === 'unlike' || s === 'clear') return 'revoke';
   return '';
 }
 
@@ -63,6 +65,56 @@ function normalizeRejectReasonCode(v) {
   return REJECT_REASON_CODES.has(s) ? s : '';
 }
 
+function uniqNonEmptyStrings(arr) {
+  const seen = new Set();
+  const out = [];
+  for (const v of Array.isArray(arr) ? arr : []) {
+    const s = safeStr(v);
+    if (!s) continue;
+    if (seen.has(s)) continue;
+    seen.add(s);
+    out.push(s);
+  }
+  return out;
+}
+
+function deriveCanonicalUserIds({ matchId, aUserId, bUserId, existingUserIds }) {
+  const fromAB = uniqNonEmptyStrings([aUserId, bUserId]);
+  if (fromAB.length === 2) return fromAB.slice().sort();
+
+  const fromExisting = uniqNonEmptyStrings(existingUserIds);
+  if (fromExisting.length === 2) return fromExisting.slice().sort();
+
+  const parts = String(matchId || '').split('__').map(safeStr).filter(Boolean);
+  const fromId = uniqNonEmptyStrings(parts);
+  if (fromId.length === 2) return fromId.slice().sort();
+
+  return fromAB.slice().sort();
+}
+
+function sameTwoIds(a, b) {
+  const aa = Array.isArray(a) ? a.map(safeStr).filter(Boolean).slice().sort() : [];
+  const bb = Array.isArray(b) ? b.map(safeStr).filter(Boolean).slice().sort() : [];
+  if (aa.length !== 2 || bb.length !== 2) return false;
+  return aa[0] === bb[0] && aa[1] === bb[1];
+}
+
+function buildInboxLikePayload({ FieldValue, matchId, fromUid, toUid, fromProfile, nowMs }) {
+  const p = fromProfile && typeof fromProfile === 'object' ? fromProfile : null;
+  return {
+    type: 'like',
+    status: 'pending',
+    matchId: String(matchId || ''),
+    fromUid: String(fromUid || ''),
+    toUid: String(toUid || ''),
+    fromProfile: p || null,
+    createdAt: FieldValue.serverTimestamp(),
+    createdAtMs: typeof nowMs === 'number' && Number.isFinite(nowMs) ? nowMs : Date.now(),
+    updatedAt: FieldValue.serverTimestamp(),
+    updatedAtMs: typeof nowMs === 'number' && Number.isFinite(nowMs) ? nowMs : Date.now(),
+  };
+}
+
 // Eligibility kontrolü artık ortak helper üzerinden.
 
 // Yeni kural: Mutual accept anında chat otomatik aktif olur.
@@ -115,8 +167,14 @@ export default async function handler(req, res) {
       }
 
       const data = snap.data() || {};
-      const aUserId = String(data?.aUserId || '');
-      const bUserId = String(data?.bUserId || '');
+      const aUserId = safeStr(data?.aUserId);
+      const bUserId = safeStr(data?.bUserId);
+      const canonicalUserIdsSorted = deriveCanonicalUserIds({
+        matchId,
+        aUserId,
+        bUserId,
+        existingUserIds: Array.isArray(data?.userIds) ? data.userIds : [],
+      });
 
       if (uid !== aUserId && uid !== bUserId) {
         const err = new Error('forbidden');
@@ -134,6 +192,7 @@ export default async function handler(req, res) {
       const [meSnap, otherUserSnap] = await Promise.all([tx.get(meRef), tx.get(otherUserRef)]);
       const meUser = meSnap.exists ? (meSnap.data() || {}) : {};
       const otherUser = otherUserSnap.exists ? (otherUserSnap.data() || {}) : {};
+      const myPending = getPendingContinueMatchId(meUser);
 
       // Yeni ürün kuralı: Aktif eşleşme varken diğer profillerle etkileşim yok.
       const myActiveLockMatchId = getActiveLockMatchId(meUser);
@@ -151,14 +210,102 @@ export default async function handler(req, res) {
         myGender = appSnap.exists ? String((appSnap.data() || {})?.gender || '') : '';
       }
 
+      // Üyelik/eligibility: beğeni/reddetme aksiyonları için zorunlu.
+      // revoke (geri alma) ise, kullanıcı kilitlenmesin diye serbest bırakıyoruz.
+      if (decision !== 'revoke') {
+        ensureEligibleOrThrow(meUser, myGender);
+      }
+
       const decisions = {
         a: data?.decisions?.a ?? null,
         b: data?.decisions?.b ?? null,
       };
 
+      const myProfileSnap = data?.profiles?.[side] && typeof data.profiles[side] === 'object' ? data.profiles[side] : null;
+
+      // Inbox ref'leri (gelen beğeni bildirimi)
+      const otherInboxRef = db.collection('matchmakingUsers').doc(otherUserId).collection('inboxLikes').doc(matchId);
+      const myInboxRef = db.collection('matchmakingUsers').doc(uid).collection('inboxLikes').doc(matchId);
+
+      // revoke (unlike/undo)
+      if (decision === 'revoke') {
+        // Sadece proposed / mutual_interest aşamasında geri alma serbest.
+        const curStatus = String(data?.status || 'proposed');
+        if (curStatus !== 'proposed' && curStatus !== 'mutual_interest') {
+          const err = new Error('not_available');
+          err.statusCode = 409;
+          throw err;
+        }
+
+        const already = decisions[side];
+        if (already === null || already === undefined || String(already || '').trim() === '') {
+          status = curStatus;
+
+          // Bazı legacy match'lerde userIds bozuk olabiliyor; idempotent çağrıda da normalize edelim.
+          if (!sameTwoIds(data?.userIds, canonicalUserIdsSorted)) {
+            tx.set(
+              ref,
+              {
+                userIds: canonicalUserIdsSorted,
+                updatedAt: FieldValue.serverTimestamp(),
+              },
+              { merge: true }
+            );
+          }
+          return;
+        }
+
+        // Eğer bu revoke, karşı tarafa daha önce inbox beğenisi yazdıysa temizle.
+        // (Sadece best-effort; match status'u ne olursa olsun inbox'u kaldırmak güvenli.)
+        try {
+          tx.delete(otherInboxRef);
+        } catch {
+          // noop
+        }
+
+        decisions[side] = null;
+
+        const patch = {
+          decisions,
+          userIds: canonicalUserIdsSorted,
+          updatedAt: FieldValue.serverTimestamp(),
+        };
+
+        // Eğer karşılıklı beğeniden geri dönülüyorsa status'u proposed'a indir ve ilgili işaretleri temizle.
+        if (curStatus === 'mutual_interest') {
+          patch.status = 'proposed';
+          patch.mutualInterestAt = FieldValue.delete();
+          patch.mutualInterestAtMs = FieldValue.delete();
+          patch.activeStartByUid = FieldValue.delete();
+          status = 'proposed';
+        } else {
+          status = 'proposed';
+        }
+
+        // Kullanıcının pendingContinue işaretini temizle (bu match'e bağlıysa)
+        if (myPending === matchId) {
+          tx.set(meRef, { matchmakingPendingContinue: { active: false, matchId: '' }, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+        }
+
+        tx.set(ref, patch, { merge: true });
+        return;
+      }
+
       // idempotent
       if (decisions[side] === decision) {
         status = String(data?.status || 'proposed');
+
+        // Bazı legacy match'lerde userIds bozuk olabiliyor; idempotent çağrıda da normalize edelim.
+        if (!sameTwoIds(data?.userIds, canonicalUserIdsSorted)) {
+          tx.set(
+            ref,
+            {
+              userIds: canonicalUserIdsSorted,
+              updatedAt: FieldValue.serverTimestamp(),
+            },
+            { merge: true }
+          );
+        }
         return;
       }
 
@@ -166,6 +313,7 @@ export default async function handler(req, res) {
 
       const patch = {
         decisions,
+        userIds: canonicalUserIdsSorted,
         updatedAt: FieldValue.serverTimestamp(),
       };
 
@@ -193,6 +341,14 @@ export default async function handler(req, res) {
         patch.lastRejectedAtMs = nowMs;
         status = 'cancelled';
 
+        // Bu kullanıcıya gelmiş beğeni varsa, reddedince inbox'tan kaldır.
+        // (Eğer inbox yoksa tx.delete no-op değildir ama try/catch ile yutuyoruz.)
+        try {
+          tx.delete(myInboxRef);
+        } catch {
+          // noop
+        }
+
         creditGranted = 0;
         cooldownUntilMs = 0;
 
@@ -200,7 +356,6 @@ export default async function handler(req, res) {
         const meChoice = getChoiceMatchId(meUser);
         const otherChoice = getChoiceMatchId(otherUser);
 
-        const mePending = getPendingContinueMatchId(meUser);
         const otherPending = getPendingContinueMatchId(otherUser);
 
         if (meChoice === matchId) {
@@ -210,7 +365,7 @@ export default async function handler(req, res) {
           tx.set(otherUserRef, { matchmakingChoice: { active: false, matchId: '' }, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
         }
 
-        if (mePending === matchId) {
+        if (myPending === matchId) {
           tx.set(meRef, { matchmakingPendingContinue: { active: false, matchId: '' }, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
         }
         if (otherPending === matchId) {
@@ -317,6 +472,22 @@ export default async function handler(req, res) {
 
         } else {
           status = String(data?.status || 'proposed');
+
+          // Karşı taraf henüz beğenmediyse: ona inbox beğeni bildirimi yaz.
+          // Not: Böylece karşı tarafın listesinde olmasa bile "X sana beğeni gönderdi" görebilir.
+          const nowLikeMs = Date.now();
+          tx.set(
+            otherInboxRef,
+            buildInboxLikePayload({
+              FieldValue,
+              matchId,
+              fromUid: uid,
+              toUid: otherUserId,
+              fromProfile: myProfileSnap,
+              nowMs: nowLikeMs,
+            }),
+            { merge: true }
+          );
 
           // Karşı taraf henüz onaylamadı: pending işaretle (tek kişiyle devam).
           if (!myPending) {

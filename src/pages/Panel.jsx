@@ -84,6 +84,7 @@ export default function Panel() {
 
   const [matchmakingMatches, setMatchmakingMatches] = useState([]);
   const [matchmakingMatchesLoading, setMatchmakingMatchesLoading] = useState(true);
+  const [matchmakingMatchesError, setMatchmakingMatchesError] = useState('');
   const [matchmakingAction, setMatchmakingAction] = useState({ loading: false, error: '', success: '' });
 
   const [dismissAction, setDismissAction] = useState({ loading: false, error: '', matchId: '' });
@@ -392,8 +393,9 @@ export default function Panel() {
 
     // Promo üyelikte bitiş mutlaka cutoff olmalı; eski kayıtlar 30 gün görünebilir.
     const validUntilMs = isPromo && promoCutoff > 0 && rawValidUntilMs > promoCutoff ? promoCutoff : rawValidUntilMs;
-    const active = !!m?.active && validUntilMs > Date.now();
-    const msLeft = validUntilMs - Date.now();
+    const now = Date.now();
+    const active = (validUntilMs > 0 && validUntilMs > now) || (!!m?.active && (!validUntilMs || validUntilMs > now));
+    const msLeft = validUntilMs - now;
     const daysLeft = msLeft > 0 ? Math.ceil(msLeft / 86400000) : 0;
     const locale = i18n?.language === 'id' ? 'id-ID' : i18n?.language === 'en' ? 'en-US' : 'tr-TR';
     const untilText = validUntilMs
@@ -471,8 +473,9 @@ export default function Panel() {
     return myMembership.active;
   }, [devBypassMembership, myGender, myIdentityVerified, myMembership.active, myFreeActive.eligible]);
 
-  // Free planda da “tam profil görüntüleme” açık.
-  const canSeeFullProfiles = true;
+  // Ücretsiz kullanıcılar sadece temel bilgileri görür (kullanıcı adı + yaş + medeni hal).
+  // Aktif üyelik: iletişim hariç tüm profil bilgilerini görür.
+  const canSeeFullProfiles = myMembership.active;
 
   const [matchCancelById, setMatchCancelById] = useState({});
 
@@ -598,6 +601,8 @@ export default function Panel() {
   useEffect(() => {
     if (!user?.uid) return;
 
+    setMatchmakingMatchesError('');
+
     const ref = doc(db, 'matchmakingUsers', user.uid);
     const unsub = onSnapshot(
       ref,
@@ -672,12 +677,15 @@ export default function Panel() {
       visible.sort((a, b) => sortKeyMs(b) - sortKeyMs(a));
       setMatchmakingMatches(visible.slice(0, 25));
       setMatchmakingMatchesLoading(false);
+      setMatchmakingMatchesError('');
     };
 
+    // ÖNEMLİ: Karşı tarafın beğenisi/aksiyonu eski bir match'e gelmiş olsa bile listede görünmeli.
+    // Bu yüzden createdAt yerine updatedAt üzerinden sıralıyoruz.
     const qPrimary = query(
       collection(db, 'matchmakingMatches'),
       where('userIds', 'array-contains', user.uid),
-      orderBy('createdAt', 'desc'),
+      orderBy('updatedAt', 'desc'),
       limit(25)
     );
 
@@ -745,6 +753,7 @@ export default function Panel() {
 
           setMatchmakingMatches(visible);
           setMatchmakingMatchesLoading(false);
+          setMatchmakingMatchesError('');
         },
         (err) => {
           if (!usingFallback && isIndexError(err)) {
@@ -761,6 +770,7 @@ export default function Panel() {
 
           console.error('Eşleşmeler yüklenemedi:', err);
           setMatchmakingMatchesLoading(false);
+          setMatchmakingMatchesError(String(err?.code || err?.message || 'matchmaking_matches_load_failed'));
         }
       );
     };
@@ -1007,23 +1017,49 @@ export default function Panel() {
       return !!by && by !== user.uid;
     };
 
+    const safeStr = (v) => (typeof v === 'string' ? v.trim() : '');
+
+    const getMySide = (m) => {
+      const uid = String(user?.uid || '').trim();
+      if (!uid) return '';
+      const a = String(m?.aUserId || '').trim();
+      const b = String(m?.bUserId || '').trim();
+      if (uid && a && uid === a) return 'a';
+      if (uid && b && uid === b) return 'b';
+      return '';
+    };
+
+    const isIncomingLike = (m) => {
+      const mySide = getMySide(m);
+      if (!mySide) return false;
+      const otherSide = mySide === 'a' ? 'b' : mySide === 'b' ? 'a' : '';
+      if (!otherSide) return false;
+
+      const decisions = m?.decisions && typeof m.decisions === 'object' ? m.decisions : {};
+      const myDecision = safeStr(decisions?.[mySide]);
+      const otherDecision = safeStr(decisions?.[otherSide]);
+      return otherDecision === 'accept' && myDecision !== 'accept';
+    };
+
     // Not: mutual_accepted artık otomatik kilit değil. Kilit sadece karşılıklı "iletişim paylaş" veya "site içi konuş" seçilince açılır.
 
     const items = all.filter((m) => {
       if (!m || !m?.id) return false;
       if (isDismissedByMe(m)) return false;
       const st = String(m?.status || '');
-      if (st === 'proposed' || st === 'mutual_accepted' || st === 'contact_unlocked') return true;
+      if (st === 'proposed' || st === 'mutual_interest' || st === 'mutual_accepted' || st === 'contact_unlocked') return true;
       if (isRejectedByOther(m)) return true;
       return false;
     });
 
     const priority = (m) => {
       const st = String(m?.status || '');
-      if (isRejectedByOther(m)) return 0;
-      if (st === 'contact_unlocked') return 1;
-      if (st === 'mutual_accepted') return 2;
-      if (st === 'proposed') return 3;
+      if (isIncomingLike(m)) return 0;
+      if (isRejectedByOther(m)) return 1;
+      if (st === 'contact_unlocked') return 2;
+      if (st === 'mutual_accepted') return 3;
+      if (st === 'mutual_interest') return 4;
+      if (st === 'proposed') return 5;
       return 9;
     };
 
@@ -1581,6 +1617,8 @@ export default function Panel() {
           ? t('matchmakingMembership.promoExpired', { date: cutoffText })
           : msg === 'promo_disabled'
             ? t('matchmakingMembership.promoDisabled')
+            : msg === 'api_unreachable'
+              ? (isLocalhost ? t('matchmakingMembership.errors.apiUnavailableDev') : t('matchmakingMembership.activateFailed'))
             : msg === 'missing_auth' || msg === 'invalid_auth' || msg === 'not_authenticated'
               ? t('matchmakingMembership.errors.notAuthenticated')
               : msg === 'firebase_admin_not_configured'
@@ -1697,9 +1735,9 @@ export default function Panel() {
       .filter((m) => {
         if (isDismissedByMe(m)) return true;
         const st = String(m?.status || '').trim();
-        // "proposed/mutual_accepted/contact_unlocked" zaten activeMatches'te.
+        // "proposed/mutual_interest/mutual_accepted/contact_unlocked" zaten activeMatches'te.
         if (!st) return false;
-        return st !== 'proposed' && st !== 'mutual_accepted' && st !== 'contact_unlocked';
+        return st !== 'proposed' && st !== 'mutual_interest' && st !== 'mutual_accepted' && st !== 'contact_unlocked';
       });
 
     items.sort((a, b) => toMs(b?.createdAt) - toMs(a?.createdAt));
@@ -1736,7 +1774,7 @@ export default function Panel() {
     if (!Array.isArray(activeMatches) || activeMatches.length === 0) return;
 
     for (const m of activeMatches) {
-      if ((m?.status === 'proposed' || m?.status === 'mutual_accepted') && m?.id) {
+      if ((m?.status === 'proposed' || m?.status === 'mutual_interest' || m?.status === 'mutual_accepted') && m?.id) {
         loadCandidateDetails(m.id);
       }
     }
@@ -2284,6 +2322,8 @@ export default function Panel() {
       (typeof focusedMatch?.chatEnabledAtMs === 'number' ? focusedMatch.chatEnabledAtMs : 0) ||
       tsToMsLocal(focusedMatch?.chatEnabledAt) ||
       tsToMsLocal(focusedMatch?.interactionChosenAt) ||
+      (typeof focusedMatch?.mutualInterestAtMs === 'number' ? focusedMatch.mutualInterestAtMs : 0) ||
+      tsToMsLocal(focusedMatch?.mutualInterestAt) ||
       (typeof focusedMatch?.mutualAcceptedAtMs === 'number' ? focusedMatch.mutualAcceptedAtMs : 0) ||
       tsToMsLocal(focusedMatch?.mutualAcceptedAt) ||
       0;
@@ -2312,7 +2352,7 @@ export default function Panel() {
     const matchProgress = (() => {
       const st = String(matchStatus || '').trim();
       const contactApproved = st === 'contact_unlocked' || contactStatus === 'approved';
-      const mutual = st === 'mutual_accepted' || st === 'contact_unlocked';
+      const mutual = st === 'mutual_interest' || st === 'mutual_accepted' || st === 'contact_unlocked';
 
       let currentStep = 1;
       if (contactApproved) currentStep = 4;
@@ -5210,6 +5250,12 @@ export default function Panel() {
                   ) : null}
                 </button>
 
+                {!matchmakingMatchesLoading && matchmakingMatchesError ? (
+                  <div className="w-full sm:w-56 rounded-2xl border border-rose-500/25 bg-rose-500/10 px-3 py-2 text-[11px] font-semibold text-rose-100">
+                    {t('studio.errors.generic')}: {matchmakingMatchesError}
+                  </div>
+                ) : null}
+
                 {!myIdentityVerified ? (
                   <button
                     type="button"
@@ -6238,11 +6284,12 @@ export default function Panel() {
 
                         const profileInfoOpen = !!profileInfoOpenByMatchId?.[m.id];
 
-                        const displayName = other?.username || other?.fullName || t('matchmakingPanel.matches.candidate.fallbackName');
+                        const displayName = other?.username || t('matchmakingPanel.matches.candidate.fallbackName');
                         const maritalCode = other?.details?.maritalStatus || '';
                         const maritalLabel = maritalCode ? (t(`matchmakingPage.form.options.maritalStatus.${maritalCode}`) || maritalCode) : '-';
 
                         const showHeart = otherDecision === 'accept' && myDecision !== 'accept';
+                        const showLikeSent = myDecision === 'accept' && otherDecision !== 'accept';
                         const unreadCount =
                           user?.uid && typeof m?.chatUnreadByUid?.[user.uid] === 'number' ? m.chatUnreadByUid[user.uid] : 0;
 
@@ -6275,7 +6322,7 @@ export default function Panel() {
 
                         const isConfirmed = confirmedAtMs > 0;
                         const contactStatus = String(m?.contactShare?.status || '').trim();
-                        const isMutual = st === 'mutual_accepted' || st === 'contact_unlocked';
+                        const isMutual = st === 'mutual_interest' || st === 'mutual_accepted' || st === 'contact_unlocked';
                         const isContactUnlocked = st === 'contact_unlocked' || contactStatus === 'approved';
                         const isContactPending = contactStatus === 'pending';
 
@@ -6448,15 +6495,20 @@ export default function Panel() {
                                   <p className="text-xs text-white/60 mt-1">
                                     {t('matchmakingPanel.matches.candidate.score')}: <span className="font-semibold">{typeof m.score === 'number' ? `%${m.score}` : '-'}</span>
                                     {showHeart ? <span className="ml-2 text-rose-200 font-semibold">{t('matchmakingPanel.matches.candidate.likeBadge')}</span> : null}
+                                    {showLikeSent ? <span className="ml-2 text-sky-200 font-semibold">{t('matchmakingPanel.matches.candidate.likeSentBadge')}</span> : null}
                                   </p>
                                 ) : (
                                   <p className="text-xs text-white/60 mt-1">
                                     {t('matchmakingPanel.matches.candidate.maritalStatus')}: <span className="font-semibold">{maritalLabel}</span>
+                                    {showHeart ? <span className="ml-2 text-rose-200 font-semibold">{t('matchmakingPanel.matches.candidate.likeBadge')}</span> : null}
+                                    {showLikeSent ? <span className="ml-2 text-sky-200 font-semibold">{t('matchmakingPanel.matches.candidate.likeSentBadge')}</span> : null}
                                   </p>
                                 )}
-                                <p className="text-xs text-white/60">
-                                  {other.city ? `${other.city}${other.country ? ` / ${other.country}` : ''}` : (other.country || '-')}
-                                </p>
+                                {canSeeFullProfiles ? (
+                                  <p className="text-xs text-white/60">
+                                    {other.city ? `${other.city}${other.country ? ` / ${other.country}` : ''}` : (other.country || '-')}
+                                  </p>
+                                ) : null}
 
                                 {(() => {
                                   const label = formatPresenceLabel(lastSeenAtMs);
@@ -6517,7 +6569,6 @@ export default function Panel() {
                                   const meRows = filterEmptyRows(
                                     [
                                       { label: t('matchmakingPage.form.labels.username'), value: formatMaybeValue(other?.username) },
-                                      { label: t('matchmakingPage.form.labels.fullName'), value: formatMaybeValue(other?.fullName) },
                                       { label: t('matchmakingPage.form.labels.age'), value: typeof other?.age === 'number' ? String(other.age) : '-' },
                                       { label: t('matchmakingPage.form.labels.city'), value: formatMaybeValue(other?.city) },
                                       { label: t('matchmakingPage.form.labels.country'), value: formatMaybeValue(other?.country) },

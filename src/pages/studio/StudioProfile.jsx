@@ -77,6 +77,10 @@ export default function StudioProfile() {
   });
   const [verifyAction, setVerifyAction] = useState({ loading: false, error: '', success: '' });
 
+  const [textDraft, setTextDraft] = useState({ about: '', expectations: '' });
+  const [textTouched, setTextTouched] = useState(false);
+  const [textSaveState, setTextSaveState] = useState({ loading: false, error: '', success: '' });
+
   useEffect(() => {
     if (!uid) return;
 
@@ -135,11 +139,20 @@ export default function StudioProfile() {
     const app = appFromUser || latestApp || null;
     const publicProfile = mmUser?.publicProfile && typeof mmUser.publicProfile === 'object' ? mmUser.publicProfile : null;
 
+    const username = String(app?.username || publicProfile?.username || '').trim();
     const name =
-      String(app?.username || publicProfile?.username || app?.fullName || mmUser?.fullName || '').trim() ||
+      String(username || app?.fullName || mmUser?.fullName || '').trim() ||
       (user?.email ? String(user.email).split('@')[0] : t('studio.common.profile'));
 
     const age = typeof app?.age === 'number' ? app.age : typeof publicProfile?.age === 'number' ? publicProfile.age : null;
+
+    const genderRaw = String(app?.gender || publicProfile?.gender || '').trim().toLowerCase();
+    const genderLabel =
+      genderRaw === 'male'
+        ? t('matchmakingPage.form.options.gender.male')
+        : genderRaw === 'female'
+          ? t('matchmakingPage.form.options.gender.female')
+          : String(app?.gender || publicProfile?.gender || '').trim();
 
     const photoUrlsRaw =
       (Array.isArray(app?.photoUrls) && app.photoUrls) ||
@@ -152,14 +165,26 @@ export default function StudioProfile() {
     const bio =
       String(app?.details?.about || app?.details?.bio || mmUser?.details?.about || mmUser?.details?.bio || '').trim();
 
+    const aboutText = String(app?.about || app?.details?.about || mmUser?.details?.about || mmUser?.details?.bio || '').trim();
+    const expectationsText = String(app?.expectations || mmUser?.details?.expectations || '').trim();
+
     const isVerified =
       !!mmUser?.identityVerified ||
       ['verified', 'approved'].includes(String(mmUser?.identityVerification?.status || '').toLowerCase().trim()) ||
       !!publicProfile?.identityVerified;
 
     const membershipObj = mmUser?.membership && typeof mmUser.membership === 'object' ? mmUser.membership : null;
-    const membershipValidUntilMs = typeof membershipObj?.validUntilMs === 'number' ? membershipObj.validUntilMs : 0;
-    const membershipActive = !!membershipObj?.active && (!membershipValidUntilMs || membershipValidUntilMs > Date.now());
+    const membershipValidUntilMs = (() => {
+      const v = membershipObj?.validUntilMs;
+      if (typeof v === 'number' && Number.isFinite(v)) return v;
+      if (v && typeof v.toMillis === 'function') return v.toMillis();
+      if (v && typeof v.seconds === 'number' && Number.isFinite(v.seconds)) return v.seconds * 1000;
+      return 0;
+    })();
+    const now = Date.now();
+    const membershipActive =
+      (membershipValidUntilMs > 0 && membershipValidUntilMs > now) ||
+      (!!membershipObj?.active && (!membershipValidUntilMs || membershipValidUntilMs > now));
     const membershipPlan = String(membershipObj?.plan || '').trim();
 
     const identityStatus = String(mmUser?.identityVerification?.status || '').trim();
@@ -167,10 +192,14 @@ export default function StudioProfile() {
     const identityRef = String(mmUser?.identityVerification?.referenceCode || '').trim();
 
     return {
+      username,
       name,
       age,
+      genderLabel,
       photoUrl: photoUrls.length ? photoUrls[0] : '',
       bio,
+      aboutText,
+      expectationsText,
       isVerified,
       membershipActive,
       membershipPlan,
@@ -181,6 +210,30 @@ export default function StudioProfile() {
       appLoading,
     };
   }, [appLoading, latestApp, mmUser, t, user?.email]);
+
+  useEffect(() => {
+    if (textTouched) return;
+    setTextDraft({ about: profile.aboutText || '', expectations: profile.expectationsText || '' });
+  }, [profile.aboutText, profile.expectationsText, textTouched]);
+
+  const saveProfileTexts = async () => {
+    if (!uid) return;
+    if (textSaveState.loading) return;
+
+    setTextSaveState({ loading: true, error: '', success: '' });
+    try {
+      await authFetch('/api/matchmaking-profile-text-update', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ about: textDraft.about, expectations: textDraft.expectations }),
+      });
+      setTextSaveState({ loading: false, error: '', success: t('studio.profile.textsSaved') });
+      setTextTouched(false);
+    } catch (e) {
+      const msg = String(e?.message || 'save_failed').trim();
+      setTextSaveState({ loading: false, error: translateStudioApiError(t, msg) || msg, success: '' });
+    }
+  };
 
   const logoutNow = async () => {
     try {
@@ -340,6 +393,16 @@ export default function StudioProfile() {
                 <h1 className="text-2xl md:text-3xl font-bold flex items-center gap-2">
                   {profile.name}{profile.age ? `, ${profile.age}` : ''}
                 </h1>
+
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                  <span className="inline-flex items-center rounded-full bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-700">
+                    {t('studio.myInfo.fields.username')}: {profile.username || t('studio.common.unknown')}
+                  </span>
+                  <span className="inline-flex items-center rounded-full bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-700">
+                    {t('studio.myInfo.fields.gender')}: {profile.genderLabel || t('studio.common.unknown')}
+                  </span>
+                </div>
+
                 <p className="mt-1 text-sm text-slate-600">
                   {t('studio.profile.membershipLabel')}: {profile.membershipActive ? t('studio.profile.membershipActive') : t('studio.profile.membershipPassive')}
                   {profile.membershipPlan ? ` (${profile.membershipPlan})` : ''}
@@ -390,6 +453,63 @@ export default function StudioProfile() {
               ) : (
                 <p className="mt-2 text-slate-600">{t('studio.profile.noBio')}</p>
               )}
+            </div>
+
+            <div className="mt-6 border-t border-slate-200 pt-6">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <h2 className="text-lg font-semibold">{t('studio.profile.textsTitle')}</h2>
+                <button
+                  type="button"
+                  onClick={saveProfileTexts}
+                  disabled={textSaveState.loading || !textTouched}
+                  className="inline-flex items-center justify-center rounded-md bg-emerald-600 px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 disabled:opacity-60"
+                >
+                  {textSaveState.loading ? t('studio.common.processing') : t('studio.profile.saveTexts')}
+                </button>
+              </div>
+
+              {textSaveState.error ? (
+                <div className="mt-3 rounded-md border border-rose-200 bg-rose-50 p-2 text-sm text-rose-900">{textSaveState.error}</div>
+              ) : null}
+              {textSaveState.success ? (
+                <div className="mt-3 rounded-md border border-emerald-200 bg-emerald-50 p-2 text-sm text-emerald-900">{textSaveState.success}</div>
+              ) : null}
+
+              <div className="mt-4 grid grid-cols-1 gap-4">
+                <div>
+                  <label className="text-sm font-semibold text-slate-800">{t('studio.profile.aboutLabel')}</label>
+                  <textarea
+                    value={textDraft.about}
+                    maxLength={1800}
+                    onChange={(e) => {
+                      setTextTouched(true);
+                      setTextSaveState({ loading: false, error: '', success: '' });
+                      setTextDraft((p) => ({ ...p, about: String(e?.target?.value || '') }));
+                    }}
+                    placeholder={t('studio.profile.aboutPlaceholder')}
+                    className="mt-2 w-full rounded-md border border-slate-200 bg-white p-3 text-sm text-slate-900 shadow-sm outline-none transition focus:border-emerald-300 focus:ring-2 focus:ring-emerald-100"
+                    rows={5}
+                  />
+                  <p className="mt-1 text-xs text-slate-500">{textDraft.about.length} / 1800</p>
+                </div>
+
+                <div>
+                  <label className="text-sm font-semibold text-slate-800">{t('studio.profile.expectationsLabel')}</label>
+                  <textarea
+                    value={textDraft.expectations}
+                    maxLength={1800}
+                    onChange={(e) => {
+                      setTextTouched(true);
+                      setTextSaveState({ loading: false, error: '', success: '' });
+                      setTextDraft((p) => ({ ...p, expectations: String(e?.target?.value || '') }));
+                    }}
+                    placeholder={t('studio.profile.expectationsPlaceholder')}
+                    className="mt-2 w-full rounded-md border border-slate-200 bg-white p-3 text-sm text-slate-900 shadow-sm outline-none transition focus:border-emerald-300 focus:ring-2 focus:ring-emerald-100"
+                    rows={5}
+                  />
+                  <p className="mt-1 text-xs text-slate-500">{textDraft.expectations.length} / 1800</p>
+                </div>
+              </div>
             </div>
 
             <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2">

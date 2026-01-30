@@ -67,6 +67,8 @@ export default function MatchmakingMembership() {
           ? t('matchmakingMembership.promoExpired', { date: cutoffText })
           : msg === 'promo_disabled'
             ? t('matchmakingMembership.promoDisabled')
+            : msg === 'api_unreachable'
+              ? (isLocalhost ? t('matchmakingMembership.errors.apiUnavailableDev') : t('matchmakingMembership.activateFailed'))
           : msg === 'missing_auth' || msg === 'invalid_auth' || msg === 'not_authenticated'
             ? t('matchmakingMembership.errors.notAuthenticated')
             : msg === 'firebase_admin_not_configured'

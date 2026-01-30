@@ -129,6 +129,14 @@ function safeStr(v) {
   return typeof v === 'string' ? v.trim() : '';
 }
 
+function readBoolEnv(name, fallback = false) {
+  const raw = String(process.env[name] || '').toLowerCase().trim();
+  if (!raw) return fallback;
+  if (raw === '1' || raw === 'true' || raw === 'yes' || raw === 'on') return true;
+  if (raw === '0' || raw === 'false' || raw === 'no' || raw === 'off') return false;
+  return fallback;
+}
+
 function tsToMs(v) {
   if (!v) return 0;
   if (typeof v === 'number' && Number.isFinite(v)) return v;
@@ -186,14 +194,14 @@ function ageCompatibleOneWay(seeker, candidate) {
 
   const p = seeker?.partnerPreferences || {};
 
-  const min = asNum(p?.ageMin);
-  const max = asNum(p?.ageMax);
+  const min = toNumOrNull(p?.ageMin, { min: MIN_AGE, max: 99 });
+  const max = toNumOrNull(p?.ageMax, { min: MIN_AGE, max: 99 });
   if (min !== null || max !== null) {
     return (min === null || candAge >= min) && (max === null || candAge <= max);
   }
 
-  const older = asNum(p?.ageMaxOlderYears);
-  const younger = asNum(p?.ageMaxYoungerYears);
+  const older = toNumOrNull(p?.ageMaxOlderYears, { min: 0, max: 99 });
+  const younger = toNumOrNull(p?.ageMaxYoungerYears, { min: 0, max: 99 });
   if (older !== null || younger !== null) {
     const o = older ?? 0;
     const y = younger ?? 0;
@@ -299,9 +307,44 @@ function computeTieBreakOneWay(seeker, candidate) {
   return 0;
 }
 
+function weightedScore(parts) {
+  let wSum = 0;
+  let vSum = 0;
+  for (const p of Array.isArray(parts) ? parts : []) {
+    const v = typeof p?.value === 'number' ? p.value : null;
+    const w = typeof p?.weight === 'number' ? p.weight : 0;
+    if (v === null || !Number.isFinite(v)) continue;
+    if (!Number.isFinite(w) || w <= 0) continue;
+    const vv = Math.max(0, Math.min(100, v));
+    wSum += w;
+    vSum += vv * w;
+  }
+  if (wSum <= 0) return 100;
+  return Math.max(0, Math.min(100, Math.round(vSum / wSum)));
+}
+
 function computeFitScore(seeker, candidate) {
-  // Ürün kararı: puanlama yok.
-  return 100;
+  // Basit ama gerçek bir skor: kullanıcıya "rasgele" hissini azaltır.
+  // Not: Eksik alanlarda (null) ağırlığı otomatik düşürür.
+  const age = ageGapScore(seeker, candidate);
+  const heightA = heightClosenessOneWay(seeker, candidate);
+  const heightB = heightClosenessOneWay(candidate, seeker);
+  const height = heightA === null && heightB === null ? null : Math.round(((heightA ?? 50) + (heightB ?? 50)) / 2);
+
+  const aIncome = safeStr(seeker?.details?.incomeLevel);
+  const bIncome = safeStr(candidate?.details?.incomeLevel);
+  const income = incomeSimilarityScore(aIncome, bIncome);
+
+  // Marital uyumsuzluk en sert sinyal: compatible değilse düşür.
+  const maritalOk = maritalCompatibleBoth(seeker, candidate);
+  const marital = maritalOk ? 100 : 0;
+
+  return weightedScore([
+    { value: age, weight: 0.45 },
+    { value: height, weight: 0.20 },
+    { value: income, weight: 0.10 },
+    { value: marital, weight: 0.25 },
+  ]);
 }
 
 function isMembershipActiveUserDoc(userDoc, now = Date.now()) {
@@ -312,15 +355,15 @@ function isMembershipActiveUserDoc(userDoc, now = Date.now()) {
 }
 
 function membershipMaxMatchesFromUserDoc(userDoc, now = Date.now()) {
-  // Varsayılan: 3 eşleşme (erken aşamada boş ekranı azaltır).
+  // Geçici ürün kararı (fiyatlandırma öncesi): herkes için 5 aktif eşleşmeye kadar izin ver.
   // Not: Bu limit UI'daki "aktif eşleşme" algısıyla aynı olmalı.
   const active = isMembershipActiveUserDoc(userDoc, now);
-  if (!active) return 3;
+  if (!active) return 5;
   const plan = String(userDoc?.membership?.plan || '').toLowerCase().trim();
-  if (plan === 'eco') return 3;
+  if (plan === 'eco') return 5;
   if (plan === 'standard') return 5;
   if (plan === 'pro') return 10;
-  return 3;
+  return 5;
 }
 
 function countsAsActiveSlotForUser(match, uid) {
@@ -331,7 +374,8 @@ function countsAsActiveSlotForUser(match, uid) {
   const status = safeStr(match?.status);
   // "dismissed" ve "cancelled" gibi durumlar slot saymaz.
   // proposed/mutual_accepted/contact_unlocked akışları slot sayar.
-  return status === 'proposed' || status === 'mutual_accepted' || status === 'contact_unlocked';
+  // Not: UI active listesinde mutual_interest de aktif kabul ediliyor.
+  return status === 'proposed' || status === 'mutual_interest' || status === 'mutual_accepted' || status === 'contact_unlocked';
 }
 
 function incrementMap(map, key, delta) {
@@ -342,6 +386,13 @@ function incrementMap(map, key, delta) {
 
 function buildPublicProfile(app, userStatus) {
   const details = app?.details || {};
+  const about = typeof app?.about === 'string' ? app.about.trim() : '';
+  const expectations = typeof app?.expectations === 'string' ? app.expectations.trim() : '';
+  const clip = (s, maxLen) => {
+    const v = typeof s === 'string' ? s.trim() : '';
+    if (!v) return '';
+    return v.length > maxLen ? v.slice(0, maxLen) : v;
+  };
   return {
     identityVerified: !!userStatus?.identityVerified,
     proMember: !!userStatus?.membershipActive && String(userStatus?.membershipPlan || '') === 'pro',
@@ -351,11 +402,20 @@ function buildPublicProfile(app, userStatus) {
     profileCode: safeStr(app?.profileCode),
     username: safeStr(app?.username),
     age: getAge(app),
+    gender: safeStr(app?.gender),
+    lookingForGender: safeStr(app?.lookingForGender),
     city: safeStr(app?.city),
     country: safeStr(app?.country),
     photoUrls: Array.isArray(app?.photoUrls) ? app.photoUrls.filter((u) => typeof u === 'string' && u.trim()) : [],
+    // Kart önizlemesi için kısa metinler (doküman şişmesini önlemek için clip).
+    about: clip(about, 360),
+    expectations: clip(expectations, 360),
     details: {
       maritalStatus: safeStr(details?.maritalStatus),
+      occupation: safeStr(details?.occupation),
+      hasChildren: safeStr(details?.hasChildren),
+      childrenCount: asNum(details?.childrenCount),
+      childrenLivingSituation: safeStr(details?.childrenLivingSituation),
     },
   };
 }
@@ -636,6 +696,9 @@ export default async function handler(req, res) {
         // UI varsayılanı 1; debug/test için body.maxMatches ile artırılabilir (cap'li).
         const maxMatches = requestedMaxMatches ?? 1;
 
+        // Slot limiti: UI ile uyumlu şekilde max aktif match sayısını uygula.
+        const myMaxActiveMatches = membershipMaxMatchesFromUserDoc(userDoc, now);
+
         // Mevcut eşleşmeler (bu kullanıcı için) - tekrar üretmeyi engelle.
         const existingSnap = await db
           .collection('matchmakingMatches')
@@ -643,6 +706,10 @@ export default async function handler(req, res) {
           .limit(5000)
           .get();
         const existingOtherIds = new Set();
+        let myActiveCount = 0;
+        const myActiveProposed = [];
+        const expiredProposed = [];
+
         existingSnap.docs.forEach((d) => {
           const m = d.data() || {};
           const ids = Array.isArray(m.userIds) ? m.userIds.map(String).filter(Boolean) : [];
@@ -653,9 +720,21 @@ export default async function handler(req, res) {
             // Aktif match varsa tekrar üretmeyelim.
             const st = safeStr(m?.status);
             const reason = safeStr(m?.cancelledReason);
-            const active = st === 'proposed' || st === 'mutual_accepted' || st === 'contact_unlocked';
+            const active = st === 'proposed' || st === 'mutual_interest' || st === 'mutual_accepted' || st === 'contact_unlocked';
             if (active) {
               existingOtherIds.add(other);
+              myActiveCount += 1;
+
+              // proposed ise, refresh sırasında gerekirse slot açmak için aday listesine al.
+              if (st === 'proposed') {
+                const createdAtMs = typeof m?.createdAtMs === 'number' && Number.isFinite(m.createdAtMs) ? m.createdAtMs : 0;
+                myActiveProposed.push({ id: d.id, createdAtMs });
+
+                const exp = typeof m?.proposedExpiresAtMs === 'number' && Number.isFinite(m.proposedExpiresAtMs) ? m.proposedExpiresAtMs : 0;
+                if (exp > 0 && exp <= now) {
+                  expiredProposed.push({ id: d.id, createdAtMs, proposedExpiresAtMs: exp });
+                }
+              }
               return;
             }
 
@@ -664,6 +743,88 @@ export default async function handler(req, res) {
             if (rejected) existingOtherIds.add(other);
           }
         });
+
+        // 1) Expired proposed temizliği: cron yoksa birikme yapıyor.
+        //    (UI cancelled'ı gizlediği için kullanıcı tarafında liste düzelir.)
+        if (expiredProposed.length) {
+          const batch = db.batch();
+          const cap = 250;
+          let n = 0;
+          for (const item of expiredProposed.sort((a, b) => (a.proposedExpiresAtMs || 0) - (b.proposedExpiresAtMs || 0))) {
+            if (n >= cap) break;
+            const matchRef = db.collection('matchmakingMatches').doc(String(item.id));
+            batch.set(
+              matchRef,
+              {
+                status: 'cancelled',
+                cancelledAt: FieldValue.serverTimestamp(),
+                cancelledAtMs: now,
+                cancelledReason: 'proposed_expired',
+                cancelledByUserId: uid,
+                updatedAt: FieldValue.serverTimestamp(),
+              },
+              { merge: true }
+            );
+            n += 1;
+          }
+          if (n > 0) {
+            try {
+              await batch.commit();
+              myActiveCount = Math.max(0, myActiveCount - Math.min(n, expiredProposed.length));
+            } catch {
+              // best-effort
+            }
+          }
+        }
+
+        // 2) Slot doluysa, refresh sırasında en eski proposed'ları iptal ederek yer aç.
+        //    mutual_interest/mutual_accepted gibi ilerlemiş durumları otomatik iptal etmiyoruz.
+        const wantCreateMax = maxMatches;
+        const slotsNeeded = Math.max(0, (myActiveCount + wantCreateMax) - myMaxActiveMatches);
+        if (slotsNeeded > 0 && myActiveProposed.length) {
+          const toCancel = myActiveProposed
+            .filter((x) => !expiredProposed.some((e) => e.id === x.id))
+            .sort((a, b) => (a.createdAtMs || 0) - (b.createdAtMs || 0))
+            .slice(0, slotsNeeded);
+
+          if (toCancel.length) {
+            const batch = db.batch();
+            let n = 0;
+            for (const item of toCancel) {
+              const matchRef = db.collection('matchmakingMatches').doc(String(item.id));
+              batch.set(
+                matchRef,
+                {
+                  status: 'cancelled',
+                  cancelledAt: FieldValue.serverTimestamp(),
+                  cancelledAtMs: now,
+                  cancelledReason: 'refresh_replaced',
+                  cancelledByUserId: uid,
+                  updatedAt: FieldValue.serverTimestamp(),
+                },
+                { merge: true }
+              );
+              n += 1;
+            }
+            try {
+              await batch.commit();
+              myActiveCount = Math.max(0, myActiveCount - n);
+            } catch {
+              // best-effort
+            }
+          }
+        }
+
+        const mySlotsAvailable = Math.max(0, myMaxActiveMatches - myActiveCount);
+        const maxMatchesEffective = Math.min(maxMatches, mySlotsAvailable);
+        if (maxMatchesEffective <= 0) {
+          noMatchReason = noMatchReason || 'slot_full';
+          // Debug alanlarını yine döndürmek için akışa devam etmiyoruz.
+          matchTierOut = 'slot_full';
+          debugOut = { slot: { myActiveCount, myMaxActiveMatches } };
+          created = 0;
+          // response aşağıda.
+        }
 
         // Aday havuzu: son N başvuru.
         const appsSnap = await db
@@ -801,6 +962,15 @@ export default async function handler(req, res) {
           snap.docs.forEach((d) => {
             const data = d.data() || {};
             const activeCount = typeof activeMatchCountByUserId.get(d.id) === 'number' ? activeMatchCountByUserId.get(d.id) : 0;
+            const maxActiveMatches = membershipMaxMatchesFromUserDoc(data, now);
+
+            const requestedAtMs =
+              (typeof data?.requestedNewMatchAtMs === 'number' && Number.isFinite(data.requestedNewMatchAtMs) ? data.requestedNewMatchAtMs : 0) ||
+              tsToMs(data?.requestedNewMatchAt);
+
+            const lock = data?.matchmakingLock && typeof data.matchmakingLock === 'object' ? data.matchmakingLock : null;
+            const lockActive = !!lock?.active;
+
             userStatusById.set(d.id, {
               blocked: !!data.blocked,
               lastSeenAtMs: lastSeenMsFromUserDoc(data),
@@ -808,13 +978,33 @@ export default async function handler(req, res) {
               membershipActive: isMembershipActiveUserDoc(data, now),
               membershipPlan: typeof data?.membership?.plan === 'string' ? String(data.membership.plan).toLowerCase().trim() : '',
               activeMatchCount: activeCount,
+              maxActiveMatches,
+              hasFreeSlot: activeCount < maxActiveMatches,
+              requestedNewMatchAtMs: requestedAtMs,
+              lockActive,
             });
           });
         }
 
+        // Opt-in penceresi: ancak yakın zamanda "eşleşme bul" diyen kullanıcılar aday olsun.
+        // Böylece karşılıklı olmadan "rastgele" eşleşme düşmesi engellenir.
+        const optInHours = Number(process.env.MATCHMAKING_OPTIN_TTL_HOURS || 24 * 7);
+        const OPTIN_TTL_MS = (Number.isFinite(optInHours) && optInHours > 0 ? optInHours : 24 * 7) * 60 * 60 * 1000;
+        const optInCutoffMs = now - OPTIN_TTL_MS;
+
         const poolStrict = poolStrictScoped.filter((cand) => {
           const st = userStatusById.get(String(cand.userId)) || { blocked: false };
           if (st.blocked) return false;
+
+          // Karşı taraf opt-in değilse eşleşme üretme.
+          const reqMs = typeof st?.requestedNewMatchAtMs === 'number' ? st.requestedNewMatchAtMs : 0;
+          if (!(reqMs > 0 && reqMs >= optInCutoffMs)) return false;
+
+          // Karşı tarafın slotu doluysa, daha fazla proposed üretme.
+          if (st.hasFreeSlot === false) return false;
+
+          // Aktif lock'u olan kullanıcıya yeni match düşürme (1 aktif eşleşme kuralı ile uyumlu).
+          if (st.lockActive) return false;
 
           const seen = typeof st?.lastSeenAtMs === 'number' ? st.lastSeenAtMs : 0;
           const createdMs = appCreatedAtMs(cand);
@@ -827,6 +1017,11 @@ export default async function handler(req, res) {
         const poolRelax = poolRelaxScoped.filter((cand) => {
           const st = userStatusById.get(String(cand.userId)) || { blocked: false };
           if (st.blocked) return false;
+
+          const reqMs = typeof st?.requestedNewMatchAtMs === 'number' ? st.requestedNewMatchAtMs : 0;
+          if (!(reqMs > 0 && reqMs >= optInCutoffMs)) return false;
+          if (st.hasFreeSlot === false) return false;
+          if (st.lockActive) return false;
 
           const seen = typeof st?.lastSeenAtMs === 'number' ? st.lastSeenAtMs : 0;
           const createdMs = appCreatedAtMs(cand);
@@ -942,11 +1137,30 @@ export default async function handler(req, res) {
             : null,
         };
 
-        const top = picked.slice(0, maxMatches);
+        if (maxMatchesEffective <= 0) {
+          // slot_full ise match üretme.
+          picked = [];
+        }
+
+        const top = picked.slice(0, maxMatchesEffective);
         for (const row of top) {
           const otherUid = String(row.cand.userId);
           if (!otherUid) continue;
           if (existingOtherIds.has(otherUid)) continue;
+
+          // Son savunma: status map yoksa bile slot/opt-in kontrolü yap.
+          const otherSt = userStatusById.get(otherUid) || null;
+          if (otherSt) {
+            // Ürün kararı: tek taraflı tarama ile de eşleşme üretilebilsin.
+            // İstenirse env ile eski "iki taraf da opt-in" kuralına dönülebilir.
+            const requireOtherOptIn = readBoolEnv('MATCHMAKING_REQUIRE_OTHER_OPTIN', false);
+            if (requireOtherOptIn) {
+              const reqMs = typeof otherSt?.requestedNewMatchAtMs === 'number' ? otherSt.requestedNewMatchAtMs : 0;
+              if (!(reqMs > 0 && reqMs >= optInCutoffMs)) continue;
+            }
+            if (otherSt.hasFreeSlot === false) continue;
+            if (otherSt.lockActive) continue;
+          }
 
           const userIdsSorted = [uid, otherUid].sort();
           const matchId = `${userIdsSorted[0]}__${userIdsSorted[1]}`;

@@ -36,6 +36,119 @@
 			"problemMatcher": [
 				"$tsc"
 			]
+		},
+		{
+			"label": "debug (matchmaking pair)",
+			"type": "shell",
+			"command": "node",
+			"args": [
+				"scripts/matchmaking-debug-pair.mjs",
+				"--a",
+				"deneme5@gmail.com",
+				"--b",
+				"deneme8@gmail.com"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "debug (matchmaking match doc)",
+			"type": "shell",
+			"command": "node",
+			"args": [
+				"scripts/matchmaking-debug-match.mjs",
+				"--matchId",
+				"6xwDhyMJblTVPmJOyU1APO0mLPf2__SiIqL5ChB3Q4VA71d6VcBwRMDQg2",
+				"--uid",
+				"SiIqL5ChB3Q4VA71d6VcBwRMDQg2"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "debug (matchmaking match doc)",
+			"type": "shell",
+			"command": "node",
+			"args": [
+				"scripts/matchmaking-debug-match.mjs",
+				"--matchId",
+				"6xwDhyMJblTVPmJOyU1APO0mLPf2__SiIqL5ChB3Q4VA71d6VcBwRMDQg2",
+				"--uid",
+				"SiIqL5ChB3Q4VA71d6VcBwRMDQg2"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "debug (matchmaking match doc)",
+			"type": "shell",
+			"command": "node",
+			"args": [
+				"scripts/matchmaking-debug-match.mjs",
+				"--matchId",
+				"6xwDhyMJblTVPmJOyU1APO0mLPf2__SiIqL5ChB3Q4VA71d6VcBwRMDQg2",
+				"--uid",
+				"SiIqL5ChB3Q4VA71d6VcBwRMDQg2"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "debug (matchmaking match doc)",
+			"type": "shell",
+			"command": "node",
+			"args": [
+				"scripts/matchmaking-debug-match.mjs",
+				"--matchId",
+				"6xwDhyMJblTVPmJOyU1APO0mLPf2__SiIqL5ChB3Q4VA71d6VcBwRMDQg2",
+				"--uid",
+				"6xwDhyMJblTVPmJOyU1APO0mLPf2"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "debug (matchmaking match doc b)",
+			"type": "shell",
+			"command": "node",
+			"args": [
+				"scripts/matchmaking-debug-match.mjs",
+				"--matchId",
+				"6xwDhyMJblTVPmJOyU1APO0mLPf2__SiIqL5ChB3Q4VA71d6VcBwRMDQg2",
+				"--uid",
+				"6xwDhyMJblTVPmJOyU1APO0mLPf2"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "debug (admin uid lookup b)",
+			"type": "shell",
+			"command": "node",
+			"args": [
+				"scripts/admin-uid.mjs",
+				"--uid",
+				"6xwDhyMJblTVPmJOyU1APO0mLPf2"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "debug (admin uid lookup b line)",
+			"type": "shell",
+			"command": "node",
+			"args": [
+				"scripts/admin-uid.mjs",
+				"--uid",
+				"6xwDhyMJblTVPmJOyU1APO0mLPf2"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "debug (admin uid lookup a line)",
+			"type": "shell",
+			"command": "node",
+			"args": [
+				"scripts/admin-uid.mjs",
+				"--uid",
+				"SiIqL5ChB3Q4VA71d6VcBwRMDQg2"
+			],
+			"isBackground": false
 		}
 	]
 }

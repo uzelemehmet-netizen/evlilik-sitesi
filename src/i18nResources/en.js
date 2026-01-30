@@ -28,6 +28,47 @@ export default {
       match: 'Match',
       profile: 'Profile',
       verified: 'Verified',
+      unknown: 'Unknown',
+    },
+
+    inbox: {
+      likesTitle: 'Incoming likes ({{count}})',
+      likeReceived: 'Sent you a like',
+      viewProfile: 'View profile',
+      accept: 'Like back',
+      reject: 'Reject',
+    },
+
+    accessInbox: {
+      title: 'Profile access requests ({{count}})',
+      requested: 'Requests access to view your profile',
+      approve: 'Allow',
+      reject: 'Reject',
+    },
+
+    pool: {
+      title: 'Pool',
+      backToMatches: '← Back to matches',
+      refresh: 'Refresh',
+      lastUpdated: 'Auto-refreshes (20s).',
+      countHint: 'Total: {{total}} • Shown: {{shown}}',
+      filtersHint: 'Age range: {{min}} – {{max}}',
+      empty: 'No profiles found with these filters.',
+      requestProfileNow: 'Request profile',
+      requesting: 'Requesting…',
+      requestSent: 'Request sent',
+      openProfile: 'Open profile',
+      profileModalTitle: 'Profile',
+      actionsSoon: 'Coming soon: short message',
+      notInTheirRange: "To interact, you must also be within their age range.",
+      notInTheirRangeShort: 'Age range mismatch',
+    },
+
+    paywall: {
+      upgradeTitle: 'Membership required',
+      upgradeToInteract: 'An active membership is required to do this. Upgrade to a paid plan to like and send messages.',
+      upgradeToReply: 'An active membership is required to reply. Upgrade to a paid plan to send messages.',
+      upgradeCta: 'Upgrade',
     },
     myInfo: {
       title: 'My info',
@@ -62,8 +103,9 @@ export default {
         education: 'Education',
         educationDepartment: 'Department',
         maritalStatus: 'Marital status',
-        hasChildren: 'Children',
+        hasChildren: 'Has children?',
         childrenCount: 'Children count',
+        childrenLivingSituation: 'Lives with children?',
         familyApprovalStatus: 'Family approval',
         religion: 'Religion',
         religiousValues: 'Religious values',
@@ -120,6 +162,7 @@ export default {
       actions: {
         like: 'Like',
         liked: 'Liked',
+        unlike: 'Undo like',
         message: 'Message',
       },
       banners: {
@@ -225,6 +268,8 @@ export default {
       askShort: 'Ask a short question',
       viewProfile: 'View profile',
       hideProfile: 'Hide profile',
+      prevPhoto: 'Previous photo',
+      nextPhoto: 'Next photo',
       profileTitle: 'Profile info',
       contactHidden:
         'Contact details are hidden. They are not shown while filling the form or in the app UI. They may only be shared after the 48-hour active match period if a definitive match is achieved, and only with your approval.',
@@ -286,6 +331,13 @@ export default {
       bannerAlt: 'Profile banner',
       aboutTitle: 'About',
       noBio: 'No description yet.',
+      textsTitle: 'Profile texts',
+      aboutLabel: 'Tell us briefly about yourself',
+      expectationsLabel: 'Describe who you are looking for',
+      aboutPlaceholder: 'Write a short intro about yourself…',
+      expectationsPlaceholder: 'Write what you are looking for…',
+      saveTexts: 'Save',
+      textsSaved: 'Saved.',
       subscriptionTitle: 'Subscription',
       subscriptionActiveDesc: 'Your membership is active. You can access all features.',
       subscriptionPassiveDesc: 'Your membership is inactive. Some actions may be restricted without membership.',
@@ -322,8 +374,12 @@ export default {
     },
     errors: {
       profileNotFound: 'Profile record not found.',
+      apiUnavailable: 'API is not reachable. In local dev, run `npm run dev` (api+web).',
+      serverNotConfigured: 'Server configuration is missing. Please contact support.',
       activeLocked: 'While you have an active match, you cannot interact with another profile. First, mutually cancel your active match.',
       shortLimit: 'You have used all your short messages (5). To continue, after mutual like you must start the active match.',
+      shortMessageTooLong: 'Message is too long. Max 240 characters.',
+      filtered: 'Do not share contact info (links, phone, social media).',
       notAvailable: 'This action is not available at this stage.',
       forbidden: 'You are not allowed to perform this action.',
       cancelCooldown: 'To prevent abuse, cancellation is temporarily disabled. Remaining: {{time}}',
@@ -1755,6 +1811,7 @@ export default {
         matchedProfile: 'Match profile',
         score: 'Match score',
         likeBadge: '♥ You received a like',
+        likeSentBadge: '✓ Like sent',
         profileInfo: 'Show profile info',
         hideProfileInfo: 'Hide',
         profileInfoTitle: 'Profile info (excluding contact)',
@@ -1981,6 +2038,27 @@ export default {
             usernameLocked: 'In edit mode, the username cannot be changed (one-time fix).',
             photosLocked: 'In edit mode, photo updates are disabled. You can only fix the form fields.',
           },
+    },
+  },
+
+  matchmakingPage: {
+    form: {
+      labels: {
+        childrenLivingSituation: 'Do you live with your children?',
+      },
+      placeholders: {
+        occupation: 'e.g., Teacher / Doctor / Engineer',
+      },
+      options: {
+        childrenLivingSituation: {
+          withChildren: 'I live with my children',
+          separate: 'I live separately from my children',
+        },
+      },
+      errors: {
+        childrenLivingSituation: 'Please select your living situation with your children.',
+        occupation: 'Please enter your occupation.',
+      },
     },
   },
 

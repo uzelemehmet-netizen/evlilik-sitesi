@@ -34,6 +34,17 @@ function isDevBypassEnabled() {
   return raw === '1' || raw === 'true' || raw === 'yes';
 }
 
+function isInteractionMembershipOnlyEnabled() {
+  // Varsayılan (ürün kararı): etkileşim başlatmak için aktif üyelik gerekir.
+  // Geri almak için env'i açıkça 0/false/no yapın.
+  const raw = String(process.env.MATCHMAKING_INTERACTION_REQUIRES_MEMBERSHIP || '').toLowerCase().trim();
+  // 2026-01: Ürün akışı (havuz + bildirim) için etkileşimler varsayılan olarak serbest.
+  // Üyelik zorunluluğu isteniyorsa bu env açıkça set edilmelidir.
+  if (!raw) return false;
+  if (raw === '0' || raw === 'false' || raw === 'no' || raw === 'off') return false;
+  return raw === '1' || raw === 'true' || raw === 'yes' || raw === 'on';
+}
+
 function isFreeActiveEnabled() {
   const raw = String(process.env.MATCHMAKING_FREE_ACTIVE_ENABLED || '').toLowerCase().trim();
   return raw === '1' || raw === 'true' || raw === 'yes';
@@ -44,53 +55,11 @@ function ensureEligibleOrThrow(userDoc, gender) {
   // Prod’da kapalıdır; sadece dev-api script’i bu env’i set eder.
   if (isDevBypassEnabled()) return;
 
-  const g = normalizeGender(gender);
+  // Opsiyonel ürün kuralı: etkileşim başlatmak için aktif üyelik zorunlu.
+  // Varsayılan: kapalı (serbest). Açmak için MATCHMAKING_INTERACTION_REQUIRES_MEMBERSHIP=true.
+  if (!isInteractionMembershipOnlyEnabled()) return;
+
   const member = isMembershipActive(userDoc);
-
-  // Erkek kullanıcılar: aksiyonlar için ücretli üyelik şart.
-  if (g === 'male') {
-    if (!member) {
-      const err = new Error('membership_required');
-      err.statusCode = 402;
-      throw err;
-    }
-    return;
-  }
-
-  // Kadın kullanıcılar: ücretli üyelik veya (kimlik doğrulama + ücretsiz aktif üyelik) ile aksiyon açılır.
-  if (g === 'female') {
-    if (member) return;
-
-    // Ücretsiz aktif üyelik özelliği kapalıysa: kadın kullanıcılar için de ücretli üyelik gerekir.
-    if (!isFreeActiveEnabled()) {
-      const err = new Error('membership_required');
-      err.statusCode = 402;
-      throw err;
-    }
-
-    if (!isIdentityVerified(userDoc)) {
-      const err = new Error('membership_or_verification_required');
-      err.statusCode = 402;
-      throw err;
-    }
-
-    const fam = computeFreeActiveMembershipState(userDoc);
-    if (fam.blocked) {
-      const err = new Error('free_active_membership_blocked');
-      err.statusCode = 402;
-      throw err;
-    }
-
-    if (!fam.eligible) {
-      const err = new Error('free_active_membership_required');
-      err.statusCode = 402;
-      throw err;
-    }
-
-    return;
-  }
-
-  // Bilinmeyen cinsiyet: güvenli tarafta kal.
   if (!member) {
     const err = new Error('membership_required');
     err.statusCode = 402;
@@ -105,4 +74,5 @@ export {
   computeFreeActiveMembershipState,
   ensureEligibleOrThrow,
   isFreeActiveEnabled,
+  isInteractionMembershipOnlyEnabled,
 };

@@ -1,4 +1,5 @@
 import { getAdmin, normalizeBody, requireIdToken } from './_firebaseAdmin.js';
+import { ensureEligibleOrThrow } from './_matchmakingEligibility.js';
 
 function safeStr(v) {
   return typeof v === 'string' ? v.trim() : '';
@@ -12,6 +13,14 @@ function normalizeLangHint(v) {
 
 function nowMs() {
   return Date.now();
+}
+
+function dayKeyUtc(ts) {
+  try {
+    return new Date(typeof ts === 'number' ? ts : Date.now()).toISOString().slice(0, 10);
+  } catch {
+    return '';
+  }
 }
 
 const PROPOSED_CHAT_LIMIT_PER_UID = 5;
@@ -151,6 +160,38 @@ export default async function handler(req, res) {
           err.statusCode = 400;
           throw err;
         }
+
+        // Günlük kısa mesaj limiti (tüm eşleşmeler toplamı)
+        const dailyLimitRaw = Number(process.env.SHORT_MESSAGE_DAILY_LIMIT || 5);
+        const dailyLimit = Number.isFinite(dailyLimitRaw) ? Math.max(0, Math.min(50, Math.floor(dailyLimitRaw))) : 5;
+        if (dailyLimit > 0) {
+          const key = dayKeyUtc(ts);
+          const prevMap = me?.shortMessageUsageDaily && typeof me.shortMessageUsageDaily === 'object' ? me.shortMessageUsageDaily : {};
+          const usedPrev = key && typeof prevMap?.[key] === 'number' && Number.isFinite(prevMap[key]) ? prevMap[key] : 0;
+
+          if (key && usedPrev >= dailyLimit) {
+            const err = new Error('short_message_daily_limit');
+            err.statusCode = 409;
+            throw err;
+          }
+
+          if (key) {
+            const next = { ...prevMap, [key]: usedPrev + 1 };
+            const keys = Object.keys(next).sort();
+            if (keys.length > 20) {
+              for (const k of keys.slice(0, keys.length - 14)) delete next[k];
+            }
+            tx.set(
+              meRef,
+              {
+                shortMessageUsageDaily: next,
+                shortMessageUsageDailyUpdatedAtMs: ts,
+                updatedAt: FieldValue.serverTimestamp(),
+              },
+              { merge: true }
+            );
+          }
+        }
       }
 
       // Kural: Reject alan kullanıcı, reject edene mesaj atamaz.
@@ -174,6 +215,10 @@ export default async function handler(req, res) {
       const aGender = aAppSnap && aAppSnap.exists ? safeStr((aAppSnap.data() || {})?.gender) : '';
       const bGender = bAppSnap && bAppSnap.exists ? safeStr((bAppSnap.data() || {})?.gender) : '';
       const myGender = uid === aUid ? aGender : bGender;
+
+      // Etkileşim kuralı: (env ile) mesaj göndermek için üyelik gerekebilir.
+      // Not: Alıcı taraf için eligibility zorlamıyoruz.
+      ensureEligibleOrThrow(me, myGender);
 
       // Kota/üyelik kısıtı yok: mesaj göndermede üyelik şartı ve lock şartı kaldırıldı.
       // Not: Mesaj göndermek için alıcının eligibility şartlarını zorlamıyoruz.

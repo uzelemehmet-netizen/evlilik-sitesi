@@ -20,9 +20,23 @@ export function translateStudioApiError(t, raw) {
   const s = safeStr(raw);
   if (!s) return '';
 
+  if (s === 'api_unreachable') return t('studio.errors.apiUnavailable');
+  if (s === 'firebase_admin_not_configured') return t('studio.errors.serverNotConfigured');
+
   if (s === 'active_match_locked' || s === 'active_match_exists') return t('studio.errors.activeLocked');
   if (s === 'other_user_active_match_exists') return t('studio.matchProfile.errors.otherUserActiveMatch');
-  if (s === 'short_message_limit' || s === 'chat_limit_reached') return t('studio.errors.shortLimit');
+  if (s === 'short_message_limit' || s === 'short_message_daily_limit' || s === 'chat_limit_reached') return t('studio.errors.shortLimit');
+  if (s === 'short_message_too_long') return t('studio.errors.shortMessageTooLong');
+  if (s === 'filtered') return t('studio.errors.filtered');
+
+  if (
+    s === 'membership_required' ||
+    s === 'membership_or_verification_required' ||
+    s === 'free_active_membership_required' ||
+    s === 'free_active_membership_blocked'
+  ) {
+    return t('studio.paywall.upgradeToInteract');
+  }
 
   if (s === 'not_available') return t('studio.errors.notAvailable');
   if (s === 'forbidden') return t('studio.errors.forbidden');

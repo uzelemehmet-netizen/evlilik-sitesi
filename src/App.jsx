@@ -14,6 +14,7 @@ import StudioMyInfo from './pages/studio/StudioMyInfo';
 import StudioMatches from './pages/studio/StudioMatches';
 import StudioChat from './pages/studio/StudioChat';
 import StudioMatchProfile from './pages/studio/StudioMatchProfile';
+import StudioPool from './pages/studio/StudioPool';
 import Wedding from './pages/Wedding';
 import MatchmakingApply from './pages/MatchmakingApply';
 import MatchmakingHub from './pages/MatchmakingHub';
@@ -224,6 +225,14 @@ function App() {
           element={
             <RequireAuth>
               <StudioMatches />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/app/pool"
+          element={
+            <RequireAuth>
+              <StudioPool />
             </RequireAuth>
           }
         />

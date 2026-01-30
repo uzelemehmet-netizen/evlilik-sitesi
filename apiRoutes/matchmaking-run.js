@@ -120,6 +120,26 @@ function safeStr(v) {
   return typeof v === 'string' ? v.trim() : '';
 }
 
+function normalizeTextKey(v) {
+  if (v === null || v === undefined) return '';
+  return String(v)
+    .trim()
+    .toLowerCase()
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/ı/g, 'i')
+    .replace(/İ/g, 'i');
+}
+
+function normalizeGender(v) {
+  const s = normalizeTextKey(v);
+  if (!s) return '';
+
+  if (s === 'male' || s === 'm' || s === 'man' || s === 'men' || s === 'erkek' || s === 'bay' || s === 'adam') return 'male';
+  if (s === 'female' || s === 'f' || s === 'woman' || s === 'women' || s === 'kadin' || s === 'bayan' || s === 'kiz') return 'female';
+  return '';
+}
+
 function tsToMs(v) {
   if (!v) return 0;
   if (typeof v === 'number' && Number.isFinite(v)) return v;
@@ -141,10 +161,11 @@ function membershipMaxMatchesFromUserDoc(userDoc, nowMs) {
   const plan = typeof m?.plan === 'string' ? String(m.plan).toLowerCase().trim() : '';
   const validUntilMs = typeof m?.validUntilMs === 'number' && Number.isFinite(m.validUntilMs) ? m.validUntilMs : 0;
   const active = !!m?.active && validUntilMs > nowMs;
-  if (!active) return 3;
+  // Geçici ürün kararı (fiyatlandırma öncesi): herkes için 5 aktif eşleşmeye kadar izin ver.
+  if (!active) return 5;
   if (plan === 'pro') return 10;
   if (plan === 'standard') return 5;
-  return 3;
+  return 5;
 }
 
 function countsAsActiveSlotForUser(match, uid) {
@@ -260,14 +281,14 @@ function ageCompatibleOneWay(seeker, candidate) {
 
   const p = seeker?.partnerPreferences || {};
 
-  const min = asNum(p?.ageMin);
-  const max = asNum(p?.ageMax);
+  const min = toNumOrNull(p?.ageMin, { min: MIN_AGE, max: 99 });
+  const max = toNumOrNull(p?.ageMax, { min: MIN_AGE, max: 99 });
   if (min !== null || max !== null) {
     return (min === null || candAge >= min) && (max === null || candAge <= max);
   }
 
-  const older = asNum(p?.ageMaxOlderYears);
-  const younger = asNum(p?.ageMaxYoungerYears);
+  const older = toNumOrNull(p?.ageMaxOlderYears, { min: 0, max: 99 });
+  const younger = toNumOrNull(p?.ageMaxYoungerYears, { min: 0, max: 99 });
   if (older !== null || younger !== null) {
     const o = older ?? 0;
     const y = younger ?? 0;
@@ -298,6 +319,115 @@ function ageCompatibleBothRelaxed(a, b, windowYears) {
 function ageCompatibleBothWithMode(a, b, { relaxAge } = {}) {
   if (relaxAge) return ageCompatibleBothRelaxed(a, b, relaxedAgeWindowYears());
   return ageCompatibleBoth(a, b);
+}
+
+function buildPoolBreakdown({
+  seeker,
+  seekerUserId,
+  seekerGender,
+  wantGender,
+  candidates,
+  userStatusById,
+  producedPairKeys,
+  existingByPairKey,
+  nowMs,
+  inactiveCutoffMs,
+  applyInactivityRules,
+  relaxFilters,
+  seekerAge,
+  expandGroups,
+}) {
+  const out = {
+    total: Array.isArray(candidates) ? candidates.length : 0,
+    rejected: {
+      self_or_missing_id: 0,
+      same_gender: 0,
+      cand_age_missing: 0,
+      blocked: 0,
+      inactive: 0,
+      duplicate_pair_in_run: 0,
+      existing_no_rematch: 0,
+      lookingForGender_mismatch: 0,
+      age_pref_incompatible: 0,
+      age_group_policy: 0,
+    },
+    passed: 0,
+    meta: {
+      seekerAge: seekerAge ?? null,
+      wantGender,
+      expandGroups,
+    },
+  };
+
+  const list = Array.isArray(candidates) ? candidates : [];
+  for (const cand of list) {
+    const candUserId = cand?.userId ? String(cand.userId) : '';
+    if (!candUserId || candUserId === String(seekerUserId)) {
+      out.rejected.self_or_missing_id += 1;
+      continue;
+    }
+
+    const candGender = cand.genderNorm || normalizeGender(cand.gender);
+    if (candGender && candGender === seekerGender) {
+      out.rejected.same_gender += 1;
+      continue;
+    }
+
+    const candAge = getAge(cand);
+    if (candAge === null) {
+      out.rejected.cand_age_missing += 1;
+      continue;
+    }
+
+    const candStatus = userStatusById.get(String(candUserId)) || { blocked: false };
+    if (candStatus.blocked) {
+      out.rejected.blocked += 1;
+      continue;
+    }
+
+    const candSeen = typeof candStatus?.lastSeenAtMs === 'number' ? candStatus.lastSeenAtMs : 0;
+    const candCreatedAtMs = typeof cand?.createdAtMs === 'number' ? cand.createdAtMs : tsToMs(cand?.createdAt);
+    const candInactive = candSeen > 0 ? candSeen <= inactiveCutoffMs : candCreatedAtMs > 0 && candCreatedAtMs <= inactiveCutoffMs;
+    if (applyInactivityRules && candInactive) {
+      out.rejected.inactive += 1;
+      continue;
+    }
+
+    const pairKey = [String(seekerUserId), String(candUserId)].sort().join('__');
+    if (producedPairKeys.has(pairKey)) {
+      out.rejected.duplicate_pair_in_run += 1;
+      continue;
+    }
+    const existing = existingByPairKey.get(pairKey) || null;
+    if (existing && !canRematchMatchDoc(existing, nowMs)) {
+      out.rejected.existing_no_rematch += 1;
+      continue;
+    }
+
+    const candWant = cand.lookingForGenderNorm || normalizeGender(cand.lookingForGender);
+    if (candWant && candWant !== seekerGender) {
+      out.rejected.lookingForGender_mismatch += 1;
+      continue;
+    }
+
+    if (!ageCompatibleBothWithMode(seeker, cand, { relaxAge: relaxFilters })) {
+      out.rejected.age_pref_incompatible += 1;
+      continue;
+    }
+
+    if (typeof seekerAge === 'number' && Number.isFinite(seekerAge)) {
+      const dist = ageGroupDistance(seekerAge, candAge);
+      const ok = expandGroups > 0 ? dist <= expandGroups : dist === 0;
+      if (!ok) {
+        out.rejected.age_group_policy += 1;
+        continue;
+      }
+    }
+
+    out.passed += 1;
+  }
+
+  return out;
 }
 
 function minPoolForStrictFilters() {
@@ -463,6 +593,13 @@ function computeFitScore(seeker, candidate) {
 
 function buildPublicProfile(app, userStatus) {
   const details = app?.details || {};
+  const about = typeof app?.about === 'string' ? app.about.trim() : '';
+  const expectations = typeof app?.expectations === 'string' ? app.expectations.trim() : '';
+  const clip = (s, maxLen) => {
+    const v = typeof s === 'string' ? s.trim() : '';
+    if (!v) return '';
+    return v.length > maxLen ? v.slice(0, maxLen) : v;
+  };
 
   // Snapshot'larda yalnızca herkese açık minimal alanlar kalsın.
   // Üyelik aktif kullanıcılar detayları server-side endpoint'ten çeker.
@@ -478,8 +615,14 @@ function buildPublicProfile(app, userStatus) {
     city: safeStr(app?.city),
     country: safeStr(app?.country),
     photoUrls: Array.isArray(app?.photoUrls) ? app.photoUrls.filter((u) => typeof u === 'string' && u.trim()) : [],
+    about: clip(about, 360),
+    expectations: clip(expectations, 360),
     details: {
       maritalStatus: safeStr(details?.maritalStatus),
+      occupation: safeStr(details?.occupation),
+      hasChildren: safeStr(details?.hasChildren),
+      childrenCount: asNum(details?.childrenCount),
+      childrenLivingSituation: safeStr(details?.childrenLivingSituation),
     },
   };
 }
@@ -813,7 +956,9 @@ export default async function handler(req, res) {
     }
 
     const nowMs = Date.now();
-    const PROPOSED_TTL_MS = 48 * 60 * 60 * 1000;
+    const proposedTtlHoursRaw = Number(process.env.MATCHMAKING_PROPOSED_TTL_HOURS || 48);
+    const proposedTtlHours = Number.isFinite(proposedTtlHoursRaw) && proposedTtlHoursRaw > 0 ? proposedTtlHoursRaw : 48;
+    const PROPOSED_TTL_MS = Math.round(proposedTtlHours * 60 * 60 * 1000);
     // Küçük havuzlarda 24 saat çok agresif ve havuzu sıfırlayabiliyor.
     // Varsayılanı 7 gün yaptık; istenirse env ile düşürülebilir.
     const ttlHours = Number(process.env.MATCHMAKING_INACTIVE_TTL_HOURS || 24 * 7);
@@ -840,11 +985,12 @@ export default async function handler(req, res) {
     // appsSnap createdAt desc geliyor; aynı userId için ilk kayıt en yenidir.
     const rawAppsUnique = dedupeAppsByUserIdKeepFirst(rawApps);
     const apps = rawAppsUnique
-      .filter(
-        (a) =>
-          a?.userId &&
-          (a?.gender === 'male' || a?.gender === 'female')
-      )
+      .map((a) => ({
+        ...a,
+        genderNorm: normalizeGender(a?.gender),
+        lookingForGenderNorm: normalizeGender(a?.lookingForGender),
+      }))
+      .filter((a) => a?.userId && (a.genderNorm === 'male' || a.genderNorm === 'female'))
       .filter((a) => (includeSeeds ? true : !isSeedApplication(a)));
 
     const minPool = minPoolForStrictFilters();
@@ -941,8 +1087,8 @@ export default async function handler(req, res) {
 
     // Basit filtre: sadece karşılıklı beklenti uyumu olanları ele al.
     const byGender = {
-      male: apps.filter((a) => a.gender === 'male'),
-      female: apps.filter((a) => a.gender === 'female'),
+      male: apps.filter((a) => a.genderNorm === 'male'),
+      female: apps.filter((a) => a.genderNorm === 'female'),
     };
 
     let created = 0;
@@ -968,6 +1114,7 @@ export default async function handler(req, res) {
         relaxFilters,
         applyInactivityRules,
         minPoolForStrictFilters: minPool,
+        proposedTtlHours,
         agePolicy: {
           minAge: MIN_AGE,
           strictGroupMinCandidates: getStrictGroupMinCandidatesFromEnv(),
@@ -1009,6 +1156,7 @@ export default async function handler(req, res) {
         skippedExisting: 0,
       },
       samples: [],
+      poolBreakdowns: [],
     };
 
     // Kaba bir yaklaşım: her başvuru için aday üret.
@@ -1033,7 +1181,7 @@ export default async function handler(req, res) {
         continue;
       }
 
-      const seekerGender = safeStr(seeker.gender);
+      const seekerGender = seeker.genderNorm || normalizeGender(seeker.gender);
       const wantGender = seekerGender === 'male' ? 'female' : seekerGender === 'female' ? 'male' : '';
       // Ürün kararı: milliyet/ülke filtresi yok.
       const seekerNatCode = '';
@@ -1067,7 +1215,7 @@ export default async function handler(req, res) {
 
         let poolNewStrict = (byGender[wantGender] || []).filter((cand) => {
           if (!cand?.userId || cand.userId === seekerUserId) return false;
-          if (safeStr(cand.gender) === safeStr(seeker.gender)) return false;
+          if ((cand.genderNorm || normalizeGender(cand.gender)) === seekerGender) return false;
 
           const candStatus = userStatusById.get(String(cand.userId)) || { blocked: false };
           if (candStatus.blocked) return false;
@@ -1088,7 +1236,8 @@ export default async function handler(req, res) {
           if (existing && !canRematchMatchDoc(existing, nowMs)) return false;
 
           // Karşı tarafın da seeker ile uyumu
-          if (safeStr(cand.lookingForGender) && safeStr(cand.lookingForGender) !== safeStr(seeker.gender)) return false;
+          const candWant = cand.lookingForGenderNorm || normalizeGender(cand.lookingForGender);
+          if (candWant && candWant !== seekerGender) return false;
           // Milliyet/ülke filtresi yok.
 
           // Yaş+cinsiyet “yarı eşleşme” havuzu (iki yönlü)
@@ -1100,7 +1249,7 @@ export default async function handler(req, res) {
         // Fallback tier'larda yalnızca milliyet kontrollerini gevşet.
         let poolNewRelax = (byGender[wantGender] || []).filter((cand) => {
           if (!cand?.userId || cand.userId === seekerUserId) return false;
-          if (safeStr(cand.gender) === safeStr(seeker.gender)) return false;
+          if ((cand.genderNorm || normalizeGender(cand.gender)) === seekerGender) return false;
 
           const candStatus = userStatusById.get(String(cand.userId)) || { blocked: false };
           if (candStatus.blocked) return false;
@@ -1118,7 +1267,8 @@ export default async function handler(req, res) {
           const existing = existingByPairKey.get(pairKey) || null;
           if (existing && !canRematchMatchDoc(existing, nowMs)) return false;
 
-          if (safeStr(cand.lookingForGender) && safeStr(cand.lookingForGender) !== safeStr(seeker.gender)) return false;
+          const candWant = cand.lookingForGenderNorm || normalizeGender(cand.lookingForGender);
+          if (candWant && candWant !== seekerGender) return false;
           if (!ageCompatibleBothWithMode(seeker, cand, { relaxAge: relaxFilters })) return false;
           // nationality filters relaxed
           return true;
@@ -1155,7 +1305,7 @@ export default async function handler(req, res) {
           allowInactiveSlotCandidates = true;
           poolNewStrict = (byGender[wantGender] || []).filter((cand) => {
             if (!cand?.userId || cand.userId === seekerUserId) return false;
-            if (safeStr(cand.gender) === safeStr(seeker.gender)) return false;
+            if ((cand.genderNorm || normalizeGender(cand.gender)) === seekerGender) return false;
 
             const candStatus = userStatusById.get(String(cand.userId)) || { blocked: false };
             if (candStatus.blocked) return false;
@@ -1173,7 +1323,8 @@ export default async function handler(req, res) {
             const existing = existingByPairKey.get(pairKey) || null;
             if (existing && !canRematchMatchDoc(existing, nowMs)) return false;
 
-            if (safeStr(cand.lookingForGender) && safeStr(cand.lookingForGender) !== safeStr(seeker.gender)) return false;
+            const candWant = cand.lookingForGenderNorm || normalizeGender(cand.lookingForGender);
+            if (candWant && candWant !== seekerGender) return false;
             // Milliyet/ülke filtresi yok.
 
             if (!ageCompatibleBothWithMode(seeker, cand, { relaxAge: relaxFilters })) return false;
@@ -1183,7 +1334,7 @@ export default async function handler(req, res) {
 
           poolNewRelax = (byGender[wantGender] || []).filter((cand) => {
             if (!cand?.userId || cand.userId === seekerUserId) return false;
-            if (safeStr(cand.gender) === safeStr(seeker.gender)) return false;
+            if ((cand.genderNorm || normalizeGender(cand.gender)) === seekerGender) return false;
 
             const candStatus = userStatusById.get(String(cand.userId)) || { blocked: false };
             if (candStatus.blocked) return false;
@@ -1201,7 +1352,8 @@ export default async function handler(req, res) {
             const existing = existingByPairKey.get(pairKey) || null;
             if (existing && !canRematchMatchDoc(existing, nowMs)) return false;
 
-            if (safeStr(cand.lookingForGender) && safeStr(cand.lookingForGender) !== safeStr(seeker.gender)) return false;
+            const candWant = cand.lookingForGenderNorm || normalizeGender(cand.lookingForGender);
+            if (candWant && candWant !== seekerGender) return false;
             if (!ageCompatibleBothWithMode(seeker, cand, { relaxAge: relaxFilters })) return false;
             return true;
           });
@@ -1380,7 +1532,7 @@ export default async function handler(req, res) {
 
       let poolStrict = (byGender[wantGender] || []).filter((cand) => {
         if (!cand?.userId || cand.userId === seekerUserId) return false;
-        if (safeStr(cand.gender) === safeStr(seeker.gender)) return false;
+        if ((cand.genderNorm || normalizeGender(cand.gender)) === seekerGender) return false;
 
         const candAge = getAge(cand);
         if (candAge === null) return false;
@@ -1400,7 +1552,8 @@ export default async function handler(req, res) {
         if (existing && !canRematchMatchDoc(existing, nowMs)) return false;
 
         // Karşı tarafın da "ben kimi arıyorum" kısmı seeker ile uyumlu mu?
-        if (safeStr(cand.lookingForGender) && safeStr(cand.lookingForGender) !== safeStr(seeker.gender)) return false;
+        const candWant = cand.lookingForGenderNorm || normalizeGender(cand.lookingForGender);
+        if (candWant && candWant !== seekerGender) return false;
         // Milliyet/ülke filtresi yok.
 
         if (!ageCompatibleBothWithMode(seeker, cand, { relaxAge: relaxFilters })) return false;
@@ -1412,7 +1565,7 @@ export default async function handler(req, res) {
 
       let poolRelax = (byGender[wantGender] || []).filter((cand) => {
         if (!cand?.userId || cand.userId === seekerUserId) return false;
-        if (safeStr(cand.gender) === safeStr(seeker.gender)) return false;
+        if ((cand.genderNorm || normalizeGender(cand.gender)) === seekerGender) return false;
 
         const candAge = getAge(cand);
         if (candAge === null) return false;
@@ -1430,7 +1583,8 @@ export default async function handler(req, res) {
         const existing = existingByPairKey.get(pairKey) || null;
         if (existing && !canRematchMatchDoc(existing, nowMs)) return false;
 
-        if (safeStr(cand.lookingForGender) && safeStr(cand.lookingForGender) !== safeStr(seeker.gender)) return false;
+        const candWant = cand.lookingForGenderNorm || normalizeGender(cand.lookingForGender);
+        if (candWant && candWant !== seekerGender) return false;
         if (!ageCompatibleBothWithMode(seeker, cand, { relaxAge: relaxFilters })) return false;
         // nationality filters relaxed
         return true;
@@ -1439,6 +1593,9 @@ export default async function handler(req, res) {
       // Yaş grubu kuralı: varsayılan sadece aynı 5'li grup.
       // Eğer (karşılıklı yaş aralığına rağmen) aynı grupta yeterli aday yoksa, ±2 yaş grubuna kadar esnet.
       {
+        const poolStrictBeforeAgeGroupPolicy = poolStrict.length;
+        const poolRelaxBeforeAgeGroupPolicy = poolRelax.length;
+
         const strictSameGroupCandidateCount = poolStrict.filter((cand) => {
           const ca = getAge(cand);
           if (ca === null) return false;
@@ -1461,6 +1618,41 @@ export default async function handler(req, res) {
 
         poolStrict = poolStrict.filter(withinGroupPolicy);
         poolRelax = poolRelax.filter(withinGroupPolicy);
+
+        // İlk birkaç örnek için (havuz boşsa) nedenini hızlıca açıklayalım.
+        if (debug.poolBreakdowns.length < 3 && poolStrict.length === 0 && poolRelax.length === 0) {
+          const candidates = byGender[wantGender] || [];
+          const breakdown = buildPoolBreakdown({
+            seeker,
+            seekerUserId,
+            seekerGender,
+            wantGender,
+            candidates,
+            userStatusById,
+            producedPairKeys,
+            existingByPairKey,
+            nowMs,
+            inactiveCutoffMs,
+            applyInactivityRules,
+            relaxFilters,
+            seekerAge,
+            expandGroups,
+          });
+
+          // Debug'a tek seferlik ek meta bilgisi olarak yaz.
+          debug.poolBreakdowns.push({
+            seekerUserId: String(seekerUserId),
+            seekerAge,
+            wantGender,
+            poolStrict: poolStrict.length,
+            poolRelax: poolRelax.length,
+            poolStrictBeforeAgeGroupPolicy,
+            poolRelaxBeforeAgeGroupPolicy,
+            tier: 'age_gender_pool',
+            poolBreakdown: breakdown,
+            top: null,
+          });
+        }
       }
 
       // Havuz sadece "pasiflik" filtresi yüzünden boşsa, son çare pasifleri dahil et.
@@ -1468,7 +1660,7 @@ export default async function handler(req, res) {
         allowInactiveCandidates = true;
         poolRelax = (byGender[wantGender] || []).filter((cand) => {
           if (!cand?.userId || cand.userId === seekerUserId) return false;
-          if (safeStr(cand.gender) === safeStr(seeker.gender)) return false;
+          if ((cand.genderNorm || normalizeGender(cand.gender)) === seekerGender) return false;
 
           const candStatus = userStatusById.get(String(cand.userId)) || { blocked: false };
           if (candStatus.blocked) return false;
@@ -1483,7 +1675,8 @@ export default async function handler(req, res) {
           const existing = existingByPairKey.get(pairKey) || null;
           if (existing && !canRematchMatchDoc(existing, nowMs)) return false;
 
-          if (safeStr(cand.lookingForGender) && safeStr(cand.lookingForGender) !== safeStr(seeker.gender)) return false;
+          const candWant = cand.lookingForGenderNorm || normalizeGender(cand.lookingForGender);
+          if (candWant && candWant !== seekerGender) return false;
           if (!ageCompatibleBothWithMode(seeker, cand, { relaxAge: relaxFilters })) return false;
           return true;
         });
@@ -1572,7 +1765,7 @@ export default async function handler(req, res) {
           for (const cand of byGender[wantGender] || []) {
             if (!cand?.userId || cand.userId === seekerUserId) continue;
             if (seenIds.has(String(cand.userId))) continue;
-            if (safeStr(cand.gender) === safeStr(seeker.gender)) continue;
+            if ((cand.genderNorm || normalizeGender(cand.gender)) === seekerGender) continue;
 
             const candStatus = userStatusById.get(String(cand.userId)) || { blocked: false };
             if (candStatus.blocked) continue;
@@ -1587,7 +1780,8 @@ export default async function handler(req, res) {
             const existing = existingByPairKey.get(pairKey) || null;
             if (existing && !canRematchMatchDoc(existing, nowMs)) continue;
 
-            if (safeStr(cand.lookingForGender) && safeStr(cand.lookingForGender) !== safeStr(seeker.gender)) continue;
+            const candWant = cand.lookingForGenderNorm || normalizeGender(cand.lookingForGender);
+            if (candWant && candWant !== seekerGender) continue;
 
             const candAge = getAge(cand);
             if (candAge === null) continue;

@@ -32,6 +32,7 @@ import matchmakingMembershipActivateFree from '../apiRoutes/matchmaking-membersh
 import matchmakingMembershipCancel from '../apiRoutes/matchmaking-membership-cancel.js';
 import matchmakingAccountDelete from '../apiRoutes/matchmaking-account-delete.js';
 import matchmakingProfile from '../apiRoutes/matchmaking-profile.js';
+import matchmakingProfileTextUpdate from '../apiRoutes/matchmaking-profile-text-update.js';
 import matchmakingRejectAll from '../apiRoutes/matchmaking-reject-all.js';
 import matchmakingRequestNew from '../apiRoutes/matchmaking-request-new.js';
 import matchmakingRun from '../apiRoutes/matchmaking-run.js';
@@ -44,6 +45,19 @@ import adminMatchmakingPool from '../apiRoutes/admin-matchmaking-pool.js';
 import adminMatchmakingRunNow from '../apiRoutes/admin-matchmaking-run-now.js';
 import adminMatchmakingRollbackLastRun from '../apiRoutes/admin-matchmaking-rollback-last-run.js';
 import matchmakingApplicationBootstrap from '../apiRoutes/matchmaking-application-bootstrap.js';
+import matchmakingBrowse from '../apiRoutes/matchmaking-browse.js';
+import matchmakingProfileAccessRequest from '../apiRoutes/matchmaking-profile-access-request.js';
+import matchmakingProfileAccessRespond from '../apiRoutes/matchmaking-profile-access-respond.js';
+import matchmakingProfileView from '../apiRoutes/matchmaking-profile-view.js';
+import matchmakingPreMatchRequest from '../apiRoutes/matchmaking-pre-match-request.js';
+import matchmakingPreMatchRespond from '../apiRoutes/matchmaking-pre-match-respond.js';
+import matchmakingActiveStart from '../apiRoutes/matchmaking-active-start.js';
+import matchmakingActiveCancel from '../apiRoutes/matchmaking-active-cancel.js';
+import matchmakingMaintenanceRun from '../apiRoutes/matchmaking-maintenance-run.js';
+import matchmakingInboxMarkRead from '../apiRoutes/matchmaking-inbox-mark-read.js';
+import matchmakingInboxMessageSend from '../apiRoutes/matchmaking-inbox-message-send.js';
+import matchmakingInboxMessageMarkRead from '../apiRoutes/matchmaking-inbox-message-mark-read.js';
+import matchmakingInboxSummary from '../apiRoutes/matchmaking-inbox-summary.js';
 
 const handlers = {
   'admin-matchmaking-user-stats': adminMatchmakingUserStats,
@@ -83,7 +97,21 @@ const handlers = {
   'matchmaking-membership-cancel': matchmakingMembershipCancel,
   'matchmaking-account-delete': matchmakingAccountDelete,
   'matchmaking-application-bootstrap': matchmakingApplicationBootstrap,
+  'matchmaking-browse': matchmakingBrowse,
+  'matchmaking-profile-access-request': matchmakingProfileAccessRequest,
+  'matchmaking-profile-access-respond': matchmakingProfileAccessRespond,
+  'matchmaking-pre-match-request': matchmakingPreMatchRequest,
+  'matchmaking-pre-match-respond': matchmakingPreMatchRespond,
+  'matchmaking-active-start': matchmakingActiveStart,
+  'matchmaking-active-cancel': matchmakingActiveCancel,
+  'matchmaking-inbox-mark-read': matchmakingInboxMarkRead,
+  'matchmaking-inbox-message-send': matchmakingInboxMessageSend,
+  'matchmaking-inbox-message-mark-read': matchmakingInboxMessageMarkRead,
+  'matchmaking-inbox-summary': matchmakingInboxSummary,
   'matchmaking-profile': matchmakingProfile,
+  'matchmaking-profile-text-update': matchmakingProfileTextUpdate,
+  'matchmaking-profile-view': matchmakingProfileView,
+  'matchmaking-maintenance-run': matchmakingMaintenanceRun,
   'matchmaking-reject-all': matchmakingRejectAll,
   'matchmaking-request-new': matchmakingRequestNew,
   'matchmaking-run': matchmakingRun,

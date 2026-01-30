@@ -140,9 +140,16 @@ export default function StudioChat() {
     return p;
   }, [match, uid]);
 
-  const otherName = String(other?.username || other?.fullName || other?.name || t('studio.common.match')).trim();
+  const otherName = String(other?.username || t('studio.common.match')).trim();
   const otherPhoto = Array.isArray(other?.photoUrls) && other.photoUrls.length ? String(other.photoUrls[0] || '').trim() : '';
   const otherVerified = !!other?.identityVerified;
+  const otherGenderText = useMemo(() => {
+    const s = String(other?.gender || '').trim().toLowerCase();
+    if (!s) return '';
+    if (s === 'female' || s === 'f' || s === 'kadin' || s === 'kadın') return 'Kadın';
+    if (s === 'male' || s === 'm' || s === 'erkek') return 'Erkek';
+    return '';
+  }, [other?.gender]);
 
   const toMs = (v) => {
     if (!v) return 0;
@@ -413,6 +420,11 @@ export default function StudioChat() {
               <div className="flex items-center gap-2">
                 <p className="truncate text-lg font-semibold">{otherName}</p>
                 {otherVerified ? <ShieldCheck className="h-5 w-5 text-emerald-600" title={t('studio.common.verified')} /> : null}
+                {otherGenderText ? (
+                  <span className="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-700">
+                    {otherGenderText}
+                  </span>
+                ) : null}
               </div>
               <p className="text-sm text-slate-500">{t('studio.chat.chatTitle')}</p>
             </div>

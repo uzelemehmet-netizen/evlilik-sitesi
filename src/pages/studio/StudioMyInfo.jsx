@@ -463,10 +463,16 @@ export default function StudioMyInfo() {
                 ) : null}
 
                 <Section title={t('studio.myInfo.sections.basic')}>
-                  <Field label={t('studio.myInfo.fields.username')} value={info.bestApp?.username || info.publicProfile?.username || ''} />
+                  <Field
+                    label={t('studio.myInfo.fields.username')}
+                    value={info.bestApp?.username || info.publicProfile?.username || t('studio.common.unknown')}
+                  />
                   <Field label={t('studio.myInfo.fields.fullName')} value={info.bestApp?.fullName || info.publicProfile?.fullName || ''} />
-                  <Field label={t('studio.myInfo.fields.age')} value={info.bestApp?.age ?? info.publicProfile?.age ?? ''} />
-                  <Field label={t('studio.myInfo.fields.gender')} value={genderLabel} />
+                  <Field
+                    label={t('studio.myInfo.fields.age')}
+                    value={info.bestApp?.age ?? info.publicProfile?.age ?? t('studio.common.unknown')}
+                  />
+                  <Field label={t('studio.myInfo.fields.gender')} value={genderLabel || t('studio.common.unknown')} />
                   <Field label={t('studio.myInfo.fields.city')} value={info.bestApp?.city || info.publicProfile?.city || ''} />
                   <Field label={t('studio.myInfo.fields.country')} value={info.bestApp?.country || info.publicProfile?.country || ''} />
                   <Field label={t('studio.myInfo.fields.nationality')} value={nationalityLabel} />

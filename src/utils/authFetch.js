@@ -34,13 +34,20 @@ export async function authFetch(url, { headers = {}, ...options } = {}) {
 
   const token = await user.getIdToken();
 
-  const res = await fetch(url, {
-    ...options,
-    headers: {
-      ...headers,
-      authorization: `Bearer ${token}`,
-    },
-  });
+  let res;
+  try {
+    res = await fetch(url, {
+      ...options,
+      headers: {
+        ...headers,
+        authorization: `Bearer ${token}`,
+      },
+    });
+  } catch (e) {
+    const err = new Error('api_unreachable');
+    err.cause = e;
+    throw err;
+  }
 
   let data = null;
   try {
