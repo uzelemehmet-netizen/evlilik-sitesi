@@ -153,6 +153,33 @@ export default async function handler(req, res) {
         throw err;
       }
 
+      // Kural: Reject alan kullanıcı, reject edene mesaj atamaz.
+      // rejectBlockByUid = reject eden kullanıcı.
+      const rejectBlockByUid = safeStr(match?.rejectBlockByUid);
+      if (rejectBlockByUid && rejectBlockByUid === otherUid) {
+        const err = new Error('dm_blocked_by_dislike');
+        err.statusCode = 403;
+        throw err;
+      }
+
+      // Cinsiyet bazlı eligibility (match application doc'larından okunur)
+      // Firestore transaction kuralı: tüm okumalar yazmalardan önce olmalı.
+      const aUid = safeStr(match?.aUserId);
+      const bUid = safeStr(match?.bUserId);
+      const aAppId = safeStr(match?.aApplicationId);
+      const bAppId = safeStr(match?.bApplicationId);
+      const [aAppSnap, bAppSnap] = await Promise.all([
+        aAppId ? tx.get(db.collection('matchmakingApplications').doc(aAppId)) : Promise.resolve(null),
+        bAppId ? tx.get(db.collection('matchmakingApplications').doc(bAppId)) : Promise.resolve(null),
+      ]);
+      const aGender = aAppSnap && aAppSnap.exists ? safeStr((aAppSnap.data() || {})?.gender) : '';
+      const bGender = bAppSnap && bAppSnap.exists ? safeStr((bAppSnap.data() || {})?.gender) : '';
+      const myGender = uid === aUid ? aGender : bGender;
+
+      // Etkileşim kuralı: (env ile) mesaj göndermek için üyelik gerekebilir.
+      // Not: Alıcı taraf için eligibility zorlamıyoruz.
+      ensureEligibleOrThrow(me, myGender);
+
       // Uzun chat kapalıysa: kısa mesaj + limit + daha kısa uzunluk.
       if (!longChatAllowed) {
         if (text.length > LIMITED_CHAT_TEXT_MAX) {
@@ -193,32 +220,6 @@ export default async function handler(req, res) {
           }
         }
       }
-
-      // Kural: Reject alan kullanıcı, reject edene mesaj atamaz.
-      // rejectBlockByUid = reject eden kullanıcı.
-      const rejectBlockByUid = safeStr(match?.rejectBlockByUid);
-      if (rejectBlockByUid && rejectBlockByUid === otherUid) {
-        const err = new Error('dm_blocked_by_dislike');
-        err.statusCode = 403;
-        throw err;
-      }
-
-      // Cinsiyet bazlı eligibility (match application doc'larından okunur)
-      const aUid = safeStr(match?.aUserId);
-      const bUid = safeStr(match?.bUserId);
-      const aAppId = safeStr(match?.aApplicationId);
-      const bAppId = safeStr(match?.bApplicationId);
-      const [aAppSnap, bAppSnap] = await Promise.all([
-        aAppId ? tx.get(db.collection('matchmakingApplications').doc(aAppId)) : Promise.resolve(null),
-        bAppId ? tx.get(db.collection('matchmakingApplications').doc(bAppId)) : Promise.resolve(null),
-      ]);
-      const aGender = aAppSnap && aAppSnap.exists ? safeStr((aAppSnap.data() || {})?.gender) : '';
-      const bGender = bAppSnap && bAppSnap.exists ? safeStr((bAppSnap.data() || {})?.gender) : '';
-      const myGender = uid === aUid ? aGender : bGender;
-
-      // Etkileşim kuralı: (env ile) mesaj göndermek için üyelik gerekebilir.
-      // Not: Alıcı taraf için eligibility zorlamıyoruz.
-      ensureEligibleOrThrow(me, myGender);
 
       // Kota/üyelik kısıtı yok: mesaj göndermede üyelik şartı ve lock şartı kaldırıldı.
       // Not: Mesaj göndermek için alıcının eligibility şartlarını zorlamıyoruz.
@@ -392,8 +393,26 @@ export default async function handler(req, res) {
     res.setHeader('content-type', 'application/json');
     res.end(JSON.stringify({ ok: true, messageId }));
   } catch (e) {
+    // Dev ortamında hata kök nedenini yakalamak için log + stack döndür.
+    // Prod’da stack sızdırmayalım.
+    // eslint-disable-next-line no-console
+    console.error('[matchmaking-chat-send] error:', {
+      message: String(e?.message || 'server_error'),
+      code: e?.code ? String(e.code) : null,
+      statusCode: e?.statusCode || null,
+      stack: e?.stack ? String(e.stack) : null,
+    });
+
+    const isProd = String(process.env.NODE_ENV || '').toLowerCase().trim() === 'production';
+
     res.statusCode = e?.statusCode || 500;
     res.setHeader('content-type', 'application/json');
-    res.end(JSON.stringify({ ok: false, error: String(e?.message || 'server_error') }));
+    res.end(
+      JSON.stringify({
+        ok: false,
+        error: String(e?.message || 'server_error'),
+        ...(!isProd && e?.stack ? { stack: String(e.stack) } : {}),
+      })
+    );
   }
 }
