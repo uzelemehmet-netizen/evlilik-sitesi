@@ -51,6 +51,7 @@ export default function StudioPool() {
   const [composeText, setComposeText] = useState('');
   const [composeState, setComposeState] = useState({ loading: false, error: '' });
 
+  const [myLock, setMyLock] = useState({ active: false, matchId: '' });
   const [myMembership, setMyMembership] = useState({ active: false });
   const [paywallNotice, setPaywallNotice] = useState('');
 
@@ -104,9 +105,22 @@ export default function StudioPool() {
         const m = {};
         snap.forEach((d) => {
           const data = d.data() || {};
-          const toUid = safeStr(data?.toUid);
+          const rawToUid = safeStr(data?.toUid) || safeStr(data?.targetUid);
+          const docId = safeStr(d.id);
+
+          // Bazı eski dokümanlarda toUid alanı eksik olabilir.
+          // Fallback: docId'den (uid__otherUid) hedefi türet.
+          let derivedToUid = '';
+          const parts = docId.split('__').map(safeStr).filter(Boolean);
+          if (parts.length === 2) {
+            derivedToUid = parts[0] === uid ? parts[1] : parts[1] === uid ? parts[0] : parts[1];
+          } else {
+            derivedToUid = docId;
+          }
+
+          const toUid = rawToUid || derivedToUid;
           if (!toUid) return;
-          m[toUid] = { id: d.id, ...data };
+          m[toUid] = { id: docId, ...data, ...(rawToUid ? {} : { toUid }) };
         });
         setOutboxMap(m);
       },
@@ -192,6 +206,7 @@ export default function StudioPool() {
   useEffect(() => {
     const uid = String(user?.uid || '').trim();
     if (!uid) {
+      setMyLock({ active: false, matchId: '' });
       setMyMembership({ active: false });
       return;
     }
@@ -208,6 +223,12 @@ export default function StudioPool() {
       ref,
       (snap) => {
         const d = snap.exists() ? snap.data() || {} : {};
+
+        const lock = d?.matchmakingLock && typeof d.matchmakingLock === 'object' ? d.matchmakingLock : null;
+        const active = !!lock?.active;
+        const matchId = typeof lock?.matchId === 'string' ? String(lock.matchId).trim() : '';
+        setMyLock({ active, matchId });
+
         const membershipObj = d?.membership && typeof d.membership === 'object' ? d.membership : null;
         const membershipValidUntilMs = asMs(membershipObj?.validUntilMs);
         const now = Date.now();
@@ -216,7 +237,10 @@ export default function StudioPool() {
           (!!membershipObj?.active && (!membershipValidUntilMs || membershipValidUntilMs > now));
         setMyMembership({ active: membershipActive });
       },
-      () => setMyMembership({ active: false })
+      () => {
+        setMyLock({ active: false, matchId: '' });
+        setMyMembership({ active: false });
+      }
     );
 
     return () => {
@@ -329,6 +353,29 @@ export default function StudioPool() {
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ targetUid: toUid }),
       });
+
+      // Snapshot gecikse bile UI'da "İstek gönderildi" durumunu koru.
+      setOutboxMap((prev) => {
+        const cur = prev && typeof prev === 'object' ? prev : {};
+        const existing = cur?.[toUid] && typeof cur[toUid] === 'object' ? cur[toUid] : null;
+        const st = safeStr(existing?.status);
+        if (st === 'pending' || st === 'approved') return cur;
+        const nowMs = Date.now();
+        return {
+          ...cur,
+          [toUid]: {
+            ...(existing || {}),
+            id: safeStr(existing?.id) || `${uid}__${toUid}`,
+            type: 'pre_match',
+            status: 'pending',
+            fromUid: uid,
+            toUid,
+            createdAtMs: typeof existing?.createdAtMs === 'number' ? existing.createdAtMs : nowMs,
+            updatedAtMs: nowMs,
+          },
+        };
+      });
+
       setRequestingUid('');
     } catch (e) {
       const msg = safeStr(e?.message) || 'request_failed';
@@ -379,8 +426,9 @@ export default function StudioPool() {
 
   const pendingAccessCount = useMemo(() => {
     const list = Array.isArray(inboxAccess) ? inboxAccess : [];
+    if (myLock?.active) return 0;
     return list.filter((x) => safeStr(x?.status) === 'pending').length;
-  }, [inboxAccess]);
+  }, [inboxAccess, myLock?.active]);
 
   const markInboxMessageRead = async ({ requestId, fromUid }) => {
     try {
@@ -606,7 +654,7 @@ export default function StudioPool() {
             open={!!inboxModal?.open}
             onClose={() => setInboxModal({ open: false, mode: 'requests' })}
             title={inboxModal?.mode === 'messages' ? 'Mesajlar' : 'İstekler'}
-            items={inboxModal?.mode === 'messages' ? inboxMessages : inboxAccess}
+            items={inboxModal?.mode === 'messages' ? inboxMessages : myLock?.active ? [] : inboxAccess}
             mode={inboxModal?.mode}
             onMarkRead={inboxModal?.mode === 'messages' ? markDirectMessageRead : markInboxMessageRead}
             onApprove={inboxModal?.mode === 'messages' ? null : ({ fromUid }) => respondAccessRequest({ fromUid, decision: 'approve' })}

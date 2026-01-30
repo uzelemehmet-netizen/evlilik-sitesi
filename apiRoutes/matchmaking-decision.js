@@ -295,6 +295,16 @@ export default async function handler(req, res) {
       if (decisions[side] === decision) {
         status = String(data?.status || 'proposed');
 
+        // Inbox beğeni bildirimi varsa temizle (idempotent çağrılarda da).
+        // Bu sayede UI'da "beğeni kartı" takılı kalmaz.
+        if (decision === 'accept' || decision === 'reject') {
+          try {
+            tx.delete(myInboxRef);
+          } catch {
+            // noop
+          }
+        }
+
         // Bazı legacy match'lerde userIds bozuk olabiliyor; idempotent çağrıda da normalize edelim.
         if (!sameTwoIds(data?.userIds, canonicalUserIdsSorted)) {
           tx.set(
@@ -391,6 +401,14 @@ export default async function handler(req, res) {
       } else {
         // accept
         // pending/lock kısıtları kaldırıldı.
+
+        // Bu kullanıcıya gelmiş beğeni varsa, kabul edince de inbox'tan kaldır.
+        // (Eğer inbox yoksa tx.delete hata verebilir; best-effort.)
+        try {
+          tx.delete(myInboxRef);
+        } catch {
+          // noop
+        }
 
         const other = decisions[otherSide];
         if (other === 'accept') {

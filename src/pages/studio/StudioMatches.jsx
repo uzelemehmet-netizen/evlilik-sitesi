@@ -121,7 +121,8 @@ export default function StudioMatches() {
       (snap) => {
         const items = [];
         snap.forEach((d) => items.push({ id: d.id, ...d.data() }));
-        setInboxLikes(items);
+        // Sadece bekleyen beğeniler görünmeli; aksi halde kart "takılı" kalıyor.
+        setInboxLikes(items.filter((x) => String(x?.status || '').trim() === 'pending'));
         setInboxLoad((s) => (s.lastSource === 'api' ? s : { ...s, error: '', lastSource: 'firestore' }));
       },
       (e) => {
@@ -484,8 +485,16 @@ export default function StudioMatches() {
   const pendingAccessRequests = useMemo(() => {
     const list1 = Array.isArray(inboxAccess) ? inboxAccess : [];
     const list2 = Array.isArray(inboxProfileAccess) ? inboxProfileAccess : [];
-    return [...list1, ...list2].filter((x) => String(x?.status || '').trim() === 'pending');
-  }, [inboxAccess, inboxProfileAccess]);
+    const merged = [...list1, ...list2];
+    return merged.filter((x) => {
+      if (String(x?.status || '').trim() !== 'pending') return false;
+      // Ürün kuralı: Aktif eşleşmesi olan kullanıcı, ön eşleşme isteklerini görmesin.
+      // Lock kalkınca (iptal vb.) tekrar görünür.
+      const type = String(x?.type || '').trim();
+      if (myLock?.active && type === 'pre_match') return false;
+      return true;
+    });
+  }, [inboxAccess, inboxProfileAccess, myLock?.active]);
 
   const unreadMessageCount = useMemo(() => {
     const list = Array.isArray(inboxMessages) ? inboxMessages : [];
@@ -858,7 +867,9 @@ export default function StudioMatches() {
           items={
             inboxModal?.mode === 'messages'
               ? inboxMessages
-              : [...(Array.isArray(inboxAccess) ? inboxAccess : []), ...(Array.isArray(inboxProfileAccess) ? inboxProfileAccess : [])]
+              : [...(Array.isArray(inboxAccess) ? inboxAccess : []), ...(Array.isArray(inboxProfileAccess) ? inboxProfileAccess : [])].filter(
+                  (x) => !(myLock?.active && String(x?.type || '').trim() === 'pre_match')
+                )
           }
           mode={inboxModal?.mode}
           onMarkRead={inboxModal?.mode === 'messages' ? markDirectMessageRead : markInboxMessageRead}
