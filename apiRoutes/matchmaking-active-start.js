@@ -1,4 +1,5 @@
 import { getAdmin, normalizeBody, requireIdToken } from './_firebaseAdmin.js';
+import { assertNotResetIgnoredMatch, getMatchmakingResetAtMs } from './_matchmakingReset.js';
 
 function safeStr(v) {
   return typeof v === 'string' ? v.trim() : '';
@@ -60,6 +61,10 @@ export default async function handler(req, res) {
       }
 
       const match = snap.data() || {};
+
+      // Soft reset: reset öncesi match'ler yok sayılır.
+      const resetAtMs = await getMatchmakingResetAtMs(db);
+      assertNotResetIgnoredMatch({ match, resetAtMs });
       const status = safeStr(match?.status);
 
       // Only mutual interest matches can be activated.

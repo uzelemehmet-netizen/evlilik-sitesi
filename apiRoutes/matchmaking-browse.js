@@ -1,5 +1,6 @@
 import { getAdmin, normalizeBody, requireIdToken } from './_firebaseAdmin.js';
 import { normalizeGender } from './_matchmakingEligibility.js';
+import { getMatchmakingResetAtMs, matchCreatedAtMs } from './_matchmakingReset.js';
 
 function safeStr(v) {
   return typeof v === 'string' ? v.trim() : '';
@@ -43,6 +44,70 @@ function tsToMs(v) {
   return 0;
 }
 
+const MIN_AGE = 18;
+
+function toNumOrNull(v, { min, max } = {}) {
+  if (v === null || v === undefined) return null;
+  const n = typeof v === 'number' ? v : Number(String(v).trim());
+  if (!Number.isFinite(n)) return null;
+  if (typeof min === 'number' && n < min) return null;
+  if (typeof max === 'number' && n > max) return null;
+  return n;
+}
+
+function ageFromBirthYearMaybe(v) {
+  const year = toNumOrNull(v, { min: 1900, max: 2100 });
+  if (year === null) return null;
+  const now = new Date();
+  const age = now.getFullYear() - year;
+  return age >= MIN_AGE && age <= 99 ? age : null;
+}
+
+function ageFromDateMaybe(v) {
+  let d = null;
+  if (typeof v === 'number' && Number.isFinite(v)) {
+    d = new Date(v);
+  } else if (typeof v === 'string') {
+    const s = v.trim();
+    if (!s) return null;
+    const parsed = Date.parse(s);
+    if (Number.isFinite(parsed)) d = new Date(parsed);
+  } else if (typeof v?.toDate === 'function') {
+    try {
+      d = v.toDate();
+    } catch {
+      d = null;
+    }
+  }
+
+  if (!d || Number.isNaN(d.getTime())) return null;
+  const now = new Date();
+  let age = now.getFullYear() - d.getFullYear();
+  const m = now.getMonth() - d.getMonth();
+  if (m < 0 || (m === 0 && now.getDate() < d.getDate())) age -= 1;
+  return age >= MIN_AGE && age <= 99 ? age : null;
+}
+
+function getAge(app) {
+  const direct = toNumOrNull(app?.age, { min: MIN_AGE, max: 99 });
+  if (direct !== null) return direct;
+
+  const details = app?.details || {};
+  const nested = toNumOrNull(details?.age, { min: MIN_AGE, max: 99 });
+  if (nested !== null) return nested;
+
+  const byYear = ageFromBirthYearMaybe(details?.birthYear ?? app?.birthYear);
+  if (byYear !== null) return byYear;
+
+  const byDate =
+    ageFromDateMaybe(details?.birthDateMs ?? app?.birthDateMs) ??
+    ageFromDateMaybe(details?.birthDate ?? app?.birthDate) ??
+    ageFromDateMaybe(details?.dob ?? app?.dob);
+  if (byDate !== null) return byDate;
+
+  return null;
+}
+
 function pickBestNonStubApplication(items) {
   const list = Array.isArray(items) ? items : [];
   if (!list.length) return null;
@@ -51,20 +116,26 @@ function pickBestNonStubApplication(items) {
     .map((a) => {
       const source = safeStr(a?.source).toLowerCase();
       const isStub = source === 'auto_stub';
+      const hasAge = getAge(a) !== null;
+      const hasEditOnce = !!a?.userEditOnceUsedAt;
       const ms =
         (typeof a?.createdAtMs === 'number' && Number.isFinite(a.createdAtMs) ? a.createdAtMs : 0) ||
         tsToMs(a?.createdAt);
-      const score = (isStub ? 0 : 1000) + (ms > 0 ? ms : 0);
+      const score =
+        (isStub ? 0 : 1000) +
+        (hasEditOnce ? 100 : 0) +
+        (hasAge ? 50 : 0) +
+        (ms > 0 ? ms : 0);
       return { a, isStub, score };
     })
     .sort((x, y) => y.score - x.score);
 
-  const best = scored.find((x) => !x.isStub) || null;
-  return best ? best.a : null;
+  const bestNonStub = scored.find((x) => !x.isStub) || null;
+  return (bestNonStub || scored[0] || null) ? (bestNonStub ? bestNonStub.a : scored[0].a) : null;
 }
 
-function ageRangeFromApp(app) {
-  const age = asNum(app?.age);
+function ageRangeFromApp(app, { ageOverride = null } = {}) {
+  const age = typeof ageOverride === 'number' && Number.isFinite(ageOverride) ? ageOverride : getAge(app);
   const partner = asObj(app?.partnerPreferences);
 
   const sanitizePref = (n) => (n !== null && n >= 18 && n <= 99 ? n : null);
@@ -118,19 +189,10 @@ function ageRangeFromApp(app) {
   return clampRange(a - 5, a + 5);
 }
 
-function candidateAllowsViewer(viewerApp, candApp) {
-  const viewerAge = asNum(viewerApp?.age);
-  if (viewerAge === null) return true; // age unknown, don't block
-
-  const { min, max } = ageRangeFromApp(candApp);
-  return viewerAge >= min && viewerAge <= max;
-}
-
-function mutualGenderOk(viewerApp, candApp) {
+function poolGenderOk(viewerApp, candApp) {
   const viewerGender = normalizeGender(viewerApp?.gender);
   const viewerLookingFor = normalizeGender(viewerApp?.lookingForGender);
   const candGender = normalizeGender(candApp?.gender);
-  const candLookingFor = normalizeGender(candApp?.lookingForGender);
 
   // If we know viewerLookingFor, enforce it.
   // Otherwise, if viewer gender is known, default to opposite.
@@ -140,9 +202,6 @@ function mutualGenderOk(viewerApp, candApp) {
 
   if (viewerWants && candGender && candGender !== viewerWants) return false;
   if (viewerGender && candGender && candGender === viewerGender) return false;
-
-  // Candidate must also want viewer gender when specified.
-  if (candLookingFor && viewerGender && candLookingFor !== viewerGender) return false;
 
   return true;
 }
@@ -185,16 +244,38 @@ export default async function handler(req, res) {
       return;
     }
 
-    const viewerAge = asNum(myApp?.age);
-    const { min, max } = ageRangeFromApp(myApp);
+    const viewerAge = getAge(myApp);
+    const { min, max } = ageRangeFromApp(myApp, { ageOverride: viewerAge });
 
-  // Firestore tarafında sadece yaş aralığı ile pre-filter (index gereksinimini düşük tutmak için)
+    // Havuzda zaten match olduğun kişileri göstermeyelim.
+    // Soft reset varsa reset öncesi match'leri yok say.
+    const resetAtMs = await getMatchmakingResetAtMs(db).catch(() => 0);
+    const excludeUids = new Set();
+    try {
+      const myMatchesSnap = await db.collection('matchmakingMatches').where('userIds', 'array-contains', uid).limit(500).get();
+      myMatchesSnap.docs.forEach((d) => {
+        const m = d.data() || {};
+        const st = safeStr(m?.status).toLowerCase();
+        if (!st || st === 'cancelled' || st === 'deleted_user') return;
+        const createdMs = matchCreatedAtMs(m);
+        if (resetAtMs > 0 && createdMs > 0 && createdMs < resetAtMs) return;
+
+        const ids = Array.isArray(m?.userIds) ? m.userIds.map(String).filter(Boolean) : [];
+        if (ids.length !== 2) return;
+        const other = ids[0] === uid ? ids[1] : ids[1] === uid ? ids[0] : '';
+        if (other) excludeUids.add(other);
+      });
+    } catch {
+      // best-effort
+    }
+
+  // NOTE: Eski kayıtların bir kısmında age alanı kökte değil (details.age / birthYear / birthDate vs).
+  // Bu yüzden sadece age index'ine bağlı kalırsak havuz "boş" görünebiliyor.
+  // Bu endpoint düşük hacimli studio ekranı için tasarlandı: son N başvuruyu alıp yaş filtresini bellek içinde uygula.
   const candSnap = await db
     .collection('matchmakingApplications')
-    .where('age', '>=', min)
-    .where('age', '<=', max)
-    .orderBy('age', 'asc')
-    .limit(400)
+    .orderBy('createdAt', 'desc')
+    .limit(1200)
     .get();
 
   const bestByUid = new Map();
@@ -211,6 +292,7 @@ export default async function handler(req, res) {
     const cand = d.data() || {};
     const candUid = safeStr(cand?.userId);
     if (!candUid || candUid === uid) continue;
+    if (excludeUids.has(candUid)) continue;
 
     const prev = bestByUid.get(candUid);
     if (!prev) {
@@ -228,22 +310,21 @@ export default async function handler(req, res) {
     const cand = entry?.data || {};
     const applicationId = safeStr(entry?.id);
 
-    const age = asNum(cand?.age);
+    const age = getAge(cand);
+    if (age === null) continue;
+    if (age < min || age > max) continue;
     const details = asObj(cand?.details);
 
-    const dist = viewerAge === null || age === null ? 999 : Math.abs(age - viewerAge);
-    const candRange = ageRangeFromApp(cand);
-    const genderOk = mutualGenderOk(myApp, cand);
-    const canInteract = genderOk && candidateAllowsViewer(myApp, cand);
-
-    // Havuz: varsayılan olarak karşılıklı cinsiyet uyumu olmayanları listeleme.
+    const dist = viewerAge === null ? 999 : Math.abs(age - viewerAge);
+    const candRange = ageRangeFromApp(cand, { ageOverride: age });
+    const genderOk = poolGenderOk(myApp, cand);
     if (!genderOk) continue;
 
     items.push({
       uid: candUid,
       applicationId,
       dist,
-      canInteract,
+      canInteract: true,
       candidateAgeMin: candRange.min,
       candidateAgeMax: candRange.max,
       createdAtMs:

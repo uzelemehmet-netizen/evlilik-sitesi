@@ -1,34 +1,39 @@
 import { BrowserRouter as Router, Routes, Route, useLocation, Navigate } from 'react-router-dom';
-import { useEffect } from 'react';
+import { Suspense, lazy, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import AnalyticsTracker from './components/AnalyticsTracker';
 import PrivateRoute from './components/PrivateRoute';
-import Home from './pages/Home';
-import About from './pages/About';
-import Corporate from './pages/Corporate';
-import Contact from './pages/Contact';
-import Login from './pages/Login';
-import Panel from './pages/Panel';
-import StudioProfile from './pages/studio/StudioProfile';
-import StudioMyInfo from './pages/studio/StudioMyInfo';
-import StudioMatches from './pages/studio/StudioMatches';
-import StudioChat from './pages/studio/StudioChat';
-import StudioMatchProfile from './pages/studio/StudioMatchProfile';
-import StudioPool from './pages/studio/StudioPool';
-import Wedding from './pages/Wedding';
-import MatchmakingApply from './pages/MatchmakingApply';
-import MatchmakingHub from './pages/MatchmakingHub';
-import MatchmakingMembership from './pages/MatchmakingMembership';
-import YouTube from './pages/YouTube';
-import Privacy from './pages/Privacy';
-import Gallery from './pages/Gallery';
-import AdminLogin from './pages/AdminLogin';
-import AdminDashboard from './pages/AdminDashboard';
-import AdminMatchmakingDetail from './pages/AdminMatchmakingDetail';
-import AdminMatchmakingMatches from './pages/AdminMatchmakingMatches';
-import AdminMatchmakingPayments from './pages/AdminMatchmakingPayments';
-import AdminIdentityVerifications from './pages/AdminIdentityVerifications';
-import NotFound from './pages/NotFound';
+
+const Home = lazy(() => import('./pages/Home'));
+const About = lazy(() => import('./pages/About'));
+const Corporate = lazy(() => import('./pages/Corporate'));
+const Contact = lazy(() => import('./pages/Contact'));
+const Login = lazy(() => import('./pages/Login'));
+const Panel = lazy(() => import('./pages/Panel'));
+const Wedding = lazy(() => import('./pages/Wedding'));
+const MatchmakingApply = lazy(() => import('./pages/MatchmakingApply'));
+const MatchmakingHub = lazy(() => import('./pages/MatchmakingHub'));
+const MatchmakingMembership = lazy(() => import('./pages/MatchmakingMembership'));
+const YouTube = lazy(() => import('./pages/YouTube'));
+const Privacy = lazy(() => import('./pages/Privacy'));
+const Gallery = lazy(() => import('./pages/Gallery'));
+const NotFound = lazy(() => import('./pages/NotFound'));
+
+const StudioProfile = lazy(() => import('./pages/studio/StudioProfile'));
+const StudioMyInfo = lazy(() => import('./pages/studio/StudioMyInfo'));
+const StudioMatches = lazy(() => import('./pages/studio/StudioMatches'));
+const StudioChat = lazy(() => import('./pages/studio/StudioChat'));
+const StudioMatchProfile = lazy(() => import('./pages/studio/StudioMatchProfile'));
+const StudioPool = lazy(() => import('./pages/studio/StudioPool'));
+const StudioFeedback = lazy(() => import('./pages/studio/StudioFeedback'));
+
+const AdminLogin = lazy(() => import('./pages/AdminLogin'));
+const AdminDashboard = lazy(() => import('./pages/AdminDashboard'));
+const AdminMatchmakingDetail = lazy(() => import('./pages/AdminMatchmakingDetail'));
+const AdminMatchmakingMatches = lazy(() => import('./pages/AdminMatchmakingMatches'));
+const AdminMatchmakingPayments = lazy(() => import('./pages/AdminMatchmakingPayments'));
+const AdminIdentityVerifications = lazy(() => import('./pages/AdminIdentityVerifications'));
+const AdminFeedback = lazy(() => import('./pages/AdminFeedback'));
 import RequireAuth from './auth/RequireAuth';
 import FloatingWhatsApp from './components/FloatingWhatsApp';
 import { isFeatureEnabled } from './config/siteVariant';
@@ -121,6 +126,15 @@ function TitleManager() {
   return null;
 }
 
+function RouteLoading() {
+  const { t } = useTranslation();
+  return (
+    <div className="min-h-[50vh] flex items-center justify-center text-white/80">
+      {t('common.loading')}
+    </div>
+  );
+}
+
 function MatchmakingHeartbeatGlobal() {
   const { user, loading } = useAuth();
 
@@ -187,76 +201,86 @@ function App() {
       <MatchmakingHeartbeatGlobal />
       <FloatingWhatsApp />
       {import.meta.env.DEV ? <DevOverlay /> : null}
-      <Routes>
-        <Route path="/" element={isWeddingOnly ? <Wedding /> : <Home />} />
-        <Route path="/about" element={<About />} />
-        <Route path="/kurumsal" element={<Corporate />} />
-        <Route path="/contact" element={<Contact />} />
-        <Route path="/login" element={<Login />} />
-        <Route
-          path="/profilim"
-          element={
-            <RequireAuth>
-              <StudioProfile />
-            </RequireAuth>
-          }
-        />
-        <Route
-          path="/profilim/bilgilerim"
-          element={
-            <RequireAuth>
-              <StudioMyInfo />
-            </RequireAuth>
-          }
-        />
-        <Route
-          path="/profilim-eski"
-          element={
-            <RequireAuth>
-              <Panel />
-            </RequireAuth>
-          }
-        />
-        <Route path="/panel" element={<Navigate to="/profilim" replace />} />
+      <Suspense
+        fallback={<RouteLoading />}
+      >
+        <Routes>
+          <Route path="/" element={isWeddingOnly ? <Wedding /> : <Home />} />
+          <Route path="/about" element={<About />} />
+          <Route path="/kurumsal" element={<Corporate />} />
+          <Route path="/contact" element={<Contact />} />
+          <Route path="/login" element={<Login />} />
+          <Route
+            path="/profilim"
+            element={
+              <RequireAuth>
+                <StudioProfile />
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/profilim/destek"
+            element={
+              <RequireAuth>
+                <StudioFeedback />
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/profilim/bilgilerim"
+            element={
+              <RequireAuth>
+                <StudioMyInfo />
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/profilim-eski"
+            element={
+              <RequireAuth>
+                <Panel />
+              </RequireAuth>
+            }
+          />
+          <Route path="/panel" element={<Navigate to="/profilim" replace />} />
 
-        {/* Studio UI (matchmaking) */}
-        <Route
-          path="/app/matches"
-          element={
-            <RequireAuth>
-              <StudioMatches />
-            </RequireAuth>
-          }
-        />
-        <Route
-          path="/app/pool"
-          element={
-            <RequireAuth>
-              <StudioPool />
-            </RequireAuth>
-          }
-        />
-        <Route
-          path="/app/match/:matchId"
-          element={
-            <RequireAuth>
-              <StudioMatchProfile />
-            </RequireAuth>
-          }
-        />
-        <Route
-          path="/app/chat/:matchId"
-          element={
-            <RequireAuth>
-              <StudioChat />
-            </RequireAuth>
-          }
-        />
-        <Route path="/gallery" element={<Gallery />} />
+          {/* Studio UI (matchmaking) */}
+          <Route
+            path="/app/matches"
+            element={
+              <RequireAuth>
+                <StudioMatches />
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/app/pool"
+            element={
+              <RequireAuth>
+                <StudioPool />
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/app/match/:matchId"
+            element={
+              <RequireAuth>
+                <StudioMatchProfile />
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/app/chat/:matchId"
+            element={
+              <RequireAuth>
+                <StudioChat />
+              </RequireAuth>
+            }
+          />
+          <Route path="/gallery" element={<Gallery />} />
 
-        {showWedding && <Route path="/wedding" element={<Wedding />} />}
-        {showWedding && <Route path="/uniqah" element={<MatchmakingHub />} />}
-        {isFeatureEnabled('wedding') && (
+          {showWedding && <Route path="/wedding" element={<Wedding />} />}
+          {showWedding && <Route path="/uniqah" element={<MatchmakingHub />} />}
           <Route
             path="/wedding/apply"
             element={
@@ -265,18 +289,16 @@ function App() {
               </RequireAuth>
             }
           />
-        )}
 
-        {/* Legacy routes -> Uniqah */}
-        {showWedding && <Route path="/eslestirme" element={<Navigate to="/uniqah" replace />} />}
+          {/* Legacy routes -> Uniqah */}
+          {showWedding && <Route path="/eslestirme" element={<Navigate to="/uniqah" replace />} />}
 
-        {/* Google Ads / TR alias URL'ler */}
-        {isFeatureEnabled('wedding') && <Route path="/evlilik" element={<Wedding />} />}
-        {isFeatureEnabled('wedding') && <Route path="/evlilik/uniqah" element={<MatchmakingHub />} />}
-        {isFeatureEnabled('wedding') && (
-          <Route path="/evlilik/eslestirme" element={<Navigate to="/evlilik/uniqah" replace />} />
-        )}
-        {isFeatureEnabled('wedding') && (
+          {/* Google Ads / TR alias URL'ler */}
+          {isFeatureEnabled('wedding') && <Route path="/evlilik" element={<Wedding />} />}
+          {isFeatureEnabled('wedding') && <Route path="/evlilik/uniqah" element={<MatchmakingHub />} />}
+          {isFeatureEnabled('wedding') && (
+            <Route path="/evlilik/eslestirme" element={<Navigate to="/evlilik/uniqah" replace />} />
+          )}
           <Route
             path="/evlilik/eslestirme-basvuru"
             element={
@@ -285,8 +307,6 @@ function App() {
               </RequireAuth>
             }
           />
-        )}
-        {isFeatureEnabled('wedding') && (
           <Route
             path="/evlilik/eslestirme-basvurusu"
             element={
@@ -295,66 +315,75 @@ function App() {
               </RequireAuth>
             }
           />
-        )}
 
-        {isFeatureEnabled('wedding') && (
+          {isFeatureEnabled('wedding') && (
+            <Route
+              path="/evlilik/uyelik"
+              element={
+                <RequireAuth>
+                  <MatchmakingMembership />
+                </RequireAuth>
+              }
+            />
+          )}
+          <Route path="/youtube" element={<YouTube />} />
+          <Route path="/privacy" element={<Privacy />} />
+
+          <Route path="/admin" element={<AdminLogin />} />
           <Route
-            path="/evlilik/uyelik"
+            path="/admin/dashboard"
             element={
-              <RequireAuth>
-                <MatchmakingMembership />
-              </RequireAuth>
+              <PrivateRoute>
+                <AdminDashboard />
+              </PrivateRoute>
             }
           />
-        )}
-        <Route path="/youtube" element={<YouTube />} />
-        <Route path="/privacy" element={<Privacy />} />
+          <Route
+            path="/admin/matchmaking/:id"
+            element={
+              <PrivateRoute>
+                <AdminMatchmakingDetail />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/admin/matchmaking-matches"
+            element={
+              <PrivateRoute>
+                <AdminMatchmakingMatches />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/admin/matchmaking-payments"
+            element={
+              <PrivateRoute>
+                <AdminMatchmakingPayments />
+              </PrivateRoute>
+            }
+          />
 
-        <Route path="/admin" element={<AdminLogin />} />
-        <Route
-          path="/admin/dashboard"
-          element={
-            <PrivateRoute>
-              <AdminDashboard />
-            </PrivateRoute>
-          }
-        />
-        <Route
-          path="/admin/matchmaking/:id"
-          element={
-            <PrivateRoute>
-              <AdminMatchmakingDetail />
-            </PrivateRoute>
-          }
-        />
-        <Route
-          path="/admin/matchmaking-matches"
-          element={
-            <PrivateRoute>
-              <AdminMatchmakingMatches />
-            </PrivateRoute>
-          }
-        />
-        <Route
-          path="/admin/matchmaking-payments"
-          element={
-            <PrivateRoute>
-              <AdminMatchmakingPayments />
-            </PrivateRoute>
-          }
-        />
+          <Route
+            path="/admin/identity-verifications"
+            element={
+              <PrivateRoute>
+                <AdminIdentityVerifications />
+              </PrivateRoute>
+            }
+          />
 
-        <Route
-          path="/admin/identity-verifications"
-          element={
-            <PrivateRoute>
-              <AdminIdentityVerifications />
-            </PrivateRoute>
-          }
-        />
+          <Route
+            path="/admin/feedback"
+            element={
+              <PrivateRoute>
+                <AdminFeedback />
+              </PrivateRoute>
+            }
+          />
 
-        <Route path="*" element={<NotFound />} />
-      </Routes>
+          <Route path="*" element={<NotFound />} />
+        </Routes>
+      </Suspense>
     </Router>
   );
 }

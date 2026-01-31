@@ -140,6 +140,7 @@ export default function StudioChat() {
     return p;
   }, [match, uid]);
 
+
   const otherName = String(other?.username || t('studio.common.match')).trim();
   const otherPhoto = Array.isArray(other?.photoUrls) && other.photoUrls.length ? String(other.photoUrls[0] || '').trim() : '';
   const otherVerified = !!other?.identityVerified;
@@ -605,9 +606,7 @@ export default function StudioChat() {
                         {text}
                       </div>
 
-                      {fromMe ? (
-                        <div className="h-7 w-7 rounded-full bg-emerald-100" title={t('studio.chat.you')} />
-                      ) : null}
+                      {fromMe ? <div className="h-7 w-7 rounded-full bg-emerald-100" title={t('studio.chat.you')} /> : null}
                     </div>
                   );
                 })}
@@ -619,7 +618,6 @@ export default function StudioChat() {
                 {t('studio.chat.sendFailed', { error: sendState.error })}
               </div>
             ) : null}
-
             {/* Input */}
             {!(longChatAllowed || shortChatAllowed) ? (
               <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">

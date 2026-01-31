@@ -8,6 +8,8 @@ import { buildWhatsAppUrl } from '../utils/whatsapp';
 import { useAuth } from '../auth/AuthProvider';
 import { collection, getDocs, limit, query, where } from 'firebase/firestore';
 import { db } from '../config/firebase';
+import GeminiFAQ from '../components/gemini/GeminiFAQ';
+import LiveJoinEvents from '../components/LiveJoinEvents';
 
 export default function MatchmakingHub() {
   const { t } = useTranslation();
@@ -45,7 +47,11 @@ export default function MatchmakingHub() {
   }, [user?.uid]);
 
   const howSteps = t('matchmakingHub.how.steps', { returnObjects: true });
+  const matchingPoints = t('matchmakingHub.matching.points', { returnObjects: true });
   const safetyPoints = t('matchmakingHub.safety.points', { returnObjects: true });
+  const faqItems = t('matchmakingHub.faq.items', { returnObjects: true });
+
+  const canShowApply = !user || (!checkingApplication && !hasApplication);
 
   return (
     <div className="min-h-screen bg-[#050814] text-white">
@@ -89,12 +95,12 @@ export default function MatchmakingHub() {
                   <div className="mt-6 flex flex-col sm:flex-row gap-3">
                     {(!user || (!checkingApplication && !hasApplication)) && (
                       <Link
-                        to="/login"
+                        to="/login?mode=signup"
                         state={{
-                          from: '/profilim',
+                          from: '/evlilik/eslestirme-basvuru?w=1',
                           fromState: {
                             showMatchmakingIntro: true,
-                            matchmakingNext: '/evlilik/eslestirme-basvuru',
+                            matchmakingNext: '/evlilik/eslestirme-basvuru?w=1',
                           },
                         }}
                         className="inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-amber-300 to-amber-500 text-slate-950 px-6 py-3 font-semibold text-sm shadow-[0_16px_40px_rgba(245,158,11,0.35)] hover:brightness-110 transition"
@@ -124,6 +130,9 @@ export default function MatchmakingHub() {
                       <MessageCircle size={18} />
                       {t('matchmakingHub.actions.supportWhatsApp')}
                     </a>
+                  </div>
+                  <div className="mt-6">
+                    <LiveJoinEvents />
                   </div>
 
                   <div className="mt-7 grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -242,6 +251,36 @@ export default function MatchmakingHub() {
           </div>
         </section>
 
+        {/* How we match */}
+        <section className="relative max-w-7xl mx-auto px-4 pb-14 md:pb-16">
+          <div className="rounded-[28px] border border-white/10 bg-gradient-to-b from-white/[0.06] to-transparent p-6 md:p-10">
+            <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-6">
+              <div>
+                <h2 className="text-lg md:text-xl font-semibold">{t('matchmakingHub.matching.title')}</h2>
+                <p className="mt-2 text-sm text-white/70 max-w-3xl leading-relaxed">{t('matchmakingHub.matching.subtitle')}</p>
+              </div>
+              <div className="inline-flex items-center gap-2 text-xs text-white/60">
+                <Lock size={16} className="text-amber-300" />
+                {t('matchmakingHub.matching.badge')}
+              </div>
+            </div>
+
+            <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-3">
+              {Array.isArray(matchingPoints) &&
+                matchingPoints.map((p, idx) => (
+                  <div key={idx} className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                    <div className="flex gap-2 items-start">
+                      <CheckCircle size={18} className="mt-0.5 text-amber-300" />
+                      <span className="text-sm text-white/75 leading-relaxed">{p}</span>
+                    </div>
+                  </div>
+                ))}
+            </div>
+
+            <p className="mt-6 text-xs text-white/55 leading-relaxed">{t('matchmakingHub.matching.note')}</p>
+          </div>
+        </section>
+
         {/* Safety */}
         <section className="relative max-w-7xl mx-auto px-4 pb-14 md:pb-16">
           <div className="rounded-[28px] border border-white/10 bg-gradient-to-b from-white/[0.06] to-transparent p-6 md:p-10">
@@ -277,6 +316,88 @@ export default function MatchmakingHub() {
                 {t('matchmakingHub.actions.backWedding')}
                 <ArrowRight size={18} />
               </Link>
+            </div>
+          </div>
+        </section>
+
+        {/* FAQ */}
+        <GeminiFAQ
+          title={t('matchmakingHub.faq.title')}
+          subtitle={t('matchmakingHub.faq.subtitle')}
+          sideNote={t('matchmakingHub.faq.sideNote')}
+          items={faqItems}
+        />
+
+        {/* Trust + CTA */}
+        <section className="relative max-w-7xl mx-auto px-4 pb-16">
+          <div className="rounded-[28px] border border-white/10 bg-gradient-to-b from-white/[0.08] to-transparent p-6 md:p-10 shadow-[0_30px_90px_rgba(0,0,0,0.35)]">
+            <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-6">
+              <div>
+                <h2 className="text-lg md:text-xl font-semibold">{t('matchmakingHub.trust.title')}</h2>
+                <p className="mt-2 text-sm text-white/70 max-w-3xl leading-relaxed">{t('matchmakingHub.trust.subtitle')}</p>
+              </div>
+              <div className="text-xs text-white/55">{t('matchmakingHub.trust.badge')}</div>
+            </div>
+
+            <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-3">
+              <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
+                <div className="flex items-center gap-2 text-sm font-semibold">
+                  <Lock size={16} className="text-amber-300" />
+                  {t('matchmakingHub.trust.cards.privacy.title')}
+                </div>
+                <div className="mt-2 text-sm text-white/70 leading-relaxed">{t('matchmakingHub.trust.cards.privacy.desc')}</div>
+              </div>
+              <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
+                <div className="flex items-center gap-2 text-sm font-semibold">
+                  <ShieldCheck size={16} className="text-amber-300" />
+                  {t('matchmakingHub.trust.cards.review.title')}
+                </div>
+                <div className="mt-2 text-sm text-white/70 leading-relaxed">{t('matchmakingHub.trust.cards.review.desc')}</div>
+              </div>
+              <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
+                <div className="flex items-center gap-2 text-sm font-semibold">
+                  <MessageCircle size={16} className="text-amber-300" />
+                  {t('matchmakingHub.trust.cards.support.title')}
+                </div>
+                <div className="mt-2 text-sm text-white/70 leading-relaxed">{t('matchmakingHub.trust.cards.support.desc')}</div>
+              </div>
+            </div>
+
+            <div className="mt-8 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
+              <div className="min-w-0">
+                <div className="text-sm font-semibold text-white">{t('matchmakingHub.cta.title')}</div>
+                <div className="mt-1 text-sm text-white/70">{t('matchmakingHub.cta.subtitle')}</div>
+              </div>
+
+              <div className="flex flex-col sm:flex-row gap-3">
+                {canShowApply && (
+                  <Link
+                    to="/login?mode=signup"
+                    state={{
+                      from: '/evlilik/eslestirme-basvuru?w=1',
+                      fromState: {
+                        showMatchmakingIntro: true,
+                        matchmakingNext: '/evlilik/eslestirme-basvuru?w=1',
+                      },
+                    }}
+                    className="inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-amber-300 to-amber-500 text-slate-950 px-6 py-3 font-semibold text-sm shadow-[0_16px_40px_rgba(245,158,11,0.35)] hover:brightness-110 transition"
+                  >
+                    <Crown size={18} />
+                    {t('matchmakingHub.actions.apply')}
+                    <ArrowRight size={18} />
+                  </Link>
+                )}
+
+                {user && (
+                  <Link
+                    to="/profilim"
+                    className="inline-flex items-center justify-center gap-2 rounded-full bg-white/10 border border-white/10 text-white px-6 py-3 font-semibold text-sm hover:bg-white/[0.14] transition"
+                  >
+                    <UserCheck size={18} />
+                    {t('matchmakingHub.actions.goPanel')}
+                  </Link>
+                )}
+              </div>
             </div>
           </div>
         </section>

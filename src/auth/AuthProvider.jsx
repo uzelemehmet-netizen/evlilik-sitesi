@@ -1,6 +1,15 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "../config/firebase";
+import { authFetch } from "../utils/authFetch";
+
+function dayKeyUTC(ts = Date.now()) {
+  const d = new Date(ts);
+  const y = d.getUTCFullYear();
+  const m = String(d.getUTCMonth() + 1).padStart(2, '0');
+  const day = String(d.getUTCDate()).padStart(2, '0');
+  return `${y}${m}${day}`;
+}
 
 const AuthContext = createContext({ user: null, loading: true });
 
@@ -26,6 +35,33 @@ export function AuthProvider({ children }) {
       unsubscribe();
     };
   }, []);
+
+  // Public join ping (for realtime "new members" widget). Best-effort + localStorage throttle.
+  useEffect(() => {
+    if (!user || user.isAnonymous) return;
+
+    const today = dayKeyUTC();
+    const key = 'publicJoinPingDayKey';
+    try {
+      const last = String(localStorage.getItem(key) || '').trim();
+      if (last === today) return;
+    } catch {
+      // ignore
+    }
+
+    (async () => {
+      try {
+        await authFetch('/api/public-join-ping', { method: 'POST' });
+        try {
+          localStorage.setItem(key, today);
+        } catch {
+          // ignore
+        }
+      } catch {
+        // ignore (should never block UX)
+      }
+    })();
+  }, [user?.uid]);
 
   const value = useMemo(() => ({ user, loading }), [user, loading]);
 

@@ -149,6 +149,22 @@
 				"SiIqL5ChB3Q4VA71d6VcBwRMDQg2"
 			],
 			"isBackground": false
+		},
+		{
+			"label": "dev (geminievlilik demo)",
+			"type": "shell",
+			"command": "npm",
+			"args": [
+				"--prefix",
+				"geminievlilik",
+				"run",
+				"dev",
+				"--",
+				"--port",
+				"5180"
+			],
+			"isBackground": true,
+			"group": "build"
 		}
 	]
 }

@@ -58,6 +58,10 @@ import matchmakingInboxMarkRead from '../apiRoutes/matchmaking-inbox-mark-read.j
 import matchmakingInboxMessageSend from '../apiRoutes/matchmaking-inbox-message-send.js';
 import matchmakingInboxMessageMarkRead from '../apiRoutes/matchmaking-inbox-message-mark-read.js';
 import matchmakingInboxSummary from '../apiRoutes/matchmaking-inbox-summary.js';
+import matchmakingFeedbackSubmit from '../apiRoutes/matchmaking-feedback-submit.js';
+import adminFeedbackList from '../apiRoutes/admin-feedback-list.js';
+import adminFeedbackUpdate from '../apiRoutes/admin-feedback-update.js';
+import publicJoinPing from '../apiRoutes/public-join-ping.js';
 
 const handlers = {
   'admin-matchmaking-user-stats': adminMatchmakingUserStats,
@@ -108,6 +112,10 @@ const handlers = {
   'matchmaking-inbox-message-send': matchmakingInboxMessageSend,
   'matchmaking-inbox-message-mark-read': matchmakingInboxMessageMarkRead,
   'matchmaking-inbox-summary': matchmakingInboxSummary,
+  'matchmaking-feedback-submit': matchmakingFeedbackSubmit,
+  'admin-feedback-list': adminFeedbackList,
+  'admin-feedback-update': adminFeedbackUpdate,
+  'public-join-ping': publicJoinPing,
   'matchmaking-profile': matchmakingProfile,
   'matchmaking-profile-text-update': matchmakingProfileTextUpdate,
   'matchmaking-profile-view': matchmakingProfileView,

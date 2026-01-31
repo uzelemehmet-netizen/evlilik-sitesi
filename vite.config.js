@@ -27,6 +27,8 @@ export default defineConfig(({ mode }) => {
     build: {
       outDir: 'dist',
       sourcemap: false,
+      // Sadece uyarı eşiği: runtime/bundle içeriğini değiştirmez.
+      chunkSizeWarningLimit: 2000,
     },
     server: {
       port: 5173,

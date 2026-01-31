@@ -220,6 +220,24 @@ service cloud.firestore {
       allow update, delete: if isAdmin();
     }
 
+    // Public join events (anonimized): used only for realtime "new members joined" perception.
+    // Writes are done server-side (Admin SDK) via /api/public-join-ping (rules can stay closed).
+    match /publicJoinEvents/{eventId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    // Internal dedup/telemetry for join pings (contains uid) - never readable from client.
+    match /publicJoinUsers/{userId} {
+      allow read, write: if false;
+    }
+
+    // System alerts (Gemini RPM exceeded, etc.) - admin panel only.
+    match /matchmakingSystemAlerts/{alertId} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+
     // Her şeyin sonu: açıkça kapat (kaza ile yeni koleksiyon açılmasın)
     match /{document=**} {
       allow read, write: if false;

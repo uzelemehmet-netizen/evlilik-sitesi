@@ -74,13 +74,15 @@ export default function Login() {
     setSignupNudge((n) => n + 1);
   };
 
+  const normalizePathOnly = (p) => {
+    const raw = String(p || '').trim();
+    // Query/hash gibi eklentileri yok say (örn: /evlilik/eslestirme-basvuru?w=1)
+    return raw.split(/[?#]/)[0];
+  };
+
   const isMatchmakingApplyPath = (p) => {
-    const path = String(p || '').trim();
-    return (
-      path === '/wedding/apply' ||
-      path === '/evlilik/eslestirme-basvuru' ||
-      path === '/evlilik/eslestirme-basvurusu'
-    );
+    const path = normalizePathOnly(p);
+    return path === '/wedding/apply' || path === '/evlilik/eslestirme-basvuru' || path === '/evlilik/eslestirme-basvurusu';
   };
 
   const hasExistingApplication = async (uid) => {
@@ -247,7 +249,7 @@ export default function Login() {
     return stored?.fromState || redirectTarget.fromState || null;
   };
 
-  const SIGNUP_FORM_TARGET = '/evlilik/eslestirme-basvuru';
+  const SIGNUP_FORM_TARGET = '/evlilik/eslestirme-basvuru?w=1';
 
   const navigateNext = (target, state) => {
     if (hasNavigatedRef.current) return;
@@ -546,13 +548,10 @@ export default function Login() {
     setError("");
     setInfo("");
     try {
-      // Login modunda Google ile "ilk kez" giriş, Firebase Auth tarafında kullanıcı yaratır.
-      // Bizde kayıt adımında (cinsiyet/ülke/yaş) zorunlu olduğu için önce signup'a yönlendir.
-      if (mode !== 'signup') {
-        setMode('signup');
-        showNoAccountFoundMessage();
-        return;
-      }
+      // Popup akışını redirect akışıyla tutarlı tut:
+      // - Login intent'i ile gelen yeni kullanıcıyı signup'a yönlendir (bizde signup zorunlu alanlar var).
+      // - Mevcut kullanıcıysa (isNewUser=false) login modunda Google ile girişe izin ver.
+      const intent = mode;
 
       if (mode === "signup" && signupGender !== "male" && signupGender !== "female") {
         setError(t("authPage.errors.genderRequired"));
@@ -589,7 +588,26 @@ export default function Login() {
       const result = await signInWithPopup(auth, provider);
       const info2 = getAdditionalUserInfo(result);
 
-      if (mode === "signup" && info2?.isNewUser) {
+      const isNewUser = !!info2?.isNewUser;
+
+      if (isNewUser && intent !== 'signup') {
+        // Login niyetiyle Google'a gitti ama bu kullanıcı bizde yeni (ilk kez) görünüyor.
+        // Kullanıcıyı (auth state'i) temizleyip signup'a yönlendiriyoruz.
+        try {
+          await signOut(auth);
+        } catch {
+          // ignore
+        }
+        clearStoredRedirect();
+        writeForcedTarget('');
+        clearAuthIntent();
+        clearSignupProfile();
+        setMode('signup');
+        showNoAccountFoundMessage();
+        return;
+      }
+
+      if (mode === "signup" && isNewUser) {
         await ensureProfileSaved(result?.user?.uid, signupGender, signupNationality, signupNationalityOther);
         await bootstrapMatchmakingApplication(result?.user, {
           gender: signupGender,
@@ -598,8 +616,8 @@ export default function Login() {
           ageConfirmed: signupAgeConfirmed,
         });
       }
-      const target = resolvePostAuthTarget(!!info2?.isNewUser);
-      const state = info2?.isNewUser ? null : resolvePostAuthState();
+      const target = resolvePostAuthTarget(isNewUser);
+      const state = isNewUser ? null : resolvePostAuthState();
       clearStoredRedirect();
       writeForcedTarget('');
       clearAuthIntent();
@@ -607,6 +625,14 @@ export default function Login() {
       await navigateNextWithApplyGuard(result?.user?.uid, target, state);
     } catch (e) {
       const code = String(e?.code || "").trim();
+
+      // Kullanıcının email/password hesabı varsa, Google ile direkt giriş denemesinde bu hata gelebilir.
+      if (code === 'auth/account-exists-with-different-credential') {
+        setError(
+          'Bu e-posta ile daha önce farklı bir yöntemle kayıt olmuşsunuz. Lütfen e-posta/şifre ile giriş yapın; ardından hesabınıza Google girişini bağlayabiliriz.'
+        );
+        return;
+      }
 
       if (code === 'auth/invalid-credential' || code === 'auth/wrong-password' || code === 'auth/user-not-found') {
         setError(t('authPage.errors.invalidCredential'));

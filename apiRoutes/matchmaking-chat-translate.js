@@ -1,5 +1,6 @@
 import { getAdmin, normalizeBody, requireIdToken } from './_firebaseAdmin.js';
 import { normalizeChatLang, translateText } from './_translate.js';
+import { checkAndRecordGeminiTranslateRpm } from './_geminiTranslateRpm.js';
 import {
   computeTranslationBilling,
   getUsageForMonth,
@@ -13,6 +14,76 @@ function safeStr(v) {
 
 function nowMs() {
   return Date.now();
+}
+
+function normalizeReadyPhrase(v) {
+  let s = safeStr(v).toLowerCase();
+  if (!s) return '';
+  // Strip common prefixes (legacy UI may have sent both lines).
+  s = s.replace(/^\s*(tr|id)\s*:\s*/i, '');
+  s = s.replace(/[\s\t]+/g, ' ').trim();
+  // Remove trailing punctuation that often varies in chat.
+  s = s.replace(/[.!?…]+$/g, '').trim();
+  return s;
+}
+
+function splitReadyCandidates(text) {
+  const raw = String(text || '').split(/\r?\n/).map((x) => String(x || '').trim()).filter(Boolean);
+  if (!raw.length) return [];
+  const out = [];
+  for (const line of raw) {
+    const n = normalizeReadyPhrase(line);
+    if (n) out.push(n);
+  }
+  // Also try the full text as a single candidate
+  const full = normalizeReadyPhrase(String(text || ''));
+  if (full) out.push(full);
+  return Array.from(new Set(out));
+}
+
+let READY_Q_MAP = null;
+
+async function getReadyQuestionMap() {
+  if (READY_Q_MAP) return READY_Q_MAP;
+  const map = new Map();
+
+  try {
+    // Best-effort: deploy paketinde src yoksa endpoint çökmesin.
+    const mod = await import('../src/data/geminiReadyContent.js');
+    const list = Array.isArray(mod?.COMMON_QUESTIONS_TR_ID) ? mod.COMMON_QUESTIONS_TR_ID : [];
+    for (const q of list) {
+      const tr = safeStr(q?.tr);
+      const id = safeStr(q?.id);
+      if (!tr || !id) continue;
+      const trKey = normalizeReadyPhrase(tr);
+      const idKey = normalizeReadyPhrase(id);
+      if (trKey) map.set(`tr:${trKey}`, { tr, id });
+      if (idKey) map.set(`id:${idKey}`, { tr, id });
+    }
+  } catch {
+    // ignore (fallback: empty map)
+  }
+
+  READY_Q_MAP = map;
+  return map;
+}
+
+async function tryTranslateFromReadyLibrary({ text, targetLang }) {
+  const candidates = splitReadyCandidates(text);
+  if (!candidates.length) return '';
+
+  // Only handle TR <-> ID for now.
+  if (targetLang !== 'tr' && targetLang !== 'id') return '';
+
+  const map = await getReadyQuestionMap();
+  if (!map || map.size === 0) return '';
+
+  for (const c of candidates) {
+    const hit = map.get(`tr:${c}`) || map.get(`id:${c}`);
+    if (!hit) continue;
+    return targetLang === 'tr' ? hit.tr : hit.id;
+  }
+  return '';
 }
 
 function toUsagePercent(usedCount, limit) {
@@ -249,7 +320,92 @@ export default async function handler(req, res) {
         return;
       }
 
-      translated = await translateText({ text, targetLang });
+      // Kütüphane çevirisi (hazır/sık sorulan sorular): Gemini/harici çeviri çağırma.
+      // Not: Bu akış kota tüketmez; sadece mesaj dokümanına çeviri snapshot'ı yazar.
+      const readyTranslated = await tryTranslateFromReadyLibrary({ text, targetLang });
+      if (readyTranslated) {
+        translated = readyTranslated;
+        try {
+          await msgRef.set(
+            {
+              translations: {
+                ...(msg?.translations && typeof msg.translations === 'object' ? msg.translations : {}),
+                [targetLang]: translated,
+              },
+              translationsUpdatedAtMs: ts,
+              updatedAt: FieldValue.serverTimestamp(),
+            },
+            { merge: true }
+          );
+        } catch {
+          // best-effort; translation can still be returned to client
+        }
+      }
+
+      if (translated) {
+        // Kütüphane çevirisi ile tamamlandı.
+        res.statusCode = 200;
+        res.setHeader('content-type', 'application/json');
+        res.end(
+          JSON.stringify({
+            ok: true,
+            targetLang,
+            text: translated,
+            usage: {
+              usedCount: usageUsedCount,
+              monthlyLimit: usageMonthlyLimit,
+              dailyLimit: usageMonthlyLimit,
+              usagePercent,
+              billingMode: usageBillingMode,
+            },
+          })
+        );
+        return;
+      }
+
+      const hasGeminiKey = !!String(process.env.GEMINI_API_KEY || process.env.GOOGLE_GEMINI_API_KEY || '').trim();
+      const primaryProvider = hasGeminiKey ? 'gemini' : String(process.env.TRANSLATE_PROVIDER || '').toLowerCase();
+      const fallbackProvider = String(process.env.TRANSLATE_PROVIDER || '').toLowerCase();
+
+      // Gemini free-tier RPM guard + admin alert (best-effort).
+      // If RPM is exceeded, we transparently fall back to configured provider (e.g., DeepL).
+      if (primaryProvider === 'gemini') {
+        try {
+          await checkAndRecordGeminiTranslateRpm({
+            limitPerMinute: 15,
+            context: {
+              route: 'matchmaking-chat-translate',
+              uid,
+              matchId,
+              messageId,
+              targetLang,
+            },
+          });
+        } catch (e) {
+          if (String(e?.message || '') !== 'translate_rate_limited') throw e;
+
+          // Fallback to DeepL/LibreTranslate/Google if configured.
+          if (fallbackProvider && fallbackProvider !== 'gemini') {
+            translated = await translateText({ text, targetLang, provider: fallbackProvider });
+          } else {
+            throw e;
+          }
+        }
+      }
+
+      if (!translated) {
+        try {
+          translated = await translateText({ text, targetLang, provider: primaryProvider });
+        } catch (e) {
+          const code = String(e?.message || '');
+          // Optional resiliency: if Gemini fails for transient reasons, try fallback provider.
+          if (primaryProvider === 'gemini' && fallbackProvider && fallbackProvider !== 'gemini' && code === 'translate_failed') {
+            translated = await translateText({ text, targetLang, provider: fallbackProvider });
+          } else {
+            throw e;
+          }
+        }
+      }
 
       await db.runTransaction(async (tx) => {
         const sponsorRef = sponsorUid ? db.collection('matchmakingUsers').doc(sponsorUid) : null;

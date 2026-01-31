@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { Heart, MessageCircle, ShieldCheck } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import { Heart, MessageCircle, ShieldCheck, Sparkles } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { authFetch } from '../../utils/authFetch';
 import { translateStudioApiError } from '../../utils/studioErrorI18n';
@@ -71,7 +71,9 @@ export default function StudioMatchCard({
   onRequirePaid,
 }) {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const [likeState, setLikeState] = useState({ loading: false, error: '' });
+  const [activeStartState, setActiveStartState] = useState({ loading: false, error: '', notice: '' });
   const [photoIndex, setPhotoIndex] = useState(0);
 
   const other = useMemo(() => {
@@ -152,6 +154,25 @@ export default function StudioMatchCard({
   const myDecision = mySide ? safeStr(decisions?.[mySide]) : '';
   const isLiked = myDecision === 'accept';
 
+  const otherDecision = useMemo(() => {
+    if (!mySide) return '';
+    const otherSide = mySide === 'a' ? 'b' : 'a';
+    return safeStr(decisions?.[otherSide]);
+  }, [decisions, mySide]);
+
+  const isIncomingLike = otherDecision === 'accept' && myDecision !== 'accept';
+  const isLikeSent = myDecision === 'accept' && otherDecision !== 'accept';
+  const mutualLiked = myDecision === 'accept' && otherDecision === 'accept';
+
+  const activeStartByUid = match?.activeStartByUid && typeof match.activeStartByUid === 'object' ? match.activeStartByUid : {};
+  const iStartedActive = !!(currentUid && activeStartByUid?.[String(currentUid).trim()]);
+  const otherStartedActive = useMemo(() => {
+    const ids = Array.isArray(match?.userIds) ? match.userIds.map(safeStr).filter(Boolean) : [];
+    const me = safeStr(currentUid);
+    const otherUid = ids.find((x) => x && x !== me) || '';
+    return !!(otherUid && activeStartByUid?.[otherUid]);
+  }, [activeStartByUid, currentUid, match?.userIds]);
+
   const unreadCount = useMemo(() => {
     const m = match?.chatUnreadByUid && typeof match.chatUnreadByUid === 'object' ? match.chatUnreadByUid : {};
     const n = currentUid && typeof m?.[currentUid] === 'number' ? m[currentUid] : 0;
@@ -164,6 +185,43 @@ export default function StudioMatchCard({
   }, [unreadCount]);
 
   const lockedByActiveMatch = !!activeLockMatchId && safeStr(activeLockMatchId) !== safeStr(match?.id);
+
+  const startActive = async () => {
+    if (!match?.id || !currentUid) return;
+    if (lockedByActiveMatch) {
+      setActiveStartState({ loading: false, error: t('studio.errors.activeLocked'), notice: '' });
+      return;
+    }
+    if (!canInteract) {
+      setActiveStartState({ loading: false, error: t('studio.paywall.upgradeToInteract'), notice: '' });
+      if (typeof onRequirePaid === 'function') onRequirePaid();
+      return;
+    }
+    if (activeStartState.loading) return;
+
+    const ok = typeof window !== 'undefined' ? window.confirm(t('studio.matchProfile.activeStart.confirmPrompt')) : true;
+    if (!ok) return;
+
+    setActiveStartState({ loading: true, error: '', notice: '' });
+    try {
+      const data = await authFetch('/api/matchmaking-active-start', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ matchId: match.id }),
+      });
+
+      const activated = !!data?.activated;
+      if (activated) {
+        setActiveStartState({ loading: false, error: '', notice: t('studio.matchProfile.activeStart.activatedNotice') });
+        navigate(`/app/chat/${match.id}`);
+      } else {
+        setActiveStartState({ loading: false, error: '', notice: t('studio.matchProfile.activeStart.waitingNotice') });
+      }
+    } catch (e) {
+      const msg = safeStr(e?.message);
+      setActiveStartState({ loading: false, error: translateStudioApiError(t, msg) || msg || 'active_start_failed', notice: '' });
+    }
+  };
 
   const like = async () => {
     if (!match?.id || !currentUid) return;
@@ -191,6 +249,32 @@ export default function StudioMatchCard({
     }
   };
 
+  const reject = async () => {
+    if (!match?.id || !currentUid) return;
+    if (lockedByActiveMatch) {
+      setLikeState({ loading: false, error: t('studio.errors.activeLocked') });
+      return;
+    }
+    if (!canInteract) {
+      setLikeState({ loading: false, error: t('studio.paywall.upgradeToInteract') });
+      if (typeof onRequirePaid === 'function') onRequirePaid();
+      return;
+    }
+    if (likeState.loading) return;
+    setLikeState({ loading: true, error: '' });
+    try {
+      await authFetch('/api/matchmaking-decision', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ matchId: match.id, decision: 'reject' }),
+      });
+      setLikeState({ loading: false, error: '' });
+    } catch (e) {
+      const msg = safeStr(e?.message);
+      setLikeState({ loading: false, error: translateStudioApiError(t, msg) || msg || 'reject_failed' });
+    }
+  };
+
   const openShort = () => {
     if (typeof onOpenShort !== 'function') return;
     if (lockedByActiveMatch) return;
@@ -206,6 +290,39 @@ export default function StudioMatchCard({
           >
             {statusMeta.label}
           </div>
+
+          {isIncomingLike ? (
+            <div className="pointer-events-none absolute left-3 top-12">
+              <span
+                className="inline-flex items-center rounded-full bg-emerald-950/80 px-2 py-1 text-[11px] font-semibold text-emerald-50 ring-2 ring-emerald-400/70 shadow-[0_0_18px_rgba(52,211,153,0.55)]"
+                title={t('matchmakingPanel.matches.candidate.likeBadge')}
+              >
+                {t('matchmakingPanel.matches.candidate.likeBadge')}
+              </span>
+            </div>
+          ) : null}
+
+          {isLikeSent ? (
+            <div className="pointer-events-none absolute left-3 top-12">
+              <span
+                className="inline-flex items-center rounded-full bg-sky-950/75 px-2 py-1 text-[11px] font-semibold text-sky-50 ring-2 ring-sky-300/60 shadow-[0_0_18px_rgba(56,189,248,0.45)]"
+                title={t('matchmakingPanel.matches.candidate.likeSentBadge')}
+              >
+                {t('matchmakingPanel.matches.candidate.likeSentBadge')}
+              </span>
+            </div>
+          ) : null}
+
+          {status === 'mutual_interest' && mutualLiked && otherStartedActive && !iStartedActive ? (
+            <div className="pointer-events-none absolute left-3 top-[4.25rem]">
+              <span
+                className="inline-flex items-center rounded-full bg-amber-950/70 px-2 py-1 text-[11px] font-semibold text-amber-50 ring-2 ring-amber-300/70 shadow-[0_0_18px_rgba(251,191,36,0.45)]"
+                title={t('studio.matchProfile.activeStart.waiting')}
+              >
+                Aktif eşleşme isteği
+              </span>
+            </div>
+          ) : null}
 
           {tierMeta ? (
             <div
@@ -348,6 +465,35 @@ export default function StudioMatchCard({
                 : t('studio.match.actions.like')}
           </button>
 
+          {isIncomingLike ? (
+            <button
+              type="button"
+              onClick={reject}
+              disabled={likeState.loading || lockedByActiveMatch}
+              className="inline-flex items-center justify-center rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-800 shadow-sm transition hover:bg-rose-100 active:scale-[0.99] disabled:opacity-60"
+              title={t('studio.inbox.reject')}
+            >
+              {t('studio.inbox.reject')}
+            </button>
+          ) : null}
+
+          {status === 'mutual_interest' && mutualLiked ? (
+            <button
+              type="button"
+              onClick={startActive}
+              disabled={activeStartState.loading || lockedByActiveMatch}
+              className="inline-flex items-center justify-center rounded-md bg-emerald-600 px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 active:scale-[0.99] disabled:opacity-60"
+              title={t('studio.matchProfile.activeStart.start')}
+            >
+              <Sparkles className="mr-2 h-5 w-5" />
+              {activeStartState.loading
+                ? t('studio.matchProfile.activeStart.starting')
+                : iStartedActive
+                  ? t('studio.matchProfile.activeStart.waiting')
+                  : t('studio.matchProfile.activeStart.start')}
+            </button>
+          ) : null}
+
           <button
             type="button"
             onClick={openShort}
@@ -370,6 +516,8 @@ export default function StudioMatchCard({
       ) : null}
 
       {likeState.error ? <div className="px-4 pb-4 text-sm text-rose-700">{likeState.error}</div> : null}
+      {activeStartState.error ? <div className="px-4 pb-4 text-sm text-rose-700">{activeStartState.error}</div> : null}
+      {activeStartState.notice ? <div className="px-4 pb-4 text-sm text-emerald-700">{activeStartState.notice}</div> : null}
     </div>
   );
 }

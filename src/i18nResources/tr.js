@@ -20,6 +20,7 @@ export default {
   studio: {
     common: {
       back: 'Geri',
+      open: 'Aç',
       close: 'Kapat',
       cancel: 'Vazgeç',
       send: 'Gönder',
@@ -29,6 +30,44 @@ export default {
       profile: 'Profil',
       verified: 'Doğrulanmış',
       unknown: 'Bilinmiyor',
+    },
+
+    feedback: {
+      nav: 'Destek / Bildirim',
+      backToProfile: 'Profilime dön',
+      title: 'Destek • Öneri • Sorun bildir',
+      subtitle: 'Sistemle ilgili öneri/yorum yazabilir veya çalışmayan adımları bildirebilirsin.',
+      urgentNote: 'Acil şikayet ve kanıt gerektiren durumlarda hızlı yol:',
+      whatsappCta: 'WhatsApp destek',
+      kindLabel: 'Kategori',
+      kinds: {
+        bug: 'Çalışmıyor / Hata',
+        suggestion: 'Öneri / Yorum',
+        complaint: 'Şikayet (kısa)',
+        other: 'Diğer',
+      },
+      matchIdLabel: 'Eşleşme ID (opsiyonel)',
+      matchIdPlaceholder: 'Varsa matchId',
+      stepLabel: 'Adım (opsiyonel)',
+      stepPlaceholder: 'Örn: “Sohbet gönder”',
+      messageLabel: 'Mesaj',
+      messagePlaceholder:
+        'Ne oldu, ne bekliyordun, hangi ekranda oldu? Mümkünse tarih/saat ve kısa detay ekle. (Kişisel iletişim bilgisi yazma.)',
+      privacyNote: 'Mahremiyet: İletişim bilgisi paylaşma.',
+      submit: 'Gönder',
+      success: 'Bildirimin alındı. Teşekkürler!',
+      ticketId: 'Kayıt No',
+      error: 'Hata',
+      footerNote: 'Not: Bu form destek ekibine iletilir. Geri dönüş süresi yoğunluğa göre değişebilir.',
+
+      screenshotLabel: 'Ekran görüntüsü (opsiyonel)',
+      screenshotDisabled: 'Ekran görüntüsü yükleme bu ortamda kapalı (Cloudinary ayarı yok).',
+      selectedFile: 'Seçilen dosya',
+      uploading: 'Ekran görüntüsü yükleniyor…',
+      uploadFailed: 'Yükleme başarısız',
+
+      sendToWhatsApp: 'Ticket ile WhatsApp destek',
+      sendToWhatsAppHint: 'Ticket no ve matchId otomatik eklendi.',
     },
 
     inbox: {
@@ -54,7 +93,7 @@ export default {
       countHint: 'Toplam: {{total}} • Gösterilen: {{shown}}',
       filtersHint: 'Yaş aralığı: {{min}} – {{max}}',
       empty: 'Bu filtrelerle gösterilecek profil bulunamadı.',
-      requestProfileNow: 'Ön eşleşme iste',
+      requestProfileNow: 'Eşleşme isteği gönder',
       requesting: 'İstek gönderiliyor…',
       requestSent: 'İstek gönderildi',
       openProfile: 'Profili aç',
@@ -211,6 +250,7 @@ export default {
       chatTitle: 'Chat',
       emoji: 'Emoji',
       emojiHint: 'Emoji ekleyebilirsiniz',
+      matchTestOnlyActive: 'Eşleşme testi sadece aktif eşleşmede açılır.',
       shortAreaTitle: 'Kısa mesaj alanı',
       shortAreaDesc:
         'Bu alan yalnızca bu kişi hakkında daha fazla bilgi edinmek için kullanılır (profilde olmayan konular, karakteri hakkında kısa sorular).',
@@ -374,6 +414,22 @@ export default {
       verifySubmitted: 'Kimlik doğrulama talebin alındı. İnceleniyor.',
       submitVerification: 'Gönder',
       confirmDelete: 'Hesabınızı kalıcı olarak silmek istiyor musunuz? Bu işlem geri alınamaz.',
+
+      applySuccess: {
+        title: 'Başvurun alındı',
+        subtitle: 'Şimdi sıradaki adımlar: panelinden havuzu incele ve eşleşme önerilerini takip et.',
+        steps: [
+          'Havuzda sana uygun profiller listelenir (kısıtlı ön izleme).',
+          'Beğeni karşılıklı olunca 48 saat site içi sohbet açılır.',
+          '48 saat sonra iletişim isteği gönderilir; onay olursa numaralar görünür.',
+        ],
+        applicationIdLabel: 'Başvuru ID',
+        ctas: {
+          pool: 'Havuza git',
+          matches: 'Eşleşmelerim',
+          learn: 'Sistem nasıl çalışır?',
+        },
+      },
     },
     errors: {
       profileNotFound: 'Profil kaydı bulunamadı.',
@@ -383,6 +439,8 @@ export default {
       shortLimit: 'Kısa mesaj hakkın bitti (5 mesaj). Devam etmek için karşılıklı beğeni sonrası aktif eşleşmeyi başlatmalısınız.',
       shortMessageTooLong: 'Mesaj çok uzun. En fazla 240 karakter.',
       filtered: 'İletişim bilgisi (link, telefon, sosyal medya) paylaşmayın.',
+      notInTheirAgeRange: 'Bu kişi için yaş aralığınız uygun değil.',
+      ageRequired: 'Yaş bilginiz eksik görünüyor. Lütfen formdaki yaş alanını doldurup tekrar deneyin.',
       notAvailable: 'Bu işlem bu aşamada yapılamıyor.',
       forbidden: 'Bu işlem için yetkin yok.',
       cancelCooldown: 'Suistimali önlemek için iptal geçici olarak kapalı. Kalan süre: {{time}}',
@@ -446,6 +504,17 @@ export default {
         },
       ],
     },
+    matching: {
+      title: 'Nasıl eşleştiriyoruz?',
+      subtitle: 'Amaç “rastgele” değil; kriter uyumu ve güvenli ilerleme. Profilin herkese açık yayınlanmaz.',
+      badge: 'Kriter uyumu • Karşılıklı onay • Kontrollü iletişim',
+      points: [
+        'Sistem; yaş aralığı, temel tercihler ve başvurudaki bilgiler üzerinden aday havuzundan öneriler çıkarır.',
+        'Etkileşim karşılıklı onayla ilerler: tek taraflı zorla iletişim veya baskı akışı yoktur.',
+        'İletişim bilgileri hemen açılmaz: önce 48 saat site içi sohbet, sonra iletişim isteği onayı gerekir.',
+      ],
+      note: 'Not: Bu bölüm bilgilendirme amaçlıdır. Güvenlik kapsamında moderasyon ve şikayet mekanizmaları uygulanır.',
+    },
     safety: {
       title: 'Güvenlik ve kalite',
       subtitle: 'Diğer platformların aksine, sistem evlilik niyeti dışındaki davranış alanını daraltır.',
@@ -481,6 +550,55 @@ export default {
     flow: {
       title: 'Adım adım süreç',
       badge: 'Uniqah akışı',
+    },
+
+    faq: {
+      title: 'Sık sorulan sorular',
+      subtitle: 'Başvuru ve süreç hakkında en çok gelen soruların kısa cevapları.',
+      sideNote: 'Destek için WhatsApp her zaman açık.',
+      items: [
+        {
+          q: 'Profilim herkese açık mı?',
+          a: 'Hayır. Profiller kamuya açık listelenmez; eşleşme ve süreç panel üzerinden kontrollü ilerler.',
+        },
+        {
+          q: 'İletişim bilgileri ne zaman paylaşılır?',
+          a: 'Karşılıklı beğeni sonrası ilk 48 saat site içi sohbet edilir. 48 saat dolunca iletişim isteği gönderilir ve karşı taraf onaylarsa numaralar görünür.',
+        },
+        {
+          q: 'Fotoğraflarım kimlere gösterilir?',
+          a: 'Fotoğraflar süreç ve güvenlik kapsamında kullanılır. Eşleşme akışında panel üzerinden, kontrollü şekilde gösterilir.',
+        },
+        {
+          q: 'Şikayet veya uygunsuz davranış olursa ne yapmalıyım?',
+          a: 'WhatsApp destek hattına ekran görüntüsü gibi kanıtlarla bildirebilirsiniz. İnceleme sonrası hesap sistemden kaldırılabilir.',
+        },
+      ],
+    },
+
+    trust: {
+      title: 'Güven odaklı tasarım',
+      subtitle: 'Sistem; mahremiyet, moderasyon ve kontrollü iletişim adımlarıyla ilerler.',
+      badge: 'Mahremiyet • Moderasyon • Kontrollü iletişim',
+      cards: {
+        privacy: {
+          title: 'Mahremiyet',
+          desc: 'Profilin herkese açık yayınlanmaz; yalnızca süreç içinde panelde gösterilir.',
+        },
+        review: {
+          title: 'Kontrol & moderasyon',
+          desc: 'Şikayet hattı ve inceleme süreçleri ile kötü niyetli davranışların önü kesilir.',
+        },
+        support: {
+          title: 'Destek',
+          desc: 'Süreçte takıldığında WhatsApp üzerinden destek alabilirsin.',
+        },
+      },
+    },
+
+    cta: {
+      title: 'Hazırsan başlayalım',
+      subtitle: '1–3 dakikada başvuru formunu tamamla, panelinde eşleşmeleri gör.',
     },
   },
 
@@ -526,6 +644,34 @@ export default {
     },
     form: {
       applicationIdLabel: 'Başvuru ID',
+      wizard: {
+        badge: 'Hızlı Başvuru',
+        step: 'Adım {{current}} / {{total}}',
+        back: 'Geri',
+        next: 'Devam',
+        steps: {
+          basic: {
+            title: 'İletişim ve temel bilgiler',
+            desc: 'Sizi tanıyabilmemiz için temel bilgileri alalım.',
+          },
+          details: {
+            title: 'Detaylar',
+            desc: 'Yaşam tarzı ve iletişim dilini netleştirelim.',
+          },
+          identity: {
+            title: 'Ben ve aradığım kişi',
+            desc: 'Uyruğunuz, cinsiyetiniz ve aradığınız kriterleri seçin.',
+          },
+          photos: {
+            title: 'Fotoğraflar ve tanıtım',
+            desc: '3 fotoğraf yükleyin ve kendinizi kısaca anlatın.',
+          },
+          preferences: {
+            title: 'Eş adayında aradıklarınız ve onaylar',
+            desc: 'Tercihlerinizi seçin ve başvuruyu tamamlayın.',
+          },
+        },
+      },
       editOnce: {
         usernameLocked: 'Bu modda kullanıcı adını da düzeltebilirsiniz (1 defaya mahsus).',
         photosLocked: 'Edit modunda fotoğraf güncelleme kapalı. Sadece form alanlarını düzeltebilirsiniz.',
@@ -539,6 +685,15 @@ export default {
         lookingFor: 'Aradığım',
         moreDetails: 'Ek Bilgiler',
         partnerPreferences: 'Evleneceğim Kişide Aradıklarım',
+      },
+      confirmGender: {
+        title: 'Cinsiyet onayı',
+        text: 'Kendi cinsiyetinizi "{{gender}}" olarak seçtiniz. Onaylıyor musunuz?',
+        cancel: 'Vazgeç',
+        confirm: 'Onayla',
+      },
+      hints: {
+        lookingForGenderAuto: 'Aradığınız cinsiyet, cinsiyet seçiminize göre otomatik ayarlanır.',
       },
       labels: {
         username: 'Kullanıcı adı',

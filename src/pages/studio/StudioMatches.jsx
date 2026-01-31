@@ -10,10 +10,14 @@ import StudioMatchCard from '../../components/studio/StudioMatchCard';
 import StudioInboxModal from '../../components/studio/StudioInboxModal';
 import { authFetch } from '../../utils/authFetch';
 import { translateStudioApiError } from '../../utils/studioErrorI18n';
+import { useMatchmakingResetAtMs } from '../../utils/matchmakingReset';
 
 export default function StudioMatches() {
   const { user } = useAuth();
   const { t, i18n } = useTranslation();
+
+  const mmReset = useMatchmakingResetAtMs();
+  const resetAtMs = typeof mmReset?.resetAtMs === 'number' && Number.isFinite(mmReset.resetAtMs) ? mmReset.resetAtMs : 0;
 
   const targetLang = useMemo(() => {
     const raw = String(i18n?.language || 'tr');
@@ -65,6 +69,26 @@ export default function StudioMatches() {
     return 0;
   };
 
+  const filterInboxLikes = (raw, uid, cutoffMs) => {
+    const me = String(uid || '').trim();
+    const list = Array.isArray(raw) ? raw : [];
+    return list
+      .filter((x) => {
+        if (!x || typeof x !== 'object') return false;
+        const createdAtMs = typeof x?.createdAtMs === 'number' && Number.isFinite(x.createdAtMs) ? x.createdAtMs : 0;
+        if (cutoffMs > 0 && createdAtMs > 0 && createdAtMs < cutoffMs) return false;
+        if (String(x?.type || '').trim() && String(x?.type || '').trim() !== 'like') return false;
+        if (String(x?.status || '').trim() !== 'pending') return false;
+        const fromUid = String(x?.fromUid || '').trim();
+        const toUid = String(x?.toUid || '').trim();
+        if (me && fromUid && fromUid === me) return false;
+        if (me && toUid && toUid !== me) return false;
+        const mid = String(x?.matchId || x?.id || '').trim();
+        return !!mid;
+      })
+      .slice(0, 50);
+  };
+
   useEffect(() => {
     const uid = String(user?.uid || '').trim();
     if (!uid) return;
@@ -102,6 +126,14 @@ export default function StudioMatches() {
     };
   }, [user?.uid]);
 
+  const buildMatchesQuery = ({ uid, preferUpdatedAt }) => {
+    const base = [collection(db, 'matchmakingMatches'), where('userIds', 'array-contains', uid)];
+    if (preferUpdatedAt) {
+      return query(...base, orderBy('updatedAt', 'desc'), limit(25));
+    }
+    return query(...base, orderBy('createdAt', 'desc'), limit(25));
+  };
+
   // Gelen beğeniler (inbox)
   useEffect(() => {
     const uid = String(user?.uid || '').trim();
@@ -121,8 +153,8 @@ export default function StudioMatches() {
       (snap) => {
         const items = [];
         snap.forEach((d) => items.push({ id: d.id, ...d.data() }));
-        // Sadece bekleyen beğeniler görünmeli; aksi halde kart "takılı" kalıyor.
-        setInboxLikes(items.filter((x) => String(x?.status || '').trim() === 'pending'));
+        // Sadece bekleyen + bana gelen beğeniler görünmeli; aksi halde kart "takılı" kalıyor.
+        setInboxLikes(filterInboxLikes(items, uid, resetAtMs));
         setInboxLoad((s) => (s.lastSource === 'api' ? s : { ...s, error: '', lastSource: 'firestore' }));
       },
       (e) => {
@@ -145,7 +177,7 @@ export default function StudioMatches() {
         // noop
       }
     };
-  }, [user?.uid]);
+  }, [resetAtMs, user?.uid]);
 
   // Gelen ön eşleşme istekleri
   useEffect(() => {
@@ -442,32 +474,46 @@ export default function StudioMatches() {
     setLoading(true);
     setError('');
 
-    const q = query(
-      collection(db, 'matchmakingMatches'),
-      where('userIds', 'array-contains', uid),
-      orderBy('createdAt', 'desc'),
-      limit(25)
-    );
+    let unsub = null;
+    let didFallback = false;
 
-    const unsub = onSnapshot(
-      q,
-      (snap) => {
-        const items = [];
-        snap.forEach((d) => items.push({ id: d.id, ...d.data() }));
-        setMatches(items);
-        setLoading(false);
-      },
-      (e) => {
-        console.error('StudioMatches load failed', e);
-        setError(String(e?.message || '').trim() || 'unknown');
-        setMatches([]);
-        setLoading(false);
-      }
-    );
+    const startListen = ({ preferUpdatedAt }) => {
+      const q = buildMatchesQuery({ uid, preferUpdatedAt });
+      unsub = onSnapshot(
+        q,
+        (snap) => {
+          const items = [];
+          snap.forEach((d) => items.push({ id: d.id, ...d.data() }));
+          setMatches(items);
+          setLoading(false);
+        },
+        (e) => {
+          // Eğer updatedAt index'i yoksa (failed-precondition) createdAt ile tekrar dene.
+          const code = String(e?.code || '').trim();
+          if (!didFallback && preferUpdatedAt && code === 'failed-precondition') {
+            didFallback = true;
+            try {
+              unsub?.();
+            } catch {
+              // noop
+            }
+            startListen({ preferUpdatedAt: false });
+            return;
+          }
+
+          console.error('StudioMatches load failed', e);
+          setError(String(e?.message || '').trim() || code || 'unknown');
+          setMatches([]);
+          setLoading(false);
+        }
+      );
+    };
+
+    startListen({ preferUpdatedAt: true });
 
     return () => {
       try {
-        unsub();
+        unsub?.();
       } catch {
         // noop
       }
@@ -476,11 +522,58 @@ export default function StudioMatches() {
 
   const visibleMatches = useMemo(() => {
     const list = Array.isArray(matches) ? matches : [];
-    return list.filter((m) => {
-      const st = String(m?.status || '').trim();
-      return st !== 'cancelled';
+    return list
+      .filter((m) => {
+        const st = String(m?.status || '').trim();
+        return st !== 'cancelled';
+      })
+      .filter((m) => {
+        if (!resetAtMs) return true;
+        const created =
+          (typeof m?.createdAtMs === 'number' && Number.isFinite(m.createdAtMs) ? m.createdAtMs : 0) ||
+          asMs(m?.createdAt) ||
+          0;
+        // Soft reset: reset öncesi match'leri yok say.
+        if (created > 0 && created < resetAtMs) return false;
+        return true;
+      })
+      .slice()
+      .sort((a, b) => {
+        const aMs =
+          (typeof a?.updatedAtMs === 'number' && Number.isFinite(a.updatedAtMs) ? a.updatedAtMs : 0) ||
+          asMs(a?.updatedAt) ||
+          (typeof a?.createdAtMs === 'number' && Number.isFinite(a.createdAtMs) ? a.createdAtMs : 0) ||
+          asMs(a?.createdAt) ||
+          0;
+        const bMs =
+          (typeof b?.updatedAtMs === 'number' && Number.isFinite(b.updatedAtMs) ? b.updatedAtMs : 0) ||
+          asMs(b?.updatedAt) ||
+          (typeof b?.createdAtMs === 'number' && Number.isFinite(b.createdAtMs) ? b.createdAtMs : 0) ||
+          asMs(b?.createdAt) ||
+          0;
+        if (bMs !== aMs) return bMs - aMs;
+        return String(a?.id || '').localeCompare(String(b?.id || ''));
+      });
+  }, [matches, resetAtMs]);
+
+  const visibleMatchIdSet = useMemo(() => {
+    const set = new Set();
+    (Array.isArray(visibleMatches) ? visibleMatches : []).forEach((m) => {
+      const id = String(m?.id || '').trim();
+      if (id) set.add(id);
     });
-  }, [matches]);
+    return set;
+  }, [visibleMatches]);
+
+  const inboxLikesBanner = useMemo(() => {
+    const list = Array.isArray(inboxLikes) ? inboxLikes : [];
+    // Match listesinde zaten görünen like'lar için üst banner göstermeyelim.
+    return list.filter((it) => {
+      const mid = String(it?.matchId || it?.id || '').trim();
+      if (!mid) return false;
+      return !visibleMatchIdSet.has(mid);
+    });
+  }, [inboxLikes, visibleMatchIdSet]);
 
   const pendingAccessRequests = useMemo(() => {
     const list1 = Array.isArray(inboxAccess) ? inboxAccess : [];
@@ -488,13 +581,15 @@ export default function StudioMatches() {
     const merged = [...list1, ...list2];
     return merged.filter((x) => {
       if (String(x?.status || '').trim() !== 'pending') return false;
+      const createdAtMs = typeof x?.createdAtMs === 'number' && Number.isFinite(x.createdAtMs) ? x.createdAtMs : 0;
+      if (resetAtMs > 0 && createdAtMs > 0 && createdAtMs < resetAtMs) return false;
       // Ürün kuralı: Aktif eşleşmesi olan kullanıcı, ön eşleşme isteklerini görmesin.
       // Lock kalkınca (iptal vb.) tekrar görünür.
       const type = String(x?.type || '').trim();
       if (myLock?.active && type === 'pre_match') return false;
       return true;
     });
-  }, [inboxAccess, inboxProfileAccess, myLock?.active]);
+  }, [inboxAccess, inboxProfileAccess, myLock?.active, resetAtMs]);
 
   const unreadMessageCount = useMemo(() => {
     const list = Array.isArray(inboxMessages) ? inboxMessages : [];
@@ -546,7 +641,7 @@ export default function StudioMatches() {
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ limit: 60 }),
       });
-      setInboxLikes(Array.isArray(data?.inboxLikes) ? data.inboxLikes : []);
+      setInboxLikes(filterInboxLikes(Array.isArray(data?.inboxLikes) ? data.inboxLikes : [], uid, resetAtMs));
       setInboxAccess(Array.isArray(data?.inboxPreMatchRequests) ? data.inboxPreMatchRequests : []);
       setInboxProfileAccess(Array.isArray(data?.inboxAccessRequests) ? data.inboxAccessRequests : []);
       setInboxMessages(Array.isArray(data?.inboxMessages) ? data.inboxMessages : []);
@@ -649,7 +744,7 @@ export default function StudioMatches() {
       setTranslateState({ loadingId: '', error: '' });
     } catch (e) {
       const msg = String(e?.message || '').trim();
-      setTranslateState({ loadingId: '', error: msg || 'translate_failed' });
+      setTranslateState({ loadingId: '', error: translateStudioApiError(t, msg) || msg || 'translate_failed' });
     }
   };
 
@@ -739,11 +834,11 @@ export default function StudioMatches() {
           </div>
         ) : null}
 
-        {inboxLikes.length ? (
+        {inboxLikesBanner.length ? (
           <div className="mb-6 mx-auto max-w-5xl rounded-xl border border-amber-200 bg-amber-50 p-4 text-amber-950 shadow-sm">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <p className="font-semibold">
-                {t('studio.inbox.likesTitle', { count: inboxLikes.length })}
+                {t('studio.inbox.likesTitle', { count: inboxLikesBanner.length })}
               </p>
               {inboxAction.error ? (
                 <p className="text-sm text-rose-700">{inboxAction.error}</p>
@@ -751,7 +846,7 @@ export default function StudioMatches() {
             </div>
 
             <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {inboxLikes.map((it) => {
+              {inboxLikesBanner.map((it) => {
                 const p = it?.fromProfile && typeof it.fromProfile === 'object' ? it.fromProfile : null;
                 const name = String(p?.username || '').trim() || t('studio.common.match');
                 const age = typeof p?.age === 'number' ? String(p.age) : '';

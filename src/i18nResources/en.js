@@ -20,6 +20,7 @@ export default {
   studio: {
     common: {
       back: 'Back',
+      open: 'Open',
       close: 'Close',
       cancel: 'Cancel',
       send: 'Send',
@@ -29,6 +30,44 @@ export default {
       profile: 'Profile',
       verified: 'Verified',
       unknown: 'Unknown',
+    },
+
+    feedback: {
+      nav: 'Support / Report',
+      backToProfile: 'Back to my profile',
+      title: 'Support • Feedback • Report an issue',
+      subtitle: 'Send suggestions/comments or report steps that are not working.',
+      urgentNote: 'For urgent complaints that require evidence, fastest path:',
+      whatsappCta: 'WhatsApp support',
+      kindLabel: 'Category',
+      kinds: {
+        bug: 'Bug / Not working',
+        suggestion: 'Suggestion / Feedback',
+        complaint: 'Complaint (short)',
+        other: 'Other',
+      },
+      matchIdLabel: 'Match ID (optional)',
+      matchIdPlaceholder: 'If you have a matchId',
+      stepLabel: 'Step (optional)',
+      stepPlaceholder: 'e.g. “Send chat message”',
+      messageLabel: 'Message',
+      messagePlaceholder:
+        'What happened, what did you expect, on which screen? If possible add date/time and brief details. (Do not share contact info.)',
+      privacyNote: 'Privacy: Do not share contact information.',
+      submit: 'Submit',
+      success: 'We received your report. Thank you!',
+      ticketId: 'Ticket',
+      error: 'Error',
+      footerNote: 'Note: This form is sent to support. Response time may vary based on workload.',
+
+      screenshotLabel: 'Screenshot (optional)',
+      screenshotDisabled: 'Screenshot upload is disabled in this environment (Cloudinary not configured).',
+      selectedFile: 'Selected file',
+      uploading: 'Uploading screenshot…',
+      uploadFailed: 'Upload failed',
+
+      sendToWhatsApp: 'WhatsApp support with ticket',
+      sendToWhatsAppHint: 'Ticket and matchId are included automatically.',
     },
 
     inbox: {
@@ -54,7 +93,7 @@ export default {
       countHint: 'Total: {{total}} • Shown: {{shown}}',
       filtersHint: 'Age range: {{min}} – {{max}}',
       empty: 'No profiles found with these filters.',
-      requestProfileNow: 'Request profile',
+      requestProfileNow: 'Send match request',
       requesting: 'Requesting…',
       requestSent: 'Request sent',
       openProfile: 'Open profile',
@@ -211,6 +250,7 @@ export default {
       chatTitle: 'Chat',
       emoji: 'Emoji',
       emojiHint: 'You can add emojis',
+      matchTestOnlyActive: 'Match test can only be opened in an active match.',
       shortAreaTitle: 'Short message area',
       shortAreaDesc:
         'This area is only for learning more about the person (topics not in the profile, short questions about character).',
@@ -371,6 +411,22 @@ export default {
       verifySubmitted: 'Your verification request has been received. It is under review.',
       submitVerification: 'Submit',
       confirmDelete: 'Do you want to permanently delete your account? This cannot be undone.',
+
+      applySuccess: {
+        title: 'Application received',
+        subtitle: 'Next steps: review the pool from your panel and follow your match suggestions.',
+        steps: [
+          'In the pool, compatible profiles are listed (limited preview).',
+          'When likes are mutual, a 48-hour in-site chat opens.',
+          'After 48 hours, you can request contact sharing; if approved, phone numbers become visible.',
+        ],
+        applicationIdLabel: 'Application ID',
+        ctas: {
+          pool: 'Go to pool',
+          matches: 'My matches',
+          learn: 'How it works',
+        },
+      },
     },
     errors: {
       profileNotFound: 'Profile record not found.',
@@ -380,6 +436,8 @@ export default {
       shortLimit: 'You have used all your short messages (5). To continue, after mutual like you must start the active match.',
       shortMessageTooLong: 'Message is too long. Max 240 characters.',
       filtered: 'Do not share contact info (links, phone, social media).',
+      notInTheirAgeRange: 'Your age range is not compatible for this person.',
+      ageRequired: 'Your age information is missing. Please complete your profile and try again.',
       notAvailable: 'This action is not available at this stage.',
       forbidden: 'You are not allowed to perform this action.',
       cancelCooldown: 'To prevent abuse, cancellation is temporarily disabled. Remaining: {{time}}',
@@ -448,6 +506,30 @@ export default {
         { title: 'Request contact sharing', desc: 'After 48 hours, you can send a contact request; if the other person approves, phone numbers become visible.' },
       ],
     },
+
+    how: {
+      title: 'How does it work?',
+      subtitle: 'From signup to matching, the process is transparent and controlled.',
+      steps: [
+        { title: 'Sign up and create a profile', desc: 'After signup, you create your profile by filling out the form.' },
+        { title: 'See matched profiles in your panel', desc: 'The system lists the most compatible profiles (limited preview).' },
+        { title: 'Like / pass', desc: 'Like a profile you are interested in; mutual likes complete the first step.' },
+        { title: '48-hour in-site chat', desc: 'After mutual acceptance, the first 48 hours are in-site chat only, to get to know each other safely.' },
+        { title: 'Request contact sharing', desc: 'After 48 hours, you can send a contact request; if the other person approves, phone numbers become visible.' },
+      ],
+    },
+
+    matching: {
+      title: 'How do we match?',
+      subtitle: 'The goal is not “random”; it is criteria compatibility and safe progression. Your profile is not public.',
+      badge: 'Criteria • Mutual consent • Controlled contact',
+      points: [
+        'The system generates suggestions from the candidate pool based on your age range, core preferences, and application details.',
+        'Interaction progresses with mutual consent—there is no forced contact flow.',
+        'Contact info is not shared immediately: first 48 hours in-site chat, then contact-request approval.',
+      ],
+      note: 'Note: This section is for transparency. Moderation and reporting mechanisms apply for safety.',
+    },
     safety: {
       title: 'Safety and quality',
       subtitle: 'Unlike public browsing platforms, this system narrows the space for bad actors.',
@@ -483,6 +565,55 @@ export default {
     flow: {
       title: 'Step-by-step process',
       badge: 'Uniqah flow',
+    },
+
+    faq: {
+      title: 'Frequently asked questions',
+      subtitle: 'Quick answers to the most common questions about the application and the process.',
+      sideNote: 'WhatsApp support is always available.',
+      items: [
+        {
+          q: 'Is my profile public?',
+          a: 'No. Profiles are not publicly listed; the process progresses in a controlled way through your panel.',
+        },
+        {
+          q: 'When is contact information shared?',
+          a: 'After mutual acceptance, the first 48 hours are in-site chat only. After 48 hours, you can request contact sharing; if approved, phone numbers become visible.',
+        },
+        {
+          q: 'Who can see my photos?',
+          a: 'Photos are used within the process and for safety. They are shown in a controlled way through the panel during matching.',
+        },
+        {
+          q: 'What if I face inappropriate behavior?',
+          a: 'Report it to WhatsApp support with evidence (screenshots). After review, the account may be removed from the system.',
+        },
+      ],
+    },
+
+    trust: {
+      title: 'Designed for trust',
+      subtitle: 'The system progresses with privacy, moderation, and controlled communication steps.',
+      badge: 'Privacy • Moderation • Controlled communication',
+      cards: {
+        privacy: {
+          title: 'Privacy',
+          desc: 'Your profile is not publicly published; it is shown only in-process via your panel.',
+        },
+        review: {
+          title: 'Control & moderation',
+          desc: 'Reporting and review flows help prevent and stop bad actors quickly.',
+        },
+        support: {
+          title: 'Support',
+          desc: 'If you get stuck, you can reach us via WhatsApp.',
+        },
+      },
+    },
+
+    cta: {
+      title: 'Ready to start?',
+      subtitle: 'Complete the application in 1–3 minutes and see matches in your panel.',
     },
   },
 
@@ -2043,6 +2174,34 @@ export default {
 
   matchmakingPage: {
     form: {
+      wizard: {
+        badge: 'Quick Application',
+        step: 'Step {{current}} / {{total}}',
+        back: 'Back',
+        next: 'Next',
+        steps: {
+          basic: {
+            title: 'Contact & basics',
+            desc: 'Let’s start with your core info and contact details.',
+          },
+          details: {
+            title: 'More details',
+            desc: 'Lifestyle and language preferences help matching.',
+          },
+          identity: {
+            title: 'About you & what you seek',
+            desc: 'Select your nationality/gender and who you’re looking for.',
+          },
+          photos: {
+            title: 'Photos & short intro',
+            desc: 'Upload 3 photos and introduce yourself briefly.',
+          },
+          preferences: {
+            title: 'Partner preferences & consents',
+            desc: 'Finalize preferences and submit your application.',
+          },
+        },
+      },
       labels: {
         childrenLivingSituation: 'Do you live with your children?',
       },
@@ -2054,6 +2213,15 @@ export default {
           withChildren: 'I live with my children',
           separate: 'I live separately from my children',
         },
+      },
+      confirmGender: {
+        title: 'Confirm gender',
+        text: 'You selected your gender as "{{gender}}". Confirm?',
+        cancel: 'Cancel',
+        confirm: 'Confirm',
+      },
+      hints: {
+        lookingForGenderAuto: 'The gender you are looking for is set automatically based on your gender.',
       },
       errors: {
         childrenLivingSituation: 'Please select your living situation with your children.',

@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { collection, doc, getDocs, limit, onSnapshot, query, where } from 'firebase/firestore';
 import { signOut } from 'firebase/auth';
-import { Edit, LogOut, ShieldCheck, Star, Trash2, UploadCloud } from 'lucide-react';
+import { Edit, LogOut, MessageCircle, ShieldCheck, Star, Trash2, UploadCloud } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import Navigation from '../../components/Navigation';
 import Footer from '../../components/Footer';
@@ -54,13 +54,17 @@ function pickBestNonStubApplication(items) {
 
 export default function StudioProfile() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user } = useAuth();
   const { t, i18n } = useTranslation();
+
 
   const uid = String(user?.uid || '').trim();
 
   const [mmUser, setMmUser] = useState(null);
   const [loading, setLoading] = useState(true);
+
+  const [applyBannerOpen, setApplyBannerOpen] = useState(true);
 
   const [latestApp, setLatestApp] = useState(null);
   const [appLoading, setAppLoading] = useState(true);
@@ -80,6 +84,12 @@ export default function StudioProfile() {
   const [textDraft, setTextDraft] = useState({ about: '', expectations: '' });
   const [textTouched, setTextTouched] = useState(false);
   const [textSaveState, setTextSaveState] = useState({ loading: false, error: '', success: '' });
+
+  const applySource = String(location?.state?.from || '').trim();
+  const applyApplicationId = String(location?.state?.applicationId || '').trim();
+  const showApplyBanner =
+    applyBannerOpen && ['matchmakingApply', 'matchmakingEditOnce', 'applyRedirectExisting'].includes(applySource);
+  const applyNextSteps = t('studio.profile.applySuccess.steps', { returnObjects: true });
 
   useEffect(() => {
     if (!uid) return;
@@ -416,11 +426,19 @@ export default function StudioProfile() {
 
               <div className="flex items-center gap-2">
                 <Link
-                  to="/evlilik/eslestirme-basvurusu"
+                  to="/evlilik/eslestirme-basvurusu?editOnce=1"
                   className="inline-flex items-center justify-center rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 shadow-sm transition hover:bg-slate-50"
                 >
                   <Edit className="mr-2 h-4 w-4" />
                   {t('studio.profile.editProfile')}
+                </Link>
+
+                <Link
+                  to="/profilim/destek"
+                  className="inline-flex items-center justify-center rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 shadow-sm transition hover:bg-slate-50"
+                >
+                  <MessageCircle className="mr-2 h-4 w-4" />
+                  {t('studio.feedback.nav')}
                 </Link>
 
                 <Link
@@ -441,6 +459,69 @@ export default function StudioProfile() {
                 </button>
               </div>
             </div>
+
+            {showApplyBanner ? (
+              <div className="mt-6 rounded-xl border border-amber-200 bg-amber-50 p-4">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex items-start gap-3">
+                    <div className="mt-0.5 flex h-8 w-8 items-center justify-center rounded-full bg-amber-100">
+                      <Star className="h-4 w-4 text-amber-700" />
+                    </div>
+
+                    <div>
+                      <div className="font-semibold text-slate-900">{t('studio.profile.applySuccess.title')}</div>
+                      <div className="mt-1 text-sm text-slate-700">{t('studio.profile.applySuccess.subtitle')}</div>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => setApplyBannerOpen(false)}
+                    className="rounded-md px-2 py-1 text-sm font-semibold text-slate-700 hover:bg-amber-100"
+                  >
+                    {t('studio.common.close')}
+                  </button>
+                </div>
+
+                {Array.isArray(applyNextSteps) ? (
+                  <ul className="mt-3 space-y-1 text-sm text-slate-700">
+                    {applyNextSteps.map((s, idx) => (
+                      <li key={idx} className="flex gap-2">
+                        <span className="text-amber-700">•</span>
+                        <span>{s}</span>
+                      </li>
+                    ))}
+                  </ul>
+                ) : null}
+
+                <div className="mt-4 flex flex-wrap items-center gap-2">
+                  <Link
+                    to="/app/pool"
+                    className="inline-flex items-center justify-center rounded-md bg-amber-500 px-3 py-2 text-sm font-semibold text-slate-950 shadow-sm transition hover:bg-amber-400"
+                  >
+                    {t('studio.profile.applySuccess.ctas.pool')}
+                  </Link>
+                  <Link
+                    to="/app/matches"
+                    className="inline-flex items-center justify-center rounded-md border border-amber-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 shadow-sm transition hover:bg-amber-50"
+                  >
+                    {t('studio.profile.applySuccess.ctas.matches')}
+                  </Link>
+                  <Link
+                    to="/evlilik/uniqah"
+                    className="inline-flex items-center justify-center rounded-md border border-amber-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 shadow-sm transition hover:bg-amber-50"
+                  >
+                    {t('studio.profile.applySuccess.ctas.learn')}
+                  </Link>
+
+                  {applyApplicationId ? (
+                    <div className="text-xs text-slate-500">
+                      {t('studio.profile.applySuccess.applicationIdLabel')}: {applyApplicationId}
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+            ) : null}
 
             <div className="mt-6 border-t border-slate-200 pt-6">
               <h2 className="text-lg font-semibold">{t('studio.profile.aboutTitle')}</h2>

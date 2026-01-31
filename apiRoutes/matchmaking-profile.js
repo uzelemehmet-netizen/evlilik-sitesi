@@ -13,6 +13,37 @@ function asObj(v) {
   return v && typeof v === 'object' ? v : {};
 }
 
+function getAge(application) {
+  const app = asObj(application);
+  const rootAge = asNum(app?.age);
+  if (rootAge !== null) return rootAge;
+
+  const details = asObj(app?.details);
+  const detailsAge = asNum(details?.age);
+  if (detailsAge !== null) return detailsAge;
+
+  const birthYear = asNum(details?.birthYear);
+  if (birthYear !== null) {
+    const year = new Date().getFullYear();
+    const computed = year - birthYear;
+    return Number.isFinite(computed) && computed > 0 && computed < 120 ? computed : null;
+  }
+
+  const birthDateMs = tsToMs(details?.birthDate);
+  if (birthDateMs > 0) {
+    const now = new Date();
+    const dob = new Date(birthDateMs);
+    if (Number.isFinite(dob.getTime())) {
+      let age = now.getFullYear() - dob.getFullYear();
+      const m = now.getMonth() - dob.getMonth();
+      if (m < 0 || (m === 0 && now.getDate() < dob.getDate())) age -= 1;
+      return Number.isFinite(age) && age > 0 && age < 120 ? age : null;
+    }
+  }
+
+  return null;
+}
+
 function tsToMs(v) {
   if (!v) return 0;
   if (typeof v === 'number' && Number.isFinite(v)) return v;
@@ -152,7 +183,7 @@ export default async function handler(req, res) {
           profileCode: safeStr(app?.profileCode),
           username: safeStr(app?.username),
           fullName: safeStr(app?.fullName),
-          age: asNum(app?.age),
+          age: getAge(app),
           city: safeStr(app?.city),
           country: safeStr(app?.country),
           nationality: safeStr(app?.nationality),

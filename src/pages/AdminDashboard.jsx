@@ -12,6 +12,7 @@ import MatchmakingMatchesTab from '../components/admin/MatchmakingMatchesTab';
 import MatchmakingUserToolsTab from '../components/admin/MatchmakingUserToolsTab';
 import MatchmakingPhotoUpdatesTab from '../components/admin/MatchmakingPhotoUpdatesTab';
 import MatchmakingPoolTab from '../components/admin/MatchmakingPoolTab';
+import SystemAlertsTab from '../components/admin/SystemAlertsTab';
 import { isFeatureEnabled } from '../config/siteVariant';
 
 // Travel/Tours modülü kaldırıldığı için admin panelde tur konfigi boş.
@@ -140,6 +141,8 @@ export default function AdminDashboard() {
   const [authDebug, setAuthDebug] = useState({ loading: true, admin: null, email: '', uid: '', projectId: '' });
   const [matchmakingItems, setMatchmakingItems] = useState([]);
   const [matchmakingNewCount, setMatchmakingNewCount] = useState(0);
+  const [geminiAlertItems, setGeminiAlertItems] = useState([]);
+  const [geminiAlertNewCount, setGeminiAlertNewCount] = useState(0);
   const [identityPendingCount, setIdentityPendingCount] = useState(0);
   const [paymentsPendingCount, setPaymentsPendingCount] = useState(0);
   const [photoUpdatesPendingCount, setPhotoUpdatesPendingCount] = useState(0);
@@ -380,6 +383,31 @@ export default function AdminDashboard() {
       (error) => {
         if (blockFirestoreIfNeeded(error)) return;
         console.error('Firestore matchmakingApplications dinleme hatası:', error);
+      }
+    );
+
+    return () => unsub();
+  }, [firestoreBlocked]);
+
+  // Sistem uyarıları: Gemini çeviri RPM limit aşımları (admin-only read)
+  useEffect(() => {
+    if (firestoreBlocked) return;
+
+    const q = query(collection(db, 'matchmakingSystemAlerts'), orderBy('createdAtMs', 'desc'), limit(50));
+
+    const unsub = onSnapshot(
+      q,
+      (snap) => {
+        const all = snap.docs.map((d) => ({ id: d.id, ...(d.data() || {}) }));
+        const gemini = all
+          .filter((x) => String(x.type || '') === 'gemini_translate_rpm_exceeded')
+          .filter((x) => String(x.status || 'new') === 'new');
+        setGeminiAlertItems(gemini);
+        setGeminiAlertNewCount(gemini.length);
+      },
+      (error) => {
+        if (blockFirestoreIfNeeded(error)) return;
+        console.error('Firestore matchmakingSystemAlerts dinleme hatası:', error);
       }
     );
 
@@ -1091,6 +1119,10 @@ export default function AdminDashboard() {
           onMarkAllRead={markMatchmakingAllRead}
         />
       );
+    }
+
+    if (activeTab === 'systemAlerts') {
+      return <SystemAlertsTab geminiAlerts={geminiAlertItems} />;
     }
 
     if (activeTab === 'islands') {
@@ -1848,6 +1880,27 @@ export default function AdminDashboard() {
               </span>
             )}
           </button>
+	  <button
+	    onClick={() => navigate('/admin/feedback')}
+	    className="px-6 py-3 font-semibold transition whitespace-nowrap text-gray-600 hover:text-gray-800"
+	  >
+	    Bildirimler
+	  </button>
+    <button
+      onClick={() => setActiveTab('systemAlerts')}
+      className={`px-6 py-3 font-semibold transition whitespace-nowrap ${
+        activeTab === 'systemAlerts'
+          ? 'text-indigo-600 border-b-2 border-indigo-600'
+          : 'text-gray-600 hover:text-gray-800'
+      }`}
+    >
+      Sistem Uyarıları
+      {geminiAlertNewCount > 0 && (
+        <span className="ml-2 inline-flex items-center justify-center min-w-6 h-6 px-2 rounded-full bg-amber-600 text-white text-xs">
+          {geminiAlertNewCount}
+        </span>
+      )}
+    </button>
 	  <button
 	    onClick={() => setActiveTab('shorts')}
 	    className={`px-6 py-3 font-semibold transition whitespace-nowrap ${

@@ -517,7 +517,24 @@ export default function StudioMatchProfile() {
       }
     } catch (e) {
       const msg = safeStr(e?.message) || 'request_failed';
-      setProfileAccessReq({ loading: false, error: translateStudioApiError(t, msg) || msg, status: '' });
+      let friendly = translateStudioApiError(t, msg) || msg;
+
+      // Local dev debug: backend "age_required / not_in_their_age_range" ile dönerse
+      // hangi yaş/limitlerle fail ettiğini gösterebilelim.
+      try {
+        const dbg = e?.details?.debug;
+        if (dbg && (msg === 'not_in_their_age_range' || msg === 'age_required')) {
+          const ra = typeof dbg?.requesterAge === 'number' ? dbg.requesterAge : '??';
+          const ta = typeof dbg?.targetAge === 'number' ? dbg.targetAge : '??';
+          const mn = typeof dbg?.targetRange?.min === 'number' ? dbg.targetRange.min : '??';
+          const mx = typeof dbg?.targetRange?.max === 'number' ? dbg.targetRange.max : '??';
+          friendly = `${friendly} (debug: sen=${ra}, karşı=${ta}, onların aralığı=${mn}-${mx})`;
+        }
+      } catch {
+        // ignore
+      }
+
+      setProfileAccessReq({ loading: false, error: friendly, status: '' });
     }
   };
 
@@ -650,7 +667,11 @@ export default function StudioMatchProfile() {
       });
       setTranslateState({ loadingId: '', error: '' });
     } catch (e) {
-      setTranslateState({ loadingId: '', error: safeStr(e?.message) || 'translate_failed' });
+      const msg = safeStr(e?.message);
+      setTranslateState({
+        loadingId: '',
+        error: translateStudioApiError(t, msg) || msg || 'translate_failed',
+      });
     }
   };
 
@@ -895,17 +916,46 @@ export default function StudioMatchProfile() {
 
                         {profileAccessReq.error ? <p className="mt-2 text-sm text-rose-700">{profileAccessReq.error}</p> : null}
                         {profileAccessReq.status ? (
-                          <p className="mt-2 text-xs text-slate-600">Durum: {profileAccessReq.status}</p>
+                          <p
+                            className={
+                              'mt-2 text-sm ' +
+                              (profileAccessReq.status === 'pending'
+                                ? 'text-emerald-700'
+                                : profileAccessReq.status === 'approved' || profileAccessReq.status === 'granted'
+                                  ? 'text-emerald-700'
+                                  : 'text-slate-600')
+                            }
+                          >
+                            {profileAccessReq.status === 'pending'
+                              ? 'İstek gönderildi (beklemede)'
+                              : profileAccessReq.status === 'approved'
+                                ? 'İstek onaylandı (profil yenileniyor)'
+                                : profileAccessReq.status === 'granted'
+                                  ? 'İzin zaten verilmiş (profil yenileniyor)'
+                                  : `Durum: ${profileAccessReq.status}`}
+                          </p>
                         ) : null}
 
                         <div className="mt-3 flex flex-wrap items-center gap-2">
                           <button
                             type="button"
                             onClick={requestProfileAccess}
-                            disabled={profileAccessReq.loading || !otherUid}
+                            disabled={
+                              profileAccessReq.loading ||
+                              !otherUid ||
+                              profileAccessReq.status === 'pending' ||
+                              profileAccessReq.status === 'approved' ||
+                              profileAccessReq.status === 'granted'
+                            }
                             className="inline-flex items-center justify-center rounded-md bg-emerald-600 px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 disabled:opacity-60"
                           >
-                            {profileAccessReq.loading ? t('studio.common.processing') : 'İzin iste'}
+                            {profileAccessReq.loading
+                              ? t('studio.common.processing')
+                              : profileAccessReq.status === 'pending'
+                                ? 'İstek gönderildi'
+                                : profileAccessReq.status === 'approved' || profileAccessReq.status === 'granted'
+                                  ? 'İzin verildi'
+                                  : 'İzin iste'}
                           </button>
 
                           <button

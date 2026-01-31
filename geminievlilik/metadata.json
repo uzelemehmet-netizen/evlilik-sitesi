@@ -1,0 +1,9 @@
+
+{
+  "name": "Nikahtan: Ciddi Evlilik Platformu",
+  "description": "Türkiye ve Endonezya arasındaki ciddi evlilik arayışındaki kişiler için tasarlanmış, özel eşleştirme ve güvenlik odaklı bir platform.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}

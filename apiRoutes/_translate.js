@@ -13,6 +13,7 @@ function isConfigured() {
   if (provider === 'deepl') return !!safeStr(process.env.DEEPL_API_KEY);
   if (provider === 'libretranslate') return !!safeStr(process.env.LIBRETRANSLATE_URL);
   if (provider === 'google') return !!safeStr(process.env.GOOGLE_TRANSLATE_API_KEY);
+  if (provider === 'gemini') return !!safeStr(process.env.GEMINI_API_KEY || process.env.GOOGLE_GEMINI_API_KEY);
   return false;
 }
 
@@ -159,6 +160,15 @@ async function translateWithGoogle(text, targetLang) {
   return s;
 }
 
+// Phrasebook (TR<->ID) shortcut to reduce external API usage.
+import { phrasebookTranslate } from './_phrasebook_tr_id.js';
+
+// PII guard (block sensitive content from going to external providers)
+import { detectPII } from './_pii.js';
+
+// Gemini provider (free tier) with PII blocking/redaction.
+import { translateWithGemini } from './_geminiTranslate.js';
+
 export function normalizeChatLang(v) {
   return normalizeLang(v);
 }
@@ -167,7 +177,7 @@ export function isTranslateConfigured() {
   return isConfigured();
 }
 
-export async function translateText({ text, targetLang }) {
+export async function translateText({ text, targetLang, provider }) {
   const t = safeStr(text);
   if (!t) {
     const err = new Error('bad_request');
@@ -182,10 +192,24 @@ export async function translateText({ text, targetLang }) {
     throw err;
   }
 
-  const provider = safeStr(process.env.TRANSLATE_PROVIDER || '').toLowerCase();
-  if (provider === 'deepl') return translateWithDeepL(t, lang);
-  if (provider === 'libretranslate') return translateWithLibreTranslate(t, lang);
-  if (provider === 'google') return translateWithGoogle(t, lang);
+  // 1) Local phrasebook match => no external provider.
+  const pb = phrasebookTranslate(t, lang);
+  if (pb) return pb;
+
+  // 2) Safety: block sensitive content before sending to ANY external provider.
+  const pii = detectPII(t);
+  if (pii.hasPII) {
+    const err = new Error('pii_blocked');
+    err.statusCode = 422;
+    err.details = { reasons: pii.reasons };
+    throw err;
+  }
+
+  const p = safeStr(provider || process.env.TRANSLATE_PROVIDER || '').toLowerCase();
+  if (p === 'deepl') return translateWithDeepL(t, lang);
+  if (p === 'libretranslate') return translateWithLibreTranslate(t, lang);
+  if (p === 'google') return translateWithGoogle(t, lang);
+  if (p === 'gemini') return translateWithGemini({ text: t, targetLang: lang });
 
   const err = new Error('translate_not_configured');
   err.statusCode = 501;

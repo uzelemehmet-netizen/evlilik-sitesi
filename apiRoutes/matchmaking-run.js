@@ -937,6 +937,29 @@ export default async function handler(req, res) {
 
     ({ db, FieldValue, projectId: firebaseProjectId } = getAdmin());
 
+    // Auto-match generation gate:
+    // - default is DISABLED (manual pool + request/approve flow)
+    // - enable explicitly via siteSettings/matchmaking.matchmakingAutoMatchEnabled=true
+    // - can be overridden by env MATCHMAKING_AUTO_MATCH_ENABLED
+    let autoMatchEnabled = false;
+    let autoMatchEnabledSource = 'default_disabled';
+    try {
+      const settingsSnap = await db.collection('siteSettings').doc('matchmaking').get();
+      const settings = settingsSnap.exists ? (settingsSnap.data() || {}) : {};
+      if (typeof settings?.matchmakingAutoMatchEnabled === 'boolean') {
+        autoMatchEnabled = settings.matchmakingAutoMatchEnabled;
+        autoMatchEnabledSource = 'siteSettings';
+      }
+    } catch {
+      // If settings read fails, stay on default_disabled (safer than auto-enabling).
+    }
+
+    const autoMatchEnabledFromEnv = parseBoolish(process.env.MATCHMAKING_AUTO_MATCH_ENABLED);
+    if (typeof autoMatchEnabledFromEnv === 'boolean') {
+      autoMatchEnabled = autoMatchEnabledFromEnv;
+      autoMatchEnabledSource = 'env';
+    }
+
     const headers = req?.headers || {};
     const runMeta = {
       startedAtMs,
@@ -973,6 +996,26 @@ export default async function handler(req, res) {
     // 48 saat dolmuş mutual_accepted match'leri kesinleşmiş say (auto-confirm) ve diğer proposed slotlarını boşalt.
     // Not: cleanupInactiveMatches'ten önce çağırıyoruz ki confirmed match'ler pasiflik kuralıyla iptal edilmesin.
     const autoConfirmed = dryRun ? { confirmed: 0, slotsCleared: 0 } : await autoConfirmOldMutualAccepted({ db, FieldValue, nowMs, ttlMs: PROPOSED_TTL_MS });
+
+    // If auto-match generation is disabled, still do maintenance (expire/auto-confirm) but do not create new matches.
+    if (!autoMatchEnabled) {
+      res.statusCode = 200;
+      res.setHeader('content-type', 'application/json');
+      res.end(
+        JSON.stringify({
+          ok: true,
+          disabled: true,
+          reason: 'matchmaking_auto_match_disabled',
+          autoMatchEnabled: false,
+          autoMatchEnabledSource,
+          created: 0,
+          updated: 0,
+          expiredProposed,
+          autoConfirmed,
+        })
+      );
+      return;
+    }
 
     const appsSnap = await db
       .collection('matchmakingApplications')

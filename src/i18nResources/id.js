@@ -51,6 +51,7 @@ const overrides = {
   studio: {
     common: {
       back: 'Kembali',
+      open: 'Buka',
       close: 'Tutup',
       cancel: 'Batal',
       send: 'Kirim',
@@ -60,6 +61,44 @@ const overrides = {
       profile: 'Profil',
       verified: 'Terverifikasi',
       unknown: 'Tidak diketahui',
+    },
+
+    feedback: {
+      nav: 'Dukungan / Laporan',
+      backToProfile: 'Kembali ke profil',
+      title: 'Dukungan • Masukan • Laporkan masalah',
+      subtitle: 'Kirim saran/komentar atau laporkan langkah yang tidak berfungsi.',
+      urgentNote: 'Untuk keluhan mendesak yang butuh bukti, jalur tercepat:',
+      whatsappCta: 'Dukungan WhatsApp',
+      kindLabel: 'Kategori',
+      kinds: {
+        bug: 'Bug / Tidak berfungsi',
+        suggestion: 'Saran / Masukan',
+        complaint: 'Keluhan (singkat)',
+        other: 'Lainnya',
+      },
+      matchIdLabel: 'ID match (opsional)',
+      matchIdPlaceholder: 'Jika ada matchId',
+      stepLabel: 'Langkah (opsional)',
+      stepPlaceholder: 'mis. “Kirim pesan chat”',
+      messageLabel: 'Pesan',
+      messagePlaceholder:
+        'Apa yang terjadi, apa yang Anda harapkan, di layar mana? Jika bisa tambahkan tanggal/jam dan detail singkat. (Jangan bagikan info kontak.)',
+      privacyNote: 'Privasi: Jangan bagikan informasi kontak.',
+      submit: 'Kirim',
+      success: 'Laporan Anda kami terima. Terima kasih!',
+      ticketId: 'Tiket',
+      error: 'Error',
+      footerNote: 'Catatan: Form ini dikirim ke dukungan. Waktu respon bisa berbeda tergantung beban kerja.',
+
+      screenshotLabel: 'Screenshot (opsional)',
+      screenshotDisabled: 'Upload screenshot dinonaktifkan (Cloudinary belum dikonfigurasi).',
+      selectedFile: 'File dipilih',
+      uploading: 'Mengunggah screenshot…',
+      uploadFailed: 'Upload gagal',
+
+      sendToWhatsApp: 'Dukungan WhatsApp dengan tiket',
+      sendToWhatsAppHint: 'Tiket dan matchId ditambahkan otomatis.',
     },
 
     inbox: {
@@ -85,7 +124,7 @@ const overrides = {
       countHint: 'Total: {{total}} • Ditampilkan: {{shown}}',
       filtersHint: 'Rentang usia: {{min}} – {{max}}',
       empty: 'Tidak ada profil untuk filter ini.',
-      requestProfileNow: 'Minta profil',
+      requestProfileNow: 'Kirim permintaan kecocokan',
       requesting: 'Mengirim…',
       requestSent: 'Terkirim',
       openProfile: 'Buka profil',
@@ -244,6 +283,7 @@ const overrides = {
       chatTitle: 'Chat',
       emoji: 'Emoji',
       emojiHint: 'Anda bisa menambahkan emoji',
+      matchTestOnlyActive: 'Tes kecocokan hanya bisa dibuka pada pencocokan aktif.',
       shortAreaTitle: 'Area pesan singkat',
       shortAreaDesc:
         'Area ini hanya untuk mengetahui lebih banyak tentang orang tersebut (topik yang tidak ada di profil, pertanyaan singkat tentang karakter).',
@@ -348,6 +388,22 @@ const overrides = {
       verifySubmitted: 'Permintaan verifikasi Anda telah diterima. Sedang ditinjau.',
       submitVerification: 'Kirim',
       confirmDelete: 'Apakah Anda ingin menghapus akun secara permanen? Ini tidak dapat dibatalkan.',
+
+      applySuccess: {
+        title: 'Pengajuan diterima',
+        subtitle: 'Langkah berikutnya: cek pool dari panel Anda dan ikuti saran kecocokan.',
+        steps: [
+          'Di pool, profil yang kompatibel akan ditampilkan (pratinjau terbatas).',
+          'Jika saling suka, chat 48 jam di dalam situs akan terbuka.',
+          'Setelah 48 jam, Anda bisa meminta berbagi kontak; jika disetujui, nomor telepon akan terlihat.',
+        ],
+        applicationIdLabel: 'ID Pengajuan',
+        ctas: {
+          pool: 'Buka pool',
+          matches: 'Pencocokan saya',
+          learn: 'Cara kerja sistem',
+        },
+      },
     },
 
     matchProfile: {
@@ -415,6 +471,8 @@ const overrides = {
       shortLimit: 'Anda sudah menggunakan semua pesan singkat (5). Untuk lanjut, setelah saling suka Anda harus memulai pencocokan aktif.',
       shortMessageTooLong: 'Pesan terlalu panjang. Maksimal 240 karakter.',
       filtered: 'Jangan bagikan info kontak (tautan, telepon, media sosial).',
+      notInTheirAgeRange: 'Rentang usia Anda tidak cocok untuk orang ini.',
+      ageRequired: 'Informasi usia Anda belum ada. Silakan lengkapi profil Anda dan coba lagi.',
       notAvailable: 'Tindakan ini tidak tersedia pada tahap ini.',
       forbidden: 'Anda tidak diizinkan melakukan tindakan ini.',
       cancelCooldown: 'Untuk mencegah penyalahgunaan, pembatalan sementara dinonaktifkan. Sisa: {{time}}',
@@ -667,6 +725,17 @@ const overrides = {
         },
       ],
     },
+    matching: {
+      title: 'Bagaimana kami mencocokkan?',
+      subtitle: 'Tujuannya bukan “acak”; tetapi kesesuaian kriteria dan progres yang aman. Profil Anda tidak publik.',
+      badge: 'Kriteria • Persetujuan mutual • Kontak terkontrol',
+      points: [
+        'Sistem membuat saran dari pool kandidat berdasarkan rentang usia, preferensi inti, dan detail pengajuan.',
+        'Interaksi maju dengan persetujuan kedua pihak—tidak ada alur kontak paksa.',
+        'Kontak tidak dibagikan langsung: chat 48 jam di dalam situs, lalu persetujuan permintaan kontak.',
+      ],
+      note: 'Catatan: Bagian ini untuk transparansi. Mekanisme moderasi dan pelaporan tetap berlaku untuk keamanan.',
+    },
     safety: {
       title: "Keamanan dan kualitas",
       subtitle:
@@ -704,6 +773,55 @@ const overrides = {
       title: 'Proses bertahap',
       badge: 'Alur Uniqah',
     },
+
+    faq: {
+      title: 'Pertanyaan yang sering ditanyakan',
+      subtitle: 'Jawaban singkat untuk pertanyaan paling umum tentang pengajuan dan prosesnya.',
+      sideNote: 'Dukungan WhatsApp selalu tersedia.',
+      items: [
+        {
+          q: 'Apakah profil saya bersifat publik?',
+          a: 'Tidak. Profil tidak dipublikasikan; proses berjalan terkontrol melalui panel Anda.',
+        },
+        {
+          q: 'Kapan informasi kontak dibagikan?',
+          a: 'Setelah saling menerima, 48 jam pertama hanya chat di dalam situs. Setelah 48 jam, Anda bisa meminta berbagi kontak; jika disetujui, nomor telepon akan terlihat.',
+        },
+        {
+          q: 'Siapa yang bisa melihat foto saya?',
+          a: 'Foto digunakan dalam proses dan untuk keamanan. Foto ditampilkan secara terkontrol melalui panel saat pencocokan.',
+        },
+        {
+          q: 'Jika ada perilaku tidak pantas, apa yang harus saya lakukan?',
+          a: 'Laporkan ke dukungan WhatsApp dengan bukti (screenshot). Setelah ditinjau, akun dapat dihapus dari sistem.',
+        },
+      ],
+    },
+
+    trust: {
+      title: 'Dirancang untuk kepercayaan',
+      subtitle: 'Sistem berjalan dengan privasi, moderasi, dan langkah komunikasi yang terkontrol.',
+      badge: 'Privasi • Moderasi • Komunikasi terkontrol',
+      cards: {
+        privacy: {
+          title: 'Privasi',
+          desc: 'Profil tidak dipublikasikan; hanya ditampilkan dalam proses melalui panel.',
+        },
+        review: {
+          title: 'Kontrol & moderasi',
+          desc: 'Alur laporan dan peninjauan membantu menghentikan pelaku buruk dengan cepat.',
+        },
+        support: {
+          title: 'Dukungan',
+          desc: 'Jika Anda mengalami kendala, Anda bisa menghubungi kami via WhatsApp.',
+        },
+      },
+    },
+
+    cta: {
+      title: 'Siap mulai?',
+      subtitle: 'Selesaikan pengajuan dalam 1–3 menit lalu lihat kecocokan di panel Anda.',
+    },
   },
 
   matchmakingPage: {
@@ -722,6 +840,34 @@ const overrides = {
       'Catatan: Ini adalah pendaftaran berfokus pada pernikahan; profil tidak ditampilkan secara publik di situs.',
     form: {
       applicationIdLabel: 'ID Pengajuan',
+      wizard: {
+        badge: 'Pengajuan Cepat',
+        step: 'Langkah {{current}} / {{total}}',
+        back: 'Kembali',
+        next: 'Lanjut',
+        steps: {
+          basic: {
+            title: 'Kontak & informasi dasar',
+            desc: 'Mulai dari informasi inti dan detail kontak Anda.',
+          },
+          details: {
+            title: 'Detail tambahan',
+            desc: 'Gaya hidup dan preferensi bahasa membantu pencocokan.',
+          },
+          identity: {
+            title: 'Tentang Anda & yang dicari',
+            desc: 'Pilih kewarganegaraan/jenis kelamin dan kriteria pasangan.',
+          },
+          photos: {
+            title: 'Foto & perkenalan singkat',
+            desc: 'Unggah 3 foto dan perkenalkan diri secara singkat.',
+          },
+          preferences: {
+            title: 'Preferensi pasangan & persetujuan',
+            desc: 'Lengkapi preferensi dan kirim pengajuan Anda.',
+          },
+        },
+      },
       editOnce: {
         usernameLocked: 'Dalam mode edit, nama pengguna tidak dapat diubah (perbaikan satu kali).',
         photosLocked: 'Dalam mode edit, pembaruan foto dinonaktifkan. Anda hanya dapat memperbaiki kolom formulir.',
@@ -830,6 +976,15 @@ const overrides = {
           yes: 'Ya',
           no: 'Tidak',
           unsure: 'Belum yakin',
+      confirmGender: {
+        title: 'Konfirmasi gender',
+        text: 'Anda memilih gender Anda sebagai "{{gender}}". Konfirmasi?',
+        cancel: 'Batal',
+        confirm: 'Konfirmasi',
+      },
+      hints: {
+        lookingForGenderAuto: 'Gender yang Anda cari diatur otomatis berdasarkan gender Anda.',
+      },
           doesntMatter: 'Tidak masalah',
         },
         nationality: {

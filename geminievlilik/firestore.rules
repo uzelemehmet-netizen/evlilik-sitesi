@@ -1,0 +1,60 @@
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Fonksiyon: Kullanıcı giriş yapmış mı?
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    // Fonksiyon: Kullanıcının aktif bir eşleşmesi var mı?
+    function hasActiveMatch(userId) {
+      return exists(/databases/$(database)/documents/activeMatches/$(userId));
+    }
+
+    // Kullanıcı Profilleri
+    match /users/{userId} {
+      // Herkes temel profili görebilir (Arama/Filtreleme için)
+      allow read: if isSignedIn();
+      
+      // Sadece kullanıcı kendi profilini güncelleyebilir
+      allow write: if isSignedIn() && request.auth.uid == userId;
+
+      // HASSAS VERİ KORUMASI: Telefon numarası sadece aktif eşleşmede 48 saat dolunca görünür
+      // (Not: Uygulama seviyesinde 'phoneNumber' alanı normal read'lerde kısıtlanmalıdır)
+    }
+    
+    // Eşleşme İstekleri ve Havuz İşlemleri
+    match /matches/{matchId} {
+      allow read: if isSignedIn() && (request.auth.uid in resource.data.users);
+      
+      // Yeni eşleşme oluşturma şartı: Aktif bir eşleşmesi OLMAYANLAR oluşturabilir
+      allow create: if isSignedIn() && !hasActiveMatch(request.auth.uid);
+      
+      allow update: if isSignedIn() && (request.auth.uid in resource.data.users);
+    }
+    
+    // Sohbet Mesajları
+    match /matches/{matchId}/messages/{messageId} {
+      allow read: if isSignedIn() && (request.auth.uid in get(/databases/$(database)/documents/matches/$(matchId)).data.users);
+      
+      // Yazma kuralı: Sadece aktif eşleşme içindeki taraflar yazabilir
+      allow create: if isSignedIn() && 
+        (request.auth.uid in get(/databases/$(database)/documents/matches/$(matchId)).data.users);
+    }
+    
+    // Aktif Eşleşme Kilidi (Seriousness Rule)
+    match /activeMatches/{userId} {
+      allow read: if isSignedIn();
+      // Sadece kullanıcı kendi kilidini oluşturabilir/silebilir
+      allow write: if isSignedIn() && request.auth.uid == userId;
+    }
+
+    // Üyelik ve Ödemeler
+    match /subscriptions/{userId} {
+      allow read: if isSignedIn() && request.auth.uid == userId;
+      allow write: if false; // Sadece admin/backend güncelleyebilir
+    }
+  }
+}

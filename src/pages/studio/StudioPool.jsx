@@ -8,6 +8,7 @@ import { db } from '../../config/firebase';
 import { authFetch } from '../../utils/authFetch';
 import { translateStudioApiError } from '../../utils/studioErrorI18n';
 import StudioInboxModal from '../../components/studio/StudioInboxModal';
+import { useMatchmakingResetAtMs } from '../../utils/matchmakingReset';
 
 function safeStr(v) {
   return typeof v === 'string' ? v.trim() : '';
@@ -31,6 +32,9 @@ export default function StudioPool() {
   const { t } = useTranslation();
   const { user } = useAuth();
 
+  const mmReset = useMatchmakingResetAtMs();
+  const resetAtMs = typeof mmReset?.resetAtMs === 'number' && Number.isFinite(mmReset.resetAtMs) ? mmReset.resetAtMs : 0;
+
   const [state, setState] = useState({ loading: true, error: '' });
   const [meta, setMeta] = useState(null);
   const [items, setItems] = useState([]);
@@ -43,19 +47,11 @@ export default function StudioPool() {
   const [inboxAccess, setInboxAccess] = useState([]);
   const [accessAction, setAccessAction] = useState({ loadingId: '', error: '' });
 
-  const [inboxMessages, setInboxMessages] = useState([]);
-
-  const [inboxModal, setInboxModal] = useState({ open: false, mode: 'requests' });
-
-  const [composeModal, setComposeModal] = useState({ open: false, targetUid: '', name: '' });
-  const [composeText, setComposeText] = useState('');
-  const [composeState, setComposeState] = useState({ loading: false, error: '' });
+  const [inboxModal, setInboxModal] = useState({ open: false });
 
   const [myLock, setMyLock] = useState({ active: false, matchId: '' });
   const [myMembership, setMyMembership] = useState({ active: false });
   const [paywallNotice, setPaywallNotice] = useState('');
-
-  const [profileModal, setProfileModal] = useState({ open: false, loading: false, error: '', profile: null });
 
   const cancelledRef = useRef(false);
 
@@ -105,6 +101,8 @@ export default function StudioPool() {
         const m = {};
         snap.forEach((d) => {
           const data = d.data() || {};
+          const updatedAtMs = typeof data?.updatedAtMs === 'number' && Number.isFinite(data.updatedAtMs) ? data.updatedAtMs : 0;
+          if (resetAtMs > 0 && updatedAtMs > 0 && updatedAtMs < resetAtMs) return;
           const rawToUid = safeStr(data?.toUid) || safeStr(data?.targetUid);
           const docId = safeStr(d.id);
 
@@ -134,7 +132,7 @@ export default function StudioPool() {
         // noop
       }
     };
-  }, [user?.uid]);
+  }, [resetAtMs, user?.uid]);
 
   // Gelen ön eşleşme istekleri (inbox)
   useEffect(() => {
@@ -155,7 +153,14 @@ export default function StudioPool() {
       (snap) => {
         const items = [];
         snap.forEach((d) => items.push({ id: d.id, ...d.data() }));
-        setInboxAccess(items);
+        setInboxAccess(
+          resetAtMs > 0
+            ? items.filter((x) => {
+                const createdAtMs = typeof x?.createdAtMs === 'number' && Number.isFinite(x.createdAtMs) ? x.createdAtMs : 0;
+                return !(createdAtMs > 0 && createdAtMs < resetAtMs);
+              })
+            : items
+        );
       },
       () => setInboxAccess([])
     );
@@ -167,40 +172,8 @@ export default function StudioPool() {
         // noop
       }
     };
-  }, [user?.uid]);
+  }, [resetAtMs, user?.uid]);
 
-  // Gelen direkt mesajlar (inbox)
-  useEffect(() => {
-    const uid = String(user?.uid || '').trim();
-    if (!uid) {
-      setInboxMessages([]);
-      return;
-    }
-
-    const q = query(
-      collection(db, 'matchmakingUsers', uid, 'inboxMessages'),
-      orderBy('createdAtMs', 'desc'),
-      limit(40)
-    );
-
-    const unsub = onSnapshot(
-      q,
-      (snap) => {
-        const items = [];
-        snap.forEach((d) => items.push({ id: d.id, ...d.data() }));
-        setInboxMessages(items);
-      },
-      () => setInboxMessages([])
-    );
-
-    return () => {
-      try {
-        unsub();
-      } catch {
-        // noop
-      }
-    };
-  }, [user?.uid]);
 
   // Üyelik durumu (paywall için)
   useEffect(() => {
@@ -384,46 +357,6 @@ export default function StudioPool() {
     }
   };
 
-  const openCompose = ({ targetUid, name }) => {
-    const toUid = safeStr(targetUid);
-    if (!toUid) return;
-
-    setComposeText('');
-    setComposeState({ loading: false, error: '' });
-    setComposeModal({ open: true, targetUid: toUid, name: safeStr(name) || t('studio.common.profile') });
-  };
-
-  const sendCompose = async () => {
-    const toUid = safeStr(composeModal?.targetUid);
-    const text = safeStr(composeText);
-    if (!toUid || !text || composeState.loading) return;
-
-    setComposeState({ loading: true, error: '' });
-    try {
-      await authFetch('/api/matchmaking-inbox-message-send', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ targetUid: toUid, text }),
-      });
-      setComposeState({ loading: false, error: '' });
-      setComposeModal({ open: false, targetUid: '', name: '' });
-      setComposeText('');
-    } catch (e) {
-      const msg = safeStr(e?.message) || 'send_failed';
-      setComposeState({ loading: false, error: translateStudioApiError(t, msg) || msg });
-    }
-  };
-
-  const unreadMessageCount = useMemo(() => {
-    const list = Array.isArray(inboxMessages) ? inboxMessages : [];
-    return list.filter((x) => {
-      const msg = safeStr(x?.text);
-      if (!msg) return false;
-      const readMs = typeof x?.readAtMs === 'number' && Number.isFinite(x.readAtMs) ? x.readAtMs : 0;
-      return readMs <= 0;
-    }).length;
-  }, [inboxMessages]);
-
   const pendingAccessCount = useMemo(() => {
     const list = Array.isArray(inboxAccess) ? inboxAccess : [];
     if (myLock?.active) return 0;
@@ -442,39 +375,6 @@ export default function StudioPool() {
     }
   };
 
-  const markDirectMessageRead = async ({ messageId }) => {
-    const id = safeStr(messageId);
-    if (!id) return;
-    try {
-      await authFetch('/api/matchmaking-inbox-message-mark-read', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ messageId: id }),
-      });
-    } catch {
-      // best-effort
-    }
-  };
-
-  const openProfile = async ({ targetUid }) => {
-    const uid = String(user?.uid || '').trim();
-    const toUid = safeStr(targetUid);
-    if (!uid || !toUid) return;
-
-    setProfileModal({ open: true, loading: true, error: '', profile: null });
-    try {
-      const data = await authFetch('/api/matchmaking-profile-view', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ targetUid: toUid }),
-      });
-      setProfileModal({ open: true, loading: false, error: '', profile: data?.profile || null });
-    } catch (e) {
-      const msg = safeStr(e?.message) || 'load_failed';
-      setProfileModal({ open: true, loading: false, error: translateStudioApiError(t, msg) || msg, profile: null });
-    }
-  };
-
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900">
       <Navigation />
@@ -486,26 +386,13 @@ export default function StudioPool() {
             <div className="flex flex-wrap items-center gap-2">
               <button
                 type="button"
-                onClick={() => setInboxModal({ open: true, mode: 'requests' })}
+                onClick={() => setInboxModal({ open: true })}
                 className="relative inline-flex items-center justify-center rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 shadow-sm transition hover:bg-slate-50"
               >
-                İstekler
+                Gelen istekler
                 {pendingAccessCount > 0 ? (
                   <span className="ml-2 inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-rose-600 px-2 py-0.5 text-xs font-bold text-white">
                     {pendingAccessCount}
-                  </span>
-                ) : null}
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setInboxModal({ open: true, mode: 'messages' })}
-                className="relative inline-flex items-center justify-center rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 shadow-sm transition hover:bg-slate-50"
-              >
-                Mesajlar
-                {unreadMessageCount > 0 ? (
-                  <span className="ml-2 inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-emerald-600 px-2 py-0.5 text-xs font-bold text-white">
-                    {unreadMessageCount}
                   </span>
                 ) : null}
               </button>
@@ -567,8 +454,6 @@ export default function StudioPool() {
           <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {items.map((it) => {
               const p = it?.profile && typeof it.profile === 'object' ? it.profile : {};
-              const canInteractByAge = !!it?.canInteract;
-              const canInteract = canInteractByAge;
               const targetUid = safeStr(it?.uid);
               const out = targetUid ? outboxMap?.[targetUid] : null;
               const pending = safeStr(out?.status) === 'pending';
@@ -623,24 +508,13 @@ export default function StudioPool() {
                       ) : (
                         <button
                           type="button"
-                          disabled={!canInteractByAge || requestingUid === targetUid}
+                          disabled={requestingUid === targetUid}
                           onClick={() => {
                             requestAccess({ targetUid });
                           }}
-                          className={
-                            canInteract
-                              ? 'inline-flex flex-1 items-center justify-center rounded-md bg-emerald-600 px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 disabled:opacity-60'
-                              : 'inline-flex flex-1 items-center justify-center rounded-md bg-slate-200 px-3 py-2 text-sm font-semibold text-slate-600'
-                          }
-                          title={
-                            canInteractByAge ? '' : t('studio.pool.notInTheirRange')
-                          }
+                          className="inline-flex flex-1 items-center justify-center rounded-md bg-emerald-600 px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 disabled:opacity-60"
                         >
-                          {canInteract
-                            ? requestingUid === targetUid
-                              ? t('studio.pool.requesting')
-                              : t('studio.pool.requestProfileNow')
-                            : t('studio.pool.notInTheirRangeShort')}
+                          {requestingUid === targetUid ? t('studio.pool.requesting') : t('studio.pool.requestProfileNow')}
                         </button>
                       )}
                     </div>
@@ -652,133 +526,16 @@ export default function StudioPool() {
 
           <StudioInboxModal
             open={!!inboxModal?.open}
-            onClose={() => setInboxModal({ open: false, mode: 'requests' })}
-            title={inboxModal?.mode === 'messages' ? 'Mesajlar' : 'İstekler'}
-            items={inboxModal?.mode === 'messages' ? inboxMessages : myLock?.active ? [] : inboxAccess}
-            mode={inboxModal?.mode}
-            onMarkRead={inboxModal?.mode === 'messages' ? markDirectMessageRead : markInboxMessageRead}
-            onApprove={inboxModal?.mode === 'messages' ? null : ({ fromUid }) => respondAccessRequest({ fromUid, decision: 'approve' })}
-            onReject={inboxModal?.mode === 'messages' ? null : ({ fromUid }) => respondAccessRequest({ fromUid, decision: 'reject' })}
+            onClose={() => setInboxModal({ open: false })}
+            title="İstekler"
+            items={myLock?.active ? [] : inboxAccess}
+            mode="requests"
+            onMarkRead={markInboxMessageRead}
+            onApprove={({ fromUid }) => respondAccessRequest({ fromUid, decision: 'approve' })}
+            onReject={({ fromUid }) => respondAccessRequest({ fromUid, decision: 'reject' })}
             loadingId={accessAction.loadingId}
             error={accessAction.error}
           />
-
-          {composeModal.open ? (
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-              <div className="w-full max-w-xl overflow-hidden rounded-xl bg-white shadow-xl">
-                <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
-                  <p className="font-semibold">{composeModal?.name || 'Mesaj'}</p>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setComposeModal({ open: false, targetUid: '', name: '' });
-                      setComposeText('');
-                      setComposeState({ loading: false, error: '' });
-                    }}
-                    className="rounded-md border border-slate-200 bg-white px-3 py-1.5 text-sm font-semibold text-slate-800 hover:bg-slate-50"
-                  >
-                    {t('studio.common.close')}
-                  </button>
-                </div>
-
-                <div className="p-4">
-                  <p className="text-sm text-slate-600">Kısa bir mesaj yaz (telefon / link / sosyal medya paylaşma).</p>
-
-                  <textarea
-                    value={composeText}
-                    onChange={(e) => setComposeText(e.target.value)}
-                    rows={4}
-                    maxLength={240}
-                    className="mt-3 w-full rounded-lg border border-slate-200 bg-white p-3 text-sm text-slate-900 shadow-sm outline-none focus:border-emerald-400"
-                    placeholder="Merhaba, nasılsın?"
-                  />
-
-                  {composeState.error ? <p className="mt-2 text-sm text-rose-700">{composeState.error}</p> : null}
-
-                  <div className="mt-3 flex items-center justify-end gap-2">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setComposeModal({ open: false, targetUid: '', name: '' });
-                        setComposeText('');
-                        setComposeState({ loading: false, error: '' });
-                      }}
-                      className="rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 hover:bg-slate-50"
-                    >
-                      {t('studio.common.cancel')}
-                    </button>
-
-                    <button
-                      type="button"
-                      disabled={!safeStr(composeText) || composeState.loading}
-                      onClick={sendCompose}
-                      className="rounded-md bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-emerald-700 disabled:opacity-60"
-                    >
-                      {composeState.loading ? t('studio.common.processing') : t('studio.common.send')}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          ) : null}
-
-          {profileModal.open ? (
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-              <div className="w-full max-w-3xl overflow-hidden rounded-xl bg-white shadow-xl">
-                <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
-                  <p className="font-semibold">{t('studio.pool.profileModalTitle')}</p>
-                  <button
-                    type="button"
-                    onClick={() => setProfileModal({ open: false, loading: false, error: '', profile: null })}
-                    className="rounded-md border border-slate-200 bg-white px-3 py-1.5 text-sm font-semibold text-slate-800 hover:bg-slate-50"
-                  >
-                    {t('studio.common.close')}
-                  </button>
-                </div>
-
-                <div className="max-h-[75vh] overflow-auto p-4">
-                  {profileModal.loading ? <p className="text-slate-600">{t('studio.common.loading')}</p> : null}
-                  {profileModal.error ? <p className="text-rose-700">{profileModal.error}</p> : null}
-
-                  {!profileModal.loading && !profileModal.error && profileModal.profile ? (
-                    <div className="space-y-4">
-                      <div>
-                        <p className="text-xl font-bold">
-                          {safeStr(profileModal.profile?.username) || t('studio.common.profile')}
-                          {typeof profileModal.profile?.age === 'number' ? `, ${profileModal.profile.age}` : ''}
-                        </p>
-                        <p className="mt-1 text-sm text-slate-600">
-                          {safeStr(profileModal.profile?.city)}{safeStr(profileModal.profile?.country) ? `, ${safeStr(profileModal.profile.country)}` : ''}
-                        </p>
-                      </div>
-
-                      {Array.isArray(profileModal.profile?.photoUrls) && profileModal.profile.photoUrls.length ? (
-                        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                          {profileModal.profile.photoUrls.slice(0, 6).map((u) => (
-                            <img key={u} src={u} alt="" className="h-40 w-full rounded-md object-cover" loading="lazy" decoding="async" />
-                          ))}
-                        </div>
-                      ) : null}
-
-                      {safeStr(profileModal.profile?.about) ? (
-                        <div>
-                          <p className="font-semibold">{t('studio.myInfo.fields.about')}</p>
-                          <p className="mt-1 whitespace-pre-wrap text-slate-800">{profileModal.profile.about}</p>
-                        </div>
-                      ) : null}
-
-                      {safeStr(profileModal.profile?.expectations) ? (
-                        <div>
-                          <p className="font-semibold">{t('studio.myInfo.fields.expectations')}</p>
-                          <p className="mt-1 whitespace-pre-wrap text-slate-800">{profileModal.profile.expectations}</p>
-                        </div>
-                      ) : null}
-                    </div>
-                  ) : null}
-                </div>
-              </div>
-            </div>
-          ) : null}
         </div>
       </main>
     </div>

@@ -1,5 +1,6 @@
 import { getAdmin, normalizeBody, requireIdToken } from './_firebaseAdmin.js';
 import { normalizeGender } from './_matchmakingEligibility.js';
+import { getMatchmakingResetAtMs } from './_matchmakingReset.js';
 import {
   decideAgeGroupExpandCount,
   getAgeGroupMaxExpandFromEnv,
@@ -151,6 +152,13 @@ function tsToMs(v) {
   const nanoseconds = typeof v?.nanoseconds === 'number' ? v.nanoseconds : 0;
   if (seconds !== null) return Math.floor(seconds * 1000 + nanoseconds / 1e6);
   return 0;
+}
+
+function matchCreatedAtMs(match) {
+  const ms = typeof match?.createdAtMs === 'number' && Number.isFinite(match.createdAtMs) ? match.createdAtMs : 0;
+  if (ms > 0) return ms;
+  const ts = tsToMs(match?.createdAt);
+  return ts > 0 ? ts : 0;
 }
 
 function lastSeenMsFromUserDoc(userDoc) {
@@ -513,6 +521,21 @@ export default async function handler(req, res) {
     const requestedMaxMatches = clampInt(body?.maxMatches, { min: 1, max: 5 });
 
     const { db, FieldValue } = getAdmin();
+
+    // Global kill-switch: disable automatic match creation.
+    // Manual pool (pre-match requests) should still work.
+    try {
+      const settingsSnap = await db.collection('siteSettings').doc('matchmaking').get();
+      const settings = settingsSnap.exists ? (settingsSnap.data() || {}) : {};
+      if (settings?.matchmakingAutoMatchEnabled === false) {
+        res.statusCode = 200;
+        res.setHeader('content-type', 'application/json');
+        res.end(JSON.stringify({ ok: true, created: 0, noMatchReason: 'auto_match_disabled' }));
+        return;
+      }
+    } catch {
+      // best-effort
+    }
     const ref = db.collection('matchmakingUsers').doc(uid);
 
     // Preflight: Kullanıcı havuzda değilse hak tüketmeyelim.
@@ -684,6 +707,8 @@ export default async function handler(req, res) {
         const userSnap = await db.collection('matchmakingUsers').doc(uid).get();
         const userDoc = userSnap.exists ? (userSnap.data() || {}) : {};
 
+        const resetAtMs = await getMatchmakingResetAtMs(db);
+
         // newUserSlot / slot limiti kaldırıldı.
 
         const membershipActive = isMembershipActiveUserDoc(userDoc, now);
@@ -712,6 +737,11 @@ export default async function handler(req, res) {
 
         existingSnap.docs.forEach((d) => {
           const m = d.data() || {};
+
+          // Soft reset: reset öncesi match'leri yok say.
+          const createdMs = matchCreatedAtMs(m);
+          if (resetAtMs > 0 && createdMs > 0 && createdMs < resetAtMs) return;
+
           const ids = Array.isArray(m.userIds) ? m.userIds.map(String).filter(Boolean) : [];
           if (ids.length === 2) {
             const other = ids[0] === uid ? ids[1] : ids[0];

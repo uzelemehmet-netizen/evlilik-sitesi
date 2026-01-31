@@ -108,10 +108,6 @@ export default function Panel() {
 
   const [chatLimitNoticeByMatchId, setChatLimitNoticeByMatchId] = useState({});
 
-  const [quickQuestionsActionByMatchId, setQuickQuestionsActionByMatchId] = useState({});
-
-  const [matchTestUiByMatchId, setMatchTestUiByMatchId] = useState({});
-
   const [chatInlineOpenMatchId, setChatInlineOpenMatchId] = useState('');
 
   const lastChatSeenMessageIdByMatchIdRef = useRef({});
@@ -284,7 +280,7 @@ export default function Panel() {
   const [editOnceAction, setEditOnceAction] = useState({ loading: false, error: '', success: '' });
 
   const showMatchmakingIntro = !!location?.state?.showMatchmakingIntro;
-  const matchmakingNext = '/evlilik/eslestirme-basvuru';
+  const matchmakingNext = '/evlilik/eslestirme-basvuru?w=1';
 
   useEffect(() => {
     if (!location?.state?.openMembershipActivation) return;
@@ -2396,126 +2392,9 @@ export default function Panel() {
       setChatTextByMatchId((p) => ({ ...p, [matchId]: next }));
     };
 
-    const qq = focusedMatch?.quickQuestions && typeof focusedMatch.quickQuestions === 'object' ? focusedMatch.quickQuestions : {};
-    const myQq = mySide ? (qq?.[mySide] && typeof qq[mySide] === 'object' ? qq[mySide] : {}) : {};
-    const otherQq = otherSide ? (qq?.[otherSide] && typeof qq[otherSide] === 'object' ? qq[otherSide] : {}) : {};
-    const myAnswers = myQq?.answers && typeof myQq.answers === 'object' ? myQq.answers : {};
-    const otherAnswers = otherQq?.answers && typeof otherQq.answers === 'object' ? otherQq.answers : {};
-
-    const qqAction = quickQuestionsActionByMatchId?.[matchId] || {};
-    const qqLoading = !!qqAction?.loading;
-    const qqError = String(qqAction?.error || '').trim();
-
-    const saveQuickAnswer = async (question, answer) => {
-      if (!matchId) return;
-      if (!question || !answer) return;
-      if (qqLoading) return;
-
-      const applyLocal = (nextValue) => {
-        if (!mySide) return;
-        const qKey = String(question || '').trim();
-        const v = String(nextValue || '').trim();
-        if (!qKey) return;
-
-        setMatchmakingMatches((prev) => {
-          const list = Array.isArray(prev) ? prev : [];
-          const nowMs = Date.now();
-          return list.map((m) => {
-            if (String(m?.id || '') !== String(matchId)) return m;
-
-            const existing = m?.quickQuestions && typeof m.quickQuestions === 'object' ? m.quickQuestions : {};
-            const mine = existing?.[mySide] && typeof existing[mySide] === 'object' ? existing[mySide] : {};
-            const existingAnswers = mine?.answers && typeof mine.answers === 'object' ? mine.answers : {};
-            const nextAnswers = { ...existingAnswers };
-
-            if (v) nextAnswers[qKey] = v;
-            else delete nextAnswers[qKey];
-
-            return {
-              ...m,
-              quickQuestions: {
-                ...existing,
-                [mySide]: {
-                  ...mine,
-                  answers: nextAnswers,
-                  updatedAtMs: nowMs,
-                },
-              },
-              updatedAtMs: nowMs,
-            };
-          });
-        });
-      };
-
-      const prevValue = String(myAnswers?.[String(question || '').trim()] || '');
-      applyLocal(answer);
-
-      setQuickQuestionsActionByMatchId((p) => ({ ...p, [matchId]: { loading: true, error: '' } }));
-      try {
-        await authFetch('/api/matchmaking-quick-questions', {
-          method: 'POST',
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ matchId, question, answer }),
-        });
-        setQuickQuestionsActionByMatchId((p) => ({ ...p, [matchId]: { loading: false, error: '' } }));
-      } catch (e) {
-        applyLocal(prevValue);
-        const msg = String(e?.message || '').trim();
-        setQuickQuestionsActionByMatchId((p) => ({ ...p, [matchId]: { loading: false, error: msg || 'save_failed' } }));
-      }
-    };
-
-    const matchTestUi =
-      mySide && matchTestUiByMatchId?.[matchId] && typeof matchTestUiByMatchId[matchId] === 'object' ? matchTestUiByMatchId[matchId] : {};
-    const matchTestOpen = !!matchTestUi.open;
-
-    const matchTestItems = [
-      { q: 'q1', titleKey: 'q1', options: ['slow', 'normal', 'fast'] },
-      { q: 'q2', titleKey: 'q2', options: ['family', 'balanced', 'independent'] },
-      { q: 'q3', titleKey: 'q3', options: ['local', 'open', 'flexible'] },
-    ];
-
-    const matchTestScore = (() => {
-      let bothAnswered = 0;
-      let same = 0;
-      for (const it of matchTestItems) {
-        const mine = String(myAnswers?.[it.q] || '');
-        const other = String(otherAnswers?.[it.q] || '');
-        if (mine && other) {
-          bothAnswered += 1;
-          if (mine === other) same += 1;
-        }
-      }
-      const pointsPer = 10;
-      return {
-        bothAnswered,
-        same,
-        points: same * pointsPer,
-        maxPoints: matchTestItems.length * pointsPer,
-      };
-    })();
-
-    const isMyMatchTestFinished = matchTestItems.every((it) => !!String(myAnswers?.[it.q] || ''));
-
-    const closeMatchTest = () => {
-      setMatchTestUiByMatchId((p) => ({
-        ...p,
-        [matchId]: { ...(p?.[matchId] || {}), open: false },
-      }));
-    };
-
     return (
       <div
         className="mt-3 flex flex-col min-h-0 flex-1 h-[70vh] max-h-[70vh]"
-        onPointerDownCapture={(e) => {
-          if (!matchTestOpen) return;
-          if (!isMyMatchTestFinished) return;
-          const target = e?.target;
-          if (!(target instanceof Element)) return;
-          if (target.closest('[data-mm-matchtest-panel="1"]')) return;
-          if (target.closest('[data-mm-matchtest-button="1"]')) return;
-          closeMatchTest();
-        }}
       >
         {loading ? <div className="text-xs text-white/60">{t('common.loading')}</div> : null}
 
@@ -2791,6 +2670,10 @@ export default function Panel() {
                                 if (translateErr === 'only_incoming') return 'Sadece gelen mesajlar çevrilebilir.';
                                 if (translateErr === 'missing_auth' || translateErr === 'invalid_auth') return 'Oturum gerekli.';
                                 if (translateErr === 'translate_not_configured') return 'Çeviri servisi ayarlı değil.';
+                                if (translateErr === 'translate_rate_limited')
+                                  return 'Çeviri yoğun (Gemini dakikada 15 limit). 1 dakika sonra tekrar dene veya ücretli plana geç.';
+                                if (translateErr === 'pii_blocked')
+                                  return 'Kişisel/iletişim bilgisi içerdiği için otomatik çeviri yapılmadı. Lütfen bu bilgileri kaldır.';
                                 return 'Çeviri başarısız.';
                               })()}
                             </div>
@@ -2874,11 +2757,9 @@ export default function Panel() {
               <input
                 value={chatTextByMatchId?.[matchId] || ''}
                 onChange={(e) => {
-                  if (matchTestOpen && isMyMatchTestFinished) closeMatchTest();
                   setChatTextByMatchId((p) => ({ ...p, [matchId]: e.target.value }));
                 }}
                 onFocus={() => {
-                  if (matchTestOpen && isMyMatchTestFinished) closeMatchTest();
                 }}
                 onKeyDown={(e) => {
                   if (sendBlocked) return;
@@ -2969,28 +2850,7 @@ export default function Panel() {
             ) : null}
 
             {focusedMatch && mySide ? (
-              <div className="flex flex-col items-start">
-                {!matchTestOpen && isMyMatchTestFinished ? (
-                  <div className="mb-1 text-[11px] text-white/60">
-                    {t('matchmakingPanel.matches.matchTest.score', { points: matchTestScore.points, max: matchTestScore.maxPoints })}
-                  </div>
-                ) : null}
-                <button
-                  type="button"
-                  onClick={() =>
-                    setMatchTestUiByMatchId((p) => {
-                      const cur = p?.[matchId] && typeof p[matchId] === 'object' ? p[matchId] : {};
-                      const open = !cur.open;
-                      const idx = typeof cur.idx === 'number' && Number.isFinite(cur.idx) ? cur.idx : 0;
-                      return { ...p, [matchId]: { ...cur, open, idx } };
-                    })
-                  }
-                  data-mm-matchtest-button="1"
-                  className="px-3 py-2 rounded-full border border-white/15 bg-white/[0.04] text-white/90 text-xs font-semibold hover:bg-white/[0.08]"
-                >
-                  {t('matchmakingPanel.matches.matchTest.button')}
-                </button>
-              </div>
+              null
             ) : null}
 
             {focusedMatch && String(focusedMatch?.status || '') !== 'cancelled' ? (
@@ -3005,160 +2865,7 @@ export default function Panel() {
             ) : null}
             </div>
 
-            {focusedMatch && mySide ? (
-              (() => {
-                const ui = matchTestUi;
-                const open = !!ui.open;
-                if (!open) return null;
-
-                const items = matchTestItems;
-
-                const idx = typeof ui.idx === 'number' && Number.isFinite(ui.idx) ? ui.idx : 0;
-                const safeIdx = Math.max(0, Math.min(items.length - 1, idx));
-                const curItem = items[safeIdx];
-
-                const scoreInfo = matchTestScore;
-
-                const mineCur = String(myAnswers?.[curItem.q] || '');
-                const otherCur = String(otherAnswers?.[curItem.q] || '');
-                const bothCur = !!mineCur && !!otherCur;
-                const sameCur = bothCur && mineCur === otherCur;
-
-                const pick = async (opt) => {
-                  await saveQuickAnswer(curItem.q, opt);
-                  setMatchTestUiByMatchId((p) => {
-                    const cur = p?.[matchId] && typeof p[matchId] === 'object' ? p[matchId] : {};
-                    return { ...p, [matchId]: { ...cur, open: true, idx: Math.min(items.length - 1, safeIdx + 1) } };
-                  });
-                };
-
-                return (
-                  <div
-                    data-mm-matchtest-panel="1"
-                    className="absolute left-0 right-0 top-full mt-2 z-20 max-h-[28vh] overflow-y-auto overscroll-contain rounded-xl border border-white/10 bg-[#0b1220]/95 backdrop-blur p-3 shadow-xl"
-                    data-testid="match-test"
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className="text-sm font-semibold text-white">{t('matchmakingPanel.matches.matchTest.title')}</p>
-                      <p className="mt-1 text-xs text-white/60">{t('matchmakingPanel.matches.matchTest.lead')}</p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      {qqLoading ? <div className="text-xs text-white/60">{t('matchmakingPanel.actions.sending')}</div> : null}
-                      <div className="text-[11px] text-white/60">
-                        {t('matchmakingPanel.matches.matchTest.score', { points: scoreInfo.points, max: scoreInfo.maxPoints })}
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => setMatchTestUiByMatchId((p) => ({ ...p, [matchId]: { ...(p?.[matchId] || {}), open: false } }))}
-                        className="px-3 py-1.5 rounded-full border border-white/15 bg-white/[0.04] text-white/80 text-[11px] font-semibold hover:bg-white/[0.08]"
-                      >
-                        {t('matchmakingPanel.matches.matchTest.close')}
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="mt-3 rounded-xl border border-white/10 bg-white/[0.04] p-3">
-                    <div className="flex items-start justify-between gap-3">
-                      <p className="text-xs font-semibold text-white">
-                        {t('matchmakingPanel.matches.matchTest.questionCounter', { cur: safeIdx + 1, total: items.length })}:{' '}
-                        {t(`matchmakingPanel.matches.quickQuestions.questions.${curItem.titleKey}.title`)}
-                      </p>
-                      {otherCur ? (
-                        <span className="text-[11px] text-white/60">{t('matchmakingPanel.matches.quickQuestions.otherAnswered')}</span>
-                      ) : (
-                        <span className="text-[11px] text-white/40">{t('matchmakingPanel.matches.quickQuestions.otherNotAnswered')}</span>
-                      )}
-                    </div>
-
-                    <div className="mt-2 flex flex-wrap gap-2">
-                      {curItem.options.map((opt) => {
-                        const selected = mineCur === opt;
-                        const cls = selected
-                          ? 'bg-sky-500/15 border-sky-300/40 text-sky-100'
-                          : 'bg-white/5 border-white/10 text-white/75 hover:bg-white/[0.08]';
-                        return (
-                          <button
-                            key={opt}
-                            type="button"
-                            disabled={qqLoading}
-                            onClick={() => pick(opt)}
-                            className={`px-3 py-1.5 rounded-full border text-[11px] font-semibold ${cls}`}
-                            title={t(`matchmakingPanel.matches.quickQuestions.questions.${curItem.titleKey}.options.${opt}`)}
-                          >
-                            {t(`matchmakingPanel.matches.quickQuestions.questions.${curItem.titleKey}.options.${opt}`)}
-                          </button>
-                        );
-                      })}
-                    </div>
-
-                    {mineCur ? (
-                      <div className="mt-2 text-[11px] text-white/60">
-                        {t('matchmakingPanel.matches.quickQuestions.yourAnswer')}:{' '}
-                        <span className="font-semibold text-white/75">
-                          {t(`matchmakingPanel.matches.quickQuestions.questions.${curItem.titleKey}.options.${mineCur}`)}
-                        </span>
-                        {otherCur ? (
-                          <>
-                            <span className="mx-2 text-white/30">•</span>
-                            {t('matchmakingPanel.matches.quickQuestions.otherAnswer')}:{' '}
-                            <span className="font-semibold text-white/75">
-                              {t(`matchmakingPanel.matches.quickQuestions.questions.${curItem.titleKey}.options.${otherCur}`)}
-                            </span>
-                          </>
-                        ) : null}
-                      </div>
-                    ) : (
-                      <div className="mt-2 text-[11px] text-white/50">{t('matchmakingPanel.matches.quickQuestions.pickOne')}</div>
-                    )}
-
-                    {bothCur ? (
-                      <div
-                        className={
-                          sameCur
-                            ? 'mt-2 rounded-lg border border-emerald-300/25 bg-emerald-500/10 p-2 text-[11px] text-emerald-100'
-                            : 'mt-2 rounded-lg border border-white/10 bg-white/[0.03] p-2 text-[11px] text-white/70'
-                        }
-                      >
-                        {sameCur ? t('matchmakingPanel.matches.matchTest.sameAnswer') : t('matchmakingPanel.matches.matchTest.differentAnswer')}
-                      </div>
-                    ) : null}
-
-                    <div className="mt-3 flex items-center justify-between gap-2">
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setMatchTestUiByMatchId((p) => ({
-                            ...p,
-                            [matchId]: { ...(p?.[matchId] || {}), open: true, idx: Math.max(0, safeIdx - 1) },
-                          }))
-                        }
-                        disabled={safeIdx <= 0}
-                        className="px-3 py-1.5 rounded-full border border-white/15 bg-white/[0.04] text-white/85 text-[11px] font-semibold hover:bg-white/[0.08] disabled:opacity-50"
-                      >
-                        {t('matchmakingPanel.matches.matchTest.prev')}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setMatchTestUiByMatchId((p) => ({
-                            ...p,
-                            [matchId]: { ...(p?.[matchId] || {}), open: true, idx: Math.min(items.length - 1, safeIdx + 1) },
-                          }))
-                        }
-                        disabled={safeIdx >= items.length - 1}
-                        className="px-3 py-1.5 rounded-full border border-white/15 bg-white/[0.04] text-white/85 text-[11px] font-semibold hover:bg-white/[0.08] disabled:opacity-50"
-                      >
-                        {t('matchmakingPanel.matches.matchTest.next')}
-                      </button>
-                    </div>
-
-                    {qqError ? <div className="mt-2 text-xs text-rose-200/90">{qqError}</div> : null}
-                  </div>
-                  </div>
-                );
-              })()
-            ) : null}
+            {focusedMatch && mySide ? null : null}
           </div>
 
           {focusedMatch ? (
@@ -4425,7 +4132,7 @@ export default function Panel() {
               {!matchmakingLoading ? (
                 !matchmaking ? (
                   <Link
-                    to="/evlilik/eslestirme-basvuru"
+                    to="/evlilik/eslestirme-basvuru?w=1"
                     className="w-full sm:w-56 h-9 inline-flex items-center justify-start text-left whitespace-nowrap px-3 rounded-full bg-gradient-to-r from-sky-500/20 to-indigo-500/10 text-sky-100 text-sm font-extrabold tracking-wide ring-1 ring-sky-300/25 shadow-[0_14px_45px_rgba(0,0,0,0.45)] hover:from-sky-500/28 hover:to-indigo-500/16 transition"
                   >
                     {t('matchmakingPanel.actions.profileForm')}
@@ -7443,6 +7150,10 @@ export default function Panel() {
                                                               if (translateErr === 'only_incoming') return 'Sadece gelen mesajlar çevrilebilir.';
                                                               if (translateErr === 'missing_auth' || translateErr === 'invalid_auth') return 'Oturum gerekli.';
                                                               if (translateErr === 'translate_not_configured') return 'Çeviri servisi ayarlı değil.';
+                                                              if (translateErr === 'translate_rate_limited')
+                                                                return 'Çeviri yoğun (Gemini dakikada 15 limit). 1 dakika sonra tekrar dene veya ücretli plana geç.';
+                                                              if (translateErr === 'pii_blocked')
+                                                                return 'Kişisel/iletişim bilgisi içerdiği için otomatik çeviri yapılmadı. Lütfen bu bilgileri kaldır.';
                                                               return 'Çeviri başarısız.';
                                                             })()}
                                                           </div>

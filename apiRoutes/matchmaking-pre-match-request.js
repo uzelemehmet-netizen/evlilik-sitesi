@@ -1,5 +1,5 @@
 import { getAdmin, normalizeBody, requireIdToken } from './_firebaseAdmin.js';
-import { ensureEligibleOrThrow } from './_matchmakingEligibility.js';
+import { ensureEligibleOrThrow, normalizeGender } from './_matchmakingEligibility.js';
 
 function safeStr(v) {
   return typeof v === 'string' ? v.trim() : '';
@@ -37,6 +37,70 @@ function tsToMs(v) {
   return 0;
 }
 
+const MIN_AGE = 18;
+
+function toNumOrNull(v, { min, max } = {}) {
+  if (v === null || v === undefined) return null;
+  const n = typeof v === 'number' ? v : Number(String(v).trim());
+  if (!Number.isFinite(n)) return null;
+  if (typeof min === 'number' && n < min) return null;
+  if (typeof max === 'number' && n > max) return null;
+  return n;
+}
+
+function ageFromBirthYearMaybe(v) {
+  const year = toNumOrNull(v, { min: 1900, max: 2100 });
+  if (year === null) return null;
+  const now = new Date();
+  const age = now.getFullYear() - year;
+  return age >= MIN_AGE && age <= 99 ? age : null;
+}
+
+function ageFromDateMaybe(v) {
+  let d = null;
+  if (typeof v === 'number' && Number.isFinite(v)) {
+    d = new Date(v);
+  } else if (typeof v === 'string') {
+    const s = v.trim();
+    if (!s) return null;
+    const parsed = Date.parse(s);
+    if (Number.isFinite(parsed)) d = new Date(parsed);
+  } else if (typeof v?.toDate === 'function') {
+    try {
+      d = v.toDate();
+    } catch {
+      d = null;
+    }
+  }
+
+  if (!d || Number.isNaN(d.getTime())) return null;
+  const now = new Date();
+  let age = now.getFullYear() - d.getFullYear();
+  const m = now.getMonth() - d.getMonth();
+  if (m < 0 || (m === 0 && now.getDate() < d.getDate())) age -= 1;
+  return age >= MIN_AGE && age <= 99 ? age : null;
+}
+
+function getAge(app) {
+  const direct = toNumOrNull(app?.age, { min: MIN_AGE, max: 99 });
+  if (direct !== null) return direct;
+
+  const details = app?.details || {};
+  const nested = toNumOrNull(details?.age, { min: MIN_AGE, max: 99 });
+  if (nested !== null) return nested;
+
+  const byYear = ageFromBirthYearMaybe(details?.birthYear ?? app?.birthYear);
+  if (byYear !== null) return byYear;
+
+  const byDate =
+    ageFromDateMaybe(details?.birthDateMs ?? app?.birthDateMs) ??
+    ageFromDateMaybe(details?.birthDate ?? app?.birthDate) ??
+    ageFromDateMaybe(details?.dob ?? app?.dob);
+  if (byDate !== null) return byDate;
+
+  return null;
+}
+
 function pickBestNonStubApplication(items) {
   const list = Array.isArray(items) ? items : [];
   if (!list.length) return null;
@@ -45,20 +109,26 @@ function pickBestNonStubApplication(items) {
     .map((a) => {
       const source = safeStr(a?.source).toLowerCase();
       const isStub = source === 'auto_stub';
+      const hasAge = getAge(a) !== null;
+      const hasEditOnce = !!a?.userEditOnceUsedAt;
       const ms =
         (typeof a?.createdAtMs === 'number' && Number.isFinite(a.createdAtMs) ? a.createdAtMs : 0) ||
         tsToMs(a?.createdAt);
-      const score = (isStub ? 0 : 1000) + (ms > 0 ? ms : 0);
+      const score =
+        (isStub ? 0 : 1000) +
+        (hasEditOnce ? 100 : 0) +
+        (hasAge ? 50 : 0) +
+        (ms > 0 ? ms : 0);
       return { a, isStub, score };
     })
     .sort((x, y) => y.score - x.score);
 
-  const best = scored.find((x) => !x.isStub) || null;
-  return best ? best.a : null;
+  const bestNonStub = scored.find((x) => !x.isStub) || null;
+  return (bestNonStub || scored[0] || null) ? (bestNonStub ? bestNonStub.a : scored[0].a) : null;
 }
 
-function ageRangeFromApp(app) {
-  const age = asNum(app?.age);
+function ageRangeFromApp(app, { ageOverride = null } = {}) {
+  const age = typeof ageOverride === 'number' && Number.isFinite(ageOverride) ? ageOverride : getAge(app);
   const partner = asObj(app?.partnerPreferences);
 
   const sanitizePref = (n) => (n !== null && n >= 18 && n <= 99 ? n : null);
@@ -94,12 +164,26 @@ function ageRangeFromApp(app) {
   return { min: finalMin, max: finalMax };
 }
 
-function canInteractByAge({ requesterApp, targetApp }) {
-  const requesterAge = asNum(requesterApp?.age);
+function myPoolRuleOk({ requesterApp, targetApp }) {
+  const requesterAge = getAge(requesterApp);
+  const targetAge = getAge(targetApp);
   if (requesterAge === null) return { ok: false, reason: 'age_required' };
+  if (targetAge === null) return { ok: false, reason: 'target_age_required' };
 
-  const { min, max } = ageRangeFromApp(targetApp);
-  if (requesterAge < min || requesterAge > max) return { ok: false, reason: 'not_in_their_age_range' };
+  const requesterGender = normalizeGender(requesterApp?.gender);
+  const requesterLookingFor = normalizeGender(requesterApp?.lookingForGender);
+  const targetGender = normalizeGender(targetApp?.gender);
+
+  const requesterWants =
+    requesterLookingFor ||
+    (requesterGender === 'male' ? 'female' : requesterGender === 'female' ? 'male' : '');
+
+  if (requesterWants && targetGender && targetGender !== requesterWants) return { ok: false, reason: 'gender_mismatch' };
+  if (requesterGender && targetGender && requesterGender === targetGender) return { ok: false, reason: 'gender_mismatch' };
+
+  const { min, max } = ageRangeFromApp(requesterApp, { ageOverride: requesterAge });
+  if (targetAge < min || targetAge > max) return { ok: false, reason: 'not_in_my_age_range' };
+
   return { ok: true };
 }
 
@@ -110,7 +194,7 @@ function buildFromProfile(app) {
 
   return {
     username: safeStr(app?.username),
-    age: asNum(app?.age),
+    age: getAge(app),
     gender: safeStr(app?.gender),
     city: safeStr(app?.city),
     photoUrl: safeStr(myPhotoUrls[0] || ''),
@@ -171,11 +255,12 @@ export default async function handler(req, res) {
       return;
     }
 
-    const interact = canInteractByAge({ requesterApp: myApp, targetApp });
-    if (!interact.ok) {
-      res.statusCode = interact.reason === 'age_required' ? 400 : 403;
+    const rule = myPoolRuleOk({ requesterApp: myApp, targetApp });
+    if (!rule.ok) {
+      // Pool kuralı: sadece benim yaş aralığım + karşı cins. Aksi durumda istek gönderme.
+      res.statusCode = rule.reason === 'age_required' || rule.reason === 'target_age_required' ? 400 : 403;
       res.setHeader('content-type', 'application/json');
-      res.end(JSON.stringify({ ok: false, error: interact.reason }));
+      res.end(JSON.stringify({ ok: false, error: rule.reason }));
       return;
     }
 

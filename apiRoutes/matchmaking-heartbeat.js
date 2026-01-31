@@ -162,10 +162,20 @@ async function maybeRunMatchmakingFromHeartbeat({ db, FieldValue, uid }) {
 
   const lockRef = db.collection('matchmakingAutomation').doc('heartbeat_run');
   let allowed = false;
+  let disabled = false;
   try {
     await db.runTransaction(async (tx) => {
       const snap = await tx.get(lockRef);
       const cur = snap.exists ? (snap.data() || {}) : {};
+
+      // Kill-switch: allow turning off automatic matchmaking run from heartbeat.
+      // Default is enabled unless explicitly set to false.
+      if (cur?.enabled === false) {
+        disabled = true;
+        allowed = false;
+        return;
+      }
+
       const lastTriggeredAtMs = typeof cur?.lastTriggeredAtMs === 'number' ? cur.lastTriggeredAtMs : 0;
       const running = cur?.running === true;
       const startedAtMs = typeof cur?.startedAtMs === 'number' ? cur.startedAtMs : 0;
@@ -196,6 +206,8 @@ async function maybeRunMatchmakingFromHeartbeat({ db, FieldValue, uid }) {
   } catch {
     return { attempted: false, reason: 'lock_failed' };
   }
+
+  if (disabled) return { attempted: false, reason: 'disabled' };
 
   if (!allowed) return { attempted: false, reason: 'throttled' };
 
