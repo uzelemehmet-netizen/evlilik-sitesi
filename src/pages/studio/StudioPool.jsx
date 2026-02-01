@@ -54,6 +54,7 @@ export default function StudioPool() {
 
   const [myLock, setMyLock] = useState({ active: false, matchId: '' });
   const [myMembership, setMyMembership] = useState({ active: false });
+  const [myPhotosBlurred, setMyPhotosBlurred] = useState(false);
   const [paywallNotice, setPaywallNotice] = useState('');
 
   const cancelledRef = useRef(false);
@@ -184,6 +185,7 @@ export default function StudioPool() {
     if (!uid) {
       setMyLock({ active: false, matchId: '' });
       setMyMembership({ active: false });
+      setMyPhotosBlurred(false);
       return;
     }
 
@@ -212,10 +214,16 @@ export default function StudioPool() {
           (membershipValidUntilMs > 0 && membershipValidUntilMs > now) ||
           (!!membershipObj?.active && (!membershipValidUntilMs || membershipValidUntilMs > now));
         setMyMembership({ active: membershipActive });
+
+        const v1 = d?.publicProfile && typeof d.publicProfile === 'object' ? d.publicProfile.photosBlurred : undefined;
+        const v2 = d?.photosBlurred;
+        const blur = typeof v1 === 'boolean' ? v1 : typeof v2 === 'boolean' ? v2 : false;
+        setMyPhotosBlurred(!!blur);
       },
       () => {
         setMyLock({ active: false, matchId: '' });
         setMyMembership({ active: false });
+        setMyPhotosBlurred(false);
       }
     );
 
@@ -459,6 +467,12 @@ export default function StudioPool() {
             </div>
           ) : null}
 
+          {myPhotosBlurred ? (
+            <div className="mt-6 rounded-xl border border-amber-200 bg-amber-50 p-4 text-amber-950">
+              <div className="text-sm font-semibold">{t('studio.match.photos.reciprocityHint')}</div>
+            </div>
+          ) : null}
+
           <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {items.map((it) => {
               const p = it?.profile && typeof it.profile === 'object' ? it.profile : {};
@@ -477,6 +491,7 @@ export default function StudioPool() {
               const exp = clip(p?.expectations, 180);
               const photos = Array.isArray(p?.photoUrls) ? p.photoUrls.map(safeStr).filter(Boolean) : [];
               const photo = photos.length ? photos[0] : '';
+              const canSeePhotos = !myPhotosBlurred;
 
               return (
                 <div key={safeStr(it?.uid) || safeStr(it?.applicationId)} className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
@@ -484,16 +499,37 @@ export default function StudioPool() {
                     {photo ? (
                       <button
                         type="button"
-                        onClick={() => setLightbox({ open: true, images: photos, index: 0, title: name })}
-                        className="block h-full w-full cursor-zoom-in"
+                        onClick={() => {
+                          if (!canSeePhotos) return;
+                          setLightbox({ open: true, images: photos, index: 0, title: name });
+                        }}
+                        disabled={!canSeePhotos}
+                        className={
+                          'block h-full w-full ' +
+                          (canSeePhotos ? 'cursor-zoom-in' : 'cursor-not-allowed')
+                        }
                         aria-label={`${name} fotoğrafını büyüt`}
                         title="Büyüt"
                       >
-                        <img src={photo} alt={name} className="h-full w-full object-cover" loading="lazy" decoding="async" />
+                        <img
+                          src={photo}
+                          alt={name}
+                          className={'h-full w-full object-cover ' + (!canSeePhotos ? 'blur-[10px] saturate-[0.85]' : '')}
+                          loading="lazy"
+                          decoding="async"
+                        />
                       </button>
                     ) : (
                       <div className="h-full w-full bg-slate-100" />
                     )}
+
+                    {!canSeePhotos ? (
+                      <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+                        <div className="rounded-full bg-black/60 px-3 py-1.5 text-[11px] font-semibold text-white">
+                          {t('studio.match.photos.reciprocityBlocked')}
+                        </div>
+                      </div>
+                    ) : null}
                   </div>
 
                   <div className="p-4">

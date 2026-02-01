@@ -313,6 +313,15 @@ export default function StudioMatchProfile() {
     return match?.photoAccess && typeof match.photoAccess === 'object' ? match.photoAccess : {};
   }, [match]);
 
+  const myPhotosBlurred = !!(uid && photoBlurByUid?.[uid]);
+
+  const myToOtherAllowed = useMemo(() => {
+    if (!mySide || !otherUid) return false;
+    // aToB: A'nın fotoğrafları B'ye açık mı?
+    if (mySide === 'a') return !!photoAccess?.aToB;
+    return !!photoAccess?.bToA;
+  }, [mySide, otherUid, photoAccess]);
+
   const otherPhotosBlurred = !!(otherUid && photoBlurByUid?.[otherUid]);
 
   const otherToMeAllowed = useMemo(() => {
@@ -323,7 +332,11 @@ export default function StudioMatchProfile() {
     return !!photoAccess?.aToB;
   }, [mySide, otherUid, photoAccess]);
 
-  const canSeeOtherPhotos = !otherPhotosBlurred || otherToMeAllowed;
+  // Karşılıklılık: Kendi fotoğraflarını blurlayıp bu kişiden gizliyorsan, sen de onun fotoğraflarını göremezsin.
+  const canSeeOtherPhotos = (!otherPhotosBlurred || otherToMeAllowed) && (!myPhotosBlurred || myToOtherAllowed);
+
+  const photoBlockedByReciprocity = !!myPhotosBlurred && !myToOtherAllowed;
+  const photoBlockedByOtherPrivacy = !!otherPhotosBlurred && !otherToMeAllowed;
 
   // Match dokümanındaki `profiles` alanı intentionally minimal (server-side). Tam profil için endpoint.
   const otherMerged = useMemo(() => {
@@ -353,6 +366,26 @@ export default function StudioMatchProfile() {
     const list = Array.isArray(otherMerged?.photoUrls) ? otherMerged.photoUrls : [];
     return list.map((x) => safeStr(x)).filter(Boolean).slice(0, 3);
   }, [otherMerged]);
+
+  const [myPhotoAccessState, setMyPhotoAccessState] = useState({ loading: false, error: '' });
+  const setMyPhotoAccessForThisMatch = async (next) => {
+    if (!uid || !mid) return;
+    if (!myPhotosBlurred) return;
+    if (myPhotoAccessState.loading) return;
+    setMyPhotoAccessState({ loading: true, error: '' });
+    try {
+      await authFetch('/api/matchmaking-photo-access-set', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ matchId: mid, allow: !!next }),
+      });
+      setMyPhotoAccessState({ loading: false, error: '' });
+    } catch (e) {
+      const msg = safeStr(e?.message) || 'photo_access_failed';
+      const friendly = translateStudioApiError(t, msg) || msg;
+      setMyPhotoAccessState({ loading: false, error: friendly });
+    }
+  };
 
   useEffect(() => {
     setProfilePhotoIndex(0);
@@ -998,7 +1031,7 @@ export default function StudioMatchProfile() {
                         : 'border border-slate-200 bg-white text-slate-800 hover:bg-slate-50')
                     }
                   >
-                    Önizleme
+                    {t('studio.matchProfile.tabs.preview')}
                   </button>
 
                   <button
@@ -1011,7 +1044,7 @@ export default function StudioMatchProfile() {
                         : 'border border-slate-200 bg-white text-slate-800 hover:bg-slate-50')
                     }
                   >
-                    Profil detayları
+                    {t('studio.matchProfile.tabs.details')}
                   </button>
                 </div>
 
@@ -1022,12 +1055,12 @@ export default function StudioMatchProfile() {
                     ) : fullProfileState.error === 'no_access' ? (
                       <>
                         <p className="text-sm text-slate-700">
-                          Detaylı profil incelemek için bu kullanıcının izin vermesi gerekir.
+                          {t('studio.matchProfile.detailsAccess.needsPermission')}
                         </p>
 
                         {profileAccessReq.status === 'approved' || profileAccessReq.status === 'granted' ? (
                           <div className="mt-2 rounded-lg border border-emerald-200 bg-emerald-50 p-2 text-sm text-emerald-900">
-                            Şimdi profil detaylarını inceleyebilirsiniz.
+                            {t('studio.matchProfile.detailsAccess.grantedHint')}
                           </div>
                         ) : null}
 
@@ -1045,12 +1078,12 @@ export default function StudioMatchProfile() {
                             }
                           >
                             {profileAccessReq.status === 'pending'
-                              ? 'İstek gönderildi (beklemede)'
+                              ? t('studio.matchProfile.detailsAccess.status.pending')
                               : profileAccessReq.status === 'approved'
-                                ? 'İstek onaylandı'
+                                ? t('studio.matchProfile.detailsAccess.status.approved')
                                 : profileAccessReq.status === 'granted'
-                                  ? 'İzin zaten verilmiş'
-                                  : `Durum: ${profileAccessReq.status}`}
+                                  ? t('studio.matchProfile.detailsAccess.status.granted')
+                                  : t('studio.matchProfile.detailsAccess.status.unknown', { status: profileAccessReq.status })}
                           </p>
                         ) : null}
 
@@ -1070,10 +1103,10 @@ export default function StudioMatchProfile() {
                             {profileAccessReq.loading
                               ? t('studio.common.processing')
                               : profileAccessReq.status === 'pending'
-                                ? 'İstek gönderildi'
+                                ? t('studio.matchProfile.detailsAccess.actions.requested')
                                 : profileAccessReq.status === 'approved' || profileAccessReq.status === 'granted'
-                                  ? 'İzin verildi'
-                                  : 'İstek gönder'}
+                                  ? t('studio.matchProfile.detailsAccess.actions.granted')
+                                  : t('studio.matchProfile.detailsAccess.actions.request')}
                           </button>
 
                           <button
@@ -1081,7 +1114,7 @@ export default function StudioMatchProfile() {
                             onClick={() => setProfileReloadKey((k) => k + 1)}
                             className="inline-flex items-center justify-center rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 shadow-sm transition hover:bg-slate-50"
                           >
-                            Tekrar dene
+                            {t('studio.matchProfile.detailsAccess.retry')}
                           </button>
 
                           {(profileAccessReq.status === 'approved' || profileAccessReq.status === 'granted') ? (
@@ -1092,20 +1125,20 @@ export default function StudioMatchProfile() {
                               }}
                               className="inline-flex items-center justify-center rounded-md bg-slate-900 px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800"
                             >
-                              Kişi profili incele
+                              {t('studio.matchProfile.detailsAccess.viewPersonProfile')}
                             </button>
                           ) : null}
                         </div>
                       </>
                     ) : (
                       <div className="flex flex-wrap items-center justify-between gap-2">
-                        <p className="text-sm text-slate-600">Detaylar için karşı tarafın onayı gerekebilir.</p>
+                        <p className="text-sm text-slate-600">{t('studio.matchProfile.detailsAccess.mayRequireApproval')}</p>
                         <button
                           type="button"
                           onClick={() => setProfileReloadKey((k) => k + 1)}
                           className="inline-flex items-center justify-center rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 shadow-sm transition hover:bg-slate-50"
                         >
-                          Yenile
+                          {t('studio.matchProfile.detailsAccess.refresh')}
                         </button>
                       </div>
                     )}
@@ -1121,16 +1154,18 @@ export default function StudioMatchProfile() {
                           alt={t('studio.match.avatarAlt', { name: otherName })}
                           className={
                             'h-64 w-full object-cover ' +
-                            (otherPhotosBlurred && !canSeeOtherPhotos ? 'blur-[12px] saturate-[0.85]' : '')
+                            (!canSeeOtherPhotos ? 'blur-[12px] saturate-[0.85]' : '')
                           }
                           loading="lazy"
                           decoding="async"
                         />
 
-                        {otherPhotosBlurred && !canSeeOtherPhotos ? (
+                        {!canSeeOtherPhotos ? (
                           <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
                             <div className="rounded-full bg-black/60 px-3 py-1.5 text-[12px] font-semibold text-white">
-                              Sadece izin verilenler görebilir
+                              {photoBlockedByReciprocity
+                                ? t('studio.matchProfile.photos.reciprocityBlocked')
+                                : t('studio.matchProfile.photos.onlyAllowed')}
                             </div>
                           </div>
                         ) : null}
@@ -1174,9 +1209,39 @@ export default function StudioMatchProfile() {
                       </div>
                     ) : null}
 
-                    {otherPhotosBlurred && !canSeeOtherPhotos ? (
+                    {photoBlockedByReciprocity ? (
+                      <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3">
+                        <p className="text-sm text-amber-900">{t('studio.match.photos.reciprocityHint')}</p>
+
+                        {myPhotoAccessState.error ? <p className="mt-2 text-sm text-rose-700">{myPhotoAccessState.error}</p> : null}
+
+                        <div className="mt-3 flex flex-wrap items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setMyPhotoAccessForThisMatch(true)}
+                            disabled={myPhotoAccessState.loading}
+                            className="inline-flex items-center justify-center rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-700 disabled:opacity-60"
+                          >
+                            {myPhotoAccessState.loading ? t('studio.common.processing') : t('studio.match.photos.showMine')}
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const ok = window.confirm(t('studio.match.photos.reciprocityConfirm'));
+                              if (!ok) return;
+                              setMyPhotoAccessForThisMatch(false);
+                            }}
+                            disabled={myPhotoAccessState.loading}
+                            className="inline-flex items-center justify-center rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 shadow-sm transition hover:bg-slate-50 disabled:opacity-60"
+                          >
+                            {myPhotoAccessState.loading ? t('studio.common.processing') : t('studio.match.photos.hideMine')}
+                          </button>
+                        </div>
+                      </div>
+                    ) : photoBlockedByOtherPrivacy ? (
                       <div className="mt-3 rounded-lg border border-slate-200 bg-white p-3">
-                        <p className="text-sm text-slate-700">Fotoğrafları görmek için karşı taraftan izin almalısın.</p>
+                        <p className="text-sm text-slate-700">{t('studio.match.photoAccess.needOtherPermission')}</p>
 
                         {photoAccessReq.error ? <p className="mt-2 text-sm text-rose-700">{photoAccessReq.error}</p> : null}
                         {photoAccessReq.status ? (
@@ -1191,12 +1256,12 @@ export default function StudioMatchProfile() {
                             }
                           >
                             {photoAccessReq.status === 'pending'
-                              ? 'İstek gönderildi (beklemede)'
+                              ? t('studio.match.photoAccess.status.pending')
                               : photoAccessReq.status === 'approved'
-                                ? 'İstek onaylandı'
+                                ? t('studio.match.photoAccess.status.approved')
                                 : photoAccessReq.status === 'granted'
-                                  ? 'İzin zaten verilmiş'
-                                  : `Durum: ${photoAccessReq.status}`}
+                                  ? t('studio.match.photoAccess.status.granted')
+                                  : t('studio.match.photoAccess.status.unknown', { status: photoAccessReq.status })}
                           </p>
                         ) : null}
 
@@ -1215,10 +1280,10 @@ export default function StudioMatchProfile() {
                             {photoAccessReq.loading
                               ? t('studio.common.processing')
                               : photoAccessReq.status === 'pending'
-                                ? 'İstek gönderildi'
+                                ? t('studio.match.photoAccess.actions.requested')
                                 : photoAccessReq.status === 'approved' || photoAccessReq.status === 'granted'
-                                  ? 'İzin verildi'
-                                  : 'Fotoğraf izni iste'}
+                                  ? t('studio.match.photoAccess.actions.granted')
+                                  : t('studio.match.photoAccess.request')}
                           </button>
 
                           <button
@@ -1226,7 +1291,7 @@ export default function StudioMatchProfile() {
                             onClick={() => setProfileReloadKey((k) => k + 1)}
                             className="inline-flex items-center justify-center rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 shadow-sm transition hover:bg-slate-50"
                           >
-                            Yenile
+                            {t('studio.matchProfile.detailsAccess.refresh')}
                           </button>
                         </div>
                       </div>

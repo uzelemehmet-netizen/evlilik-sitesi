@@ -193,7 +193,8 @@ export default function StudioMatchCard({
     return !!photoAccess?.aToB;
   }, [mySide, otherUid, photoAccess]);
 
-  const canSeeOtherPhotos = !otherPhotosBlurred || otherToMeAllowed;
+  // Karşılıklılık: Kendi fotoğraflarını blurlayıp bu kişiden gizliyorsan, sen de onun fotoğraflarını göremezsin.
+  const canSeeOtherPhotos = (!otherPhotosBlurred || otherToMeAllowed) && (!myPhotosBlurred || myToOtherAllowed);
 
   const requestOtherPhotoAccess = async () => {
     if (!match?.id || !currentUid || !otherUid) return;
@@ -377,7 +378,10 @@ export default function StudioMatchCard({
     navigate(`/app/match/${match.id}`, { state: { openProfile: true, profileTab: 'details' } });
   };
 
-  const canOpenLightbox = !!photoUrl && (!otherPhotosBlurred || canSeeOtherPhotos);
+  const canOpenLightbox = !!photoUrl && canSeeOtherPhotos;
+
+  const photoBlockedByReciprocity = !!myPhotosBlurred && !myToOtherAllowed;
+  const photoBlockedByOtherPrivacy = !!otherPhotosBlurred && !otherToMeAllowed;
 
   return (
     <>
@@ -457,7 +461,7 @@ export default function StudioMatchCard({
                   alt={t('studio.match.avatarAlt', { name: displayName })}
                   className={
                     'h-full w-full object-cover ' +
-                    (otherPhotosBlurred && !canSeeOtherPhotos ? 'blur-[10px] saturate-[0.85]' : '')
+                    (!canSeeOtherPhotos ? 'blur-[10px] saturate-[0.85]' : '')
                   }
                   loading="lazy"
                   decoding="async"
@@ -468,10 +472,10 @@ export default function StudioMatchCard({
             )}
           </div>
 
-          {otherPhotosBlurred && !canSeeOtherPhotos ? (
+          {!canSeeOtherPhotos ? (
             <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
               <div className="rounded-full bg-black/60 px-3 py-1.5 text-[11px] font-semibold text-white">
-                Sadece izin verilenler görebilir
+                {photoBlockedByReciprocity ? t('studio.match.photos.reciprocityBlocked') : t('studio.matchProfile.photos.onlyAllowed')}
               </div>
             </div>
           ) : null}
@@ -606,7 +610,7 @@ export default function StudioMatchCard({
         </div>
 
         <div className="p-4 pt-0 flex flex-col gap-2">
-          {otherPhotosBlurred && !canSeeOtherPhotos ? (
+          {photoBlockedByOtherPrivacy && !photoBlockedByReciprocity ? (
             <button
               type="button"
               onClick={requestOtherPhotoAccess}
@@ -616,11 +620,17 @@ export default function StudioMatchCard({
               {photoRequestState.loading
                 ? t('studio.common.processing')
                 : photoRequestState.status === 'pending'
-                  ? 'İstek gönderildi'
+                  ? t('studio.match.photoAccess.actions.requested')
                   : photoRequestState.status === 'granted' || photoRequestState.status === 'approved'
-                    ? 'İzin verildi'
-                    : 'Fotoğraf izni iste'}
+                    ? t('studio.match.photoAccess.actions.granted')
+                    : t('studio.match.photoAccess.request')}
             </button>
+          ) : null}
+
+          {photoBlockedByReciprocity ? (
+            <div className="rounded-md border border-amber-200 bg-amber-50 p-2 text-xs font-semibold text-amber-900">
+              {t('studio.match.photos.reciprocityHint')}
+            </div>
           ) : null}
 
           {photoRequestState.error ? <div className="text-sm text-rose-700">{photoRequestState.error}</div> : null}
@@ -628,7 +638,14 @@ export default function StudioMatchCard({
           {myPhotosBlurred ? (
             <button
               type="button"
-              onClick={() => setMyPhotoAccessForThisMatch(!myToOtherAllowed)}
+              onClick={() => {
+                const next = !myToOtherAllowed;
+                if (!next) {
+                  const ok = window.confirm(t('studio.match.photos.reciprocityConfirm'));
+                  if (!ok) return;
+                }
+                setMyPhotoAccessForThisMatch(next);
+              }}
               disabled={photoAccessState.loading || lockedByActiveMatch}
               className={
                 'inline-flex items-center justify-center rounded-md px-3 py-2 text-sm font-semibold shadow-sm transition disabled:opacity-60 ' +
@@ -637,7 +654,11 @@ export default function StudioMatchCard({
                   : 'bg-indigo-600 text-white hover:bg-indigo-700')
               }
             >
-              {photoAccessState.loading ? t('studio.common.processing') : myToOtherAllowed ? 'Fotoğraflarımı gizle' : 'Fotoğraflarımı göster'}
+              {photoAccessState.loading
+                ? t('studio.common.processing')
+                : myToOtherAllowed
+                  ? t('studio.match.photos.hideMine')
+                  : t('studio.match.photos.showMine')}
             </button>
           ) : null}
 
@@ -663,10 +684,10 @@ export default function StudioMatchCard({
             onClick={openProfileDetails}
             disabled={lockedByActiveMatch}
             className="inline-flex items-center justify-center rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 shadow-sm transition hover:bg-slate-50 active:scale-[0.99] disabled:opacity-60"
-            title="Profil detayları"
+            title={t('studio.match.actions.profileDetails')}
           >
             <User className="mr-2 h-5 w-5 text-slate-500" />
-            Profil detayları
+            {t('studio.match.actions.profileDetails')}
           </button>
 
           {isIncomingLike ? (

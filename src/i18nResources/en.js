@@ -260,6 +260,29 @@ export default {
         liked: 'Liked',
         unlike: 'Undo like',
         message: 'Short message',
+        profileDetails: 'Profile details',
+      },
+      photos: {
+        showMine: 'Show my photos',
+        hideMine: 'Hide my photos',
+        reciprocityHint: "Note: If you hide your photos from someone, you won't be able to view their photos either (reciprocity).",
+        reciprocityConfirm:
+          "If you hide your photos, you won't be able to view this person's photos either (reciprocity). Continue?",
+        reciprocityBlocked: 'Photos are locked because you hid yours',
+      },
+      photoAccess: {
+        needOtherPermission: 'To view photos, you must get permission from the other side.',
+        request: 'Request photo access',
+        status: {
+          pending: 'Request sent (pending)',
+          approved: 'Request approved',
+          granted: 'Access already granted',
+          unknown: 'Status: {{status}}',
+        },
+        actions: {
+          requested: 'Request sent',
+          granted: 'Access granted',
+        },
       },
       banners: {
         locked: 'You have an active match — others are locked',
@@ -379,6 +402,33 @@ export default {
       hideProfile: 'Hide profile',
       prevPhoto: 'Previous photo',
       nextPhoto: 'Next photo',
+      tabs: {
+        preview: 'Preview',
+        details: 'Profile details',
+      },
+      detailsAccess: {
+        needsPermission: 'To view the detailed profile, this user must grant permission.',
+        grantedHint: 'You can now view the profile details.',
+        status: {
+          pending: 'Request sent (pending)',
+          approved: 'Request approved',
+          granted: 'Access already granted',
+          unknown: 'Status: {{status}}',
+        },
+        actions: {
+          request: 'Send request',
+          requested: 'Request sent',
+          granted: 'Access granted',
+        },
+        retry: 'Try again',
+        refresh: 'Refresh',
+        viewPersonProfile: 'View person profile',
+        mayRequireApproval: 'Details may require the other side’s approval.',
+      },
+      photos: {
+        onlyAllowed: 'Only allowed users can view',
+        reciprocityBlocked: 'Photos are locked because you hid yours',
+      },
       profileTitle: 'Profile info',
       contactHidden:
         'Contact details are hidden. They are not shown while filling the form or in the app UI. They may only be shared after the 48-hour active match period if a definitive match is achieved, and only with your approval.',

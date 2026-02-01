@@ -34,6 +34,28 @@ export default {
           serviceWorkerNotReady: 'Bildirim altyapısı henüz hazır değil. Sayfayı yenileyip tekrar deneyin.',
           missingSetup: 'Push kurulumu eksik: VAPID anahtarı ayarlanmadı.',
           notLoggedIn: 'Bildirimleri açmak için giriş yapmalısın.',
+          photos: {
+            showMine: 'Fotoğraflarımı göster',
+            hideMine: 'Fotoğraflarımı gizle',
+            reciprocityHint: 'Not: Fotoğraflarını gizlediğin kişilerin fotoğraflarını sen de göremezsin (karşılıklılık).',
+            reciprocityConfirm:
+              'Fotoğraflarını gizlersen bu kişinin fotoğraflarını da göremezsin (karşılıklılık). Devam edilsin mi?',
+            reciprocityBlocked: 'Fotoğraflarını gizlediğin için fotoğraflar kapalı',
+          },
+          photoAccess: {
+            needOtherPermission: 'Fotoğrafları görmek için karşı taraftan izin almalısın.',
+            request: 'Fotoğraf izni iste',
+            status: {
+              pending: 'İstek gönderildi (beklemede)',
+              approved: 'İstek onaylandı',
+              granted: 'İzin zaten verilmiş',
+              unknown: 'Durum: {{status}}',
+            },
+            actions: {
+              requested: 'İstek gönderildi',
+              granted: 'İzin verildi',
+            },
+          },
           error: 'Bildirimler açılamadı. Lütfen tekrar deneyin.',
           note:
             'Not: Bazı cihazlarda bildirim için uygulamayı ana ekrana eklemek gerekir. Kapalıyken bildirim (push) için ayrıca kurulum gerekebilir.',
@@ -377,6 +399,33 @@ export default {
       hideProfile: 'Profili gizle',
       prevPhoto: 'Önceki fotoğraf',
       nextPhoto: 'Sonraki fotoğraf',
+      tabs: {
+        preview: 'Önizleme',
+        details: 'Profil detayları',
+      },
+      detailsAccess: {
+        needsPermission: 'Detaylı profil incelemek için bu kullanıcının izin vermesi gerekir.',
+        grantedHint: 'Şimdi profil detaylarını inceleyebilirsiniz.',
+        status: {
+          pending: 'İstek gönderildi (beklemede)',
+          approved: 'İstek onaylandı',
+          granted: 'İzin zaten verilmiş',
+          unknown: 'Durum: {{status}}',
+        },
+        actions: {
+          request: 'İstek gönder',
+          requested: 'İstek gönderildi',
+          granted: 'İzin verildi',
+        },
+        retry: 'Tekrar dene',
+        refresh: 'Yenile',
+        viewPersonProfile: 'Kişi profili incele',
+        mayRequireApproval: 'Detaylar için karşı tarafın onayı gerekebilir.',
+      },
+      photos: {
+        onlyAllowed: 'Sadece izin verilenler görebilir',
+        reciprocityBlocked: 'Fotoğraflarını gizlediğin için fotoğraflar kapalı',
+      },
       profileTitle: 'Profil bilgileri',
       contactHidden:
         'İletişim bilgileri gizlidir. Bu bilgiler formu doldururken de uygulamada görünmez. Yalnızca 48 saatlik aktif eşleşme süreci sonunda kesin eşleşme sağlanırsa ve sizin onayınız olursa paylaşılabilir.',
