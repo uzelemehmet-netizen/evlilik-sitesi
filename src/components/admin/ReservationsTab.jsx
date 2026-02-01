@@ -14,7 +14,7 @@ import { RESERVATION_STATUS, getReservationStatusLabel, normalizePhoneForWhatsAp
 import { formatMaybeTimestamp } from '../../utils/formatDate';
 import { downloadJson } from '../../utils/downloadFile';
 import { downloadEk1Html, openEk1InNewTab } from '../../utils/ek1';
-import { getWhatsAppNumber } from '../../utils/whatsapp';
+import { buildWhatsAppUrl } from '../../utils/whatsapp';
 
 function isPermissionDenied(err) {
   const code = err?.code || err?.name;
@@ -30,10 +30,6 @@ export default function ReservationsTab() {
   const [search, setSearch] = useState('');
   const [busyId, setBusyId] = useState('');
   const [ek1MailProofById, setEk1MailProofById] = useState({});
-
-  const whatsappBusinessNumber = useMemo(() => {
-    return getWhatsAppNumber();
-  }, []);
 
   useEffect(() => {
     const q = query(collection(db, 'reservations'), orderBy('createdAt', 'desc'), limit(50));
@@ -98,7 +94,8 @@ export default function ReservationsTab() {
   };
 
   const openWhatsAppToBusiness = (text) => {
-    const url = `https://wa.me/${whatsappBusinessNumber}?text=${encodeURIComponent(text)}`;
+    const url = buildWhatsAppUrl(text);
+    if (!url) return;
     window.open(url, '_blank', 'noopener,noreferrer');
   };
 

@@ -1,12 +1,64 @@
 import { COMPANY } from "../config/company";
-import { isGlobalVariant } from "../config/siteVariant";
 import { normalizePhoneForWhatsApp } from "./phone";
 
-export function getWhatsAppNumber() {
+function normalizeLangBase(lang) {
+  const raw = String(lang || "").trim().toLowerCase();
+  if (!raw) return "";
+  const base = raw.split("-")[0];
+  // Some browsers report Indonesian as "in".
+  return base === "in" ? "id" : base;
+}
+
+function guessLangBase() {
+  if (typeof window === "undefined") return "";
+  try {
+    const stored =
+      window.localStorage?.getItem("i18nextLng") ||
+      window.localStorage?.getItem("lang") ||
+      "";
+    const base = normalizeLangBase(stored);
+    if (base) return base;
+  } catch {
+    // ignore
+  }
+
+  try {
+    return normalizeLangBase(window.navigator?.language || "");
+  } catch {
+    return "";
+  }
+}
+
+function guessTimeZone() {
+  try {
+    return String(Intl.DateTimeFormat().resolvedOptions().timeZone || "").toLowerCase();
+  } catch {
+    return "";
+  }
+}
+
+function shouldUseIndonesiaLine(langBase) {
+  if (langBase === "id") return true;
+  if (langBase === "tr") return false;
+
+  const tz = guessTimeZone();
+  if (tz.includes("jakarta") || tz.includes("makassar") || tz.includes("jayapura")) return true;
+  if (tz.includes("istanbul")) return false;
+
+  return false;
+}
+
+export function getWhatsAppNumber(opts = {}) {
   const fromEnv = import.meta.env.VITE_WHATSAPP_NUMBER;
   if (fromEnv) return normalizePhoneForWhatsApp(fromEnv);
 
-  const fallback = isGlobalVariant ? COMPANY.phoneIdTel : COMPANY.phoneTr;
+  const base = normalizeLangBase(opts?.lang) || guessLangBase();
+  const useId = opts?.prefer === "id" ? true : opts?.prefer === "tr" ? false : shouldUseIndonesiaLine(base);
+
+  const fromEnvTr = import.meta.env.VITE_WHATSAPP_NUMBER_TR;
+  const fromEnvId = import.meta.env.VITE_WHATSAPP_NUMBER_ID;
+
+  const fallback = useId ? (fromEnvId || COMPANY.phoneIdTel) : (fromEnvTr || COMPANY.phoneTr);
   return normalizePhoneForWhatsApp(fallback);
 }
 

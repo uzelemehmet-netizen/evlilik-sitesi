@@ -8,7 +8,7 @@ import Navigation from "../components/Navigation";
 import Footer from "../components/Footer";
 import { auth, db } from "../config/firebase";
 import { useAuth } from "../auth/AuthProvider";
-import { getWhatsAppNumber } from "../utils/whatsapp";
+import { buildWhatsAppUrl, getWhatsAppNumber } from "../utils/whatsapp";
 import { normalizePhoneForWhatsApp } from "../utils/phone";
 import { authFetch } from "../utils/authFetch";
 import { uploadImageToCloudinaryAuto } from '../utils/cloudinaryUpload';
@@ -3434,7 +3434,7 @@ export default function Panel() {
 
   const whatsappNumber = useMemo(() => {
     return getWhatsAppNumber();
-  }, []);
+  }, [i18n.language]);
 
   const nationalityOptions = useMemo(
     () => [
@@ -3650,7 +3650,8 @@ export default function Panel() {
   }, [matchmaking?.id, user?.displayName, user?.email]);
 
   const openWhatsApp = (text) => {
-    const url = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(text)}`;
+    const url = buildWhatsAppUrl(text);
+    if (!url) return;
     window.open(url, "_blank", "noopener,noreferrer");
   };
 

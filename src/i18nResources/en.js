@@ -595,6 +595,8 @@ export default {
         intro:
           'Our system is not only a matchmaking platform. After you decide to get married, we guide Turkish and Indonesian citizens throughout the entire journey—before marriage, during the marriage process, and after marriage—so you can complete all steps smoothly.',
         learnMore: 'Learn more (Wedding page)',
+        whatsappCta: 'Message on WhatsApp',
+        whatsappMessage: 'Hello, I would like to get information about wedding guidance.',
         sections: {
           gettingToKnow: {
             title: '1) Getting to know each other',

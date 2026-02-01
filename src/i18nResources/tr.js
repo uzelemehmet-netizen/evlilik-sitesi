@@ -592,6 +592,8 @@ export default {
         intro:
           'Sistemimiz sadece eşleştirme sistemi değildir. Evlilik kararı aldıktan sonra Endonezya ve Türk vatandaşlarının evlilik yolunda her konuda rehberliğini yapar; evlilik öncesi, evlilik aşaması ve evlilik sonrası tüm işlemlerde sorunsuz bir şekilde evlenmeleri için rehberlik hizmeti veririz.',
         learnMore: 'Detaylı bilgi (Evlilik sayfası)',
+        whatsappCta: 'WhatsApp ile yaz',
+        whatsappMessage: 'Merhaba, evlilik rehberliği hakkında bilgi almak istiyorum.',
         sections: {
           gettingToKnow: {
             title: '1) Tanışma aşaması',

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { collection, doc, getDocs, limit, onSnapshot, query, where } from 'firebase/firestore';
 import { signOut } from 'firebase/auth';
@@ -11,6 +11,7 @@ import { auth, db } from '../../config/firebase';
 import { authFetch } from '../../utils/authFetch';
 import { uploadImageToCloudinaryAuto } from '../../utils/cloudinaryUpload';
 import { translateStudioApiError } from '../../utils/studioErrorI18n';
+import { buildWhatsAppUrl } from '../../utils/whatsapp';
 import PwaInstallCard from '../../components/PwaInstallCard.jsx';
 
 function safeStr(v) {
@@ -75,6 +76,7 @@ export default function StudioProfile() {
 
   const [verifyModalOpen, setVerifyModalOpen] = useState(false);
   const [guidanceModalOpen, setGuidanceModalOpen] = useState(false);
+  const guidanceScrollRef = useRef(null);
   const [verifyForm, setVerifyForm] = useState({
     idType: 'tc_id',
     idFront: null,
@@ -464,6 +466,17 @@ export default function StudioProfile() {
       },
     ];
   }, [i18n?.language, t]);
+
+  const guidanceWhatsAppUrl = useMemo(() => {
+    const text = t('studio.profile.guidance.whatsappMessage');
+    return buildWhatsAppUrl(text);
+  }, [i18n?.language, t]);
+
+  useEffect(() => {
+    if (!guidanceModalOpen) return;
+    const el = guidanceScrollRef.current;
+    if (el && typeof el.scrollTop === 'number') el.scrollTop = 0;
+  }, [guidanceModalOpen]);
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900">
@@ -1033,9 +1046,9 @@ export default function StudioProfile() {
             ) : null}
 
             {guidanceModalOpen ? (
-              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" role="dialog" aria-modal="true">
-                <div className="w-full max-w-2xl rounded-xl bg-white shadow-xl">
-                  <div className="flex items-center justify-between border-b border-slate-200 p-4">
+              <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 p-4 pt-6" role="dialog" aria-modal="true">
+                <div className="w-full max-w-2xl rounded-xl bg-white shadow-xl max-h-[85vh] flex flex-col">
+                  <div className="flex items-center justify-between border-b border-slate-200 p-4 shrink-0">
                     <div>
                       <h3 className="text-lg font-semibold">{t('studio.profile.guidance.modalTitle')}</h3>
                       <p className="mt-1 text-sm text-slate-600">{t('studio.profile.guidance.subtitle')}</p>
@@ -1049,7 +1062,7 @@ export default function StudioProfile() {
                     </button>
                   </div>
 
-                  <div className="p-4 space-y-4">
+                  <div ref={guidanceScrollRef} className="p-4 space-y-4 overflow-y-auto flex-1">
                     <p className="text-sm text-slate-700">{t('studio.profile.guidance.intro')}</p>
 
                     <div className="space-y-4">
@@ -1066,24 +1079,33 @@ export default function StudioProfile() {
                         </div>
                       ))}
                     </div>
+                  </div>
 
-                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                      <Link
-                        to="/evlilik/uniqah"
-                        className="inline-flex items-center justify-center rounded-md bg-emerald-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-emerald-700"
-                        onClick={() => setGuidanceModalOpen(false)}
-                      >
-                        {t('studio.profile.guidance.learnMore')}
-                      </Link>
+                  <div className="border-t border-slate-200 p-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between shrink-0">
+                    <Link
+                      to="/evlilik/uniqah"
+                      className="inline-flex items-center justify-center rounded-md bg-emerald-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-emerald-700"
+                      onClick={() => setGuidanceModalOpen(false)}
+                    >
+                      {t('studio.profile.guidance.learnMore')}
+                    </Link>
 
-                      <button
-                        type="button"
-                        onClick={() => setGuidanceModalOpen(false)}
-                        className="inline-flex items-center justify-center rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 transition hover:bg-slate-50"
-                      >
-                        {t('studio.common.close')}
-                      </button>
-                    </div>
+                    <a
+                      href={guidanceWhatsAppUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center justify-center rounded-md bg-emerald-500 px-3 py-2 text-sm font-semibold text-white transition hover:bg-emerald-600"
+                    >
+                      {t('studio.profile.guidance.whatsappCta')}
+                    </a>
+
+                    <button
+                      type="button"
+                      onClick={() => setGuidanceModalOpen(false)}
+                      className="inline-flex items-center justify-center rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 transition hover:bg-slate-50"
+                    >
+                      {t('studio.common.close')}
+                    </button>
                   </div>
                 </div>
               </div>

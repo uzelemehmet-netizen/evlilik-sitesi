@@ -755,6 +755,8 @@ const overrides = {
         intro:
           'Sistem kami bukan hanya layanan pencocokan. Setelah Anda memutuskan untuk menikah, kami membantu dan membimbing warga Indonesia dan Turki dalam setiap tahap—sebelum menikah, saat proses pernikahan, hingga setelah menikah—agar semua urusan berjalan lancar.',
         learnMore: 'Pelajari lebih lanjut (Halaman pernikahan)',
+        whatsappCta: 'Chat via WhatsApp',
+        whatsappMessage: 'Halo, saya ingin mendapatkan informasi tentang panduan pernikahan.',
         sections: {
           gettingToKnow: {
             title: '1) Tahap berkenalan',
