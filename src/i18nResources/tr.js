@@ -1,4 +1,53 @@
 export default {
+    pwa: {
+      install: {
+        title: 'Uygulamayı yükle',
+        lead:
+          'Ana ekrana ekleyerek daha hızlı açın. Mesaj, beğeni ve eşleşme isteklerinden anında haberdar olmak için bildirimleri açın.',
+        installButton: 'Uygulamayı yükle',
+        installed: 'Yüklendi',
+        installedHint: 'Uygulama ana ekranınızda görünüyor. Dilersen bildirimleri de açabilirsiniz.',
+        installAvailableHint: 'Tarayıcı yüklemeyi destekliyor. Tıklayıp kurabilirsiniz.',
+        installNotAvailableHint:
+          'Yükleme seçeneği görünmüyorsa: tarayıcı menüsünden “Ana ekrana ekle / Uygulamayı yükle” seçeneğini kullanın (bazı cihazlarda HTTPS ve ilk ziyaret sonrası görünür).',
+        ios: {
+          title: 'iPhone/iPad (Safari) için',
+          step1: 'Safari ile siteyi açın.',
+          step2: 'Paylaş (kare + ok) butonuna dokunun.',
+          step3: '“Ana Ekrana Ekle” seçin ve ekleyin.',
+        },
+        notifications: {
+          title: 'Bildirimler',
+          lead:
+            'Bildirimleri açarsanız (tarayıcı izin verirse) aşağıdaki olaylarda size bildirim gösterebiliriz:',
+          button: 'Bildirimleri aç',
+          testButton: 'Test bildirimi gönder',
+          testHint: 'Önce bildirimleri açın (push token kaydı).',
+          testTitle: 'Test bildirimi',
+          testBody: 'Bu bir test bildirimidir.',
+          testSent: 'Test bildirimi gönderildi (gelmesi birkaç saniye sürebilir).',
+          testFailed: 'Test bildirimi gönderilemedi. (Token yok veya kurulum eksik olabilir.)',
+          alreadyEnabled: 'Bildirim izni zaten açık.',
+          enabled: 'Bildirimler açıldı.',
+          denied: 'Bildirim izni verilmedi. Tarayıcı ayarlarından izin verebilirsiniz.',
+          notSupported: 'Bu cihaz/tarayıcı bildirimleri desteklemiyor.',
+          serviceWorkerNotReady: 'Bildirim altyapısı henüz hazır değil. Sayfayı yenileyip tekrar deneyin.',
+          missingSetup: 'Push kurulumu eksik: VAPID anahtarı ayarlanmadı.',
+          notLoggedIn: 'Bildirimleri açmak için giriş yapmalısın.',
+          error: 'Bildirimler açılamadı. Lütfen tekrar deneyin.',
+          note:
+            'Not: Bazı cihazlarda bildirim için uygulamayı ana ekrana eklemek gerekir. Kapalıyken bildirim (push) için ayrıca kurulum gerekebilir.',
+          items: {
+            newMessage: 'Aktif eşleşmedeki yeni mesaj',
+            newLike: 'Beğeni / etkileşim',
+            profileAccess: 'Profil inceleme isteği / izin',
+            shortMessage: 'Kısa mesaj / ilk mesaj',
+            activeMatch: 'Aktif eşleşme isteği / onayı',
+            poolCandidates: 'Havuzda yeni eşleşme adayları',
+          },
+        },
+      },
+    },
   navigation: {
     siteTitle: "Endonezya Kaşifi",
     siteSubtitle: "PT MoonStar Global Indonesia",

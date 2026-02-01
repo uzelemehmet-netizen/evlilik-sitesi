@@ -5,14 +5,19 @@ import './index.css';
 import './i18n';
 import { AuthProvider } from './auth/AuthProvider.jsx';
 import ErrorBoundary from './components/ErrorBoundary.jsx';
+import { registerSW } from 'virtual:pwa-register';
 
 // Service worker dev ortamında (Vite) çok sık cache/refresh sorunlarına ve "beyaz sayfa"ya neden olabiliyor.
 // Bu yüzden sadece production build'lerde register ediyoruz.
-if (import.meta.env.PROD && typeof window !== 'undefined' && 'serviceWorker' in navigator) {
+if (import.meta.env.PROD && typeof window !== 'undefined') {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js').catch(() => {
+    try {
+      registerSW({
+        immediate: true,
+      });
+    } catch {
       // noop
-    });
+    }
   });
 }
 

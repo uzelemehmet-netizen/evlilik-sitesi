@@ -11,6 +11,7 @@ import { auth, db } from '../../config/firebase';
 import { authFetch } from '../../utils/authFetch';
 import { uploadImageToCloudinaryAuto } from '../../utils/cloudinaryUpload';
 import { translateStudioApiError } from '../../utils/studioErrorI18n';
+import PwaInstallCard from '../../components/PwaInstallCard.jsx';
 
 function safeStr(v) {
   return typeof v === 'string' ? v.trim() : '';
@@ -84,6 +85,8 @@ export default function StudioProfile() {
   const [textDraft, setTextDraft] = useState({ about: '', expectations: '' });
   const [textTouched, setTextTouched] = useState(false);
   const [textSaveState, setTextSaveState] = useState({ loading: false, error: '', success: '' });
+
+  const [topInlinePanel, setTopInlinePanel] = useState('');
 
   const applySource = String(location?.state?.from || '').trim();
   const applyApplicationId = String(location?.state?.applicationId || '').trim();
@@ -355,6 +358,10 @@ export default function StudioProfile() {
     }
   };
 
+  const toggleTopInlinePanel = (key) => {
+    setTopInlinePanel((prev) => (prev === key ? '' : key));
+  };
+
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900">
       <Navigation />
@@ -441,6 +448,26 @@ export default function StudioProfile() {
                   {t('studio.feedback.nav')}
                 </Link>
 
+                <button
+                  type="button"
+                  onClick={() => toggleTopInlinePanel('membership')}
+                  className="inline-flex items-center justify-center rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 shadow-sm transition hover:bg-slate-50"
+                  title={t('studio.profile.subscriptionTitle')}
+                >
+                  <Star className="mr-2 h-4 w-4 text-amber-500" />
+                  {t('studio.profile.subscriptionTitle')}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => toggleTopInlinePanel('identity')}
+                  className="inline-flex items-center justify-center rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 shadow-sm transition hover:bg-slate-50"
+                  title={t('studio.profile.identityTitle')}
+                >
+                  <ShieldCheck className="mr-2 h-4 w-4 text-emerald-600" />
+                  {t('studio.profile.identityTitle')}
+                </button>
+
                 <Link
                   to="/app/matches"
                   className="inline-flex items-center justify-center rounded-md bg-emerald-600 px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700"
@@ -458,6 +485,106 @@ export default function StudioProfile() {
                   {t('studio.profile.logout')}
                 </button>
               </div>
+            </div>
+
+            {topInlinePanel ? (
+              <div className="mt-5 grid grid-cols-1 gap-4">
+                {topInlinePanel === 'membership' ? (
+                  <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                    <h3 className="flex items-center gap-2 text-base font-semibold">
+                      <Star className="h-5 w-5 text-amber-500" />
+                      {t('studio.profile.subscriptionTitle')}
+                    </h3>
+                    <p className="mt-2 text-sm text-slate-600">
+                      {profile.membershipActive
+                        ? t('studio.profile.subscriptionActiveDesc')
+                        : t('studio.profile.subscriptionPassiveDesc')}
+                    </p>
+
+                    {membershipAction.error ? (
+                      <div className="mt-3 rounded-md border border-rose-200 bg-rose-50 p-2 text-sm text-rose-900">{membershipAction.error}</div>
+                    ) : null}
+                    {membershipAction.success ? (
+                      <div className="mt-3 rounded-md border border-emerald-200 bg-emerald-50 p-2 text-sm text-emerald-900">{membershipAction.success}</div>
+                    ) : null}
+
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        disabled
+                        className="inline-flex items-center justify-center rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-500"
+                        title={t('studio.profile.buySoon')}
+                      >
+                        {t('studio.profile.buySoon')}
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={activateFreeMembership}
+                        disabled={membershipAction.loading}
+                        className="inline-flex items-center justify-center rounded-md bg-emerald-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-60"
+                      >
+                        {membershipAction.loading ? t('studio.common.processing') : t('studio.profile.activateMembership')}
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={cancelMembership}
+                        disabled={membershipAction.loading}
+                        className="inline-flex items-center justify-center rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 transition hover:bg-slate-50 disabled:opacity-60"
+                      >
+                        {t('studio.profile.cancelMembership')}
+                      </button>
+
+                      <Link
+                        to="/profilim/bilgilerim"
+                        className="inline-flex items-center justify-center rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 transition hover:bg-slate-50"
+                      >
+                        {t('studio.profile.myInfo')}
+                      </Link>
+                    </div>
+                  </div>
+                ) : null}
+
+                {topInlinePanel === 'identity' ? (
+                  <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                    <h3 className="flex items-center gap-2 text-base font-semibold">
+                      <ShieldCheck className="h-5 w-5 text-emerald-600" />
+                      {t('studio.profile.identityTitle')}
+                    </h3>
+
+                    {profile.isVerified ? (
+                      <p className="mt-2 text-sm text-slate-600">{t('studio.profile.identityVerified')}</p>
+                    ) : profile.identityStatus ? (
+                      <p className="mt-2 text-sm text-slate-600">
+                        {t('studio.profile.identityStatus')}: <span className="font-semibold">{profile.identityStatus}</span>
+                        {profile.identityMethod ? ` (${profile.identityMethod})` : ''}
+                        {profile.identityRef ? ` • Ref: ${profile.identityRef}` : ''}
+                      </p>
+                    ) : (
+                      <p className="mt-2 text-sm text-slate-600">{t('studio.profile.identityHelp')}</p>
+                    )}
+
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setVerifyAction({ loading: false, error: '', success: '' });
+                          setVerifyModalOpen(true);
+                        }}
+                        className="inline-flex items-center justify-center rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 transition hover:bg-slate-50"
+                      >
+                        <UploadCloud className="mr-2 h-4 w-4" />
+                        {t('studio.profile.verifyNow')}
+                      </button>
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
+
+            <div className="mt-6">
+              <PwaInstallCard variant="light" />
             </div>
 
             {showApplyBanner ? (
@@ -593,99 +720,7 @@ export default function StudioProfile() {
               </div>
             </div>
 
-            <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2">
-              <div className="rounded-lg border border-slate-200 bg-white p-4">
-                <h3 className="flex items-center gap-2 text-lg font-semibold">
-                  <Star className="h-5 w-5 text-amber-500" />
-                  {t('studio.profile.subscriptionTitle')}
-                </h3>
-                <p className="mt-2 text-sm text-slate-600">
-                  {profile.membershipActive
-                    ? t('studio.profile.subscriptionActiveDesc')
-                    : t('studio.profile.subscriptionPassiveDesc')}
-                </p>
-
-                {membershipAction.error ? (
-                  <div className="mt-3 rounded-md border border-rose-200 bg-rose-50 p-2 text-sm text-rose-900">{membershipAction.error}</div>
-                ) : null}
-                {membershipAction.success ? (
-                  <div className="mt-3 rounded-md border border-emerald-200 bg-emerald-50 p-2 text-sm text-emerald-900">{membershipAction.success}</div>
-                ) : null}
-
-                <div className="mt-3 flex flex-wrap gap-2">
-                  <button
-                    type="button"
-                    disabled
-                    className="inline-flex items-center justify-center rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-500"
-                    title={t('studio.profile.buySoon')}
-                  >
-                    {t('studio.profile.buySoon')}
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={activateFreeMembership}
-                    disabled={membershipAction.loading}
-                    className="inline-flex items-center justify-center rounded-md bg-emerald-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-60"
-                  >
-                    {membershipAction.loading ? t('studio.common.processing') : t('studio.profile.activateMembership')}
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={cancelMembership}
-                    disabled={membershipAction.loading}
-                    className="inline-flex items-center justify-center rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 transition hover:bg-slate-50 disabled:opacity-60"
-                  >
-                    {t('studio.profile.cancelMembership')}
-                  </button>
-                </div>
-
-                <div className="mt-3">
-                  <Link
-                    to="/profilim/bilgilerim"
-                    className="inline-flex items-center justify-center rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 transition hover:bg-slate-50"
-                  >
-                    {t('studio.profile.myInfo')}
-                  </Link>
-                </div>
-              </div>
-
-              <div className="rounded-lg border border-slate-200 bg-white p-4">
-                <h3 className="flex items-center gap-2 text-lg font-semibold">
-                  <ShieldCheck className="h-5 w-5 text-emerald-600" />
-                  {t('studio.profile.identityTitle')}
-                </h3>
-
-                {profile.isVerified ? (
-                  <p className="mt-2 text-sm text-slate-600">{t('studio.profile.identityVerified')}</p>
-                ) : profile.identityStatus ? (
-                  <p className="mt-2 text-sm text-slate-600">
-                    {t('studio.profile.identityStatus')}: <span className="font-semibold">{profile.identityStatus}</span>
-                    {profile.identityMethod ? ` (${profile.identityMethod})` : ''}
-                    {profile.identityRef ? ` • Ref: ${profile.identityRef}` : ''}
-                  </p>
-                ) : (
-                  <p className="mt-2 text-sm text-slate-600">
-                    {t('studio.profile.identityHelp')}
-                  </p>
-                )}
-
-                <div className="mt-3">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setVerifyAction({ loading: false, error: '', success: '' });
-                      setVerifyModalOpen(true);
-                    }}
-                    className="inline-flex items-center justify-center rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-800 transition hover:bg-slate-100"
-                  >
-                    <UploadCloud className="mr-2 h-4 w-4" />
-                    {t('studio.profile.verifyNow')}
-                  </button>
-                </div>
-              </div>
-
+            <div className="mt-6">
               <div className="rounded-lg border border-rose-200 bg-rose-50 p-4">
                 <h3 className="text-lg font-semibold text-rose-800">{t('studio.profile.accountTitle')}</h3>
                 <p className="mt-2 text-sm text-rose-800/80">

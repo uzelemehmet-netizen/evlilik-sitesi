@@ -10,6 +10,7 @@ import { collection, getDocs, limit, query, where } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import GeminiFAQ from '../components/gemini/GeminiFAQ';
 import LiveJoinEvents from '../components/LiveJoinEvents';
+import PwaInstallCard from '../components/PwaInstallCard.jsx';
 
 export default function MatchmakingHub() {
   const { t } = useTranslation();
@@ -133,6 +134,10 @@ export default function MatchmakingHub() {
                   </div>
                   <div className="mt-6">
                     <LiveJoinEvents />
+                  </div>
+
+                  <div className="mt-5">
+                    <PwaInstallCard variant="dark" />
                   </div>
 
                   <div className="mt-7 grid grid-cols-1 sm:grid-cols-3 gap-3">

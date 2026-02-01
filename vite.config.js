@@ -1,5 +1,6 @@
 import react from '@vitejs/plugin-react';
 import { defineConfig, loadEnv } from 'vite';
+import { VitePWA } from 'vite-plugin-pwa';
 import fs from 'node:fs';
 import path from 'node:path';
 
@@ -23,7 +24,60 @@ export default defineConfig(({ mode }) => {
   const apiTarget = env.VITE_API_PROXY_TARGET || fallbackTarget;
 
   return {
-    plugins: [react()],
+    plugins: [
+      react(),
+      VitePWA({
+        strategies: 'injectManifest',
+        registerType: 'prompt',
+        injectRegister: null,
+        srcDir: 'src',
+        filename: 'pwa-sw.js',
+        manifestFilename: 'pwa-manifest.webmanifest',
+        // Bazı ortamlarda plugin generateSW'e düşebildiği için aynı kuralı workbox tarafına da koyuyoruz.
+        workbox: {
+          globPatterns: ['**/*.{js,css,html,ico,svg,woff2,webmanifest,txt,xml,json}'],
+          globIgnores: ['**/*.{jpg,jpeg,png,webp,avif,gif,mp4,mov,m4v}'],
+        },
+        injectManifest: {
+          // Precache sadece "app shell" için: büyük görseller (public/*.jpg vb.) build'i kırmasın.
+          globPatterns: ['**/*.{js,css,html,ico,svg,woff2,webmanifest,txt,xml,json}'],
+          globIgnores: ['**/*.{jpg,jpeg,png,webp,avif,gif,mp4,mov,m4v}'],
+        },
+        manifest: {
+          name: 'Endonezya Kaşifi',
+          short_name: 'Endonezya',
+          description: "Profil paneli ve eşleştirme akışı",
+          start_url: '/panel',
+          scope: '/',
+          display: 'standalone',
+          background_color: '#0b1220',
+          theme_color: '#0b1220',
+          icons: [
+            {
+              src: '/pwa-64x64.png',
+              sizes: '64x64',
+              type: 'image/png',
+            },
+            {
+              src: '/pwa-192x192.png',
+              sizes: '192x192',
+              type: 'image/png',
+            },
+            {
+              src: '/pwa-512x512.png',
+              sizes: '512x512',
+              type: 'image/png',
+            },
+            {
+              src: '/maskable-icon-512x512.png',
+              sizes: '512x512',
+              type: 'image/png',
+              purpose: 'maskable',
+            },
+          ],
+        },
+      }),
+    ],
     build: {
       outDir: 'dist',
       sourcemap: false,

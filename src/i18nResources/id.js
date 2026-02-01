@@ -1977,6 +1977,44 @@ export default deepMerge(en, overrides);
 
 /*
 export default {
+    pwa: {
+      install: {
+        title: 'Pasang aplikasi',
+        lead:
+          'Tambahkan ke layar utama agar lebih cepat dibuka. Aktifkan notifikasi untuk mendapat kabar instan tentang pesan, like, dan permintaan match.',
+        installButton: 'Pasang aplikasi',
+        installed: 'Terpasang',
+        installedHint: 'Aplikasi sudah ada di layar utama. Anda juga bisa mengaktifkan notifikasi.',
+        installAvailableHint: 'Browser Anda mendukung instalasi. Klik untuk memasang.',
+        installNotAvailableHint:
+          'Jika tombol install tidak muncul: buka menu browser lalu pilih “Tambah ke Layar Utama / Pasang aplikasi” (di beberapa perangkat muncul setelah kunjungan pertama via HTTPS).',
+        ios: {
+          title: 'Untuk iPhone/iPad (Safari)',
+          step1: 'Buka situs di Safari.',
+          step2: 'Ketuk Bagikan (kotak + panah).',
+          step3: 'Pilih “Tambah ke Layar Utama” lalu konfirmasi.',
+        },
+        notifications: {
+          title: 'Notifikasi',
+          lead: 'Jika Anda mengaktifkan notifikasi (jika didukung), kami dapat memberi notifikasi untuk:',
+          button: 'Aktifkan notifikasi',
+          alreadyEnabled: 'Izin notifikasi sudah aktif.',
+          enabled: 'Notifikasi diaktifkan.',
+          denied: 'Izin tidak diberikan. Anda bisa mengaktifkannya dari pengaturan browser.',
+          notSupported: 'Notifikasi tidak didukung di browser/perangkat ini.',
+          note:
+            'Catatan: Di beberapa perangkat Anda harus menambahkan aplikasi ke layar utama terlebih dahulu. Push saat aplikasi tertutup mungkin butuh pengaturan tambahan.',
+          items: {
+            newMessage: 'Pesan baru pada match aktif',
+            newLike: 'Like / interaksi',
+            profileAccess: 'Permintaan/izin melihat profil',
+            shortMessage: 'Pesan singkat / pesan pertama',
+            activeMatch: 'Permintaan/persetujuan match aktif',
+            poolCandidates: 'Kandidat baru di pool',
+          },
+        },
+      },
+    },
   navigation: {
     siteTitle: "Endonezya Kaşifi",
     siteSubtitle: "PT MoonStar Global Indonesia",

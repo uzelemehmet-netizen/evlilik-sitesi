@@ -62,6 +62,8 @@ import matchmakingFeedbackSubmit from '../apiRoutes/matchmaking-feedback-submit.
 import adminFeedbackList from '../apiRoutes/admin-feedback-list.js';
 import adminFeedbackUpdate from '../apiRoutes/admin-feedback-update.js';
 import publicJoinPing from '../apiRoutes/public-join-ping.js';
+import pushTokenUpsert from '../apiRoutes/push-token-upsert.js';
+import pushSendTest from '../apiRoutes/push-send-test.js';
 
 const handlers = {
   'admin-matchmaking-user-stats': adminMatchmakingUserStats,
@@ -116,6 +118,8 @@ const handlers = {
   'admin-feedback-list': adminFeedbackList,
   'admin-feedback-update': adminFeedbackUpdate,
   'public-join-ping': publicJoinPing,
+  'push-token-upsert': pushTokenUpsert,
+  'push-send-test': pushSendTest,
   'matchmaking-profile': matchmakingProfile,
   'matchmaking-profile-text-update': matchmakingProfileTextUpdate,
   'matchmaking-profile-view': matchmakingProfileView,

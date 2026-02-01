@@ -1,4 +1,52 @@
 export default {
+    pwa: {
+      install: {
+        title: 'Install the app',
+        lead:
+          'Add to your home screen for faster access. Enable notifications to get instant alerts for messages, likes, and match requests.',
+        installButton: 'Install app',
+        installed: 'Installed',
+        installedHint: 'The app is on your home screen. You can also enable notifications.',
+        installAvailableHint: 'Your browser supports installation. Click to install.',
+        installNotAvailableHint:
+          'If you don’t see an install button: use your browser menu and choose “Add to Home Screen / Install app” (on some devices it appears after the first visit over HTTPS).',
+        ios: {
+          title: 'For iPhone/iPad (Safari)',
+          step1: 'Open the site in Safari.',
+          step2: 'Tap Share (square with arrow).',
+          step3: 'Choose “Add to Home Screen” and confirm.',
+        },
+        notifications: {
+          title: 'Notifications',
+          lead: 'If you enable notifications (when supported), we can notify you about:',
+          button: 'Enable notifications',
+          testButton: 'Send test notification',
+          testHint: 'Enable notifications first (push token registration).',
+          testTitle: 'Test notification',
+          testBody: 'This is a test notification.',
+          testSent: 'Test notification sent (it may take a few seconds).',
+          testFailed: 'Could not send test notification (no token or missing setup).',
+          alreadyEnabled: 'Notification permission is already enabled.',
+          enabled: 'Notifications enabled.',
+          denied: 'Permission was not granted. You can enable it from browser settings.',
+          notSupported: 'Notifications are not supported on this browser/device.',
+          serviceWorkerNotReady: 'Notification system is not ready yet. Refresh and try again.',
+          missingSetup: 'Push setup missing: VAPID key is not configured.',
+          notLoggedIn: 'You need to be logged in to enable notifications.',
+          error: 'Could not enable notifications. Please try again.',
+          note:
+            'Note: On some devices you must add the app to the home screen first. Background push notifications may require additional setup.',
+          items: {
+            newMessage: 'New message in the active match',
+            newLike: 'Like / interaction',
+            profileAccess: 'Profile view request / approval',
+            shortMessage: 'Short message / first message',
+            activeMatch: 'Active match request / approval',
+            poolCandidates: 'New candidates in the pool',
+          },
+        },
+      },
+    },
   navigation: {
     siteTitle: "Indonesia Explorer",
     siteSubtitle: "PT MoonStar Global Indonesia",
