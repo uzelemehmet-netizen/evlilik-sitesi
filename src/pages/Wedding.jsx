@@ -9,6 +9,7 @@ import emailjs from '@emailjs/browser';
 import { buildWhatsAppUrl } from '../utils/whatsapp';
 import { db } from '../config/firebase';
 import { doc, getDoc } from 'firebase/firestore';
+import { useAuth } from '../auth/AuthProvider';
 
 const DEFAULT_MEDIA = Object.freeze({
   heroBackgroundUrl:
@@ -19,6 +20,7 @@ const DEFAULT_MEDIA = Object.freeze({
 
 export default function Wedding() {
 	const { t, i18n } = useTranslation();
+  const { user } = useAuth();
   const BRAND_LOGO_SRC = "/brand.png";
   const tArray = (key) => {
     const value = t(key, { returnObjects: true });
@@ -694,6 +696,16 @@ export default function Wedding() {
           {t('weddingPage.bottomCta.note')}
         </p>
       </div>
+
+      {user?.uid ? (
+        <Link
+          to="/profilim"
+          className="fixed bottom-4 right-4 z-50 inline-flex items-center justify-center rounded-full bg-slate-900 px-4 py-3 text-sm font-semibold text-white shadow-lg ring-1 ring-white/20 hover:bg-slate-800"
+          aria-label={t('weddingPage.stickyBackToProfile.aria')}
+        >
+          {t('weddingPage.stickyBackToProfile.label')}
+        </Link>
+      ) : null}
 
       <Footer />
     </div>

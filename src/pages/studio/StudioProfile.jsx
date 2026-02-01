@@ -622,7 +622,7 @@ export default function StudioProfile() {
                 <button
                   type="button"
                   onClick={logoutNow}
-                  className="app-btn app-btn-soft w-full sm:w-auto"
+                  className="app-btn app-btn-logout w-full sm:w-auto"
                   title={t('studio.profile.logout')}
                 >
                   <LogOut className="mr-2 h-4 w-4" />
@@ -666,7 +666,7 @@ export default function StudioProfile() {
                         type="button"
                         onClick={activateFreeMembership}
                         disabled={membershipAction.loading}
-                        className="inline-flex items-center justify-center rounded-md bg-emerald-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-60"
+                        className="inline-flex items-center justify-center rounded-md bg-emerald-700 px-3 py-2 text-sm font-semibold text-white transition hover:bg-emerald-800 disabled:opacity-60"
                       >
                         {membershipAction.loading ? t('studio.common.processing') : t('studio.profile.activateMembership')}
                       </button>
@@ -760,7 +760,7 @@ export default function StudioProfile() {
                         disabled={photoPrivacyState.loading}
                         className={
                           'inline-flex items-center justify-center rounded-full px-4 py-2 text-sm font-semibold transition disabled:opacity-60 ' +
-                          (photosBlurred ? 'bg-emerald-600 text-white hover:bg-emerald-700' : 'bg-slate-200 text-slate-900 hover:bg-slate-300')
+                          (photosBlurred ? 'bg-emerald-700 text-white hover:bg-emerald-800' : 'bg-slate-200 text-slate-900 hover:bg-slate-300')
                         }
                       >
                         {photoPrivacyState.loading
@@ -870,7 +870,7 @@ export default function StudioProfile() {
                   type="button"
                   onClick={saveProfileTexts}
                   disabled={textSaveState.loading || !textTouched}
-                  className="inline-flex items-center justify-center rounded-md bg-emerald-600 px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 disabled:opacity-60"
+                  className="inline-flex items-center justify-center rounded-md bg-emerald-700 px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-800 disabled:opacity-60"
                 >
                   {textSaveState.loading ? t('studio.common.processing') : t('studio.profile.saveTexts')}
                 </button>
@@ -1035,7 +1035,7 @@ export default function StudioProfile() {
                         type="button"
                         onClick={submitManualVerification}
                         disabled={verifyAction.loading}
-                        className="rounded-md bg-emerald-600 px-3 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-60"
+                        className="rounded-md bg-emerald-700 px-3 py-2 text-sm font-semibold text-white hover:bg-emerald-800 disabled:opacity-60"
                       >
                         {verifyAction.loading ? t('studio.common.loading') : t('studio.profile.submitVerification')}
                       </button>
@@ -1083,8 +1083,8 @@ export default function StudioProfile() {
 
                   <div className="border-t border-slate-200 p-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between shrink-0">
                     <Link
-                      to="/evlilik/uniqah"
-                      className="inline-flex items-center justify-center rounded-md bg-emerald-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-emerald-700"
+                      to="/evlilik"
+                      className="inline-flex items-center justify-center rounded-md bg-emerald-700 px-3 py-2 text-sm font-semibold text-white transition hover:bg-emerald-800"
                       onClick={() => setGuidanceModalOpen(false)}
                     >
                       {t('studio.profile.guidance.learnMore')}
@@ -1094,7 +1094,7 @@ export default function StudioProfile() {
                       href={guidanceWhatsAppUrl}
                       target="_blank"
                       rel="noreferrer"
-                      className="inline-flex items-center justify-center rounded-md bg-emerald-500 px-3 py-2 text-sm font-semibold text-white transition hover:bg-emerald-600"
+                      className="inline-flex items-center justify-center rounded-md bg-emerald-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-emerald-700"
                     >
                       {t('studio.profile.guidance.whatsappCta')}
                     </a>

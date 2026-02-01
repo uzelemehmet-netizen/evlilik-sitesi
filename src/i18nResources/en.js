@@ -1172,6 +1172,10 @@ export default {
     whatsapp: {
       quickChatMessage: "Hello, I'd like to get information about getting married in Indonesia.",
     },
+    stickyBackToProfile: {
+      label: 'Back to my profile',
+      aria: 'Go back to profile page',
+    },
     intro: {
       servicesTitle: "Our services",
       cards: [

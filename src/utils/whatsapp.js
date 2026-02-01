@@ -62,10 +62,27 @@ export function getWhatsAppNumber(opts = {}) {
   return normalizePhoneForWhatsApp(fallback);
 }
 
-export function buildWhatsAppUrl(text) {
-  const number = getWhatsAppNumber();
+function isAndroidDevice() {
+  if (typeof navigator === "undefined") return false;
+  return /android/i.test(String(navigator.userAgent || ""));
+}
+
+export function buildWhatsAppUrl(text, opts = {}) {
+  const number = getWhatsAppNumber(opts);
   if (!number) return "";
-  return `https://wa.me/${number}?text=${encodeURIComponent(String(text || ""))}`;
+
+  const msg = encodeURIComponent(String(text || ""));
+
+  // Android cihazlarda bazı durumlarda wa.me linki uygulama seçicisi / Business uyarıları çıkarabiliyor.
+  // api.whatsapp.com/send genelde daha stabil açılıyor.
+  const forceApi = !!opts?.forceApi;
+  const useApi = forceApi || isAndroidDevice();
+
+  if (useApi) {
+    return `https://api.whatsapp.com/send?phone=${number}&text=${msg}`;
+  }
+
+  return `https://wa.me/${number}?text=${msg}`;
 }
 
 export function openWhatsApp(url) {

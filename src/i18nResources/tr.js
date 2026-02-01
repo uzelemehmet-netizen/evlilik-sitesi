@@ -1519,6 +1519,10 @@ export default {
     whatsapp: {
       quickChatMessage: "Merhaba, Endonezya'da evlilik hakkında bilgi almak istiyorum",
     },
+    stickyBackToProfile: {
+      label: 'Profilime dön',
+      aria: 'Profil sayfasına dön',
+    },
     intro: {
       servicesTitle: "Hizmetlerimiz",
       cards: [

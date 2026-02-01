@@ -2906,6 +2906,10 @@ export default {
     whatsapp: {
       quickChatMessage: "Halo, saya ingin mendapatkan informasi tentang pernikahan di Indonesia.",
     },
+    stickyBackToProfile: {
+      label: 'Kembali ke profil saya',
+      aria: 'Kembali ke halaman profil',
+    },
     intro: {
       servicesTitle: "Layanan kami",
       cards: [
