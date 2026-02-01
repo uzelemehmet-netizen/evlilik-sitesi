@@ -166,10 +166,14 @@ export default function StudioMatches() {
         setInboxLikes([]);
         const code = String(e?.code || '').trim();
         const msg = String(e?.message || '').trim();
+        const errText = code || msg || 'unknown_error';
         const hint =
           code === 'permission-denied'
-            ? `Firestore okuma izni yok (permission-denied). Firebase projesi: ${clientProjectId || '?'} (Sunucudan yenile deneyin)`
-            : `Firestore beğeni inbox dinlemesi hata verdi: ${code || msg || 'unknown_error'} (Sunucudan yenile deneyin)`;
+            ? t('studio.matches.inboxSync.permissionDenied', { projectId: clientProjectId || '?' })
+            : t('studio.matches.inboxSync.listenFailed', {
+                kind: t('studio.matches.inboxSync.kinds.likes'),
+                error: errText,
+              });
         setInboxLoad((s) => ({ ...s, error: hint, lastSource: s.lastSource || 'firestore' }));
         refreshInboxViaApi();
       }
@@ -182,7 +186,7 @@ export default function StudioMatches() {
         // noop
       }
     };
-  }, [resetAtMs, user?.uid]);
+  }, [clientProjectId, resetAtMs, t, user?.uid]);
 
   // Gelen ön eşleşme istekleri
   useEffect(() => {
@@ -210,10 +214,14 @@ export default function StudioMatches() {
         setInboxAccess([]);
         const code = String(e?.code || '').trim();
         const msg = String(e?.message || '').trim();
+        const errText = code || msg || 'unknown_error';
         const hint =
           code === 'permission-denied'
-            ? `Firestore okuma izni yok (permission-denied). Firebase projesi: ${clientProjectId || '?'} (Sunucudan yenile deneyin)`
-            : `Firestore istek inbox dinlemesi hata verdi: ${code || msg || 'unknown_error'} (Sunucudan yenile deneyin)`;
+            ? t('studio.matches.inboxSync.permissionDenied', { projectId: clientProjectId || '?' })
+            : t('studio.matches.inboxSync.listenFailed', {
+                kind: t('studio.matches.inboxSync.kinds.requests'),
+                error: errText,
+              });
         setInboxLoad((s) => ({ ...s, error: hint, lastSource: s.lastSource || 'firestore' }));
         refreshInboxViaApi();
       }
@@ -226,7 +234,7 @@ export default function StudioMatches() {
         // noop
       }
     };
-  }, [user?.uid]);
+  }, [clientProjectId, t, user?.uid]);
 
   // Gelen profil erişim istekleri
   useEffect(() => {
@@ -254,10 +262,14 @@ export default function StudioMatches() {
         setInboxProfileAccess([]);
         const code = String(e?.code || '').trim();
         const msg = String(e?.message || '').trim();
+        const errText = code || msg || 'unknown_error';
         const hint =
           code === 'permission-denied'
-            ? `Firestore okuma izni yok (permission-denied). Firebase projesi: ${clientProjectId || '?'} (Sunucudan yenile deneyin)`
-            : `Firestore profil izin inbox dinlemesi hata verdi: ${code || msg || 'unknown_error'} (Sunucudan yenile deneyin)`;
+            ? t('studio.matches.inboxSync.permissionDenied', { projectId: clientProjectId || '?' })
+            : t('studio.matches.inboxSync.listenFailed', {
+                kind: t('studio.matches.inboxSync.kinds.profileAccess'),
+                error: errText,
+              });
         setInboxLoad((s) => ({ ...s, error: hint, lastSource: s.lastSource || 'firestore' }));
         refreshInboxViaApi();
       }
@@ -270,7 +282,7 @@ export default function StudioMatches() {
         // noop
       }
     };
-  }, [user?.uid]);
+  }, [clientProjectId, t, user?.uid]);
 
   // Gelen direkt mesajlar (inbox)
   useEffect(() => {
@@ -298,10 +310,14 @@ export default function StudioMatches() {
         setInboxMessages([]);
         const code = String(e?.code || '').trim();
         const msg = String(e?.message || '').trim();
+        const errText = code || msg || 'unknown_error';
         const hint =
           code === 'permission-denied'
-            ? `Firestore okuma izni yok (permission-denied). Firebase projesi: ${clientProjectId || '?'} (Sunucudan yenile deneyin)`
-            : `Firestore mesaj inbox dinlemesi hata verdi: ${code || msg || 'unknown_error'} (Sunucudan yenile deneyin)`;
+            ? t('studio.matches.inboxSync.permissionDenied', { projectId: clientProjectId || '?' })
+            : t('studio.matches.inboxSync.listenFailed', {
+                kind: t('studio.matches.inboxSync.kinds.messages'),
+                error: errText,
+              });
         setInboxLoad((s) => ({ ...s, error: hint, lastSource: s.lastSource || 'firestore' }));
         refreshInboxViaApi();
       }
@@ -314,7 +330,7 @@ export default function StudioMatches() {
         // noop
       }
     };
-  }, [user?.uid]);
+  }, [clientProjectId, t, user?.uid]);
 
   const respondInboxLike = async ({ matchId, decision }) => {
     const uid = String(user?.uid || '').trim();
@@ -766,19 +782,19 @@ export default function StudioMatches() {
         {inboxLoad.error ? (
           <div className="mb-6 mx-auto max-w-5xl rounded-xl border border-rose-200 bg-rose-50 p-4 text-rose-900 shadow-sm">
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <p className="font-semibold">Inbox senkron problemi</p>
+              <p className="font-semibold">{t('studio.matches.inboxSync.title')}</p>
               <button
                 type="button"
                 onClick={refreshInboxViaApi}
                 disabled={inboxLoad.loading}
                 className="inline-flex items-center justify-center rounded-md bg-rose-700 px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-rose-800 disabled:opacity-60"
               >
-                {inboxLoad.loading ? 'Yenileniyor…' : 'Sunucudan yenile'}
+                {inboxLoad.loading ? t('studio.matches.inboxSync.refreshing') : t('studio.matches.inboxSync.refresh')}
               </button>
             </div>
             <p className="mt-2 text-sm whitespace-pre-wrap">{inboxLoad.error}</p>
             <p className="mt-2 text-xs text-rose-700">
-              Not: Bu buton, Firestore dinlemesi bozulsa bile server (Admin SDK) üzerinden aynı veriyi getirir.
+              {t('studio.matches.inboxSync.note')}
             </p>
           </div>
         ) : null}
@@ -904,7 +920,7 @@ export default function StudioMatches() {
             >
               <span className="inline-flex items-center justify-center gap-2">
                 <Compass className="h-4 w-4" />
-                <span>Keşfet</span>
+                  <span>{t('studio.pool.title')}</span>
               </span>
             </Link>
           </div>
@@ -913,7 +929,7 @@ export default function StudioMatches() {
         <StudioInboxModal
           open={!!inboxModal?.open}
           onClose={() => setInboxModal({ open: false, mode: 'requests' })}
-          title={inboxModal?.mode === 'messages' ? 'Mesajlar' : 'İstekler'}
+          title={inboxModal?.mode === 'messages' ? t('studio.inbox.modalTitleMessages') : t('studio.inbox.modalTitleRequests')}
           items={
             inboxModal?.mode === 'messages'
               ? inboxMessages

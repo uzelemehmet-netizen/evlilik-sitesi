@@ -95,7 +95,7 @@ export default function Navigation() {
               type="button"
               onClick={() => setIsMobileMenuOpen((v) => !v)}
               className="inline-flex items-center justify-center w-10 h-10 rounded-full border border-emerald-200 bg-white text-gray-800 shadow-sm"
-              aria-label={isMobileMenuOpen ? "Menüyü kapat" : "Menüyü aç"}
+              aria-label={isMobileMenuOpen ? t('navigation.closeMenu') : t('navigation.openMenu')}
             >
               {isMobileMenuOpen ? <X size={18} /> : <Menu size={18} />}
             </button>
@@ -205,7 +205,7 @@ export default function Navigation() {
             type="button"
             onClick={() => setIsMobileMenuOpen(false)}
             className="absolute inset-0 bg-black/40"
-            aria-label="Menüyü kapat"
+            aria-label={t('navigation.closeMenu')}
           />
           <div className="absolute top-0 left-0 right-0 bg-white border-b border-slate-200 shadow-xl">
             <div className="max-w-7xl mx-auto px-4 py-4">
@@ -219,13 +219,14 @@ export default function Navigation() {
                 />
               </div>
               <div className="flex items-center justify-between">
-                <p className="text-sm font-semibold text-slate-900">Menü</p>
+                <p className="text-sm font-semibold text-slate-900">{t('navigation.menu')}</p>
                 <button
                   type="button"
                   onClick={() => setIsMobileMenuOpen(false)}
-                  className="inline-flex items-center justify-center w-10 h-10 rounded-full border border-slate-200 bg-white"
-                  aria-label="Kapat"
+                  className="inline-flex items-center justify-center w-10 h-10 rounded-full border border-slate-200 bg-white text-slate-900 shadow-sm hover:bg-slate-50"
+                  aria-label={t('navigation.close')}
                 >
+                  <X size={18} />
                 </button>
               </div>
 

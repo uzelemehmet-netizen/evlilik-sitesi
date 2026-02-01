@@ -63,6 +63,10 @@ export default {
     youtube: "YouTube",
     contact: "Contact",
     language: "Language",
+    menu: "Menu",
+    openMenu: "Open menu",
+    closeMenu: "Close menu",
+    close: "Close",
   },
 
   studio: {
@@ -130,6 +134,8 @@ export default {
       viewProfile: 'View profile',
       accept: 'Like back',
       reject: 'Reject',
+      modalTitleMessages: 'Messages',
+      modalTitleRequests: 'Requests',
     },
 
     accessInbox: {
@@ -140,7 +146,7 @@ export default {
     },
 
     pool: {
-      title: 'Pool',
+      title: 'Explore',
       backToMatches: '← Back to matches',
       refresh: 'Refresh',
       lastUpdated: 'Auto-refreshes (20s).',
@@ -331,6 +337,20 @@ export default {
         translating: 'Translating…',
         translate: 'Translate',
         placeholder: 'Write a short question…',
+      },
+      inboxSync: {
+        title: 'Inbox sync issue',
+        refresh: 'Refresh from server',
+        refreshing: 'Refreshing…',
+        note: 'Note: This button fetches the same data via the server (Admin SDK) even if Firestore listeners are broken.',
+        permissionDenied: 'No Firestore read permission (permission-denied). Firebase project: {{projectId}} (try refreshing from server)',
+        listenFailed: 'Firestore {{kind}} inbox listener failed: {{error}} (try refreshing from server)',
+        kinds: {
+          likes: 'likes',
+          requests: 'requests',
+          profileAccess: 'profile access',
+          messages: 'messages',
+        },
       },
       errors: {
         activeLocked: 'You cannot message other profiles while you have an active match. First, mutually cancel your active match.',
@@ -543,6 +563,17 @@ export default {
       verifySubmitted: 'Your verification request has been received. It is under review.',
       submitVerification: 'Submit',
       confirmDelete: 'Do you want to permanently delete your account? This cannot be undone.',
+
+      photoPrivacy: {
+        title: 'Photo privacy',
+        body:
+          'When you blur your photos, they appear blurred in match cards and only people you explicitly allow can see them clearly.',
+        toggleLabel: 'Blur my photos',
+        stateOn: 'On',
+        stateOff: 'Off',
+        hintOn: 'In your match list, you can allow per person using the “Show my photos” button on each card.',
+        hintOff: 'When blur is off, the extra photo permission button is not shown on match cards.',
+      },
 
       applySuccess: {
         title: 'Application received',

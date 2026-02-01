@@ -86,6 +86,10 @@ export default {
     youtube: "YouTube",
     contact: "İletişim",
     language: "Dil",
+    menu: "Menü",
+    openMenu: "Menüyü aç",
+    closeMenu: "Menüyü kapat",
+    close: "Kapat",
   },
 
   studio: {
@@ -153,6 +157,8 @@ export default {
       viewProfile: 'Profili gör',
       accept: 'Beğen',
       reject: 'Reddet',
+      modalTitleMessages: 'Mesajlar',
+      modalTitleRequests: 'İstekler',
     },
 
     accessInbox: {
@@ -163,7 +169,7 @@ export default {
     },
 
     pool: {
-      title: 'Havuz',
+      title: 'Keşfet',
       backToMatches: '← Eşleşmelere dön',
       refresh: 'Yenile',
       lastUpdated: 'Otomatik yenilenir (20 sn).',
@@ -328,6 +334,20 @@ export default {
         translating: 'Çevriliyor…',
         translate: 'Çevir',
         placeholder: 'Kısa bir soru yaz…',
+      },
+      inboxSync: {
+        title: 'Inbox senkron problemi',
+        refresh: 'Sunucudan yenile',
+        refreshing: 'Yenileniyor…',
+        note: 'Not: Bu buton, Firestore dinlemesi bozulsa bile server (Admin SDK) üzerinden aynı veriyi getirir.',
+        permissionDenied: 'Firestore okuma izni yok (permission-denied). Firebase projesi: {{projectId}} (Sunucudan yenile deneyin)',
+        listenFailed: 'Firestore {{kind}} inbox dinlemesi hata verdi: {{error}} (Sunucudan yenile deneyin)',
+        kinds: {
+          likes: 'beğeni',
+          requests: 'istek',
+          profileAccess: 'profil izin',
+          messages: 'mesaj',
+        },
       },
       errors: {
         activeLocked: 'Aktif eşleşmen varken diğer profillerle mesajlaşamazsın. Önce aktif eşleşmeni karşılıklı iptal et.',
@@ -540,6 +560,17 @@ export default {
       verifySubmitted: 'Kimlik doğrulama talebin alındı. İnceleniyor.',
       submitVerification: 'Gönder',
       confirmDelete: 'Hesabınızı kalıcı olarak silmek istiyor musunuz? Bu işlem geri alınamaz.',
+
+      photoPrivacy: {
+        title: 'Fotoğraf gizliliği',
+        body:
+          'Fotoğraflarını blurladığında, eşleşme kartlarında fotoğrafların bulanık görünür ve sadece izin verdiğin kişiler fotoğraflarını net görebilir.',
+        toggleLabel: 'Fotoğraflarımı blurla',
+        stateOn: 'Açık',
+        stateOff: 'Kapalı',
+        hintOn: 'Eşleşme listesinde her kartta “Fotoğraflarımı göster” butonuyla kişi bazında izin verebilirsin.',
+        hintOff: 'Blur kapalıyken eşleşme kartlarında ekstra izin butonu gösterilmez.',
+      },
 
       applySuccess: {
         title: 'Başvurun alındı',

@@ -545,10 +545,10 @@ export default function StudioProfile() {
                   type="button"
                   onClick={() => toggleTopInlinePanel('photoPrivacy')}
                   className="app-btn w-full sm:w-auto"
-                  title="Fotoğraf gizliliği"
+                  title={t('studio.profile.photoPrivacy.title')}
                 >
                   <UploadCloud className="mr-2 h-4 w-4 text-indigo-600" />
-                  Fotoğraf gizliliği
+                  {t('studio.profile.photoPrivacy.title')}
                 </button>
 
                 <Link
@@ -671,12 +671,15 @@ export default function StudioProfile() {
                   <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
                     <h3 className="flex items-center gap-2 text-base font-semibold">
                       <UploadCloud className="h-5 w-5 text-indigo-600" />
-                      Fotoğraf gizliliği
+                      {t('studio.profile.photoPrivacy.title')}
                     </h3>
 
                     <p className="mt-2 text-sm text-slate-600">
-                      Fotoğraflarınızı blurladığınızda, eşleşme kartlarında fotoğraflarınız bulanık görünür ve sadece izin
-                      verdiğiniz kişiler fotoğraflarınızı net görebilir.
+                      {t('studio.profile.photoPrivacy.body')}
+                    </p>
+
+                    <p className="mt-2 text-sm text-amber-900">
+                      {t('studio.match.photos.reciprocityHint')}
                     </p>
 
                     {photoPrivacyState.error ? (
@@ -686,7 +689,7 @@ export default function StudioProfile() {
                     ) : null}
 
                     <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
-                      <div className="text-sm font-semibold text-slate-800">Fotoğraflarımı blurla</div>
+                      <div className="text-sm font-semibold text-slate-800">{t('studio.profile.photoPrivacy.toggleLabel')}</div>
                       <button
                         type="button"
                         onClick={() => setPhotosBlurred(!photosBlurred)}
@@ -696,16 +699,20 @@ export default function StudioProfile() {
                           (photosBlurred ? 'bg-emerald-600 text-white hover:bg-emerald-700' : 'bg-slate-200 text-slate-900 hover:bg-slate-300')
                         }
                       >
-                        {photoPrivacyState.loading ? t('studio.common.processing') : photosBlurred ? 'Açık' : 'Kapalı'}
+                        {photoPrivacyState.loading
+                          ? t('studio.common.processing')
+                          : photosBlurred
+                            ? t('studio.profile.photoPrivacy.stateOn')
+                            : t('studio.profile.photoPrivacy.stateOff')}
                       </button>
                     </div>
 
                     {photosBlurred ? (
                       <p className="mt-3 text-xs text-slate-600">
-                        Eşleşme listesinde her kartta “Fotoğraflarımı göster” butonuyla kişi bazında izin verebilirsiniz.
+                        {t('studio.profile.photoPrivacy.hintOn')}
                       </p>
                     ) : (
-                      <p className="mt-3 text-xs text-slate-600">Blur kapalıyken eşleşme kartlarında ekstra izin butonu gösterilmez.</p>
+                      <p className="mt-3 text-xs text-slate-600">{t('studio.profile.photoPrivacy.hintOff')}</p>
                     )}
                   </div>
                 ) : null}

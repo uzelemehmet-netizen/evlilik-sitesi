@@ -46,6 +46,10 @@ const overrides = {
     youtube: "YouTube",
     contact: "Kontak",
     language: "Bahasa",
+    menu: "Menu",
+    openMenu: "Buka menu",
+    closeMenu: "Tutup menu",
+    close: "Tutup",
   },
 
   admin: {
@@ -385,6 +389,8 @@ const overrides = {
       viewProfile: 'Lihat profil',
       accept: 'Suka balik',
       reject: 'Tolak',
+      modalTitleMessages: 'Pesan',
+      modalTitleRequests: 'Permintaan',
     },
 
     accessInbox: {
@@ -395,7 +401,7 @@ const overrides = {
     },
 
     pool: {
-      title: 'Pool',
+      title: 'Jelajahi',
       backToMatches: '← Kembali ke pencocokan',
       refresh: 'Muat ulang',
       lastUpdated: 'Otomatis diperbarui (20 dtk).',
@@ -587,6 +593,20 @@ const overrides = {
         translate: 'Terjemahkan',
         placeholder: 'Tulis pertanyaan singkat…',
       },
+      inboxSync: {
+        title: 'Masalah sinkronisasi inbox',
+        refresh: 'Muat ulang dari server',
+        refreshing: 'Memuat ulang…',
+        note: 'Catatan: Tombol ini mengambil data yang sama lewat server (Admin SDK) meskipun listener Firestore bermasalah.',
+        permissionDenied: 'Tidak ada izin baca Firestore (permission-denied). Proyek Firebase: {{projectId}} (coba muat ulang dari server)',
+        listenFailed: 'Listener inbox Firestore ({{kind}}) gagal: {{error}} (coba muat ulang dari server)',
+        kinds: {
+          likes: 'suka',
+          requests: 'permintaan',
+          profileAccess: 'akses profil',
+          messages: 'pesan',
+        },
+      },
       errors: {
         activeLocked: 'Saat Anda punya pencocokan aktif, Anda tidak bisa mengirim pesan ke profil lain. Batalkan pencocokan aktif Anda secara mutual terlebih dahulu.',
         shortLimit: 'Anda sudah menggunakan semua pesan singkat (5). Untuk lanjut, setelah saling suka Anda harus memulai pencocokan aktif.',
@@ -703,6 +723,17 @@ const overrides = {
       verifySubmitted: 'Permintaan verifikasi Anda telah diterima. Sedang ditinjau.',
       submitVerification: 'Kirim',
       confirmDelete: 'Apakah Anda ingin menghapus akun secara permanen? Ini tidak dapat dibatalkan.',
+
+      photoPrivacy: {
+        title: 'Privasi foto',
+        body:
+          'Saat Anda memburamkan foto Anda, foto akan tampil blur pada kartu pencocokan dan hanya orang yang Anda izinkan yang dapat melihatnya dengan jelas.',
+        toggleLabel: 'Buramkan foto saya',
+        stateOn: 'Aktif',
+        stateOff: 'Nonaktif',
+        hintOn: 'Di daftar pencocokan, Anda bisa memberi izin per orang lewat tombol “Tampilkan foto saya” di setiap kartu.',
+        hintOff: 'Saat blur nonaktif, tombol izin foto tambahan tidak ditampilkan di kartu pencocokan.',
+      },
 
       applySuccess: {
         title: 'Pengajuan diterima',

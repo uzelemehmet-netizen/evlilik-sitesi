@@ -78,6 +78,20 @@ function normalizeGender(v) {
   return '';
 }
 
+function parseUcNo(v) {
+  const s = safeStr(v).toUpperCase();
+  const m = /^UC-(\d{3,})$/.exec(s);
+  if (!m) return 0;
+  const n = Number(m[1]);
+  return Number.isFinite(n) && n > 0 ? Math.floor(n) : 0;
+}
+
+function formatUcNo(n) {
+  const v = typeof n === 'number' ? n : Number(n);
+  if (!Number.isFinite(v) || v <= 0) return '';
+  return `UC-${Math.floor(v)}`;
+}
+
 function normalizeNat(v) {
   const s = safeStr(v).toLowerCase();
   if (s === 'tr' || s === 'turkey' || s === 'türkiye') return 'tr';
@@ -311,6 +325,51 @@ export default async function handler(req, res) {
       const snap = await tx.get(ref);
       const user = snap.exists ? (snap.data() || {}) : {};
 
+      // Kullanıcı kodu (UC-1000/2000 serisi): gender'a göre otomatik atama.
+      // Not: Transaction içinde monotonic sayaç kullanıyoruz.
+      const existingUserCode = safeStr(user?.userCode);
+      const existingUserCodeNo = typeof user?.userCodeNo === 'number' ? user.userCodeNo : 0;
+      const genderNorm = normalizeGender(user?.gender);
+      let userCodePatch = {};
+
+      if (!existingUserCode && !(existingUserCodeNo > 0) && (genderNorm === 'female' || genderNorm === 'male')) {
+        const countersRef = db.collection('matchmakingMeta').doc('userCodeCounters');
+        const countersSnap = await tx.get(countersRef);
+        const counters = countersSnap.exists ? (countersSnap.data() || {}) : {};
+
+        const baseFemale = 1001;
+        const baseMale = 2001;
+
+        const nextFemaleRaw = typeof counters?.nextFemale === 'number' ? counters.nextFemale : parseUcNo(counters?.nextFemaleCode);
+        const nextMaleRaw = typeof counters?.nextMale === 'number' ? counters.nextMale : parseUcNo(counters?.nextMaleCode);
+
+        const nextFemale = Number.isFinite(nextFemaleRaw) && nextFemaleRaw >= baseFemale ? Math.floor(nextFemaleRaw) : baseFemale;
+        const nextMale = Number.isFinite(nextMaleRaw) && nextMaleRaw >= baseMale ? Math.floor(nextMaleRaw) : baseMale;
+
+        const assignedNo = genderNorm === 'female' ? nextFemale : nextMale;
+        const assignedCode = formatUcNo(assignedNo);
+
+        if (assignedCode) {
+          userCodePatch = {
+            userCode: assignedCode,
+            userCodeNo: assignedNo,
+            userCodeGender: genderNorm,
+            userCodeAssignedAtMs: now,
+          };
+
+          tx.set(
+            countersRef,
+            {
+              nextFemale: genderNorm === 'female' ? assignedNo + 1 : nextFemale,
+              nextMale: genderNorm === 'male' ? assignedNo + 1 : nextMale,
+              updatedAt: FieldValue.serverTimestamp(),
+              updatedAtMs: now,
+            },
+            { merge: true }
+          );
+        }
+      }
+
       // Promo ücretsiz üyelik süresi normalize:
       // Daha önce 30 gün olarak yazılmış olanları da cutoff'a sabitle.
       const promoType = 'free_activation_until_2026_02_10';
@@ -376,6 +435,7 @@ export default async function handler(req, res) {
           {
             ...basePatch,
             ...seenPatch,
+            ...userCodePatch,
             updatedAt: FieldValue.serverTimestamp(),
           },
           { merge: true }
@@ -393,6 +453,7 @@ export default async function handler(req, res) {
           {
             ...basePatch,
             ...seenPatch,
+            ...userCodePatch,
             updatedAt: FieldValue.serverTimestamp(),
           },
           { merge: true }
@@ -412,6 +473,7 @@ export default async function handler(req, res) {
           {
             ...basePatch,
             ...seenPatch,
+            ...userCodePatch,
             freeActiveMembership: {
               ...(typeof fam === 'object' && fam ? fam : {}),
               active: false,
@@ -436,6 +498,7 @@ export default async function handler(req, res) {
         {
           ...basePatch,
           ...seenPatch,
+          ...userCodePatch,
           freeActiveMembership: {
             ...(typeof fam === 'object' && fam ? fam : {}),
             active: true,
