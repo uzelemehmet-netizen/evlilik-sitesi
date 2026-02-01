@@ -748,6 +748,54 @@ const overrides = {
         label: 'Kode Pengguna',
       },
 
+      guidance: {
+        button: 'Panduan Pernikahan',
+        modalTitle: 'Panduan Pernikahan',
+        subtitle: 'Sistem kami bukan hanya pencocokan',
+        intro:
+          'Sistem kami bukan hanya layanan pencocokan. Setelah Anda memutuskan untuk menikah, kami membantu dan membimbing warga Indonesia dan Turki dalam setiap tahap—sebelum menikah, saat proses pernikahan, hingga setelah menikah—agar semua urusan berjalan lancar.',
+        learnMore: 'Pelajari lebih lanjut (Halaman pernikahan)',
+        sections: {
+          gettingToKnow: {
+            title: '1) Tahap berkenalan',
+            items: [
+              'Melakukan riset/pemeriksaan latar belakang tentang calon pasangan',
+              'Bertemu dan berdiskusi dengan keluarga',
+              'Mediasi serta layanan penerjemahan saat panggilan video antar calon pasangan',
+              'Mediasi serta layanan penerjemahan dalam komunikasi antar keluarga',
+            ],
+          },
+          preparations: {
+            title: '2) Persiapan pernikahan',
+            items: [
+              'Menyiapkan dokumen yang diperlukan',
+              'Memulai proses hukum',
+              'Menentukan tanggal pernikahan',
+              'Menghitung biaya pernikahan',
+            ],
+          },
+          marriageStage: {
+            title: '3) Tahap pernikahan',
+            items: [
+              'Tiket penerbangan ke Indonesia',
+              'Akomodasi hotel di Indonesia',
+              'Perencanaan transportasi di Indonesia (mobil pribadi, pesawat, kereta, atau kapal)',
+              'Mengurus proses hukum di Indonesia',
+              'Persiapan akad/nikah',
+              'Layanan penerjemahan dan pendampingan selama berada di Indonesia',
+            ],
+          },
+          afterMarriage: {
+            title: '4) Setelah pernikahan',
+            items: [
+              'Pencatatan/registrasi pernikahan di instansi Turki dan Indonesia',
+              'Jika tinggal di Turki: pengajuan visa keluarga',
+              'Jika tinggal di Indonesia: pengurusan izin tinggal',
+            ],
+          },
+        },
+      },
+
       applySuccess: {
         title: 'Pengajuan diterima',
         subtitle: 'Langkah berikutnya: cek pool dari panel Anda dan ikuti saran kecocokan.',

@@ -585,6 +585,54 @@ export default {
         label: 'Kullanıcı Kodu',
       },
 
+      guidance: {
+        button: 'Evlilik Rehberliği',
+        modalTitle: 'Evlilik Rehberliği',
+        subtitle: 'Sistemimiz sadece eşleştirme değil',
+        intro:
+          'Sistemimiz sadece eşleştirme sistemi değildir. Evlilik kararı aldıktan sonra Endonezya ve Türk vatandaşlarının evlilik yolunda her konuda rehberliğini yapar; evlilik öncesi, evlilik aşaması ve evlilik sonrası tüm işlemlerde sorunsuz bir şekilde evlenmeleri için rehberlik hizmeti veririz.',
+        learnMore: 'Detaylı bilgi (Evlilik sayfası)',
+        sections: {
+          gettingToKnow: {
+            title: '1) Tanışma aşaması',
+            items: [
+              'Eş adaylarının birbiri hakkında araştırma yapılması',
+              'Ailelerle görüşme',
+              'Eş adaylarının birbiriyle görüntülü görüşmesinde aracılık ve tercümanlık hizmeti',
+              'Eş adaylarının ailelerinin iletişiminde aracılık ve tercümanlık hizmeti',
+            ],
+          },
+          preparations: {
+            title: '2) Evlilik hazırlıkları',
+            items: [
+              'Gerekli evrakların hazırlanması',
+              'Yasal işlemlerin başlatılması',
+              'Evlilik tarihinin belirlenmesi',
+              'Evlilik maliyetinin hesaplanması',
+            ],
+          },
+          marriageStage: {
+            title: '3) Evlilik aşaması',
+            items: [
+              'Endonezya’ya uçuş bileti',
+              'Endonezya’da otel konaklaması',
+              'Endonezya içi özel araç, uçak, tren veya gemi ile ulaşım planlaması',
+              'Endonezya’da yasal işlemlerin yapılması',
+              'Nikah hazırlıkları',
+              'Endonezya’da bulunulan süre içinde tercümanlık ve rehberlik',
+            ],
+          },
+          afterMarriage: {
+            title: '4) Evlilik sonrası',
+            items: [
+              'Evliliğin Türk ve Endonezya makamlarında tescillenmesi',
+              'Türkiye’de yaşanacaksa aile vizesi başvurusu',
+              'Endonezya’da yaşanacaksa oturum izni işlemleri',
+            ],
+          },
+        },
+      },
+
       applySuccess: {
         title: 'Başvurun alındı',
         subtitle: 'Şimdi sıradaki adımlar: panelinden havuzu incele ve eşleşme önerilerini takip et.',

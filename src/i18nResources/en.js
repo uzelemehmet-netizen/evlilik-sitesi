@@ -588,6 +588,54 @@ export default {
         label: 'User Code',
       },
 
+      guidance: {
+        button: 'Wedding Guidance',
+        modalTitle: 'Wedding Guidance',
+        subtitle: 'Our system is not only matchmaking',
+        intro:
+          'Our system is not only a matchmaking platform. After you decide to get married, we guide Turkish and Indonesian citizens throughout the entire journey—before marriage, during the marriage process, and after marriage—so you can complete all steps smoothly.',
+        learnMore: 'Learn more (Wedding page)',
+        sections: {
+          gettingToKnow: {
+            title: '1) Getting to know each other',
+            items: [
+              'Research/background checks about the prospective spouse',
+              'Meeting with families',
+              'Mediation and interpreting for video calls between prospective spouses',
+              'Mediation and interpreting for communication between families',
+            ],
+          },
+          preparations: {
+            title: '2) Marriage preparations',
+            items: [
+              'Preparing the required documents',
+              'Starting legal procedures',
+              'Setting the wedding date',
+              'Calculating the total marriage costs',
+            ],
+          },
+          marriageStage: {
+            title: '3) Marriage stage',
+            items: [
+              'Flight tickets to Indonesia',
+              'Hotel accommodation in Indonesia',
+              'Planning domestic transportation in Indonesia (private car, plane, train, or ship)',
+              'Completing legal procedures in Indonesia',
+              'Wedding/nikah preparations',
+              'Interpreting and guidance during your stay in Indonesia',
+            ],
+          },
+          afterMarriage: {
+            title: '4) After marriage',
+            items: [
+              'Registering the marriage with Turkish and Indonesian authorities',
+              'If living in Türkiye: family visa application',
+              'If living in Indonesia: residence permit procedures',
+            ],
+          },
+        },
+      },
+
       applySuccess: {
         title: 'Application received',
         subtitle: 'Next steps: review the pool from your panel and follow your match suggestions.',

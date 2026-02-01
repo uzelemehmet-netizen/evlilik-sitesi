@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { collection, doc, getDocs, limit, onSnapshot, query, where } from 'firebase/firestore';
 import { signOut } from 'firebase/auth';
-import { Edit, LogOut, MessageCircle, ShieldCheck, Star, Trash2, UploadCloud } from 'lucide-react';
+import { BookOpen, Edit, LogOut, MessageCircle, ShieldCheck, Star, Trash2, UploadCloud } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import Navigation from '../../components/Navigation';
 import Footer from '../../components/Footer';
@@ -74,6 +74,7 @@ export default function StudioProfile() {
   const [membershipAction, setMembershipAction] = useState({ loading: false, error: '', success: '' });
 
   const [verifyModalOpen, setVerifyModalOpen] = useState(false);
+  const [guidanceModalOpen, setGuidanceModalOpen] = useState(false);
   const [verifyForm, setVerifyForm] = useState({
     idType: 'tc_id',
     idFront: null,
@@ -438,6 +439,32 @@ export default function StudioProfile() {
     setTopInlinePanel((prev) => (prev === key ? '' : key));
   };
 
+  const guidanceSections = useMemo(() => {
+    const getItems = (key) => {
+      const v = t(key, { returnObjects: true });
+      return Array.isArray(v) ? v : [];
+    };
+
+    return [
+      {
+        title: t('studio.profile.guidance.sections.gettingToKnow.title'),
+        items: getItems('studio.profile.guidance.sections.gettingToKnow.items'),
+      },
+      {
+        title: t('studio.profile.guidance.sections.preparations.title'),
+        items: getItems('studio.profile.guidance.sections.preparations.items'),
+      },
+      {
+        title: t('studio.profile.guidance.sections.marriageStage.title'),
+        items: getItems('studio.profile.guidance.sections.marriageStage.items'),
+      },
+      {
+        title: t('studio.profile.guidance.sections.afterMarriage.title'),
+        items: getItems('studio.profile.guidance.sections.afterMarriage.items'),
+      },
+    ];
+  }, [i18n?.language, t]);
+
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900">
       <Navigation />
@@ -557,6 +584,16 @@ export default function StudioProfile() {
                 >
                   <UploadCloud className="mr-2 h-4 w-4 text-indigo-600" />
                   {t('studio.profile.photoPrivacy.title')}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setGuidanceModalOpen(true)}
+                  className="app-btn w-full sm:w-auto"
+                  title={t('studio.profile.guidance.button')}
+                >
+                  <BookOpen className="mr-2 h-4 w-4 text-emerald-700" />
+                  {t('studio.profile.guidance.button')}
                 </button>
 
                 <Link
@@ -988,6 +1025,63 @@ export default function StudioProfile() {
                         className="rounded-md bg-emerald-600 px-3 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-60"
                       >
                         {verifyAction.loading ? t('studio.common.loading') : t('studio.profile.submitVerification')}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ) : null}
+
+            {guidanceModalOpen ? (
+              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" role="dialog" aria-modal="true">
+                <div className="w-full max-w-2xl rounded-xl bg-white shadow-xl">
+                  <div className="flex items-center justify-between border-b border-slate-200 p-4">
+                    <div>
+                      <h3 className="text-lg font-semibold">{t('studio.profile.guidance.modalTitle')}</h3>
+                      <p className="mt-1 text-sm text-slate-600">{t('studio.profile.guidance.subtitle')}</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setGuidanceModalOpen(false)}
+                      className="rounded-md px-2 py-1 text-sm font-semibold text-slate-600 hover:bg-slate-100"
+                    >
+                      {t('studio.common.close')}
+                    </button>
+                  </div>
+
+                  <div className="p-4 space-y-4">
+                    <p className="text-sm text-slate-700">{t('studio.profile.guidance.intro')}</p>
+
+                    <div className="space-y-4">
+                      {guidanceSections.map((s, idx) => (
+                        <div key={idx} className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                          <div className="text-sm font-semibold text-slate-900">{s.title}</div>
+                          {Array.isArray(s.items) && s.items.length ? (
+                            <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-slate-700">
+                              {s.items.map((item, i2) => (
+                                <li key={i2}>{item}</li>
+                              ))}
+                            </ul>
+                          ) : null}
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                      <Link
+                        to="/evlilik/uniqah"
+                        className="inline-flex items-center justify-center rounded-md bg-emerald-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-emerald-700"
+                        onClick={() => setGuidanceModalOpen(false)}
+                      >
+                        {t('studio.profile.guidance.learnMore')}
+                      </Link>
+
+                      <button
+                        type="button"
+                        onClick={() => setGuidanceModalOpen(false)}
+                        className="inline-flex items-center justify-center rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 transition hover:bg-slate-50"
+                      >
+                        {t('studio.common.close')}
                       </button>
                     </div>
                   </div>
