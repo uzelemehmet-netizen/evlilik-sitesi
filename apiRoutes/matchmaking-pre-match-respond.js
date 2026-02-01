@@ -163,6 +163,7 @@ export default async function handler(req, res) {
     const nowMs = Date.now();
     let status = decision === 'approve' ? 'approved' : 'rejected';
     let matchId = '';
+    let shouldNotifyReject = false;
 
     await db.runTransaction(async (tx) => {
       const inboxSnap = await tx.get(inboxRef);
@@ -184,6 +185,10 @@ export default async function handler(req, res) {
       if (decision === 'reject' && curStatus === 'rejected') {
         status = 'rejected';
         return;
+      }
+
+      if (decision === 'reject' && curStatus !== 'rejected') {
+        shouldNotifyReject = true;
       }
 
       const patch = {
@@ -257,6 +262,28 @@ export default async function handler(req, res) {
       tx.set(inboxRef, patch, { merge: true });
       tx.set(outboxRef, patch, { merge: true });
     });
+
+    if (decision === 'reject' && shouldNotifyReject) {
+      const systemProfile = { username: 'Sistem', age: null, city: '', photoUrl: '' };
+      const messageId = `notice_rejected__pre_match__${requestId}`;
+      const msgRef = db.collection('matchmakingUsers').doc(fromUid).collection('inboxMessages').doc(messageId);
+      const msg = {
+        type: 'system_notice',
+        status: 'delivered',
+        fromUid: 'system',
+        toUid: fromUid,
+        fromProfile: systemProfile,
+        text: 'Ön eşleşme isteğiniz reddedildi.',
+        relatedRequestId: requestId,
+        relatedType: 'pre_match',
+        createdAt: FieldValue.serverTimestamp(),
+        createdAtMs: nowMs,
+        readAtMs: 0,
+        updatedAt: FieldValue.serverTimestamp(),
+        updatedAtMs: nowMs,
+      };
+      await msgRef.set(msg, { merge: true });
+    }
 
     res.statusCode = 200;
     res.setHeader('content-type', 'application/json');

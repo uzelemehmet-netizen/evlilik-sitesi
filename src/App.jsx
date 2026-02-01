@@ -126,6 +126,64 @@ function TitleManager() {
   return null;
 }
 
+function AdminLanguageLock() {
+  const location = useLocation();
+  const { i18n } = useTranslation();
+
+  useEffect(() => {
+    const path = location.pathname || '/';
+    const isAdmin = path.startsWith('/admin');
+
+    const key = '__admin_prev_lang';
+    const getStored = () => {
+      try {
+        return sessionStorage.getItem(key);
+      } catch {
+        return null;
+      }
+    };
+    const setStored = (v) => {
+      try {
+        sessionStorage.setItem(key, v);
+      } catch {
+        // ignore
+      }
+    };
+    const clearStored = () => {
+      try {
+        sessionStorage.removeItem(key);
+      } catch {
+        // ignore
+      }
+    };
+
+    const current = String(i18n.language || 'tr');
+    const currentBase = current.split('-')[0].toLowerCase();
+
+    if (isAdmin) {
+      const prev = getStored();
+      if (!prev) setStored(current);
+
+      if (currentBase !== 'tr') {
+        i18n.changeLanguage('tr');
+      }
+      return;
+    }
+
+    // Admin'den çıkınca önceki dili geri yükle (site geneli dili bozulmasın).
+    const prev = getStored();
+    if (prev) {
+      clearStored();
+      const prevBase = String(prev).split('-')[0].toLowerCase();
+      if (prevBase && prevBase !== currentBase) {
+        i18n.changeLanguage(prevBase);
+      }
+    }
+  }, [location.pathname, i18n]);
+
+  return null;
+}
+
 function RouteLoading() {
   const { t } = useTranslation();
   return (
@@ -197,6 +255,7 @@ function App() {
     <Router>
       <ScrollToTop />
       <TitleManager />
+      <AdminLanguageLock />
       <AnalyticsTracker />
       <MatchmakingHeartbeatGlobal />
       <FloatingWhatsApp />

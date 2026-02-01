@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { collection, limit, onSnapshot, query, where } from 'firebase/firestore';
+import { useTranslation } from 'react-i18next';
 import { db } from '../../config/firebase';
 import { authFetch } from '../../utils/authFetch';
 
@@ -38,6 +39,7 @@ function safeUrls(v) {
 }
 
 export default function MatchmakingPhotoUpdatesTab() {
+  const { t } = useTranslation();
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [acting, setActing] = useState(false);
@@ -73,9 +75,7 @@ export default function MatchmakingPhotoUpdatesTab() {
   }, [status]);
 
   const decide = async (requestId, ok) => {
-    const confirmText = ok
-      ? 'Bu fotoğraf güncellemesi ONAYLANACAK ve başvuru fotoğrafları değişecek. Devam edilsin mi?'
-      : 'Bu fotoğraf güncellemesi REDDEDİLECEK. Devam edilsin mi?';
+    const confirmText = ok ? t('admin.photoUpdates.confirms.approve') : t('admin.photoUpdates.confirms.reject');
 
     if (!window.confirm(confirmText)) return;
 
@@ -90,9 +90,9 @@ export default function MatchmakingPhotoUpdatesTab() {
         body: JSON.stringify({ requestId, approve: ok }),
       });
 
-      setMsg(ok ? 'Fotoğraf güncellemesi onaylandı.' : 'Fotoğraf güncellemesi reddedildi.');
+      setMsg(ok ? t('admin.photoUpdates.messages.approved') : t('admin.photoUpdates.messages.rejected'));
     } catch (e) {
-      setErr(String(e?.message || 'İşlem başarısız.'));
+      setErr(String(e?.message || t('admin.photoUpdates.errors.actionFailed')));
     } finally {
       setActing(false);
     }
@@ -107,10 +107,12 @@ export default function MatchmakingPhotoUpdatesTab() {
       <div className="rounded-xl border border-slate-200 bg-white p-4">
         <div className="flex items-start justify-between gap-3">
           <div>
-            <h2 className="text-lg font-bold text-slate-900">Fotoğraf Güncelleme İstekleri</h2>
-            <p className="text-sm text-slate-600">Kullanıcının yüklediği yeni fotoğrafları inceleyip onaylayın/reddedin.</p>
+            <h2 className="text-lg font-bold text-slate-900">{t('admin.photoUpdates.titles.tab')}</h2>
+            <p className="text-sm text-slate-600">{t('admin.photoUpdates.titles.tabSubtitle')}</p>
           </div>
-          <div className="text-xs text-slate-600">Gösterilen: <span className="font-semibold text-slate-900">{summary.total}</span></div>
+          <div className="text-xs text-slate-600">
+            {t('admin.photoUpdates.labels.shown')}: <span className="font-semibold text-slate-900">{summary.total}</span>
+          </div>
         </div>
 
         {msg ? <div className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-emerald-900 text-sm">{msg}</div> : null}
@@ -129,7 +131,7 @@ export default function MatchmakingPhotoUpdatesTab() {
                 : 'bg-white text-slate-800 border-slate-200 hover:bg-slate-50'
             }`}
           >
-            Bekleyen
+            {t('admin.photoUpdates.statuses.pending')}
           </button>
           <button
             type="button"
@@ -140,7 +142,7 @@ export default function MatchmakingPhotoUpdatesTab() {
                 : 'bg-white text-slate-800 border-slate-200 hover:bg-slate-50'
             }`}
           >
-            Onaylanan
+            {t('admin.photoUpdates.statuses.approved')}
           </button>
           <button
             type="button"
@@ -151,17 +153,17 @@ export default function MatchmakingPhotoUpdatesTab() {
                 : 'bg-white text-slate-800 border-slate-200 hover:bg-slate-50'
             }`}
           >
-            Reddedilen
+            {t('admin.photoUpdates.statuses.rejected')}
           </button>
         </div>
       </div>
 
       {loading ? (
-        <div className="rounded-xl border border-slate-200 bg-white p-4 text-sm text-slate-600">Yükleniyor…</div>
+        <div className="rounded-xl border border-slate-200 bg-white p-4 text-sm text-slate-600">{t('admin.photoUpdates.common.loading')}</div>
       ) : (
         <div className="rounded-2xl bg-white border border-slate-200 p-4">
           {items.length === 0 ? (
-            <p className="text-sm text-slate-600">Kayıt yok.</p>
+            <p className="text-sm text-slate-600">{t('admin.photoUpdates.common.empty')}</p>
           ) : (
             <div className="space-y-3">
               {items.map((r) => {
@@ -170,11 +172,13 @@ export default function MatchmakingPhotoUpdatesTab() {
                   <div key={r.id} className="rounded-xl border border-slate-200 bg-slate-50 p-4">
                     <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-3">
                       <div className="min-w-0">
-                        <p className="text-sm font-semibold text-slate-900">Request: {r.id}</p>
+                        <p className="text-sm font-semibold text-slate-900">
+                          {t('admin.photoUpdates.labels.requestId')}: {r.id}
+                        </p>
 
                         <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-600">
                           <span>
-                            User: <span className="font-semibold">{r?.userId || '-'}</span>
+                            {t('admin.photoUpdates.labels.userId')}: <span className="font-semibold">{r?.userId || '-'}</span>
                           </span>
                           {r?.userId ? (
                             <button
@@ -182,18 +186,22 @@ export default function MatchmakingPhotoUpdatesTab() {
                               className="px-2 py-1 rounded-md border border-slate-300 bg-white text-slate-800 text-[11px] font-semibold hover:bg-slate-50"
                               onClick={async () => {
                                 const ok = await copyText(r.userId);
-                                setCopiedMsg(ok ? 'User ID kopyalandı.' : 'Kopyalanamadı.');
+                                setCopiedMsg(
+                                  ok
+                                    ? t('admin.photoUpdates.copy.copied', { what: t('admin.photoUpdates.copy.what.userId') })
+                                    : t('admin.photoUpdates.copy.failed')
+                                );
                                 setTimeout(() => setCopiedMsg(''), 1500);
                               }}
                             >
-                              Kopyala
+                              {t('admin.photoUpdates.actions.copy')}
                             </button>
                           ) : null}
                         </div>
 
                         <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-600">
                           <span>
-                            Application: <span className="font-semibold">{r?.applicationId || '-'}</span>
+                            {t('admin.photoUpdates.labels.applicationId')}: <span className="font-semibold">{r?.applicationId || '-'}</span>
                           </span>
                           {r?.applicationId ? (
                             <button
@@ -201,11 +209,17 @@ export default function MatchmakingPhotoUpdatesTab() {
                               className="px-2 py-1 rounded-md border border-slate-300 bg-white text-slate-800 text-[11px] font-semibold hover:bg-slate-50"
                               onClick={async () => {
                                 const ok = await copyText(r.applicationId);
-                                setCopiedMsg(ok ? 'Application ID kopyalandı.' : 'Kopyalanamadı.');
+                                setCopiedMsg(
+                                  ok
+                                    ? t('admin.photoUpdates.copy.copied', {
+                                        what: t('admin.photoUpdates.copy.what.applicationId'),
+                                      })
+                                    : t('admin.photoUpdates.copy.failed')
+                                );
                                 setTimeout(() => setCopiedMsg(''), 1500);
                               }}
                             >
-                              Kopyala
+                              {t('admin.photoUpdates.actions.copy')}
                             </button>
                           ) : null}
                         </div>
@@ -214,12 +228,17 @@ export default function MatchmakingPhotoUpdatesTab() {
                           <div className="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-2">
                             {urls.slice(0, 3).map((u) => (
                               <a key={u} href={u} target="_blank" rel="noopener noreferrer" className="block">
-                                <img src={u} alt="Photo" className="w-full h-28 object-cover rounded-lg border border-slate-200" loading="lazy" />
+                                <img
+                                  src={u}
+                                  alt={t('admin.photoUpdates.alts.photo')}
+                                  className="w-full h-28 object-cover rounded-lg border border-slate-200"
+                                  loading="lazy"
+                                />
                               </a>
                             ))}
                           </div>
                         ) : (
-                          <p className="mt-2 text-xs text-slate-600">Foto yok.</p>
+                          <p className="mt-2 text-xs text-slate-600">{t('admin.photoUpdates.common.noPhoto')}</p>
                         )}
                       </div>
 
@@ -231,7 +250,7 @@ export default function MatchmakingPhotoUpdatesTab() {
                             onClick={() => decide(r.id, true)}
                             className="px-4 py-2 rounded-lg bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700 disabled:opacity-60"
                           >
-                            Onayla
+                            {t('admin.photoUpdates.actions.approve')}
                           </button>
                           <button
                             type="button"
@@ -239,7 +258,7 @@ export default function MatchmakingPhotoUpdatesTab() {
                             onClick={() => decide(r.id, false)}
                             className="px-4 py-2 rounded-lg bg-rose-600 text-white text-sm font-semibold hover:bg-rose-700 disabled:opacity-60"
                           >
-                            Reddet
+                            {t('admin.photoUpdates.actions.reject')}
                           </button>
                         </div>
                       ) : null}

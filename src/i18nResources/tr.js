@@ -81,6 +81,10 @@ export default {
       unknown: 'Bilinmiyor',
     },
 
+    errors: {
+      generic: 'Hata',
+    },
+
     feedback: {
       nav: 'Destek / Bildirim',
       backToProfile: 'Profilime dön',
@@ -397,6 +401,16 @@ export default {
       shortModal: {
         title: 'Kısa mesaj',
       },
+      translate: {
+        errors: {
+          tooLong: 'Bu mesaj çok uzun; çeviri için kısaltılmalı.',
+          onlyIncoming: 'Sadece gelen mesajlar çevrilebilir.',
+          notConfigured: 'Çeviri servisi ayarlı değil.',
+          rateLimited: 'Çeviri yoğun (Gemini dakikada 15 limit). 1 dakika sonra tekrar dene veya ücretli plana geç.',
+          piiBlocked: 'Kişisel/iletişim bilgisi içerdiği için otomatik çeviri yapılmadı.',
+          failed: 'Çeviri başarısız.',
+        },
+      },
       time: {
         minutes: '{{minutes}} dk',
         hours: '{{hours}} saat',
@@ -481,6 +495,7 @@ export default {
       },
     },
     errors: {
+      generic: 'Hata',
       profileNotFound: 'Profil kaydı bulunamadı.',
       apiUnavailable: 'Sunucuya ulaşılamıyor. Local geliştirmede `npm run dev` (api+web) çalışıyor olmalı.',
       serverNotConfigured: 'Sunucu yapılandırması eksik. Lütfen destek ile iletişime geçin.',
@@ -493,6 +508,279 @@ export default {
       notAvailable: 'Bu işlem bu aşamada yapılamıyor.',
       forbidden: 'Bu işlem için yetkin yok.',
       cancelCooldown: 'Suistimali önlemek için iptal geçici olarak kapalı. Kalan süre: {{time}}',
+    },
+  },
+
+  admin: {
+    userTools: {
+      prompts: {
+        blockReason: 'Engelleme nedeni (opsiyonel):',
+        noteOptional: 'Not (opsiyonel):',
+      },
+      defaults: {
+        whatsappVerificationNote: 'WhatsApp doğrulama',
+      },
+      confirms: {
+        grantMembershipDays: 'Bu kullanıcıya {{days}} gün üyelik tanımlansın mı?',
+        revokeMembership: 'Bu kullanıcının ücretli üyeliği pasif edilsin mi?',
+        grantTranslationPackDays: 'Bu kullanıcıya {{days}} gün çeviri paketi tanımlansın mı?',
+        revokeTranslationPack: 'Bu kullanıcının çeviri paketi pasif edilsin mi?',
+        resetFreeActiveMembership:
+          'Ücretsiz aktif üyelik (freeActiveMembership) sıfırlansın mı? (blocked=false, active=false, sayaçlar=0)',
+      },
+      messages: {
+        userBlocked: 'Kullanıcı engellendi.',
+        userUnblocked: 'Kullanıcının engeli kaldırıldı.',
+        whatsappVerified: 'Kullanıcı WhatsApp doğrulaması ile doğrulandı.',
+        membershipGranted: 'Üyelik aktif edildi. Bitiş: {{until}}',
+        membershipRevoked: 'Üyelik pasif edildi.',
+        translationPackGranted: 'Çeviri paketi aktif edildi. Bitiş: {{until}}',
+        translationPackRevoked: 'Çeviri paketi pasif edildi.',
+        freeActiveReset: 'Ücretsiz aktif üyelik durumu sıfırlandı.',
+      },
+      errors: {
+        userIdRequired: 'User ID girin.',
+        applicationNotFoundForMk: 'Bu MK kodu için başvuru bulunamadı.',
+        applicationMissingUserId: 'Başvuru bulundu ama userId yok.',
+        userReadFailed: 'Kullanıcı okunamadı.',
+        actionFailed: 'İşlem başarısız.',
+        daysRange: 'Gün sayısı 1–365 arası olmalı.',
+        translationTierInvalid: 'Paket türü standard veya pro olmalı.',
+      },
+    },
+
+    matchmakingMatches: {
+      titles: {
+        page: 'Eşleşmeler (Admin)',
+        tab: 'Eşleşmeler',
+        tabSubtitle: 'Karşılıklı onay ve iletişim açılmış eşleşmeler.',
+      },
+      nav: {
+        identityVerifications: 'Kimlik doğrulama',
+        paymentNotifications: 'Ödeme bildirimleri',
+        adminPanel: 'Admin panel',
+        openDetailedPage: 'Detaylı eşleşme sayfasını aç',
+      },
+      common: {
+        loading: 'Yükleniyor…',
+        empty: 'Kayıt yok.',
+      },
+      labels: {
+        total: 'Toplam',
+        match: 'Eşleşme:',
+        score: 'Skor: {{score}}',
+        recordId: 'Kayıt ID:',
+      },
+      actions: {
+        cancel: 'Eşleşmeyi iptal et (kilidi kaldır)',
+        copy: 'kopyala',
+      },
+      sections: {
+        mutual: 'Karşılıklı onay (2. adım seçimi bekliyor)',
+        contactUnlocked: 'İletişim paylaşımı açılanlar (kilit aktif)',
+      },
+      manual: {
+        title: 'Manuel eşleştir',
+        titleTest: 'Manuel eşleştir (test için)',
+        description:
+          'A ve B için "Application ID" veya "Kullanıcı Adı" yazın. Bu işlem iki kullanıcı arasına bir eşleşme dokümanı oluşturur (beğeni/ret/chat akışını test etmek için).',
+        descriptionShort:
+          'A ve B için “Application ID” veya “Kullanıcı Adı” girin. Bu işlem iki kullanıcı arasında bir eşleşme dokümanı oluşturur.',
+        notePrefix: 'Not: Bu sayfadaki listeler sadece',
+        noteAnd: 've',
+        noteSuffix: 'durumlarını gösterir.',
+        labels: {
+          a: 'A (Application ID / Profil Kodu)',
+          b: 'B (Application ID / Profil Kodu)',
+          startStatus: 'Başlangıç durumu',
+          overwrite: 'Aynı match varsa üzerine yaz',
+        },
+        placeholders: {
+          a: 'Örn: moonstar_34 veya applicationId',
+          b: 'Örn: blueocean_21 veya applicationId',
+        },
+        statusOptions: {
+          proposed: 'proposed (beğeni/ret test)',
+          mutualAccepted: 'mutual_accepted (chat/contact seçimi test)',
+          contactUnlocked: 'contact_unlocked (iletişim açılmış test)',
+        },
+        actions: {
+          create: 'Manuel eşleştir',
+          clear: 'Alanları temizle',
+        },
+      },
+      confirms: {
+        cancelMatch: 'Bu eşleşme iptal edildi olarak işaretlenecek ve kilit kaldırılacak. Devam edilsin mi?',
+      },
+      messages: {
+        cancelSuccess: 'Eşleşme iptal edildi. Kilit kaldırıldı; yeni eşleşmeler gösterilebilir.',
+        manualCreated: 'Manuel eşleşme hazır. Match ID: {{matchId}}{{extra}}',
+        manualExtraUpdated: ' (Zaten vardı: güncellendi)',
+        manualExtraSkipped: ' (Zaten vardı: atlandı)',
+        copySuccess: 'Kayıt ID kopyalandı.',
+        copyFailed: 'Kopyalanamadı.',
+      },
+      errors: {
+        loadFailed: 'Eşleşmeler yüklenemedi.',
+        actionFailed: 'İşlem başarısız.',
+        manualInputRequired: 'Lütfen A ve B için Application ID veya Profil Kodu girin.',
+      },
+    },
+
+    matchmakingPayments: {
+      titles: {
+        page: 'Ödeme Bildirimleri (Admin)',
+        tab: 'Ödeme Bildirimleri',
+        tabSubtitle: 'Bekleyen/onaylanan/reddedilen ödeme bildirimlerini yönetin.',
+      },
+      nav: {
+        matches: 'Eşleşmeler',
+        adminPanel: 'Admin panel',
+      },
+      notices: {
+        indexFallback: 'Not: Firestore index olmadığı için "fallback" listeleme kullanılıyor (biraz daha yavaş olabilir).',
+        receiptViaWhatsApp: 'Not: Kullanıcı dekontu WhatsApp ile göndereceğini işaretlemiş. (Panelden link yüklenmedi.)',
+      },
+      common: {
+        loading: 'Yükleniyor…',
+        empty: 'Kayıt yok.',
+      },
+      statuses: {
+        pending: 'Bekleyen',
+        approved: 'Onaylanan',
+        rejected: 'Reddedilen',
+      },
+      statusHeadings: {
+        pending: 'Bekleyen bildirimler',
+        approved: 'Onaylananlar',
+        rejected: 'Reddedilenler',
+      },
+      labels: {
+        shown: 'Gösterilen',
+        total: 'Toplam',
+        package: 'Paket',
+        method: 'Yöntem',
+        user: 'Kullanıcı',
+        userId: 'User ID',
+        match: 'Eşleşme',
+        reference: 'Referans',
+        receiptChannel: 'Dekont kanalı',
+        note: 'Not',
+        receipt: 'Dekont',
+        readyMessage: 'Hazır mesaj',
+      },
+      receiptChannels: {
+        whatsapp: 'WhatsApp',
+        upload: 'Yükleme',
+      },
+      tiers: {
+        eco: 'Eko',
+        standard: 'Standart',
+        pro: 'Pro',
+      },
+      methods: {
+        eft_fast: 'EFT / FAST',
+        swift_wise: 'SWIFT / Wise',
+        qris: 'QRIS',
+        card: 'Kredi kartı',
+        other: 'Diğer',
+      },
+      actions: {
+        copy: 'Kopyala',
+        open: 'Aç',
+        approve: 'Onayla',
+        reject: 'Reddet',
+        copyApprovalMessage: 'Onay mesajını kopyala',
+        copyRejectionMessage: 'Red mesajını kopyala',
+      },
+      copy: {
+        copied: '{{what}} kopyalandı.',
+        failed: 'Kopyalanamadı.',
+        what: {
+          userId: 'User ID',
+          matchId: 'Match ID',
+          reference: 'Referans',
+          receiptLink: 'Dekont linki',
+          approvalMessage: 'Onay mesajı',
+          rejectionMessage: 'Red mesajı',
+        },
+      },
+      warnings: {
+        amountMismatch: 'Uyarı: Tutar beklenen fiyatla eşleşmiyor. Beklenen: {{expected}}',
+      },
+      confirms: {
+        approve: 'Bu ödeme bildirimi ONAYLANACAK ve "{{tier}}" paketi aktif edilecek. Devam edilsin mi?',
+        reject: 'Bu ödeme bildirimi REDDEDİLECEK. Devam edilsin mi?',
+      },
+      messages: {
+        approvedWithUntil: 'Ödeme onaylandı; üyelik aktif edildi. Bitiş: {{until}}',
+        approved: 'Ödeme onaylandı; üyelik aktif edildi.',
+        rejected: 'Ödeme reddedildi.',
+      },
+      errors: {
+        actionFailed: 'İşlem başarısız.',
+      },
+      templates: {
+        whatsapp: {
+          approved:
+            'Merhaba, evlilik eşleştirme üyelik ödemeniz onaylandı. Panelinizden iletişim bilgilerini açabilirsiniz. Teşekkürler.',
+          rejected:
+            'Merhaba, ödeme bildiriminizi doğrulayamadık. Lütfen dekont/ref. bilgisini kontrol edip tekrar ödeme bildirimi gönderin.',
+        },
+      },
+      alts: {
+        receipt: 'dekont',
+      },
+    },
+
+    photoUpdates: {
+      titles: {
+        tab: 'Fotoğraf Güncelleme İstekleri',
+        tabSubtitle: 'Kullanıcının yüklediği yeni fotoğrafları inceleyip onaylayın/reddedin.',
+      },
+      common: {
+        loading: 'Yükleniyor…',
+        empty: 'Kayıt yok.',
+        noPhoto: 'Foto yok.',
+      },
+      statuses: {
+        pending: 'Bekleyen',
+        approved: 'Onaylanan',
+        rejected: 'Reddedilen',
+      },
+      labels: {
+        shown: 'Gösterilen',
+        requestId: 'İstek',
+        userId: 'User ID',
+        applicationId: 'Başvuru',
+      },
+      actions: {
+        copy: 'Kopyala',
+        approve: 'Onayla',
+        reject: 'Reddet',
+      },
+      copy: {
+        copied: '{{what}} kopyalandı.',
+        failed: 'Kopyalanamadı.',
+        what: {
+          userId: 'User ID',
+          applicationId: 'Application ID',
+        },
+      },
+      confirms: {
+        approve: 'Bu fotoğraf güncellemesi ONAYLANACAK ve başvuru fotoğrafları değişecek. Devam edilsin mi?',
+        reject: 'Bu fotoğraf güncellemesi REDDEDİLECEK. Devam edilsin mi?',
+      },
+      messages: {
+        approved: 'Fotoğraf güncellemesi onaylandı.',
+        rejected: 'Fotoğraf güncellemesi reddedildi.',
+      },
+      errors: {
+        actionFailed: 'İşlem başarısız.',
+      },
+      alts: {
+        photo: 'Fotoğraf',
+      },
     },
   },
 
@@ -728,21 +1016,22 @@ export default {
       photo: {
         choose: 'Dosya seç',
         noFileChosen: 'Dosya seçilmedi',
+        uploaded: 'Yüklendi',
       },
       sections: {
         me: 'Ben',
         lookingFor: 'Aradığım',
+        details: 'Detaylar',
         moreDetails: 'Ek Bilgiler',
         partnerPreferences: 'Evleneceğim Kişide Aradıklarım',
       },
+      contactPrivacyNotice:
+        'İletişim bilgileriniz (WhatsApp/e-posta/Instagram) gizlidir. Form doldururken ve uygulamada herkese açık şekilde gösterilmez. Bu bilgiler yalnızca 48 saatlik aktif tanışma sürecinden sonra ve sizin onayınızla paylaşılabilir.',
       confirmGender: {
         title: 'Cinsiyet onayı',
         text: 'Kendi cinsiyetinizi "{{gender}}" olarak seçtiniz. Onaylıyor musunuz?',
         cancel: 'Vazgeç',
         confirm: 'Onayla',
-      },
-      hints: {
-        lookingForGenderAuto: 'Aradığınız cinsiyet, cinsiyet seçiminize göre otomatik ayarlanır.',
       },
       labels: {
         username: 'Kullanıcı adı',
@@ -789,6 +1078,7 @@ export default {
         foreignLanguages: 'Yabancı diller',
         foreignLanguageOther: 'Diğer yabancı dil (yazın)',
         communicationLanguages: 'Eş adayınızla nasıl anlaşmayı düşünüyorsunuz?',
+        communicationLanguageOther: 'İletişim dili (diğer - yazın)',
         smoking: 'Sigara kullanıyor musunuz?',
         alcohol: 'Alkol kullanıyor musunuz?',
         partnerCommunicationLanguages: 'Aradığınız kişiyle iletişim dili',
@@ -824,6 +1114,7 @@ export default {
         familyObstacleDetails: 'Kısaca açıklayın…',
         nativeLanguageOther: 'Örn: Fransızca',
         foreignLanguageOther: 'Örn: Fransızca',
+        communicationLanguageOther: 'Örn: Arapça',
         partnerCommunicationLanguageOther: 'Örn: Arapça',
         about: 'Kısaca kendinizi tanıtın (yaşam tarzı, dil, iş, aile planı vb.)',
         expectations: 'Örn: İletişim, yaşam tarzı, yaş/boy tercihi, aile değerleri…',
@@ -941,6 +1232,7 @@ export default {
         },
       },
       hints: {
+        lookingForGenderAuto: 'Aradığınız cinsiyet, cinsiyet seçiminize göre otomatik ayarlanır.',
         partnerAgeComputed: 'Seçiminize göre yaklaşık aralık: {{min}}–{{max}}',
         partnerAgeNeedsYourAge: 'Not: Yaş aralığını hesaplamak için yaşınızı doğru girin.',
         multiSelect: 'Birden fazla seçenek seçebilirsiniz.',
@@ -1294,6 +1586,7 @@ export default {
 
   common: {
     open: "Aç",
+    close: 'Kapat',
     loading: 'Yükleniyor…',
     downloadPdf: "PDF indir",
     learnMore: "Detaylar",
@@ -2000,6 +2293,7 @@ export default {
       whatsapp: 'WhatsApp’tan yaz',
       remove: 'Kaldır',
       sending: 'Gönderiliyor…',
+      canceling: 'İptal ediliyor…',
       pending: 'Beklemede…',
       accept: 'Onayla',
       accepted: 'Onay verdiniz',
@@ -2022,6 +2316,12 @@ export default {
       freeSlotConfirm: 'Bu adayı listenden çıkarıp yeni kayıt slotunu açmak istiyor musun? (Günlük 1 hak)',
       freeSlotSuccess: 'Slot boşaltıldı. {{creditGranted}} kredi tanımlandı. Yeni kayıt ({{threshold}}+ puan) gelene kadar slot boş kalacak. Yeni aday talebi için bekleme: {{remaining}}',
       removedCreditNotice: 'Bu eşleşme listenizden çıkarıldı. Yeni eşleşme isteme hakkınız için 1 kredi tanımlandı. Bekleme: {{remaining}}',
+    },
+    chat: {
+      inputPlaceholderShort: 'Kısa bir mesaj yaz…',
+      lock48h: {
+        approving: 'Onaylanıyor…',
+      },
     },
     profileForm: {
       loading: 'Form yükleniyor…',
@@ -2073,6 +2373,7 @@ export default {
       },
     },
     receipt: {
+      view: 'Dekontu görüntüle',
       errors: {
         uploadFailed: 'Dekont yüklenemedi. Lokal geliştirmede `npm run dev` (API+Web) çalıştığından ve Cloudinary server env’lerinin tanımlı olduğundan emin olun.',
       },
@@ -2092,6 +2393,7 @@ export default {
       otherUserMatched: 'Bu kişi başka biriyle eşleşmiş. Beğeni gönderemezsiniz.',
       alreadyMatched: 'Zaten bir eşleşmeniz var.',
       userLocked: 'Eşleşme süreciniz kilitli. Bu işlem yapılamaz.',
+      pendingContinueExists: 'Devam etmek için zaten bir aday seçtiniz. Önce o eşleşmede karar verin.',
       requestNewFailed: 'Yeni eşleşme talebi gönderilemedi.',
       requestNewRateLimited: 'Yeni eşleşme talebini çok sık gönderiyorsunuz. Lütfen daha sonra tekrar deneyin.',
       requestNewQuotaExhausted: 'Bugünkü yeni eşleşme hakkınız bitti (3/3). Yarın tekrar deneyin.',
@@ -2127,6 +2429,13 @@ export default {
       email: 'E-posta',
       instagram: 'Instagram',
       cityCountry: 'Şehir/Ülke',
+      readOnly: 'Bu alan şu anda değiştirilemez (salt okunur).',
+    },
+    contact: {
+      errors: {
+        fetchFailed: 'İletişim bilgileri alınamadı. Lütfen tekrar deneyin.',
+        notConfirmed: 'Bu eşleşme kesinleşmeden iletişim bilgileri görüntülenemez.',
+      },
     },
     statuses: {
       proposed: 'Teklif edildi',
@@ -2162,6 +2471,11 @@ export default {
     membership: {
       title: 'Üyelik durumu',
       active: 'Üyeliğiniz aktif.',
+      planLabels: {
+        eco: 'Eko',
+        standard: 'Standart',
+        pro: 'Pro',
+      },
       inactive: 'Üyelik aktif değil. Üyelik aktif olana kadar adayların tüm detaylarını göremez, beğeni/ret veremezsiniz.',
       inactiveMale: 'Üyelik aktif değil. Üyelik aktif olana kadar adayların tüm detaylarını göremez, beğeni/ret veremezsiniz.',
       inactiveFemale: 'Üyelik aktif değil. Eşleşme ve ön inceleme için üyelik gerekmez. İşlem yapabilmek için ücretsiz aktif üyelik başvurusu (kimlik doğrulama ile) veya ücretli üyelik gerekir.',
@@ -2290,6 +2604,10 @@ export default {
     },
     matches: {
       autoRunNotice: 'Otomatik eşleştirme sistemimiz yaklaşık her {{minutes}} dakikada bir çalışır. İsterseniz buradan manuel yeni eşleşme talep edebilirsiniz.',
+      cancelConfirm: 'Bu eşleşmeyi iptal ederseniz bu kişi eşleşme listenizden çıkarılacak. Onaylıyor musunuz?',
+      errors: {
+        activeLocked: 'Eşleşme sürecin kilitli. Bu işlem yapılamaz.',
+      },
       presence: {
         online: 'Çevrimiçi',
         lastSeen: 'Son aktif: {{time}}',
@@ -2416,6 +2734,7 @@ export default {
       },
       chat: {
         open: 'Mesajlar',
+        directMessage: 'Direkt mesaj',
         title: 'Site İçi Mesajlaşma',
         lead: 'Karar vermeden önce burada konuşabilirsiniz. İletişim/IG/FB/link paylaşımı engellenir.',
         enableNotifications: 'Bildirimleri aç',
@@ -2431,6 +2750,41 @@ export default {
         empty: 'Henüz mesaj yok. İlk mesajı siz atabilirsiniz.',
         placeholder: 'Mesaj yaz…',
         send: 'Gönder',
+        lockedByActive: {
+          title: 'Bu sohbet kapatıldı',
+          body:
+            'Bu mesaj aktif bir eşleşmeniz olduğu için kapatılmıştır. Her kullanıcının bir kişiyle konuşması evlilik amacı olan herkesin konuştuğu kişinin sadece kendisiyle konuştuğunu bilmesi için gereklidir. Diğer kişilerle mesajlaşmaya devam edebilmek için aktif eşleşmenizi sohbet ekranından iptal etmeniz gerekmektedir.',
+          cancelCta: 'Aktif eşleşmeyi iptal et',
+        },
+        system: {
+          contactRequest: {
+            mine: 'İletişim isteği gönderdin.',
+            other: 'Karşı taraf iletişim bilgilerini paylaşmak istiyor.',
+            approveHint: 'Onaylayınca telefon numaraları mesajlarda görünür.',
+          },
+          contactShared: 'İletişim bilgileri paylaşıldı:\n{{aWhatsapp}}\n{{bWhatsapp}}',
+        },
+        translate: {
+          title: 'Mesajı çevir',
+          cta: 'Çevir',
+          translating: 'Çevriliyor…',
+          billing: {
+            sponsored: 'Sponsorlu çeviri (maliyet karşı tarafa yansıtıldı)',
+            self: 'Çeviri kotandan düştü',
+          },
+          usageWarning: "Limitinin %{{usagePercent}}'ini kullandın.",
+          errors: {
+            quotaExceededWithUsage: "Limitinin %{{usagePercent}}'ini kullandın. Bu ay yenilenir veya Boost/plan yükselt.",
+            quotaExceeded: 'Çeviri limitin doldu. Bu ay yenilenir veya Boost/plan yükselt.',
+            tooLong: 'Bu mesaj çok uzun; çeviri için kısaltılmalı.',
+            onlyIncoming: 'Sadece gelen mesajlar çevrilebilir.',
+            authRequired: 'Oturum gerekli.',
+            notConfigured: 'Çeviri servisi ayarlı değil.',
+            rateLimited: 'Çeviri yoğun (Gemini dakikada 15 limit). 1 dakika sonra tekrar dene veya ücretli plana geç.',
+            piiBlocked: 'Kişisel/iletişim bilgisi içerdiği için otomatik çeviri yapılmadı. Lütfen bu bilgileri kaldır.',
+            failed: 'Çeviri başarısız.',
+          },
+        },
         continue: 'Devam edelim (Onay)',
         reject: 'Uymadı (Reddet)',
         proposedLimit: {
@@ -2481,6 +2835,7 @@ export default {
           verificationRequired: 'Mesajlaşma için kimlik doğrulaması gerekir.',
           limitReached: 'Mesaj limiti doldu. Karar vermeniz gerekiyor.',
           chatPaused: 'Bu sohbet geçici olarak beklemede.',
+          messageTooLong: 'Mesaj çok uzun. En fazla 240 karakter.',
           serverNotConfigured: 'Local sunucuda Firebase Admin ayarlı değil. .env.local içine FIREBASE_SERVICE_ACCOUNT_JSON_FILE ekleyip dev sürecini yeniden başlatın.',
           authRequired: 'Mesaj göndermek için giriş yapmanız gerekir. (Anonim hesapla olmaz.)',
           sendFailed: 'Mesaj gönderilemedi.',
@@ -2500,6 +2855,7 @@ export default {
           errors: {
             locked: '48 saat dolmadan kesinleştirilemez.',
             confirmRequired: 'İletişim için önce kesinleştirme onayı gereklidir.',
+            contactLocked: '48 saat dolmadan iletişim isteği gönderemezsin.',
           },
         },
       },

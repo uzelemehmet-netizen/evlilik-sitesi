@@ -34,19 +34,17 @@ export default async function handler(req, res) {
 
     // Etkileşim kuralı: cevap vermek de aksiyon sayılır.
     const meUserSnap = await db.collection('matchmakingUsers').doc(uid).get();
-    const meUser = meUserSnap.exists ? (meUserSnap.data() || {}) : {};
+    const meUser = meUserSnap.exists ? meUserSnap.data() || {} : {};
     ensureEligibleOrThrow(meUser, '');
 
     const requestId = `${fromUid}__${uid}`;
     const inboxRef = db.collection('matchmakingUsers').doc(uid).collection('inboxAccessRequests').doc(requestId);
     const outboxRef = db.collection('matchmakingUsers').doc(fromUid).collection('outboxAccessRequests').doc(requestId);
 
-    const grantedToMeRef = db.collection('matchmakingUsers').doc(uid).collection('profileAccessGranted').doc(fromUid);
-    const grantedToRequesterRef = db.collection('matchmakingUsers').doc(fromUid).collection('profileAccessGranted').doc(uid);
-
     const now = Date.now();
 
     let status = decision === 'approve' ? 'approved' : 'rejected';
+    let matchId = '';
     let shouldNotifyReject = false;
 
     await db.runTransaction(async (tx) => {
@@ -58,11 +56,19 @@ export default async function handler(req, res) {
       }
 
       const cur = inboxSnap.data() || {};
+      const curType = safeStr(cur?.type);
       const curStatus = safeStr(cur?.status);
+
+      if (curType && curType !== 'photo_access') {
+        const err = new Error('wrong_type');
+        err.statusCode = 400;
+        throw err;
+      }
 
       // Idempotent
       if (decision === 'approve' && curStatus === 'approved') {
         status = 'approved';
+        matchId = safeStr(cur?.matchId);
         return;
       }
       if (decision === 'reject' && curStatus === 'rejected') {
@@ -74,7 +80,14 @@ export default async function handler(req, res) {
         shouldNotifyReject = true;
       }
 
+      matchId = safeStr(cur?.matchId);
+      if (!matchId) {
+        const ids = [uid, fromUid].slice().sort();
+        matchId = `${ids[0]}__${ids[1]}`;
+      }
+
       const patch = {
+        type: 'photo_access',
         status,
         updatedAt: FieldValue.serverTimestamp(),
         updatedAtMs: now,
@@ -86,43 +99,42 @@ export default async function handler(req, res) {
       tx.set(inboxRef, patch, { merge: true });
       tx.set(outboxRef, patch, { merge: true });
 
-      if (decision === 'approve') {
-        tx.set(
-          grantedToMeRef,
-          {
-            status: 'granted',
-            otherUid: fromUid,
-            grantedAt: FieldValue.serverTimestamp(),
-            grantedAtMs: now,
-            updatedAt: FieldValue.serverTimestamp(),
-            updatedAtMs: now,
-            requestId,
-          },
-          { merge: true }
-        );
-        tx.set(
-          grantedToRequesterRef,
-          {
-            status: 'granted',
-            otherUid: uid,
-            grantedAt: FieldValue.serverTimestamp(),
-            grantedAtMs: now,
-            updatedAt: FieldValue.serverTimestamp(),
-            updatedAtMs: now,
-            requestId,
-          },
-          { merge: true }
-        );
-      } else {
-        // reject => revoke (best-effort)
-        tx.delete(grantedToMeRef);
-        tx.delete(grantedToRequesterRef);
+      const allow = decision === 'approve';
+
+      // Match üzerinde fotoğraf iznini aç/kapat.
+      const matchRef = db.collection('matchmakingMatches').doc(matchId);
+      const matchSnap = await tx.get(matchRef);
+      if (!matchSnap.exists) {
+        // Match silinmiş olabilir; yine de inbox/outbox status güncellemesi kalsın.
+        return;
       }
+
+      const match = matchSnap.data() || {};
+      const aUserId = safeStr(match?.aUserId);
+      const bUserId = safeStr(match?.bUserId);
+
+      const mySide = uid && aUserId === uid ? 'a' : uid && bUserId === uid ? 'b' : '';
+      if (!mySide) return;
+
+      // Kural: bu onay, benim fotoğraflarımın karşı tarafa açılmasıdır.
+      const existing = match?.photoAccess && typeof match.photoAccess === 'object' ? match.photoAccess : {};
+      const nextAccess = { ...existing };
+      if (mySide === 'a') nextAccess.aToB = allow;
+      else nextAccess.bToA = allow;
+
+      tx.set(
+        matchRef,
+        {
+          photoAccess: nextAccess,
+          updatedAt: FieldValue.serverTimestamp(),
+        },
+        { merge: true }
+      );
     });
 
     if (decision === 'reject' && shouldNotifyReject) {
       const systemProfile = { username: 'Sistem', age: null, city: '', photoUrl: '' };
-      const messageId = `notice_rejected__profile_access__${requestId}`;
+      const messageId = `notice_rejected__photo_access__${requestId}`;
       const msgRef = db.collection('matchmakingUsers').doc(fromUid).collection('inboxMessages').doc(messageId);
       const msg = {
         type: 'system_notice',
@@ -130,9 +142,9 @@ export default async function handler(req, res) {
         fromUid: 'system',
         toUid: fromUid,
         fromProfile: systemProfile,
-        text: 'Profil görme isteğiniz reddedildi.',
+        text: 'Fotoğraf görme isteğiniz reddedildi.',
         relatedRequestId: requestId,
-        relatedType: 'profile_access',
+        relatedType: 'photo_access',
         createdAt: FieldValue.serverTimestamp(),
         createdAtMs: now,
         readAtMs: 0,
@@ -144,7 +156,7 @@ export default async function handler(req, res) {
 
     res.statusCode = 200;
     res.setHeader('content-type', 'application/json');
-    res.end(JSON.stringify({ ok: true, status }));
+    res.end(JSON.stringify({ ok: true, status, matchId }));
   } catch (e) {
     res.statusCode = e?.statusCode || 500;
     res.setHeader('content-type', 'application/json');

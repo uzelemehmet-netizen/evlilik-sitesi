@@ -86,6 +86,9 @@ export default function StudioProfile() {
   const [textTouched, setTextTouched] = useState(false);
   const [textSaveState, setTextSaveState] = useState({ loading: false, error: '', success: '' });
 
+  const [photoPrivacyState, setPhotoPrivacyState] = useState({ loading: false, error: '' });
+  const [localPhotosBlurred, setLocalPhotosBlurred] = useState(null);
+
   const [topInlinePanel, setTopInlinePanel] = useState('');
 
   const applySource = String(location?.state?.from || '').trim();
@@ -224,6 +227,42 @@ export default function StudioProfile() {
     };
   }, [appLoading, latestApp, mmUser, t, user?.email]);
 
+  const photosBlurred = useMemo(() => {
+    if (typeof localPhotosBlurred === 'boolean') return localPhotosBlurred;
+    const v1 = mmUser?.publicProfile && typeof mmUser.publicProfile === 'object' ? mmUser.publicProfile.photosBlurred : undefined;
+    if (typeof v1 === 'boolean') return v1;
+    const v2 = mmUser?.photosBlurred;
+    if (typeof v2 === 'boolean') return v2;
+    return false;
+  }, [localPhotosBlurred, mmUser]);
+
+  useEffect(() => {
+    // Server'dan gelen değer geldiyse optimistic state'i senkronla.
+    const v1 = mmUser?.publicProfile && typeof mmUser.publicProfile === 'object' ? mmUser.publicProfile.photosBlurred : undefined;
+    const v2 = mmUser?.photosBlurred;
+    const serverVal = typeof v1 === 'boolean' ? v1 : typeof v2 === 'boolean' ? v2 : null;
+    if (typeof serverVal === 'boolean') setLocalPhotosBlurred(serverVal);
+  }, [mmUser]);
+
+  const setPhotosBlurred = async (next) => {
+    if (!uid) return;
+    if (photoPrivacyState.loading) return;
+
+    setPhotoPrivacyState({ loading: true, error: '' });
+    setLocalPhotosBlurred(!!next);
+    try {
+      await authFetch('/api/matchmaking-photo-blur-set', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ blur: !!next }),
+      });
+      setPhotoPrivacyState({ loading: false, error: '' });
+    } catch (e) {
+      const msg = safeStr(e?.message) || 'action_failed';
+      setPhotoPrivacyState({ loading: false, error: translateStudioApiError(t, msg) || msg });
+    }
+  };
+
   useEffect(() => {
     if (textTouched) return;
     setTextDraft({ about: profile.aboutText || '', expectations: profile.expectationsText || '' });
@@ -337,20 +376,54 @@ export default function StudioProfile() {
     setVerifyModalOpen(false);
   };
 
+  const normalizeDeleteConfirmText = (v) => {
+    const raw = String(v || '').trim();
+    try {
+      return i18n?.language === 'tr' ? raw.toLocaleLowerCase('tr-TR') : raw.toLocaleLowerCase();
+    } catch {
+      return raw.toLowerCase();
+    }
+  };
+
+  const isDeleteConfirmTextOk = (norm) => norm === 'hesabımı sil' || norm === 'hesabimi sil';
+
+  const deletePromptText = () => {
+    const phrase = 'Hesabımı sil';
+    const lang = String(i18n?.language || 'tr').toLowerCase();
+    if (lang === 'id') return `Ketik untuk konfirmasi: ${phrase}`;
+    if (lang === 'en') return `Type to confirm: ${phrase}`;
+    return `Lütfen onay için şunu yazın: ${phrase}`;
+  };
+
   const deleteAccount = async () => {
     if (deleteState.loading) return;
 
     const ok = typeof window !== 'undefined' ? window.confirm(t('studio.profile.confirmDelete')) : true;
     if (!ok) return;
 
+    const typed = typeof window !== 'undefined' ? window.prompt(deletePromptText()) : 'hesabımı sil';
+    if (typed === null) return;
+
+    const norm = normalizeDeleteConfirmText(typed);
+    if (!isDeleteConfirmTextOk(norm)) {
+      setDeleteState({ loading: false, error: deletePromptText() });
+      return;
+    }
+
     setDeleteState({ loading: true, error: '' });
     try {
       await authFetch('/api/matchmaking-account-delete', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({}),
+        body: JSON.stringify({ confirmText: norm, confirmFinal: true }),
       });
       setDeleteState({ loading: false, error: '' });
+
+      try {
+        await signOut(auth);
+      } catch {
+        // ignore
+      }
       navigate('/');
     } catch (e) {
       const msg = String(e?.message || '').trim();
@@ -468,6 +541,16 @@ export default function StudioProfile() {
                   {t('studio.profile.identityTitle')}
                 </button>
 
+                <button
+                  type="button"
+                  onClick={() => toggleTopInlinePanel('photoPrivacy')}
+                  className="inline-flex items-center justify-center rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 shadow-sm transition hover:bg-slate-50"
+                  title="Fotoğraf gizliliği"
+                >
+                  <UploadCloud className="mr-2 h-4 w-4 text-indigo-600" />
+                  Fotoğraf gizliliği
+                </button>
+
                 <Link
                   to="/app/matches"
                   className="inline-flex items-center justify-center rounded-md bg-emerald-600 px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700"
@@ -578,6 +661,49 @@ export default function StudioProfile() {
                         {t('studio.profile.verifyNow')}
                       </button>
                     </div>
+                  </div>
+                ) : null}
+
+                {topInlinePanel === 'photoPrivacy' ? (
+                  <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                    <h3 className="flex items-center gap-2 text-base font-semibold">
+                      <UploadCloud className="h-5 w-5 text-indigo-600" />
+                      Fotoğraf gizliliği
+                    </h3>
+
+                    <p className="mt-2 text-sm text-slate-600">
+                      Fotoğraflarınızı blurladığınızda, eşleşme kartlarında fotoğraflarınız bulanık görünür ve sadece izin
+                      verdiğiniz kişiler fotoğraflarınızı net görebilir.
+                    </p>
+
+                    {photoPrivacyState.error ? (
+                      <div className="mt-3 rounded-md border border-rose-200 bg-rose-50 p-2 text-sm text-rose-900">
+                        {photoPrivacyState.error}
+                      </div>
+                    ) : null}
+
+                    <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+                      <div className="text-sm font-semibold text-slate-800">Fotoğraflarımı blurla</div>
+                      <button
+                        type="button"
+                        onClick={() => setPhotosBlurred(!photosBlurred)}
+                        disabled={photoPrivacyState.loading}
+                        className={
+                          'inline-flex items-center justify-center rounded-full px-4 py-2 text-sm font-semibold transition disabled:opacity-60 ' +
+                          (photosBlurred ? 'bg-emerald-600 text-white hover:bg-emerald-700' : 'bg-slate-200 text-slate-900 hover:bg-slate-300')
+                        }
+                      >
+                        {photoPrivacyState.loading ? t('studio.common.processing') : photosBlurred ? 'Açık' : 'Kapalı'}
+                      </button>
+                    </div>
+
+                    {photosBlurred ? (
+                      <p className="mt-3 text-xs text-slate-600">
+                        Eşleşme listesinde her kartta “Fotoğraflarımı göster” butonuyla kişi bazında izin verebilirsiniz.
+                      </p>
+                    ) : (
+                      <p className="mt-3 text-xs text-slate-600">Blur kapalıyken eşleşme kartlarında ekstra izin butonu gösterilmez.</p>
+                    )}
                   </div>
                 ) : null}
               </div>

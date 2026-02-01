@@ -124,6 +124,7 @@ export default function StudioMatchProfile() {
   const [fullProfileState, setFullProfileState] = useState({ loading: false, error: '' });
 
   const [profileAccessReq, setProfileAccessReq] = useState({ loading: false, error: '', status: '' });
+  const [photoAccessReq, setPhotoAccessReq] = useState({ loading: false, error: '', status: '' });
 
   const scrollRef = useRef(null);
   const shortScrollRef = useRef(null);
@@ -277,6 +278,26 @@ export default function StudioMatchProfile() {
     const bId = safeStr(match?.bUserId);
     return otherSide === 'a' ? aId : bId;
   }, [match, mySide]);
+
+  const photoBlurByUid = useMemo(() => {
+    return match?.photoBlurByUid && typeof match.photoBlurByUid === 'object' ? match.photoBlurByUid : {};
+  }, [match]);
+
+  const photoAccess = useMemo(() => {
+    return match?.photoAccess && typeof match.photoAccess === 'object' ? match.photoAccess : {};
+  }, [match]);
+
+  const otherPhotosBlurred = !!(otherUid && photoBlurByUid?.[otherUid]);
+
+  const otherToMeAllowed = useMemo(() => {
+    if (!mySide || !otherUid) return false;
+    // Ben A'yım -> diğer B, B'nin fotoğrafları A'ya açık mı? (bToA)
+    if (mySide === 'a') return !!photoAccess?.bToA;
+    // Ben B'yim -> diğer A, A'nın fotoğrafları B'ye açık mı? (aToB)
+    return !!photoAccess?.aToB;
+  }, [mySide, otherUid, photoAccess]);
+
+  const canSeeOtherPhotos = !otherPhotosBlurred || otherToMeAllowed;
 
   // Match dokümanındaki `profiles` alanı intentionally minimal (server-side). Tam profil için endpoint.
   const otherMerged = useMemo(() => {
@@ -535,6 +556,26 @@ export default function StudioMatchProfile() {
       }
 
       setProfileAccessReq({ loading: false, error: friendly, status: '' });
+    }
+  };
+
+  const requestPhotoAccess = async () => {
+    if (!uid || !mid || !otherUid) return;
+    if (photoAccessReq.loading) return;
+    setPhotoAccessReq({ loading: true, error: '', status: '' });
+
+    try {
+      const data = await authFetch('/api/matchmaking-photo-access-request', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ matchId: mid }),
+      });
+      const status = safeStr(data?.status) || 'pending';
+      setPhotoAccessReq({ loading: false, error: '', status });
+    } catch (e) {
+      const msg = safeStr(e?.message) || 'request_failed';
+      const friendly = translateStudioApiError(t, msg) || msg;
+      setPhotoAccessReq({ loading: false, error: friendly, status: '' });
     }
   };
 
@@ -989,10 +1030,21 @@ export default function StudioMatchProfile() {
                     <img
                       src={visibleOtherPhotos[Math.min(profilePhotoIndex, visibleOtherPhotos.length - 1)]}
                       alt={t('studio.match.avatarAlt', { name: otherName })}
-                      className="h-64 w-full object-cover"
+                      className={
+                        'h-64 w-full object-cover ' +
+                        (otherPhotosBlurred && !canSeeOtherPhotos ? 'blur-[12px] saturate-[0.85]' : '')
+                      }
                       loading="lazy"
                       decoding="async"
                     />
+
+                    {otherPhotosBlurred && !canSeeOtherPhotos ? (
+                      <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+                        <div className="rounded-full bg-black/60 px-3 py-1.5 text-[12px] font-semibold text-white">
+                          Sadece izin verilenler görebilir
+                        </div>
+                      </div>
+                    ) : null}
 
                     {visibleOtherPhotos.length > 1 ? (
                       <div className="pointer-events-none absolute inset-x-0 bottom-2 flex items-center justify-center gap-1">
@@ -1030,6 +1082,64 @@ export default function StudioMatchProfile() {
                         </button>
                       </div>
                     ) : null}
+                  </div>
+                ) : null}
+
+                {otherPhotosBlurred && !canSeeOtherPhotos ? (
+                  <div className="mt-3 rounded-lg border border-slate-200 bg-white p-3">
+                    <p className="text-sm text-slate-700">Fotoğrafları görmek için karşı taraftan izin almalısın.</p>
+
+                    {photoAccessReq.error ? <p className="mt-2 text-sm text-rose-700">{photoAccessReq.error}</p> : null}
+                    {photoAccessReq.status ? (
+                      <p
+                        className={
+                          'mt-2 text-sm ' +
+                          (photoAccessReq.status === 'pending'
+                            ? 'text-emerald-700'
+                            : photoAccessReq.status === 'approved' || photoAccessReq.status === 'granted'
+                              ? 'text-emerald-700'
+                              : 'text-slate-600')
+                        }
+                      >
+                        {photoAccessReq.status === 'pending'
+                          ? 'İstek gönderildi (beklemede)'
+                          : photoAccessReq.status === 'approved'
+                            ? 'İstek onaylandı'
+                            : photoAccessReq.status === 'granted'
+                              ? 'İzin zaten verilmiş'
+                              : `Durum: ${photoAccessReq.status}`}
+                      </p>
+                    ) : null}
+
+                    <div className="mt-3 flex flex-wrap items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={requestPhotoAccess}
+                        disabled={
+                          photoAccessReq.loading ||
+                          photoAccessReq.status === 'pending' ||
+                          photoAccessReq.status === 'approved' ||
+                          photoAccessReq.status === 'granted'
+                        }
+                        className="inline-flex items-center justify-center rounded-md bg-emerald-600 px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 disabled:opacity-60"
+                      >
+                        {photoAccessReq.loading
+                          ? t('studio.common.processing')
+                          : photoAccessReq.status === 'pending'
+                            ? 'İstek gönderildi'
+                            : photoAccessReq.status === 'approved' || photoAccessReq.status === 'granted'
+                              ? 'İzin verildi'
+                              : 'Fotoğraf izni iste'}
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setProfileReloadKey((k) => k + 1)}
+                        className="inline-flex items-center justify-center rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 shadow-sm transition hover:bg-slate-50"
+                      >
+                        Yenile
+                      </button>
+                    </div>
                   </div>
                 ) : null}
 

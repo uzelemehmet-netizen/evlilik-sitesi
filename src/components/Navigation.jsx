@@ -13,6 +13,8 @@ export default function Navigation() {
   const showWedding = isFeatureEnabled('wedding');
   const isWeddingOnly = showWedding;
 
+  const isAdminRoute = (location.pathname || '').startsWith('/admin');
+
   const currentLang = (i18n.language || "tr").split("-")[0];
 
   // Aktif sayfayı kontrol et
@@ -102,8 +104,18 @@ export default function Navigation() {
           <div className="hidden md:flex flex-1 min-w-0 items-center justify-end">
             <div className="flex items-center gap-2 flex-nowrap overflow-x-auto min-w-0">
             <select
-              value={currentLang}
+              value={isAdminRoute ? 'tr' : currentLang}
               onChange={(e) => {
+                if (isAdminRoute) {
+                  try {
+                    localStorage.setItem('preferred_lang_source', 'selector');
+                  } catch {
+                    // ignore
+                  }
+                  i18n.changeLanguage('tr');
+                  return;
+                }
+
                 try {
                   localStorage.setItem('preferred_lang_source', 'selector');
                 } catch {
@@ -113,10 +125,11 @@ export default function Navigation() {
               }}
               className="px-2 py-1.5 rounded-full text-xs sm:text-sm font-semibold border border-emerald-200 bg-white text-slate-800 shadow-sm"
               aria-label="Dil seç"
+              disabled={isAdminRoute}
             >
               <option value="tr">TR</option>
-              <option value="en">EN</option>
-              <option value="id">ID</option>
+              {!isAdminRoute ? <option value="en">EN</option> : null}
+              {!isAdminRoute ? <option value="id">ID</option> : null}
             </select>
             <Link to="/" className={`px-2 sm:px-3 py-1.5 rounded-full text-xs sm:text-sm font-medium transition-all duration-200 shadow-md hover:shadow-lg whitespace-nowrap ${
               isActive('/') 
@@ -222,8 +235,18 @@ export default function Navigation() {
                 </label>
                 <select
                   id="mobile-lang-select"
-                  value={currentLang}
+                  value={isAdminRoute ? 'tr' : currentLang}
                   onChange={(e) => {
+                    if (isAdminRoute) {
+                      try {
+                        localStorage.setItem('preferred_lang_source', 'selector');
+                      } catch {
+                        // ignore
+                      }
+                      i18n.changeLanguage('tr');
+                      return;
+                    }
+
                     try {
                       localStorage.setItem('preferred_lang_source', 'selector');
                     } catch {
@@ -233,10 +256,11 @@ export default function Navigation() {
                   }}
                   className="w-full px-3 py-2 rounded-xl text-sm font-semibold border border-emerald-200 bg-white text-slate-800 shadow-sm"
                   aria-label={t('navigation.language')}
+                  disabled={isAdminRoute}
                 >
                   <option value="tr">TR</option>
-                  <option value="en">EN</option>
-                  <option value="id">ID</option>
+                  {!isAdminRoute ? <option value="en">EN</option> : null}
+                  {!isAdminRoute ? <option value="id">ID</option> : null}
                 </select>
               </div>
 

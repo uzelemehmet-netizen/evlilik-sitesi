@@ -45,12 +45,12 @@ export function translateStudioApiError(t, raw) {
   if (s === 'forbidden') return t('studio.errors.forbidden');
 
   // Chat translate
-  if (s === 'translate_too_long') return 'Bu mesaj çok uzun; çeviri için kısaltılmalı.';
-  if (s === 'only_incoming') return 'Sadece gelen mesajlar çevrilebilir.';
-  if (s === 'translate_not_configured') return 'Çeviri servisi ayarlı değil.';
-  if (s === 'translate_rate_limited') return 'Çeviri yoğun (Gemini dakikada 15 limit). 1 dakika sonra tekrar dene veya ücretli plana geç.';
-  if (s === 'pii_blocked') return 'Kişisel/iletişim bilgisi içerdiği için otomatik çeviri yapılmadı.';
-  if (s === 'translate_failed') return 'Çeviri başarısız.';
+  if (s === 'translate_too_long') return t('studio.matchProfile.translate.errors.tooLong');
+  if (s === 'only_incoming') return t('studio.matchProfile.translate.errors.onlyIncoming');
+  if (s === 'translate_not_configured') return t('studio.matchProfile.translate.errors.notConfigured');
+  if (s === 'translate_rate_limited') return t('studio.matchProfile.translate.errors.rateLimited');
+  if (s === 'pii_blocked') return t('studio.matchProfile.translate.errors.piiBlocked');
+  if (s === 'translate_failed') return t('studio.matchProfile.translate.errors.failed');
 
   const cooldown = /^cancel_cooldown_(\d+)m$/.exec(s);
   if (cooldown) {

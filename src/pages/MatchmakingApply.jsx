@@ -2334,6 +2334,14 @@ export default function MatchmakingApply() {
                   </div>
                 </div>
                 <p className="mt-2 text-xs text-white/60 md:text-slate-600">{t('matchmakingPage.form.photoHint')}</p>
+                <div
+                  className="mt-3 rounded-xl border border-amber-300/30 bg-amber-500/10 p-3 text-xs text-amber-100 md:border-amber-200 md:bg-amber-50 md:text-amber-900"
+                  role="note"
+                >
+                  Bu alanda fotoğraf yüklemek zorunludur. Ancak formu doldurup profilinizi oluşturduktan sonra, kendi profil
+                  sayfanızdan fotoğraflarınızı blurlayıp sadece izin verdiğiniz kişilerin görmesini sağlayabilirsiniz.
+                  Fotoğraf yükleme zorunluluğu sadece kimlik doğrulamalarında sistemin doğrulama yapabilmesi içindir.
+                </div>
               </>
             )}
           </div>

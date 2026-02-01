@@ -28,6 +28,8 @@
     "build": "vite build",
     "build:full": "node scripts/generate-brochure-pdfs.mjs && vite build",
     "preview": "vite preview",
+    "i18n:audit": "node scripts/i18n-audit.mjs",
+    "i18n:usage": "node scripts/i18n-usage-audit.mjs",
     "lint": "node -e \"console.log('lint bilinçli olarak kapalı (performans için). İstersen: npm run lint:full')\"",
     "lint:full": "eslint --cache --cache-location .eslintcache \"src/**/*.{js,jsx}\""
   },

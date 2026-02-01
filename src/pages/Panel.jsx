@@ -480,9 +480,7 @@ export default function Panel() {
     if (!id) return;
     if (matchCancelById?.[id]?.loading) return;
 
-    const ok = typeof window !== 'undefined'
-      ? window.confirm('Bu eşleşmeyi iptal ederseniz bu kişi eşleşme listenizden çıkarılacak. Onaylıyor musunuz?')
-      : true;
+    const ok = typeof window !== 'undefined' ? window.confirm(t('matchmakingPanel.matches.cancelConfirm')) : true;
     if (!ok) return;
 
     setMatchCancelById((p) => ({ ...p, [id]: { loading: true, error: '' } }));
@@ -502,7 +500,14 @@ export default function Panel() {
   const membershipStatusText = useMemo(() => {
     if (myMembership.active) {
       let s = t('matchmakingPanel.membership.active');
-      const planLabel = myMembership.plan === 'pro' ? 'Pro' : myMembership.plan === 'standard' ? 'Standart' : myMembership.plan === 'eco' ? 'Eko' : '';
+      const planLabel =
+        myMembership.plan === 'pro'
+          ? t('matchmakingPanel.membership.planLabels.pro')
+          : myMembership.plan === 'standard'
+            ? t('matchmakingPanel.membership.planLabels.standard')
+            : myMembership.plan === 'eco'
+              ? t('matchmakingPanel.membership.planLabels.eco')
+              : '';
       if (planLabel) s += ` (${planLabel})`;
       if (typeof myMembership.daysLeft === 'number' && myMembership.daysLeft > 0) {
         s += ` ${t('matchmakingPanel.membership.daysLeft', { count: myMembership.daysLeft })}`;
@@ -964,17 +969,17 @@ export default function Panel() {
       const days = Math.floor(diff / 86400000);
 
       const timeText = (() => {
-        if (mins <= 1) return lang.startsWith('en') ? 'just now' : lang.startsWith('id') ? 'baru saja' : 'az önce';
-        if (mins < 60) return lang.startsWith('en') ? `${mins} min ago` : lang.startsWith('id') ? `${mins} mnt lalu` : `${mins} dk önce`;
-        if (hours < 24) return lang.startsWith('en') ? `${hours} h ago` : lang.startsWith('id') ? `${hours} jam lalu` : `${hours} sa önce`;
-
         const locale = lang.startsWith('id') ? 'id-ID' : lang.startsWith('en') ? 'en-US' : 'tr-TR';
         try {
+          const rtf = new Intl.RelativeTimeFormat(locale, { numeric: 'auto' });
+          if (mins <= 1) return rtf.format(0, 'minute');
+          if (mins < 60) return rtf.format(-mins, 'minute');
+          if (hours < 24) return rtf.format(-hours, 'hour');
+          if (days > 0 && days < 14) return rtf.format(-days, 'day');
+
           return new Intl.DateTimeFormat(locale, { year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(ms));
         } catch {
-          return days > 0
-            ? (lang.startsWith('en') ? `${days} d ago` : lang.startsWith('id') ? `${days} hari lalu` : `${days} gün önce`)
-            : (lang.startsWith('en') ? 'recently' : lang.startsWith('id') ? 'baru-baru ini' : 'yakın zamanda');
+          return new Date(ms).toLocaleDateString();
         }
       })();
 
@@ -2020,7 +2025,7 @@ export default function Panel() {
       const msg = String(e?.message || '').trim();
       const mapped =
         msg === 'contact_locked'
-          ? '48 saat dolmadan iletişim isteği gönderemezsin.'
+          ? t('matchmakingPanel.matches.chat.confirm48h.errors.contactLocked')
           : msg === 'confirm_required'
             ? t('matchmakingPanel.matches.chat.confirm48h.errors.confirmRequired')
           : msg === 'membership_required'
@@ -2400,11 +2405,9 @@ export default function Panel() {
 
         {lockedByActiveMatch ? (
           <div className="mt-3 rounded-xl border border-amber-300/30 bg-amber-500/10 p-3 text-amber-100 text-sm">
-            <p className="font-semibold">Bu sohbet kapatıldı</p>
+            <p className="font-semibold">{t('matchmakingPanel.matches.chat.lockedByActive.title')}</p>
             <p className="mt-1 text-white/80">
-              Bu mesaj aktif bir eşleşmeniz olduğu için kapatılmıştır. Her kullanıcının bir kişiyle konuşması evlilik amacı olan herkesin konuştuğu kişinin sadece
-              kendisiyle konuştuğunu bilmesi için gereklidir. Diğer kişilerle mesajlaşmaya devam edebilmek için aktif eşleşmenizi sohbet ekranından iptal etmeniz
-              gerekmektedir.
+              {t('matchmakingPanel.matches.chat.lockedByActive.body')}
             </p>
             {lockInfo.matchId ? (
               <div className="mt-3 flex flex-col sm:flex-row gap-2">
@@ -2414,7 +2417,9 @@ export default function Panel() {
                   disabled={!!matchCancelById?.[lockInfo.matchId]?.loading}
                   className="px-4 py-2 rounded-full bg-rose-600 text-white text-sm font-semibold hover:bg-rose-700 disabled:opacity-60"
                 >
-                  {matchCancelById?.[lockInfo.matchId]?.loading ? 'İptal ediliyor…' : 'Aktif eşleşmeyi iptal et'}
+                  {matchCancelById?.[lockInfo.matchId]?.loading
+                    ? t('matchmakingPanel.actions.canceling')
+                    : t('matchmakingPanel.matches.chat.lockedByActive.cancelCta')}
                 </button>
                 {matchCancelById?.[lockInfo.matchId]?.error ? (
                   <div className="rounded-lg border border-rose-300/30 bg-rose-500/10 p-2 text-rose-100 text-xs">
@@ -2560,14 +2565,16 @@ export default function Panel() {
                     if (!isSystem) return msg?.text || '';
 
                     if (systemType === 'contact_request') {
-                      return mine ? 'İletişim isteği gönderdin.' : 'Karşı taraf iletişim bilgilerini paylaşmak istiyor.';
+                      return mine
+                        ? t('matchmakingPanel.matches.chat.system.contactRequest.mine')
+                        : t('matchmakingPanel.matches.chat.system.contactRequest.other');
                     }
 
                     if (systemType === 'contact_shared') {
                       const c = msg?.contact && typeof msg.contact === 'object' ? msg.contact : {};
                       const aW = String(c?.aWhatsapp || '').trim() || '-';
                       const bW = String(c?.bWhatsapp || '').trim() || '-';
-                      return `İletişim bilgileri paylaşıldı:\n${aW}\n${bW}`;
+                      return t('matchmakingPanel.matches.chat.system.contactShared', { aWhatsapp: aW, bWhatsapp: bW });
                     }
 
                     return msg?.text || '';
@@ -2623,9 +2630,9 @@ export default function Panel() {
                             onClick={() => approveContactShare(matchId)}
                             className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-600 text-white text-xs font-semibold hover:bg-emerald-700 disabled:opacity-60"
                           >
-                            {approveLoading ? 'Onaylanıyor…' : 'Onayla'}
+                            {approveLoading ? t('matchmakingPanel.chat.lock48h.approving') : t('matchmakingPanel.actions.accept')}
                           </button>
-                          <div className="mt-1 text-[11px] text-white/60">Onaylayınca telefon numaraları mesajlarda görünür.</div>
+                          <div className="mt-1 text-[11px] text-white/60">{t('matchmakingPanel.matches.chat.system.contactRequest.approveHint')}</div>
                         </div>
                       ) : null}
 
@@ -2639,9 +2646,9 @@ export default function Panel() {
                               {translateBillingMode ? (
                                 <div className="mt-1 text-[11px] text-white/60">
                                   {translateBillingMode === 'sponsored'
-                                    ? 'Sponsorlu çeviri (maliyet karşı tarafa yansıtıldı)'
+                                    ? t('matchmakingPanel.matches.chat.translate.billing.sponsored')
                                     : translateBillingMode === 'self'
-                                      ? 'Çeviri kotandan düştü'
+                                      ? t('matchmakingPanel.matches.chat.translate.billing.self')
                                       : ''}
                                 </div>
                               ) : null}
@@ -2652,9 +2659,9 @@ export default function Panel() {
                               onClick={() => translateIncomingMessageForMatch(matchId, msg.id)}
                               disabled={blocked || translating}
                               className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-white/15 bg-white/5 text-white/85 text-xs font-semibold hover:bg-white/[0.12] disabled:opacity-60"
-                              title="Mesajı çevir"
+                              title={t('matchmakingPanel.matches.chat.translate.title')}
                             >
-                              {translating ? 'Çevriliyor…' : 'Çevir'}
+                              {translating ? t('matchmakingPanel.matches.chat.translate.translating') : t('matchmakingPanel.matches.chat.translate.cta')}
                             </button>
                           )}
 
@@ -2662,26 +2669,28 @@ export default function Panel() {
                             <div className="mt-1 text-[11px] text-rose-200/90">
                               {(() => {
                                 if (translateErr === 'translate_quota_exceeded') {
-                                  if (translateUsagePercent !== null) return `Limitinin %${translateUsagePercent}'ini kullandın. Bu ay yenilenir veya Boost/plan yükselt.`;
-                                  return 'Çeviri limitin doldu. Bu ay yenilenir veya Boost/plan yükselt.';
+                                  if (translateUsagePercent !== null) {
+                                    return t('matchmakingPanel.matches.chat.translate.errors.quotaExceededWithUsage', { usagePercent: translateUsagePercent });
+                                  }
+                                  return t('matchmakingPanel.matches.chat.translate.errors.quotaExceeded');
                                 }
                                 if (translateErr === 'chat_limit_reached') return t('matchmakingPanel.matches.chat.errors.limitReached');
-                                if (translateErr === 'translate_too_long') return 'Bu mesaj çok uzun; çeviri için kısaltılmalı.';
-                                if (translateErr === 'only_incoming') return 'Sadece gelen mesajlar çevrilebilir.';
-                                if (translateErr === 'missing_auth' || translateErr === 'invalid_auth') return 'Oturum gerekli.';
-                                if (translateErr === 'translate_not_configured') return 'Çeviri servisi ayarlı değil.';
+                                if (translateErr === 'translate_too_long') return t('matchmakingPanel.matches.chat.translate.errors.tooLong');
+                                if (translateErr === 'only_incoming') return t('matchmakingPanel.matches.chat.translate.errors.onlyIncoming');
+                                if (translateErr === 'missing_auth' || translateErr === 'invalid_auth') return t('matchmakingPanel.matches.chat.translate.errors.authRequired');
+                                if (translateErr === 'translate_not_configured') return t('matchmakingPanel.matches.chat.translate.errors.notConfigured');
                                 if (translateErr === 'translate_rate_limited')
-                                  return 'Çeviri yoğun (Gemini dakikada 15 limit). 1 dakika sonra tekrar dene veya ücretli plana geç.';
+                                  return t('matchmakingPanel.matches.chat.translate.errors.rateLimited');
                                 if (translateErr === 'pii_blocked')
-                                  return 'Kişisel/iletişim bilgisi içerdiği için otomatik çeviri yapılmadı. Lütfen bu bilgileri kaldır.';
-                                return 'Çeviri başarısız.';
+                                  return t('matchmakingPanel.matches.chat.translate.errors.piiBlocked');
+                                return t('matchmakingPanel.matches.chat.translate.errors.failed');
                               })()}
                             </div>
                           ) : null}
 
                           {!translateErr && translateUsagePercent !== null && translateUsagePercent >= 70 ? (
                             <div className="mt-1 text-[11px] text-white/70">
-                              {`Limitinin %${translateUsagePercent}'ini kullandın.`}
+                              {t('matchmakingPanel.matches.chat.translate.usageWarning', { usagePercent: translateUsagePercent })}
                             </div>
                           ) : null}
                         </div>
@@ -6169,9 +6178,9 @@ export default function Panel() {
                                           ? 'bg-gradient-to-r from-amber-400/25 to-amber-200/10 text-amber-100 ring-amber-300/25 hover:from-amber-400/35 hover:to-amber-200/15'
                                           : 'bg-gradient-to-r from-sky-400/25 to-indigo-400/10 text-sky-100 ring-sky-300/25 hover:from-sky-400/35 hover:to-indigo-400/15')
                                       }
-                                      title="Direkt mesaj"
+                                      title={t('matchmakingPanel.matches.chat.directMessage')}
                                     >
-                                      Direkt mesaj
+                                      {t('matchmakingPanel.matches.chat.directMessage')}
                                       {unreadCount > 0 ? (
                                         <span className="ml-2 inline-flex items-center rounded-full bg-rose-500/15 border border-rose-300/30 px-2 py-0.5 text-[10px] font-extrabold text-rose-100">
                                           {unreadCount}
@@ -7004,7 +7013,7 @@ export default function Panel() {
                                     <>
                                       {lockInfo.active && lockInfo.matchId && lockInfo.matchId !== m.id ? (
                                         <div className="mt-2 rounded-lg border border-amber-300/30 bg-amber-500/10 p-2 text-amber-100 text-xs">
-                                          Aktif eşleşmeniz sonlanmadan başka eşleşmeye mesaj gönderemezsiniz.
+                                          {t('matchmakingPanel.matches.errors.activeLocked')}
                                         </div>
                                       ) : null}
 
@@ -7013,7 +7022,7 @@ export default function Panel() {
                                         onChange={(e) => setChatTextByMatchId((p) => ({ ...p, [m.id]: e.target.value }))}
                                         rows={3}
                                         className="mt-2 w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-white/40 outline-none focus:ring-2 focus:ring-white/20"
-                                        placeholder="Kısa bir mesaj yaz..."
+                                        placeholder={t('matchmakingPanel.chat.inputPlaceholderShort')}
                                         disabled={
                                           (lockInfo.active && lockInfo.matchId && lockInfo.matchId !== m.id) ||
                                           (typeof m?.proposedChatLimitReachedAtMs === 'number' && m.proposedChatLimitReachedAtMs > 0)
@@ -7030,19 +7039,19 @@ export default function Panel() {
                                           }
                                           className="px-4 py-2 rounded-full bg-sky-700 text-white text-sm font-semibold hover:bg-sky-800 disabled:opacity-60"
                                         >
-                                          {chatSendByMatchId?.[m.id]?.loading ? t('matchmakingPanel.actions.sending') : 'Gönder'}
+                                          {chatSendByMatchId?.[m.id]?.loading ? t('matchmakingPanel.actions.sending') : t('matchmakingPanel.matches.chat.send')}
                                         </button>
                                         {chatSendByMatchId?.[m.id]?.error ? (
                                           <p className="text-xs text-rose-200/90">
                                             {(() => {
                                               const code = String(chatSendByMatchId?.[m.id]?.error || '').trim();
-                                              if (code === 'user_locked') return 'Aktif eşleşmeniz sonlanmadan başka eşleşmeye mesaj gönderemezsiniz.';
-                                              if (code === 'membership_required') return 'Ücretli üyelik olmadan mesaj gönderemezsiniz.';
+                                              if (code === 'user_locked') return t('matchmakingPanel.matches.errors.activeLocked');
+                                              if (code === 'membership_required') return t('matchmakingPanel.matches.chat.errors.membershipRequired');
                                               if (code === 'chat_limit_reached') return t('matchmakingPanel.matches.chat.errors.limitReached');
-                                              if (code === 'chat_not_enabled') return 'Bu eşleşmede sohbet henüz aktif değil.';
+                                              if (code === 'chat_not_enabled') return t('matchmakingPanel.matches.chat.errors.notEnabled');
                                               if (code === 'filtered') return t('matchmakingPanel.matches.chat.errors.filtered');
                                               if (code === 'message_too_long') return t('matchmakingPanel.matches.chat.errors.messageTooLong');
-                                              return 'Mesaj gönderilemedi.';
+                                              return t('matchmakingPanel.matches.chat.errors.sendFailed');
                                             })()}
                                           </p>
                                         ) : null}

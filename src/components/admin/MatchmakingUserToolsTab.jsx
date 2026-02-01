@@ -1,12 +1,13 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { collection, doc, getDoc, getDocs, limit, orderBy, query, serverTimestamp, setDoc, where } from 'firebase/firestore';
+import { useTranslation } from 'react-i18next';
 import { db } from '../../config/firebase';
 import { authFetch } from '../../utils/authFetch';
 
-function fmtDateTimeTr(ms) {
+function fmtDateTime(ms, locale) {
   try {
     if (!ms || typeof ms !== 'number') return '-';
-    return new Intl.DateTimeFormat('tr-TR', {
+    return new Intl.DateTimeFormat(locale || 'en-US', {
       year: 'numeric',
       month: '2-digit',
       day: '2-digit',
@@ -51,11 +52,20 @@ function computeCancelInfo(userDoc) {
 }
 
 export default function MatchmakingUserToolsTab() {
+  const { t, i18n } = useTranslation();
+
   const [userId, setUserId] = useState('');
   const [loading, setLoading] = useState(false);
   const [acting, setActing] = useState(false);
   const [err, setErr] = useState('');
   const [msg, setMsg] = useState('');
+
+  const locale = useMemo(() => {
+    const lang = String(i18n.language || '').toLowerCase();
+    if (lang.startsWith('tr')) return 'tr-TR';
+    if (lang.startsWith('id')) return 'id-ID';
+    return 'en-US';
+  }, [i18n.language]);
 
   const [userDoc, setUserDoc] = useState(null);
   const [applicationDoc, setApplicationDoc] = useState(null);
@@ -108,7 +118,7 @@ export default function MatchmakingUserToolsTab() {
   const reload = async () => {
     const input = trimmedUserId;
     if (!input) {
-      setErr('User ID girin.');
+      setErr(t('admin.userTools.errors.userIdRequired'));
       return;
     }
 
@@ -127,7 +137,7 @@ export default function MatchmakingUserToolsTab() {
           setUserDoc(null);
           setApplicationDoc(null);
           setStats(null);
-          setErr('Bu MK kodu için başvuru bulunamadı.');
+          setErr(t('admin.userTools.errors.applicationNotFoundForMk'));
           return;
         }
         const d = snapApp.docs[0];
@@ -137,7 +147,7 @@ export default function MatchmakingUserToolsTab() {
         if (!u) {
           setUserDoc(null);
           setStats(null);
-          setErr('Başvuru bulundu ama userId yok.');
+          setErr(t('admin.userTools.errors.applicationMissingUserId'));
           return;
         }
         resolvedUid = u;
@@ -171,7 +181,7 @@ export default function MatchmakingUserToolsTab() {
         setStats(null);
       }
     } catch (e) {
-      setErr(String(e?.message || 'Kullanıcı okunamadı.'));
+      setErr(String(e?.message || t('admin.userTools.errors.userReadFailed')));
       setUserDoc(null);
       setApplicationDoc(null);
       setStats(null);
@@ -192,7 +202,9 @@ export default function MatchmakingUserToolsTab() {
     setErr('');
     setMsg('');
     try {
-      const reason = nextBlocked ? (window.prompt('Engelleme nedeni (opsiyonel):', '') || '').trim() : '';
+      const reason = nextBlocked
+        ? (window.prompt(t('admin.userTools.prompts.blockReason'), '') || '').trim()
+        : '';
 
       await setDoc(
         doc(db, 'matchmakingUsers', uid),
@@ -205,10 +217,10 @@ export default function MatchmakingUserToolsTab() {
         { merge: true }
       );
 
-      setMsg(nextBlocked ? 'Kullanıcı engellendi.' : 'Kullanıcının engeli kaldırıldı.');
+      setMsg(nextBlocked ? t('admin.userTools.messages.userBlocked') : t('admin.userTools.messages.userUnblocked'));
       await reload();
     } catch (e) {
-      setErr(String(e?.message || 'İşlem başarısız.'));
+      setErr(String(e?.message || t('admin.userTools.errors.actionFailed')));
     } finally {
       setActing(false);
     }
@@ -222,7 +234,10 @@ export default function MatchmakingUserToolsTab() {
     setErr('');
     setMsg('');
     try {
-      const note = (window.prompt('Not (opsiyonel):', 'WhatsApp doğrulama') || '').trim();
+      const note = (
+        window.prompt(t('admin.userTools.prompts.noteOptional'), t('admin.userTools.defaults.whatsappVerificationNote')) ||
+        ''
+      ).trim();
       await authFetch('/api/matchmaking-admin-identity-verify', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
@@ -234,10 +249,10 @@ export default function MatchmakingUserToolsTab() {
         }),
       });
 
-      setMsg('Kullanıcı WhatsApp doğrulaması ile doğrulandı.');
+      setMsg(t('admin.userTools.messages.whatsappVerified'));
       await reload();
     } catch (e) {
-      setErr(String(e?.message || 'İşlem başarısız.'));
+      setErr(String(e?.message || t('admin.userTools.errors.actionFailed')));
     } finally {
       setActing(false);
     }
@@ -249,11 +264,11 @@ export default function MatchmakingUserToolsTab() {
 
     const days = Number(membershipDays);
     if (!Number.isFinite(days) || days <= 0 || days > 365) {
-      setErr('Gün sayısı 1–365 arası olmalı.');
+      setErr(t('admin.userTools.errors.daysRange'));
       return;
     }
 
-    const ok = window.confirm(`Bu kullanıcıya ${days} gün üyelik tanımlansın mı?`);
+    const ok = window.confirm(t('admin.userTools.confirms.grantMembershipDays', { days }));
     if (!ok) return;
 
     setActing(true);
@@ -277,10 +292,10 @@ export default function MatchmakingUserToolsTab() {
         { merge: true }
       );
 
-      setMsg(`Üyelik aktif edildi. Bitiş: ${fmtDateTimeTr(validUntilMs)}`);
+      setMsg(t('admin.userTools.messages.membershipGranted', { until: fmtDateTime(validUntilMs, locale) }));
       await reload();
     } catch (e) {
-      setErr(String(e?.message || 'İşlem başarısız.'));
+      setErr(String(e?.message || t('admin.userTools.errors.actionFailed')));
     } finally {
       setActing(false);
     }
@@ -290,7 +305,7 @@ export default function MatchmakingUserToolsTab() {
     const uid = trimmedUserId;
     if (!uid) return;
 
-    const ok = window.confirm('Bu kullanıcının ücretli üyeliği pasif edilsin mi?');
+    const ok = window.confirm(t('admin.userTools.confirms.revokeMembership'));
     if (!ok) return;
 
     setActing(true);
@@ -311,10 +326,10 @@ export default function MatchmakingUserToolsTab() {
         { merge: true }
       );
 
-      setMsg('Üyelik pasif edildi.');
+      setMsg(t('admin.userTools.messages.membershipRevoked'));
       await reload();
     } catch (e) {
-      setErr(String(e?.message || 'İşlem başarısız.'));
+      setErr(String(e?.message || t('admin.userTools.errors.actionFailed')));
     } finally {
       setActing(false);
     }
@@ -326,17 +341,17 @@ export default function MatchmakingUserToolsTab() {
 
     const days = Number(translationPackDays);
     if (!Number.isFinite(days) || days <= 0 || days > 365) {
-      setErr('Gün sayısı 1–365 arası olmalı.');
+      setErr(t('admin.userTools.errors.daysRange'));
       return;
     }
 
     const tier = String(translationPackTier || '').toLowerCase().trim();
     if (tier !== 'standard' && tier !== 'pro') {
-      setErr('Paket türü standard veya pro olmalı.');
+      setErr(t('admin.userTools.errors.translationTierInvalid'));
       return;
     }
 
-    const ok = window.confirm(`Bu kullanıcıya ${days} gün çeviri paketi tanımlansın mı?`);
+    const ok = window.confirm(t('admin.userTools.confirms.grantTranslationPackDays', { days }));
     if (!ok) return;
 
     setActing(true);
@@ -360,10 +375,10 @@ export default function MatchmakingUserToolsTab() {
         { merge: true }
       );
 
-      setMsg(`Çeviri paketi aktif edildi. Bitiş: ${fmtDateTimeTr(validUntilMs)}`);
+      setMsg(t('admin.userTools.messages.translationPackGranted', { until: fmtDateTime(validUntilMs, locale) }));
       await reload();
     } catch (e) {
-      setErr(String(e?.message || 'İşlem başarısız.'));
+      setErr(String(e?.message || t('admin.userTools.errors.actionFailed')));
     } finally {
       setActing(false);
     }
@@ -373,7 +388,7 @@ export default function MatchmakingUserToolsTab() {
     const uid = trimmedUserId;
     if (!uid) return;
 
-    const ok = window.confirm('Bu kullanıcının çeviri paketi pasif edilsin mi?');
+    const ok = window.confirm(t('admin.userTools.confirms.revokeTranslationPack'));
     if (!ok) return;
 
     setActing(true);
@@ -394,10 +409,10 @@ export default function MatchmakingUserToolsTab() {
         { merge: true }
       );
 
-      setMsg('Çeviri paketi pasif edildi.');
+      setMsg(t('admin.userTools.messages.translationPackRevoked'));
       await reload();
     } catch (e) {
-      setErr(String(e?.message || 'İşlem başarısız.'));
+      setErr(String(e?.message || t('admin.userTools.errors.actionFailed')));
     } finally {
       setActing(false);
     }
@@ -407,9 +422,7 @@ export default function MatchmakingUserToolsTab() {
     const uid = trimmedUserId;
     if (!uid) return;
 
-    const ok = window.confirm(
-      'Ücretsiz aktif üyelik (freeActiveMembership) sıfırlansın mı? (blocked=false, active=false, sayaçlar=0)'
-    );
+    const ok = window.confirm(t('admin.userTools.confirms.resetFreeActiveMembership'));
     if (!ok) return;
 
     setActing(true);
@@ -436,10 +449,10 @@ export default function MatchmakingUserToolsTab() {
         { merge: true }
       );
 
-      setMsg('Ücretsiz aktif üyelik durumu sıfırlandı.');
+      setMsg(t('admin.userTools.messages.freeActiveReset'));
       await reload();
     } catch (e) {
-      setErr(String(e?.message || 'İşlem başarısız.'));
+      setErr(String(e?.message || t('admin.userTools.errors.actionFailed')));
     } finally {
       setActing(false);
     }

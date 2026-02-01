@@ -74,6 +74,8 @@ export default function StudioMatchCard({
   const navigate = useNavigate();
   const [likeState, setLikeState] = useState({ loading: false, error: '' });
   const [activeStartState, setActiveStartState] = useState({ loading: false, error: '', notice: '' });
+  const [photoAccessState, setPhotoAccessState] = useState({ loading: false, error: '' });
+  const [photoRequestState, setPhotoRequestState] = useState({ loading: false, error: '', status: '' });
   const [photoIndex, setPhotoIndex] = useState(0);
 
   const other = useMemo(() => {
@@ -149,6 +151,88 @@ export default function StudioMatchCard({
     if (currentUid && bId === currentUid) return 'b';
     return '';
   }, [currentUid, match]);
+
+  const otherUid = useMemo(() => {
+    const aId = safeStr(match?.aUserId);
+    const bId = safeStr(match?.bUserId);
+    if (!currentUid) return '';
+    if (aId && aId === currentUid) return bId;
+    if (bId && bId === currentUid) return aId;
+    return '';
+  }, [currentUid, match]);
+
+  const photoBlurByUid = useMemo(() => {
+    return match?.photoBlurByUid && typeof match.photoBlurByUid === 'object' ? match.photoBlurByUid : {};
+  }, [match]);
+
+  const photoAccess = useMemo(() => {
+    return match?.photoAccess && typeof match.photoAccess === 'object' ? match.photoAccess : {};
+  }, [match]);
+
+  const myPhotosBlurred = !!(currentUid && photoBlurByUid?.[String(currentUid).trim()]);
+  const otherPhotosBlurred = !!(otherUid && photoBlurByUid?.[otherUid]);
+
+  const myToOtherAllowed = useMemo(() => {
+    if (!mySide || !otherUid) return false;
+    // aToB: A'nın fotoğrafları B'ye açık mı?
+    if (mySide === 'a') return !!photoAccess?.aToB;
+    return !!photoAccess?.bToA;
+  }, [mySide, otherUid, photoAccess]);
+
+  const otherToMeAllowed = useMemo(() => {
+    if (!mySide || !otherUid) return false;
+    // otherSide === 'a' ise A'nın fotoğrafları B'ye açık mı? (ben B'yim)
+    // otherSide === 'b' ise B'nin fotoğrafları A'ya açık mı? (ben A'yım)
+    if (mySide === 'a') return !!photoAccess?.bToA;
+    return !!photoAccess?.aToB;
+  }, [mySide, otherUid, photoAccess]);
+
+  const canSeeOtherPhotos = !otherPhotosBlurred || otherToMeAllowed;
+
+  const requestOtherPhotoAccess = async () => {
+    if (!match?.id || !currentUid || !otherUid) return;
+    if (photoRequestState.loading) return;
+
+    if (!canInteract) {
+      const msg = t('studio.paywall.upgradeToInteract');
+      setPhotoRequestState({ loading: false, error: msg, status: '' });
+      if (typeof onRequirePaid === 'function') onRequirePaid();
+      return;
+    }
+
+    setPhotoRequestState({ loading: true, error: '', status: '' });
+    try {
+      const data = await authFetch('/api/matchmaking-photo-access-request', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ matchId: match.id }),
+      });
+      const status = safeStr(data?.status) || 'pending';
+      setPhotoRequestState({ loading: false, error: '', status });
+    } catch (e) {
+      const msg = safeStr(e?.message);
+      setPhotoRequestState({ loading: false, error: translateStudioApiError(t, msg) || msg || 'request_failed', status: '' });
+    }
+  };
+
+  const setMyPhotoAccessForThisMatch = async (next) => {
+    if (!match?.id || !currentUid) return;
+    if (!myPhotosBlurred) return;
+    if (photoAccessState.loading) return;
+
+    setPhotoAccessState({ loading: true, error: '' });
+    try {
+      await authFetch('/api/matchmaking-photo-access-set', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ matchId: match.id, allow: !!next }),
+      });
+      setPhotoAccessState({ loading: false, error: '' });
+    } catch (e) {
+      const msg = safeStr(e?.message);
+      setPhotoAccessState({ loading: false, error: translateStudioApiError(t, msg) || msg || 'photo_access_failed' });
+    }
+  };
 
   const decisions = match?.decisions && typeof match.decisions === 'object' ? match.decisions : {};
   const myDecision = mySide ? safeStr(decisions?.[mySide]) : '';
@@ -336,7 +420,10 @@ export default function StudioMatchCard({
               <img
                 src={photoUrl}
                 alt={t('studio.match.avatarAlt', { name: displayName })}
-                className="h-48 w-full object-cover"
+                className={
+                  'h-48 w-full object-cover ' +
+                  (otherPhotosBlurred && !canSeeOtherPhotos ? 'blur-[10px] saturate-[0.85]' : '')
+                }
                 loading="lazy"
                 decoding="async"
               />
@@ -344,6 +431,14 @@ export default function StudioMatchCard({
               <div className="h-48 w-full bg-slate-100" />
             )}
           </Link>
+
+          {otherPhotosBlurred && !canSeeOtherPhotos ? (
+            <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+              <div className="rounded-full bg-black/60 px-3 py-1.5 text-[11px] font-semibold text-white">
+                Sadece izin verilenler görebilir
+              </div>
+            </div>
+          ) : null}
 
             {genderText ? (
               <div className="pointer-events-none absolute left-3 bottom-3">
@@ -450,7 +545,45 @@ export default function StudioMatchCard({
           ) : null}
         </div>
 
-        <div className="p-4 pt-0 flex items-center justify-between gap-2">
+        <div className="p-4 pt-0 flex flex-col gap-2">
+          {otherPhotosBlurred && !canSeeOtherPhotos ? (
+            <button
+              type="button"
+              onClick={requestOtherPhotoAccess}
+              disabled={photoRequestState.loading || photoRequestState.status === 'pending' || photoRequestState.status === 'approved' || lockedByActiveMatch}
+              className="inline-flex items-center justify-center rounded-md bg-emerald-600 px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 disabled:opacity-60"
+            >
+              {photoRequestState.loading
+                ? t('studio.common.processing')
+                : photoRequestState.status === 'pending'
+                  ? 'İstek gönderildi'
+                  : photoRequestState.status === 'granted' || photoRequestState.status === 'approved'
+                    ? 'İzin verildi'
+                    : 'Fotoğraf izni iste'}
+            </button>
+          ) : null}
+
+          {photoRequestState.error ? <div className="text-sm text-rose-700">{photoRequestState.error}</div> : null}
+
+          {myPhotosBlurred ? (
+            <button
+              type="button"
+              onClick={() => setMyPhotoAccessForThisMatch(!myToOtherAllowed)}
+              disabled={photoAccessState.loading || lockedByActiveMatch}
+              className={
+                'inline-flex items-center justify-center rounded-md px-3 py-2 text-sm font-semibold shadow-sm transition disabled:opacity-60 ' +
+                (myToOtherAllowed
+                  ? 'border border-slate-200 bg-white text-slate-800 hover:bg-slate-50'
+                  : 'bg-indigo-600 text-white hover:bg-indigo-700')
+              }
+            >
+              {photoAccessState.loading ? t('studio.common.processing') : myToOtherAllowed ? 'Fotoğraflarımı gizle' : 'Fotoğraflarımı göster'}
+            </button>
+          ) : null}
+
+          {photoAccessState.error ? <div className="text-sm text-rose-700">{photoAccessState.error}</div> : null}
+
+          <div className="flex items-center justify-between gap-2">
           <button
             type="button"
             onClick={like}
@@ -504,6 +637,7 @@ export default function StudioMatchCard({
             {t('studio.match.actions.message')}
             {unreadCount > 0 ? <span className="absolute -right-1 -top-1 h-3 w-3 rounded-full bg-emerald-300 ring-2 ring-emerald-600" /> : null}
           </button>
+          </div>
         </div>
       </div>
 

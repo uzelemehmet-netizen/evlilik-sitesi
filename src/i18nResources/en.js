@@ -80,6 +80,10 @@ export default {
       unknown: 'Unknown',
     },
 
+    errors: {
+      generic: 'Error',
+    },
+
     feedback: {
       nav: 'Support / Report',
       backToProfile: 'Back to my profile',
@@ -238,6 +242,9 @@ export default {
       developerHint: 'You can share this with admin if needed.',
     },
     match: {
+      tier: {
+        pre_match: 'Pre-match',
+      },
       status: {
         proposed: 'Intro',
         mutual_interest: 'Mutual like',
@@ -372,6 +379,8 @@ export default {
         starting: 'Starting…',
         waiting: 'Waiting for confirmation',
         start: 'Start active match',
+        activatedNotice: 'Active match started — long chat is now open.',
+        waitingNotice: 'Your confirmation was sent. Long chat will open once the other person confirms.',
         confirmPrompt:
           'You are about to start the active match.\n\n- You can have only 1 active match (other profiles will be locked).\n- After activation, you cannot cancel for the first 2 hours.\n\nDo you confirm?',
       },
@@ -393,6 +402,17 @@ export default {
       longChatClosedBody: 'Long chat is available only after starting the active match. At this stage you can only use short messages.',
       shortModal: {
         title: 'Short message',
+      },
+      translate: {
+        errors: {
+          tooLong: 'This message is too long; shorten it to translate.',
+          onlyIncoming: 'Only incoming messages can be translated.',
+          notConfigured: 'Translation service is not configured.',
+          rateLimited:
+            'Translation is busy (Gemini has a 15/min rate limit). Try again in 1 minute or upgrade your plan.',
+          piiBlocked: 'Automatic translation was blocked due to personal/contact info. Please remove it.',
+          failed: 'Translation failed.',
+        },
       },
       time: {
         minutes: '{{minutes}} min',
@@ -477,6 +497,7 @@ export default {
       },
     },
     errors: {
+      generic: 'Error',
       profileNotFound: 'Profile record not found.',
       apiUnavailable: 'API is not reachable. In local dev, run `npm run dev` (api+web).',
       serverNotConfigured: 'Server configuration is missing. Please contact support.',
@@ -489,6 +510,279 @@ export default {
       notAvailable: 'This action is not available at this stage.',
       forbidden: 'You are not allowed to perform this action.',
       cancelCooldown: 'To prevent abuse, cancellation is temporarily disabled. Remaining: {{time}}',
+    },
+  },
+
+  admin: {
+    userTools: {
+      prompts: {
+        blockReason: 'Block reason (optional):',
+        noteOptional: 'Note (optional):',
+      },
+      defaults: {
+        whatsappVerificationNote: 'WhatsApp verification',
+      },
+      confirms: {
+        grantMembershipDays: 'Grant {{days}} days of membership to this user?',
+        revokeMembership: 'Deactivate this user\'s paid membership?',
+        grantTranslationPackDays: 'Grant {{days}} days of translation pack to this user?',
+        revokeTranslationPack: 'Deactivate this user\'s translation pack?',
+        resetFreeActiveMembership:
+          'Reset free active membership (freeActiveMembership)? (blocked=false, active=false, counters=0)',
+      },
+      messages: {
+        userBlocked: 'User blocked.',
+        userUnblocked: 'User unblocked.',
+        whatsappVerified: 'User verified via WhatsApp verification.',
+        membershipGranted: 'Membership activated. Ends: {{until}}',
+        membershipRevoked: 'Membership deactivated.',
+        translationPackGranted: 'Translation pack activated. Ends: {{until}}',
+        translationPackRevoked: 'Translation pack deactivated.',
+        freeActiveReset: 'Free active membership state was reset.',
+      },
+      errors: {
+        userIdRequired: 'Enter a user ID.',
+        applicationNotFoundForMk: 'No application found for this MK code.',
+        applicationMissingUserId: 'Application found but userId is missing.',
+        userReadFailed: 'Could not load the user.',
+        actionFailed: 'Action failed.',
+        daysRange: 'Days must be between 1 and 365.',
+        translationTierInvalid: 'Tier must be standard or pro.',
+      },
+    },
+
+    matchmakingMatches: {
+      titles: {
+        page: 'Matches (Admin)',
+        tab: 'Matches',
+        tabSubtitle: 'Mutual approval and contact-unlocked matches.',
+      },
+      nav: {
+        identityVerifications: 'Identity verification',
+        paymentNotifications: 'Payment notifications',
+        adminPanel: 'Admin panel',
+        openDetailedPage: 'Open detailed matches page',
+      },
+      common: {
+        loading: 'Loading…',
+        empty: 'No records.',
+      },
+      labels: {
+        total: 'Total',
+        match: 'Match:',
+        score: 'Score: {{score}}',
+        recordId: 'Record ID:',
+      },
+      actions: {
+        cancel: 'Cancel match (unlock)',
+        copy: 'copy',
+      },
+      sections: {
+        mutual: 'Mutual accepted (waiting for step-2 choice)',
+        contactUnlocked: 'Contact unlocked (lock active)',
+      },
+      manual: {
+        title: 'Manual match',
+        titleTest: 'Manual match (for testing)',
+        description:
+          'Enter an “Application ID” or “Username” for A and B. This creates a match document between two users (to test like/reject/chat flows).',
+        descriptionShort:
+          'Enter an “Application ID” or “Username” for A and B. This creates a match document between two users.',
+        notePrefix: 'Note: The lists on this page show only',
+        noteAnd: 'and',
+        noteSuffix: 'statuses.',
+        labels: {
+          a: 'A (Application ID / Profile code)',
+          b: 'B (Application ID / Profile code)',
+          startStatus: 'Initial status',
+          overwrite: 'Overwrite if match exists',
+        },
+        placeholders: {
+          a: 'e.g. moonstar_34 or applicationId',
+          b: 'e.g. blueocean_21 or applicationId',
+        },
+        statusOptions: {
+          proposed: 'proposed (like/reject test)',
+          mutualAccepted: 'mutual_accepted (chat/contact choice test)',
+          contactUnlocked: 'contact_unlocked (contact unlocked test)',
+        },
+        actions: {
+          create: 'Create match',
+          clear: 'Clear fields',
+        },
+      },
+      confirms: {
+        cancelMatch: 'This match will be marked as cancelled and the lock will be removed. Continue?',
+      },
+      messages: {
+        cancelSuccess: 'Match cancelled. Lock removed; new matches can be shown.',
+        manualCreated: 'Manual match created. Match ID: {{matchId}}{{extra}}',
+        manualExtraUpdated: ' (Already existed: updated)',
+        manualExtraSkipped: ' (Already existed: skipped)',
+        copySuccess: 'Record ID copied.',
+        copyFailed: 'Copy failed.',
+      },
+      errors: {
+        loadFailed: 'Failed to load matches.',
+        actionFailed: 'Action failed.',
+        manualInputRequired: 'Please enter an Application ID or Profile Code for both A and B.',
+      },
+    },
+
+    matchmakingPayments: {
+      titles: {
+        page: 'Payment Notifications (Admin)',
+        tab: 'Payment Notifications',
+        tabSubtitle: 'Manage pending/approved/rejected payment notifications.',
+      },
+      nav: {
+        matches: 'Matches',
+        adminPanel: 'Admin panel',
+      },
+      notices: {
+        indexFallback: 'Note: Using fallback listing because a Firestore index is missing (may be a bit slower).',
+        receiptViaWhatsApp: 'Note: The user marked that they will send the receipt via WhatsApp. (No link was uploaded from the panel.)',
+      },
+      common: {
+        loading: 'Loading…',
+        empty: 'No records.',
+      },
+      statuses: {
+        pending: 'Pending',
+        approved: 'Approved',
+        rejected: 'Rejected',
+      },
+      statusHeadings: {
+        pending: 'Pending notifications',
+        approved: 'Approved',
+        rejected: 'Rejected',
+      },
+      labels: {
+        shown: 'Shown',
+        total: 'Total',
+        package: 'Plan',
+        method: 'Method',
+        user: 'User',
+        userId: 'User ID',
+        match: 'Match',
+        reference: 'Reference',
+        receiptChannel: 'Receipt channel',
+        note: 'Note',
+        receipt: 'Receipt',
+        readyMessage: 'Quick message',
+      },
+      receiptChannels: {
+        whatsapp: 'WhatsApp',
+        upload: 'Upload',
+      },
+      tiers: {
+        eco: 'Eco',
+        standard: 'Standard',
+        pro: 'Pro',
+      },
+      methods: {
+        eft_fast: 'EFT / FAST',
+        swift_wise: 'SWIFT / Wise',
+        qris: 'QRIS',
+        card: 'Credit card',
+        other: 'Other',
+      },
+      actions: {
+        copy: 'Copy',
+        open: 'Open',
+        approve: 'Approve',
+        reject: 'Reject',
+        copyApprovalMessage: 'Copy approval message',
+        copyRejectionMessage: 'Copy rejection message',
+      },
+      copy: {
+        copied: '{{what}} copied.',
+        failed: 'Copy failed.',
+        what: {
+          userId: 'User ID',
+          matchId: 'Match ID',
+          reference: 'Reference',
+          receiptLink: 'Receipt link',
+          approvalMessage: 'Approval message',
+          rejectionMessage: 'Rejection message',
+        },
+      },
+      warnings: {
+        amountMismatch: 'Warning: Amount does not match expected price. Expected: {{expected}}',
+      },
+      confirms: {
+        approve: 'This payment will be APPROVED and the "{{tier}}" plan will be activated. Continue?',
+        reject: 'This payment will be REJECTED. Continue?',
+      },
+      messages: {
+        approvedWithUntil: 'Payment approved; membership activated. Ends: {{until}}',
+        approved: 'Payment approved; membership activated.',
+        rejected: 'Payment rejected.',
+      },
+      errors: {
+        actionFailed: 'Action failed.',
+      },
+      templates: {
+        whatsapp: {
+          approved:
+            'Hello, your matchmaking membership payment has been approved. You can unlock contact details from your panel. Thank you.',
+          rejected:
+            'Hello, we could not verify your payment notification. Please check the receipt/reference and submit a new payment notification.',
+        },
+      },
+      alts: {
+        receipt: 'receipt',
+      },
+    },
+
+    photoUpdates: {
+      titles: {
+        tab: 'Photo Update Requests',
+        tabSubtitle: 'Review and approve/reject the new photos uploaded by the user.',
+      },
+      common: {
+        loading: 'Loading…',
+        empty: 'No records.',
+        noPhoto: 'No photo.',
+      },
+      statuses: {
+        pending: 'Pending',
+        approved: 'Approved',
+        rejected: 'Rejected',
+      },
+      labels: {
+        shown: 'Shown',
+        requestId: 'Request',
+        userId: 'User ID',
+        applicationId: 'Application',
+      },
+      actions: {
+        copy: 'Copy',
+        approve: 'Approve',
+        reject: 'Reject',
+      },
+      copy: {
+        copied: '{{what}} copied.',
+        failed: 'Copy failed.',
+        what: {
+          userId: 'User ID',
+          applicationId: 'Application ID',
+        },
+      },
+      confirms: {
+        approve: 'This photo update request will be APPROVED and the application photos will be updated. Continue?',
+        reject: 'This photo update request will be REJECTED. Continue?',
+      },
+      messages: {
+        approved: 'Photo update approved.',
+        rejected: 'Photo update rejected.',
+      },
+      errors: {
+        actionFailed: 'Action failed.',
+      },
+      alts: {
+        photo: 'Photo',
+      },
     },
   },
 
@@ -531,6 +825,10 @@ export default {
       review: {
         title: 'System evaluation',
         desc: 'When a suitable match is found, the process continues safely in your panel.',
+      },
+      panel: {
+        title: 'Panel-based flow',
+        desc: 'You manage matching, preview and next steps from your panel.',
       },
         showEmptyFields: 'Show empty fields',
         hideEmptyFields: 'Hide empty fields',
@@ -671,7 +969,7 @@ export default {
       "Uniqah (PT MoonStar Global Indonesia) provides matchmaking, guided steps, and safer communication for the process.",
     pages: {
       home: { title: "Uniqah | PT MoonStar Global Indonesia" },
-      home: "Hi, I'd like to get information about Uniqah.",
+      about: { title: "About" },
       corporate: { title: "Corporate" },
       contact: { title: "Contact" },
       travel: { title: "Travel" },
@@ -702,6 +1000,7 @@ export default {
       actions: {
         openForm: "Open the Wedding Plan Form",
         matchmakingHub: "Matchmaking",
+        matchmakingApply: 'Apply for matchmaking',
         quickChat: "Quick chat on WhatsApp",
         enableNotifications: 'Enable notifications',
         notificationsEnabled: 'Notifications are enabled.',
@@ -807,6 +1106,8 @@ export default {
               age: "Your age",
             },
           },
+          privacyNote:
+            'Privacy note: Your application details are processed for matchmaking and safety; your profile is not listed publicly. If rules are violated, you can contact support with evidence (e.g., screenshots).',
         },
         services: {
           title: "2. Services you need",
@@ -940,6 +1241,7 @@ export default {
 
   common: {
     open: "Open",
+    close: 'Close',
     loading: 'Loading…',
     downloadPdf: "Download PDF",
     learnMore: "Learn more",
@@ -1422,6 +1724,82 @@ export default {
     },
   },
 
+  corporatePage: {
+    hero: {
+      badge: 'Trust & Legal',
+      description:
+        'This page is a corporate information hub that answers clearly: “Who owns this site?”, “Who collects payments?”, and “Which legal entity is the contract party?”.',
+    },
+    summary: {
+      brandLine:
+        'It is the brand of the Indonesia-registered company {{company}}. The contract party and collection/payment processes are handled through this legal entity.',
+      documents: 'Documents & Contracts',
+      brochures: 'Tour brochures (PDF)',
+    },
+    brandInfo: {
+      title: 'Brand and company information',
+      labels: {
+        brand: 'Brand',
+        legalName: 'Legal name',
+        tax: 'NPWP',
+        nib: 'NIB',
+      },
+      socialNote:
+        'Our YouTube and Instagram handles remain “endonezyakasifi” and support our brand communication.',
+    },
+    contact: {
+      title: 'Contact and address',
+      trLabel: 'TR / WhatsApp',
+      idLabel: 'ID',
+    },
+    parentCompany: {
+      badge: 'Parent company',
+      caption: 'The legal umbrella of {{brand}} operations',
+    },
+    billing: {
+      title: 'Payments, collections and contracts',
+      items: {
+        collection: {
+          title: 'Collections',
+          body: 'Payments may appear in banking records under the name {{company}}.',
+        },
+        contract: {
+          title: 'Contract party',
+          body: 'In package tour / distance sales contracts, the legal entity listed is {{company}}.',
+        },
+      },
+    },
+    documents: {
+      title: 'Document center',
+      body: 'All up-to-date documents, contracts and policies are here.',
+      cta: 'Open documents',
+      brochureNote: 'If you want to download brochures as PDF:',
+      brochureLink: 'Tour brochures',
+    },
+    otherBrand: {
+      title: 'Our other brand',
+      aria: 'Open DaMeTurk website',
+      body: 'Our original Turkish ice-cream brand under {{company}}.',
+    },
+    faq: {
+      title: 'Short FAQs',
+      items: {
+        siteCompany: {
+          q: 'Which company is this site affiliated with?',
+          a: '{{brand}} is a brand of the Indonesia-registered company {{company}}. Contract and collection processes are handled through this legal entity.',
+        },
+        paymentCompany: {
+          q: 'What if I see a different company name on the payment screen?',
+          a: 'That can be normal: since collections and contracts are handled through {{company}}, that legal name may appear in payment channels.',
+        },
+        dameturk: {
+          q: 'Is DaMeTurk yours?',
+          a: 'Yes. DaMeTurk is one of our brands operating under {{company}} and serves via its own website.',
+        },
+      },
+    },
+  },
+
   authPage: {
     title: 'Sign in / Sign up',
     context: {
@@ -1567,6 +1945,7 @@ export default {
       remove: 'Remove',
       sending: 'Sending…',
       pending: 'Pending…',
+      canceling: 'Cancelling…',
       accept: 'Accept',
       accepted: 'Accepted',
       reject: 'Reject',
@@ -1588,6 +1967,12 @@ export default {
       freeSlotConfirm: 'Remove this candidate and open the new-user slot? (Daily 1)',
       freeSlotSuccess: 'Slot freed. {{creditGranted}} credit granted. The slot will stay empty until a new sign-up ({{threshold}}+) matches you. Cooldown: {{remaining}}',
       removedCreditNotice: 'This match was removed from your list. 1 credit was granted for requesting a new match. Cooldown: {{remaining}}',
+    },
+    chat: {
+      inputPlaceholderShort: 'Write a short message…',
+      lock48h: {
+        approving: 'Approving…',
+      },
     },
     profileForm: {
       loading: 'Loading form…',
@@ -1639,6 +2024,7 @@ export default {
       },
     },
     receipt: {
+      view: 'View receipt',
       errors: {
         uploadFailed:
           'Receipt upload failed. In local dev, make sure `npm run dev` (API+Web) is running and Cloudinary server env vars are configured.',
@@ -1695,6 +2081,13 @@ export default {
       email: 'Email',
       instagram: 'Instagram',
       cityCountry: 'City/Country',
+      readOnly: 'This field is currently read-only.',
+    },
+    contact: {
+      errors: {
+        fetchFailed: 'Contact details could not be fetched. Please try again.',
+        notConfirmed: 'Contact details are not available before the match is confirmed.',
+      },
     },
     statuses: {
       proposed: 'Proposed',
@@ -1730,6 +2123,11 @@ export default {
     membership: {
       title: 'Membership terms',
       active: 'Your membership is active.',
+      planLabels: {
+        eco: 'Eco',
+        standard: 'Standard',
+        pro: 'Pro',
+      },
       lead: 'Membership terms:',
       inactiveMale: 'Membership is not active. For men, membership is required to use matching actions (accept/reject, chat/contact).',
       inactiveFemale: 'Membership is not active. Matching and preview are available without membership. To take actions, you need free active membership (with verification) or a paid membership.',
@@ -1737,6 +2135,7 @@ export default {
       freeActiveActive: 'Your free active membership is active (via identity verification).',
       freeActiveTermsTitle: 'Free active membership terms',
       freeActiveTermsBody: 'If you get free active membership via identity verification and you are inactive for 48 hours, the free active membership is cancelled. On re-application, the window drops to 24 hours. If you are inactive again, you cannot get free active membership until you purchase a paid membership, and you cannot request a new match.',
+      freeActiveApply: 'Apply for free active membership',
       freeActiveApplying: 'Applying…',
       freeActiveApplied: 'Free active membership enabled. Window: {{hours}} hours.',
       daysLeft_one: 'Time left: {{count}} day.',
@@ -1857,6 +2256,10 @@ export default {
     },
     matches: {
       autoRunNotice: 'Our automatic matching runs approximately every {{minutes}} minutes. You can also request a new match manually here.',
+      cancelConfirm: 'Are you sure you want to cancel this match?',
+      errors: {
+        activeLocked: 'Your match process is locked. This action is not allowed.',
+      },
       presence: {
         online: 'Online',
         lastSeen: 'Last active: {{time}}',
@@ -1975,6 +2378,7 @@ export default {
       },
       chat: {
         open: 'Messages',
+        directMessage: 'Direct message',
         title: 'In-site Chat',
         lead: 'You can chat here before deciding. Sharing contact/IG/FB/links is blocked.',
         enableNotifications: 'Enable notifications',
@@ -1990,6 +2394,43 @@ export default {
         empty: 'No messages yet. You can send the first one.',
         placeholder: 'Write a message…',
         send: 'Send',
+        lockedByActive: {
+          title: 'This chat is closed',
+          body:
+            'This chat is closed because you currently have an active match. To keep messaging other matches, you need to cancel your active match from the chat screen.',
+          cancelCta: 'Cancel active match',
+        },
+        system: {
+          contactRequest: {
+            mine: 'You requested contact sharing.',
+            other: 'The other person wants to share contact details.',
+            approveHint: 'Once you approve, phone numbers will appear in messages.',
+          },
+          contactShared: 'Contact details shared:\n{{aWhatsapp}}\n{{bWhatsapp}}',
+        },
+        translate: {
+          title: 'Translate message',
+          cta: 'Translate',
+          translating: 'Translating…',
+          billing: {
+            sponsored: 'Sponsored translation (charged to the other side)',
+            self: 'Used from your translation quota',
+          },
+          usageWarning: 'You used %{{usagePercent}} of your limit.',
+          errors: {
+            quotaExceededWithUsage:
+              'You used %{{usagePercent}} of your limit. It renews monthly, or upgrade your plan / Boost.',
+            quotaExceeded: 'Your translation limit is reached. It renews monthly, or upgrade your plan / Boost.',
+            tooLong: 'This message is too long; shorten it to translate.',
+            onlyIncoming: 'Only incoming messages can be translated.',
+            authRequired: 'Login required.',
+            notConfigured: 'Translation service is not configured.',
+            rateLimited:
+              'Translation is busy (Gemini has a 15/min rate limit). Try again in 1 minute or upgrade your plan.',
+            piiBlocked: 'Automatic translation was blocked due to personal/contact info. Please remove it.',
+            failed: 'Translation failed.',
+          },
+        },
         continue: 'Continue (Approve)',
         reject: 'Not a fit (Reject)',
         proposedLimit: {
@@ -2040,6 +2481,7 @@ export default {
           verificationRequired: 'Identity verification is required to chat.',
           limitReached: 'Message limit reached. You need to decide.',
           chatPaused: 'This chat is temporarily on hold.',
+          messageTooLong: 'Message is too long. Max 240 characters.',
           serverNotConfigured: 'Firebase Admin is not configured in local dev. Add FIREBASE_SERVICE_ACCOUNT_JSON_FILE to .env.local and restart the dev process.',
           authRequired: 'You must be logged in to send messages (anonymous users are not supported).',
           sendFailed: 'Message could not be sent.',
@@ -2059,6 +2501,7 @@ export default {
           errors: {
             locked: 'You cannot confirm before 48 hours pass.',
             confirmRequired: 'Contact sharing requires match confirmation first.',
+            contactLocked: 'You cannot request contact sharing before 48 hours pass.',
           },
         },
       },
@@ -2087,6 +2530,8 @@ export default {
         aboutLabel: 'About',
         expectationsLabel: 'Expectations',
         heightLabel: 'Height',
+        partnerAgeMin: 'Min age',
+        partnerAgeMax: 'Max age',
         educationLabel: 'Education',
         occupationLabel: 'Occupation',
         religionLabel: 'Religion',
@@ -2308,7 +2753,21 @@ export default {
   },
 
   matchmakingPage: {
+    title: 'Matchmaking Application',
+    intro:
+      'This page is the matchmaking application form for finding a suitable spouse candidate. Profiles are not publicly listed; applications are viewed only by our team. The system will show matched people on your “My Profile” page.',
+    privacyNote:
+      'Important: This is not a public “browse/search profiles” area. The information you share is used only for evaluation and communication. Please ensure your information is accurate; you are responsible for what you submit, and matches are made based on it. Intentionally false information leads to a permanent ban; any active membership is cancelled and no refund is provided.',
+    authGate: {
+      message: 'To submit a matchmaking application, please sign in or create an account.',
+      login: 'Sign in',
+      signup: 'Sign up',
+      note: 'After signing in, you will be redirected back to this page automatically.',
+    },
+    bottomNote:
+      'Note: This form is a marriage-focused matchmaking application; profiles are not publicly listed on the site.',
     form: {
+      applicationIdLabel: 'Application ID',
       wizard: {
         badge: 'Quick Application',
         step: 'Step {{current}} / {{total}}',
@@ -2320,47 +2779,336 @@ export default {
             desc: 'Let’s start with your core info and contact details.',
           },
           details: {
-            title: 'More details',
-            desc: 'Lifestyle and language preferences help matching.',
+            title: 'Details',
+            desc: 'Let’s clarify lifestyle and communication preferences.',
           },
           identity: {
-            title: 'About you & what you seek',
-            desc: 'Select your nationality/gender and who you’re looking for.',
+            title: 'Me & who I’m looking for',
+            desc: 'Select your nationality, gender and preferences.',
           },
           photos: {
-            title: 'Photos & short intro',
+            title: 'Photos & intro',
             desc: 'Upload 3 photos and introduce yourself briefly.',
           },
           preferences: {
             title: 'Partner preferences & consents',
-            desc: 'Finalize preferences and submit your application.',
+            desc: 'Choose preferences and complete your application.',
           },
         },
       },
+      editOnce: {
+        usernameLocked: 'In edit mode, the username cannot be changed (one-time fix).',
+        photosLocked: 'In edit mode, photo updates are disabled. You can only fix form fields.',
+      },
+      photo: {
+        choose: 'Choose file',
+        noFileChosen: 'No file chosen',
+        uploaded: 'Uploaded',
+      },
+      sections: {
+        me: 'Me',
+        lookingFor: 'Looking for',
+        details: 'Details',
+        moreDetails: 'Additional info',
+        partnerPreferences: 'Partner preferences',
+      },
+      contactPrivacyNotice:
+        'Your contact details (WhatsApp/email/Instagram) are private. They are not shown publicly while filling the form or in the app UI. They may only be shared after the 48-hour active match period, and only with your approval.',
+      confirmGender: {
+        title: 'Confirm gender',
+        text: 'You selected your gender as "{{gender}}". Do you confirm?',
+        cancel: 'Cancel',
+        confirm: 'Confirm',
+      },
       labels: {
+        username: 'Username',
+        fullName: 'Full name',
+        age: 'Age',
+        city: 'City',
+        country: 'Country',
+        whatsapp: 'WhatsApp',
+        email: 'Email',
+        instagram: 'Instagram',
+        nationality: 'Nationality',
+        gender: 'Gender',
+        lookingForNationality: 'Looking for: nationality',
+        lookingForGender: 'Looking for: gender',
+        height: 'Height (cm)',
+        weight: 'Weight (kg)',
+        occupation: 'Occupation',
+        education: 'Education',
+        educationDepartment: 'Department',
+        maritalStatus: 'Marital status',
+        hasChildren: 'Has children?',
         childrenLivingSituation: 'Do you live with your children?',
+        childrenCount: 'Children count',
+        incomeLevel: 'Income level',
+        religion: 'Religion',
+        religiousValues: 'Religious values',
+        familyApprovalStatus: 'Family approval',
+        marriageTimeline: 'Marriage timeline',
+        relocationWillingness: 'Relocation willingness',
+        preferredLivingCountry: 'Preferred living country',
+        nativeLanguage: 'Native language',
+        nativeLanguageOther: 'Native language (other)',
+        foreignLanguages: 'Foreign languages',
+        foreignLanguageOther: 'Foreign language (other)',
+        communicationLanguages: 'Communication languages',
+        communicationLanguageOther: 'Communication language (other)',
+        smoking: 'Smoking',
+        alcohol: 'Alcohol',
+        partnerHeightMin: 'Partner height (min)',
+        partnerHeightMax: 'Partner height (max)',
+        partnerAgeMaxOlderYears: 'Partner can be older by (max years)',
+        partnerAgeMaxYoungerYears: 'Partner can be younger by (max years)',
+        partnerMaritalStatus: 'Partner marital status',
+        partnerReligion: 'Partner religion',
+        partnerChildrenPreference: 'Partner children preference',
+        partnerEducationPreference: 'Partner education preference',
+        partnerOccupationPreference: 'Partner occupation preference',
+        partnerFamilyValuesPreference: 'Partner family values preference',
+        partnerCommunicationLanguages: 'Partner communication languages',
+        partnerCommunicationLanguageOther: 'Partner communication language (other)',
+        partnerCommunicationMethods: 'Partner communication methods',
+        partnerTranslationApp: 'Use translation app with partner?',
+        partnerLivingCountry: 'Partner living country preference',
+        partnerSmokingPreference: 'Partner smoking preference',
+        partnerAlcoholPreference: 'Partner alcohol preference',
+        photos: 'Photos (3)',
+        photo1: 'Photo 1',
+        photo2: 'Photo 2',
+        photo3: 'Photo 3',
+        about: 'About',
+        expectations: 'Expectations',
       },
       placeholders: {
+        username: 'e.g., moonstar_34',
+        fullName: 'e.g., John Doe',
+        age: 'e.g., 29',
+        city: 'e.g., Istanbul',
+        country: 'e.g., Turkey',
+        whatsapp: 'e.g., +90 5xx xxx xx xx',
+        email: 'e.g., example@mail.com',
+        instagram: 'e.g., @username',
+        height: 'e.g., 175',
+        weight: 'e.g., 72',
+        educationDepartment: 'e.g., Computer Engineering',
+        childrenCount: 'e.g., 1',
+        foreignLanguageOther: 'e.g., French',
+        nativeLanguageOther: 'e.g., French',
+        communicationLanguageOther: 'e.g., Arabic',
         occupation: 'e.g., Teacher / Doctor / Engineer',
+        about: 'Introduce yourself briefly (lifestyle, language, work, family plans, etc.)',
+        expectations: 'e.g., Communication, lifestyle, age/height preferences, family values…',
       },
       options: {
+        common: {
+          select: 'Select',
+          yes: 'Yes',
+          no: 'No',
+          unsure: 'Not sure',
+          doesntMatter: "Doesn't matter",
+        },
         childrenLivingSituation: {
           withChildren: 'I live with my children',
           separate: 'I live separately from my children',
         },
-      },
-      confirmGender: {
-        title: 'Confirm gender',
-        text: 'You selected your gender as "{{gender}}". Confirm?',
-        cancel: 'Cancel',
-        confirm: 'Confirm',
+        nationality: {
+          tr: 'Turkish',
+          id: 'Indonesian',
+          other: 'Other',
+        },
+        gender: {
+          male: 'Male',
+          female: 'Female',
+        },
+        maritalStatus: {
+          single: 'Single',
+          widowed: 'Widowed',
+          divorced: 'Divorced',
+          other: 'Other',
+          doesnt_matter: "Doesn't matter",
+        },
+        education: {
+          secondary: 'Secondary',
+          highSchool: 'High school',
+          university: 'University',
+          masters: "Master's",
+          phd: 'PhD',
+          other: 'Other',
+        },
+        occupation: {
+          civilServant: 'Civil servant',
+          employee: 'Employee',
+          retired: 'Retired',
+          businessOwner: 'Business owner',
+          other: 'Other',
+        },
+        familyValues: {
+          religious: 'Religious',
+          liberal: 'Liberal',
+        },
+        partnerChildren: {
+          wantChildren: 'Wants/has children',
+          noChildren: 'No children',
+        },
+        income: {
+          low: 'Low',
+          medium: 'Medium',
+          good: 'Good',
+          veryGood: 'Very good',
+          preferNot: 'Prefer not to say',
+        },
+        ageDiff: {
+          none: '0 (no preference)',
+          years: '{{count}} years',
+        },
+        religion: {
+          islam: 'Islam',
+          christian: 'Christianity',
+          hindu: 'Hinduism',
+          buddhist: 'Buddhism',
+          other: 'Other',
+        },
+        religiousValues: {
+          weak: 'Low',
+          medium: 'Medium',
+          conservative: 'Conservative',
+        },
+        languageLevel: {
+          none: "None / I don't know",
+          basic: 'Basic',
+          intermediate: 'Intermediate',
+          advanced: 'Advanced',
+          native: 'Native',
+        },
+        commLanguage: {
+          tr: 'Turkish',
+          id: 'Indonesian',
+          en: 'English',
+          translationApp: 'Via a translation app',
+          other: 'Other (specify)',
+        },
+        foreignLanguages: {
+          none: "I don't speak any foreign languages",
+        },
+        livingCountry: {
+          tr: 'Turkey',
+          id: 'Indonesia',
+        },
+        partnerCommunicationMethods: {
+          ownLanguage: 'My own language',
+          foreignLanguage: 'My foreign language skills',
+          translationApp: 'Translation app',
+        },
+        timeline: {
+          '0_3': '0–3 months',
+          '3_6': '3–6 months',
+          '6_12': '6–12 months',
+          '1_plus': '1 year or more',
+        },
       },
       hints: {
         lookingForGenderAuto: 'The gender you are looking for is set automatically based on your gender.',
+        partnerAgeComputed: 'Estimated range: {{min}}–{{max}}',
+        partnerAgeNeedsYourAge: 'Note: Please enter your correct age to compute the range.',
+        multiSelect: 'You can select more than one option.',
+        foreignLanguages:
+          'Note: After selecting your native language, it may not appear below. If you don’t know any, choose “I don’t speak any foreign languages”.',
       },
+      photoHint:
+        'Upload image files only. The system compresses and uploads automatically (tip: clear, recent and showing your face).',
+      consents: {
+        age: 'I confirm that I am older than {{minAge}}.',
+        privacy:
+          'I have read the <privacyLink>Privacy Policy</privacyLink> and agree to my data being processed for evaluation/communication purposes.',
+        terms: 'I have read and accept the <termsLink>User Agreement</termsLink>.',
+        photo: 'I agree that the admin team can view my photo(s) for evaluation purposes (profile is not public).',
+      },
+      submit: 'Submit application',
+      submitting: 'Submitting…',
+      success: 'Your application was received. Matches will appear on your panel.',
       errors: {
-        childrenLivingSituation: 'Please select your living situation with your children.',
+        blocked: 'This account is blocked from submitting matchmaking applications. Please contact support if you think this is a mistake.',
+        mustLogin: 'You must be signed in to submit the application.',
+        consentsRequired:
+          'To submit, you must check the consent boxes ({{minAge}}+, Privacy Policy, User Agreement, Photo consent).',
+        permissionDenied:
+          'Could not submit the application (permission error). Please sign in with the correct account or check Firestore rules.',
+        honeypotTriggered:
+          'Form could not be submitted. Browser autofill may have filled a hidden field. Refresh the page, disable autofill, and try again.',
+        photoUploadFailed:
+          'Photo upload failed. In local dev, ensure `npm run dev` (api+web) is running and Cloudinary env vars are configured.',
+        submitFailed: 'Application could not be submitted. Please try again.',
+        tooFast: 'Form was submitted too quickly. Please fill it and try again.',
+        rateLimited: 'Too many attempts in a short time. Please try again in 1 minute.',
+        recaptchaFailed: 'Spam verification failed. Please refresh and try again.',
+        recaptchaRejected: 'Your application could not be accepted due to spam protection. Please try again later.',
+
+        username: 'Please choose a username.',
+        usernameTaken: 'This username is already taken. Please choose another.',
+        fullName: 'Please enter your full name.',
+        age: 'Please enter your age.',
+        ageRange: 'Age must be between {{minAge}} and 99.',
+        email: 'Please enter your email address.',
+        city: 'Please enter your city.',
+        country: 'Please enter your country.',
+        whatsapp: 'Please enter your WhatsApp number.',
+        gender: 'Please select your gender.',
+        nationality: 'Please select your nationality.',
+        lookingForGender: 'Please select the gender you are looking for.',
+        lookingForNationality: 'Please select the nationality you are looking for.',
+        heightRequired: 'Please enter your height.',
+        weightRequired: 'Please enter your weight.',
+        heightRange: 'Height must be between 120–230 cm (you can also leave it empty).',
+        weightRange: 'Weight must be between 35–250 kg (you can also leave it empty).',
         occupation: 'Please enter your occupation.',
+        education: 'Please select your education level.',
+        educationDepartment: 'Please enter your department.',
+        maritalStatus: 'Please select your marital status.',
+        hasChildren: 'Please select whether you have children.',
+        childrenLivingSituation: 'Please select your living situation with your children.',
+        childrenCount: 'Children count must be between 1 and 20.',
+        incomeLevel: 'Please select your income level.',
+        religion: 'Please select your religion.',
+        religiousValues: 'Please enter your religious values briefly.',
+        nativeLanguage: 'Please select your native language.',
+        nativeLanguageOther: 'Please specify your native language.',
+        foreignLanguages: 'Please select your foreign languages.',
+        foreignLanguageOther: 'Please specify the other foreign language.',
+        communicationLanguage: 'Please select a communication language.',
+        communicationLanguageOther: 'Please specify the other language.',
+        smoking: 'Please answer the smoking question.',
+        alcohol: 'Please answer the alcohol question.',
+        familyApprovalStatus: 'Please answer the family approval question.',
+        marriageTimeline: 'Please select your marriage timeline.',
+        relocationWillingness: 'Please answer the relocation question.',
+        preferredLivingCountry: 'Please select your preferred living country.',
+
+        partnerAgeMaxOlderYears: 'Please select how many years older your partner can be.',
+        partnerAgeMaxYoungerYears: 'Please select how many years younger your partner can be.',
+        partnerHeightMin: 'Please select the minimum partner height.',
+        partnerHeightMax: 'Please select the maximum partner height.',
+        partnerHeightRange: 'Minimum partner height cannot be greater than maximum.',
+        partnerMaritalStatus: 'Please select preferred marital status.',
+        partnerReligion: 'Please select preferred religion.',
+        partnerLivingCountry: 'Please select preferred living country.',
+        partnerSmokingPreference: 'Please select partner smoking preference.',
+        partnerAlcoholPreference: 'Please select partner alcohol preference.',
+        partnerChildrenPreference: 'Please select children preference.',
+        partnerEducationPreference: 'Please select education preference.',
+        partnerOccupationPreference: 'Please select occupation preference.',
+        partnerFamilyValuesPreference: 'Please select family values preference.',
+        partnerCommunicationLanguage: 'Please select partner communication language.',
+        partnerCommunicationLanguageOther: 'Please specify other partner communication language.',
+
+        about: 'Please write a short introduction.',
+        expectations: 'Please describe what you are looking for in a spouse.',
+
+        photo1Required: 'Please upload photo 1.',
+        photo2Required: 'Please upload photo 2.',
+        photo3Required: 'Please upload photo 3.',
+        photoType: 'Please select a valid image file.',
       },
     },
   },

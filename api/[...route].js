@@ -49,6 +49,10 @@ import matchmakingBrowse from '../apiRoutes/matchmaking-browse.js';
 import matchmakingProfileAccessRequest from '../apiRoutes/matchmaking-profile-access-request.js';
 import matchmakingProfileAccessRespond from '../apiRoutes/matchmaking-profile-access-respond.js';
 import matchmakingProfileView from '../apiRoutes/matchmaking-profile-view.js';
+import matchmakingPhotoBlurSet from '../apiRoutes/matchmaking-photo-blur-set.js';
+import matchmakingPhotoAccessSet from '../apiRoutes/matchmaking-photo-access-set.js';
+import matchmakingPhotoAccessRequest from '../apiRoutes/matchmaking-photo-access-request.js';
+import matchmakingPhotoAccessRespond from '../apiRoutes/matchmaking-photo-access-respond.js';
 import matchmakingPreMatchRequest from '../apiRoutes/matchmaking-pre-match-request.js';
 import matchmakingPreMatchRespond from '../apiRoutes/matchmaking-pre-match-respond.js';
 import matchmakingActiveStart from '../apiRoutes/matchmaking-active-start.js';
@@ -123,6 +127,10 @@ const handlers = {
   'matchmaking-profile': matchmakingProfile,
   'matchmaking-profile-text-update': matchmakingProfileTextUpdate,
   'matchmaking-profile-view': matchmakingProfileView,
+  'matchmaking-photo-blur-set': matchmakingPhotoBlurSet,
+  'matchmaking-photo-access-set': matchmakingPhotoAccessSet,
+  'matchmaking-photo-access-request': matchmakingPhotoAccessRequest,
+  'matchmaking-photo-access-respond': matchmakingPhotoAccessRespond,
   'matchmaking-maintenance-run': matchmakingMaintenanceRun,
   'matchmaking-reject-all': matchmakingRejectAll,
   'matchmaking-request-new': matchmakingRequestNew,

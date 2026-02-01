@@ -340,7 +340,12 @@ export default function StudioMatches() {
     if (accessAction.loadingId) return;
 
     const reqType = String(type || '').trim();
-    const endpoint = reqType === 'profile_access' ? '/api/matchmaking-profile-access-respond' : '/api/matchmaking-pre-match-respond';
+    const endpoint =
+      reqType === 'profile_access'
+        ? '/api/matchmaking-profile-access-respond'
+        : reqType === 'photo_access'
+          ? '/api/matchmaking-photo-access-respond'
+          : '/api/matchmaking-pre-match-respond';
     const loadingKey = `${reqType || 'pre_match'}:${from}`;
 
     setAccessAction({ loadingId: loadingKey, error: '' });
@@ -773,66 +778,7 @@ export default function StudioMatches() {
           </div>
         ) : null}
 
-        {pendingAccessRequests.length ? (
-          <div className="mb-6 mx-auto max-w-5xl rounded-xl border border-indigo-200 bg-indigo-50 p-4 text-indigo-950 shadow-sm">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <p className="font-semibold">
-                {t('studio.accessInbox.title', { count: pendingAccessRequests.length })}
-              </p>
-              {accessAction.error ? <p className="text-sm text-rose-700">{accessAction.error}</p> : null}
-            </div>
-
-            <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {pendingAccessRequests.map((it) => {
-                const p = it?.fromProfile && typeof it.fromProfile === 'object' ? it.fromProfile : null;
-                const name = String(p?.username || '').trim() || t('studio.common.profile');
-                const age = typeof p?.age === 'number' ? String(p.age) : '';
-                const photo = String(p?.photoUrl || '').trim();
-                const fromUid = String(it?.fromUid || '').trim();
-                const type = String(it?.type || '').trim();
-                const isPreMatch = type === 'pre_match';
-                const acting = !!accessAction.loadingId && accessAction.loadingId === `${type || 'pre_match'}:${fromUid}`;
-                const subtitle = isPreMatch ? 'Ön eşleşme isteği' : t('studio.accessInbox.requested');
-
-                return (
-                  <div key={it.id} className="rounded-lg border border-indigo-200 bg-white p-3">
-                    <div className="flex items-center gap-3">
-                      {photo ? (
-                        <img src={photo} alt={name} className="h-10 w-10 rounded-full object-cover" />
-                      ) : (
-                        <div className="h-10 w-10 rounded-full bg-slate-100" />
-                      )}
-                      <div className="min-w-0">
-                        <p className="truncate font-semibold">{name}{age ? `, ${age}` : ''}</p>
-                        <p className="text-xs text-slate-600">{subtitle}</p>
-                      </div>
-                    </div>
-
-                    <div className="mt-3 flex flex-wrap items-center gap-2">
-                      <button
-                        type="button"
-                        disabled={acting || !fromUid}
-                        onClick={() => respondAccessRequest({ fromUid, decision: 'approve', type })}
-                        className="inline-flex items-center justify-center rounded-md bg-emerald-600 px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 disabled:opacity-60"
-                      >
-                        {acting ? t('studio.common.processing') : isPreMatch ? 'Onayla' : t('studio.accessInbox.approve')}
-                      </button>
-
-                      <button
-                        type="button"
-                        disabled={acting || !fromUid}
-                        onClick={() => respondAccessRequest({ fromUid, decision: 'reject', type })}
-                        className="inline-flex items-center justify-center rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-800 shadow-sm transition hover:bg-rose-100 disabled:opacity-60"
-                      >
-                        {t('studio.accessInbox.reject')}
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        ) : null}
+        {/* İstekler üst banner yerine modal içinde gösterilir. */}
 
         {inboxLikesBanner.length ? (
           <div className="mb-6 mx-auto max-w-5xl rounded-xl border border-amber-200 bg-amber-50 p-4 text-amber-950 shadow-sm">

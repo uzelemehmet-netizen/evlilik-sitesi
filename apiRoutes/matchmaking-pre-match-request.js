@@ -197,7 +197,14 @@ function buildFromProfile(app) {
     age: getAge(app),
     gender: safeStr(app?.gender),
     city: safeStr(app?.city),
+    maritalStatus: safeStr(app?.maritalStatus),
+    education: safeStr(app?.education),
+    occupation: safeStr(app?.occupation),
+    hasChildren: typeof app?.hasChildren === 'boolean' ? app.hasChildren : null,
+    wantChildren: typeof app?.wantChildren === 'boolean' ? app.wantChildren : null,
+    about: safeStr(app?.about),
     photoUrl: safeStr(myPhotoUrls[0] || ''),
+    photoUrls: myPhotoUrls,
   };
 }
 
