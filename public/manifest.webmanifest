@@ -1,7 +1,7 @@
 {
-  "name": "Endonezya Kaşifi",
-  "short_name": "Endonezya",
-  "description": "Profil paneli ve eşleştirme akışı",
+  "name": "Uniqah",
+  "short_name": "Uniqah",
+  "description": "Uniqah eşleştirme ve profil paneli",
   "start_url": "/panel",
   "scope": "/",
   "display": "standalone",
@@ -9,16 +9,28 @@
   "theme_color": "#0b1220",
   "icons": [
     {
-      "src": "/favicon%20evlilik.png",
-      "sizes": "any",
+      "src": "/pwa-64x64.png?v=20260201-2",
+      "sizes": "64x64",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
     },
     {
-      "src": "/favicon%20evlilik.png",
-      "sizes": "any",
+      "src": "/pwa-192x192.png?v=20260201-2",
+      "sizes": "192x192",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "/pwa-512x512.png?v=20260201-2",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/maskable-icon-512x512.png?v=20260201-2",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     }
   ]
 }

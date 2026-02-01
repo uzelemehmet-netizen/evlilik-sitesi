@@ -32,7 +32,7 @@ export default async function pushSendTest(req, res) {
     return;
   }
 
-  const title = String(body?.title || 'Endonezya Kaşifi').trim() || 'Endonezya Kaşifi';
+  const title = String(body?.title || 'Uniqah').trim() || 'Uniqah';
   const msgBody = String(body?.body || 'Test bildirimi').trim() || 'Test bildirimi';
   const url = String(body?.url || '/profilim').trim() || '/profilim';
 

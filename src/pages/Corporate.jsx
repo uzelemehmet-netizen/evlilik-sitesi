@@ -7,7 +7,7 @@ import { useTranslation } from 'react-i18next';
 
 export default function Corporate() {
   const { t } = useTranslation();
-  const brand = 'Endonezya Kaşifi';
+  const brand = 'Uniqah';
   const instagram = 'https://www.instagram.com/endonezyakasifi';
   const youtube = 'https://www.youtube.com/@endonezyakasifi';
   const dameTurk = 'https://www.dameturk.com';

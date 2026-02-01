@@ -58,11 +58,11 @@ export default function Footer() {
               />
             </div>
             <p className="text-gray-400" style={{ fontFamily: '"Poppins", sans-serif' }}>
-              Endonezya Kaşifi, Endonezya’da kayıtlı <span className="font-semibold">PT MoonStar Global Indonesia</span> şirketinin markasıdır.
+              Uniqah, Endonezya’da kayıtlı <span className="font-semibold">PT MoonStar Global Indonesia</span> şirketinin markasıdır.
             </p>
             <div className="mt-4 text-gray-400 text-sm" style={{ fontFamily: '"Poppins", sans-serif' }}>
               <p className="text-xs uppercase tracking-wide text-gray-500 mb-1">Markalar</p>
-              <p>Endonezya Kaşifi</p>
+              <p>Uniqah</p>
               <p>
                 <a
                   href="https://www.dameturk.com"
@@ -291,7 +291,7 @@ export default function Footer() {
 
         <div className="border-t border-gray-800 pt-8 text-center text-gray-400">
           <p style={{ fontFamily: '"Poppins", sans-serif' }}>
-            &copy; {currentYear} Endonezya Kaşifi — PT MoonStar Global Indonesia. Tüm hakları saklıdır.
+            &copy; {currentYear} Uniqah — PT MoonStar Global Indonesia. Tüm hakları saklıdır.
           </p>
         </div>
       </div>

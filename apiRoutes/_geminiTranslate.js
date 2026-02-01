@@ -46,7 +46,7 @@ export async function translateWithGemini({ text, targetLang }) {
 
   // AI Studio / Gemini API (best-effort). Using REST to avoid client-side key exposure.
   // Model choice: fast + cheap. Change via env if needed.
-  const model = safeStr(process.env.GEMINI_TRANSLATE_MODEL) || 'gemini-1.5-flash';
+  const model = safeStr(process.env.GEMINI_TRANSLATE_MODEL) || 'gemini-3-flash';
 
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`;
 

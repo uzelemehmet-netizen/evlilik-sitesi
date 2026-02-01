@@ -49,7 +49,7 @@ export default {
       },
     },
   navigation: {
-    siteTitle: "Endonezya Kaşifi",
+    siteTitle: "Uniqah",
     siteSubtitle: "PT MoonStar Global Indonesia",
     taglineTravelOrg: "Seyahat organizasyon",
     taglineWeddingGuidance: "Evlilik rehberliği",
@@ -652,11 +652,11 @@ export default {
   },
 
   meta: {
-    baseTitle: "Endonezya Kaşifi | PT MoonStar Global Indonesia",
+    baseTitle: "Uniqah | PT MoonStar Global Indonesia",
     baseDescription:
-      "Endonezya Kaşifi (PT MoonStar Global Indonesia), Endonezya'da tur organizasyonu, balayı ve kişiye özel seyahat planlama ile evlilik rehberliği hizmeti sunar.",
+      "Uniqah (PT MoonStar Global Indonesia), evlilik eşleştirme, rehberlik ve güvenli iletişim adımları sunar.",
     pages: {
-      home: { title: "Endonezya Kaşifi | PT MoonStar Global Indonesia" },
+      home: { title: "Uniqah | PT MoonStar Global Indonesia" },
       about: { title: "Hakkımızda" },
       corporate: { title: "Kurumsal" },
       contact: { title: "İletişim" },
@@ -1336,12 +1336,99 @@ export default {
     },
   },
 
+  galleryPage: {
+    hero: {
+      title: "Fotoğraf Galerisi",
+      description:
+        "Endonezya’daki evlilik sürecimizden, seyahatlerimizden ve günlük hayatımızdan kısa kısa kareler.",
+    },
+    content: {
+      title: "Endonezya’dan Kareler",
+      description:
+        "Fotoğraf galerimizde hem nikah görüntülerinden, hem de Endonezya’daki keşiflerimizden ve günlük hayatımızdan kareleri bulabilirsiniz. Görselleri belirli aralıklarla en son çektiğimiz fotoğraflarla güncellemeye devam edeceğiz.",
+      backToAbout: "Hakkımızda sayfamıza dön",
+      footerNote:
+        "Bu sayfadaki görselleri zamanla kendi arşivimizden gerçek fotoğraflarla güncelleyeceğiz.",
+    },
+    modal: {
+      close: "Kapat",
+    },
+    images: {
+      "1": { alt: "Sukabumi Siti Gunung şelalesinden bir alıntı" },
+      "2": { alt: "Tapınak ziyaretimizden bir hatıra" },
+      "3": { alt: "Yogyakarta tapınaklarından bir kare" },
+      "4": { alt: "Ciwidey çay bahçelerinden bir anımız" },
+      "5": { alt: "Endonezya doğasında yürüyüşten bir kare" },
+      "6": { alt: "Situ Patenggan Gölü manzarasından bir kare" },
+      "7": { alt: "Salih ve Tini'nin nikahından bir kare" },
+      "8": { alt: "Yogyakarta tapınak turundan bir an" },
+      "9": { alt: "Salih ve Tini'nin nikah anısından bir kare" },
+      "10": { alt: "Pangandaran sahilinde ATV turundan bir kare" },
+      "11": { alt: "Pangandaran resort otelinden bir hatıra" },
+      "12": { alt: "Sukabumi şelalesinden manzaralar" },
+      "13": { alt: "Citumang body rafting alanından bir kare" },
+    },
+  },
+
+  privacyPage: {
+    title: "Gizlilik Politikası",
+    sections: {
+      intro: {
+        title: "1. Tanıtım",
+        text:
+          "Uniqah, müşteri gizliliğine ve veri koruma haklarına saygı duymaktadır. Bu gizlilik politikası, kişisel verilerinizin nasıl toplandığını, kullanıldığını ve korunduğunu açıklar.",
+      },
+      dataCollected: {
+        title: "2. Toplanan Veriler",
+        text: "Web sitemiz aracılığıyla aşağıdaki verileri toplayabiliriz:",
+        items: [
+          "Ad ve soyadı",
+          "Email adresi",
+          "Telefon numarası",
+          "Seyahat tercihleri",
+          "Tarayıcı ve cihaz bilgileri",
+        ],
+      },
+      dataUsage: {
+        title: "3. Verilerin Kullanımı",
+        text: "Toplanan veriler aşağıdaki amaçlarla kullanılır:",
+        items: [
+          "Seyahat ve evlilik hizmetleri sunmak",
+          "İletişim ve müşteri desteği sağlamak",
+          "Web sitesini geliştirmek",
+          "Pazarlama ve promosyon mesajları göndermek (izin ile)",
+        ],
+      },
+      security: {
+        title: "4. Veri Güvenliği",
+        text:
+          "Kişisel verileriniz, endüstri standardı şifreleme ve güvenlik önlemleri kullanılarak korunur. Ancak, internet üzerindeki hiçbir aktarım %100 güvenli değildir.",
+      },
+      rights: {
+        title: "5. Haklarınız",
+        text:
+          "Kişisel verileriniz hakkında bilgi almak, düzeltmek veya silettirilmek için bize yazılı olarak başvurabilirsiniz.",
+      },
+      contact: {
+        title: "6. İletişim",
+        text:
+          "Gizlilik politikası hakkında sorularınız için bize <emailLink>endonezyakasifi@gmail.com</emailLink> adresinden ulaşabilirsiniz.",
+      },
+    },
+    lastUpdated: "Son güncellenme: {{date}}",
+  },
+
+  notFoundPage: {
+    title: "Sayfa Bulunamadı",
+    backHome: "Ana Sayfa'ya Dön",
+  },
+
   floatingWhatsapp: {
     label: "WhatsApp",
     ariaLabel: "WhatsApp üzerinden mesaj gönder",
     messages: {
       default: "Merhaba, bilgi almak istiyorum.",
-      home: "Merhaba, Endonezya Kaşifi hakkında bilgi almak istiyorum.",
+      home: "Merhaba, Uniqah hakkında bilgi almak istiyorum.",
       explore: "Merhaba, Endonezya destinasyonları hakkında bilgi almak istiyorum.",
       travel: "Merhaba, Endonezya tatil planı hakkında bilgi almak istiyorum.",
       wedding: "Merhaba, Endonezya’da evlilik süreci hakkında bilgi almak istiyorum.",
@@ -1355,8 +1442,8 @@ export default {
   home: {
     hero: {
       badgeCompany: "Endonezya’da kayıtlı PT MoonStar Global Indonesia",
-      badgeSocial: "EndonezyaKaşifi sosyal hesapları",
-      title: "Endonezya Kaşifi",
+      badgeSocial: "Uniqah sosyal hesapları",
+      title: "Uniqah",
       subtitle: "Tur organizasyonu • Evlilik rehberliği • Sahada gerçek destek",
       description:
         "Endonezya’da balayı, keşif ve tatil odaklı butik tur paketleri ve kişiye özel seyahat planları tasarlıyoruz. Aynı zamanda Endonezya’da evlilik için gelen çiftlere; otel, ulaşım, tercümanlık ve resmi evrak süreçlerinde adım adım rehberlik ediyoruz.",
@@ -1377,7 +1464,7 @@ export default {
         },
         {
           title: "Yasal yapı",
-          description: "Endonezya Kaşifi, Endonezya’da kayıtlı PT MoonStar Global Indonesia markasıdır.",
+          description: "Uniqah, Endonezya’da kayıtlı PT MoonStar Global Indonesia markasıdır.",
         },
       ],
     },
@@ -1557,9 +1644,9 @@ export default {
     brand: {
       title: "Marka yapımız",
       p1:
-        "Bu web sitesi, PT MoonStar Global Indonesia çatısı altında yürüttüğümüz hizmetlerin vitrini ve iletişim noktasıdır. Kamuya dönük marka iletişimimizi ise Endonezya Kaşifi adıyla sürdürüyoruz.",
+        "Bu web sitesi, PT MoonStar Global Indonesia çatısı altında yürüttüğümüz hizmetlerin vitrini ve iletişim noktasıdır. Kamuya dönük marka iletişimimizi ise Uniqah adıyla sürdürüyoruz.",
       p2:
-        "MoonStar Global Indonesia; Endonezya’da yaşayan bir Türk girişimci tarafından, Türk misafirlerin beklentilerini yerinde anlayan ve sahada çözen bir yapı kurmak amacıyla hayata geçirilmiştir. Tur paketleri ve satış iletişimi, Türk misafirlere daha anlaşılır bir deneyim sunmak için Endonezya Kaşifi markası altında yürütülür.",
+        "MoonStar Global Indonesia; Endonezya’da yaşayan bir Türk girişimci tarafından, Türk misafirlerin beklentilerini yerinde anlayan ve sahada çözen bir yapı kurmak amacıyla hayata geçirilmiştir. Tur paketleri ve satış iletişimi, Türk misafirlere daha anlaşılır bir deneyim sunmak için Uniqah markası altında yürütülür.",
       cards: {
         toursTitle: "Tur organizasyonu",
         toursDesc: "Bali, Lombok, Komodo ve daha fazlası için planlı turlar ve kişiye özel seyahat planları.",
@@ -1762,7 +1849,7 @@ export default {
         subject: "Kısaca konu başlığı",
         message: "Mesajınızı yazın",
       },
-      consentPrefix: "Gizlilik politikasını okudum ve kabul ediyorum.",
+      consent: "<privacyLink>Gizlilik Politikası</privacyLink>'nı okudum ve kabul ediyorum.",
       privacyLink: "Gizlilik Politikası",
       submit: "Gönder",
       submitting: "Gönderiliyor…",

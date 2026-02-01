@@ -48,7 +48,7 @@ export default {
       },
     },
   navigation: {
-    siteTitle: "Indonesia Explorer",
+    siteTitle: "Uniqah",
     siteSubtitle: "PT MoonStar Global Indonesia",
      taglineTravelOrg: "Travel organization",
      taglineWeddingGuidance: "Wedding guidance",
@@ -666,12 +666,12 @@ export default {
   },
 
   meta: {
-    baseTitle: "Indonesia Explorer | PT MoonStar Global Indonesia",
+    baseTitle: "Uniqah | PT MoonStar Global Indonesia",
     baseDescription:
-      "Indonesia Explorer (PT MoonStar Global Indonesia) provides tour organization in Indonesia, honeymoon and bespoke travel planning, plus wedding guidance services.",
+      "Uniqah (PT MoonStar Global Indonesia) provides matchmaking, guided steps, and safer communication for the process.",
     pages: {
-      home: { title: "Indonesia Explorer | PT MoonStar Global Indonesia" },
-      about: { title: "About" },
+      home: { title: "Uniqah | PT MoonStar Global Indonesia" },
+      home: "Hi, I'd like to get information about Uniqah.",
       corporate: { title: "Corporate" },
       contact: { title: "Contact" },
       travel: { title: "Travel" },
@@ -982,12 +982,99 @@ export default {
     },
   },
 
+  galleryPage: {
+    hero: {
+      title: "Photo Gallery",
+      description:
+        "Short snapshots from our wedding journey in Indonesia, our travels, and our daily life.",
+    },
+    content: {
+      title: "Snapshots from Indonesia",
+      description:
+        "In our photo gallery you can find moments from our wedding, our explorations in Indonesia, and daily life. We will keep updating this page with our latest photos over time.",
+      backToAbout: "Back to About",
+      footerNote:
+        "We’ll update the visuals on this page over time with real photos from our own archive.",
+    },
+    modal: {
+      close: "Close",
+    },
+    images: {
+      "1": { alt: "A snapshot from Siti Gunung Waterfall, Sukabumi" },
+      "2": { alt: "A memory from our temple visit" },
+      "3": { alt: "A moment from the temples of Yogyakarta" },
+      "4": { alt: "A moment from the tea gardens of Ciwidey" },
+      "5": { alt: "A snapshot from a walk in Indonesia’s nature" },
+      "6": { alt: "A snapshot from the view of Situ Patenggan Lake" },
+      "7": { alt: "A moment from Salih and Tini’s wedding" },
+      "8": { alt: "A memory from our Yogyakarta temple tour" },
+      "9": { alt: "A snapshot from Salih and Tini’s wedding day" },
+      "10": { alt: "A snapshot from an ATV tour on Pangandaran beach" },
+      "11": { alt: "A memory from our resort stay in Pangandaran" },
+      "12": { alt: "Views from the Sukabumi waterfalls" },
+      "13": { alt: "A snapshot from the Citumang body rafting area" },
+    },
+  },
+
+  privacyPage: {
+    title: "Privacy Policy",
+    sections: {
+      intro: {
+        title: "1. Introduction",
+        text:
+          "Uniqah respects customer privacy and data protection rights. This privacy policy explains how your personal data is collected, used, and protected.",
+      },
+      dataCollected: {
+        title: "2. Data Collected",
+        text: "Through our website, we may collect the following data:",
+        items: [
+          "Full name",
+          "Email address",
+          "Phone number",
+          "Travel preferences",
+          "Browser and device information",
+        ],
+      },
+      dataUsage: {
+        title: "3. Use of Data",
+        text: "Collected data is used for the following purposes:",
+        items: [
+          "Provide travel and wedding services",
+          "Provide communication and customer support",
+          "Improve the website",
+          "Send marketing and promotional messages (with consent)",
+        ],
+      },
+      security: {
+        title: "4. Data Security",
+        text:
+          "Your personal data is protected using industry-standard encryption and security measures. However, no transmission over the internet is 100% secure.",
+      },
+      rights: {
+        title: "5. Your Rights",
+        text:
+          "You may request information about your personal data, request correction, or request deletion by contacting us in writing.",
+      },
+      contact: {
+        title: "6. Contact",
+        text:
+          "If you have questions about this privacy policy, you can reach us at <emailLink>endonezyakasifi@gmail.com</emailLink>."
+      },
+    },
+    lastUpdated: "Last updated: {{date}}",
+  },
+
+  notFoundPage: {
+    title: "Page Not Found",
+    backHome: "Back to Home",
+  },
+
   floatingWhatsapp: {
     label: "WhatsApp",
     ariaLabel: "Chat on WhatsApp",
     messages: {
       default: "Hi, I'd like to get more information.",
-      home: "Hi, I'd like to get information about Endonezya Kaşifi.",
+      home: "Hi, I'd like to get information about Uniqah.",
       explore: "Hi, I'd like to get information about Indonesia's destinations.",
       travel: "Hi, I'd like to get information about planning an Indonesia holiday.",
       wedding: "Hi, I'd like to get information about getting married in Indonesia.",
@@ -1328,7 +1415,7 @@ export default {
         subject: "Short subject",
         message: "Write your message",
       },
-      consentPrefix: "I have read and accept the privacy policy.",
+      consent: "I have read and accept the <privacyLink>Privacy Policy</privacyLink>.",
       privacyLink: "Privacy Policy",
       submit: "Send",
       submitting: "Sending…",

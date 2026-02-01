@@ -44,9 +44,9 @@ export default defineConfig(({ mode }) => {
           globIgnores: ['**/*.{jpg,jpeg,png,webp,avif,gif,mp4,mov,m4v}'],
         },
         manifest: {
-          name: 'Endonezya Kaşifi',
-          short_name: 'Endonezya',
-          description: "Profil paneli ve eşleştirme akışı",
+          name: 'Uniqah',
+          short_name: 'Uniqah',
+          description: 'Uniqah eşleştirme ve profil paneli',
           start_url: '/panel',
           scope: '/',
           display: 'standalone',
@@ -54,22 +54,22 @@ export default defineConfig(({ mode }) => {
           theme_color: '#0b1220',
           icons: [
             {
-              src: '/pwa-64x64.png',
+              src: '/pwa-64x64.png?v=20260201-2',
               sizes: '64x64',
               type: 'image/png',
             },
             {
-              src: '/pwa-192x192.png',
+              src: '/pwa-192x192.png?v=20260201-2',
               sizes: '192x192',
               type: 'image/png',
             },
             {
-              src: '/pwa-512x512.png',
+              src: '/pwa-512x512.png?v=20260201-2',
               sizes: '512x512',
               type: 'image/png',
             },
             {
-              src: '/maskable-icon-512x512.png',
+              src: '/maskable-icon-512x512.png?v=20260201-2',
               sizes: '512x512',
               type: 'image/png',
               purpose: 'maskable',

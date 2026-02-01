@@ -18,6 +18,12 @@ const REQUIRED_VARS = [
     mustHaveValue: false,
   },
   {
+    key: 'TRANSLATE_FALLBACK_PROVIDER',
+    value: 'deepl',
+    comment: 'Gemini rate-limit/arıza durumunda kullanılacak ikinci sağlayıcı (öneri: deepl). Boşsa TRANSLATE_PROVIDER kullanılır.',
+    mustHaveValue: false,
+  },
+  {
     key: 'VITE_CLOUDINARY_CLOUD_NAME',
     value: 'dj1xg1c56',
     comment: 'Cloudinary cloud name',
@@ -55,7 +61,19 @@ const REQUIRED_VARS = [
   {
     key: 'TRANSLATE_PROVIDER',
     value: 'deepl',
-    comment: 'Çeviri sağlayıcısı: deepl | libretranslate (chat manuel çeviri için).',
+    comment: 'Fallback çeviri sağlayıcısı: deepl | libretranslate | google. Not: GEMINI_API_KEY varsa chat çeviride öncelik Gemini’dedir; bu değer ikinci seçenek olarak kullanılır.',
+    mustHaveValue: false,
+  },
+  {
+    key: 'GEMINI_API_KEY',
+    value: '',
+    comment: 'Gemini API key (server-side, gizli). VITE_ kullanmayın. Ayarlıysa chat çeviri öncelikle Gemini ile çalışır.',
+    mustHaveValue: false,
+  },
+  {
+    key: 'GEMINI_TRANSLATE_MODEL',
+    value: 'gemini-3-flash',
+    comment: 'Gemini model (opsiyonel). Boş bırakılırsa default: gemini-3-flash',
     mustHaveValue: false,
   },
   {

@@ -1,5 +1,24 @@
+function foldLatin(s) {
+  // Chat'te kullanıcılar Türkçe karakterleri çoğu zaman yazmıyor:
+  // gunaydin, iyi aksamlar, tesekkurler gibi.
+  // Phrasebook eşleşmesi için temel bir "accent/diacritic" katlama yapıyoruz.
+  let out = String(s || '');
+
+  // Dotless i (ı) NFKD ile parçalanmadığı için manuel dönüştür.
+  out = out.replaceAll('ı', 'i').replaceAll('İ', 'i');
+
+  try {
+    // NFKD + combining mark strip => ü/ö/ş/ğ/ç gibi harfleri ASCII'ye yaklaştırır.
+    out = out.normalize('NFKD').replace(/[\u0300-\u036f]/g, '');
+  } catch {
+    // Eski runtime'larda normalize/property escapes sorun çıkarırsa sessizce devam.
+  }
+
+  return out;
+}
+
 function norm(s) {
-  return String(s || '')
+  return foldLatin(String(s || ''))
     .trim()
     .toLowerCase()
     .replace(/[\u200B-\u200D\uFEFF]/g, '')

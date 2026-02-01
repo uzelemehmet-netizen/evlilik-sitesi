@@ -1,6 +1,7 @@
 /* eslint-disable no-restricted-globals */
 
 import { cleanupOutdatedCaches, precacheAndRoute } from 'workbox-precaching';
+import { clientsClaim } from 'workbox-core';
 import { registerRoute } from 'workbox-routing';
 import { CacheFirst, NetworkOnly } from 'workbox-strategies';
 import { ExpirationPlugin } from 'workbox-expiration';
@@ -10,6 +11,19 @@ import { getMessaging, onBackgroundMessage } from 'firebase/messaging/sw';
 import { firebaseConfig } from './config/firebasePublicConfig';
 
 cleanupOutdatedCaches();
+
+// Yeni build gelince SW hemen aktifleşsin (PWA icon/title cache sorunlarını azaltır).
+try {
+  self.skipWaiting();
+} catch {
+  // ignore
+}
+try {
+  clientsClaim();
+} catch {
+  // ignore
+}
+
 precacheAndRoute(self.__WB_MANIFEST);
 
 // API çağrıları her zaman network'ten gelsin.
@@ -47,8 +61,8 @@ if (messaging) {
 
     const options = {
       body,
-      icon: '/pwa-192x192.png',
-      badge: '/pwa-64x64.png',
+      icon: '/pwa-192x192.png?v=20260201-2',
+      badge: '/pwa-64x64.png?v=20260201-2',
       data: { url: clickUrl },
     };
 

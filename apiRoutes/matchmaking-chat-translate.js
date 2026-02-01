@@ -17,7 +17,18 @@ function nowMs() {
 }
 
 function normalizeReadyPhrase(v) {
-  let s = safeStr(v).toLowerCase();
+  const foldLatin = (input) => {
+    let out = String(input || '');
+    out = out.replaceAll('ı', 'i').replaceAll('İ', 'i');
+    try {
+      out = out.normalize('NFKD').replace(/[\u0300-\u036f]/g, '');
+    } catch {
+      // ignore
+    }
+    return out;
+  };
+
+  let s = foldLatin(safeStr(v)).toLowerCase();
   if (!s) return '';
   // Strip common prefixes (legacy UI may have sent both lines).
   s = s.replace(/^\s*(tr|id)\s*:\s*/i, '');
@@ -133,6 +144,8 @@ export default async function handler(req, res) {
     let translated = '';
     let billing = null;
     let sponsorUid = '';
+
+    let providerUsed = '';
 
     let usageUsedCount = null;
     let usageMonthlyLimit = null;
@@ -344,6 +357,7 @@ export default async function handler(req, res) {
 
       if (translated) {
         // Kütüphane çevirisi ile tamamlandı.
+        providerUsed = 'library';
         res.statusCode = 200;
         res.setHeader('content-type', 'application/json');
         res.end(
@@ -351,6 +365,7 @@ export default async function handler(req, res) {
             ok: true,
             targetLang,
             text: translated,
+            providerUsed,
             usage: {
               usedCount: usageUsedCount,
               monthlyLimit: usageMonthlyLimit,
@@ -364,8 +379,11 @@ export default async function handler(req, res) {
       }
 
       const hasGeminiKey = !!String(process.env.GEMINI_API_KEY || process.env.GOOGLE_GEMINI_API_KEY || '').trim();
-      const primaryProvider = hasGeminiKey ? 'gemini' : String(process.env.TRANSLATE_PROVIDER || '').toLowerCase();
-      const fallbackProvider = String(process.env.TRANSLATE_PROVIDER || '').toLowerCase();
+      const configuredProvider = String(process.env.TRANSLATE_PROVIDER || '').toLowerCase();
+      const configuredFallbackProvider = String(process.env.TRANSLATE_FALLBACK_PROVIDER || configuredProvider || '').toLowerCase();
+
+      const primaryProvider = hasGeminiKey ? 'gemini' : configuredProvider;
+      const fallbackProvider = configuredFallbackProvider;
 
       // Gemini free-tier RPM guard + admin alert (best-effort).
       // If RPM is exceeded, we transparently fall back to configured provider (e.g., DeepL).
@@ -387,6 +405,7 @@ export default async function handler(req, res) {
           // Fallback to DeepL/LibreTranslate/Google if configured.
           if (fallbackProvider && fallbackProvider !== 'gemini') {
             translated = await translateText({ text, targetLang, provider: fallbackProvider });
+            providerUsed = fallbackProvider || '';
           } else {
             throw e;
           }
@@ -396,11 +415,13 @@ export default async function handler(req, res) {
       if (!translated) {
         try {
           translated = await translateText({ text, targetLang, provider: primaryProvider });
+          providerUsed = primaryProvider || '';
         } catch (e) {
           const code = String(e?.message || '');
           // Optional resiliency: if Gemini fails for transient reasons, try fallback provider.
           if (primaryProvider === 'gemini' && fallbackProvider && fallbackProvider !== 'gemini' && code === 'translate_failed') {
             translated = await translateText({ text, targetLang, provider: fallbackProvider });
+            providerUsed = fallbackProvider || '';
           } else {
             throw e;
           }
@@ -455,6 +476,7 @@ export default async function handler(req, res) {
         const existing = cur?.translations && typeof cur.translations === 'object' ? safeStr(cur.translations[targetLang]) : '';
         if (existing) {
           translated = existing;
+          providerUsed = 'cache';
           return;
         }
 
