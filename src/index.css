@@ -173,13 +173,13 @@ h3 {
   }
 
   .app-btn-logout {
-    @apply bg-red-600 text-white ring-red-600/30;
-    box-shadow: 0 14px 40px rgba(220, 38, 38, 0.22), 0 4px 12px rgba(2, 6, 23, 0.10);
+    @apply bg-red-800 text-white ring-red-800/30;
+    box-shadow: 0 14px 40px rgba(153, 27, 27, 0.22), 0 4px 12px rgba(2, 6, 23, 0.10);
   }
 
   .app-btn-logout:hover {
-    @apply bg-red-700;
-    box-shadow: 0 18px 50px rgba(220, 38, 38, 0.26), 0 6px 16px rgba(2, 6, 23, 0.12);
+    @apply bg-red-900;
+    box-shadow: 0 18px 50px rgba(127, 29, 29, 0.26), 0 6px 16px rgba(2, 6, 23, 0.12);
   }
 
   .app-badge {
