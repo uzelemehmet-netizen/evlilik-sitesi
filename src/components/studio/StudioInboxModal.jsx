@@ -86,7 +86,7 @@ export default function StudioInboxModal({
           <button
             type="button"
             onClick={onClose}
-            className="rounded-md border border-slate-200 bg-white px-3 py-1.5 text-sm font-semibold text-slate-800 hover:bg-slate-50"
+            className="app-btn app-btn-soft h-9"
           >
             Kapat
           </button>
@@ -188,71 +188,73 @@ export default function StudioInboxModal({
                           </div>
                         ) : null}
 
-                        <div className="mt-3 flex flex-wrap items-center gap-2">
+                        <div className={mode === 'messages' ? "mt-3" : "mt-3"}>
                           {mode === 'messages' ? (
                             <>
                               <button
                                 type="button"
                                 disabled={!!loadingId || !id}
                                 onClick={() => onMarkRead?.({ messageId: id })}
-                                className="inline-flex items-center justify-center rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 hover:bg-slate-50 disabled:opacity-60"
+                                className="app-btn app-btn-soft w-full sm:w-auto"
                               >
                                 {isUnread ? 'Okundu yap' : 'Okundu'}
                               </button>
                             </>
                           ) : (
                             <>
-                              <button
-                                type="button"
-                                disabled={!!loadingId || !id}
-                                onClick={() => setExpandedId(expanded ? '' : id)}
-                                className="inline-flex items-center justify-center rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 hover:bg-slate-50 disabled:opacity-60"
-                              >
-                                {expanded ? 'Profili gizle' : 'Profili incele'}
-                              </button>
+                              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                                <button
+                                  type="button"
+                                  disabled={!!loadingId || !id}
+                                  onClick={() => setExpandedId(expanded ? '' : id)}
+                                  className="app-btn app-btn-soft col-span-2 w-full sm:col-span-1"
+                                >
+                                  {expanded ? 'Profili gizle' : 'Profili incele'}
+                                </button>
 
-                              <button
-                                type="button"
-                                disabled={!!loadingId}
-                                onClick={async () => {
-                                  try {
-                                    if (msg && isUnread) await onMarkRead?.({ requestId: id, fromUid });
-                                  } catch {
-                                    // noop
-                                  }
-                                  onApprove?.({ fromUid, type });
-                                }}
-                                className="inline-flex items-center justify-center rounded-md bg-emerald-600 px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 disabled:opacity-60"
-                              >
-                                {isPreMatch ? 'Onayla' : 'İzin ver'}
-                              </button>
-
-                              <button
-                                type="button"
-                                disabled={!!loadingId}
-                                onClick={async () => {
-                                  try {
-                                    if (msg && isUnread) await onMarkRead?.({ requestId: id, fromUid });
-                                  } catch {
-                                    // noop
-                                  }
-                                  onReject?.({ fromUid, type });
-                                }}
-                                className="inline-flex items-center justify-center rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 hover:bg-slate-50 disabled:opacity-60"
-                              >
-                                Reddet
-                              </button>
-
-                              {msg && isUnread ? (
                                 <button
                                   type="button"
                                   disabled={!!loadingId}
-                                  onClick={() => onMarkRead?.({ requestId: id, fromUid })}
-                                  className="ml-auto inline-flex items-center justify-center rounded-md px-2 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 disabled:opacity-60"
+                                  onClick={async () => {
+                                    try {
+                                      if (msg && isUnread) await onMarkRead?.({ requestId: id, fromUid });
+                                    } catch {
+                                      // noop
+                                    }
+                                    onApprove?.({ fromUid, type });
+                                  }}
+                                  className="app-btn app-btn-primary w-full"
                                 >
-                                  Okundu yap
+                                  {isPreMatch ? 'Onayla' : 'İzin ver'}
                                 </button>
-                              ) : null}
+
+                                <button
+                                  type="button"
+                                  disabled={!!loadingId}
+                                  onClick={async () => {
+                                    try {
+                                      if (msg && isUnread) await onMarkRead?.({ requestId: id, fromUid });
+                                    } catch {
+                                      // noop
+                                    }
+                                    onReject?.({ fromUid, type });
+                                  }}
+                                  className="app-btn app-btn-danger w-full"
+                                >
+                                  Reddet
+                                </button>
+
+                                {msg && isUnread ? (
+                                  <button
+                                    type="button"
+                                    disabled={!!loadingId}
+                                    onClick={() => onMarkRead?.({ requestId: id, fromUid })}
+                                    className="app-btn app-btn-soft col-span-2 w-full h-9 text-xs sm:col-span-3"
+                                  >
+                                    Okundu yap
+                                  </button>
+                                ) : null}
+                              </div>
                             </>
                           )}
                         </div>
@@ -293,7 +295,7 @@ export default function StudioInboxModal({
               <p className="truncate text-sm font-semibold text-white">{lightbox.title || ''}</p>
               <button
                 type="button"
-                className="rounded-md bg-white/10 px-3 py-2 text-sm font-semibold text-white hover:bg-white/20"
+                className="app-btn app-btn-soft h-9 bg-white/10 text-white ring-white/20 hover:bg-white/20"
                 onClick={() => setLightbox({ open: false, urls: [], index: 0, title: '' })}
               >
                 Kapat
@@ -312,7 +314,7 @@ export default function StudioInboxModal({
               <div className="mt-3 flex items-center justify-between gap-2">
                 <button
                   type="button"
-                  className="rounded-md bg-white/10 px-3 py-2 text-sm font-semibold text-white hover:bg-white/20"
+                  className="app-btn app-btn-soft h-9 bg-white/10 text-white ring-white/20 hover:bg-white/20"
                   onClick={() =>
                     setLightbox((s) => ({
                       ...s,
@@ -327,7 +329,7 @@ export default function StudioInboxModal({
                 </p>
                 <button
                   type="button"
-                  className="rounded-md bg-white/10 px-3 py-2 text-sm font-semibold text-white hover:bg-white/20"
+                  className="app-btn app-btn-soft h-9 bg-white/10 text-white ring-white/20 hover:bg-white/20"
                   onClick={() =>
                     setLightbox((s) => ({
                       ...s,

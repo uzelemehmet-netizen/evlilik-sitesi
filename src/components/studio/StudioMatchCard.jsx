@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Heart, MessageCircle, ShieldCheck, Sparkles } from 'lucide-react';
+import { Heart, MessageCircle, ShieldCheck, Sparkles, User } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { authFetch } from '../../utils/authFetch';
 import { translateStudioApiError } from '../../utils/studioErrorI18n';
+import ImageLightbox from '../ImageLightbox';
 
 function safeStr(v) {
   return typeof v === 'string' ? v.trim() : '';
@@ -77,6 +78,9 @@ export default function StudioMatchCard({
   const [photoAccessState, setPhotoAccessState] = useState({ loading: false, error: '' });
   const [photoRequestState, setPhotoRequestState] = useState({ loading: false, error: '', status: '' });
   const [photoIndex, setPhotoIndex] = useState(0);
+  const [lightbox, setLightbox] = useState({ open: false, images: [], index: 0 });
+  const [aboutExpanded, setAboutExpanded] = useState(false);
+  const [expectExpanded, setExpectExpanded] = useState(false);
 
   const other = useMemo(() => {
     if (!match) return null;
@@ -128,8 +132,10 @@ export default function StudioMatchCard({
       ? t('studio.common.unknown')
       : '';
 
-  const about = clipText(other?.about || other?.details?.about || other?.bio || other?.details?.bio, 220);
-  const expectations = clipText(other?.expectations || other?.details?.expectations, 220);
+  const aboutFull = safeStr(other?.about || other?.details?.about || other?.bio || other?.details?.bio);
+  const expectationsFull = safeStr(other?.expectations || other?.details?.expectations);
+  const aboutCollapsed = clipText(aboutFull, 180);
+  const expectationsCollapsed = clipText(expectationsFull, 180);
   const photos = useMemo(() => {
     const list = Array.isArray(other?.photoUrls) ? other.photoUrls : [];
     return list
@@ -365,7 +371,16 @@ export default function StudioMatchCard({
     onOpenShort({ matchId: match?.id, displayName });
   };
 
+  const openProfileDetails = () => {
+    if (!match?.id) return;
+    if (lockedByActiveMatch) return;
+    navigate(`/app/match/${match.id}`, { state: { openProfile: true, profileTab: 'details' } });
+  };
+
+  const canOpenLightbox = !!photoUrl && (!otherPhotosBlurred || canSeeOtherPhotos);
+
   return (
+    <>
     <div className="relative flex flex-col overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm transition-all hover:shadow-md">
       <div className={lockedByActiveMatch ? 'pointer-events-none blur-[1px] opacity-70' : ''}>
         <div className="relative">
@@ -415,22 +430,43 @@ export default function StudioMatchCard({
               {tierMeta.label}
             </div>
           ) : null}
-          <Link to={`/app/match/${match?.id}`} className="block">
+          <div className="relative aspect-square w-full overflow-hidden bg-slate-100">
             {photoUrl ? (
-              <img
-                src={photoUrl}
-                alt={t('studio.match.avatarAlt', { name: displayName })}
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  if (!canOpenLightbox) return;
+                  setLightbox({
+                    open: true,
+                    images: photos,
+                    index: Math.min(photoIndex, Math.max(photos.length - 1, 0)),
+                  });
+                }}
+                disabled={!canOpenLightbox}
                 className={
-                  'h-48 w-full object-cover ' +
-                  (otherPhotosBlurred && !canSeeOtherPhotos ? 'blur-[10px] saturate-[0.85]' : '')
+                  'block h-full w-full ' +
+                  (canOpenLightbox ? 'cursor-zoom-in' : 'cursor-not-allowed')
                 }
-                loading="lazy"
-                decoding="async"
-              />
+                aria-label={t('studio.match.avatarAlt', { name: displayName })}
+                title={canOpenLightbox ? 'Büyüt' : ''}
+              >
+                <img
+                  src={photoUrl}
+                  alt={t('studio.match.avatarAlt', { name: displayName })}
+                  className={
+                    'h-full w-full object-cover ' +
+                    (otherPhotosBlurred && !canSeeOtherPhotos ? 'blur-[10px] saturate-[0.85]' : '')
+                  }
+                  loading="lazy"
+                  decoding="async"
+                />
+              </button>
             ) : (
-              <div className="h-48 w-full bg-slate-100" />
+              <div className="h-full w-full bg-slate-100" />
             )}
-          </Link>
+          </div>
 
           {otherPhotosBlurred && !canSeeOtherPhotos ? (
             <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
@@ -529,17 +565,41 @@ export default function StudioMatchCard({
             ) : null}
           </div>
 
-          {about || expectations ? (
+          {aboutFull || expectationsFull ? (
             <div className="mt-3 space-y-2">
-              {about ? (
-                <p className="text-sm text-slate-700">
-                  <span className="font-semibold">{t('studio.myInfo.fields.about')}:</span> {about}
-                </p>
+              {aboutFull ? (
+                <div className="text-sm text-slate-700">
+                  <p>
+                    <span className="font-semibold">{t('studio.myInfo.fields.about')}:</span> {aboutExpanded ? aboutFull : aboutCollapsed}
+                  </p>
+                  {aboutFull.length > aboutCollapsed.length ? (
+                    <button
+                      type="button"
+                      onClick={() => setAboutExpanded((v) => !v)}
+                      className="mt-1 text-xs font-semibold text-emerald-700 hover:underline"
+                    >
+                      {aboutExpanded ? t('studio.common.readLess') : t('studio.common.readMore')}
+                    </button>
+                  ) : null}
+                </div>
               ) : null}
-              {expectations ? (
-                <p className="text-sm text-slate-700">
-                  <span className="font-semibold">{t('studio.myInfo.fields.expectations')}:</span> {expectations}
-                </p>
+
+              {expectationsFull ? (
+                <div className="text-sm text-slate-700">
+                  <p>
+                    <span className="font-semibold">{t('studio.myInfo.fields.expectations')}:</span>{' '}
+                    {expectExpanded ? expectationsFull : expectationsCollapsed}
+                  </p>
+                  {expectationsFull.length > expectationsCollapsed.length ? (
+                    <button
+                      type="button"
+                      onClick={() => setExpectExpanded((v) => !v)}
+                      className="mt-1 text-xs font-semibold text-emerald-700 hover:underline"
+                    >
+                      {expectExpanded ? t('studio.common.readLess') : t('studio.common.readMore')}
+                    </button>
+                  ) : null}
+                </div>
               ) : null}
             </div>
           ) : null}
@@ -598,6 +658,17 @@ export default function StudioMatchCard({
                 : t('studio.match.actions.like')}
           </button>
 
+          <button
+            type="button"
+            onClick={openProfileDetails}
+            disabled={lockedByActiveMatch}
+            className="inline-flex items-center justify-center rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 shadow-sm transition hover:bg-slate-50 active:scale-[0.99] disabled:opacity-60"
+            title="Profil detayları"
+          >
+            <User className="mr-2 h-5 w-5 text-slate-500" />
+            Profil detayları
+          </button>
+
           {isIncomingLike ? (
             <button
               type="button"
@@ -653,5 +724,14 @@ export default function StudioMatchCard({
       {activeStartState.error ? <div className="px-4 pb-4 text-sm text-rose-700">{activeStartState.error}</div> : null}
       {activeStartState.notice ? <div className="px-4 pb-4 text-sm text-emerald-700">{activeStartState.notice}</div> : null}
     </div>
+
+    {lightbox.open ? (
+      <ImageLightbox
+        images={lightbox.images}
+        currentIndex={lightbox.index}
+        onClose={() => setLightbox({ open: false, images: [], index: 0 })}
+      />
+    ) : null}
+    </>
   );
 }

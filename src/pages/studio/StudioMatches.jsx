@@ -11,10 +11,15 @@ import StudioInboxModal from '../../components/studio/StudioInboxModal';
 import { authFetch } from '../../utils/authFetch';
 import { translateStudioApiError } from '../../utils/studioErrorI18n';
 import { useMatchmakingResetAtMs } from '../../utils/matchmakingReset';
+import { HelpCircle, MessageCircle, User, Compass } from 'lucide-react';
 
 export default function StudioMatches() {
   const { user } = useAuth();
   const { t, i18n } = useTranslation();
+
+  const howItemsRaw = t('studio.matches.howItems', { returnObjects: true });
+  const howItems = Array.isArray(howItemsRaw) ? howItemsRaw : [];
+  const [howExpanded, setHowExpanded] = useState(false);
 
   const mmReset = useMatchmakingResetAtMs();
   const resetAtMs = typeof mmReset?.resetAtMs === 'number' && Number.isFinite(mmReset.resetAtMs) ? mmReset.resetAtMs : 0;
@@ -859,44 +864,48 @@ export default function StudioMatches() {
             </p>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center">
             <button
               type="button"
               onClick={() => setInboxModal({ open: true, mode: 'requests' })}
-              className="inline-flex items-center justify-center rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 shadow-sm transition hover:bg-slate-50"
+              className="app-btn w-full sm:w-auto"
             >
-              İstekler
-              {pendingAccessRequests.length ? (
-                <span className="ml-2 inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-rose-600 px-2 py-0.5 text-xs font-bold text-white">
-                  {pendingAccessRequests.length}
-                </span>
-              ) : null}
+              <span className="inline-flex items-center justify-center gap-2">
+                <HelpCircle className="h-4 w-4" />
+                <span>İstekler</span>
+                {pendingAccessRequests.length ? <span className="app-badge">{pendingAccessRequests.length}</span> : null}
+              </span>
             </button>
 
             <button
               type="button"
               onClick={() => setInboxModal({ open: true, mode: 'messages' })}
-              className="inline-flex items-center justify-center rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 shadow-sm transition hover:bg-slate-50"
+              className="app-btn w-full sm:w-auto"
             >
-              Mesajlar
-              {unreadMessageCount ? (
-                <span className="ml-2 inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-emerald-600 px-2 py-0.5 text-xs font-bold text-white">
-                  {unreadMessageCount}
-                </span>
-              ) : null}
+              <span className="inline-flex items-center justify-center gap-2">
+                <MessageCircle className="h-4 w-4" />
+                <span>Mesajlar</span>
+                {unreadMessageCount ? <span className="app-badge">{unreadMessageCount}</span> : null}
+              </span>
             </button>
 
             <Link
               to="/profilim"
-              className="inline-flex items-center justify-center rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 shadow-sm transition hover:bg-slate-50"
+              className="app-btn w-full sm:w-auto"
             >
-              {t('studio.matches.backToProfile')}
+              <span className="inline-flex items-center justify-center gap-2">
+                <User className="h-4 w-4" />
+                <span>{t('studio.matches.backToProfile')}</span>
+              </span>
             </Link>
             <Link
               to="/app/pool"
-              className="inline-flex items-center justify-center rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 shadow-sm transition hover:bg-slate-50"
+              className="app-btn w-full sm:w-auto"
             >
-              {t('studio.pool.title')}
+              <span className="inline-flex items-center justify-center gap-2">
+                <Compass className="h-4 w-4" />
+                <span>Keşfet</span>
+              </span>
             </Link>
           </div>
         </div>
@@ -923,11 +932,20 @@ export default function StudioMatches() {
         <div className="mb-4 mx-auto max-w-4xl rounded-xl border border-slate-200 bg-white p-4 text-sm text-slate-700 shadow-sm">
           <p className="font-semibold text-slate-900">{t('studio.matches.howTitle')}</p>
           <ul className="mt-2 list-disc space-y-1 pl-5">
-            <li>{t('studio.matches.howItems.likeFirst')}</li>
-            <li>{t('studio.matches.howItems.startActive')}</li>
-            <li>{t('studio.matches.howItems.onlyOneActive')}</li>
-            <li>{t('studio.matches.howItems.lockUntilCancel')}</li>
+            {(howExpanded ? howItems : howItems.slice(0, 4)).map((item, idx) => (
+              <li key={idx}>{item}</li>
+            ))}
           </ul>
+
+          {howItems.length > 4 ? (
+            <button
+              type="button"
+              onClick={() => setHowExpanded((v) => !v)}
+              className="mt-2 inline-flex items-center gap-2 text-sm font-semibold text-rose-700 hover:underline"
+            >
+              {howExpanded ? t('studio.matches.howReadLess') : t('studio.matches.howReadMore')}
+            </button>
+          ) : null}
         </div>
 
         {myLock?.active && myLock?.matchId ? (

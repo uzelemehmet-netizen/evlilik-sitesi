@@ -12,6 +12,7 @@ import { getWhatsAppNumber } from "../utils/whatsapp";
 import { normalizePhoneForWhatsApp } from "../utils/phone";
 import { authFetch } from "../utils/authFetch";
 import { uploadImageToCloudinaryAuto } from '../utils/cloudinaryUpload';
+import ImageLightbox from '../components/ImageLightbox';
 
 export default function Panel() {
   const { t, i18n } = useTranslation();
@@ -47,6 +48,8 @@ export default function Panel() {
   }, []);
 
   const [dashboardTab, setDashboardTab] = useState('matches'); // profile | matches
+
+  const [photoLightbox, setPhotoLightbox] = useState({ open: false, images: [], index: 0, title: '' });
 
   const studioUiEnabled = true;
 
@@ -6258,15 +6261,23 @@ export default function Panel() {
 
                             {Array.isArray(other.photoUrls) && other.photoUrls.length > 0 ? (
                               <div className="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-2">
-                                {other.photoUrls.filter(Boolean).slice(0, canSeeFullProfiles ? 3 : 1).map((u) => (
-                                  <a key={u} href={u} target="_blank" rel="noopener noreferrer" className="block">
-                                    <img
-                                      src={u}
-                                      alt={t('matchmakingPanel.matches.candidate.photoAlt')}
-                                      className="w-full h-40 object-cover rounded-xl border border-white/10"
-                                      loading="lazy"
-                                    />
-                                  </a>
+                                {other.photoUrls.filter(Boolean).slice(0, canSeeFullProfiles ? 3 : 1).map((u, idx, arr) => (
+                                  <div key={u} className="relative aspect-square w-full overflow-hidden rounded-xl border border-white/10 bg-white/5">
+                                    <button
+                                      type="button"
+                                      onClick={() => setPhotoLightbox({ open: true, images: arr, index: idx, title: other?.username || '' })}
+                                      className="block h-full w-full cursor-zoom-in"
+                                      aria-label={t('matchmakingPanel.matches.candidate.photoAlt')}
+                                      title="Büyüt"
+                                    >
+                                      <img
+                                        src={u}
+                                        alt={t('matchmakingPanel.matches.candidate.photoAlt')}
+                                        className="h-full w-full object-cover"
+                                        loading="lazy"
+                                      />
+                                    </button>
+                                  </div>
                                 ))}
                               </div>
                             ) : null}
@@ -7454,6 +7465,14 @@ export default function Panel() {
 
         </div>
       </section>
+
+      {photoLightbox.open ? (
+        <ImageLightbox
+          images={photoLightbox.images}
+          currentIndex={photoLightbox.index}
+          onClose={() => setPhotoLightbox({ open: false, images: [], index: 0, title: '' })}
+        />
+      ) : null}
 
       <Footer />
     </div>

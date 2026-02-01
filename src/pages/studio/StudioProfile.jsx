@@ -504,10 +504,10 @@ export default function StudioProfile() {
                 ) : null}
               </div>
 
-              <div className="flex items-center gap-2">
+              <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center">
                 <Link
                   to="/evlilik/eslestirme-basvurusu?editOnce=1"
-                  className="inline-flex items-center justify-center rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 shadow-sm transition hover:bg-slate-50"
+                  className="app-btn w-full sm:w-auto"
                 >
                   <Edit className="mr-2 h-4 w-4" />
                   {t('studio.profile.editProfile')}
@@ -515,7 +515,7 @@ export default function StudioProfile() {
 
                 <Link
                   to="/profilim/destek"
-                  className="inline-flex items-center justify-center rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 shadow-sm transition hover:bg-slate-50"
+                  className="app-btn w-full sm:w-auto"
                 >
                   <MessageCircle className="mr-2 h-4 w-4" />
                   {t('studio.feedback.nav')}
@@ -524,7 +524,7 @@ export default function StudioProfile() {
                 <button
                   type="button"
                   onClick={() => toggleTopInlinePanel('membership')}
-                  className="inline-flex items-center justify-center rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 shadow-sm transition hover:bg-slate-50"
+                  className="app-btn w-full sm:w-auto"
                   title={t('studio.profile.subscriptionTitle')}
                 >
                   <Star className="mr-2 h-4 w-4 text-amber-500" />
@@ -534,7 +534,7 @@ export default function StudioProfile() {
                 <button
                   type="button"
                   onClick={() => toggleTopInlinePanel('identity')}
-                  className="inline-flex items-center justify-center rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 shadow-sm transition hover:bg-slate-50"
+                  className="app-btn w-full sm:w-auto"
                   title={t('studio.profile.identityTitle')}
                 >
                   <ShieldCheck className="mr-2 h-4 w-4 text-emerald-600" />
@@ -544,7 +544,7 @@ export default function StudioProfile() {
                 <button
                   type="button"
                   onClick={() => toggleTopInlinePanel('photoPrivacy')}
-                  className="inline-flex items-center justify-center rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 shadow-sm transition hover:bg-slate-50"
+                  className="app-btn w-full sm:w-auto"
                   title="Fotoğraf gizliliği"
                 >
                   <UploadCloud className="mr-2 h-4 w-4 text-indigo-600" />
@@ -553,15 +553,18 @@ export default function StudioProfile() {
 
                 <Link
                   to="/app/matches"
-                  className="inline-flex items-center justify-center rounded-md bg-emerald-600 px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700"
+                  className="app-btn app-btn-accent w-full sm:w-auto"
                 >
-                  {t('studio.profile.myMatches')}
+                  <span className="inline-flex items-center justify-center gap-2">
+                    <span>{t('studio.profile.myMatches')}</span>
+                    <span className="app-badge">Liste</span>
+                  </span>
                 </Link>
 
                 <button
                   type="button"
                   onClick={logoutNow}
-                  className="inline-flex items-center justify-center rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 shadow-sm transition hover:bg-slate-50"
+                  className="app-btn app-btn-soft w-full sm:w-auto"
                   title={t('studio.profile.logout')}
                 >
                   <LogOut className="mr-2 h-4 w-4" />
@@ -747,22 +750,22 @@ export default function StudioProfile() {
                   </ul>
                 ) : null}
 
-                <div className="mt-4 flex flex-wrap items-center gap-2">
+                <div className="mt-4 grid grid-cols-1 gap-2 sm:flex sm:flex-wrap sm:items-center">
                   <Link
                     to="/app/pool"
-                    className="inline-flex items-center justify-center rounded-md bg-amber-500 px-3 py-2 text-sm font-semibold text-slate-950 shadow-sm transition hover:bg-amber-400"
+                    className="app-btn app-btn-primary w-full sm:w-auto"
                   >
                     {t('studio.profile.applySuccess.ctas.pool')}
                   </Link>
                   <Link
                     to="/app/matches"
-                    className="inline-flex items-center justify-center rounded-md border border-amber-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 shadow-sm transition hover:bg-amber-50"
+                    className="app-btn app-btn-soft w-full sm:w-auto"
                   >
                     {t('studio.profile.applySuccess.ctas.matches')}
                   </Link>
                   <Link
                     to="/evlilik/uniqah"
-                    className="inline-flex items-center justify-center rounded-md border border-amber-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 shadow-sm transition hover:bg-amber-50"
+                    className="app-btn app-btn-soft w-full sm:w-auto"
                   >
                     {t('studio.profile.applySuccess.ctas.learn')}
                   </Link>

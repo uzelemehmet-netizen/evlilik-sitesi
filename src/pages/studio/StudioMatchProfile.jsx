@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useLocation, useParams } from 'react-router-dom';
 import { collection, doc, limit, onSnapshot, orderBy, query } from 'firebase/firestore';
 import { Lock, MessageCircle, ShieldCheck, Sparkles } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -55,6 +55,30 @@ function InfoRow({ label, value }) {
   );
 }
 
+function ExpandableInfoRow({ label, value, collapsedChars = 240, readMoreLabel, readLessLabel }) {
+  const v = value === null || value === undefined ? '' : String(value).trim();
+  const [expanded, setExpanded] = useState(false);
+  if (!v) return null;
+  const needsToggle = v.length > collapsedChars;
+  const shown = !needsToggle ? v : expanded ? v : `${v.slice(0, collapsedChars)}…`;
+
+  return (
+    <div className="rounded-lg border border-slate-200 bg-white p-3">
+      <p className="text-xs font-semibold text-slate-600">{label}</p>
+      <p className="mt-1 text-sm text-slate-900 whitespace-pre-wrap break-words">{shown}</p>
+      {needsToggle ? (
+        <button
+          type="button"
+          onClick={() => setExpanded((x) => !x)}
+          className="mt-2 text-xs font-semibold text-emerald-700 hover:underline"
+        >
+          {expanded ? readLessLabel : readMoreLabel}
+        </button>
+      ) : null}
+    </div>
+  );
+}
+
 function fmtRemainingMs(ms, t) {
   const x = Math.max(0, ms);
   const totalMin = Math.ceil(x / 60000);
@@ -75,6 +99,7 @@ function friendlyErrorMessage(raw, t) {
 
 export default function StudioMatchProfile() {
   const { matchId } = useParams();
+  const location = useLocation();
   const { user } = useAuth();
   const { t, i18n } = useTranslation();
 
@@ -117,6 +142,7 @@ export default function StudioMatchProfile() {
   const [translateState, setTranslateState] = useState({ loadingId: '', error: '' });
 
   const [profileOpen, setProfileOpen] = useState(false);
+  const [profileTab, setProfileTab] = useState('preview'); // preview | details
   const [profilePhotoIndex, setProfilePhotoIndex] = useState(0);
   const [profileReloadKey, setProfileReloadKey] = useState(0);
 
@@ -521,6 +547,22 @@ export default function StudioMatchProfile() {
     };
   }, [mid, profileOpen, profileReloadKey, t, uid]);
 
+  useEffect(() => {
+    if (!profileOpen) setProfileTab('preview');
+  }, [profileOpen]);
+
+  const deepLinkAppliedRef = useRef(false);
+  useEffect(() => {
+    if (deepLinkAppliedRef.current) return;
+    const st = location?.state && typeof location.state === 'object' ? location.state : null;
+    if (!st) return;
+    if (st.openProfile) {
+      setProfileOpen(true);
+      if (st.profileTab === 'details') setProfileTab('details');
+      deepLinkAppliedRef.current = true;
+    }
+  }, [location?.state]);
+
   const requestProfileAccess = async () => {
     if (!uid || !otherUid) return;
     if (profileAccessReq.loading) return;
@@ -870,12 +912,12 @@ export default function StudioMatchProfile() {
                   })()}
                 </p>
 
-                <div className="mt-3 flex flex-wrap items-center gap-2">
+                <div className="mt-3 grid grid-cols-1 gap-2 sm:flex sm:flex-wrap sm:items-center">
                   <button
                     type="button"
                     onClick={openShortModal}
                     disabled={lockedByOtherActiveMatch}
-                    className="inline-flex items-center justify-center rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 shadow-sm transition hover:bg-slate-50 disabled:opacity-60"
+                    className="app-btn w-full sm:w-auto"
                   >
                     <MessageCircle className="mr-2 h-4 w-4" />
                     {t('studio.matchProfile.askShort')}
@@ -898,7 +940,7 @@ export default function StudioMatchProfile() {
                         return next;
                       });
                     }}
-                    className="inline-flex items-center justify-center rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 shadow-sm transition hover:bg-slate-50"
+                    className="app-btn w-full sm:w-auto"
                   >
                     {profileOpen ? t('studio.matchProfile.hideProfile') : t('studio.matchProfile.viewProfile')}
                   </button>
@@ -908,7 +950,7 @@ export default function StudioMatchProfile() {
                       type="button"
                       onClick={startActive}
                       disabled={activeStartState.loading}
-                      className="inline-flex items-center justify-center rounded-md bg-emerald-600 px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 disabled:opacity-60"
+                      className="app-btn app-btn-primary w-full sm:w-auto"
                     >
                       <Sparkles className="mr-2 h-4 w-4" />
                       {activeStartState.loading
@@ -945,17 +987,52 @@ export default function StudioMatchProfile() {
                   <p className="text-xs text-slate-600">{t('studio.matchProfile.contactHidden')}</p>
                 </div>
 
-                {!canSeeFullProfiles ? (
+                <div className="sticky top-2 z-10 mt-3 flex flex-wrap items-center gap-2 rounded-full border border-slate-200 bg-white/90 p-1 backdrop-blur">
+                  <button
+                    type="button"
+                    onClick={() => setProfileTab('preview')}
+                    className={
+                      'inline-flex items-center justify-center rounded-full px-3 py-1.5 text-sm font-semibold transition ' +
+                      (profileTab === 'preview'
+                        ? 'bg-emerald-600 text-white shadow-sm'
+                        : 'border border-slate-200 bg-white text-slate-800 hover:bg-slate-50')
+                    }
+                  >
+                    Önizleme
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setProfileTab('details')}
+                    className={
+                      'inline-flex items-center justify-center rounded-full px-3 py-1.5 text-sm font-semibold transition ' +
+                      (profileTab === 'details'
+                        ? 'bg-emerald-600 text-white shadow-sm'
+                        : 'border border-slate-200 bg-white text-slate-800 hover:bg-slate-50')
+                    }
+                  >
+                    Profil detayları
+                  </button>
+                </div>
+
+                {profileTab === 'details' && !canSeeFullProfiles ? (
                   <div className="mt-3 rounded-lg border border-slate-200 bg-white p-3">
                     {fullProfileState.loading ? (
                       <p className="text-sm text-slate-600">{t('studio.common.loading')}</p>
                     ) : fullProfileState.error === 'no_access' ? (
                       <>
                         <p className="text-sm text-slate-700">
-                          Detay profili görmek için karşı taraftan izin almalısın.
+                          Detaylı profil incelemek için bu kullanıcının izin vermesi gerekir.
                         </p>
 
+                        {profileAccessReq.status === 'approved' || profileAccessReq.status === 'granted' ? (
+                          <div className="mt-2 rounded-lg border border-emerald-200 bg-emerald-50 p-2 text-sm text-emerald-900">
+                            Şimdi profil detaylarını inceleyebilirsiniz.
+                          </div>
+                        ) : null}
+
                         {profileAccessReq.error ? <p className="mt-2 text-sm text-rose-700">{profileAccessReq.error}</p> : null}
+
                         {profileAccessReq.status ? (
                           <p
                             className={
@@ -970,9 +1047,9 @@ export default function StudioMatchProfile() {
                             {profileAccessReq.status === 'pending'
                               ? 'İstek gönderildi (beklemede)'
                               : profileAccessReq.status === 'approved'
-                                ? 'İstek onaylandı (profil yenileniyor)'
+                                ? 'İstek onaylandı'
                                 : profileAccessReq.status === 'granted'
-                                  ? 'İzin zaten verilmiş (profil yenileniyor)'
+                                  ? 'İzin zaten verilmiş'
                                   : `Durum: ${profileAccessReq.status}`}
                           </p>
                         ) : null}
@@ -996,7 +1073,7 @@ export default function StudioMatchProfile() {
                                 ? 'İstek gönderildi'
                                 : profileAccessReq.status === 'approved' || profileAccessReq.status === 'granted'
                                   ? 'İzin verildi'
-                                  : 'İzin iste'}
+                                  : 'İstek gönder'}
                           </button>
 
                           <button
@@ -1006,13 +1083,23 @@ export default function StudioMatchProfile() {
                           >
                             Tekrar dene
                           </button>
+
+                          {(profileAccessReq.status === 'approved' || profileAccessReq.status === 'granted') ? (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setProfileReloadKey((k) => k + 1);
+                              }}
+                              className="inline-flex items-center justify-center rounded-md bg-slate-900 px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800"
+                            >
+                              Kişi profili incele
+                            </button>
+                          ) : null}
                         </div>
                       </>
                     ) : (
                       <div className="flex flex-wrap items-center justify-between gap-2">
-                        <p className="text-sm text-slate-600">
-                          Detaylar için karşı tarafın onayı gerekebilir.
-                        </p>
+                        <p className="text-sm text-slate-600">Detaylar için karşı tarafın onayı gerekebilir.</p>
                         <button
                           type="button"
                           onClick={() => setProfileReloadKey((k) => k + 1)}
@@ -1025,122 +1112,126 @@ export default function StudioMatchProfile() {
                   </div>
                 ) : null}
 
-                {visibleOtherPhotos.length ? (
-                  <div className="relative mt-3 overflow-hidden rounded-lg border border-slate-200 bg-white">
-                    <img
-                      src={visibleOtherPhotos[Math.min(profilePhotoIndex, visibleOtherPhotos.length - 1)]}
-                      alt={t('studio.match.avatarAlt', { name: otherName })}
-                      className={
-                        'h-64 w-full object-cover ' +
-                        (otherPhotosBlurred && !canSeeOtherPhotos ? 'blur-[12px] saturate-[0.85]' : '')
-                      }
-                      loading="lazy"
-                      decoding="async"
-                    />
+                {profileTab === 'preview' ? (
+                  <>
+                    {visibleOtherPhotos.length ? (
+                      <div className="relative mt-3 overflow-hidden rounded-lg border border-slate-200 bg-white">
+                        <img
+                          src={visibleOtherPhotos[Math.min(profilePhotoIndex, visibleOtherPhotos.length - 1)]}
+                          alt={t('studio.match.avatarAlt', { name: otherName })}
+                          className={
+                            'h-64 w-full object-cover ' +
+                            (otherPhotosBlurred && !canSeeOtherPhotos ? 'blur-[12px] saturate-[0.85]' : '')
+                          }
+                          loading="lazy"
+                          decoding="async"
+                        />
+
+                        {otherPhotosBlurred && !canSeeOtherPhotos ? (
+                          <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+                            <div className="rounded-full bg-black/60 px-3 py-1.5 text-[12px] font-semibold text-white">
+                              Sadece izin verilenler görebilir
+                            </div>
+                          </div>
+                        ) : null}
+
+                        {visibleOtherPhotos.length > 1 ? (
+                          <div className="pointer-events-none absolute inset-x-0 bottom-2 flex items-center justify-center gap-1">
+                            {visibleOtherPhotos.map((_, idx) => (
+                              <span
+                                key={idx}
+                                className={
+                                  'h-1.5 w-1.5 rounded-full transition ' +
+                                  (idx === profilePhotoIndex ? 'bg-white shadow' : 'bg-white/60')
+                                }
+                              />
+                            ))}
+                          </div>
+                        ) : null}
+
+                        {visibleOtherPhotos.length > 1 ? (
+                          <div className="absolute inset-y-0 left-0 right-0 flex items-center justify-between px-2">
+                            <button
+                              type="button"
+                              onClick={() => setProfilePhotoIndex((p) => (p - 1 + visibleOtherPhotos.length) % visibleOtherPhotos.length)}
+                              className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-black/40 text-white shadow-sm transition hover:bg-black/55"
+                              aria-label={t('studio.matchProfile.prevPhoto')}
+                              title={t('studio.matchProfile.prevPhoto')}
+                            >
+                              ‹
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setProfilePhotoIndex((p) => (p + 1) % visibleOtherPhotos.length)}
+                              className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-black/40 text-white shadow-sm transition hover:bg-black/55"
+                              aria-label={t('studio.matchProfile.nextPhoto')}
+                              title={t('studio.matchProfile.nextPhoto')}
+                            >
+                              ›
+                            </button>
+                          </div>
+                        ) : null}
+                      </div>
+                    ) : null}
 
                     {otherPhotosBlurred && !canSeeOtherPhotos ? (
-                      <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-                        <div className="rounded-full bg-black/60 px-3 py-1.5 text-[12px] font-semibold text-white">
-                          Sadece izin verilenler görebilir
+                      <div className="mt-3 rounded-lg border border-slate-200 bg-white p-3">
+                        <p className="text-sm text-slate-700">Fotoğrafları görmek için karşı taraftan izin almalısın.</p>
+
+                        {photoAccessReq.error ? <p className="mt-2 text-sm text-rose-700">{photoAccessReq.error}</p> : null}
+                        {photoAccessReq.status ? (
+                          <p
+                            className={
+                              'mt-2 text-sm ' +
+                              (photoAccessReq.status === 'pending'
+                                ? 'text-emerald-700'
+                                : photoAccessReq.status === 'approved' || photoAccessReq.status === 'granted'
+                                  ? 'text-emerald-700'
+                                  : 'text-slate-600')
+                            }
+                          >
+                            {photoAccessReq.status === 'pending'
+                              ? 'İstek gönderildi (beklemede)'
+                              : photoAccessReq.status === 'approved'
+                                ? 'İstek onaylandı'
+                                : photoAccessReq.status === 'granted'
+                                  ? 'İzin zaten verilmiş'
+                                  : `Durum: ${photoAccessReq.status}`}
+                          </p>
+                        ) : null}
+
+                        <div className="mt-3 flex flex-wrap items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={requestPhotoAccess}
+                            disabled={
+                              photoAccessReq.loading ||
+                              photoAccessReq.status === 'pending' ||
+                              photoAccessReq.status === 'approved' ||
+                              photoAccessReq.status === 'granted'
+                            }
+                            className="inline-flex items-center justify-center rounded-md bg-emerald-600 px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 disabled:opacity-60"
+                          >
+                            {photoAccessReq.loading
+                              ? t('studio.common.processing')
+                              : photoAccessReq.status === 'pending'
+                                ? 'İstek gönderildi'
+                                : photoAccessReq.status === 'approved' || photoAccessReq.status === 'granted'
+                                  ? 'İzin verildi'
+                                  : 'Fotoğraf izni iste'}
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => setProfileReloadKey((k) => k + 1)}
+                            className="inline-flex items-center justify-center rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 shadow-sm transition hover:bg-slate-50"
+                          >
+                            Yenile
+                          </button>
                         </div>
                       </div>
                     ) : null}
-
-                    {visibleOtherPhotos.length > 1 ? (
-                      <div className="pointer-events-none absolute inset-x-0 bottom-2 flex items-center justify-center gap-1">
-                        {visibleOtherPhotos.map((_, idx) => (
-                          <span
-                            key={idx}
-                            className={
-                              'h-1.5 w-1.5 rounded-full transition ' +
-                              (idx === profilePhotoIndex ? 'bg-white shadow' : 'bg-white/60')
-                            }
-                          />
-                        ))}
-                      </div>
-                    ) : null}
-
-                    {visibleOtherPhotos.length > 1 ? (
-                      <div className="absolute inset-y-0 left-0 right-0 flex items-center justify-between px-2">
-                        <button
-                          type="button"
-                          onClick={() => setProfilePhotoIndex((p) => (p - 1 + visibleOtherPhotos.length) % visibleOtherPhotos.length)}
-                          className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-black/40 text-white shadow-sm transition hover:bg-black/55"
-                          aria-label={t('studio.matchProfile.prevPhoto')}
-                          title={t('studio.matchProfile.prevPhoto')}
-                        >
-                          ‹
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setProfilePhotoIndex((p) => (p + 1) % visibleOtherPhotos.length)}
-                          className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-black/40 text-white shadow-sm transition hover:bg-black/55"
-                          aria-label={t('studio.matchProfile.nextPhoto')}
-                          title={t('studio.matchProfile.nextPhoto')}
-                        >
-                          ›
-                        </button>
-                      </div>
-                    ) : null}
-                  </div>
-                ) : null}
-
-                {otherPhotosBlurred && !canSeeOtherPhotos ? (
-                  <div className="mt-3 rounded-lg border border-slate-200 bg-white p-3">
-                    <p className="text-sm text-slate-700">Fotoğrafları görmek için karşı taraftan izin almalısın.</p>
-
-                    {photoAccessReq.error ? <p className="mt-2 text-sm text-rose-700">{photoAccessReq.error}</p> : null}
-                    {photoAccessReq.status ? (
-                      <p
-                        className={
-                          'mt-2 text-sm ' +
-                          (photoAccessReq.status === 'pending'
-                            ? 'text-emerald-700'
-                            : photoAccessReq.status === 'approved' || photoAccessReq.status === 'granted'
-                              ? 'text-emerald-700'
-                              : 'text-slate-600')
-                        }
-                      >
-                        {photoAccessReq.status === 'pending'
-                          ? 'İstek gönderildi (beklemede)'
-                          : photoAccessReq.status === 'approved'
-                            ? 'İstek onaylandı'
-                            : photoAccessReq.status === 'granted'
-                              ? 'İzin zaten verilmiş'
-                              : `Durum: ${photoAccessReq.status}`}
-                      </p>
-                    ) : null}
-
-                    <div className="mt-3 flex flex-wrap items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={requestPhotoAccess}
-                        disabled={
-                          photoAccessReq.loading ||
-                          photoAccessReq.status === 'pending' ||
-                          photoAccessReq.status === 'approved' ||
-                          photoAccessReq.status === 'granted'
-                        }
-                        className="inline-flex items-center justify-center rounded-md bg-emerald-600 px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 disabled:opacity-60"
-                      >
-                        {photoAccessReq.loading
-                          ? t('studio.common.processing')
-                          : photoAccessReq.status === 'pending'
-                            ? 'İstek gönderildi'
-                            : photoAccessReq.status === 'approved' || photoAccessReq.status === 'granted'
-                              ? 'İzin verildi'
-                              : 'Fotoğraf izni iste'}
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => setProfileReloadKey((k) => k + 1)}
-                        className="inline-flex items-center justify-center rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 shadow-sm transition hover:bg-slate-50"
-                      >
-                        Yenile
-                      </button>
-                    </div>
-                  </div>
+                  </>
                 ) : null}
 
                 <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -1162,10 +1253,27 @@ export default function StudioMatchProfile() {
                     />
                   ) : null}
 
-                  {otherAbout ? <InfoRow label={t('studio.myInfo.fields.about')} value={otherAbout} /> : null}
-                  {otherExpectations ? <InfoRow label={t('studio.myInfo.fields.expectations')} value={otherExpectations} /> : null}
+                  {otherAbout ? (
+                    <ExpandableInfoRow
+                      label={t('studio.myInfo.fields.about')}
+                      value={otherAbout}
+                      collapsedChars={240}
+                      readMoreLabel={t('studio.common.readMore')}
+                      readLessLabel={t('studio.common.readLess')}
+                    />
+                  ) : null}
 
-                  {canSeeFullProfiles ? (
+                  {otherExpectations ? (
+                    <ExpandableInfoRow
+                      label={t('studio.myInfo.fields.expectations')}
+                      value={otherExpectations}
+                      collapsedChars={240}
+                      readMoreLabel={t('studio.common.readMore')}
+                      readLessLabel={t('studio.common.readLess')}
+                    />
+                  ) : null}
+
+                  {profileTab === 'details' && canSeeFullProfiles ? (
                     <>
                       <InfoRow label={t('studio.myInfo.fields.gender')} value={safeStr(genderLabel) || safeStr(otherMerged?.gender)} />
                       <InfoRow label={t('studio.myInfo.fields.nationality')} value={safeStr(nationalityLabel) || safeStr(otherMerged?.nationality)} />

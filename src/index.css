@@ -118,3 +118,61 @@ h3 {
 .line-clamp-4 {
   -webkit-line-clamp: 4;
 }
+
+@layer components {
+  .app-btn {
+    @apply inline-flex h-9 select-none items-center justify-center gap-2 rounded-xl px-3 text-sm font-semibold text-center;
+    @apply bg-gradient-to-b from-rose-50/90 to-white text-slate-900 ring-1 ring-rose-200/70;
+    @apply transition-[transform,box-shadow,background-color,color,opacity] duration-150 ease-out;
+    @apply hover:bg-white hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.99];
+    @apply focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 focus-visible:ring-offset-2;
+    @apply disabled:pointer-events-none disabled:opacity-60;
+
+    /* “mobil app” hissi: yumuşak gölge */
+    box-shadow: 0 10px 30px rgba(2, 6, 23, 0.08), 0 2px 6px rgba(2, 6, 23, 0.06);
+  }
+
+  .app-btn:hover {
+    box-shadow: 0 14px 40px rgba(2, 6, 23, 0.10), 0 4px 10px rgba(2, 6, 23, 0.08);
+  }
+
+  .app-btn-primary {
+    @apply bg-emerald-600 text-white ring-emerald-600/25;
+    box-shadow: 0 14px 40px rgba(5, 150, 105, 0.22), 0 4px 12px rgba(2, 6, 23, 0.10);
+  }
+
+  .app-btn-primary:hover {
+    @apply bg-emerald-700;
+    box-shadow: 0 18px 50px rgba(5, 150, 105, 0.26), 0 6px 16px rgba(2, 6, 23, 0.12);
+  }
+
+  .app-btn-soft {
+    @apply bg-rose-50 text-slate-900 ring-rose-200/70;
+  }
+
+  .app-btn-soft:hover {
+    @apply bg-rose-100/70;
+  }
+
+  .app-btn-accent {
+    @apply bg-rose-100/70 text-rose-950 ring-rose-200;
+    box-shadow: 0 12px 34px rgba(190, 18, 60, 0.10), 0 3px 10px rgba(2, 6, 23, 0.08);
+  }
+
+  .app-btn-accent:hover {
+    @apply bg-rose-200/60;
+    box-shadow: 0 16px 44px rgba(190, 18, 60, 0.14), 0 5px 14px rgba(2, 6, 23, 0.10);
+  }
+
+  .app-btn-danger {
+    @apply bg-rose-50 text-rose-900 ring-rose-200;
+  }
+
+  .app-btn-danger:hover {
+    @apply bg-rose-100;
+  }
+
+  .app-badge {
+    @apply inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-rose-200/70 px-2 py-0.5 text-[11px] font-bold text-rose-950 ring-1 ring-rose-300/70;
+  }
+}

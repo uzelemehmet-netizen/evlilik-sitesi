@@ -9,6 +9,8 @@ import { authFetch } from '../../utils/authFetch';
 import { translateStudioApiError } from '../../utils/studioErrorI18n';
 import StudioInboxModal from '../../components/studio/StudioInboxModal';
 import { useMatchmakingResetAtMs } from '../../utils/matchmakingReset';
+import { HelpCircle, RefreshCcw, Users } from 'lucide-react';
+import ImageLightbox from '../../components/ImageLightbox';
 
 function safeStr(v) {
   return typeof v === 'string' ? v.trim() : '';
@@ -48,6 +50,7 @@ export default function StudioPool() {
   const [accessAction, setAccessAction] = useState({ loadingId: '', error: '' });
 
   const [inboxModal, setInboxModal] = useState({ open: false });
+  const [lightbox, setLightbox] = useState({ open: false, images: [], index: 0, title: '' });
 
   const [myLock, setMyLock] = useState({ active: false, matchId: '' });
   const [myMembership, setMyMembership] = useState({ active: false });
@@ -383,32 +386,37 @@ export default function StudioPool() {
         <div className="mx-auto max-w-5xl">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <h1 className="text-2xl font-bold">{t('studio.pool.title')}</h1>
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center">
               <button
                 type="button"
                 onClick={() => setInboxModal({ open: true })}
-                className="relative inline-flex items-center justify-center rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 shadow-sm transition hover:bg-slate-50"
+                className="app-btn w-full sm:w-auto"
               >
-                Gelen istekler
-                {pendingAccessCount > 0 ? (
-                  <span className="ml-2 inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-rose-600 px-2 py-0.5 text-xs font-bold text-white">
-                    {pendingAccessCount}
-                  </span>
-                ) : null}
+                <span className="inline-flex items-center justify-center gap-2">
+                  <HelpCircle className="h-4 w-4" />
+                  <span>Gelen istekler</span>
+                  {pendingAccessCount ? <span className="app-badge">{pendingAccessCount}</span> : null}
+                </span>
               </button>
 
               <button
                 type="button"
                 onClick={() => load({ silent: false })}
-                className="inline-flex items-center justify-center rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 shadow-sm transition hover:bg-slate-50"
+                className="app-btn w-full sm:w-auto"
               >
-                {t('studio.pool.refresh')}
+                <span className="inline-flex items-center justify-center gap-2">
+                  <RefreshCcw className="h-4 w-4" />
+                  <span>{t('studio.pool.refresh')}</span>
+                </span>
               </button>
               <Link
                 to="/app/matches"
-                className="inline-flex items-center justify-center rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 shadow-sm transition hover:bg-slate-50"
+                className="app-btn w-full sm:w-auto"
               >
-                {t('studio.pool.backToMatches')}
+                <span className="inline-flex items-center justify-center gap-2">
+                  <Users className="h-4 w-4" />
+                  <span>{t('studio.pool.backToMatches')}</span>
+                </span>
               </Link>
             </div>
           </div>
@@ -467,11 +475,26 @@ export default function StudioPool() {
               const genderText = genderLabelTR(p?.gender);
               const about = clip(p?.about, 180);
               const exp = clip(p?.expectations, 180);
-              const photo = Array.isArray(p?.photoUrls) && p.photoUrls.length ? safeStr(p.photoUrls[0]) : '';
+              const photos = Array.isArray(p?.photoUrls) ? p.photoUrls.map(safeStr).filter(Boolean) : [];
+              const photo = photos.length ? photos[0] : '';
 
               return (
                 <div key={safeStr(it?.uid) || safeStr(it?.applicationId)} className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
-                  {photo ? <img src={photo} alt={name} className="h-44 w-full object-cover" loading="lazy" decoding="async" /> : <div className="h-44 w-full bg-slate-100" />}
+                  <div className="relative aspect-square w-full overflow-hidden bg-slate-100">
+                    {photo ? (
+                      <button
+                        type="button"
+                        onClick={() => setLightbox({ open: true, images: photos, index: 0, title: name })}
+                        className="block h-full w-full cursor-zoom-in"
+                        aria-label={`${name} fotoğrafını büyüt`}
+                        title="Büyüt"
+                      >
+                        <img src={photo} alt={name} className="h-full w-full object-cover" loading="lazy" decoding="async" />
+                      </button>
+                    ) : (
+                      <div className="h-full w-full bg-slate-100" />
+                    )}
+                  </div>
 
                   <div className="p-4">
                     <p className="text-lg font-semibold">{name}{age}</p>
@@ -536,6 +559,14 @@ export default function StudioPool() {
             loadingId={accessAction.loadingId}
             error={accessAction.error}
           />
+
+          {lightbox.open ? (
+            <ImageLightbox
+              images={lightbox.images}
+              currentIndex={lightbox.index}
+              onClose={() => setLightbox({ open: false, images: [], index: 0, title: '' })}
+            />
+          ) : null}
         </div>
       </main>
     </div>
