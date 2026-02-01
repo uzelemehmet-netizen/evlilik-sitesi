@@ -112,6 +112,7 @@ export default function StudioMatchCard({
   }, [t, tier]);
 
   const displayName = safeStr(other?.username) || t('studio.common.match');
+  const otherUserCode = safeStr(other?.userCode) || safeStr(other?.publicProfile?.userCode);
   const ageText = typeof other?.age === 'number' ? String(other.age) : '';
   const genderText = genderLabelTR(other?.gender);
   const isVerified = !!other?.identityVerified;
@@ -461,7 +462,7 @@ export default function StudioMatchCard({
                   alt={t('studio.match.avatarAlt', { name: displayName })}
                   className={
                     'h-full w-full object-cover ' +
-                    (!canSeeOtherPhotos ? 'blur-[10px] saturate-[0.85]' : '')
+                    (!canSeeOtherPhotos ? 'blur-[24px] saturate-[0.75] contrast-[0.95]' : '')
                   }
                   loading="lazy"
                   decoding="async"
@@ -555,6 +556,14 @@ export default function StudioMatchCard({
             </h3>
             {isVerified ? <ShieldCheck className="h-5 w-5 text-emerald-600" title={t('studio.common.verified')} /> : null}
           </div>
+
+          {otherUserCode ? (
+            <div className="mt-1">
+              <span className="inline-flex items-center rounded-full bg-indigo-50 px-2 py-0.5 text-[11px] font-semibold text-indigo-900 border border-indigo-200">
+                {t('studio.profile.userCode.label')}: {otherUserCode}
+              </span>
+            </div>
+          ) : null}
 
           <div className="mt-2 space-y-1">
             {maritalLabel ? <p className="text-sm text-slate-600">{maritalLabel}</p> : null}

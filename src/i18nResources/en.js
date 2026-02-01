@@ -573,6 +573,19 @@ export default {
         stateOff: 'Off',
         hintOn: 'In your match list, you can allow per person using the “Show my photos” button on each card.',
         hintOff: 'When blur is off, the extra photo permission button is not shown on match cards.',
+        fairnessWarning:
+          'Fair use: After you blur your photos, photos in match cards can only be viewed for people you explicitly allow.',
+        rules: {
+          firstBlurLock48h: 'After you blur your photos for the first time, you cannot make them visible again for 48 hours.',
+          unblurLock48h: 'After you make your photos visible, you cannot blur them again for 48 hours.',
+          onlyAllowed:
+            'When visibility is off, only people you allow can view your photos; and you can only view photos of people you allowed.',
+        },
+        cooldownError: 'There is a waiting period for this action. Remaining: {{time}}',
+      },
+
+      userCode: {
+        label: 'User Code',
       },
 
       applySuccess: {

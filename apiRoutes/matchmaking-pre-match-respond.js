@@ -110,6 +110,13 @@ export default async function handler(req, res) {
     return;
   }
 
+      userCode: safeStr(userDoc?.userCode) || safeStr(userDoc?.publicProfile?.userCode),
+      userCodeNo:
+        typeof userDoc?.userCodeNo === 'number' && Number.isFinite(userDoc.userCodeNo)
+          ? userDoc.userCodeNo
+          : (typeof userDoc?.publicProfile?.userCodeNo === 'number' && Number.isFinite(userDoc.publicProfile.userCodeNo)
+              ? userDoc.publicProfile.userCodeNo
+              : null),
   try {
     const decoded = await requireIdToken(req);
     const uid = safeStr(decoded?.uid);

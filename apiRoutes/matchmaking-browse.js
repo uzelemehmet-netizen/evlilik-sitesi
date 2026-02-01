@@ -331,6 +331,7 @@ export default async function handler(req, res) {
         (typeof cand?.createdAtMs === 'number' && Number.isFinite(cand.createdAtMs) ? cand.createdAtMs : 0) || tsToMs(cand?.createdAt),
       profile: {
         username: safeStr(cand?.username),
+        userCode: '',
         age,
         city: safeStr(cand?.city),
         country: safeStr(cand?.country),
@@ -349,6 +350,28 @@ export default async function handler(req, res) {
         },
       },
     });
+  }
+
+  // UC kodlarını ekle (pool'da herkes görebilsin). Best-effort.
+  try {
+    const uids = items.map((x) => String(x?.uid || '')).filter(Boolean);
+    const chunks = [];
+    for (let i = 0; i < uids.length; i += 10) chunks.push(uids.slice(i, i + 10));
+    const codeByUid = new Map();
+    for (const chunk of chunks) {
+      const snap = await db.collection('matchmakingUsers').where('__name__', 'in', chunk).get();
+      snap.docs.forEach((d) => {
+        const u = d.data() || {};
+        const code = safeStr(u?.userCode) || safeStr(u?.publicProfile?.userCode);
+        if (code) codeByUid.set(d.id, code);
+      });
+    }
+    items.forEach((it) => {
+      const code = codeByUid.get(String(it?.uid || '')) || '';
+      if (code && it?.profile && typeof it.profile === 'object') it.profile.userCode = code;
+    });
+  } catch {
+    // ignore
   }
 
   // Sırala: yaş yakınlığı -> daha yeni

@@ -403,7 +403,7 @@ export default function StudioPool() {
                 <span className="inline-flex items-center justify-center gap-2">
                   <HelpCircle className="h-4 w-4" />
                   <span>Gelen istekler</span>
-                  {pendingAccessCount ? <span className="app-badge">{pendingAccessCount}</span> : null}
+                className={'h-full w-full object-cover ' + (!canSeePhotos ? 'blur-[24px] saturate-[0.75] contrast-[0.95]' : '')}
                 </span>
               </button>
 
@@ -483,6 +483,7 @@ export default function StudioPool() {
               const approvedMatchId = safeStr(out?.matchId);
               const name = safeStr(p?.username) || t('studio.common.profile');
               const age = typeof p?.age === 'number' ? `, ${p.age}` : '';
+              const userCode = safeStr(p?.userCode);
               const city = safeStr(p?.city);
               const marital = safeStr(p?.details?.maritalStatus);
               const occupation = safeStr(p?.details?.occupation);
@@ -514,7 +515,7 @@ export default function StudioPool() {
                         <img
                           src={photo}
                           alt={name}
-                          className={'h-full w-full object-cover ' + (!canSeePhotos ? 'blur-[10px] saturate-[0.85]' : '')}
+                          className={'h-full w-full object-cover ' + (!canSeePhotos ? 'blur-[24px] saturate-[0.75] contrast-[0.95]' : '')}
                           loading="lazy"
                           decoding="async"
                         />
@@ -534,6 +535,13 @@ export default function StudioPool() {
 
                   <div className="p-4">
                     <p className="text-lg font-semibold">{name}{age}</p>
+                    {userCode ? (
+                      <div className="mt-1">
+                        <span className="inline-flex items-center rounded-full bg-indigo-50 px-2 py-0.5 text-[11px] font-semibold text-indigo-900 border border-indigo-200">
+                          {t('studio.profile.userCode.label')}: {userCode}
+                        </span>
+                      </div>
+                    ) : null}
                     <div className="mt-2 space-y-1 text-sm text-slate-600">
                       {genderText ? <p>{genderText}</p> : null}
                       {marital ? <p>{marital}</p> : null}

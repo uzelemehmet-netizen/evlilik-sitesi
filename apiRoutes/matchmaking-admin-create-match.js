@@ -42,6 +42,13 @@ function buildProfileSnapshot(app, userDoc) {
   return {
     identityVerified: !!(userDoc && isIdentityVerifiedUserDoc(userDoc)),
     proMember: !!(userDoc && isMembershipActiveUserDoc(userDoc)),
+    userCode: safeStr(userDoc?.userCode) || safeStr(userDoc?.publicProfile?.userCode),
+    userCodeNo:
+      typeof userDoc?.userCodeNo === 'number' && Number.isFinite(userDoc.userCodeNo)
+        ? userDoc.userCodeNo
+        : (typeof userDoc?.publicProfile?.userCodeNo === 'number' && Number.isFinite(userDoc.publicProfile.userCodeNo)
+            ? userDoc.publicProfile.userCodeNo
+            : null),
     profileNo: asNum(app?.profileNo),
     profileCode: safeStr(app?.profileCode) || (typeof app?.profileNo === 'number' ? `MK-${app.profileNo}` : ''),
     username: safeStr(app?.username),

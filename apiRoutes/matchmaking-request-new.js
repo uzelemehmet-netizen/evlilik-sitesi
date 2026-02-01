@@ -406,6 +406,8 @@ function buildPublicProfile(app, userStatus) {
     proMember: !!userStatus?.membershipActive && String(userStatus?.membershipPlan || '') === 'pro',
     membershipActive: !!userStatus?.membershipActive,
     membershipPlan: safeStr(userStatus?.membershipPlan),
+    userCode: safeStr(userStatus?.userCode),
+    userCodeNo: typeof userStatus?.userCodeNo === 'number' && Number.isFinite(userStatus.userCodeNo) ? userStatus.userCodeNo : null,
     profileNo: asNum(app?.profileNo),
     profileCode: safeStr(app?.profileCode),
     username: safeStr(app?.username),
@@ -1007,6 +1009,13 @@ export default async function handler(req, res) {
               identityVerified: !!data?.identityVerified || ['verified', 'approved'].includes(String(data?.identityVerification?.status || '').toLowerCase().trim()),
               membershipActive: isMembershipActiveUserDoc(data, now),
               membershipPlan: typeof data?.membership?.plan === 'string' ? String(data.membership.plan).toLowerCase().trim() : '',
+              userCode: safeStr(data?.userCode) || safeStr(data?.publicProfile?.userCode),
+              userCodeNo:
+                typeof data?.userCodeNo === 'number' && Number.isFinite(data.userCodeNo)
+                  ? data.userCodeNo
+                  : (typeof data?.publicProfile?.userCodeNo === 'number' && Number.isFinite(data.publicProfile.userCodeNo)
+                      ? data.publicProfile.userCodeNo
+                      : null),
               activeMatchCount: activeCount,
               maxActiveMatches,
               hasFreeSlot: activeCount < maxActiveMatches,

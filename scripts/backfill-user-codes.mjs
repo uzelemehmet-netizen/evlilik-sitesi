@@ -140,6 +140,8 @@ async function processUserDoc(docSnap) {
       const parsed = parseUcNo(existingUserCode);
       if (parsed > 0) {
         patch.userCodeNo = parsed;
+        patch['publicProfile.userCode'] = existingUserCode;
+        patch['publicProfile.userCodeNo'] = parsed;
         patch.userCodeGender = normalizeGender(user?.userCodeGender) || genderNorm || user?.userCodeGender || '';
       }
     }
@@ -148,6 +150,8 @@ async function processUserDoc(docSnap) {
       const formatted = formatUcNo(existingUserCodeNo);
       if (formatted) {
         patch.userCode = formatted;
+        patch['publicProfile.userCode'] = formatted;
+        patch['publicProfile.userCodeNo'] = existingUserCodeNo;
         patch.userCodeGender = normalizeGender(user?.userCodeGender) || genderNorm || user?.userCodeGender || '';
       }
     }
@@ -179,6 +183,8 @@ async function processUserDoc(docSnap) {
 
       patch.userCode = assignedCode;
       patch.userCodeNo = assignedNo;
+      patch['publicProfile.userCode'] = assignedCode;
+      patch['publicProfile.userCodeNo'] = assignedNo;
       patch.userCodeGender = genderNorm;
       patch.userCodeAssignedAtMs = Date.now();
       patch.userCodeBackfilledAtMs = Date.now();

@@ -99,9 +99,27 @@ export default async function handler(req, res) {
 
     const details = asObj(app?.details);
 
+    let userCode = '';
+    let userCodeNo = null;
+    try {
+      const userSnap = await db.collection('matchmakingUsers').doc(targetUid).get();
+      const u = userSnap.exists ? userSnap.data() || {} : {};
+      userCode = safeStr(u?.userCode) || safeStr(u?.publicProfile?.userCode);
+      const n = typeof u?.userCodeNo === 'number' && Number.isFinite(u.userCodeNo)
+        ? u.userCodeNo
+        : (typeof u?.publicProfile?.userCodeNo === 'number' && Number.isFinite(u.publicProfile.userCodeNo)
+            ? u.publicProfile.userCodeNo
+            : null);
+      userCodeNo = n;
+    } catch {
+      // best-effort
+    }
+
     const profile = {
       uid: targetUid,
       applicationId: safeStr(app?.id),
+      userCode,
+      userCodeNo,
       username: safeStr(app?.username),
       age: asNum(app?.age),
       city: safeStr(app?.city),

@@ -349,6 +349,7 @@ export default function StudioMatchProfile() {
   }, [fullProfile, other]);
 
   const otherName = safeStr(otherMerged?.username) || t('studio.common.profile');
+  const otherUserCode = safeStr(otherMerged?.userCode) || safeStr(otherMerged?.publicProfile?.userCode);
   const otherAge = asNumber(otherMerged?.age);
   const otherCity = safeStr(otherMerged?.city);
   const otherCountry = safeStr(otherMerged?.country);
@@ -937,6 +938,14 @@ export default function StudioMatchProfile() {
                   {otherVerified ? <ShieldCheck className="h-5 w-5 text-emerald-600" title={t('studio.common.verified')} /> : null}
                 </div>
 
+                {otherUserCode ? (
+                  <div className="mt-1">
+                    <span className="inline-flex items-center rounded-full bg-indigo-50 px-2 py-0.5 text-[11px] font-semibold text-indigo-900 border border-indigo-200">
+                      {t('studio.profile.userCode.label')}: {otherUserCode}
+                    </span>
+                  </div>
+                ) : null}
+
                 <p className="mt-1 text-sm text-slate-600">
                   {(() => {
                     if (!otherCity && !otherCountry) return ' ';
@@ -948,7 +957,6 @@ export default function StudioMatchProfile() {
                 <div className="mt-3 grid grid-cols-1 gap-2 sm:flex sm:flex-wrap sm:items-center">
                   <button
                     type="button"
-                    onClick={openShortModal}
                     disabled={lockedByOtherActiveMatch}
                     className="app-btn w-full sm:w-auto"
                   >
@@ -1154,7 +1162,7 @@ export default function StudioMatchProfile() {
                           alt={t('studio.match.avatarAlt', { name: otherName })}
                           className={
                             'h-64 w-full object-cover ' +
-                            (!canSeeOtherPhotos ? 'blur-[12px] saturate-[0.85]' : '')
+                            (!canSeeOtherPhotos ? 'blur-[26px] saturate-[0.75] contrast-[0.95]' : '')
                           }
                           loading="lazy"
                           decoding="async"

@@ -248,6 +248,8 @@ export default function StudioProfile() {
     if (!uid) return;
     if (photoPrivacyState.loading) return;
 
+    const prev = photosBlurred;
+
     setPhotoPrivacyState({ loading: true, error: '' });
     setLocalPhotosBlurred(!!next);
     try {
@@ -259,6 +261,7 @@ export default function StudioProfile() {
       setPhotoPrivacyState({ loading: false, error: '' });
     } catch (e) {
       const msg = safeStr(e?.message) || 'action_failed';
+      setLocalPhotosBlurred(!!prev);
       setPhotoPrivacyState({ loading: false, error: translateStudioApiError(t, msg) || msg });
     }
   };
@@ -485,6 +488,11 @@ export default function StudioProfile() {
                 </h1>
 
                 <div className="mt-2 flex flex-wrap items-center gap-2">
+                  {safeStr(mmUser?.userCode || (mmUser?.publicProfile && mmUser.publicProfile.userCode)) ? (
+                    <span className="inline-flex items-center rounded-full bg-indigo-50 px-2 py-1 text-xs font-semibold text-indigo-900 border border-indigo-200">
+                      {t('studio.profile.userCode.label')}: {safeStr(mmUser?.userCode || (mmUser?.publicProfile && mmUser.publicProfile.userCode))}
+                    </span>
+                  ) : null}
                   <span className="inline-flex items-center rounded-full bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-700">
                     {t('studio.myInfo.fields.username')}: {profile.username || t('studio.common.unknown')}
                   </span>
@@ -678,9 +686,15 @@ export default function StudioProfile() {
                       {t('studio.profile.photoPrivacy.body')}
                     </p>
 
-                    <p className="mt-2 text-sm text-amber-900">
-                      {t('studio.match.photos.reciprocityHint')}
-                    </p>
+                    <div className="mt-3 space-y-2 text-sm text-amber-900">
+                      <p>{t('studio.profile.photoPrivacy.fairnessWarning')}</p>
+                      <p>{t('studio.match.photos.reciprocityHint')}</p>
+                      <ul className="list-disc pl-5 text-amber-900/90">
+                        <li>{t('studio.profile.photoPrivacy.rules.firstBlurLock48h')}</li>
+                        <li>{t('studio.profile.photoPrivacy.rules.unblurLock48h')}</li>
+                        <li>{t('studio.profile.photoPrivacy.rules.onlyAllowed')}</li>
+                      </ul>
+                    </div>
 
                     {photoPrivacyState.error ? (
                       <div className="mt-3 rounded-md border border-rose-200 bg-rose-50 p-2 text-sm text-rose-900">

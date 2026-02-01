@@ -570,6 +570,19 @@ export default {
         stateOff: 'Kapalı',
         hintOn: 'Eşleşme listesinde her kartta “Fotoğraflarımı göster” butonuyla kişi bazında izin verebilirsin.',
         hintOff: 'Blur kapalıyken eşleşme kartlarında ekstra izin butonu gösterilmez.',
+        fairnessWarning:
+          'Adil kullanım: Fotoğraflarını blurladıktan sonra, eşleşme kartlarındaki kişilerin fotoğrafları da yalnızca izin verdiklerin için görüntülenebilir.',
+        rules: {
+          firstBlurLock48h: 'Fotoğrafı ilk kez blurladıktan sonra 48 saat yeniden açık hale getiremezsin.',
+          unblurLock48h: 'Görünürlüğü açtıktan sonra 48 saat tekrar kapatamazsın.',
+          onlyAllowed:
+            'Görünürlük kapalıyken sadece izin verdiklerin fotoğraflarını görür; sen de yalnız izin verdiklerinin fotoğraflarını görürsün.',
+        },
+        cooldownError: 'Bu işlem için bekleme süresi var. Kalan süre: {{time}}',
+      },
+
+      userCode: {
+        label: 'Kullanıcı Kodu',
       },
 
       applySuccess: {

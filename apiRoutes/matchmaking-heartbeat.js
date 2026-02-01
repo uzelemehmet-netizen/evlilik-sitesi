@@ -353,6 +353,8 @@ export default async function handler(req, res) {
           userCodePatch = {
             userCode: assignedCode,
             userCodeNo: assignedNo,
+            'publicProfile.userCode': assignedCode,
+            'publicProfile.userCodeNo': assignedNo,
             userCodeGender: genderNorm,
             userCodeAssignedAtMs: now,
           };

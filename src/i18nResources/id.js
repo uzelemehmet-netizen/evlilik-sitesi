@@ -733,6 +733,19 @@ const overrides = {
         stateOff: 'Nonaktif',
         hintOn: 'Di daftar pencocokan, Anda bisa memberi izin per orang lewat tombol “Tampilkan foto saya” di setiap kartu.',
         hintOff: 'Saat blur nonaktif, tombol izin foto tambahan tidak ditampilkan di kartu pencocokan.',
+        fairnessWarning:
+          'Penggunaan adil: Setelah Anda memburamkan foto Anda, foto pada kartu pencocokan hanya dapat dilihat untuk orang yang Anda izinkan.',
+        rules: {
+          firstBlurLock48h: 'Setelah Anda memburamkan foto untuk pertama kali, Anda tidak dapat membuatnya terlihat kembali selama 48 jam.',
+          unblurLock48h: 'Setelah Anda membuat foto terlihat, Anda tidak dapat memburamkannya lagi selama 48 jam.',
+          onlyAllowed:
+            'Saat visibilitas nonaktif, hanya orang yang Anda izinkan yang dapat melihat foto Anda; dan Anda hanya dapat melihat foto orang yang Anda izinkan.',
+        },
+        cooldownError: 'Ada masa tunggu untuk tindakan ini. Sisa: {{time}}',
+      },
+
+      userCode: {
+        label: 'Kode Pengguna',
       },
 
       applySuccess: {

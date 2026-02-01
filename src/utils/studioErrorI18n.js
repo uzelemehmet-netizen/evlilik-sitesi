@@ -59,5 +59,12 @@ export function translateStudioApiError(t, raw) {
     return t('studio.errors.cancelCooldown', { time });
   }
 
+  const photoPrivacyCooldown = /^photo_privacy_cooldown_(\d+)m$/.exec(s);
+  if (photoPrivacyCooldown) {
+    const minutes = Math.max(1, Number(photoPrivacyCooldown[1] || 0));
+    const time = formatMinutesAsText(t, minutes);
+    return t('studio.profile.photoPrivacy.cooldownError', { time });
+  }
+
   return s;
 }
