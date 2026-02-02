@@ -4,7 +4,7 @@ import { Menu } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { isFeatureEnabled } from "../config/siteVariant";
 
-export default function Navigation() {
+export default function Navigation({ variant = 'default' } = {}) {
   const BRAND_LOGO_SRC = "/brand.png";
   const { t, i18n } = useTranslation();
   const location = useLocation();
@@ -49,13 +49,19 @@ export default function Navigation() {
 
   return (
     <>
-      <nav className="sticky top-0 z-50 bg-gradient-to-r from-white via-emerald-50 to-white shadow-lg border-b border-emerald-100">
+      <nav
+        className={
+          variant === 'heroOverlay'
+            ? 'sticky top-0 z-50 bg-white/10 backdrop-blur-sm md:bg-gradient-to-r md:from-white md:via-emerald-50 md:to-white md:shadow-lg md:border-b md:border-emerald-100'
+            : 'sticky top-0 z-50 bg-gradient-to-r from-white via-emerald-50 to-white shadow-lg border-b border-emerald-100'
+        }
+      >
         <div className="max-w-7xl mx-auto px-4 py-3 md:py-4 flex items-center gap-4">
           <Link
             to="/"
             className="flex items-center gap-3 leading-tight shrink-0"
             style={{ fontFamily: '"Poppins", sans-serif' }}
-            aria-label="Ana sayfa"
+            aria-label={t('navigation.home')}
           >
             <div className="flex flex-col leading-none">
               {/* Mobile */}
@@ -128,7 +134,7 @@ export default function Navigation() {
                 i18n.changeLanguage(e.target.value);
               }}
               className="px-2 py-1.5 rounded-full text-xs sm:text-sm font-semibold border border-emerald-200 bg-white text-slate-800 shadow-sm"
-              aria-label="Dil seç"
+              aria-label={t('navigation.language')}
               disabled={isAdminRoute}
             >
               <option value="tr">TR</option>

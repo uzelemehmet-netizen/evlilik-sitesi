@@ -13,9 +13,9 @@ import { useAuth } from '../auth/AuthProvider';
 
 const DEFAULT_MEDIA = Object.freeze({
   heroBackgroundUrl:
-    'https://res.cloudinary.com/dj1xg1c56/image/upload/v1767352126/ChatGPT_Image_16_Ara_2025_20_55_54_cncrpw.png',
-  introImage1Url: 'https://cvcou9szpd.ucarecd.net/84807d3a-fc15-4eb8-ab91-df06aafd02b9/-/preview/562x1000/',
-  introImage2Url: 'https://cvcou9szpd.ucarecd.net/b85878d8-0625-4881-9e5b-b36981b06970/20250917_155623.jpg',
+    '/ChatGPT Image 2 Şub 2026 22_19_01.png',
+  introImage1Url: '/ChatGPT Image 2 Şub 2026 22_36_18.png',
+  introImage2Url: '/ChatGPT Image 2 Şub 2026 22_36_39.png',
 });
 
 export default function Wedding() {
@@ -28,6 +28,21 @@ export default function Wedding() {
   };
 
   const [media, setMedia] = useState(DEFAULT_MEDIA);
+
+  const heroBackgroundUrl = useMemo(() => {
+    const raw = String(media.heroBackgroundUrl || '').trim();
+    if (!raw) return '';
+
+    const normalized = raw.startsWith('http://') || raw.startsWith('https://') || raw.startsWith('/')
+      ? raw
+      : `/${raw}`;
+
+    try {
+      return new URL(normalized, window.location.origin).toString();
+    } catch {
+      return normalized;
+    }
+  }, [media.heroBackgroundUrl]);
 
   const [formData, setFormData] = useState({
     from_name: '',
@@ -78,8 +93,9 @@ export default function Wedding() {
         const snap = await getDoc(doc(db, 'weddingContent', 'media'));
         const data = snap.exists() ? snap.data() || {} : {};
         if (cancelled) return;
+        const heroFromDb = String(data.heroBackgroundUrl || '').trim();
         setMedia({
-          heroBackgroundUrl: String(data.heroBackgroundUrl || DEFAULT_MEDIA.heroBackgroundUrl),
+          heroBackgroundUrl: heroFromDb || DEFAULT_MEDIA.heroBackgroundUrl,
           introImage1Url: String(data.introImage1Url || DEFAULT_MEDIA.introImage1Url),
           introImage2Url: String(data.introImage2Url || DEFAULT_MEDIA.introImage2Url),
         });
@@ -199,90 +215,95 @@ export default function Wedding() {
 
   return (
     <div className="min-h-screen bg-white">
-      <Navigation />
+      <Navigation variant="heroOverlay" />
       
       {/* Hero Section */}
       <section
-        className="pt-20 pb-12 px-4 relative overflow-hidden min-h-80"
+        className="-mt-[72px] pt-[72px] md:mt-0 md:pt-20 pb-16 px-4 relative overflow-hidden min-h-[420px] sm:min-h-[480px] md:min-h-96 bg-slate-900 bg-none md:bg-[image:var(--hero-bg)] bg-scroll md:bg-fixed bg-[position:center] md:bg-[position:center_35%] bg-no-repeat md:bg-cover"
         style={{
-		  backgroundImage: `url(${media.heroBackgroundUrl})`,
-          backgroundSize: 'cover',
-          backgroundPosition: 'center',
-          backgroundRepeat: 'no-repeat',
-          backgroundAttachment: 'fixed',
+		  '--hero-bg': heroBackgroundUrl ? `url(\"${heroBackgroundUrl}\")` : 'none',
         }}
       >
-        <div className="max-w-7xl mx-auto relative z-10 flex flex-col items-center justify-center text-center min-h-80">
+        {heroBackgroundUrl && (
           <img
-            src={BRAND_LOGO_SRC}
-            alt="Turk&Indo"
-            className="h-16 md:h-20 w-auto mb-4 drop-shadow-[0_10px_30px_rgba(0,0,0,0.35)]"
+            src={heroBackgroundUrl}
+            alt=""
+            aria-hidden="true"
+            className="md:hidden absolute inset-0 w-full h-full object-contain object-center"
             loading="eager"
             decoding="async"
           />
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-rose-600/80 shadow-md mb-3">
-            <Heart size={18} className="text-white" />
-            <span
-              className="text-[10px] md:text-[11px] font-medium uppercase tracking-wide text-white drop-shadow-md"
-            >
-				  {t('weddingPage.hero.badge')}
-            </span>
-          </div>
+        )}
 
-          <h1
-            className="text-2xl md:text-3xl lg:text-4xl font-medium text-white mb-3 drop-shadow-[0_6px_20px_rgba(0,0,0,0.65)]"
-          >
-            {t('weddingPage.hero.title')}
-          </h1>
-
-          <p
-            className="text-xs md:text-sm text-white/95 max-w-2xl mb-5 md:mb-6 leading-relaxed drop-shadow-[0_4px_14px_rgba(0,0,0,0.7)]"
-          >
-            {t('weddingPage.hero.description')}
-          </p>
-        </div>
-
-        {/* Hero alt buton grubu */}
-        <div className="absolute inset-x-0 bottom-5 md:bottom-7 z-10">
-          <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row gap-3 sm:gap-4 items-center justify-center">
-            <button
-              type="button"
-              onClick={() => {
-                const el = document.getElementById('wedding-form');
-                if (el) {
-                  el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                }
-              }}
-              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-rose-600/95 text-white px-5 md:px-6 py-2 md:py-2.5 rounded-full font-medium text-xs md:text-sm shadow-md hover:bg-rose-700 hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200"
-            >
+        <div className="max-w-7xl mx-auto relative z-10 flex flex-col items-center justify-end text-center min-h-[420px] sm:min-h-[480px] md:min-h-96">
+          {/* Mobilde logo+badge: görselin üstüne overlay */}
+          <div className="absolute top-4 left-1/2 -translate-x-1/2 z-20 flex flex-col items-center md:static md:top-auto md:left-auto md:translate-x-0">
+            <img
+              src={BRAND_LOGO_SRC}
+              alt="Turk&Indo"
+              className="hidden md:block h-14 md:h-20 w-auto mb-3 translate-x-0 md:translate-x-[10cm] drop-shadow-[0_10px_30px_rgba(0,0,0,0.35)]"
+              loading="eager"
+              decoding="async"
+            />
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-rose-600/80 shadow-md mb-3 translate-x-0 md:translate-x-[10cm]">
               <Heart size={18} className="text-white" />
-              {t('weddingPage.hero.actions.openForm')}
-            </button>
+              <span className="hidden md:inline text-[10px] md:text-[11px] font-medium uppercase tracking-wide text-white drop-shadow-md">
+				    {t('weddingPage.hero.badge')}
+              </span>
+            </div>
+          </div>
 
-            <Link
-              to="/uniqah"
-              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-slate-900/95 text-white px-5 md:px-6 py-2 md:py-2.5 rounded-full font-medium text-xs md:text-sm shadow-md hover:bg-slate-900 hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200"
-            >
-              <MessageCircle size={18} className="text-white" />
-              {t('weddingPage.hero.actions.matchmakingHub')}
-            </Link>
+          <div className="hidden md:block md:translate-y-3">
+            <h1 className="text-2xl md:text-3xl lg:text-4xl font-medium text-white mb-3 drop-shadow-[0_6px_20px_rgba(0,0,0,0.65)]">
+              {t('weddingPage.hero.title')}
+            </h1>
 
-            <a
-              href={buildWhatsAppUrl(t('weddingPage.whatsapp.quickChatMessage'))}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-white/95 text-rose-700 px-5 md:px-6 py-2 md:py-2.5 rounded-full font-medium text-xs md:text-sm shadow-md hover:bg-white hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200"
-            >
-              <Phone size={18} className="text-rose-500" />
-              {t('weddingPage.hero.actions.quickChat')}
-            </a>
+            <p className="text-xs md:text-sm text-white/95 max-w-2xl mb-5 md:mb-6 leading-relaxed drop-shadow-[0_4px_14px_rgba(0,0,0,0.7)]">
+              {t('weddingPage.hero.description')}
+            </p>
           </div>
         </div>
-
         <HeroSocialButtons />
       </section>
 
-      <div className="max-w-6xl mx-auto px-4 py-20">
+      {/* Banner sonrası: beyaz alanda butonlar */}
+      <div className="bg-white px-4 py-6">
+        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row gap-3 sm:gap-4 items-center justify-center">
+          <button
+            type="button"
+            onClick={() => {
+              const el = document.getElementById('wedding-form');
+              if (el) {
+                el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+              }
+            }}
+            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-rose-600 text-white px-5 md:px-6 py-2 md:py-2.5 rounded-full font-medium text-xs md:text-sm shadow-md hover:bg-rose-700 hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200"
+          >
+            <Heart size={18} className="text-white" />
+            {t('weddingPage.hero.actions.openForm')}
+          </button>
+
+          <Link
+            to="/uniqah"
+            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-slate-900 text-white px-5 md:px-6 py-2 md:py-2.5 rounded-full font-medium text-xs md:text-sm shadow-md hover:bg-slate-900 hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200"
+          >
+            <MessageCircle size={18} className="text-white" />
+            {t('weddingPage.hero.actions.matchmakingHub')}
+          </Link>
+
+          <a
+            href={buildWhatsAppUrl(t('weddingPage.whatsapp.quickChatMessage'))}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-white text-rose-700 px-5 md:px-6 py-2 md:py-2.5 rounded-full font-medium text-xs md:text-sm border border-rose-200 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200"
+          >
+            <Phone size={18} className="text-rose-500" />
+            {t('weddingPage.hero.actions.quickChat')}
+          </a>
+        </div>
+      </div>
+
+      <div className="max-w-6xl mx-auto px-4 py-16">
         {/* İçerik Bölümü */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-stretch mb-16">
           {/* Sol Taraf - Yazılar */}
