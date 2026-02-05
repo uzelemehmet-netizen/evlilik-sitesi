@@ -10,11 +10,11 @@ function safeStr(v) {
   return typeof v === 'string' ? v.trim() : '';
 }
 
-function genderLabelTR(raw) {
+function genderLabel(t, raw) {
   const s = safeStr(raw).toLowerCase();
   if (!s) return '';
-  if (s === 'female' || s === 'f' || s === 'kadin' || s === 'kadın') return 'Kadın';
-  if (s === 'male' || s === 'm' || s === 'erkek') return 'Erkek';
+  if (s === 'female' || s === 'f' || s === 'kadin' || s === 'kadın') return t('matchmakingPage.form.options.gender.female');
+  if (s === 'male' || s === 'm' || s === 'erkek') return t('matchmakingPage.form.options.gender.male');
   return '';
 }
 
@@ -62,6 +62,26 @@ function childrenLivingSituationLabel(t, rawValue) {
   return label && label !== fullKey ? label : v;
 }
 
+function formatPresenceLabel(t, lastSeenAtMs) {
+  const ms = typeof lastSeenAtMs === 'number' && Number.isFinite(lastSeenAtMs) ? lastSeenAtMs : 0;
+  if (!ms) return '';
+
+  const nowMs = Date.now();
+  const diffMs = Math.max(0, nowMs - ms);
+  const onlineWindowMs = 5 * 60 * 1000;
+
+  if (diffMs <= onlineWindowMs) return t('studio.presence.online');
+
+  const minutes = Math.round(diffMs / (60 * 1000));
+  if (minutes < 60) return t('studio.presence.lastSeenMinutes', { count: minutes });
+
+  const hours = Math.round(diffMs / (60 * 60 * 1000));
+  if (hours < 24) return t('studio.presence.lastSeenHours', { count: hours });
+
+  const days = Math.round(diffMs / (24 * 60 * 60 * 1000));
+  return t('studio.presence.lastSeenDays', { count: days });
+}
+
 export default function StudioMatchCard({
   match,
   currentUid,
@@ -70,6 +90,7 @@ export default function StudioMatchCard({
   canSeeFullProfiles = true,
   canInteract = true,
   onRequirePaid,
+  presenceByUid,
 }) {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -95,6 +116,17 @@ export default function StudioMatchCard({
     return fromSnap;
   }, [currentUid, match]);
 
+  const otherLastSeenAtMs = useMemo(() => {
+    const otherUid = safeStr(match?.aUserId) === safeStr(currentUid) ? safeStr(match?.bUserId) : safeStr(match?.aUserId);
+    const fromMap =
+      presenceByUid && typeof presenceByUid === 'object' && otherUid && typeof presenceByUid?.[otherUid] === 'number'
+        ? presenceByUid[otherUid]
+        : 0;
+
+    const fromSnap = typeof other?.lastSeenAtMs === 'number' && Number.isFinite(other.lastSeenAtMs) ? other.lastSeenAtMs : 0;
+    return fromMap || fromSnap || 0;
+  }, [currentUid, match?.aUserId, match?.bUserId, other?.lastSeenAtMs, presenceByUid]);
+
   const status = safeStr(match?.status);
   const tier = safeStr(match?.matchTier || match?.debug?.matchTier);
   const statusMeta = useMemo(() => {
@@ -114,7 +146,7 @@ export default function StudioMatchCard({
   const displayName = safeStr(other?.username) || t('studio.common.match');
   const otherUserCode = safeStr(other?.userCode) || safeStr(other?.publicProfile?.userCode);
   const ageText = typeof other?.age === 'number' ? String(other.age) : '';
-  const genderText = genderLabelTR(other?.gender);
+  const genderText = genderLabel(t, other?.gender);
   const isVerified = !!other?.identityVerified;
   const rawMarital = safeStr(other?.details?.maritalStatus || other?.maritalStatus);
   const maritalKey = maritalStatusToKey(rawMarital);
@@ -423,7 +455,7 @@ export default function StudioMatchCard({
                 className="inline-flex items-center rounded-full bg-amber-950/70 px-2 py-1 text-[11px] font-semibold text-amber-50 ring-2 ring-amber-300/70 shadow-[0_0_18px_rgba(251,191,36,0.45)]"
                 title={t('studio.matchProfile.activeStart.waiting')}
               >
-                Aktif eşleşme isteği
+                {t('studio.matchProfile.activeStart.waiting')}
               </span>
             </div>
           ) : null}
@@ -455,7 +487,7 @@ export default function StudioMatchCard({
                   (canOpenLightbox ? 'cursor-zoom-in' : 'cursor-not-allowed')
                 }
                 aria-label={t('studio.match.avatarAlt', { name: displayName })}
-                title={canOpenLightbox ? 'Büyüt' : ''}
+                title={canOpenLightbox ? t('studio.common.zoom') : ''}
               >
                 <img
                   src={photoUrl}
@@ -513,8 +545,8 @@ export default function StudioMatchCard({
                   setPhotoIndex((p) => (p - 1 + photos.length) % photos.length);
                 }}
                 className="pointer-events-auto inline-flex h-8 w-8 items-center justify-center rounded-full bg-black/40 text-white shadow-sm transition hover:bg-black/55"
-                aria-label="Prev photo"
-                title="Prev"
+                aria-label={t('studio.matchProfile.prevPhoto')}
+                title={t('studio.matchProfile.prevPhoto')}
               >
                 ‹
               </button>
@@ -527,8 +559,8 @@ export default function StudioMatchCard({
                   setPhotoIndex((p) => (p + 1) % photos.length);
                 }}
                 className="pointer-events-auto inline-flex h-8 w-8 items-center justify-center rounded-full bg-black/40 text-white shadow-sm transition hover:bg-black/55"
-                aria-label="Next photo"
-                title="Next"
+                aria-label={t('studio.matchProfile.nextPhoto')}
+                title={t('studio.matchProfile.nextPhoto')}
               >
                 ›
               </button>
@@ -562,6 +594,21 @@ export default function StudioMatchCard({
               <span className="inline-flex items-center rounded-full bg-indigo-50 px-2 py-0.5 text-[11px] font-semibold text-indigo-900 border border-indigo-200">
                 {t('studio.profile.userCode.label')}: {otherUserCode}
               </span>
+            </div>
+          ) : null}
+
+          {otherLastSeenAtMs ? (
+            <div className="mt-2 flex items-center gap-2 text-[11px] text-slate-500">
+              <span
+                className={
+                  'inline-block h-2 w-2 rounded-full ' +
+                  (formatPresenceLabel(t, otherLastSeenAtMs) === t('studio.presence.online')
+                    ? 'bg-emerald-500 shadow-[0_0_0_3px_rgba(16,185,129,0.12)]'
+                    : 'bg-slate-300')
+                }
+                aria-hidden="true"
+              />
+              <span>{formatPresenceLabel(t, otherLastSeenAtMs)}</span>
             </div>
           ) : null}
 
@@ -657,10 +704,8 @@ export default function StudioMatchCard({
               }}
               disabled={photoAccessState.loading || lockedByActiveMatch}
               className={
-                'inline-flex items-center justify-center rounded-md px-3 py-2 text-sm font-semibold shadow-sm transition disabled:opacity-60 ' +
-                (myToOtherAllowed
-                  ? 'border border-slate-200 bg-white text-slate-800 hover:bg-slate-50'
-                  : 'bg-indigo-600 text-white hover:bg-indigo-700')
+                'app-btn w-full disabled:opacity-60 ' +
+                (myToOtherAllowed ? 'app-btn-soft' : 'app-btn-primary')
               }
             >
               {photoAccessState.loading
@@ -673,14 +718,17 @@ export default function StudioMatchCard({
 
           {photoAccessState.error ? <div className="text-sm text-rose-700">{photoAccessState.error}</div> : null}
 
-          <div className="flex items-center justify-between gap-2">
+          <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-nowrap sm:items-center sm:justify-between">
           <button
             type="button"
             onClick={like}
             disabled={likeState.loading || lockedByActiveMatch}
-            className="inline-flex items-center justify-center rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 shadow-sm transition hover:bg-slate-50 active:scale-[0.99] disabled:opacity-60"
+            className={
+              'app-btn w-full sm:flex-1 disabled:opacity-60 ' +
+              (isLiked ? 'app-btn-primary' : 'app-btn')
+            }
           >
-            <Heart className={`mr-2 h-5 w-5 ${isLiked ? 'text-rose-600 fill-rose-600' : 'text-slate-500'}`} />
+            <Heart className={`mr-2 h-5 w-5 ${isLiked ? 'fill-white' : ''}`} />
             {likeState.loading
               ? t('studio.common.processing')
               : isLiked
@@ -692,10 +740,10 @@ export default function StudioMatchCard({
             type="button"
             onClick={openProfileDetails}
             disabled={lockedByActiveMatch}
-            className="inline-flex items-center justify-center rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 shadow-sm transition hover:bg-slate-50 active:scale-[0.99] disabled:opacity-60"
+            className="app-btn w-full sm:flex-1 disabled:opacity-60"
             title={t('studio.match.actions.profileDetails')}
           >
-            <User className="mr-2 h-5 w-5 text-slate-500" />
+            <User className="mr-2 h-5 w-5" />
             {t('studio.match.actions.profileDetails')}
           </button>
 
@@ -704,7 +752,7 @@ export default function StudioMatchCard({
               type="button"
               onClick={reject}
               disabled={likeState.loading || lockedByActiveMatch}
-              className="inline-flex items-center justify-center rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-800 shadow-sm transition hover:bg-rose-100 active:scale-[0.99] disabled:opacity-60"
+              className="inline-flex w-full sm:w-auto items-center justify-center rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-800 shadow-sm transition hover:bg-rose-100 active:scale-[0.99] disabled:opacity-60"
               title={t('studio.inbox.reject')}
             >
               {t('studio.inbox.reject')}
@@ -716,7 +764,7 @@ export default function StudioMatchCard({
               type="button"
               onClick={startActive}
               disabled={activeStartState.loading || lockedByActiveMatch}
-              className="inline-flex items-center justify-center rounded-md bg-emerald-600 px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 active:scale-[0.99] disabled:opacity-60"
+              className="app-btn app-btn-primary w-full sm:w-auto disabled:opacity-60"
               title={t('studio.matchProfile.activeStart.start')}
             >
               <Sparkles className="mr-2 h-5 w-5" />
@@ -732,7 +780,7 @@ export default function StudioMatchCard({
             type="button"
             onClick={openShort}
             disabled={lockedByActiveMatch}
-            className="relative inline-flex items-center justify-center rounded-md bg-emerald-600 px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 disabled:opacity-60"
+            className="app-btn app-btn-primary relative w-full sm:w-auto disabled:opacity-60"
           >
             <MessageCircle className="mr-2 h-5 w-5" />
             {t('studio.match.actions.message')}

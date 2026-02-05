@@ -1,6 +1,6 @@
-# Firebase Storage CORS (endonezyakasifi.com / uniqah.com)
+# Firebase Storage CORS (uniqah.com)
 
-Bu proje Firebase Storage'a tarayıcıdan (web) fotoğraf yüklüyor. Kendi domain'iniz (örn. `https://www.endonezyakasifi.com`) üzerinden upload yaparken aşağıdaki hata görülürse:
+Bu proje Firebase Storage'a tarayıcıdan (web) fotoğraf yüklüyor. Kendi domain'iniz (örn. `https://www.uniqah.com`) üzerinden upload yaparken aşağıdaki hata görülürse:
 
 - `has been blocked by CORS policy` 
 - `Response to preflight request doesn't pass access control check`
@@ -19,8 +19,8 @@ Not: Bu dosyada `https://uniqah.com` ve `https://www.uniqah.com` originleri de t
 [
   {
     "origin": [
-      "https://endonezyakasifi.com",
-      "https://www.endonezyakasifi.com",
+      "https://uniqah.com",
+      "https://www.uniqah.com",
       "http://localhost:5173",
       "http://localhost:4173"
     ],

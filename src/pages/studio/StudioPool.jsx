@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { useTranslation } from 'react-i18next';
+import { Link, useNavigate } from 'react-router-dom';
+import { Trans, useTranslation } from 'react-i18next';
 import { collection, doc, limit, onSnapshot, orderBy, query } from 'firebase/firestore';
 import Navigation from '../../components/Navigation';
 import { useAuth } from '../../auth/AuthProvider';
@@ -11,6 +11,9 @@ import StudioInboxModal from '../../components/studio/StudioInboxModal';
 import { useMatchmakingResetAtMs } from '../../utils/matchmakingReset';
 import { HelpCircle, RefreshCcw, Users } from 'lucide-react';
 import ImageLightbox from '../../components/ImageLightbox';
+import PwaInstallCard from '../../components/PwaInstallCard';
+
+const NEW_USER_BADGE_WINDOW_MS = 48 * 60 * 60 * 1000;
 
 function safeStr(v) {
   return typeof v === 'string' ? v.trim() : '';
@@ -22,17 +25,52 @@ function clip(s, maxLen) {
   return v.length > maxLen ? `${v.slice(0, maxLen)}…` : v;
 }
 
-function genderLabelTR(raw) {
+function genderLabel(t, raw) {
   const s = safeStr(raw).toLowerCase();
   if (!s) return '';
-  if (s === 'female' || s === 'f' || s === 'kadin' || s === 'kadın') return 'Kadın';
-  if (s === 'male' || s === 'm' || s === 'erkek') return 'Erkek';
+  if (s === 'female' || s === 'f' || s === 'kadin' || s === 'kadın') return t('matchmakingPage.form.options.gender.female');
+  if (s === 'male' || s === 'm' || s === 'erkek') return t('matchmakingPage.form.options.gender.male');
   return '';
+}
+
+function maritalStatusLabel(t, raw) {
+  const s = safeStr(raw).toLowerCase();
+  if (!s) return '';
+  const map = {
+    single: 'matchmakingPage.form.options.maritalStatus.single',
+    widowed: 'matchmakingPage.form.options.maritalStatus.widowed',
+    divorced: 'matchmakingPage.form.options.maritalStatus.divorced',
+    other: 'matchmakingPage.form.options.maritalStatus.other',
+    doesnt_matter: 'matchmakingPage.form.options.maritalStatus.doesnt_matter',
+  };
+  const key = map[s] || '';
+  return key ? t(key) : safeStr(raw);
+}
+
+function formatPresenceLabel(t, lastSeenAtMs) {
+  const ms = typeof lastSeenAtMs === 'number' && Number.isFinite(lastSeenAtMs) ? lastSeenAtMs : 0;
+  if (!ms) return '';
+
+  const nowMs = Date.now();
+  const diffMs = Math.max(0, nowMs - ms);
+  const onlineWindowMs = 5 * 60 * 1000;
+
+  if (diffMs <= onlineWindowMs) return t('studio.presence.online');
+
+  const minutes = Math.round(diffMs / (60 * 1000));
+  if (minutes < 60) return t('studio.presence.lastSeenMinutes', { count: minutes });
+
+  const hours = Math.round(diffMs / (60 * 60 * 1000));
+  if (hours < 24) return t('studio.presence.lastSeenHours', { count: hours });
+
+  const days = Math.round(diffMs / (24 * 60 * 60 * 1000));
+  return t('studio.presence.lastSeenDays', { count: days });
 }
 
 export default function StudioPool() {
   const { t } = useTranslation();
   const { user } = useAuth();
+  const navigate = useNavigate();
 
   const mmReset = useMatchmakingResetAtMs();
   const resetAtMs = typeof mmReset?.resetAtMs === 'number' && Number.isFinite(mmReset.resetAtMs) ? mmReset.resetAtMs : 0;
@@ -54,8 +92,11 @@ export default function StudioPool() {
 
   const [myLock, setMyLock] = useState({ active: false, matchId: '' });
   const [myMembership, setMyMembership] = useState({ active: false });
+  const [myGender, setMyGender] = useState('');
   const [myPhotosBlurred, setMyPhotosBlurred] = useState(false);
   const [paywallNotice, setPaywallNotice] = useState('');
+  const [profileGateNotice, setProfileGateNotice] = useState('');
+  const [myProfileComplete, setMyProfileComplete] = useState(true);
 
   const cancelledRef = useRef(false);
 
@@ -215,6 +256,18 @@ export default function StudioPool() {
           (!!membershipObj?.active && (!membershipValidUntilMs || membershipValidUntilMs > now));
         setMyMembership({ active: membershipActive });
 
+        const appFromUser = d?.application && typeof d.application === 'object' ? d.application : null;
+        const publicProfile = d?.publicProfile && typeof d.publicProfile === 'object' ? d.publicProfile : null;
+        const g = String(appFromUser?.gender || publicProfile?.gender || d?.gender || '').trim().toLowerCase();
+        setMyGender(g);
+
+        const wroteOnce = typeof d?.profileTextWriteOnceUsedAtMs === 'number' && Number.isFinite(d.profileTextWriteOnceUsedAtMs)
+          ? d.profileTextWriteOnceUsedAtMs
+          : 0;
+        const about = safeStr(d?.details?.about) || safeStr(d?.publicProfile?.about);
+        const expectations = safeStr(d?.details?.expectations) || safeStr(d?.publicProfile?.expectations);
+        setMyProfileComplete(!!(wroteOnce > 0 || (about && expectations)));
+
         const v1 = d?.publicProfile && typeof d.publicProfile === 'object' ? d.publicProfile.photosBlurred : undefined;
         const v2 = d?.photosBlurred;
         const blur = typeof v1 === 'boolean' ? v1 : typeof v2 === 'boolean' ? v2 : false;
@@ -223,7 +276,9 @@ export default function StudioPool() {
       () => {
         setMyLock({ active: false, matchId: '' });
         setMyMembership({ active: false });
+        setMyGender('');
         setMyPhotosBlurred(false);
+        setMyProfileComplete(true);
       }
     );
 
@@ -235,6 +290,32 @@ export default function StudioPool() {
       }
     };
   }, [user?.uid]);
+
+  const canInteract = useMemo(() => {
+    return myProfileComplete && (!!myMembership.active || String(myGender || '').toLowerCase() === 'female');
+  }, [myGender, myMembership.active, myProfileComplete]);
+
+  const requireProfile = () => {
+    setProfileGateNotice(t('studio.profileGate.body'));
+    try {
+      if (typeof window !== 'undefined') window.scrollTo({ top: 0, behavior: 'smooth' });
+    } catch {
+      // noop
+    }
+  };
+
+  const goToProfileForm = () => {
+    try {
+      navigate('/evlilik/eslestirme-basvuru?w=1', { replace: false });
+    } catch {
+      // fallback
+      try {
+        window.location.href = '/evlilik/eslestirme-basvuru?w=1';
+      } catch {
+        // noop
+      }
+    }
+  };
 
   const requirePaid = () => {
     setPaywallNotice(t('studio.paywall.upgradeToInteract'));
@@ -318,17 +399,24 @@ export default function StudioPool() {
   }, [load]);
 
   const headerHint = useMemo(() => {
-    if (!meta) return '';
-    const min = typeof meta?.ageMin === 'number' ? meta.ageMin : null;
-    const max = typeof meta?.ageMax === 'number' ? meta.ageMax : null;
-    if (min === null || max === null) return '';
-    return t('studio.pool.filtersHint', { min, max });
+    // Yaş filtresi kaldırıldı; header'da yaş aralığı göstermiyoruz.
+    return '';
   }, [meta, t]);
 
   const requestAccess = async ({ targetUid } = {}) => {
     const uid = String(user?.uid || '').trim();
     const toUid = safeStr(targetUid);
     if (!uid || !toUid || requestingUid) return;
+
+    if (!myProfileComplete) {
+      requireProfile();
+      return;
+    }
+
+    if (!canInteract) {
+      requirePaid();
+      return;
+    }
 
     setRequestingUid(toUid);
     try {
@@ -402,8 +490,11 @@ export default function StudioPool() {
               >
                 <span className="inline-flex items-center justify-center gap-2">
                   <HelpCircle className="h-4 w-4" />
-                  <span>Gelen istekler</span>
-                className={'h-full w-full object-cover ' + (!canSeePhotos ? 'blur-[24px] saturate-[0.75] contrast-[0.95]' : '')}
+                  <span>
+                    {pendingAccessCount > 0
+                      ? t('studio.accessInbox.openButtonWithCount', { count: pendingAccessCount })
+                      : t('studio.accessInbox.openButton')}
+                  </span>
                 </span>
               </button>
 
@@ -458,12 +549,54 @@ export default function StudioPool() {
             </div>
           ) : null}
 
+          {profileGateNotice ? (
+            <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4 text-amber-950">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="font-semibold">{t('studio.profileGate.title')}</p>
+                <button
+                  type="button"
+                  onClick={() => setProfileGateNotice('')}
+                  className="rounded-md px-2 py-1 text-sm font-semibold text-amber-900/70 hover:bg-amber-100"
+                >
+                  {t('studio.common.close')}
+                </button>
+              </div>
+              <p className="mt-1 text-sm text-amber-900/80">{profileGateNotice}</p>
+              <div className="mt-3">
+                <button
+                  type="button"
+                  onClick={goToProfileForm}
+                  className="text-sm font-semibold underline"
+                >
+                  {t('studio.profileGate.cta')}
+                </button>
+              </div>
+            </div>
+          ) : null}
+
           {state.loading ? <p className="mt-6 text-slate-600">{t('studio.common.loading')}</p> : null}
           {state.error ? <p className="mt-6 text-rose-700">{state.error}</p> : null}
 
           {!state.loading && !state.error && items.length === 0 ? (
-            <div className="mt-6 rounded-xl border border-slate-200 bg-white p-4 text-slate-700">
-              {t('studio.pool.empty')}
+            <div className="mt-6 rounded-xl border border-slate-200 bg-white p-5 text-slate-700">
+              <p className="font-semibold text-slate-900">{t('studio.waitingNote.title')}</p>
+              <p className="mt-2 text-sm text-slate-700">
+                <Trans
+                  i18nKey="studio.waitingNote.body"
+                  components={{
+                    explore: (
+                      <Link
+                        to="/app/pool"
+                        className="inline-flex items-center rounded-md border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[12px] font-semibold text-emerald-900 align-baseline hover:bg-emerald-100"
+                      />
+                    ),
+                  }}
+                />
+              </p>
+              <p className="mt-2 text-sm text-slate-600">{t('studio.pool.empty')}</p>
+              <div className="mt-4">
+                <PwaInstallCard variant="light" />
+              </div>
             </div>
           ) : null}
 
@@ -477,6 +610,8 @@ export default function StudioPool() {
             {items.map((it) => {
               const p = it?.profile && typeof it.profile === 'object' ? it.profile : {};
               const targetUid = safeStr(it?.uid);
+              const createdAtMs = typeof it?.createdAtMs === 'number' && Number.isFinite(it.createdAtMs) ? it.createdAtMs : 0;
+              const isNewUser = createdAtMs > 0 && Date.now() - createdAtMs <= NEW_USER_BADGE_WINDOW_MS;
               const out = targetUid ? outboxMap?.[targetUid] : null;
               const pending = safeStr(out?.status) === 'pending';
               const approved = safeStr(out?.status) === 'approved';
@@ -487,9 +622,11 @@ export default function StudioPool() {
               const city = safeStr(p?.city);
               const marital = safeStr(p?.details?.maritalStatus);
               const occupation = safeStr(p?.details?.occupation);
-              const genderText = genderLabelTR(p?.gender);
+              const genderText = genderLabel(t, p?.gender);
+              const maritalText = maritalStatusLabel(t, marital);
               const about = clip(p?.about, 180);
               const exp = clip(p?.expectations, 180);
+              const isUnknown = p?.profileIncomplete === true;
               const photos = Array.isArray(p?.photoUrls) ? p.photoUrls.map(safeStr).filter(Boolean) : [];
               const photo = photos.length ? photos[0] : '';
               const canSeePhotos = !myPhotosBlurred;
@@ -509,8 +646,8 @@ export default function StudioPool() {
                           'block h-full w-full ' +
                           (canSeePhotos ? 'cursor-zoom-in' : 'cursor-not-allowed')
                         }
-                        aria-label={`${name} fotoğrafını büyüt`}
-                        title="Büyüt"
+                          aria-label={t('studio.common.enlargePhotoAria', { name })}
+                          title={t('studio.common.zoom')}
                       >
                         <img
                           src={photo}
@@ -534,7 +671,22 @@ export default function StudioPool() {
                   </div>
 
                   <div className="p-4">
-                    <p className="text-lg font-semibold">{name}{age}</p>
+                    <div className="flex items-start justify-between gap-2">
+                      <p className="text-lg font-semibold">{name}{age}</p>
+                      {isNewUser ? (
+                        <span className="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-900 border border-emerald-200">
+                          {t('memberFeed.badge.newUser')}
+                        </span>
+                      ) : null}
+                    </div>
+
+                    {isUnknown ? (
+                      <div className="mt-2">
+                        <span className="inline-flex items-center rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-900 border border-amber-200">
+                          {t('studio.profileGate.badge')}
+                        </span>
+                      </div>
+                    ) : null}
                     {userCode ? (
                       <div className="mt-1">
                         <span className="inline-flex items-center rounded-full bg-indigo-50 px-2 py-0.5 text-[11px] font-semibold text-indigo-900 border border-indigo-200">
@@ -542,9 +694,24 @@ export default function StudioPool() {
                         </span>
                       </div>
                     ) : null}
+
+                    {typeof p?.lastSeenAtMs === 'number' && Number.isFinite(p.lastSeenAtMs) && p.lastSeenAtMs > 0 ? (
+                      <div className="mt-2 flex items-center gap-2 text-[11px] text-slate-500">
+                        <span
+                          className={
+                            'inline-block h-2 w-2 rounded-full ' +
+                            (formatPresenceLabel(t, p.lastSeenAtMs) === t('studio.presence.online')
+                              ? 'bg-emerald-500 shadow-[0_0_0_3px_rgba(16,185,129,0.12)]'
+                              : 'bg-slate-300')
+                          }
+                          aria-hidden="true"
+                        />
+                        <span>{formatPresenceLabel(t, p.lastSeenAtMs)}</span>
+                      </div>
+                    ) : null}
                     <div className="mt-2 space-y-1 text-sm text-slate-600">
                       {genderText ? <p>{genderText}</p> : null}
-                      {marital ? <p>{marital}</p> : null}
+                      {maritalText ? <p>{maritalText}</p> : null}
                       {city ? <p>{city}</p> : null}
                       {occupation ? <p>{occupation}</p> : null}
                     </div>
@@ -560,9 +727,9 @@ export default function StudioPool() {
                       {approved && approvedMatchId ? (
                         <Link
                           to={`/app/match/${approvedMatchId}`}
-                          className="inline-flex flex-1 items-center justify-center rounded-md bg-emerald-600 px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700"
+                          className="app-btn app-btn-primary w-full"
                         >
-                          Eşleşme kartına git
+                          {t('studio.pool.goToMatchCard')}
                         </Link>
                       ) : pending ? (
                         <button
@@ -579,7 +746,7 @@ export default function StudioPool() {
                           onClick={() => {
                             requestAccess({ targetUid });
                           }}
-                          className="inline-flex flex-1 items-center justify-center rounded-md bg-emerald-600 px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 disabled:opacity-60"
+                          className="app-btn app-btn-primary w-full disabled:opacity-60"
                         >
                           {requestingUid === targetUid ? t('studio.pool.requesting') : t('studio.pool.requestProfileNow')}
                         </button>
@@ -594,12 +761,17 @@ export default function StudioPool() {
           <StudioInboxModal
             open={!!inboxModal?.open}
             onClose={() => setInboxModal({ open: false })}
-            title="İstekler"
+            title={t('studio.inbox.modalTitleRequests')}
             items={myLock?.active ? [] : inboxAccess}
             mode="requests"
             onMarkRead={markInboxMessageRead}
             onApprove={({ fromUid }) => respondAccessRequest({ fromUid, decision: 'approve' })}
             onReject={({ fromUid }) => respondAccessRequest({ fromUid, decision: 'reject' })}
+            actionsDisabled={!myProfileComplete}
+            onRequireProfile={() => {
+              requireProfile();
+              goToProfileForm();
+            }}
             loadingId={accessAction.loadingId}
             error={accessAction.error}
           />

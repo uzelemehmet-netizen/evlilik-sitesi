@@ -191,7 +191,11 @@ export default async function handler(req, res) {
           lookingForNationality: safeStr(app?.lookingForNationality),
           lookingForGender: safeStr(app?.lookingForGender),
           about: safeStr(app?.about),
+          aboutTr: safeStr(app?.aboutTr),
+          aboutId: safeStr(app?.aboutId),
           expectations: safeStr(app?.expectations),
+          expectationsTr: safeStr(app?.expectationsTr),
+          expectationsId: safeStr(app?.expectationsId),
           photoUrls: Array.isArray(app?.photoUrls) ? app.photoUrls.filter((u) => typeof u === 'string' && u.trim()) : [],
           details: {
             heightCm: asNum(details?.heightCm),

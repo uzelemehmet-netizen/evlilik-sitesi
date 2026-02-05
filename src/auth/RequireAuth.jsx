@@ -28,7 +28,6 @@ export default function RequireAuth({ children }) {
       path.startsWith('/uniqah') ||
       path.startsWith('/eslestirme') ||
       path.startsWith('/youtube') ||
-      path.startsWith('/gallery') ||
       path.startsWith('/docs/')
     );
   };

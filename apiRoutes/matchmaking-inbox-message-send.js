@@ -1,5 +1,5 @@
 import { getAdmin, normalizeBody, requireIdToken } from './_firebaseAdmin.js';
-import { ensureEligibleOrThrow } from './_matchmakingEligibility.js';
+import { ensureEligibleOrThrow, ensureProfileCompleteOrThrow } from './_matchmakingEligibility.js';
 
 function safeStr(v) {
   return typeof v === 'string' ? v.trim() : '';
@@ -153,11 +153,11 @@ function ageRangeFromApp(app, { ageOverride = null } = {}) {
 }
 
 function canInteractByAge({ requesterApp, targetApp }) {
+  // Ürün kararı (2026-02): yaş aralığı uyumu şartı kaldırıldı.
   const requesterAge = getAge(requesterApp);
-  if (requesterAge === null) return { ok: false, reason: 'age_required' };
-
-  const { min, max } = ageRangeFromApp(targetApp, { ageOverride: getAge(targetApp) });
-  if (requesterAge < min || requesterAge > max) return { ok: false, reason: 'not_in_their_age_range' };
+  const targetAge = getAge(targetApp);
+  if (requesterAge === null || targetAge === null) return { ok: true };
+  if (requesterAge < MIN_AGE || targetAge < MIN_AGE) return { ok: false, reason: 'age_required' };
   return { ok: true };
 }
 
@@ -258,7 +258,15 @@ export default async function handler(req, res) {
       return;
     }
 
-    ensureEligibleOrThrow(meUser, safeStr(myApp?.gender));
+    try {
+      await ensureProfileCompleteOrThrow(db, uid);
+      ensureEligibleOrThrow(meUser, safeStr(myApp?.gender));
+    } catch (e2) {
+      res.statusCode = e2?.statusCode || 402;
+      res.setHeader('content-type', 'application/json');
+      res.end(JSON.stringify({ ok: false, error: String(e2?.message || 'membership_required') }));
+      return;
+    }
 
     const interact = canInteractByAge({ requesterApp: myApp, targetApp });
     if (!interact.ok) {

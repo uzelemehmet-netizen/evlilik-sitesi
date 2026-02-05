@@ -128,7 +128,11 @@ export default async function handler(req, res) {
       lookingForGender: safeStr(app?.lookingForGender),
       photoUrls: Array.isArray(app?.photoUrls) ? app.photoUrls.filter((u) => typeof u === 'string' && u.trim()).slice(0, 8) : [],
       about: safeStr(app?.about),
+      aboutTr: safeStr(app?.aboutTr),
+      aboutId: safeStr(app?.aboutId),
       expectations: safeStr(app?.expectations),
+      expectationsTr: safeStr(app?.expectationsTr),
+      expectationsId: safeStr(app?.expectationsId),
       details: {
         maritalStatus: safeStr(details?.maritalStatus),
         occupation: safeStr(details?.occupation),

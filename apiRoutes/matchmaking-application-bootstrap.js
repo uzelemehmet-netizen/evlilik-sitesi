@@ -1,4 +1,5 @@
 import { getAdmin, normalizeBody, requireIdToken } from './_firebaseAdmin.js';
+import { emitMemberFeedEvent } from './_memberFeed.js';
 
 function safeStr(v) {
   return typeof v === 'string' ? v.trim() : '';
@@ -17,6 +18,18 @@ function normalizeNat(v) {
   if (s === 'id' || s === 'indonesia' || s === 'endonezya') return 'id';
   if (s === 'other') return 'other';
   return '';
+}
+
+function normalizeAge(v) {
+  const n = typeof v === 'number' ? v : Number(String(v ?? '').trim());
+  if (!Number.isFinite(n)) return null;
+  if (!Number.isInteger(n)) return null;
+  if (n < 18 || n > 99) return null;
+  return n;
+}
+
+function minAgeForNat(nat) {
+  return nat === 'id' ? 21 : 18;
 }
 
 function oppositeGender(g) {
@@ -53,7 +66,8 @@ export default async function handler(req, res) {
     const bodyGender = normalizeGender(body?.gender);
     const bodyNat = normalizeNat(body?.nationality);
     const bodyNatOther = safeStr(body?.nationalityOther);
-    const ageConfirmed = body?.ageConfirmed === true;
+    const bodyAge = normalizeAge(body?.age);
+    const legacyAgeConfirmed = body?.ageConfirmed === true;
 
     const { db, FieldValue } = getAdmin();
 
@@ -70,12 +84,16 @@ export default async function handler(req, res) {
     let gender = bodyGender;
     let nationality = bodyNat;
     let nationalityOther = bodyNatOther;
+    let age = bodyAge;
+    let userCode = '';
     try {
       const userSnap = await db.collection('matchmakingUsers').doc(uid).get();
       const userDoc = userSnap.exists ? userSnap.data() || {} : {};
       if (!gender) gender = normalizeGender(userDoc?.gender);
       if (!nationality) nationality = normalizeNat(userDoc?.nationality);
       if (!nationalityOther) nationalityOther = safeStr(userDoc?.nationalityOther);
+      if (age === null) age = normalizeAge(userDoc?.age);
+      userCode = safeStr(userDoc?.userCode) || safeStr(userDoc?.publicProfile?.userCode);
     } catch {
       // ignore
     }
@@ -86,6 +104,9 @@ export default async function handler(req, res) {
       res.end(JSON.stringify({ ok: false, error: 'missing_profile' }));
       return;
     }
+
+    const minAge = minAgeForNat(nationality);
+    const ageConfirmed = (typeof age === 'number' && age >= minAge) || legacyAgeConfirmed === true;
 
     const lookingForGender = oppositeGender(gender);
     if (!lookingForGender) {
@@ -116,6 +137,10 @@ export default async function handler(req, res) {
       createdAtMs: nowMs,
       updatedAt: FieldValue.serverTimestamp(),
 
+      // Kullanıcı kayıt olurken zaten verilen UC-... kodunu başvuruya da kopyala.
+      // Böylece admin ekranı `matchmakingUsers` dokümanını okuyamasa bile UC kodunu gösterebilir.
+      userCode: userCode || '',
+
       gender,
       lookingForGender,
 
@@ -124,9 +149,12 @@ export default async function handler(req, res) {
       lookingForNationality,
       lookingForNationalityOther: '',
 
+      ...(typeof age === 'number' ? { age } : {}),
+
       // Not: Gerçek başvuru formu kadar detay yok. Kullanıcı isterse sonradan yeni bir başvuru oluşturabilir.
       details: {
         autoBootstrap: true,
+        signupAge: typeof age === 'number' ? age : null,
         signupAgeConfirmed: ageConfirmed,
       },
 
@@ -139,6 +167,22 @@ export default async function handler(req, res) {
     };
 
     await appRef.set(payload, { merge: false });
+
+    // Realtime member feed: "Yeni biri katıldı" (anonim) event'i.
+    // Not: Bu koleksiyon public değildir (rules: authenticated read).
+    try {
+      await emitMemberFeedEvent({
+        db,
+        FieldValue,
+        uid,
+        kind: 'signup',
+        username: '',
+        userCode,
+        profileIncomplete: true,
+      });
+    } catch {
+      // best-effort
+    }
 
     res.statusCode = 200;
     res.setHeader('content-type', 'application/json');

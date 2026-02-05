@@ -122,9 +122,9 @@ h3 {
 @layer components {
   .app-btn {
     @apply inline-flex h-9 select-none items-center justify-center gap-2 rounded-xl px-3 text-sm font-semibold text-center;
-    @apply bg-gradient-to-b from-rose-50/90 to-white text-slate-900 ring-1 ring-rose-200/70;
+    @apply bg-gradient-to-b from-emerald-700 to-emerald-900 text-white ring-1 ring-emerald-700/35;
     @apply transition-[transform,box-shadow,background-color,color,opacity] duration-150 ease-out;
-    @apply hover:bg-white hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.99];
+    @apply hover:-translate-y-0.5 hover:from-emerald-800 hover:to-emerald-950 active:translate-y-0 active:scale-[0.99];
     @apply focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 focus-visible:ring-offset-2;
     @apply disabled:pointer-events-none disabled:opacity-60;
 
@@ -137,49 +137,59 @@ h3 {
   }
 
   .app-btn-primary {
-    @apply bg-emerald-700 text-white ring-emerald-700/25;
-    box-shadow: 0 14px 40px rgba(4, 120, 87, 0.24), 0 4px 12px rgba(2, 6, 23, 0.10);
+    @apply bg-gradient-to-b from-emerald-800 to-emerald-950 text-white ring-emerald-800/40;
+    box-shadow: 0 14px 40px rgba(4, 120, 87, 0.26), 0 4px 12px rgba(2, 6, 23, 0.10);
   }
 
   .app-btn-primary:hover {
-    @apply bg-emerald-800;
-    box-shadow: 0 18px 50px rgba(4, 120, 87, 0.28), 0 6px 16px rgba(2, 6, 23, 0.12);
+    @apply from-emerald-900 to-black;
+    box-shadow: 0 18px 50px rgba(4, 120, 87, 0.30), 0 6px 16px rgba(2, 6, 23, 0.12);
+  }
+
+  .app-btn-primary-light {
+    @apply bg-gradient-to-b from-emerald-600 to-emerald-800 text-white ring-emerald-600/35;
+    box-shadow: 0 12px 34px rgba(4, 120, 87, 0.20), 0 3px 10px rgba(2, 6, 23, 0.10);
+  }
+
+  .app-btn-primary-light:hover {
+    @apply from-emerald-700 to-emerald-900;
+    box-shadow: 0 16px 44px rgba(4, 120, 87, 0.24), 0 5px 14px rgba(2, 6, 23, 0.12);
   }
 
   .app-btn-soft {
-    @apply bg-rose-100/70 text-slate-900 ring-rose-200;
+    @apply bg-gradient-to-b from-emerald-700 to-emerald-900 text-white ring-emerald-700/35;
   }
 
   .app-btn-soft:hover {
-    @apply bg-rose-200/60;
+    @apply from-emerald-800 to-emerald-950;
   }
 
   .app-btn-accent {
-    @apply bg-rose-200/70 text-rose-950 ring-rose-300/70;
-    box-shadow: 0 12px 34px rgba(190, 18, 60, 0.14), 0 3px 10px rgba(2, 6, 23, 0.08);
+    @apply bg-gradient-to-b from-emerald-700 to-emerald-900 text-white ring-emerald-700/35;
+    box-shadow: 0 12px 34px rgba(4, 120, 87, 0.18), 0 3px 10px rgba(2, 6, 23, 0.08);
   }
 
   .app-btn-accent:hover {
-    @apply bg-rose-300/60;
-    box-shadow: 0 16px 44px rgba(190, 18, 60, 0.18), 0 5px 14px rgba(2, 6, 23, 0.10);
+    @apply from-emerald-800 to-emerald-950;
+    box-shadow: 0 16px 44px rgba(4, 120, 87, 0.22), 0 5px 14px rgba(2, 6, 23, 0.10);
   }
 
   .app-btn-danger {
-    @apply bg-rose-50 text-rose-900 ring-rose-200;
+    @apply bg-gradient-to-b from-emerald-700 to-emerald-900 text-white ring-emerald-700/35;
   }
 
   .app-btn-danger:hover {
-    @apply bg-rose-100;
+    @apply from-emerald-800 to-emerald-950;
   }
 
   .app-btn-logout {
-    @apply bg-red-800 text-white ring-red-800/30;
-    box-shadow: 0 14px 40px rgba(153, 27, 27, 0.22), 0 4px 12px rgba(2, 6, 23, 0.10);
+    @apply bg-gradient-to-b from-red-900 to-black text-white ring-red-900/45;
+    box-shadow: 0 14px 40px rgba(127, 29, 29, 0.26), 0 4px 12px rgba(2, 6, 23, 0.10);
   }
 
   .app-btn-logout:hover {
-    @apply bg-red-900;
-    box-shadow: 0 18px 50px rgba(127, 29, 29, 0.26), 0 6px 16px rgba(2, 6, 23, 0.12);
+    @apply from-black to-black;
+    box-shadow: 0 18px 50px rgba(127, 29, 29, 0.30), 0 6px 16px rgba(2, 6, 23, 0.14);
   }
 
   .app-badge {

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { collection, doc, limit, onSnapshot, orderBy, query, where } from 'firebase/firestore';
 import { Link } from 'react-router-dom';
 import { Trans, useTranslation } from 'react-i18next';
@@ -7,6 +7,7 @@ import { db } from '../../config/firebase';
 import Navigation from '../../components/Navigation';
 import Footer from '../../components/Footer';
 import StudioMatchCard from '../../components/studio/StudioMatchCard';
+import PwaInstallCard from '../../components/PwaInstallCard';
 import StudioInboxModal from '../../components/studio/StudioInboxModal';
 import { authFetch } from '../../utils/authFetch';
 import { translateStudioApiError } from '../../utils/studioErrorI18n';
@@ -65,7 +66,12 @@ export default function StudioMatches() {
 
   const [myLock, setMyLock] = useState({ active: false, matchId: '' });
   const [myMembership, setMyMembership] = useState({ active: false });
+  const [myGender, setMyGender] = useState('');
   const [paywallNotice, setPaywallNotice] = useState('');
+  const [profileGateNotice, setProfileGateNotice] = useState('');
+  const [myProfileComplete, setMyProfileComplete] = useState(true);
+
+  const [presenceByUid, setPresenceByUid] = useState({});
 
   const asMs = (v) => {
     if (typeof v === 'number' && Number.isFinite(v)) return v;
@@ -115,10 +121,24 @@ export default function StudioMatches() {
           (membershipValidUntilMs > 0 && membershipValidUntilMs > now) ||
           (!!membershipObj?.active && (!membershipValidUntilMs || membershipValidUntilMs > now));
         setMyMembership({ active: membershipActive });
+
+        const appFromUser = d?.application && typeof d.application === 'object' ? d.application : null;
+        const publicProfile = d?.publicProfile && typeof d.publicProfile === 'object' ? d.publicProfile : null;
+        const g = String(appFromUser?.gender || publicProfile?.gender || d?.gender || '').trim().toLowerCase();
+        setMyGender(g);
+
+        const wroteOnce = typeof d?.profileTextWriteOnceUsedAtMs === 'number' && Number.isFinite(d.profileTextWriteOnceUsedAtMs)
+          ? d.profileTextWriteOnceUsedAtMs
+          : 0;
+        const about = String(d?.details?.about || d?.publicProfile?.about || '').trim();
+        const expectations = String(d?.details?.expectations || d?.publicProfile?.expectations || '').trim();
+        setMyProfileComplete(!!(wroteOnce > 0 || (about && expectations)));
       },
       () => {
         setMyLock({ active: false, matchId: '' });
         setMyMembership({ active: false });
+        setMyGender('');
+        setMyProfileComplete(true);
       }
     );
 
@@ -130,6 +150,19 @@ export default function StudioMatches() {
       }
     };
   }, [user?.uid]);
+
+  const canInteract = useMemo(() => {
+    return myProfileComplete && (!!myMembership.active || String(myGender || '').toLowerCase() === 'female');
+  }, [myGender, myMembership.active, myProfileComplete]);
+
+  const requireProfile = () => {
+    setProfileGateNotice(t('studio.profileGate.body'));
+    try {
+      if (typeof window !== 'undefined') window.scrollTo({ top: 0, behavior: 'smooth' });
+    } catch {
+      // noop
+    }
+  };
 
   const buildMatchesQuery = ({ uid, preferUpdatedAt }) => {
     const base = [collection(db, 'matchmakingMatches'), where('userIds', 'array-contains', uid)];
@@ -339,6 +372,12 @@ export default function StudioMatches() {
     if (!uid || !mid || (d !== 'accept' && d !== 'reject')) return;
     if (inboxAction.loadingId) return;
 
+    if (!myProfileComplete) {
+      requireProfile();
+      setInboxAction({ loadingId: '', error: t('studio.profileGate.body') });
+      return;
+    }
+
     setInboxAction({ loadingId: mid, error: '' });
     try {
       await authFetch('/api/matchmaking-decision', {
@@ -359,6 +398,12 @@ export default function StudioMatches() {
     const d = String(decision || '').trim();
     if (!uid || !from || (d !== 'approve' && d !== 'reject')) return;
     if (accessAction.loadingId) return;
+
+    if (!myProfileComplete) {
+      requireProfile();
+      setAccessAction({ loadingId: '', error: t('studio.profileGate.body') });
+      return;
+    }
 
     const reqType = String(type || '').trim();
     const endpoint =
@@ -687,6 +732,67 @@ export default function StudioMatches() {
     }
   };
 
+  const refreshPresence = useCallback(async () => {
+    const uid = String(user?.uid || '').trim();
+    if (!uid) return;
+
+    const list = Array.isArray(matches) ? matches : [];
+    const otherUids = [];
+    const seen = new Set();
+    for (const m of list) {
+      const aId = String(m?.aUserId || '').trim();
+      const bId = String(m?.bUserId || '').trim();
+      const other = aId === uid ? bId : bId === uid ? aId : '';
+      if (!other) continue;
+      if (seen.has(other)) continue;
+      seen.add(other);
+      otherUids.push(other);
+      if (otherUids.length >= 50) break;
+    }
+
+    if (!otherUids.length) {
+      setPresenceByUid({});
+      return;
+    }
+
+    try {
+      const data = await authFetch('/api/matchmaking-presence-batch', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ uids: otherUids }),
+      });
+      const m = data?.presenceByUid && typeof data.presenceByUid === 'object' ? data.presenceByUid : {};
+      setPresenceByUid(m);
+    } catch {
+      // best-effort
+    }
+  }, [matches, user?.uid]);
+
+  useEffect(() => {
+    refreshPresence();
+
+    const onFocus = () => refreshPresence();
+    try {
+      window.addEventListener('focus', onFocus);
+    } catch {
+      // noop
+    }
+
+    const id = setInterval(() => refreshPresence(), 60 * 1000);
+    return () => {
+      try {
+        clearInterval(id);
+      } catch {
+        // noop
+      }
+      try {
+        window.removeEventListener('focus', onFocus);
+      } catch {
+        // noop
+      }
+    };
+  }, [refreshPresence]);
+
   const openShort = async ({ matchId, displayName }) => {
     const uid = String(user?.uid || '').trim();
     const mid = String(matchId || '').trim();
@@ -720,6 +826,12 @@ export default function StudioMatches() {
     const text = String(shortText || '').trim();
 
     if (!uid || !mid || !text) return;
+
+    if (!myProfileComplete) {
+      requireProfile();
+      setShortState({ loading: false, error: t('studio.profileGate.body') });
+      return;
+    }
 
     // Ücretsiz kullanıcılar kısa mesaj gönderemez.
     if (!myMembership?.active) {
@@ -888,7 +1000,7 @@ export default function StudioMatches() {
             >
               <span className="inline-flex items-center justify-center gap-2">
                 <HelpCircle className="h-4 w-4" />
-                <span>İstekler</span>
+                <span>{t('studio.inbox.modalTitleRequests')}</span>
                 {pendingAccessRequests.length ? <span className="app-badge">{pendingAccessRequests.length}</span> : null}
               </span>
             </button>
@@ -900,7 +1012,7 @@ export default function StudioMatches() {
             >
               <span className="inline-flex items-center justify-center gap-2">
                 <MessageCircle className="h-4 w-4" />
-                <span>Mesajlar</span>
+                <span>{t('studio.inbox.modalTitleMessages')}</span>
                 {unreadMessageCount ? <span className="app-badge">{unreadMessageCount}</span> : null}
               </span>
             </button>
@@ -941,6 +1053,15 @@ export default function StudioMatches() {
           onMarkRead={inboxModal?.mode === 'messages' ? markDirectMessageRead : markInboxMessageRead}
           onApprove={inboxModal?.mode === 'messages' ? null : ({ fromUid, type }) => respondAccessRequest({ fromUid, decision: 'approve', type })}
           onReject={inboxModal?.mode === 'messages' ? null : ({ fromUid, type }) => respondAccessRequest({ fromUid, decision: 'reject', type })}
+          actionsDisabled={inboxModal?.mode !== 'messages' && !myProfileComplete}
+          onRequireProfile={() => {
+            requireProfile();
+            try {
+              window.location.href = '/evlilik/eslestirme-basvuru?w=1';
+            } catch {
+              // noop
+            }
+          }}
           loadingId={accessAction.loadingId}
           error={accessAction.error}
         />
@@ -999,6 +1120,27 @@ export default function StudioMatches() {
           </div>
         ) : null}
 
+        {profileGateNotice ? (
+          <div className="mb-4 mx-auto max-w-4xl rounded-xl border border-amber-200 bg-amber-50 p-4 text-amber-950">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="font-semibold">{t('studio.profileGate.title')}</p>
+              <button
+                type="button"
+                onClick={() => setProfileGateNotice('')}
+                className="rounded-md px-2 py-1 text-sm font-semibold text-amber-900/70 hover:bg-amber-100"
+              >
+                {t('studio.common.close')}
+              </button>
+            </div>
+            <p className="mt-1 text-sm text-amber-900/80">{profileGateNotice}</p>
+            <div className="mt-3">
+              <Link to="/evlilik/eslestirme-basvuru?w=1" className="text-sm font-semibold underline">
+                {t('studio.profileGate.cta')}
+              </Link>
+            </div>
+          </div>
+        ) : null}
+
         {loading ? (
           <p className="text-center text-slate-600">{t('studio.matches.loading')}</p>
         ) : error ? (
@@ -1011,6 +1153,25 @@ export default function StudioMatches() {
             <p className="mt-2 text-sm text-slate-600">
               {t('studio.matches.noneBody')}
             </p>
+            <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-4 text-left">
+              <p className="font-semibold text-slate-900">{t('studio.waitingNote.title')}</p>
+              <p className="mt-1 text-sm text-slate-700">
+                <Trans
+                  i18nKey="studio.waitingNote.body"
+                  components={{
+                    explore: (
+                      <Link
+                        to="/app/pool"
+                        className="inline-flex items-center rounded-md border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[12px] font-semibold text-emerald-900 align-baseline hover:bg-emerald-100"
+                      />
+                    ),
+                  }}
+                />
+              </p>
+            </div>
+            <div className="mt-4 text-left">
+              <PwaInstallCard variant="light" />
+            </div>
             <div className="mt-4 flex items-center justify-center gap-2">
               <Link
                 to="/app/pool"
@@ -1027,7 +1188,7 @@ export default function StudioMatches() {
             </div>
           </div>
         ) : (
-          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4">
             {visibleMatches.map((m) => (
               <StudioMatchCard
                 key={m.id}
@@ -1035,9 +1196,10 @@ export default function StudioMatches() {
                 currentUid={String(user?.uid || '')}
                 onOpenShort={openShort}
                 canSeeFullProfiles={myMembership.active}
-                canInteract={myMembership.active}
+                canInteract={canInteract}
                 onRequirePaid={requirePaid}
                 activeLockMatchId={myLock?.active ? myLock?.matchId : ''}
+                presenceByUid={presenceByUid}
               />
             ))}
           </div>

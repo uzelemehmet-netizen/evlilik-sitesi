@@ -1,15 +1,17 @@
-﻿import { Instagram, Youtube, Mail, Phone, MessageCircle, MapPin } from "lucide-react";
+﻿import { Youtube, Mail, Phone, MessageCircle, MapPin } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { COMPANY } from "../config/company";
 import { isFeatureEnabled } from "../config/siteVariant";
 import { buildWhatsAppUrl } from "../utils/whatsapp";
+import { useTranslation } from 'react-i18next';
 
 export default function Footer() {
   const currentYear = new Date().getFullYear();
   const location = useLocation();
+  const { t } = useTranslation();
 
   const getWhatsappLink = () => {
-    let message = "Merhaba, web sitenizden yazıyorum. Genel bilgi almak istiyorum.";
+    let message = t('footer.whatsappMessages.general');
 
     const path = String(location.pathname || '');
     const isWeddingPath =
@@ -20,21 +22,19 @@ export default function Footer() {
       path.startsWith('/profilim');
 
     if (isWeddingPath && isFeatureEnabled('wedding')) {
-      message = "Endonezya'da evlilik hakkında bilgi almak istiyorum";
+      message = t('footer.whatsappMessages.wedding');
     } else if (path.startsWith("/youtube")) {
-      message = "Merhaba, YouTube sayfanızı ziyaret ettim ve size bir şey sormak istiyorum";
+      message = t('footer.whatsappMessages.youtube');
     } else if (path.startsWith("/contact")) {
-      message = "Merhaba, bir konu hakkında bilgi almak istiyorum";
+      message = t('footer.whatsappMessages.contact');
     } else if (path === "/") {
-      message = "Merhaba, size genel anlamda bir şey sormak istiyorum";
+      message = t('footer.whatsappMessages.home');
     }
 
     return buildWhatsAppUrl(message);
   };
 
   const whatsappLink = getWhatsappLink();
-  const instagramLink = "https://www.instagram.com/endonezyakasifi";
-  const youtubeLink = "https://www.youtube.com/@endonezyakasifi";
   const email = COMPANY.email;
   const phone = COMPANY.phoneTr;
   const indonesiaPhoneTel = COMPANY.phoneIdTel;
@@ -58,10 +58,10 @@ export default function Footer() {
               />
             </div>
             <p className="text-gray-400" style={{ fontFamily: '"Poppins", sans-serif' }}>
-              Uniqah, Endonezya’da kayıtlı <span className="font-semibold">PT MoonStar Global Indonesia</span> şirketinin markasıdır.
+              {t('footer.brandBlurb', { company: 'PT MoonStar Global Indonesia' })}
             </p>
             <div className="mt-4 text-gray-400 text-sm" style={{ fontFamily: '"Poppins", sans-serif' }}>
-              <p className="text-xs uppercase tracking-wide text-gray-500 mb-1">Markalar</p>
+              <p className="text-xs uppercase tracking-wide text-gray-500 mb-1">{t('footer.brandsTitle')}</p>
               <p>Uniqah</p>
               <p>
                 <a
@@ -72,72 +72,67 @@ export default function Footer() {
                 >
                   DaMeTurk
                 </a>{' '}
-                <span className="text-gray-500">(alt marka • dameturk.com)</span>
+                <span className="text-gray-500">{t('footer.brandNoteDameturk')}</span>
               </p>
             </div>
           </div>
 
           <div>
             <h4 className="font-semibold mb-4" style={{ fontFamily: '"Poppins", sans-serif' }}>
-              Hızlı Linkler
+              {t('footer.sections.quickLinks')}
             </h4>
             <ul className="space-y-2 text-gray-400">
               <li>
                 <Link to="/" className="hover:text-white transition">
-                  Ana Sayfa
+                  {t('navigation.home')}
                 </Link>
               </li>
               {showWedding && (
                 <li>
                   <Link to="/evlilik" className="hover:text-white transition">
-                    Evlilik
+                    {t('navigation.wedding')}
                   </Link>
                 </li>
               )}
               {showWedding && (
                 <li>
-                  <Link to="/evlilik/uniqah" className="hover:text-white transition">
-                    Uniqah
+                  <Link to="/eslestirme" className="hover:text-white transition">
+                    {t('navigation.matchmaking')}
                   </Link>
                 </li>
               )}
               {showWedding && (
                 <li>
                   <Link to="/profilim" className="hover:text-white transition">
-                    Profilim
+                    {t('navigation.panel')}
                   </Link>
                 </li>
               )}
               {showWedding && (
                 <li>
                   <Link to="/evlilik/uyelik" className="hover:text-white transition">
-                    Üyelik
+                    {t('footer.links.membership')}
                   </Link>
                 </li>
               )}
               <li>
                 <Link to="/about" className="hover:text-white transition">
-                  Hakkımızda
+                  {t('navigation.about')}
                 </Link>
               </li>
               <li>
                 <Link to="/contact" className="hover:text-white transition">
-                  İletişim
+                  {t('navigation.contact')}
                 </Link>
               </li>
               <li>
                 <Link to="/youtube" className="hover:text-white transition">
-                  YouTube
-                </Link>
-              </li>
-              <li>
-                <Link to="/gallery" className="hover:text-white transition">
-                  Galeri
+                  {t('navigation.youtube')}
                 </Link>
               </li>
               <li>
                 <Link to="/privacy" className="hover:text-white transition">
-                  Gizlilik
+                  {t('footer.legal.privacyPolicy')}
                 </Link>
               </li>
             </ul>
@@ -145,7 +140,7 @@ export default function Footer() {
 
           <div>
             <h4 className="font-semibold mb-4" style={{ fontFamily: '"Poppins", sans-serif' }}>
-              Yasal
+              {t('footer.sections.legal')}
             </h4>
             <ul className="space-y-2 text-gray-400">
               <li>
@@ -155,7 +150,7 @@ export default function Footer() {
                   rel="noopener noreferrer"
                   className="hover:text-white transition"
                 >
-                  Kullanıcı / Üyelik Sözleşmesi
+                  {t('footer.legal.userAgreement')}
                 </a>
               </li>
               <li>
@@ -165,7 +160,7 @@ export default function Footer() {
                   rel="noopener noreferrer"
                   className="hover:text-white transition"
                 >
-                  Site Kuralları
+                  {t('footer.legal.siteRules')}
                 </a>
               </li>
               <li>
@@ -175,12 +170,12 @@ export default function Footer() {
                   rel="noopener noreferrer"
                   className="hover:text-white transition"
                 >
-                  İptal / İade Politikası
+                  {t('footer.legal.refundPolicy')}
                 </a>
               </li>
               <li>
                 <Link to="/privacy" className="hover:text-white transition">
-                  Gizlilik Politikası
+                  {t('footer.legal.privacyPolicy')}
                 </Link>
               </li>
             </ul>
@@ -188,15 +183,15 @@ export default function Footer() {
 
           <div>
             <h4 className="font-semibold mb-4" style={{ fontFamily: '"Poppins", sans-serif' }}>
-              İletişim
+              {t('footer.sections.contact')}
             </h4>
             <div className="space-y-3 text-gray-400">
               <div className="text-sm" style={{ fontFamily: '"Poppins", sans-serif' }}>
-                <p className="text-xs uppercase tracking-wide text-gray-500 mb-1">Firma Bilgileri</p>
-                <p><span className="text-gray-300">Ünvan:</span> {COMPANY.legalName}</p>
-                <p><span className="text-gray-300">Adres:</span> {COMPANY.address}</p>
-                <p><span className="text-gray-300">Vergi:</span> {COMPANY.tax}</p>
-                <p><span className="text-gray-300">NIB:</span> {COMPANY.nib}</p>
+                <p className="text-xs uppercase tracking-wide text-gray-500 mb-1">{t('footer.companyInfo.title')}</p>
+                <p><span className="text-gray-300">{t('footer.companyInfo.labels.legalName')}:</span> {COMPANY.legalName}</p>
+                <p><span className="text-gray-300">{t('footer.companyInfo.labels.address')}:</span> {COMPANY.address}</p>
+                <p><span className="text-gray-300">{t('footer.companyInfo.labels.tax')}:</span> {COMPANY.tax}</p>
+                <p><span className="text-gray-300">{t('footer.companyInfo.labels.nib')}:</span> {COMPANY.nib}</p>
               </div>
               <div className="flex items-center gap-2">
                 <Mail size={16} />
@@ -219,7 +214,7 @@ export default function Footer() {
                     {phone}
                   </a>
                   <span className="text-xs text-gray-500" style={{ fontFamily: '"Poppins", sans-serif' }}>
-                    Türkiye hattı (WhatsApp destekli)
+                    {t('footer.phoneNotes.trLine')}
                   </span>
                 </div>
               </div>
@@ -234,7 +229,7 @@ export default function Footer() {
                     {indonesiaPhoneDisplay}
                   </a>
                   <span className="text-xs text-gray-500" style={{ fontFamily: '"Poppins", sans-serif' }}>
-                    Endonezya hattı
+                    {t('footer.phoneNotes.idLine')}
                   </span>
                 </div>
               </div>
@@ -247,7 +242,7 @@ export default function Footer() {
                   className="hover:text-white transition"
                   style={{ fontFamily: '"Poppins", sans-serif' }}
                 >
-                  WhatsApp
+                  {t('footer.links.whatsapp')}
                 </a>
               </div>
             </div>
@@ -255,33 +250,22 @@ export default function Footer() {
 
           <div>
             <h4 className="font-semibold mb-4" style={{ fontFamily: '"Poppins", sans-serif' }}>
-              Sosyal Ağlar
+              {t('footer.sections.social')}
             </h4>
             <div className="flex gap-4 items-center">
-              <a
-                href={instagramLink}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-white hover:opacity-90 transition bg-gradient-to-tr from-yellow-400 via-pink-500 to-purple-600 p-2 rounded-full flex items-center justify-center"
-                title="Instagram"
-              >
-                <Instagram size={18} />
-              </a>
-              <a
-                href={youtubeLink}
-                target="_blank"
-                rel="noopener noreferrer"
+              <Link
+                to="/youtube"
                 className="text-white hover:opacity-90 transition bg-red-600 p-2 rounded-full flex items-center justify-center"
-                title="YouTube"
+                title={t('footer.social.youtube')}
               >
                 <Youtube size={18} />
-              </a>
+              </Link>
               <a
                 href={whatsappLink}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-emerald-50 hover:opacity-90 transition bg-emerald-500 p-2 rounded-full flex items-center justify-center"
-                title="WhatsApp"
+                title={t('footer.social.whatsapp')}
               >
                 <MessageCircle size={18} />
               </a>
@@ -291,7 +275,7 @@ export default function Footer() {
 
         <div className="border-t border-gray-800 pt-8 text-center text-gray-400">
           <p style={{ fontFamily: '"Poppins", sans-serif' }}>
-            &copy; {currentYear} Uniqah — PT MoonStar Global Indonesia. Tüm hakları saklıdır.
+            {t('footer.copyright', { year: currentYear, company: 'PT MoonStar Global Indonesia' })}
           </p>
         </div>
       </div>

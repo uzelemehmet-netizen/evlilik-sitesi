@@ -52,6 +52,24 @@ export default async function adminFeedbackUpdate(req, res) {
 
   await ref.set(patch, { merge: true });
 
+  try {
+    await db.collection('adminAuditLogs').add({
+      adminEmail: safeStr(adminToken?.email),
+      adminUid: safeStr(adminToken?.uid),
+      action: 'feedback_update',
+      targetUid: safeStr(body?.userId) || null,
+      ok: true,
+      meta: {
+        id,
+        ...(status ? { status } : {}),
+        hasNote: !!note,
+      },
+      createdAt: FieldValue.serverTimestamp(),
+    });
+  } catch {
+    // ignore
+  }
+
   res.statusCode = 200;
   res.setHeader('content-type', 'application/json');
   res.end(JSON.stringify({ ok: true }));

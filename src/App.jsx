@@ -16,7 +16,6 @@ const MatchmakingHub = lazy(() => import('./pages/MatchmakingHub'));
 const MatchmakingMembership = lazy(() => import('./pages/MatchmakingMembership'));
 const YouTube = lazy(() => import('./pages/YouTube'));
 const Privacy = lazy(() => import('./pages/Privacy'));
-const Gallery = lazy(() => import('./pages/Gallery'));
 const NotFound = lazy(() => import('./pages/NotFound'));
 
 const StudioProfile = lazy(() => import('./pages/studio/StudioProfile'));
@@ -28,7 +27,7 @@ const StudioPool = lazy(() => import('./pages/studio/StudioPool'));
 const StudioFeedback = lazy(() => import('./pages/studio/StudioFeedback'));
 
 const AdminLogin = lazy(() => import('./pages/AdminLogin'));
-const AdminDashboard = lazy(() => import('./pages/AdminDashboard'));
+const AdminDashboard = lazy(() => import('./pages/AdminDashboardLite'));
 const AdminMatchmakingDetail = lazy(() => import('./pages/AdminMatchmakingDetail'));
 const AdminMatchmakingMatches = lazy(() => import('./pages/AdminMatchmakingMatches'));
 const AdminMatchmakingPayments = lazy(() => import('./pages/AdminMatchmakingPayments'));
@@ -40,6 +39,8 @@ import { isFeatureEnabled } from './config/siteVariant';
 import DevOverlay from './components/DevOverlay';
 import { useAuth } from './auth/AuthProvider.jsx';
 import { authFetch } from './utils/authFetch.js';
+import { clearAppBadge, resetServiceWorkerBadge } from './utils/appBadge.js';
+import MemberFeedToasts from './components/MemberFeedToasts.jsx';
 
 function ScrollToTop() {
   const location = useLocation();
@@ -61,6 +62,25 @@ function TitleManager() {
 
   useEffect(() => {
     const path = location.pathname || '/';
+    const baseUrl = 'https://uniqah.com';
+
+    const canonicalPath = path.startsWith('/') ? path : `/${path}`;
+    const canonicalUrl = `${baseUrl}${canonicalPath === '/' ? '/' : canonicalPath}`;
+
+    // Canonical (Google'ın doğru URL'yi kaydetmesi için)
+    let canonicalLink = document.querySelector('link[rel="canonical"]');
+    if (!canonicalLink) {
+      canonicalLink = document.createElement('link');
+      canonicalLink.setAttribute('rel', 'canonical');
+      document.head.appendChild(canonicalLink);
+    }
+    canonicalLink.setAttribute('href', canonicalUrl);
+
+    // OG url (paylaşım ve bazı crawler'lar için)
+    const ogUrl = document.querySelector('meta[property="og:url"]');
+    if (ogUrl) {
+      ogUrl.setAttribute('content', canonicalUrl);
+    }
 
     // Admin panelde çoklu dil gerekmiyor: title/description TR sabit kalsın.
     if (path.startsWith('/admin')) {
@@ -96,7 +116,7 @@ function TitleManager() {
       pageTitle = `${t('matchmakingPage.title')} | ${base}`;
       description = t('matchmakingPage.intro');
     } else if (
-      (path === '/uniqah' || path === '/evlilik/uniqah') &&
+      (path === '/eslestirme' || path === '/evlilik/eslestirme' || path === '/uniqah' || path === '/evlilik/uniqah') &&
       isFeatureEnabled('wedding')
     ) {
       pageTitle = `${t('matchmakingHub.metaTitle')} | ${base}`;
@@ -109,8 +129,6 @@ function TitleManager() {
       description = t('meta.pages.wedding.description');
     } else if (path.startsWith('/youtube')) {
       pageTitle = `${t('meta.pages.youtube.title')} | ${base}`;
-    } else if (path.startsWith('/gallery')) {
-      pageTitle = `${t('meta.pages.gallery.title')} | ${base}`;
     } else if (path === '/privacy') {
       pageTitle = `${t('meta.pages.privacy.title')} | ${base}`;
     }
@@ -249,7 +267,26 @@ function MatchmakingHeartbeatGlobal() {
 function App() {
   console.log('App component loaded');
   const showWedding = isFeatureEnabled('wedding');
-  const isWeddingOnly = showWedding;
+
+  // If the user opens/focuses the app, clear any missed-notification badge.
+  useEffect(() => {
+    const clear = async () => {
+      await clearAppBadge();
+      await resetServiceWorkerBadge();
+    };
+    const onFocus = () => clear();
+    const onVis = () => {
+      if (document.visibilityState === 'visible') clear();
+    };
+
+    clear();
+    window.addEventListener('focus', onFocus);
+    document.addEventListener('visibilitychange', onVis);
+    return () => {
+      window.removeEventListener('focus', onFocus);
+      document.removeEventListener('visibilitychange', onVis);
+    };
+  }, []);
 
   return (
     <Router>
@@ -259,12 +296,13 @@ function App() {
       <AnalyticsTracker />
       <MatchmakingHeartbeatGlobal />
       <FloatingWhatsApp />
+      <MemberFeedToasts />
       {import.meta.env.DEV ? <DevOverlay /> : null}
       <Suspense
         fallback={<RouteLoading />}
       >
         <Routes>
-          <Route path="/" element={isWeddingOnly ? <Wedding /> : <Home />} />
+          <Route path="/" element={<Home />} />
           <Route path="/about" element={<About />} />
           <Route path="/kurumsal" element={<Corporate />} />
           <Route path="/contact" element={<Contact />} />
@@ -295,11 +333,7 @@ function App() {
           />
           <Route
             path="/profilim-eski"
-            element={
-              <RequireAuth>
-                <Panel />
-              </RequireAuth>
-            }
+            element={<Navigate to="/profilim" replace />}
           />
           <Route path="/panel" element={<Navigate to="/profilim" replace />} />
 
@@ -336,10 +370,8 @@ function App() {
               </RequireAuth>
             }
           />
-          <Route path="/gallery" element={<Gallery />} />
-
           {showWedding && <Route path="/wedding" element={<Wedding />} />}
-          {showWedding && <Route path="/uniqah" element={<MatchmakingHub />} />}
+          {showWedding && <Route path="/eslestirme" element={<MatchmakingHub />} />}
           <Route
             path="/wedding/apply"
             element={
@@ -349,14 +381,14 @@ function App() {
             }
           />
 
-          {/* Legacy routes -> Uniqah */}
-          {showWedding && <Route path="/eslestirme" element={<Navigate to="/uniqah" replace />} />}
+          {/* Legacy routes -> Matchmaking hub */}
+          {showWedding && <Route path="/uniqah" element={<Navigate to="/eslestirme" replace />} />}
 
           {/* Google Ads / TR alias URL'ler */}
           {isFeatureEnabled('wedding') && <Route path="/evlilik" element={<Wedding />} />}
-          {isFeatureEnabled('wedding') && <Route path="/evlilik/uniqah" element={<MatchmakingHub />} />}
+          {isFeatureEnabled('wedding') && <Route path="/evlilik/eslestirme" element={<MatchmakingHub />} />}
           {isFeatureEnabled('wedding') && (
-            <Route path="/evlilik/eslestirme" element={<Navigate to="/evlilik/uniqah" replace />} />
+            <Route path="/evlilik/uniqah" element={<Navigate to="/evlilik/eslestirme" replace />} />
           )}
           <Route
             path="/evlilik/eslestirme-basvuru"

@@ -8,8 +8,6 @@ import { useTranslation } from 'react-i18next';
 export default function Corporate() {
   const { t } = useTranslation();
   const brand = 'Uniqah';
-  const instagram = 'https://www.instagram.com/endonezyakasifi';
-  const youtube = 'https://www.youtube.com/@endonezyakasifi';
   const dameTurk = 'https://www.dameturk.com';
 
   return (
@@ -54,7 +52,7 @@ export default function Corporate() {
             </p>
             <div className="mt-3 flex flex-wrap gap-2">
               <a
-                href="/docs/on-kayit-bilgi-paketi.html"
+                href="/docs/matchmaking-kullanim-sozlesmesi.html"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-2 rounded-full bg-white border border-emerald-200 px-4 py-2 text-sm hover:shadow-sm transition"
@@ -119,22 +117,12 @@ export default function Corporate() {
                   <span className="text-gray-500">({t('corporatePage.contact.idLabel')})</span>
                 </div>
                 <div className="flex flex-wrap gap-3 pt-2">
-                  <a
-                    href={instagram}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-2 rounded-full bg-white border border-slate-200 px-4 py-2 text-sm hover:shadow-sm transition"
-                  >
-                    <Globe size={16} /> Instagram
-                  </a>
-                  <a
-                    href={youtube}
-                    target="_blank"
-                    rel="noopener noreferrer"
+                  <Link
+                    to="/youtube"
                     className="inline-flex items-center gap-2 rounded-full bg-white border border-slate-200 px-4 py-2 text-sm hover:shadow-sm transition"
                   >
                     <Globe size={16} /> YouTube
-                  </a>
+                  </Link>
                 </div>
               </div>
             </div>
@@ -200,7 +188,7 @@ export default function Corporate() {
                 </p>
                 <div className="mt-3">
                   <a
-                    href="/docs/on-kayit-bilgi-paketi.html"
+                    href="/docs/matchmaking-kullanim-sozlesmesi.html"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="inline-flex items-center gap-2 rounded-full bg-white border border-emerald-200 px-4 py-2 text-sm hover:shadow-sm transition"

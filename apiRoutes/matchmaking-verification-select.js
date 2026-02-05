@@ -23,6 +23,23 @@ function makeReferenceCode() {
   return crypto.randomBytes(4).toString('hex').toUpperCase();
 }
 
+function pickFullNameFromUserDoc(data) {
+  const direct = safeStr(data?.fullName);
+  if (direct) return direct;
+  const pub = safeStr(data?.publicProfile?.fullName);
+  if (pub) return pub;
+  const det = safeStr(data?.details?.fullName);
+  if (det) return det;
+  const name = safeStr(data?.details?.name);
+  const surname = safeStr(data?.details?.surname);
+  const joined = [name, surname].filter(Boolean).join(' ').trim();
+  return joined || '';
+}
+
+function pickUserCodeFromUserDoc(data) {
+  return safeStr(data?.userCode) || safeStr(data?.profileCode) || '';
+}
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     res.statusCode = 405;
@@ -83,7 +100,16 @@ export default async function handler(req, res) {
 
       if (method === 'whatsapp') {
         const wa = getWhatsappNumber();
-        whatsappMessage = `Kimlik doğrulama talebi: ${referenceCode} (uid: ${uid})`;
+        const fullName = pickFullNameFromUserDoc(data);
+        const userCode = pickUserCodeFromUserDoc(data);
+        const lines = [
+          'Merhaba, WhatsApp görüntülü arama ile kimlik doğrulama talep ediyorum.',
+          `Referans: ${referenceCode}`,
+          fullName ? `Ad Soyad: ${fullName}` : '',
+          userCode ? `Kullanıcı kodu: ${userCode}` : '',
+          'Uygun olduğunuz bir zamanı yazar mısınız?',
+        ].filter(Boolean);
+        whatsappMessage = lines.join('\n');
         // WhatsApp numarası server env'de yoksa url üretmeyiz; client kendi fallback numarasıyla mesajı açabilir.
         whatsappUrl = wa ? `https://wa.me/${wa}?text=${encodeURIComponent(whatsappMessage)}` : '';
       }

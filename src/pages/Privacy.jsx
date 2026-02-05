@@ -1,6 +1,7 @@
 import Navigation from '../components/Navigation';
 import Footer from '../components/Footer';
 import { Trans, useTranslation } from 'react-i18next';
+import { COMPANY } from '../config/company';
 
 export default function Privacy() {
   const { t, i18n } = useTranslation();
@@ -55,9 +56,10 @@ export default function Privacy() {
             <p>
               <Trans
                 i18nKey="privacyPage.sections.contact.text"
+                values={{ email: COMPANY.email }}
                 components={{
                   emailLink: (
-                    <a href="mailto:endonezyakasifi@gmail.com" className="text-emerald-600 hover:underline" />
+                    <a href={`mailto:${COMPANY.email}`} className="text-emerald-600 hover:underline" />
                   ),
                 }}
               />

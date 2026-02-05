@@ -10,15 +10,8 @@ service cloud.firestore {
     }
 
     function isAdmin() {
-      return isNonAnonymous() && (
-        // Önerilen: Firebase Auth custom claim ile admin
-        // (scripts/admin-user.mjs ile admin=true set edilebilir)
-        request.auth.token.admin == true
-        || request.auth.token.email.lower() in [
-          'uzelemehmet@gmail.com',
-          'articelikkapi@gmail.com'
-        ]
-      );
+      // Güvenlik: Admin yetkisi tek kullanıcıyla sınırlı.
+      return isNonAnonymous() && request.auth.token.email.lower() == 'uzelemehmet@gmail.com';
     }
 
     // Varsayılan yaklaşım: sadece aşağıdaki matchmaking koleksiyonlarına izin ver.
@@ -26,12 +19,9 @@ service cloud.firestore {
     // Matchmaking Applications (signed-in create, admin-only read)
     // Not: Profil listesi herkese açık değildir; admin panel üzerinden incelenir.
     match /matchmakingApplications/{applicationId} {
-      allow create: if isNonAnonymous()
-        && request.resource.data.userId == request.auth.uid
-        && request.resource.data.consent18Plus == true
-        && request.resource.data.consentPrivacy == true
-        && request.resource.data.consentTerms == true
-        && request.resource.data.consentPhotoShare == true;
+      // Başvuru kaydı artık sadece server-side API (Admin SDK) üzerinden oluşturulur.
+      // Böylece: write-once metin kilidi, PII engeli ve TR<->ID tek-sefer çeviri güvenli şekilde enforce edilir.
+      allow create: if false;
 
       // Kullanıcı kendi başvurusunu panelde görebilmelidir.
       allow read: if isAdmin() || (isNonAnonymous() && resource.data.userId == request.auth.uid);
@@ -54,23 +44,30 @@ service cloud.firestore {
         return request.resource.data.nationality in ['tr', 'id', 'other'];
       }
 
+      function isValidAgeWrite() {
+        return !('age' in request.resource.data)
+          || (request.resource.data.age is int && request.resource.data.age >= 18 && request.resource.data.age <= 99);
+      }
+
       // Kullanıcı kendi dokümanını okuyabilir.
       allow read: if isAdmin() || isSelf();
 
       // Kullanıcı kayıtta temel profil alanlarını (+ timestamp) set edebilir.
       allow create: if isSelf()
-        && request.resource.data.keys().hasOnly(['gender', 'nationality', 'nationalityOther', 'createdAt', 'updatedAt'])
+        && request.resource.data.keys().hasOnly(['gender', 'nationality', 'nationalityOther', 'age', 'createdAt', 'updatedAt'])
         && isValidGenderWrite()
         && isValidNationalityWrite()
+        && isValidAgeWrite()
         && request.resource.data.createdAt == request.time
         && request.resource.data.updatedAt == request.time;
 
       // Yeni iskelet uyumu: kullanıcı kendi temel profil alanlarını gerektiğinde güncelleyebilsin.
       // Güvenlik: sadece whitelist alanlar değişebilsin; kritik alanlar (blocked/lock vb.) client'tan set edilemesin.
       allow update: if isAdmin() || (isSelf()
-        && request.resource.data.diff(resource.data).changedKeys().hasOnly(['gender', 'nationality', 'nationalityOther', 'updatedAt'])
+        && request.resource.data.diff(resource.data).changedKeys().hasOnly(['gender', 'nationality', 'nationalityOther', 'age', 'updatedAt'])
         && (!request.resource.data.diff(resource.data).changedKeys().hasAny(['gender']) || isValidGenderWrite())
         && (!request.resource.data.diff(resource.data).changedKeys().hasAny(['nationality']) || isValidNationalityWrite())
+        && (!request.resource.data.diff(resource.data).changedKeys().hasAny(['age']) || isValidAgeWrite())
         && request.resource.data.updatedAt == request.time
       );
 
@@ -225,6 +222,19 @@ service cloud.firestore {
     match /publicJoinEvents/{eventId} {
       allow read: if true;
       allow write: if false;
+    }
+
+    // Member feed events (authenticated): used for realtime "new user joined" toasts in the app.
+    // Contains non-sensitive, app-level identifiers (e.g. username / userCode). Not public.
+    // Writes are done server-side (Admin SDK) from API routes.
+    match /memberFeedEvents/{eventId} {
+      allow read: if isNonAnonymous();
+      allow write: if false;
+    }
+
+    // Internal dedup for member feed (contains uid) - never readable from client.
+    match /memberFeedUsers/{userId} {
+      allow read, write: if false;
     }
 
     // Internal dedup/telemetry for join pings (contains uid) - never readable from client.

@@ -9,16 +9,13 @@ import { registerSW } from 'virtual:pwa-register';
 
 // Service worker dev ortamında (Vite) çok sık cache/refresh sorunlarına ve "beyaz sayfa"ya neden olabiliyor.
 // Bu yüzden sadece production build'lerde register ediyoruz.
+// Not: `load` event'ini beklemek bazı cihazlarda bildirim/push açma akışını geciktirebiliyor.
 if (import.meta.env.PROD && typeof window !== 'undefined') {
-  window.addEventListener('load', () => {
-    try {
-      registerSW({
-        immediate: true,
-      });
-    } catch {
-      // noop
-    }
-  });
+  try {
+    registerSW({ immediate: true });
+  } catch {
+    // noop
+  }
 }
 
 const container = document.getElementById('root');

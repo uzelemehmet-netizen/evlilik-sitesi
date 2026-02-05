@@ -8,6 +8,12 @@ function normalizeLang(v) {
   return '';
 }
 
+function normalizeProfileLang(v) {
+  const s = safeStr(v).toLowerCase();
+  if (s === 'tr' || s === 'id') return s;
+  return '';
+}
+
 function isConfigured() {
   const provider = safeStr(process.env.TRANSLATE_PROVIDER || '').toLowerCase();
   if (provider === 'deepl') return !!safeStr(process.env.DEEPL_API_KEY);
@@ -202,6 +208,49 @@ export async function translateText({ text, targetLang, provider }) {
     const err = new Error('pii_blocked');
     err.statusCode = 422;
     err.details = { reasons: pii.reasons };
+    throw err;
+  }
+
+  const p = safeStr(provider || process.env.TRANSLATE_PROVIDER || '').toLowerCase();
+  if (p === 'deepl') return translateWithDeepL(t, lang);
+  if (p === 'libretranslate') return translateWithLibreTranslate(t, lang);
+  if (p === 'google') return translateWithGoogle(t, lang);
+  if (p === 'gemini') return translateWithGemini({ text: t, targetLang: lang });
+
+  const err = new Error('translate_not_configured');
+  err.statusCode = 501;
+  throw err;
+}
+
+// Profile free-text translation (About / Expectations)
+// - Only TR <-> ID
+// - Blocks contact/banking/identity PII, but allows name disclosures.
+export async function translateTextProfile({ text, targetLang, provider }) {
+  const t = safeStr(text);
+  if (!t) {
+    const err = new Error('bad_request');
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const lang = normalizeProfileLang(targetLang);
+  if (!lang) {
+    const err = new Error('bad_request');
+    err.statusCode = 400;
+    throw err;
+  }
+
+  // 1) Local phrasebook match => no external provider.
+  const pb = phrasebookTranslate(t, lang);
+  if (pb) return pb;
+
+  // 2) Safety: block contact/identity/banking info, allow names.
+  const pii = detectPII(t);
+  const forbidden = (pii?.reasons || []).filter((r) => r && r !== 'name');
+  if (forbidden.length) {
+    const err = new Error('pii_blocked');
+    err.statusCode = 422;
+    err.details = { reasons: forbidden };
     throw err;
   }
 

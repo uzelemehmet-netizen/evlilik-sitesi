@@ -1,14 +1,16 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { getLocalizedProfileText } from '../../utils/profileText';
 
 function safeStr(v) {
   return typeof v === 'string' ? v.trim() : '';
 }
 
-function genderLabelTR(raw) {
+function genderLabel(t, raw) {
   const s = safeStr(raw).toLowerCase();
   if (!s) return '';
-  if (s === 'female' || s === 'f' || s === 'kadin' || s === 'kadın') return 'Kadın';
-  if (s === 'male' || s === 'm' || s === 'erkek') return 'Erkek';
+  if (s === 'female' || s === 'f' || s === 'kadin' || s === 'kadın') return t('matchmakingPage.form.options.gender.female');
+  if (s === 'male' || s === 'm' || s === 'erkek') return t('matchmakingPage.form.options.gender.male');
   return '';
 }
 
@@ -47,9 +49,12 @@ export default function StudioInboxModal({
   onMarkRead,
   onApprove,
   onReject,
+  actionsDisabled,
+  onRequireProfile,
   loadingId,
   error,
 }) {
+  const { t, i18n } = useTranslation();
   const list = useMemo(() => (Array.isArray(items) ? items : []), [items]);
   const [lightbox, setLightbox] = useState({ open: false, urls: [], index: 0, title: '' });
   const [expandedId, setExpandedId] = useState('');
@@ -88,7 +93,7 @@ export default function StudioInboxModal({
             onClick={onClose}
             className="app-btn app-btn-soft h-9"
           >
-            Kapat
+            {t('studio.common.close')}
           </button>
         </div>
 
@@ -97,7 +102,7 @@ export default function StudioInboxModal({
 
           {visible.length === 0 ? (
             <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-slate-700">
-              {mode === 'messages' ? 'Şu anda yeni mesaj yok.' : 'Şu anda yeni istek yok.'}
+              {mode === 'messages' ? t('studio.inboxModal.emptyMessages') : t('studio.inboxModal.emptyRequests')}
             </div>
           ) : (
             <div className="grid grid-cols-1 gap-3">
@@ -108,9 +113,9 @@ export default function StudioInboxModal({
                 const isPreMatch = type === 'pre_match';
                 const p = it?.fromProfile && typeof it.fromProfile === 'object' ? it.fromProfile : {};
 
-                const name = safeStr(p?.username) || 'Profil';
+                const name = safeStr(p?.username) || t('studio.common.profile');
                 const age = typeof p?.age === 'number' ? `, ${p.age}` : '';
-                const gender = genderLabelTR(p?.gender);
+                const gender = genderLabel(t, p?.gender);
                 const city = safeStr(p?.city);
                 const photoUrls = normalizePhotoUrls(p);
                 const photoUrl = safeStr(photoUrls[0] || '');
@@ -125,11 +130,13 @@ export default function StudioInboxModal({
                 const maritalStatus = pickLabelValue(p?.maritalStatus);
                 const education = pickLabelValue(p?.education);
                 const occupation = pickLabelValue(p?.occupation);
+                const yes = t('apply.form.options.common.yes');
+                const no = t('apply.form.options.common.no');
                 const hasChildren =
-                  typeof p?.hasChildren === 'boolean' ? (p.hasChildren ? 'Evet' : 'Hayır') : pickLabelValue(p?.hasChildren);
+                  typeof p?.hasChildren === 'boolean' ? (p.hasChildren ? yes : no) : pickLabelValue(p?.hasChildren);
                 const wantChildren =
-                  typeof p?.wantChildren === 'boolean' ? (p.wantChildren ? 'Evet' : 'Hayır') : pickLabelValue(p?.wantChildren);
-                const about = pickLabelValue(p?.about);
+                  typeof p?.wantChildren === 'boolean' ? (p.wantChildren ? yes : no) : pickLabelValue(p?.wantChildren);
+                const about = getLocalizedProfileText(p, 'about', i18n.language) || pickLabelValue(p?.about);
 
                 return (
                   <div key={id || fromUid} className="overflow-hidden rounded-xl border border-slate-200 bg-white">
@@ -154,7 +161,7 @@ export default function StudioInboxModal({
 
                           {isUnread ? (
                             <span className="shrink-0 rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-800">
-                              Yeni
+                              {t('studio.inboxModal.new')}
                             </span>
                           ) : null}
                         </div>
@@ -166,10 +173,10 @@ export default function StudioInboxModal({
                         ) : (
                           <p className="mt-2 text-sm text-slate-700">
                             {safeStr(it?.type) === 'pre_match'
-                              ? 'Ön eşleşme isteği gönderdi.'
+                              ? t('studio.inboxModal.requestText.preMatch')
                               : safeStr(it?.type) === 'photo_access'
-                                ? 'Fotoğraflarını görmek için izin istiyor.'
-                                : 'Profilini görmek için izin istiyor.'}
+                                ? t('studio.inboxModal.requestText.photoAccess')
+                                : t('studio.inboxModal.requestText.profileAccess')}
                           </p>
                         )}
 
@@ -197,7 +204,7 @@ export default function StudioInboxModal({
                                 onClick={() => onMarkRead?.({ messageId: id })}
                                 className="app-btn app-btn-soft w-full sm:w-auto"
                               >
-                                {isUnread ? 'Okundu yap' : 'Okundu'}
+                                {isUnread ? t('studio.inboxModal.markRead') : t('studio.inboxModal.read')}
                               </button>
                             </>
                           ) : (
@@ -209,40 +216,53 @@ export default function StudioInboxModal({
                                   onClick={() => setExpandedId(expanded ? '' : id)}
                                   className="app-btn app-btn-soft col-span-2 w-full sm:col-span-1"
                                 >
-                                  {expanded ? 'Profili gizle' : 'Profili incele'}
+                                  {expanded ? t('studio.inboxModal.hideProfile') : t('studio.inboxModal.reviewProfile')}
                                 </button>
 
-                                <button
-                                  type="button"
-                                  disabled={!!loadingId}
-                                  onClick={async () => {
-                                    try {
-                                      if (msg && isUnread) await onMarkRead?.({ requestId: id, fromUid });
-                                    } catch {
-                                      // noop
-                                    }
-                                    onApprove?.({ fromUid, type });
-                                  }}
-                                  className="app-btn app-btn-primary w-full"
-                                >
-                                  {isPreMatch ? 'Onayla' : 'İzin ver'}
-                                </button>
+                                {actionsDisabled ? (
+                                  <button
+                                    type="button"
+                                    disabled={!!loadingId}
+                                    onClick={() => onRequireProfile?.()}
+                                    className="app-btn app-btn-primary col-span-2 w-full sm:col-span-2"
+                                  >
+                                    {t('studio.profileGate.cta')}
+                                  </button>
+                                ) : (
+                                  <>
+                                    <button
+                                      type="button"
+                                      disabled={!!loadingId}
+                                      onClick={async () => {
+                                        try {
+                                          if (msg && isUnread) await onMarkRead?.({ requestId: id, fromUid });
+                                        } catch {
+                                          // noop
+                                        }
+                                        onApprove?.({ fromUid, type });
+                                      }}
+                                      className="app-btn app-btn-primary w-full"
+                                    >
+                                      {isPreMatch ? t('studio.inboxModal.approve') : t('studio.inboxModal.allow')}
+                                    </button>
 
-                                <button
-                                  type="button"
-                                  disabled={!!loadingId}
-                                  onClick={async () => {
-                                    try {
-                                      if (msg && isUnread) await onMarkRead?.({ requestId: id, fromUid });
-                                    } catch {
-                                      // noop
-                                    }
-                                    onReject?.({ fromUid, type });
-                                  }}
-                                  className="app-btn app-btn-danger w-full"
-                                >
-                                  Reddet
-                                </button>
+                                    <button
+                                      type="button"
+                                      disabled={!!loadingId}
+                                      onClick={async () => {
+                                        try {
+                                          if (msg && isUnread) await onMarkRead?.({ requestId: id, fromUid });
+                                        } catch {
+                                          // noop
+                                        }
+                                        onReject?.({ fromUid, type });
+                                      }}
+                                      className="app-btn app-btn-danger w-full"
+                                    >
+                                      {t('studio.inbox.reject')}
+                                    </button>
+                                  </>
+                                )}
 
                                 {msg && isUnread ? (
                                   <button
@@ -251,10 +271,16 @@ export default function StudioInboxModal({
                                     onClick={() => onMarkRead?.({ requestId: id, fromUid })}
                                     className="app-btn app-btn-soft col-span-2 w-full h-9 text-xs sm:col-span-3"
                                   >
-                                    Okundu yap
+                                    {t('studio.inboxModal.markRead')}
                                   </button>
                                 ) : null}
                               </div>
+
+                              {actionsDisabled ? (
+                                <div className="mt-2 rounded-lg border border-amber-200 bg-amber-50 p-2 text-xs text-amber-900">
+                                  {t('studio.profileGate.body')}
+                                </div>
+                              ) : null}
                             </>
                           )}
                         </div>
@@ -262,15 +288,15 @@ export default function StudioInboxModal({
                         {mode !== 'messages' && expanded ? (
                           <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm text-slate-800">
                             <div className="grid grid-cols-1 gap-1 sm:grid-cols-2">
-                              {gender ? <p><span className="text-slate-500">Cinsiyet:</span> {gender}</p> : null}
-                              {city ? <p><span className="text-slate-500">Şehir:</span> {city}</p> : null}
-                              {maritalStatus ? <p><span className="text-slate-500">Medeni durum:</span> {maritalStatus}</p> : null}
-                              {education ? <p><span className="text-slate-500">Eğitim:</span> {education}</p> : null}
-                              {occupation ? <p><span className="text-slate-500">Meslek:</span> {occupation}</p> : null}
-                              {hasChildren ? <p><span className="text-slate-500">Çocuk:</span> {hasChildren}</p> : null}
-                              {wantChildren ? <p><span className="text-slate-500">Çocuk isteği:</span> {wantChildren}</p> : null}
+                              {gender ? <p><span className="text-slate-500">{t('myInfo.fields.gender')}:</span> {gender}</p> : null}
+                              {city ? <p><span className="text-slate-500">{t('myInfo.fields.city')}:</span> {city}</p> : null}
+                              {maritalStatus ? <p><span className="text-slate-500">{t('myInfo.fields.maritalStatus')}:</span> {maritalStatus}</p> : null}
+                              {education ? <p><span className="text-slate-500">{t('myInfo.fields.education')}:</span> {education}</p> : null}
+                              {occupation ? <p><span className="text-slate-500">{t('myInfo.fields.occupation')}:</span> {occupation}</p> : null}
+                              {hasChildren ? <p><span className="text-slate-500">{t('myInfo.fields.hasChildren')}:</span> {hasChildren}</p> : null}
+                              {wantChildren ? <p><span className="text-slate-500">{t('studio.inboxModal.wantChildren')}:</span> {wantChildren}</p> : null}
                             </div>
-                            {about ? <p className="mt-2"><span className="text-slate-500">Hakkında:</span> {about}</p> : null}
+                            {about ? <p className="mt-2"><span className="text-slate-500">{t('myInfo.fields.about')}:</span> {about}</p> : null}
                           </div>
                         ) : null}
                       </div>
@@ -298,14 +324,14 @@ export default function StudioInboxModal({
                 className="app-btn app-btn-soft h-9 bg-white/10 text-white ring-white/20 hover:bg-white/20"
                 onClick={() => setLightbox({ open: false, urls: [], index: 0, title: '' })}
               >
-                Kapat
+                {t('studio.common.close')}
               </button>
             </div>
 
             <div className="overflow-hidden rounded-xl bg-black">
               <img
                 src={lightbox.urls[lightbox.index]}
-                alt={lightbox.title || 'Fotoğraf'}
+                alt={lightbox.title || t('studio.inboxModal.photoAlt')}
                 className="max-h-[75vh] w-full object-contain"
               />
             </div>
@@ -322,7 +348,7 @@ export default function StudioInboxModal({
                     }))
                   }
                 >
-                  Önceki
+                  {t('studio.inboxModal.prev')}
                 </button>
                 <p className="text-sm text-white/80">
                   {lightbox.index + 1} / {lightbox.urls.length}
@@ -337,7 +363,7 @@ export default function StudioInboxModal({
                     }))
                   }
                 >
-                  Sonraki
+                  {t('studio.inboxModal.next')}
                 </button>
               </div>
             ) : null}

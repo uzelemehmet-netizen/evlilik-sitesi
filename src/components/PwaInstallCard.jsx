@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Bell, Download, Info } from 'lucide-react';
-import { enablePushForCurrentUser, sendTestPushToMe } from '../utils/pushNotifications';
+import { enablePushForCurrentUser, hasSavedPushToken, sendTestPushToMe } from '../utils/pushNotifications';
+import { firebaseWebPushVapidKey } from '../config/firebasePublicConfig';
 
 function isIos() {
   if (typeof navigator === 'undefined') return false;
@@ -25,7 +26,7 @@ function isInstalled() {
   return false;
 }
 
-export default function PwaInstallCard({ variant = 'light' }) {
+export default function PwaInstallCard({ variant = 'light', flat = false }) {
   const { t } = useTranslation();
 
   const [deferredPrompt, setDeferredPrompt] = useState(null);
@@ -47,6 +48,19 @@ export default function PwaInstallCard({ variant = 'light' }) {
       return 'default';
     }
   }, [canBrowserNotify]);
+
+  const debugPush = useMemo(() => {
+    if (typeof window === 'undefined') return false;
+    try {
+      return new URLSearchParams(window.location.search).get('debugPush') === '1';
+    } catch {
+      return false;
+    }
+  }, []);
+
+  const vapidKeyLen = useMemo(() => {
+    return typeof firebaseWebPushVapidKey === 'string' ? firebaseWebPushVapidKey.trim().length : 0;
+  }, []);
 
   const isIosDevice = useMemo(() => isIos(), []);
 
@@ -80,7 +94,9 @@ export default function PwaInstallCard({ variant = 'light' }) {
 
   const cardClass = isDark
     ? 'rounded-2xl border border-white/10 bg-white/5 p-5'
-    : 'rounded-xl border border-slate-200 bg-white p-5 shadow-sm';
+    : flat
+      ? 'rounded-xl border border-slate-200 bg-white p-5'
+      : 'rounded-xl border border-slate-200 bg-white p-5 shadow-sm';
 
   const titleClass = isDark ? 'text-white' : 'text-slate-900';
   const textClass = isDark ? 'text-white/70' : 'text-slate-600';
@@ -119,10 +135,26 @@ export default function PwaInstallCard({ variant = 'light' }) {
     setNotifyStatus('');
 
     try {
+      // If the user already granted permission and we still have a token, don't re-run the
+      // full enable flow (it can fail due to network/CSP and cause confusing UX).
+      try {
+        if (Notification?.permission === 'granted' && hasSavedPushToken()) {
+          setPushEnabled(true);
+          setNotifyStatus(t('pwa.install.notifications.alreadyEnabled'));
+          return;
+        }
+      } catch {
+        // ignore
+      }
+
       const result = await enablePushForCurrentUser();
       if (result?.ok) {
         setPushEnabled(true);
-        setNotifyStatus(t('pwa.install.notifications.enabled'));
+        if (result?.serverSync === false) {
+          setNotifyStatus(t('pwa.install.notifications.enabledButNotSaved'));
+        } else {
+          setNotifyStatus(t('pwa.install.notifications.enabled'));
+        }
         return;
       }
 
@@ -132,26 +164,47 @@ export default function PwaInstallCard({ variant = 'light' }) {
         case 'messaging_not_supported':
           setNotifyStatus(t('pwa.install.notifications.notSupported'));
           break;
+        case 'not_secure_context':
+          setNotifyStatus(t('pwa.install.notifications.notSecureContext'));
+          break;
         case 'service_worker_not_ready':
           setNotifyStatus(t('pwa.install.notifications.serviceWorkerNotReady'));
           break;
         case 'missing_vapid_key':
           setNotifyStatus(t('pwa.install.notifications.missingSetup'));
           break;
+        case 'invalid_vapid_key':
+          setNotifyStatus(t('pwa.install.notifications.invalidVapidKey'));
+          break;
         case 'permission_denied':
           setNotifyStatus(t('pwa.install.notifications.denied'));
+          break;
+        case 'token_failed':
+          setNotifyStatus(t('pwa.install.notifications.error'));
           break;
         default:
           setNotifyStatus(t('pwa.install.notifications.error'));
           break;
       }
     } catch (e) {
-      setPushEnabled(false);
+      // If permission is granted, keep UX consistent even if something failed.
       const msg = String(e?.message || '').trim();
-      if (msg === 'not_authenticated') {
-        setNotifyStatus(t('pwa.install.notifications.notLoggedIn'));
+      let permission = 'default';
+      try {
+        permission = Notification?.permission || 'default';
+      } catch {
+        // ignore
+      }
+      if (permission === 'granted') {
+        setPushEnabled(true);
+        setNotifyStatus(t('pwa.install.notifications.enabledButNotSaved'));
       } else {
-        setNotifyStatus(t('pwa.install.notifications.error'));
+        setPushEnabled(false);
+        if (msg === 'not_authenticated') {
+          setNotifyStatus(t('pwa.install.notifications.notLoggedIn'));
+        } else {
+          setNotifyStatus(t('pwa.install.notifications.error'));
+        }
       }
     } finally {
       setNotifyBusy(false);
@@ -169,12 +222,32 @@ export default function PwaInstallCard({ variant = 'light' }) {
         url: '/profilim',
       });
       setNotifyStatus(t('pwa.install.notifications.testSent'));
-    } catch {
-      setNotifyStatus(t('pwa.install.notifications.testFailed'));
+    } catch (e) {
+      const msg = String(e?.message || '').trim();
+      if (msg === 'not_authenticated') {
+        setNotifyStatus(t('pwa.install.notifications.notLoggedIn'));
+      } else if (msg === 'no_tokens') {
+        setNotifyStatus(t('pwa.install.notifications.testNoTokens'));
+      } else if (msg.startsWith('firebase_admin_') || msg === 'firebase_admin_init_failed') {
+        setNotifyStatus(t('pwa.install.notifications.missingSetup'));
+      } else {
+        const base = t('pwa.install.notifications.testFailed');
+        setNotifyStatus(debugPush && msg ? `${base} (error=${msg})` : base);
+      }
     } finally {
       setTestBusy(false);
     }
   };
+
+  // If the user already granted permission and we have a saved token, mark as enabled for UX.
+  useEffect(() => {
+    if (notificationPermission !== 'granted') return;
+    try {
+      if (hasSavedPushToken()) setPushEnabled(true);
+    } catch {
+      // ignore
+    }
+  }, [notificationPermission]);
 
   return (
     <section className={cardClass}>
@@ -221,6 +294,12 @@ export default function PwaInstallCard({ variant = 'light' }) {
         <p className={`mt-3 text-xs ${subtleClass}`}>{notifyStatus}</p>
       ) : notificationPermission === 'granted' ? (
         <p className={`mt-3 text-xs ${subtleClass}`}>{t('pwa.install.notifications.alreadyEnabled')}</p>
+      ) : null}
+
+      {debugPush ? (
+        <p className={`mt-2 text-[11px] ${subtleClass}`}>
+          debugPush=1 • secureContext={String(typeof window !== 'undefined' && window.isSecureContext)} • vapidKeyLen={vapidKeyLen}
+        </p>
       ) : null}
 
       {installed ? (

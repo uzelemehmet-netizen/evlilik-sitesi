@@ -5,6 +5,10 @@ function normalizeGender(v) {
   return '';
 }
 
+function safeStr(v) {
+  return typeof v === 'string' ? v.trim() : '';
+}
+
 function isMembershipActive(userDoc, now = Date.now()) {
   const m = userDoc?.membership || null;
   if (!m || !m.active) return false;
@@ -46,8 +50,11 @@ function isInteractionMembershipOnlyEnabled() {
 }
 
 function isFreeActiveEnabled() {
+  // Varsayılan: AÇIK (ürün kararı: kadınlarda ücretsiz aktif üyelik).
+  // Sadece açıkça kapatmak için env'i 0/false/no/off/disabled yapın.
   const raw = String(process.env.MATCHMAKING_FREE_ACTIVE_ENABLED || '').toLowerCase().trim();
-  return raw === '1' || raw === 'true' || raw === 'yes';
+  const disabled = ['0', 'false', 'no', 'off', 'disabled'].includes(raw);
+  return !disabled;
 }
 
 function ensureEligibleOrThrow(userDoc, gender) {
@@ -67,12 +74,46 @@ function ensureEligibleOrThrow(userDoc, gender) {
   }
 }
 
+async function ensureProfileCompleteOrThrow(db, uid) {
+  const userId = safeStr(uid);
+  if (!db || !userId) {
+    const err = new Error('bad_request');
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const snap = await db.collection('matchmakingApplications').where('userId', '==', userId).limit(10).get();
+  if (snap.empty) {
+    const err = new Error('profile_incomplete');
+    err.statusCode = 428;
+    throw err;
+  }
+
+  let ok = false;
+  for (const d of snap.docs) {
+    const a = d.data() || {};
+    const source = safeStr(a?.source).toLowerCase();
+    const isStub = source === 'auto_stub' || a?.details?.autoBootstrap === true;
+    if (!isStub) {
+      ok = true;
+      break;
+    }
+  }
+
+  if (!ok) {
+    const err = new Error('profile_incomplete');
+    err.statusCode = 428;
+    throw err;
+  }
+}
+
 export {
   normalizeGender,
   isMembershipActive,
   isIdentityVerified,
   computeFreeActiveMembershipState,
   ensureEligibleOrThrow,
+  ensureProfileCompleteOrThrow,
   isFreeActiveEnabled,
   isInteractionMembershipOnlyEnabled,
 };

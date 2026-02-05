@@ -1,4 +1,10 @@
 export default {
+  appErrorBoundary: {
+    title: 'Bir hata oluştu',
+    body: 'Sayfa yüklenemedi. Lütfen yenilemeyi deneyin.',
+    tryAgain: 'Yeniden dene',
+    reload: 'Sayfayı yenile',
+  },
     pwa: {
       install: {
         title: 'Uygulamayı yükle',
@@ -29,18 +35,23 @@ export default {
           testFailed: 'Test bildirimi gönderilemedi. (Token yok veya kurulum eksik olabilir.)',
           alreadyEnabled: 'Bildirim izni zaten açık.',
           enabled: 'Bildirimler açıldı.',
+          enabledButNotSaved:
+            'Bildirim izni açıldı, ancak bildirim kaydı sunucuya kaydedilemedi. Giriş yapıp tekrar deneyin (veya sayfayı yenileyin).',
           denied: 'Bildirim izni verilmedi. Tarayıcı ayarlarından izin verebilirsiniz.',
           notSupported: 'Bu cihaz/tarayıcı bildirimleri desteklemiyor.',
+          notSecureContext: 'Bildirimler için HTTPS gerekir. Lütfen siteyi https üzerinden açın.',
           serviceWorkerNotReady: 'Bildirim altyapısı henüz hazır değil. Sayfayı yenileyip tekrar deneyin.',
           missingSetup: 'Push kurulumu eksik: VAPID anahtarı ayarlanmadı.',
+          invalidVapidKey: 'Push kurulumu hatalı: VAPID anahtarı geçersiz. Firebase Console’dan doğru Public key’i kopyalayın.',
           notLoggedIn: 'Bildirimleri açmak için giriş yapmalısın.',
+            testNoTokens: 'Bildirim tokenı bulunamadı. Lütfen önce "Bildirimleri Aç" butonuna basıp tekrar deneyin.',
           photos: {
             showMine: 'Fotoğraflarımı göster',
             hideMine: 'Fotoğraflarımı gizle',
             reciprocityHint: 'Not: Fotoğraflarını gizlediğin kişilerin fotoğraflarını sen de göremezsin (karşılıklılık).',
             reciprocityConfirm:
               'Fotoğraflarını gizlersen bu kişinin fotoğraflarını da göremezsin (karşılıklılık). Devam edilsin mi?',
-            reciprocityBlocked: 'Fotoğraflarını gizlediğin için fotoğraflar kapalı',
+            reciprocityBlocked: 'Fotoğraflar kilitli: Kendi fotoğraflarını gizlediğin için.',
           },
           photoAccess: {
             needOtherPermission: 'Fotoğrafları görmek için karşı taraftan izin almalısın.',
@@ -70,6 +81,7 @@ export default {
         },
       },
     },
+
   navigation: {
     siteTitle: "Uniqah",
     siteSubtitle: "PT MoonStar Global Indonesia",
@@ -79,8 +91,10 @@ export default {
     about: "Hakkımızda",
     corporate: "Kurumsal",
     travel: "Seyahat",
+    explore: "Keşfet",
+    tours: "Turlar",
     wedding: "Evlilik",
-    matchmaking: "Uniqah",
+    matchmaking: "Eş Adayı",
     panel: "Profilim",
     documents: "Dokümanlar",
     youtube: "YouTube",
@@ -90,6 +104,64 @@ export default {
     openMenu: "Menüyü aç",
     closeMenu: "Menüyü kapat",
     close: "Kapat",
+  },
+
+  footer: {
+    brandBlurb:
+      '{{company}} markasıdır. Tanışmadan evliliğe uzanan yolculuğunuzda güvenle eşleşme ve rehberlik sunar.',
+    brandsTitle: 'Markalarımız',
+    brandNoteDameturk: '(Türkiye)',
+    sections: {
+      quickLinks: 'Hızlı Linkler',
+      legal: 'Yasal',
+      contact: 'İletişim',
+      social: 'Sosyal Ağlar',
+    },
+    links: {
+      membership: 'Üyelik',
+      whatsapp: 'WhatsApp',
+    },
+    legal: {
+      userAgreement: 'Eşleştirme Kullanım Sözleşmesi',
+      siteRules: 'Site Kuralları',
+      refundPolicy: 'İptal ve İade Politikası',
+      privacyPolicy: 'Gizlilik Politikası',
+    },
+    companyInfo: {
+      title: 'Firma Bilgileri',
+      labels: {
+        legalName: 'Ticari Ünvan',
+        address: 'Adres',
+        tax: 'Vergi',
+        nib: 'NIB',
+      },
+    },
+    phoneNotes: {
+      trLine: 'Türkiye hattı',
+      idLine: 'Endonezya hattı',
+    },
+    whatsappMessages: {
+      general: 'Merhaba, bilgi almak istiyorum.',
+      wedding: 'Merhaba, Uniqah ve evlilik rehberliği hakkında bilgi almak istiyorum.',
+      youtube: 'Merhaba, YouTube içerikleriniz hakkında bir sorum var.',
+      contact: 'Merhaba, sizinle iletişime geçmek istiyorum.',
+      home: 'Merhaba, sitenizi inceliyorum, bilgi alabilir miyim?',
+    },
+    social: {
+      instagram: 'Instagram',
+      youtube: 'YouTube',
+      whatsapp: 'WhatsApp',
+    },
+    copyright: '© {{year}} {{company}}. Tüm hakları saklıdır.',
+  },
+
+  ui: {
+    lightbox: {
+      close: 'Kapat',
+      prev: 'Önceki',
+      next: 'Sonraki',
+      imageAlt: 'Görsel {{index}}',
+    },
   },
 
   studio: {
@@ -107,10 +179,51 @@ export default {
       profile: 'Profil',
       verified: 'Doğrulanmış',
       unknown: 'Bilinmiyor',
+      zoom: 'Büyüt',
+      enlargePhotoAria: '{{name}} fotoğrafını büyüt',
+    },
+
+    presence: {
+      online: 'Çevrimiçi',
+      lastSeenMinutes_one: 'Son aktif: {{count}} dk önce',
+      lastSeenMinutes_other: 'Son aktif: {{count}} dk önce',
+      lastSeenHours_one: 'Son aktif: {{count}} saat önce',
+      lastSeenHours_other: 'Son aktif: {{count}} saat önce',
+      lastSeenDays_one: 'Son aktif: {{count}} gün önce',
+      lastSeenDays_other: 'Son aktif: {{count}} gün önce',
     },
 
     errors: {
       generic: 'Hata',
+    },
+
+    referral: {
+      title: 'Arkadaşını Davet Et',
+      description: 'Bir arkadaşını davet et. İkiniz de kimlik doğrulaması yapınca ikinize de ücretsiz üyelik verilir.',
+      myCodeLabel: 'Davet kodun',
+      copy: 'Kopyala',
+      copied: 'Kopyalandı.',
+      enterCodeLabel: 'Davet kodu',
+      enterCodePlaceholder: 'UC-1001',
+      acceptButton: 'Kodu Onayla',
+      invitedByLabel: 'Davet eden',
+      claimButton: 'Ücretsiz üyeliği al',
+      statusAccepted: 'Davet kodu kaydedildi.',
+      statusAlreadyAccepted: 'Bu davet kodu zaten kaydedilmiş.',
+      statusClaimed: 'Ödül uygulandı. Üyeliğin güncellendi.',
+      statusAlreadyClaimed: 'Ödül zaten alınmış.',
+      errors: {
+        referralDisabled: 'Davet sistemi şu an kapalı.',
+        userCodeMissing: 'Davet kodun henüz oluşmadı. Biraz sonra tekrar dene.',
+        invalidInviteCode: 'Davet kodu geçersiz.',
+        inviteCodeNotFound: 'Bu davet kodu bulunamadı.',
+        selfReferralNotAllowed: 'Kendi kodunu kullanamazsın.',
+        alreadyReferred: 'Daha önce bir davet kodu kullanmışsın.',
+        referralNotFound: 'Davet kaydı bulunamadı.',
+        referralNotAccepted: 'Davet henüz onaylı değil.',
+        referralMismatch: 'Davet bilgisi uyuşmuyor.',
+        verificationRequired: 'Ödül için iki tarafın da kimliği doğrulanmış olmalı.',
+      },
     },
 
     feedback: {
@@ -166,6 +279,29 @@ export default {
       requested: 'Profilini görmek için izin istiyor',
       approve: 'İzin ver',
       reject: 'Reddet',
+      openButton: 'Gelen istekler',
+      openButtonWithCount: 'Gelen istekler ({{count}})',
+    },
+
+    inboxModal: {
+      emptyMessages: 'Şu anda yeni mesaj yok.',
+      emptyRequests: 'Şu anda yeni istek yok.',
+      new: 'Yeni',
+      markRead: 'Okundu yap',
+      read: 'Okundu',
+      reviewProfile: 'Profili incele',
+      hideProfile: 'Profili gizle',
+      approve: 'Onayla',
+      allow: 'İzin ver',
+      prev: 'Önceki',
+      next: 'Sonraki',
+      photoAlt: 'Fotoğraf',
+      wantChildren: 'Çocuk isteği',
+      requestText: {
+        preMatch: 'Ön eşleşme isteği gönderdi.',
+        photoAccess: 'Fotoğraflarını görmek için izin istiyor.',
+        profileAccess: 'Profilini görmek için izin istiyor.',
+      },
     },
 
     pool: {
@@ -175,7 +311,8 @@ export default {
       lastUpdated: 'Otomatik yenilenir (20 sn).',
       countHint: 'Toplam: {{total}} • Gösterilen: {{shown}}',
       filtersHint: 'Yaş aralığı: {{min}} – {{max}}',
-      empty: 'Bu filtrelerle gösterilecek profil bulunamadı.',
+      empty: 'Şu an gösterilecek profil bulunamadı.',
+      goToMatchCard: 'Eşleşme kartına git',
       requestProfileNow: 'Eşleşme isteği gönder',
       requesting: 'İstek gönderiliyor…',
       requestSent: 'İstek gönderildi',
@@ -186,11 +323,30 @@ export default {
       notInTheirRangeShort: 'Yaş aralığı uymuyor',
     },
 
+    waitingNote: {
+      title: 'Uygun eşleşme aranıyor',
+      body:
+        'Profil bilgilerinize ve aradığınız kriterlere uygun eşleşme arıyoruz. Uygun profiller <explore>Keşfet</explore> sekmesinde görüntülenecektir. Uygulamayı cihazınıza indirip bildirimleri açarak anında bildirim alabilirsiniz.',
+    },
+
     paywall: {
       upgradeTitle: 'Üyelik gerekli',
       upgradeToInteract: 'Bu işlemi yapmak için aktif üyelik gerekiyor. Ücretli plana geçerek beğeni ve mesaj gönderebilirsin.',
       upgradeToReply: 'Yanıt vermek için aktif üyelik gerekiyor. Ücretli plana geçerek mesaj gönderebilirsin.',
       upgradeCta: 'Ücretli plana geç',
+    },
+
+    profileGate: {
+      important: 'ÖNEMLİ',
+      title: 'Profilini tamamla',
+      body: 'Üyeliğini aktif etmek ve diğer kullanıcılarla iletişime geçebilmek için önce profil formunu eksiksiz doldurmalısın. Form tamamlanmadan istek gönderemez veya gelen isteklere yanıt veremezsin.',
+      cta: 'Profil formunu doldur',
+      badge: 'Bilinmeyen kullanıcı',
+    },
+
+    membershipModal: {
+      deletePhrase: 'hesabımı sil',
+      deleteTypePrompt: 'Hesabı gerçekten silmek istiyorsanız: "{{phrase}}" yazın.',
     },
     myInfo: {
       title: 'Bilgilerim',
@@ -205,6 +361,8 @@ export default {
         about: 'Kendini anlat',
         membership: 'Üyelik ve doğrulama',
       },
+      contactPrivacyNotice:
+        'İletişim bilgileriniz (WhatsApp/e-posta/Instagram) gizlidir. Form doldururken ve uygulamada herkese açık şekilde gösterilmez. Bu bilgiler yalnızca 48 saatlik aktif eşleşme sürecinden sonra, kesin eşleşme sağlanırsa ve sizin onayınızla paylaşılabilir.',
       fields: {
         username: 'Kullanıcı adı',
         fullName: 'Ad Soyad',
@@ -286,6 +444,29 @@ export default {
         liked: 'Beğendin',
         unlike: 'Beğeniyi geri al',
         message: 'Kısa mesaj',
+        profileDetails: 'Profil detayları',
+      },
+      photos: {
+        showMine: 'Fotoğraflarımı göster',
+        hideMine: 'Fotoğraflarımı gizle',
+        reciprocityHint: 'Not: Fotoğraflarını gizlediğin kişilerin fotoğraflarını sen de göremezsin (karşılıklılık).',
+        reciprocityConfirm:
+          'Fotoğraflarını gizlersen bu kişinin fotoğraflarını da göremezsin (karşılıklılık). Devam edilsin mi?',
+        reciprocityBlocked: 'Fotoğraflar kilitli: Kendi fotoğraflarını gizlediğin için.',
+      },
+      photoAccess: {
+        needOtherPermission: 'Fotoğrafları görmek için karşı taraftan izin almalısın.',
+        request: 'Fotoğraf izni iste',
+        status: {
+          pending: 'İstek gönderildi (beklemede)',
+          approved: 'İstek onaylandı',
+          granted: 'İzin zaten verilmiş',
+          unknown: 'Durum: {{status}}',
+        },
+        actions: {
+          requested: 'İstek gönderildi',
+          granted: 'İzin verildi',
+        },
       },
       banners: {
         locked: 'Aktif eşleşmen var — diğer profiller kilitli',
@@ -350,6 +531,7 @@ export default {
         },
       },
       errors: {
+        goToMatchCard: 'Eşleşme kartına git',
         activeLocked: 'Aktif eşleşmen varken diğer profillerle mesajlaşamazsın. Önce aktif eşleşmeni karşılıklı iptal et.',
         shortLimit: 'Kısa mesaj hakkın bitti (5 mesaj). Devam etmek için karşılıklı beğeni sonrası aktif eşleşmeyi başlatmalısınız.',
       },
@@ -444,13 +626,14 @@ export default {
       },
       photos: {
         onlyAllowed: 'Sadece izin verilenler görebilir',
-        reciprocityBlocked: 'Fotoğraflarını gizlediğin için fotoğraflar kapalı',
+        reciprocityBlocked: 'Fotoğraflar kilitli: Kendi fotoğraflarını gizlediğin için.',
       },
       profileTitle: 'Profil bilgileri',
       contactHidden:
         'İletişim bilgileri gizlidir. Bu bilgiler formu doldururken de uygulamada görünmez. Yalnızca 48 saatlik aktif eşleşme süreci sonunda kesin eşleşme sağlanırsa ve sizin onayınız olursa paylaşılabilir.',
       rulesTitle: 'Kurallar (kısaca)',
       rules: {
+        generic: 'Hata',
         likeFirst: 'Beğeni karşılıklı olursa “Karşılıklı beğeni” oluşur.',
         startActive: 'İki taraf da “Aktif eşleşmeyi başlat” onayı verince uzun sohbet açılır.',
         onlyOneActive: 'Sadece 1 aktif eşleşme olabilir; aktifken diğer profillerle beğeni/mesajlaşma kilitlenir.',
@@ -531,9 +714,9 @@ export default {
       subscriptionActiveDesc: 'Üyeliğiniz aktif. Tüm özelliklere erişebilirsiniz.',
       subscriptionPassiveDesc: 'Üyeliğiniz pasif. Üyelik olmadan bazı aksiyonlar kısıtlı olabilir.',
       buySoon: 'Üyelik Satın Al (yakında)',
-      activateMembership: 'Üyeliğimi Aktif Et',
+      activateMembership: 'Hesabı ücretsiz aktif et',
       cancelMembership: 'Üyeliği İptal Et',
-      membershipActivated: 'Üyelik aktif edildi.',
+      membershipActivated: 'Hesap aktif edildi.',
       membershipCancelled: 'Üyelik iptal edildi.',
       confirmCancelMembership: 'Üyeliğini iptal etmek istiyor musun?',
       myInfo: 'Bilgilerim',
@@ -548,11 +731,19 @@ export default {
       deleting: 'Siliniyor…',
       oldPanel: 'Eski panel (geçici)',
       verifyModalTitle: 'Kimlik doğrulama',
+      verifyModalInfo:
+        'Kimlik doğrulama adımını kullanıcıların birbirine güvenmesi amacıyla yapıyoruz.\nKimlik bilgileriniz onaydan sonra sistem tarafından silinerek yok edilir.\nKimlik doğrulama zorunlu bir adım değildir.\nDoğrulanmış profil rozeti almak sizi daha güvenilir göstermek için hazırlanmıştır.',
+      verifyMethodUpload: 'Kimlik yükleme',
+      verifyMethodWhatsApp: 'WhatsApp görüntülü arama',
+      verifyWhatsAppTitle: 'WhatsApp görüntülü arama ile doğrulama',
+      verifyWhatsAppBody: 'WhatsApp üzerinden görüntülü arama ile doğrulama yapılır. Talep oluşturup WhatsApp\'ı açabilirsiniz.',
+      verifyWhatsAppCta: "WhatsApp'ı aç",
       idType: 'Kimlik türü',
       idTypeTrId: 'T.C. Kimlik',
       idTypePassport: 'Pasaport',
       idTypeDriver: 'Ehliyet',
       verifyPhotosHint: 'Fotoğraflar sadece doğrulama için kullanılır.',
+      verifyPrivacyNote: 'Kimliğinizin tamamını göstermenize gerek yok; sadece isim soyisim ve doğum tarihi bizim için yeterli.',
       idFront: 'Kimlik ön yüz',
       idBack: 'Kimlik arka yüz',
       selfie: 'Selfie',
@@ -562,7 +753,7 @@ export default {
       confirmDelete: 'Hesabınızı kalıcı olarak silmek istiyor musunuz? Bu işlem geri alınamaz.',
 
       photoPrivacy: {
-        title: 'Fotoğraf gizliliği',
+        title: 'Fotoğraflar',
         body:
           'Fotoğraflarını blurladığında, eşleşme kartlarında fotoğrafların bulanık görünür ve sadece izin verdiğin kişiler fotoğraflarını net görebilir.',
         toggleLabel: 'Fotoğraflarımı blurla',
@@ -606,6 +797,14 @@ export default {
           },
           preparations: {
             title: '2) Evlilik hazırlıkları',
+
+        panel: {
+          membership: {
+            title: 'Üyelik şartları',
+            lead: 'Üyelik şartları:',
+            freeActiveTermsTitle: 'Ücretsiz aktivasyon şartları',
+          },
+        },
             items: [
               'Gerekli evrakların hazırlanması',
               'Yasal işlemlerin başlatılması',
@@ -942,13 +1141,32 @@ export default {
   },
 
   matchmakingHub: {
-    metaTitle: 'Uniqah',
+    metaTitle: 'Eşleştirme',
     badge: 'Gizli ve kontrollü süreç',
     title: 'Evlilik eşleştirme sistemi',
     description:
       'Evlilik planlayan ciddi insanları, adil ve güvenli şartlarda bir araya getiren kapalı bir eşleştirme sistemi. Profiller herkese açık değildir; sistem, kriterlerinize en uygun adayları panelinizde gösterir ve doğru kişiyi daha hızlı bulmanızı kolaylaştırır.',
     actions: {
-      apply: 'Eşleştirme başvurusu yap',
+      loginExisting: 'Kayıtlı profilin varsa giriş yap',
+      package: 'Paket',
+      packageEco: 'Eko',
+      packageStandard: 'Standart',
+      packagePro: 'Pro',
+      perMonth: 'aylık abonelik',
+      badgeValue: 'En iyi fiyat/performans',
+      badgePopular: 'Popüler',
+      badgePro: 'Üst seviye',
+      descEco: 'Temel erişim ve orta seviye çeviri.',
+      descStandard: 'Daha fazla aday ve sponsorlu çeviri.',
+      descPro: 'Maksimum aday ve yüksek çeviri hakkı.',
+      featureMaxCandidates: 'Panelinde en fazla {{count}} aday',
+      featureTranslateMonthly: 'Aylık {{count}} çevrilen mesaj',
+      sponsoredIfOther: 'Karşı taraf Standard/Pro ise sponsorlu olabilir',
+      sponsorsOthers: 'Karşı taraf için sponsorlu çeviri (ücret size yansır)',
+      feature48hLock: 'İletişim paylaşımı: 48 saat sohbet sonrası onay',
+      translationCostEstimate: 'Tahmini çeviri API maliyeti: ~ ${{amount}} / ay',
+      packageHelp: 'Fiyat ve yetkiler seçilen pakete göre uygulanır.',
+      apply: 'Kayıt Ol',
       goPanel: 'Profilim',
       backWedding: 'Evlilik sayfasına dön',
       supportWhatsApp: 'WhatsApp destek',
@@ -971,6 +1189,23 @@ export default {
         title: 'Panel üzerinden ilerleme',
         desc: 'Eşleşme, ön izleme ve sonraki adımları panelinizden yönetirsiniz.',
       },
+      progress: {
+        title: 'İlerleme',
+        steps: {
+          proposed: 'Tanışma',
+          mutualAccepted: 'Karşılıklı onay',
+          confirm48h: '48 saat onayı',
+          contact: 'İletişim',
+        },
+        remaining: 'Kalan: {{h}}s {{m}}dk',
+      },
+      steps: [
+        { title: 'Kayıt ol ve profilini oluştur', desc: 'Kayıt sonrası formu doldurarak profilini oluşturursun.' },
+        { title: 'Panelinde uygun profilleri gör', desc: 'Sistem en uygun profilleri panelinde listeler (kısıtlı ön izleme).' },
+        { title: 'Beğen / geç', desc: 'İlgilendiğin profili beğen; karşılıklı olunca ilk adım tamamlanır.' },
+        { title: '48 saat site içi sohbet', desc: 'Karşılıklı kabul sonrası ilk 48 saat sadece site içi sohbetle güvenli tanışma.' },
+        { title: 'İletişim paylaşımı iste', desc: '48 saat sonunda iletişim isteği gönderirsin; karşı taraf onaylarsa numaralar görünür.' },
+      ],
     },
     how: {
       title: 'Sistem nasıl çalışır?',
@@ -1097,6 +1332,14 @@ export default {
     cta: {
       title: 'Hazırsan başlayalım',
       subtitle: '1–3 dakikada başvuru formunu tamamla, panelinde eşleşmeleri gör.',
+    },
+  },
+
+  panel: {
+    membership: {
+      title: 'Üyelik şartları',
+      lead: 'Üyelik şartları:',
+      freeActiveTermsTitle: 'Ücretsiz aktivasyon şartları',
     },
   },
 
@@ -1351,6 +1594,8 @@ export default {
         ageDiff: {
           none: '0 (istemiyorum)',
           years: '{{count}} yıl',
+          years_one: '{{count}} yıl',
+          years_other: '{{count}} yıl',
         },
         religion: {
           islam: 'İslam',
@@ -1414,6 +1659,9 @@ export default {
       errors: {
         blocked: 'Bu hesap evlilik başvurularında engellenmiş. Eğer bunun hata olduğunu düşünüyorsanız bizimle iletişime geçin.',
         mustLogin: 'Başvuruyu göndermek için giriş yapmanız gerekir.',
+        alreadySubmitted: 'Zaten bir evlilik başvurunuz var. “Hakkımda / Aradığım kişi” metinleri sadece 1 kez yazılabilir.',
+        profileTextWriteOnceUsed: '“Hakkımda” ve “Aradığım kişi” metinleri sadece 1 kez yazılabilir. Sonradan değiştirilemez.',
+        profileTextPII: '“Hakkımda” ve “Aradığım kişi” alanlarına iletişim bilgisi (telefon, e-posta, link, Instagram, IBAN vb.) yazmayın.',
         consentsRequired: 'Başvuru için onay kutularını ({{minAge}}+, Gizlilik Politikası, Kullanım Sözleşmesi, Fotoğraf paylaşımı) işaretlemeniz gerekir.',
         permissionDenied: 'Başvuru gönderilemedi (izin hatası). Lütfen doğru hesapla giriş yapın veya Firestore kurallarını kontrol edin.',
         honeypotTriggered: 'Form gönderilemedi. Tarayıcı otomatik doldurma (autofill) gizli alanı doldurmuş olabilir. Lütfen sayfayı yenileyin ve otomatik doldurmayı kapatıp tekrar deneyin.',
@@ -1514,6 +1762,12 @@ export default {
         matchmakingApply: 'Eşleştirme Başvurusu',
         matchmakingHub: 'Eşleştirme',
         quickChat: "WhatsApp ile Hızlı Görüşme",
+        enableNotifications: 'Bildirimleri aç',
+        notificationTitle: 'Bildirimler açık',
+        notificationBody: 'Yeni eşleşmeler ve güncellemeler için bildirim gönderebiliriz.',
+        notificationsDenied: 'Bildirim izni reddedildi.',
+        notificationsEnabled: 'Bildirimler açıldı.',
+        notificationsNotSupported: 'Bu tarayıcı bildirimleri desteklemiyor.',
       },
     },
     whatsapp: {
@@ -1756,10 +2010,40 @@ export default {
     downloadPdf: "PDF indir",
     learnMore: "Detaylar",
     back: "Geri dön",
+    you: 'Sen',
+    them: 'Karşı taraf',
+    enlarge: 'Büyüt',
+    time: {
+      minutesShort: '{{minutes}} dk',
+      hmShort: '{{h}}s {{m}}dk',
+    },
     privacySecurity: {
       title: "Gizlilik & Güvenlik",
       text: "Bu sayfa Google Analytics ile izlenir. Verileriniz SSL/TLS şifreleme ile korunmaktadır.",
       policyLink: "Gizlilik Politikası",
+    },
+  },
+
+  apply: {
+    form: {
+      options: {
+        common: {
+          yes: 'Evet',
+          no: 'Hayır',
+        },
+      },
+    },
+  },
+
+  myInfo: {
+    fields: {
+      about: 'Hakkımda',
+      city: 'Şehir',
+      education: 'Eğitim',
+      gender: 'Cinsiyet',
+      hasChildren: 'Çocuk',
+      maritalStatus: 'Medeni durum',
+      occupation: 'Meslek',
     },
   },
 
@@ -1870,7 +2154,7 @@ export default {
       contact: {
         title: "6. İletişim",
         text:
-          "Gizlilik politikası hakkında sorularınız için bize <emailLink>endonezyakasifi@gmail.com</emailLink> adresinden ulaşabilirsiniz.",
+          "Gizlilik politikası hakkında sorularınız için bize <emailLink>{{email}}</emailLink> adresinden ulaşabilirsiniz.",
       },
     },
     lastUpdated: "Son güncellenme: {{date}}",
@@ -1887,12 +2171,12 @@ export default {
     messages: {
       default: "Merhaba, bilgi almak istiyorum.",
       home: "Merhaba, Uniqah hakkında bilgi almak istiyorum.",
-      explore: "Merhaba, Endonezya destinasyonları hakkında bilgi almak istiyorum.",
-      travel: "Merhaba, Endonezya tatil planı hakkında bilgi almak istiyorum.",
+      explore: "Merhaba, bilgi almak istiyorum.",
+      travel: "Merhaba, bilgi almak istiyorum.",
       wedding: "Merhaba, Endonezya’da evlilik süreci hakkında bilgi almak istiyorum.",
       youtube: "Merhaba, YouTube videolarınız hakkında bilgi almak istiyorum.",
       contact: "Merhaba, iletişim hakkında bilgi almak istiyorum.",
-      tours: "Merhaba, tur paketleri hakkında bilgi almak istiyorum.",
+      tours: "Merhaba, bilgi almak istiyorum.",
       documents: "Merhaba, dokümanlar hakkında bilgi almak istiyorum.",
     },
   },
@@ -1902,13 +2186,14 @@ export default {
       badgeCompany: "Endonezya’da kayıtlı PT MoonStar Global Indonesia",
       badgeSocial: "Uniqah sosyal hesapları",
       title: "Uniqah",
-      subtitle: "Tur organizasyonu • Evlilik rehberliği • Sahada gerçek destek",
+      subtitle: "Eşleştirme • Evlilik rehberliği • Endonezya’ya dair sahada gerçek destek",
       description:
-        "Endonezya’da balayı, keşif ve tatil odaklı butik tur paketleri ve kişiye özel seyahat planları tasarlıyoruz. Aynı zamanda Endonezya’da evlilik için gelen çiftlere; otel, ulaşım, tercümanlık ve resmi evrak süreçlerinde adım adım rehberlik ediyoruz.",
+        "Uniqah, Endonezya odaklı evlilik ve eşleştirme sistemimizdir. Güvenli bir tanışma süreci, doğru iletişim ve net adımlarla ilerlemeyi hedefleriz. İhtiyaç halinde tercüme, lojistik ve resmi süreçlerde sahada rehberlik desteği de sunarız.",
       note: "Endonezya’da yaşayan bir Türk girişimci tarafından kurulan, Endonezya merkezli bir yapı.",
-      ctaTours: "Tur paketlerini incele",
-      ctaBrochures: "Broşürleri PDF indir",
+      ctaTours: "Başvuruyu başlat",
+      ctaBrochures: "Dokümanları görüntüle",
       ctaTrust: "Güven & Yasal",
+      ctaHow: "Nasıl çalışır?",
     },
     trust: {
       items: [
@@ -1930,35 +2215,43 @@ export default {
       title: "Sizin için neler yapıyoruz?",
       cards: {
         joinTours: {
-          title: "Toplu turlara katılım",
-          description:
-            "Bali, Lombok, Komodo ve diğer Endonezya adalarına düzenlenen planlı tur paketlerimize bireysel, ailenizle veya arkadaşlarınızla birlikte katılabilirsiniz.",
+          title: 'Başvuru ve profil desteği',
+          description: 'Başvuru, profil oluşturma ve süreç yönetimi için adım adım destek.',
         },
         groupTours: {
-          title: "Kurumsal tur organizasyonu",
-          description:
-            "Şirketler, okullar, dernekler ve arkadaş grupları için tarih, kişi sayısı ve bütçenize göre özel Endonezya grup turları planlıyor; toplantı, etkinlik ve ekip çalışması programlarını birlikte tasarlıyoruz.",
+          title: 'Aile/komünite koordinasyonu',
+          description: 'Gerektiğinde aile iletişimi ve koordinasyon için rehberlik.',
         },
         privateTravel: {
-          title: "Bireysel / aile seyahati",
+          title: 'Pratik rehberlik',
+          description: 'İhtiyaç halinde sahada pratik rehberlik desteği.',
+        },
+        matchmaking: {
+          title: "Uniqah eşleştirme",
           description:
-            "Kendiniz veya aileniz için uçuş, konaklama ve rota içeren kişiye özel Endonezya tatil planı hazırlıyor, Bali ve çevresini kendi temponuzda keşfetmenizi sağlıyoruz.",
+            "Ciddi niyetli kullanıcılar için başvuru, uygunluk kontrolü, profil yönetimi, sohbet ve karar adımlarıyla düzenli bir eşleştirme deneyimi.",
+        },
+        communityContent: {
+          title: "Topluluk içerikleri",
+          aria: "Topluluk içerikleri",
+          description:
+            "Uniqah topluluğu için ilişki, iletişim ve süreç yönetimi odaklı içerikler ve rehberler paylaşırız.",
         },
         wedding: {
-          title: "Evlilik danışmanlığı",
+          title: "Endonezya’da evlilik rehberliği",
           description:
-            "Evlilik sürecinizde belgeler, yasal işlemler, rehberlik, tercümanlık, ulaşım ve konaklama gibi tüm adımlarda yanınızda olarak Endonezya'da nikahınızı sorunsuzca tamamlamanıza yardımcı oluyoruz.",
+            "Evlilik sürecinizde belgeler, yasal işlemler, tercümanlık, ulaşım ve konaklama dahil adım adım ilerler; süreci daha sakin ve yönetilebilir hale getiririz.",
         },
         youtube: {
           title: "YouTube videoları",
           description:
-            "Seyahatlerimizden ve evlilik sürecimizden seçilmiş videoları bu sitede bulabilir; YouTube kanalımızda diğer videolarımızı izleyerek Endonezya'yı ve sunduğumuz desteği daha yakından tanıyabilirsiniz.",
+            "Endonezya’daki hayat, kültür, seyahat ve evlilik sürecine dair videolarla bizi daha yakından tanıyabilir; yaklaşımımızı içeriklerimiz üzerinden görebilirsiniz.",
         },
         dameturk: {
           title: "DaMeTurk (alt marka)",
           aria: "DaMeTurk - Orijinal Türk dondurması",
           description:
-            "PT MoonStar Global Indonesia bünyesinde, Endonezya’da DaMeTurk markamızla orijinal Türk dondurması faaliyetini yürütüyoruz. Detaylar ve güncel içerik için dameturk.com’u ziyaret edebilirsiniz.",
+            "PT MoonStar Global Indonesia bünyesinde, Endonezya’da DaMeTurk markamızla orijinal Türk dondurması üretim ve satış faaliyetini yürütüyoruz. Detaylar için dameturk.com.",
         },
       },
     },
@@ -1967,19 +2260,19 @@ export default {
       title: "Nasıl ilerliyoruz?",
       steps: [
         {
-          title: "1) Ön kayıt",
-          description: "Ücretsiz ve bağlayıcı değil. İhtiyacınızı netleştiriyoruz.",
+          title: "1) Başvuru",
+          description: "Kuralları onaylayıp başvurunuzu tamamlayın.",
         },
         {
-          title: "2) Yazılı paket",
-          description: "Program + dahil/hariç + önemli notlar yazılı paylaşılır.",
+          title: "2) Profil & doğrulama",
+          description: "Profilinizi oluşturun, fotoğraf ve bilgileri netleştirin.",
         },
         {
-          title: "3) Onay & ödeme",
-          description: "Sözleşme inceleme → ödeme → rezervasyon kesinleşir.",
+          title: "3) Eşleştirme & sohbet",
+          description: "Uygun eşleşmelerle sohbet edin ve karşılıklı karar verin.",
         },
       ],
-      ctaTours: "Tur paketlerini gör",
+      ctaTours: "Uniqah’a git",
       ctaDocuments: "Dokümanlar",
     },
 
@@ -1987,28 +2280,48 @@ export default {
       title: "Neden bizimle ilerlemek daha kolay?",
       items: [
         {
-          title: "Deneyimden gelen rehberlik",
+          title: "Güvenlik ve süreç disiplini",
           description:
-            "Endonezya'da yaşamanın ve sahada tur organize etmenin getirdiği deneyimi; rota seçimi, konaklama ve günlük akışta sizin için kullanıyoruz.",
+            "Uniqah’ta amaç rastgele tanıştırmak değil; güvenli ve saygılı bir ortamda, adım adım ilerleyen bir süreç kurmaktır.",
         },
         {
-          title: "Sade ve şeffaf iletişim",
+          title: "Şeffaf ve anlaşılır iletişim",
           description:
-            "Endonezce, Türkçe ve İngilizce desteğiyle, tüm süreci anlaşılır bir dille anlatıyor; soru işaretlerini en baştan temizliyoruz.",
+            "Türkçe ve Endonezce iletişim desteğiyle, iki tarafın da kendini doğru ifade etmesine yardımcı oluruz.",
         },
         {
-          title: "Bütçenize uygun planlama",
+          title: "Sahada gerçek destek",
           description:
-            "Seyahat, konaklama ve günlük hayat masraflarını birlikte ele alarak, sürpriz maliyetleri en aza indiren bir plan çıkarıyoruz.",
+            "Gerek eşleştirme sürecinde, gerek Endonezya’da evlilik/seyahat planlarında ihtiyaç duyulduğunda sahada çözüm üreten destek sunarız.",
+        },
+      ],
+    },
+
+    faq: {
+      title: 'Kısa Sorular (FAQ)',
+      items: [
+        {
+          q: 'Başvuru ücretsiz mi?',
+          a: 'Başvuruyu başlatıp temel bilgileri girmek ücretsizdir. Süreç ilerledikçe (doğrulama/üyelik/özel destek) adımlara göre ücretlendirme ve bilgilendirme yapılır.',
+        },
+        {
+          q: 'Güvenlik nasıl sağlanıyor?',
+          a: 'Amaç rastgele tanıştırmak değil; kurallar, uygunluk kontrolü ve adım adım süreçle daha güvenli ve saygılı bir tanışma ortamı kurmaktır.',
+        },
+        {
+          q: 'Süreç ne kadar sürer?',
+          a: 'Kişiden kişiye değişir. Profilin netliği, doğrulama ve karşılıklı karar hızına göre birkaç gün ile birkaç hafta arasında değişebilir.',
         },
       ],
     },
 
     cta: {
+      open: 'Mesaj',
       eyebrow: "Sorularınızı çekinmeden sorun",
-      title: "Endonezya ile ilgili aklınızdaki her şeyi birlikte netleştirelim",
+      title: "Uniqah ve Endonezya’daki süreçlerle ilgili her şeyi birlikte netleştirelim",
       description:
-        "İster planladığınız tur paketleri, ister kişisel Endonezya seyahat planınızla ilgili olsun… Kafanıza takılan tüm detayları Türkçe olarak sorabilir, süreci birlikte sade ve anlaşılır hale getirebiliriz.",
+        "Eşleştirme süreci, evlilik rehberliği veya Endonezya seyahat/balayı planı… Aklınıza takılan her şeyi sorabilirsiniz. Süreci birlikte sade ve anlaşılır hale getirelim.",
+      ctaTryFree: "Ücretsiz dene",
       ctaContact: "İletişim formunu aç",
       ctaWhatsapp: "WhatsApp ile sor",
     },
@@ -2024,7 +2337,7 @@ export default {
       brandLine:
         'Endonezya’da kayıtlı {{company}} şirketinin markasıdır. Sözleşme tarafı ve tahsilat süreçleri bu tüzel kişi üzerinden yürütülür.',
       documents: 'Dokümanlar & Sözleşmeler',
-      brochures: 'Tur broşürleri (PDF)',
+      brochures: 'Dokümanlar (PDF)',
     },
     brandInfo: {
       title: 'Marka ve şirket bilgileri',
@@ -2035,7 +2348,7 @@ export default {
         nib: 'NIB',
       },
       socialNote:
-        'YouTube ve Instagram hesap adlarımız endonezyakasifi olarak kalır ve marka iletişimimizi destekler.',
+        'Sosyal içeriklerimizi Uniqah üzerinden paylaşırız.',
     },
     contact: {
       title: 'İletişim ve adres',
@@ -2055,7 +2368,7 @@ export default {
         },
         contract: {
           title: 'Sözleşme tarafı',
-          body: 'Paket tur / mesafeli satış gibi sözleşmelerde tüzel kişi olarak {{company}} yer alır.',
+          body: 'Hizmet sözleşmeleri ve mesafeli satış süreçlerinde tüzel kişi olarak {{company}} yer alır.',
         },
       },
     },
@@ -2063,8 +2376,8 @@ export default {
       title: 'Doküman merkezi',
       body: 'Tüm güncel dokümanlar, sözleşmeler ve politikalar burada.',
       cta: 'Dokümanları aç',
-      brochureNote: 'Broşürleri PDF olarak indirmek isterseniz:',
-      brochureLink: 'Tur Broşürleri',
+      brochureNote: 'Ek dokümanlar:',
+      brochureLink: 'Dokümanlar',
     },
     otherBrand: {
       title: 'Diğer markamız',
@@ -2092,94 +2405,101 @@ export default {
         photosLocked: 'Edit modunda fotoğraf güncelleme kapalı. Sadece form alanlarını düzeltebilirsiniz.',
       },
     },
+    partnerAgeMin: 'Min yaş',
+    partnerAgeMax: 'Max yaş',
   },
 
   about: {
     hero: {
       title: "Hakkımızda",
-      subtitle: "Endonezya’da seyahat ve tur deneyiminizi, sahada kurduğumuz yapı ve birikimle adım adım kolaylaştırıyoruz.",
+      subtitle:
+        "Uniqah, Endonezya odaklı evlilik ve eşleştirme sistemimizdir. Amacımız; güvenli, saygılı ve şeffaf bir süreçle doğru insanları bir araya getirmek ve gerektiğinde sahada (çeviri, lojistik, resmi süreçler) gerçek destek sunmaktır.",
     },
     brand: {
-      title: "Marka yapımız",
+      title: "MoonStar Global Indonesia çatısı altında",
       p1:
-        "Bu web sitesi, PT MoonStar Global Indonesia çatısı altında yürüttüğümüz hizmetlerin vitrini ve iletişim noktasıdır. Kamuya dönük marka iletişimimizi ise Uniqah adıyla sürdürüyoruz.",
+        "Bu web sitesi, PT MoonStar Global Indonesia bünyesinde yürüttüğümüz Uniqah hizmetinin vitrini ve iletişim noktasıdır.",
       p2:
-        "MoonStar Global Indonesia; Endonezya’da yaşayan bir Türk girişimci tarafından, Türk misafirlerin beklentilerini yerinde anlayan ve sahada çözen bir yapı kurmak amacıyla hayata geçirilmiştir. Tur paketleri ve satış iletişimi, Türk misafirlere daha anlaşılır bir deneyim sunmak için Uniqah markası altında yürütülür.",
+        "MoonStar Global Indonesia, Endonezya’da yaşayan bir Türk girişimci tarafından; iki kültür arasında güvenli iletişim kurmak, evlilik süreçlerini doğru yönetmek ve Endonezya’ya gelen misafirlere sahada çözüm üretmek amacıyla kurulmuştur.",
       cards: {
-        toursTitle: "Tur organizasyonu",
-        toursDesc: "Bali, Lombok, Komodo ve daha fazlası için planlı turlar ve kişiye özel seyahat planları.",
-        weddingTitle: "Evlilik rehberliği",
-        weddingDesc: "Otel, ulaşım, tercümanlık ve resmi evrak süreci dahil uçtan uca takip.",
+        communityContentTitle: "Topluluk içerikleri",
+        communityContentDesc:
+          "İlişki, iletişim ve süreç yönetimi odağında içerikler ve rehberler.",
+        toursTitle: "Evlilik rehberliği",
+        toursDesc: "Resmi adımlar, tercüme ve süreç koordinasyonu konusunda destek.",
+        weddingTitle: "Uniqah – Eşleştirme",
+        weddingDesc: "Ciddi niyetli kullanıcılar için güvenlik adımları, profil yönetimi, sohbet ve karar süreci.",
         dameturkTitle: "DaMeTurk",
         dameturkDesc:
-          "PT MoonStar Global Indonesia bünyesindeki orijinal Türk dondurması markamız. Detaylar için dameturk.com.",
+          "Endonezya’da kurduğumuz marka değeriyle orijinal Türk dondurması üretim ve satış faaliyetlerimiz. dameturk.com",
       },
       socialNote:
-        "YouTube ve Instagram hesap adlarımız endonezyakasifi olarak kalır ve bu marka çatısına içerik üretimiyle destek verir.",
+        "Uniqah topluluğunu içerikler ve rehberlerle destekliyoruz.",
     },
     philosophy: {
-      title: "Seyahati Nasıl Görüyoruz?",
+      title: "Eşleştirmeyi Nasıl Görüyoruz?",
       intro:
-        "Biz, seyahati yalnızca bir destinasyona gitmek olarak görmüyoruz. Bizim için seyahat; doğru planlandığında insanı yormayan, gerçekten dinlendiren, keşif hissi uyandıran ve sonunda “iyi ki gelmişim” dedirten bir deneyimdir. Bu bakış açısıyla yola çıktık ve tüm organizasyon anlayışımızı bu temel üzerine inşa ettik.",
+        "Bizim için evlilik, yalnızca tanışmak değil; karşılıklı saygı, uyum ve güvenle yürüyen bir yolculuktur. Uniqah’ı bu bakış açısıyla kurduk: süreci şeffaflaştıran, güvenliği önceleyen ve iki kültür arasında doğru iletişimi mümkün kılan bir sistem.",
       sections: {
         direct: {
-          title: "Aracısız organizasyon, yerinde planlama",
+          title: "Sistem + saha: gerçek doğrulama ve sorumluluk",
           p1:
-            "Hazırladığımız tüm tur programları, doğrudan Endonezya’daki saha ekibimiz tarafından planlanır ve uygulanır. Kataloglardan alınmış, birden fazla aracıdan geçmiş, masa başında oluşturulmuş paketler sunmayız. Bu yaklaşımın en büyük farkı şudur: tur bütçesi, aracı maliyetlerine değil doğrudan deneyimin kendisine harcanır.",
+            "Uniqah, sadece bir ilan panosu değildir. Profil, fotoğraf ve süreç adımları; kötüye kullanımı azaltacak şekilde tasarlanır. Gerektiğinde manuel inceleme ve destekle sürecin sorumluluğunu üstleniriz.",
           p2:
-            "Misafirlerimiz böylece aynı bütçeyle daha dolu içeriklere, daha kaliteli aktivitelere ve daha net, şeffaf kapsama ulaşır.",
+            "Hedefimiz; ciddi niyetli kullanıcıların kendini güvende hissettiği, saygılı bir ortamda doğru kişiyle tanışabildiği bir deneyim sunmaktır.",
         },
         planning: {
-          title: "Bilerek, ölçerek ve dengeleyerek planlıyoruz",
+          title: "Adım adım, uyum odaklı süreç",
           p1:
-            "Her tur programı; rota mantığı, günlük tempo dengesi, serbest zaman ve rehberli gün oranı, fiziksel yorgunluk faktörü ve farklı beklentilere sahip katılımcı profilleri dikkate alınarak hazırlanır. Amacımız, programı “kalabalık göstermek” değil; akıcı, dengeli ve gerçekten keyifli hale getirmektir.",
+            "Tanışmayı rastlantıya bırakmıyoruz. Başvuru, uygunluk kontrolü, profil oluşturma, eşleştirme ve sohbet adımlarını kademeli bir süreç olarak ele alıyoruz. Böylece hem beklentiler netleşir hem de karar daha sağlıklı verilir.",
           bullets: [
-            "Rehberli günlerde herkesin birlikte deneyimlemesi gereken aktiviteleri kapsama dahil ederiz.",
-            "Serbest günlerde misafirlere özgürlük alanı tanırız.",
-            "Ekstra deneyimleri baştan net şekilde sunarız.",
+            "Başvuru ve uygunluk kontrolü (yaş/kurallar).",
+            "Profil oluşturma ve fotoğraf doğrulama.",
+            "Eşleştirme, sohbet ve karşılıklı karar.",
+            "Gerekirse tercüme ve kültürel iletişim rehberliği.",
           ],
-          p2: "Böylece kimsenin aklında “Burada ne ekstra, ne dahil?” sorusu kalmaz.",
+          p2: "Bu sayede süreç hem insani hem de ölçülebilir kalır.",
         },
         transparency: {
-          title: "Şeffaflık bizim için bir seçenek değil, standarttır",
+          title: "Şeffaflık ve gizlilik",
           p1:
-            "Bir turun neleri kapsadığı, neleri kapsamadığı en başından bellidir. Belirsiz ifadeler, sürpriz masraflar ve sonradan ortaya çıkan ek ödemeler bizim çalışma anlayışımızda yer almaz. Rehberli günlerde programda yer alan aktiviteler ve grup halinde gerçekleştirilen organizasyonlar tur kapsamındadır; serbest zamanlarda ise tercihler tamamen misafirlere aittir ve bu durum açıkça belirtilir.",
+            "Süreç adımları, kurallar ve beklentiler baştan net olmalıdır. Aynı zamanda gizlilik, sistemin temelidir: kişisel veriler ve iletişim akışı kontrollü bir şekilde yönetilir; kullanıcılar ihtiyaç duyduğunda destek ve raporlama kanallarına erişebilir.",
         },
         comfort: {
-          title: "Herkes için keyifli ve huzurlu bir tatil",
+          title: "Saygılı iletişim ve sınırlar",
           p1:
-            "Turlarımız, her katılımcının eşit şekilde tatil keyfi yaşayabilmesi prensibiyle organize edilir. Grup içi uyum, karşılıklı saygı ve nezaket bizim için en az program kadar önemlidir.",
+            "Karşılıklı saygı, nezaket ve sınırların korunması bizim için vazgeçilmezdir. Uniqah topluluğunda iletişim kalitesini artıran kurallar ve güvenlik mekanizmaları bulunur.",
           p2:
-            "Hedefimiz; kimsenin başkasının tatilini gölgelemediği, huzurlu, güvenli ve dengeli bir ortam sunmak ve herkesin memnun şekilde evine dönmesini sağlamaktır. Çünkü iyi bir tur, sadece gezilen yerlerle değil; nasıl bir atmosferde geçtiğiyle hatırlanır.",
+            "Şikâyet/kanıt iletimi, engelleme ve destek süreçleriyle; olumsuz deneyimlerin tekrarlanmasını önlemeyi hedefleriz.",
         },
         guidance: {
-          title: "Sadece tur değil, gerçek rehberlik sunuyoruz",
+          title: "İki kültür arasında köprü",
           p1:
-            "Sunduğumuz hizmet, bir tur paketinin çok ötesindedir. Sahada olan, bölgeyi yakından tanıyan ve gerektiğinde hızlı çözüm üretebilen bir ekiple çalışırız. Misafirlerimizin seyahat sürecinde kendini güvende hissetmesi, bizim için organizasyonun ayrılmaz bir parçasıdır.",
+            "Türkçe ve Endonezce iletişim, kültürel farklılıklar ve beklentiler doğru yönetilmediğinde süreçler zorlaşabilir. Biz; tercüme, iletişim desteği ve rehberlikle iki tarafın da kendini doğru ifade etmesine yardımcı oluruz.",
         },
         wedding: {
           title: "Endonezya’da evlilik rehberliği",
           p1:
-            "Seyahat organizasyonlarımızın yanı sıra, Endonezya’da evlilik gibi özel ve hassas süreçlerde de rehberlik sunuyoruz. Bu hizmeti ayrı bir başlık olarak ele almamızın nedeni, sürecin ciddiyetini ve sorumluluğunu bilmemizdir.",
+            "Eşleştirme sürecinin yanında, Endonezya’da evlilik planlayan çiftlere resmi adımların zamanlaması, yerel uygulamalar ve süreç koordinasyonu konusunda rehberlik sunuyoruz.",
           p2:
-            "Evlilik rehberliği; resmi prosedürler, yerel uygulamalar, zamanlama ve koordinasyon gibi detaylara hâkim olmayı gerektirir. Bu alanda sunduğumuz rehberlik, sahadaki deneyimimizin ve yerel bilgi birikimimizin doğal bir sonucudur. Bu yaklaşım, misafirlerimize sadece bir hizmet değil; güvenle ilerleyebilecekleri bir süreç yönetimi sunar.",
+            "Evrak, randevu, tercüme, konaklama-ulaşım ve tören planlaması gibi detaylarda; sahada çözüm üreten bir ekip olarak sorumluluk alırız.",
         },
         expectation: {
-          title: "Bizimle seyahat edenler ne bekleyeceğini bilir",
+          title: "Net beklenti, gerçekçi zamanlama",
           p1:
-            "Bizimle yola çıkanlar; ne alacağını, neye ödeme yaptığını bilir ve tatiline odaklanıp organizasyon detaylarını bize bırakır. Bizim için en büyük referans, tur sonunda “iyi ki bu ekiple gelmişim” diyen misafirlerdir.",
+            "Uniqah’ta süreç adımları, kurallar ve olası süreler açıkça konuşulur. Böylece kullanıcı; ne bekleyeceğini bilir, kararını aceleye getirmeden ilerler.",
         },
       },
       outro:
-        "Uniqah eşleştirme sistemi ve Endonezya’da evlilik rehberliği hakkında daha fazla bilgi için <1>Uniqah</1> ve <3>Evlilik</3> sayfalarına göz atabilir; resmi dokümanlar için <5>Dokümanlar</5> bölümünü kullanabilirsiniz.",
+        "Uniqah eşleştirme sistemi ve Endonezya’da evlilik rehberliği hakkında daha fazla bilgi için <1>Uniqah</1> ve <3>Evlilik</3> sayfalarına göz atabilir; resmi metinler için <5>Dokümanlar</5> bölümünü kullanabilirsiniz.",
     },
     story: {
       title: "Kısa hikâyemiz",
       steps: [
         "Endonezya’ya yerleşip kendi hayatımızı ve düzenimizi burada kurduk.",
-        "Farklı adaları gezerek ülkeyi yakından tanıdık, seyahat ve günlük yaşam ritmimizi oturttuk.",
-        "YouTube kanalımızı açarak Endonezya’daki hayatımızı ve seyahat deneyimlerimizi paylaşmaya başladık.",
-        "Bugün, Endonezya’ya seyahat ve tur planlayan misafirlerimize ve evlilik sürecindeki çiftlere bu deneyimle rehberlik ediyoruz.",
+        "İki kültür arasında iletişimi güçlendiren bir topluluk ve saha ağı oluşturduk.",
+        "Topluluk için içerikler üreterek süreçleri daha anlaşılır hale getirmeye başladık.",
+        "Bugün; Uniqah ile eşleştirme sistemimizi, MoonStar Global Indonesia çatısı altında evlilik rehberliği ve tamamlayıcı hizmetlerle birlikte sürdürüyoruz.",
       ],
       stepLabel: "Adım",
     },
@@ -2188,42 +2508,42 @@ export default {
       title: "Hangi konularda yanınızdayız?",
       items: {
         joinScheduled: {
-          title: "Toplu turlara bireysel / aile katılım",
+          title: "Başvuru ve profil desteği",
           description:
-            "Planlı Endonezya tur paketlerimize bireysel olarak, eşinizle ya da ailenizle birlikte katılabilirsiniz. Tarih, kontenjan ve kapsamı net şekilde belirtilmiş turlar arasından size uyan programı seçip doğrudan rezervasyon yapmanız için Toplu Tur Paketleri sayfasını kullanabilirsiniz.",
+            "Başvuru, profil oluşturma ve süreci doğru yönetme konusunda adım adım destek sunarız.",
         },
         translation: {
           title: "Çeviri ve iletişim desteği",
           description:
-            "Gerek rehberli günlerde, gerek serbest zamanlarınızda ve bireysel alışverişlerinizde Türkçe bilen bir tercüman eşlik edebilir; böylece Endonezya’da dil bariyerini ortadan kaldırıp kendinizi daha güvende hissedebilirsiniz.",
+            "Eşleştirme sohbetlerinde ve resmi görüşmelerde tercüme desteğiyle iletişimi kolaylaştırırız.",
         },
         privatePlan: {
-          title: "Bireysel seyahat ve balayı planlama",
+          title: "Süreç planlama",
           description:
-            "Herhangi bir toplu tura katılmak yerine kendi Endonezya seyahatinizi ya da balayı tatilinizi planlamak istiyorsanız; uçuş, konaklama, günlük rota ve deneyim önerilerini birlikte kurguluyor, size özel bir plan çıkarıyoruz. Böylece kendi temponuza uygun, esnek ama iyi düşünülmüş bir programla seyahat edebilirsiniz.",
+            "Evlilik ve resmi süreçlerde adım adım planlama yaparak daha net bir yol haritası çıkarırız.",
         },
         privateGroups: {
-          title: "Kurumsal ve arkadaş grupları için özel turlar",
+          title: "Topluluk ve aile koordinasyonu",
           description:
-            "Şirketler, okullar, dernekler veya arkadaş grupları için tarih, bütçe ve beklentilere göre tamamen size özel tur programları tasarlıyoruz. Kapalı grup turlarınız için Grup Turları sayfası üzerinden talep oluşturabilirsiniz.",
+            "Aileler arası iletişim ve süreç koordinasyonu gibi konularda rehberlik sunarız.",
         },
         logistics: {
-          title: "Konaklama ve ulaşım planlama",
+          title: "Lojistik rehberlik",
           description:
-            "İsterseniz tur paketi veya kapsamlı bir seyahat planı almadan da; yalnızca otel rezervasyonu, uçak bileti alımı veya araç kiralama gibi ekstra hizmetlerimizden faydalanabilirsiniz. Bütçenize ve konforunuza uygun, güvenilir alternatifleri birlikte seçeriz.",
+            "Resmi adımlar ve saha süreçlerinde ihtiyaç duyulduğunda pratik rehberlik sağlarız.",
         },
         wedding: {
           title: "Endonezya’da evlilik sürecine rehberlik",
           description:
-            "Endonezya’da evlilik planlayan çiftler için, resmi adımların zamanlaması, yerel uygulamalar ve süreç koordinasyonu konusunda rehberlik sunuyoruz. Bu hizmetin detaylarını, evlilik rehberliği sayfasında ayrı bir başlık olarak ele alıyoruz.",
+            "Endonezya’da evlilik planlayan çiftler için; resmi adımların zamanlaması, yerel uygulamalar, tercüme ve süreç koordinasyonu konusunda rehberlik sunuyoruz.",
         },
       },
     },
 
     galleryTeaser: {
-      title: "Seyahatlerimizden ve deneyimlerimizden birkaç örnek",
+      title: "Hayatımızdan ve çalışmalarımızdan birkaç kare",
       description:
-        "Aşağıda, Endonezya’daki seyahatlerimizden ve sahadaki deneyimlerimizden seçtiğimiz birkaç örnek kareyi görebilirsiniz. Daha fazlası için galerimize göz atabilirsiniz.",
+        "Aşağıda, Endonezya’daki hayatımızdan, sahadaki çalışmalarımızdan ve gezilerimizden seçtiğimiz birkaç kareyi görebilirsiniz. Daha fazlası için galerimize göz atabilirsiniz.",
       cta: "Fotoğrafların tamamını görmek için galerimizi ziyaret edin",
       previewAlt1: "Endonezya’daki hayatımızdan bir kare",
       previewAlt2: "Endonezya’da birlikte geçirdiğimiz bir günden kare",
@@ -2233,7 +2553,7 @@ export default {
     youtubeHighlights: {
       title: "Bizi en iyi anlatan videolar",
       description:
-        "YouTube kanalımızda, Endonezya’daki hayatımızı, seyahatlerimizi ve keşiflerimizi anlattığımız videolar bulabilirsiniz. Aşağıdaki iki video, bizi ve sunduğumuz desteği en iyi özetleyen içeriklerdir.",
+        "YouTube kanalımızda Endonezya’daki hayatımızı, kültürü, seyahatleri ve sahadaki deneyimlerimizi paylaşıyoruz. Aşağıdaki iki video, yaklaşımımızı ve sunduğumuz desteği en iyi özetleyen içeriklerdir.",
       v1Title: "Endonezya’da evlilik sürecinde destek verdiğimiz bir çiftin hikâyesi",
       v1Desc:
         "Endonezya’da evlilik sürecini bizimle birlikte yürüten bir çiftin deneyimini ve nasıl destek olduğumuzu görebilirsiniz.",
@@ -2247,19 +2567,19 @@ export default {
       title: "Neden Biz?",
       items: [
         {
-          title: "Doğrudan organizatörle çalışma",
+          title: "Sistem + saha deneyimi",
           description:
-            "Aracı acenteler yerine, turu sahada planlayan ve yürüten ekiple çalışırsınız; kararlar ve cevaplar ilk kaynaktan gelir.",
+            "Hem dijital sistem hem de sahada deneyim: Eşleştirme, iletişim ve süreç yönetiminde sorumluluk alırız.",
         },
         {
-          title: "Şeffaf ve net maliyetler",
+          title: "Güvenlik ve gizlilik odağı",
           description:
-            "Program, dahil olanlar ve olmayanları en baştan netleştirir; gizli ücretler yerine öngörülebilir, açık bir maliyet tablosu sunarız.",
+            "Kurallar, süreç adımları ve gizlilik prensipleri nettir. Kötüye kullanımı azaltan güvenlik mekanizmalarıyla hareket ederiz.",
         },
         {
-          title: "Sahada sorumluluk alan ekip",
+          title: "İki kültür arasında doğru iletişim",
           description:
-            "Sadece turu satarken değil, sahada da yanınızdayız; program akışını takip eder, gerektiğinde yerinde çözüm üreterek misafir memnuniyetini en öncelikli hedef yaparız.",
+            "Türkçe–Endonezce iletişimde tercüme ve rehberlik desteğiyle; yanlış anlaşılmaları azaltıp daha sağlıklı bir süreç kurarız.",
         },
       ],
     },
@@ -2325,7 +2645,13 @@ export default {
     googleCta: 'Google ile devam et',
     googleSignupCta: 'Google ile kayıt ol',
     redirecting: 'Google girişine yönlendiriliyorsunuz…',
-    signupGuide: 'Kayıt için önce cinsiyet ve uyruk seçip yaş onayını işaretleyin.',
+    redirectScreen: {
+      title: 'Yönlendiriliyorsun…',
+      body: 'Profil sayfası açılıyor. Bu ekran uzun sürerse aşağıdan devam edebilirsin.',
+      goProfile: 'Profilime Git',
+      refresh: 'Yenile',
+    },
+    signupGuide: 'Kayıt için önce cinsiyet, uyruk ve yaş bilgilerinizi girin.',
     or: 'veya',
     labels: {
       email: 'E-posta',
@@ -2333,12 +2659,14 @@ export default {
       gender: 'Cinsiyet',
       nationality: 'Uyruk',
       nationalityOther: 'Diğer uyruk (yazın)',
+      age: 'Yaş',
     },
     placeholders: {
       email: 'ornek@email.com',
       password: 'Şifreniz',
       nationality: 'Uyruk seçin',
       nationalityOther: 'Örn: Almanya',
+      age: 'Örn: 27',
     },
     actions: {
       login: 'Giriş yap',
@@ -2353,8 +2681,7 @@ export default {
       nationalityTr: 'Türkiye',
       nationalityId: 'Endonezya',
       nationalityOther: 'Diğer',
-      ageConfirm: '{{minAge}} yaşından büyük olduğumu onaylıyorum. (Detaylar için sözleşmeyi aç)',
-      ageConfirmLink: 'Sözleşme',
+      ageHint: 'En az {{minAge}} yaşında olmalısınız.',
     },
     forgotHint: {
       prefix: 'Şifrenizi unuttuysanız',
@@ -2368,6 +2695,18 @@ export default {
     },
     resetSent: 'Şifre sıfırlama bağlantısı e-posta adresinize gönderildi.',
     errors: {
+      noAccountFoundSignupRequired:
+        'Kaydınız bulunamadı. Kayıt olmanız gerekiyor. Kayıt adımına yönlendirildiniz; lütfen cinsiyet/uyruk seçip yaşınızı girin ve tekrar deneyin.',
+      accountExistsWithDifferentCredential:
+        'Bu e-posta ile daha önce farklı bir yöntemle kayıt olmuşsunuz. Lütfen e-posta/şifre ile giriş yapın; ardından hesabınıza Google girişini bağlayabiliriz.',
+      domainNotFound: '(domain bulunamadı)',
+      googleFailedDev:
+        'Google ile giriş başarısız ({{code}}).\n\nFirebase Console → Authentication → Settings → Authorized domains kısmına şu domain\'i ekleyin: {{host}}\nAyrıca .env ve Vercel env\'de VITE_FIREBASE_AUTH_DOMAIN değerini kontrol edin.',
+      googleUnauthorizedDomain:
+        'Google ile giriş başarısız (unauthorized-domain).\n\nFirebase Console → Authentication → Settings → Authorized domains kısmına bu domain\'i ekleyin: {{host}}',
+      googleOperationNotAllowed:
+        'Google ile giriş kapalı. Firebase Console → Authentication → Sign-in method → Google sağlayıcısını etkinleştirin.',
+      firebaseAuthInvalidConfig: 'Firebase Auth yapılandırması geçersiz. `.env.local` içindeki `VITE_FIREBASE_*` değerlerini kontrol edin.',
       googleFailed: 'Google ile giriş başarısız.',
       invalidCredential: 'E-posta veya şifre hatalı ya da hesap bulunamadı. Şifrenizi unuttuysanız “Şifremi unuttum” ile sıfırlamayı deneyin.',
       invalidEmail: 'E-posta adresi geçersiz görünüyor. Lütfen kontrol edin.',
@@ -2377,6 +2716,8 @@ export default {
       genderRequired: 'Kayıt olmak için cinsiyet seçin.',
       nationalityRequired: 'Kayıt olmak için uyruk seçin.',
       nationalityOtherRequired: 'Lütfen uyruğunuzu yazın.',
+      ageRequired: 'Kayıt olmak için yaşınızı girin.',
+      ageMin: 'Kayıt olmak için en az {{minAge}} yaşında olmalısınız.',
       ageConfirmRequired: 'Kayıt olmak için en az {{minAge}} yaşında olduğunuzu onaylamalısınız.',
       loginFailed: 'Giriş başarısız.',
       resetEmailRequired: 'Şifre sıfırlamak için e-posta girin.',
@@ -2386,6 +2727,19 @@ export default {
       emailVerificationSend: 'Doğrulama e-postasını tekrar gönder',
       emailVerificationFailed: 'Doğrulama e-postası gönderilemedi. Lütfen tekrar deneyin.',
     },
+  },
+
+  newsletter: {
+    title: 'Uniqah Bülteni',
+    subtitle: 'Uniqah güncellemeleri, yeni özellikler ve önemli duyurular için e-posta adresinizi bırakın.',
+    placeholderEmail: 'E-posta adresiniz',
+    cta: {
+      subscribe: 'Abone Ol',
+      sending: 'Gönderiliyor…',
+    },
+    success: 'Başarıyla kaydedildi! Teşekkürler.',
+    error: 'Bu e-posta adresi zaten kayıtlı veya bir hata oluştu.',
+    privacy: 'Gizliliğinize saygı duyuyoruz. İstediğiniz zaman abonelikten çıkabilirsiniz.',
   },
 
   matchmakingPanel: {
@@ -2399,6 +2753,13 @@ export default {
         },
     title: 'Profilim',
     subtitle: 'Evlilik eşleştirme, üyelik ve iletişim adımlarınız burada görünecek.',
+    studioBanner: {
+      text: 'Yeni Studio arayüzü hazır. Daha temiz profil + eşleşme görünümü için geçiş yapabilirsiniz.',
+    },
+    membershipPromo: {
+      freeLabel: 'Ücretsiz',
+      until: '{{date}} tarihine kadar',
+    },
     tabs: {
       info: 'Açıklamalar/Kurallar',
       matches: 'Eşleşmelerim',
@@ -2452,11 +2813,50 @@ export default {
         'Bu siteye kayıt oluşturan herkes bu kuralları okumuş ve onaylamış kabul edilir.',
       ],
     },
+
+    agreement: {
+      title: 'Kullanım sözleşmesi ve güvenlik',
+      intro:
+        'Bu eşleştirme sistemi moderasyonludur. İletişimde saygılı olun ve güvenlik kurallarına uyun. Şüpheli bir durum yaşarsanız kanıtla birlikte bildirin.',
+      safety: {
+        title: 'Güvenlik kuralları',
+        s1: 'İletişim paylaşımı açılmadan önce telefon, sosyal medya, link, IBAN vb. iletişim bilgisini paylaşmayın.',
+        s2: 'Baskı, hakaret, cinsel içerik ve maddi çıkar girişimleri kesinlikle yasaktır.',
+        s3: 'Şüpheli davranış görürseniz ekran görüntüsü/kanıt ile destek hattına bildirin.',
+      },
+      complaint: {
+        title: 'Şikayet / bildirim',
+        body:
+          'Şikayetler kanıta göre incelenir. İhlal kesinleşirse hesap sistemden kaldırılabilir.',
+        c1Title: 'Kanıt gerekli',
+        c1Body: 'Ekran görüntüsü, tarih/saat ve kısa açıklama paylaşın.',
+        c2Title: 'Hızlı inceleme',
+        c2Body: 'Net kanıt içeren ciddi şikayetler öncelikli değerlendirilir.',
+        c3Title: 'Gizlilik',
+        c3Body: 'Diğer kullanıcıların özel bilgilerini kamuya açık paylaşmayın; kanıtı yalnızca desteğe iletin.',
+        extraMale: 'Erkek kullanıcılar: kural ihlali kesinleşirse üyelik iptal edilir; iade yapılmaz.',
+        extraFemale: 'Kadın kullanıcılar: iletişim paylaşımı her zaman isteğe bağlıdır; baskı yaşarsanız hemen bildirin.',
+      },
+      enforcement: {
+        title: 'Yaptırım ve iade politikası',
+        e1a: 'Kuralları ihlal eden kullanıcılar (kanıtla tespit edilirse)',
+        e1b: 'kalıcı olarak engellenir',
+        e1c: 've eşleşmeleri iptal edilir.',
+        e2a: 'İhlal yapan kişinin',
+        e2b: 'aktif üyeliği varsa iptal edilir.',
+        e3a: 'Üyelik iptal edilse bile',
+        e3b: 'para iadesi yapılmaz.',
+        e4a: 'Bu platformu kullanan herkesin',
+        e4b: 'kuralları okuduğu ve kabul ettiği varsayılır.',
+      },
+    },
     actions: {
       logout: 'Çıkış',
       profileForm: 'Profil formu',
+      goToStudio: 'Studio arayüzüne git',
       whatsapp: 'WhatsApp’tan yaz',
       remove: 'Kaldır',
+      copy: 'Kopyala',
       sending: 'Gönderiliyor…',
       canceling: 'İptal ediliyor…',
       pending: 'Beklemede…',
@@ -2483,6 +2883,8 @@ export default {
       removedCreditNotice: 'Bu eşleşme listenizden çıkarıldı. Yeni eşleşme isteme hakkınız için 1 kredi tanımlandı. Bekleme: {{remaining}}',
     },
     chat: {
+      sidebarTitle: 'Sohbet',
+      noActiveChat: 'Şu an aktif sohbet yok.',
       inputPlaceholderShort: 'Kısa bir mesaj yaz…',
       lock48h: {
         approving: 'Onaylanıyor…',
@@ -2518,9 +2920,9 @@ export default {
       lead: 'Üyelik/aksiyon açma adımlarını buradan takip edebilirsiniz. Üyelik aktif değilse, ödeme yapıp dekontu ekleyerek “Ödeme bildirimi” göndermeniz gerekir (admin onayı sonrası üyelik açılır).',
       freePaidMembershipCta: 'Üyeliğimi ücretsiz aktif et',
       paidMembershipCta: 'Üyeliği aktifleştir',
-      freeActiveTitle: 'Kadın kullanıcılar: ücretsiz aktif üyelik',
-      freeActiveBody: 'Kimlik doğrulamanız varsa ücretsiz aktif üyelik başvurusu yapabilirsiniz. Bu, ücretli üyelik olmadan aksiyonları açabilir (kurallar/48-24 saat şartları geçerlidir).',
-      freeActiveNeedsVerification: 'Ücretsiz aktif üyelik için önce kimlik doğrulama gerekir.',
+      freeActiveTitle: 'Ücretsiz aktivasyon',
+      freeActiveBody: 'Kimlik doğrulamanız varsa hesabınızı ücretsiz aktif edebilirsiniz. (Kurallar/48-24 saat şartları geçerlidir.)',
+      freeActiveNeedsVerification: 'Ücretsiz aktivasyon için önce kimlik doğrulama gerekir.',
       paymentTitle: 'Ücretli üyelik (aylık) / ödeme',
       paymentBody: 'Üyeliği aktifleştirmek için aşağıdaki ödeme yöntemlerinden biriyle ödeme yapın, sonra dekont/ref. bilgisi ile bildirim gönderin.',
       selectMatchTitle: 'Ödeme bildirimi için eşleşme seçin',
@@ -2530,6 +2932,16 @@ export default {
       selectMatchRequired: 'Ödeme bildirimi göndermek için bir eşleşme seçmelisiniz.',
     },
     payment: {
+      title: 'Ödemeler',
+      empty: 'Ödeme kaydı bulunamadı.',
+      status: 'Durum',
+      amount: 'Tutar',
+      date: 'Tarih',
+      invoice: 'Fatura / referans',
+      actions: {
+        pay: 'Öde',
+        view: 'Görüntüle',
+      },
       success: 'Ödeme bildiriminiz alındı. Admin onayı sonrası üyeliğiniz aktif edilecektir.',
       errors: {
         sendFailed: 'Ödeme bildirimi gönderilemedi.',
@@ -2552,21 +2964,27 @@ export default {
       rejectAllFailed: 'Hepsini reddet işlemi başarısız.',
       membershipRequired: 'Beğeni/ret işlemleri için üyeliğinizin aktif olması gerekir.',
       verificationRequired: 'Bu işlemi yapabilmek için kimlik doğrulaması gerekir.',
-      membershipOrVerificationRequired: 'Bu işlem için ücretli üyelik veya (kadın kullanıcılar için) kimlik doğrulama + ücretsiz aktif üyelik gerekir.',
-      freeActiveMembershipRequired: 'Bu işlem için ücretsiz aktif üyeliğinizin açık olması gerekir. Kimlik doğrulama yaptıysanız panelden ücretsiz aktif üyelik başvurusu yapabilirsiniz.',
-      freeActiveMembershipBlocked: 'Kimlik doğrulama ile ücretsiz aktif üyelik hakkınız devre dışı. Bu işlem için ücretli üyelik satın almanız gerekir.',
+      membershipOrVerificationRequired: 'Bu işlem için aktif üyelik gerekir.',
+      freeActiveMembershipRequired: 'Bu işlem için hesabınızın aktif olması gerekir.',
+      freeActiveMembershipBlocked: 'Aktivasyon hakkınız devre dışı. Bu işlem için ücretli üyelik satın almanız gerekir.',
       otherUserMatched: 'Bu kişi başka biriyle eşleşmiş. Beğeni gönderemezsiniz.',
       alreadyMatched: 'Zaten bir eşleşmeniz var.',
       userLocked: 'Eşleşme süreciniz kilitli. Bu işlem yapılamaz.',
       pendingContinueExists: 'Devam etmek için zaten bir aday seçtiniz. Önce o eşleşmede karar verin.',
+      applicationRequired: 'Önce eşleştirme başvurunu tamamlamalısın.',
+      noCandidatesNow: 'Şu an uygun aday bulunamadı.',
+      noMatchGeneratedNow: 'Şu an yeni eşleşme üretilemedi.',
       requestNewFailed: 'Yeni eşleşme talebi gönderilemedi.',
       requestNewRateLimited: 'Yeni eşleşme talebini çok sık gönderiyorsunuz. Lütfen daha sonra tekrar deneyin.',
       requestNewQuotaExhausted: 'Bugünkü yeni eşleşme hakkınız bitti (3/3). Yarın tekrar deneyin.',
-      requestNewFreeActiveBlocked: 'Ücretsiz aktif üyelik hakkınız iptal edildiği için yeni eşleşme talep edemezsiniz. Tekrar aktif olmanız için ücretli üyelik gerekir.',
+      requestNewFreeActiveBlocked: 'Aktivasyon hakkınız iptal edildiği için yeni eşleşme talep edemezsiniz. Tekrar aktif olmanız için ücretli üyelik gerekir.',
       freeSlotFailed: 'Slot boşaltma işlemi başarısız.',
       freeSlotQuotaExhausted: 'Bugünkü slot boşaltma hakkınız bitti (1/1). Yarın tekrar deneyin.',
       cooldownActive: 'Bu işlem için biraz beklemeniz gerekir. Kalan süre: {{remaining}}',
       newUserSlotAlreadyActive: 'Yeni kayıt slotunuz zaten açık. Uygun yeni kayıt gelene kadar bekleyin veya normal yenileme kullanın.',
+    },
+    hints: {
+      creditNotSpentSuffix: ' (hak harcanmadı)',
     },
     afterSubmit: {
       title: 'Başvurunuz alındı.',
@@ -2580,6 +2998,7 @@ export default {
     application: {
       title: 'Evlilik Eşleştirme Başvurusu',
       empty: 'Henüz bir evlilik eşleştirme başvurunuz yok.',
+      profileNotCreatedHint: 'Profiliniz henüz oluşturulmadı. Lütfen önce başvuru formunu doldurun.',
       goToForm: 'Başvuru formuna git',
       fallbackName: 'Başvuru',
       profileNo: 'Başvuru Kodu',
@@ -2641,19 +3060,30 @@ export default {
         standard: 'Standart',
         pro: 'Pro',
       },
+      lead: 'Üyelik şartları:',
       inactive: 'Üyelik aktif değil. Üyelik aktif olana kadar adayların tüm detaylarını göremez, beğeni/ret veremezsiniz.',
       inactiveMale: 'Üyelik aktif değil. Üyelik aktif olana kadar adayların tüm detaylarını göremez, beğeni/ret veremezsiniz.',
-      inactiveFemale: 'Üyelik aktif değil. Eşleşme ve ön inceleme için üyelik gerekmez. İşlem yapabilmek için ücretsiz aktif üyelik başvurusu (kimlik doğrulama ile) veya ücretli üyelik gerekir.',
-      activeViaVerification: 'Kimlik doğrulamanız var. İşlem yapabilmek için ücretsiz aktif üyelik başvurusu yapabilir veya ücretli üyelik satın alabilirsiniz.',
-      freeActiveActive: 'Ücretsiz aktif üyeliğiniz açık (kimlik doğrulama ile).',
-      freeActiveTermsTitle: 'Ücretsiz aktif üyelik şartları',
-      freeActiveTermsBody: 'Kimlik doğrulaması ile ücretsiz aktif üyelik alan kullanıcıların 48 saat aktif olmaması durumunda ücretsiz aktif üyeliği iptal edilir. Yeniden ücretsiz aktif üyelik başvurularında bu süre 24 saate düşer. Bu süre içinde tekrar aktif olunmazsa, ücretli üyelik satın alana kadar geçerli bir aktif üyelik hakkı tanımlanmaz ve yeni eşleşme talebinde bulunulamaz.',
-      freeActiveApply: 'Ücretsiz aktif üyelik başvurusu yap',
+      inactiveFemale: 'Üyelik aktif değil. Eşleşme ve ön inceleme için üyelik gerekmez. İşlem yapabilmek için hesabın aktif olması gerekir.',
+      activeViaVerification: 'Kimlik doğrulamanız var. Hesabınızı aktif edebilirsiniz.',
+      freeActiveActive: 'Hesabınız aktif.',
+      freeActiveTermsTitle: 'Ücretsiz aktivasyon şartları',
+      freeActiveTermsBody: 'Hesabınızı ücretsiz aktif ettiyseniz ve 48 saat aktif olmazsanız aktivasyon iptal edilebilir. Yeniden aktivasyonda süre 24 saate düşer. Bu süre içinde tekrar aktif olunmazsa, tekrar aktif olmak ve yeni eşleşme talep edebilmek için ücretli üyelik gerekir.',
+      freeActiveApply: 'Hesabı ücretsiz aktif et',
       freeActiveApplying: 'Başvuru gönderiliyor…',
-      freeActiveApplied: 'Ücretsiz aktif üyeliğiniz açıldı. Süre: {{hours}} saat.',
+      freeActiveApplied: 'Hesabınız ücretsiz aktif edildi. Süre: {{hours}} saat.',
       daysLeft_one: 'Kalan süre: {{count}} gün.',
       daysLeft_other: 'Kalan süre: {{count}} gün.',
       until: 'Bitiş: {{date}}.',
+    },
+
+    membershipInfo: {
+      title: 'Üyelik bilgileri',
+      subtitle: 'Üyelik türünüz ve tarih bilgileri.',
+      details: {
+        type: 'Tür',
+        start: 'Başlangıç',
+        end: 'Bitiş',
+      },
     },
     membershipNotice: {
       title: 'Üyelik şartları',
@@ -2668,8 +3098,7 @@ export default {
         lead: 'Üyelik şartları:',
         points: [
           'Eşleşme ve kısıtlı ön izleme ücretsizdir.',
-          'Detaylı profil inceleme, beğeni/ret ve iletişim için kimlik doğrulama + ücretsiz aktif üyelik veya ücretli üyelik gerekir.',
-          'Ücretsiz aktif üyelikte 48/24 saat inaktivite kuralları geçerlidir (paneldeki şartlar bölümüne bakın).',
+          'Detaylı profil inceleme, beğeni/ret ve iletişim için hesabın aktif olması gerekir.',
         ],
       },
     },
@@ -2685,11 +3114,11 @@ export default {
           },
           {
             q: 'Beğeni / detay / iletişim için ne gerekiyor?',
-            a: 'Erkek kullanıcılar için ücretli üyelik gerekir. Kadın kullanıcılar için kimlik doğrulama + ücretsiz aktif üyelik veya ücretli üyelik gerekir.',
+            a: 'Beğeni / detaylı inceleme / iletişim için hesabın aktif olması gerekir.',
           },
           {
             q: 'Kimlik doğrulama ne işe yarar?',
-            a: 'Güven rozetidir. Kurallara aykırı durumlarda kanıtla şikayet sürecini güçlendirir ve (kadın kullanıcılar için) ücretsiz aktif üyelik akışını açabilir.',
+            a: 'Güven rozetidir. Kurallara aykırı durumlarda kanıtla şikayet sürecini güçlendirir ve bazı akışların kilidini açabilir.',
           },
           {
             q: 'Şüpheli/dolandırıcılık durumunda ne yapmalıyım?',
@@ -2706,7 +3135,7 @@ export default {
       requiredBody: 'Kimlik doğrulama zorunlu değildir; bir güven rozetidir. Kurallara aykırı davranışlarda kanıtla şikayet oluşturabilirsiniz.',
       unverifiedTitle: 'Kimlik doğrulama (rozet)',
       unverifiedBodyMale: 'Kimlik doğrulama zorunlu değildir; bir güven rozetidir. (Not: Erkek kullanıcılar için aksiyonlar üyelikle açılır.)',
-      unverifiedBodyFemale: 'Kimlik doğrulama zorunlu değildir; bir güven rozetidir. (Not: Kadın kullanıcılar doğrulama + ücretsiz aktif üyelik ile aksiyonları açabilir.)',
+      unverifiedBodyFemale: 'Kimlik doğrulama zorunlu değildir; bir güven rozetidir. (Not: Kimlik doğrulama bazı akışların kilidini açabilir.)',
       referenceCode: 'Doğrulama kodu',
       manualUpload: {
         title: 'Site üzerinden doğrula (manuel)',
@@ -2734,7 +3163,7 @@ export default {
     },
 
     membershipModal: {
-      openFree: 'Üyeliğimi ücretsiz aktif et',
+      openFree: 'Hesabı ücretsiz aktif et',
       open: 'Üyelik durumu',
       title: 'Üyelik işlemleri',
       statusLabel: 'Üyelik',
@@ -2742,7 +3171,8 @@ export default {
       cancel: 'Üyeliğimi iptal et',
       cancelDisabledHint: 'Üyelik aktif olana kadar iptal edemezsiniz.',
       deleteAccount: 'Hesabı sil',
-      deleteTypePrompt: 'Hesabı gerçekten silmek istiyorsanız: "hesabımı sil" yazın.',
+      deletePhrase: 'hesabımı sil',
+      deleteTypePrompt: 'Hesabı gerçekten silmek istiyorsanız: "{{phrase}}" yazın.',
       deleteFinalConfirm: 'Hesabınız kalıcı olarak sistemden silinecektir. Emin misiniz?',
       deleteCancel: 'Vazgeç',
       deleteContinue: 'Devam et',
@@ -2772,6 +3202,26 @@ export default {
       cancelConfirm: 'Bu eşleşmeyi iptal ederseniz bu kişi eşleşme listenizden çıkarılacak. Onaylıyor musunuz?',
       errors: {
         activeLocked: 'Eşleşme sürecin kilitli. Bu işlem yapılamaz.',
+      },
+      proposedActions: {
+        interested: 'İlgileniyorum',
+        notSuitable: 'Uygun değil',
+      },
+      proposedChat: {
+        title: 'Direkt mesaj',
+        noticeTitle: 'Bilgilendirme',
+        noticeBody: 'Bu alan sınırlı bir direkt mesaj alanıdır. Lütfen kısa ve saygılı yazın.',
+      },
+      rejectReason: {
+        title: 'Reddetme sebebini seç…',
+      },
+      contactShare: {
+        title: 'İletişim paylaşımı',
+        approved: 'İletişim bilgileri karşılıklı onayla paylaşıldı.',
+        pending: 'İletişim isteği gönderildi. Karşı tarafın onayı bekleniyor.',
+        lock48h: 'Telefon numaralarını paylaşmak için 48 saat site içi iletişim gerekli. Kalan süre: {{time}}.',
+        requestCta: 'İletişim isteği gönder',
+        requestHint: 'Karşı taraf onaylarsa telefon numaraları görünür.',
       },
       presence: {
         online: 'Çevrimiçi',
@@ -2913,6 +3363,7 @@ export default {
         rulesTitle: 'Kurallar',
         rulesBody: 'Telefon/WhatsApp, Instagram/Facebook ve link paylaşımı bu aşamada yasaktır.',
         empty: 'Henüz mesaj yok. İlk mesajı siz atabilirsiniz.',
+        lastMessages: 'Son mesajlar',
         placeholder: 'Mesaj yaz…',
         send: 'Gönder',
         lockedByActive: {
@@ -3021,6 +3472,8 @@ export default {
             locked: '48 saat dolmadan kesinleştirilemez.',
             confirmRequired: 'İletişim için önce kesinleştirme onayı gereklidir.',
             contactLocked: '48 saat dolmadan iletişim isteği gönderemezsin.',
+            approveLocked: '48 saat dolmadan onay verilemez.',
+            contactNotPending: 'Onaylanacak bir iletişim isteği yok.',
           },
         },
       },
@@ -3113,14 +3566,21 @@ export default {
         methodQris: 'QRIS',
         methodOther: 'Diğer',
         reference: 'Referans / açıklama (varsa)',
+        referenceHint: 'Ödeme yaparken açıklama/ref. kısmına bunu yazın: {{code}}',
         referencePlaceholder: 'Dekont no, açıklama, gönderici adı...',
         note: 'Not (opsiyonel)',
         notePlaceholder: 'İsterseniz ek bilgi yazın',
+        noteHelpEftFastWise:
+          'EFT/Havale (veya Wise/SWIFT) gönderirken bankanın “Açıklama / Reference” alanına yukarıdaki MK kullanıcı kodunu tam olarak yazmanız gerekiyor.',
+        noteHelpEftFastExtra: 'EFT/FAST seçeneği ile ödemeler şirketimiz adına yetkili kişinin Türkiye hesabına yapılmaktadır.',
+        noteHelpOther: 'Ödeme yöntemine göre açıklama alanı gerekmeyebilir. Yine de yukarıdaki referans bilgisini saklayın.',
         receipt: 'Dekont (opsiyonel)',
         receiptHelp: 'Foto yükleyebilir veya aşağıya dekont linki yapıştırabilirsiniz.',
         receiptLink: 'Dekont linki (opsiyonel)',
         viewReceipt: 'Dekontu görüntüle',
         uploadingReceipt: 'Dekont yükleniyor…',
+        receiptViaUpload: 'Dekont yükle',
+        receiptViaWhatsapp: 'Dekontu WhatsApp’tan göndereceğim',
         sendPayment: 'Ödeme bildirimini gönder ({{amount}} {{currency}})',
         supportWhatsapp: 'Destek için WhatsApp',
         supportWhatsappMessage: 'Eşleşme sürecimde üyelik/ödeme ile ilgili destek istiyorum. Eşleşme Kodu: {{matchCode}}',
@@ -3131,7 +3591,7 @@ export default {
       body: 'Keşfet sayfasından başlayarak, ön eşleşme → aktif eşleşme → iletişim paylaşımı adımlarıyla ilerleyen kontrollü bir süreç sunuyoruz. Aşağıdaki maddeler sistemin işleyişini özetler.',
       cta: 'Eşleştirme formunu doldur',
       eligibilityPointMale: 'Site içinde eşleşme ve eşleşilen profili ön inceleme için üyeliğe gerek yoktur. Eşleşen profilin tüm profil bilgilerine ulaşmak, beğeni ya da ret yapabilmek, eşleşilen kişiyle iletişime geçmek için aktif üyelik satın almanız gerekmektedir.',
-      eligibilityPointFemale: 'Site içinde eşleşme ve eşleşen kullanıcının kısıtlı profil bilgisini görmek için üyelik satın almaya gerek yoktur. Eşleşen kullanıcıya beğeni göndermek, reddetmek ve iletişime geçebilmek için ücretsiz aktif üye başvurusu ve kimlik doğrulama işlemi yapmanız ya da ücretli üyelik satın almanız gerekmektedir.',
+      eligibilityPointFemale: 'Site içinde eşleşme ve eşleşen kullanıcının kısıtlı profil bilgisini görmek için üyelik satın almaya gerek yoktur. Beğeni/ret ve iletişim için hesabın aktif olması gerekir.',
       points: [
         'Profiller herkese açık değildir; yalnızca eşleşme/istek ilişkisi olan kişiler birbirini görür.',
         'Keşfet sayfasında size paketinize göre en fazla 3 / 5 / 10 profil gösterilir (kısıtlı ön izleme).',
@@ -3187,6 +3647,10 @@ export default {
       title: 'Evlilik Eşleştirme: Vaadimiz, Kurallar ve Güvenlik',
       lead: 'Bu platform flört/eğlence için değildir. Evlilik niyetiyle tanışmayı daha güvenli ve kontrollü hale getirmek için tasarlanmıştır.',
       open: 'Kuralları ve işleyişi görüntüle',
+      editOnce: {
+        usernameLocked: 'Bu modda kullanıcı adını da düzeltebilirsiniz (1 defaya mahsus).',
+        photosLocked: 'Edit modunda fotoğraf güncelleme kapalı. Sadece form alanlarını düzeltebilirsiniz.',
+      },
       why: {
         title: 'Neden bu kadar kural var?',
         body:
@@ -3289,5 +3753,20 @@ export default {
     backToPanel: 'Panele dön',
     paymentMethodsSoon: 'Not: {{date}} tarihine kadar üyelik aktivasyonu ücretsizdir.',
     paidAdminApprovalNote: 'Not: {{date}} sonrası üyelik aktivasyonu ücretlidir ve ödeme sonrası aktif olur.',
+  },
+
+  memberFeed: {
+    badge: {
+      newUser: 'Yeni',
+    },
+    toast: {
+      title: 'Canlı',
+      closeAria: 'Kapat',
+      generic: 'Yeni bir etkinlik oldu.',
+      signupAnonymous: 'Yeni biri sisteme katıldı.',
+      signupKnown: '{{label}} sisteme katıldı.',
+      profileCompletedAnonymous: 'Yeni kullanıcı profilini tamamladı.',
+      profileCompletedKnown: '{{label}} profilini tamamladı.',
+    },
   },
 };

@@ -1,9 +1,78 @@
 import { getAdmin, normalizeBody, requireIdToken } from './_firebaseAdmin.js';
+import { detectPII } from './_pii.js';
+import { isTranslateConfigured, translateTextProfile } from './_translate.js';
+
+const MAX_TEXT_LEN = 1800;
+const TRANSLATE_CHARS = 400;
+const MIN_TRANSLATE_CHARS = 30;
 
 function safeStr(value, maxLen) {
   const s = String(value ?? '').trim();
   if (!s) return '';
   return typeof maxLen === 'number' && maxLen > 0 && s.length > maxLen ? s.slice(0, maxLen) : s;
+}
+
+function normalizeProfileLang(v) {
+  const s = safeStr(v).toLowerCase();
+  if (s === 'tr' || s === 'id') return s;
+  return '';
+}
+
+function oppositeLang(lang) {
+  return lang === 'tr' ? 'id' : 'tr';
+}
+
+function detectForbiddenContactPII(text) {
+  const pii = detectPII(text);
+  const reasons = Array.isArray(pii?.reasons) ? pii.reasons : [];
+  const forbidden = reasons.filter((r) => r && r !== 'name');
+  return {
+    hasForbidden: forbidden.length > 0,
+    reasons: forbidden,
+  };
+}
+
+async function buildBilingualText(text, sourceLang) {
+  const original = safeStr(text, MAX_TEXT_LEN);
+  const src = normalizeProfileLang(sourceLang) || 'tr';
+  const target = oppositeLang(src);
+
+  const out = {
+    sourceLang: src,
+    targetLang: target,
+    original,
+    tr: src === 'tr' ? original : '',
+    id: src === 'id' ? original : '',
+    translated: false,
+    skipped: false,
+    truncated: false,
+    translateConfigured: isTranslateConfigured(),
+  };
+
+  if (!original) {
+    out.skipped = true;
+    return out;
+  }
+
+  if (original.length < MIN_TRANSLATE_CHARS) {
+    out.skipped = true;
+    return out;
+  }
+
+  if (!out.translateConfigured) {
+    out.skipped = true;
+    return out;
+  }
+
+  const chunk = original.slice(0, TRANSLATE_CHARS);
+  out.truncated = original.length > TRANSLATE_CHARS;
+  const translated = await translateTextProfile({ text: chunk, targetLang: target });
+  const finalText = out.truncated && translated ? `${translated}…` : translated;
+
+  if (target === 'tr') out.tr = finalText;
+  if (target === 'id') out.id = finalText;
+  out.translated = !!safeStr(finalText);
+  return out;
 }
 
 function asMs(v) {
@@ -60,14 +129,28 @@ export default async function handler(req, res) {
   }
 
   const body = normalizeBody(req);
-  const about = safeStr(body?.about, 1800);
-  const expectations = safeStr(body?.expectations, 1800);
+  const about = safeStr(body?.about, MAX_TEXT_LEN);
+  const expectations = safeStr(body?.expectations, MAX_TEXT_LEN);
+  const sourceLang = normalizeProfileLang(body?.lang) || 'tr';
 
-  if (!about && !expectations) {
+  if (!about || !expectations) {
     res.statusCode = 400;
     res.setHeader('content-type', 'application/json');
-    res.end(JSON.stringify({ ok: false, error: 'empty_update' }));
+    res.end(JSON.stringify({ ok: false, error: 'bad_request' }));
     return;
+  }
+
+  for (const [field, value] of [
+    ['about', about],
+    ['expectations', expectations],
+  ]) {
+    const pii = detectForbiddenContactPII(value);
+    if (pii.hasForbidden) {
+      res.statusCode = 422;
+      res.setHeader('content-type', 'application/json');
+      res.end(JSON.stringify({ ok: false, error: 'profile_text_pii_blocked', field, reasons: pii.reasons }));
+      return;
+    }
   }
 
   const { db, FieldValue } = getAdmin();
@@ -76,6 +159,17 @@ export default async function handler(req, res) {
   // Basit cooldown (spam önlemek için)
   const meSnap = await db.collection('matchmakingUsers').doc(uid).get();
   const me = meSnap.exists ? (meSnap.data() || {}) : {};
+
+  const usedMs = typeof me?.profileTextWriteOnceUsedAtMs === 'number' && Number.isFinite(me.profileTextWriteOnceUsedAtMs)
+    ? me.profileTextWriteOnceUsedAtMs
+    : 0;
+  if (usedMs > 0) {
+    res.statusCode = 409;
+    res.setHeader('content-type', 'application/json');
+    res.end(JSON.stringify({ ok: false, error: 'profile_text_write_once_used' }));
+    return;
+  }
+
   const lastMs = typeof me?.profileTextsUpdatedAtMs === 'number' && Number.isFinite(me.profileTextsUpdatedAtMs) ? me.profileTextsUpdatedAtMs : 0;
   if (lastMs > 0 && nowMs - lastMs < 10_000) {
     res.statusCode = 429;
@@ -89,6 +183,28 @@ export default async function handler(req, res) {
   const apps = appSnap.docs.map((d) => ({ id: d.id, ...(d.data() || {}) }));
   const best = pickBestNonStubApplication(apps);
 
+  // Migration safety: existing users already have texts => lock them.
+  const alreadyHasTexts = !!safeStr(best?.about, 1) || !!safeStr(best?.expectations, 1);
+  if (alreadyHasTexts) {
+    await db.collection('matchmakingUsers').doc(uid).set(
+      {
+        profileTextWriteOnceUsedAt: FieldValue.serverTimestamp(),
+        profileTextWriteOnceUsedAtMs: nowMs,
+      },
+      { merge: true }
+    );
+
+    res.statusCode = 409;
+    res.setHeader('content-type', 'application/json');
+    res.end(JSON.stringify({ ok: false, error: 'profile_text_write_once_used' }));
+    return;
+  }
+
+  const [aboutBi, expBi] = await Promise.all([
+    buildBilingualText(about, sourceLang),
+    buildBilingualText(expectations, sourceLang),
+  ]);
+
   const batch = db.batch();
 
   // Application varsa onu güncelle (profil endpoint'i buradan okuyor)
@@ -99,6 +215,31 @@ export default async function handler(req, res) {
       {
         about,
         expectations,
+        profileTextLang: sourceLang,
+        aboutTr: aboutBi.tr,
+        aboutId: aboutBi.id,
+        expectationsTr: expBi.tr,
+        expectationsId: expBi.id,
+        profileTextWriteOnceUsedAtMs: nowMs,
+        profileTextTranslatedAtMs: nowMs,
+        profileTextTranslate: {
+          about: {
+            sourceLang: aboutBi.sourceLang,
+            targetLang: aboutBi.targetLang,
+            translated: aboutBi.translated,
+            skipped: aboutBi.skipped,
+            truncated: aboutBi.truncated,
+            translateConfigured: aboutBi.translateConfigured,
+          },
+          expectations: {
+            sourceLang: expBi.sourceLang,
+            targetLang: expBi.targetLang,
+            translated: expBi.translated,
+            skipped: expBi.skipped,
+            truncated: expBi.truncated,
+            translateConfigured: expBi.translateConfigured,
+          },
+        },
         userTextsUpdatedAt: FieldValue.serverTimestamp(),
         userTextsUpdatedAtMs: nowMs,
       },
@@ -115,11 +256,22 @@ export default async function handler(req, res) {
         about,
         bio: about,
         expectations,
+        aboutTr: aboutBi.tr,
+        aboutId: aboutBi.id,
+        expectationsTr: expBi.tr,
+        expectationsId: expBi.id,
       },
       publicProfile: {
         about,
         expectations,
+        aboutTr: aboutBi.tr,
+        aboutId: aboutBi.id,
+        expectationsTr: expBi.tr,
+        expectationsId: expBi.id,
       },
+      profileTextLang: sourceLang,
+      profileTextWriteOnceUsedAt: FieldValue.serverTimestamp(),
+      profileTextWriteOnceUsedAtMs: nowMs,
       profileTextsUpdatedAt: FieldValue.serverTimestamp(),
       profileTextsUpdatedAtMs: nowMs,
       updatedAt: FieldValue.serverTimestamp(),

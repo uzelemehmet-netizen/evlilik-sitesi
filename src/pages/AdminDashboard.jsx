@@ -13,6 +13,8 @@ import MatchmakingUserToolsTab from '../components/admin/MatchmakingUserToolsTab
 import MatchmakingPhotoUpdatesTab from '../components/admin/MatchmakingPhotoUpdatesTab';
 import MatchmakingPoolTab from '../components/admin/MatchmakingPoolTab';
 import SystemAlertsTab from '../components/admin/SystemAlertsTab';
+import NewUsersTab from '../components/admin/NewUsersTab';
+import AllUsersTab from '../components/admin/AllUsersTab';
 import { isFeatureEnabled } from '../config/siteVariant';
 
 // Travel/Tours modülü kaldırıldığı için admin panelde tur konfigi boş.
@@ -120,7 +122,7 @@ const STATIC_PUBLIC_IMAGES = [
 
 export default function AdminDashboard() {
   const weddingOnly = isFeatureEnabled('wedding');
-  const [activeTab, setActiveTab] = useState(() => (weddingOnly ? 'matchmaking' : 'islands'));
+  const [activeTab, setActiveTab] = useState(() => (weddingOnly ? 'matches' : 'islands'));
   const [selectedIsland, setSelectedIsland] = useState('bali');
   const [editingId, setEditingId] = useState(null);
   const [imageUrls, setImageUrls] = useState({});
@@ -919,7 +921,7 @@ export default function AdminDashboard() {
           const formData = new FormData();
           formData.append('file', uploadFile);
           formData.append('upload_preset', cloudinaryUploadPreset);
-          formData.append('folder', `endonezya-kasifi/${imageId}`);
+          formData.append('folder', `uniqah/${imageId}`);
           xhr.send(formData);
         });
 
@@ -1074,6 +1076,14 @@ export default function AdminDashboard() {
             onMarkAllRead={markMatchmakingAllRead}
           />
         );
+      }
+
+      if (activeTab === 'newUsers') {
+        return <NewUsersTab />;
+      }
+
+      if (activeTab === 'allUsers') {
+        return <AllUsersTab />;
       }
 
       if (activeTab === 'identity') {
@@ -1606,7 +1616,7 @@ export default function AdminDashboard() {
           <h1 className="text-2xl font-bold text-gray-800">Admin Panel — Evlilik & Eşleştirme</h1>
           <button
             onClick={handleLogout}
-            className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg transition"
+            className="app-btn app-btn-logout"
           >
             <LogOut className="w-4 h-4" />
             Çıkış Yap
@@ -1638,70 +1648,6 @@ export default function AdminDashboard() {
           {weddingOnly && (
             <>
               <button
-                onClick={() => setActiveTab('matchmaking')}
-                className={`px-6 py-3 font-semibold transition whitespace-nowrap ${
-                  activeTab === 'matchmaking'
-                    ? 'text-indigo-600 border-b-2 border-indigo-600'
-                    : 'text-gray-600 hover:text-gray-800'
-                }`}
-              >
-                Evlilik Başvuruları
-                {matchmakingNewCount > 0 && (
-                  <span className="ml-2 inline-flex items-center justify-center min-w-6 h-6 px-2 rounded-full bg-rose-600 text-white text-xs">
-                    {matchmakingNewCount}
-                  </span>
-                )}
-              </button>
-
-              <button
-                onClick={() => setActiveTab('identity')}
-                className={`px-6 py-3 font-semibold transition whitespace-nowrap ${
-                  activeTab === 'identity'
-                    ? 'text-indigo-600 border-b-2 border-indigo-600'
-                    : 'text-gray-600 hover:text-gray-800'
-                }`}
-              >
-                Kimlik Doğrulama
-                {identityPendingCount > 0 && (
-                  <span className="ml-2 inline-flex items-center justify-center min-w-6 h-6 px-2 rounded-full bg-amber-600 text-white text-xs">
-                    {identityPendingCount}
-                  </span>
-                )}
-              </button>
-
-              <button
-                onClick={() => setActiveTab('payments')}
-                className={`px-6 py-3 font-semibold transition whitespace-nowrap ${
-                  activeTab === 'payments'
-                    ? 'text-indigo-600 border-b-2 border-indigo-600'
-                    : 'text-gray-600 hover:text-gray-800'
-                }`}
-              >
-                Ödemeler
-                {paymentsPendingCount > 0 && (
-                  <span className="ml-2 inline-flex items-center justify-center min-w-6 h-6 px-2 rounded-full bg-rose-600 text-white text-xs">
-                    {paymentsPendingCount}
-                  </span>
-                )}
-              </button>
-
-              <button
-                onClick={() => setActiveTab('photoUpdates')}
-                className={`px-6 py-3 font-semibold transition whitespace-nowrap ${
-                  activeTab === 'photoUpdates'
-                    ? 'text-indigo-600 border-b-2 border-indigo-600'
-                    : 'text-gray-600 hover:text-gray-800'
-                }`}
-              >
-                Fotoğraf İstekleri
-                {photoUpdatesPendingCount > 0 && (
-                  <span className="ml-2 inline-flex items-center justify-center min-w-6 h-6 px-2 rounded-full bg-rose-600 text-white text-xs">
-                    {photoUpdatesPendingCount}
-                  </span>
-                )}
-              </button>
-
-              <button
                 onClick={() => setActiveTab('matches')}
                 className={`px-6 py-3 font-semibold transition whitespace-nowrap ${
                   activeTab === 'matches'
@@ -1726,6 +1672,17 @@ export default function AdminDashboard() {
                 }`}
               >
                 Kullanıcı Yönetimi
+              </button>
+
+              <button
+                onClick={() => setActiveTab('allUsers')}
+                className={`px-6 py-3 font-semibold transition whitespace-nowrap ${
+                  activeTab === 'allUsers'
+                    ? 'text-indigo-600 border-b-2 border-indigo-600'
+                    : 'text-gray-600 hover:text-gray-800'
+                }`}
+              >
+                Tüm Kullanıcılar
               </button>
 
               <button

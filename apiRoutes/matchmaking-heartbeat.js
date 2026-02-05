@@ -1,6 +1,10 @@
 import { getAdmin, requireIdToken } from './_firebaseAdmin.js';
 import { computeFreeActiveMembershipState, isFreeActiveEnabled } from './_matchmakingEligibility.js';
-import matchmakingRun from './matchmaking-run.js';
+
+async function loadMatchmakingRun() {
+  const mod = await import('./matchmaking-run.js');
+  return mod?.default;
+}
 
 function safeStr(v) {
   return typeof v === 'string' ? v.trim() : '';
@@ -120,6 +124,7 @@ async function ensureAutoStubApplicationIfMissing({ db, FieldValue, uid, userDoc
     const gender = normalizeGender(userDoc?.gender);
     const nationality = normalizeNat(userDoc?.nationality) || 'other';
     const nationalityOther = safeStr(userDoc?.nationalityOther);
+    const age = typeof userDoc?.age === 'number' ? userDoc.age : null;
     if (!gender) return { ensured: false, created: false, reason: 'missing_profile' };
 
     const lookingForGender = oppositeGender(gender);
@@ -147,12 +152,14 @@ async function ensureAutoStubApplicationIfMissing({ db, FieldValue, uid, userDoc
         lookingForNationality,
         lookingForNationalityOther: '',
 
+        ...(typeof age === 'number' ? { age } : {}),
+
         details: {
           autoBootstrap: true,
         },
 
         // Firestore rules create'da bu alanlar zorunlu olabilir.
-        consent18Plus: true,
+        consent18Plus: typeof age === 'number' ? age >= (nationality === 'id' ? 21 : 18) : true,
         consentPrivacy: false,
         consentTerms: false,
         consentPhotoShare: false,
@@ -251,6 +258,10 @@ async function maybeRunMatchmakingFromHeartbeat({ db, FieldValue, uid }) {
   let parsed = null;
   let ok = false;
   try {
+    const matchmakingRun = await loadMatchmakingRun();
+    if (typeof matchmakingRun !== 'function') {
+      throw new Error('matchmaking_run_handler_not_found');
+    }
     await matchmakingRun(reqSynthetic, resCapture);
     try {
       parsed = typeof resCapture.body === 'string' ? JSON.parse(resCapture.body) : null;
@@ -286,6 +297,21 @@ async function maybeRunMatchmakingFromHeartbeat({ db, FieldValue, uid }) {
 }
 
 export default async function handler(req, res) {
+  if (req.method === 'OPTIONS') {
+    res.statusCode = 204;
+    res.setHeader('allow', 'POST, OPTIONS');
+    res.end('');
+    return;
+  }
+
+  if (req.method !== 'POST') {
+    res.statusCode = 405;
+    res.setHeader('allow', 'POST');
+    res.setHeader('content-type', 'application/json');
+    res.end(JSON.stringify({ ok: false, error: 'method_not_allowed', allowed: ['POST'] }));
+    return;
+  }
+
   if (req.method !== 'POST') {
     res.statusCode = 405;
     res.setHeader('content-type', 'application/json');
@@ -447,6 +473,41 @@ export default async function handler(req, res) {
       }
 
       const fam = user?.freeActiveMembership || null;
+
+      // Ürün kararı (2026-02): Kadın kullanıcılar için ücretsiz aktif üyelik otomatik.
+      // Süreyi pratikte “süresiz” yapmak için çok uzun bir pencere kullanıyoruz.
+      const genderNormForFree = normalizeGender(user?.gender);
+      if (genderNormForFree === 'female') {
+        const windowHours = 24 * 365 * 10; // ~10 yıl
+        tx.set(
+          ref,
+          {
+            ...basePatch,
+            ...seenPatch,
+            ...userCodePatch,
+            freeActiveMembership: {
+              ...(typeof fam === 'object' && fam ? fam : {}),
+              active: true,
+              blocked: false,
+              blockedReason: '',
+              windowHours,
+              inactiveCount: 0,
+              reapplyCount: 0,
+              lastActiveAt: FieldValue.serverTimestamp(),
+              lastActiveAtMs: now,
+              activatedAt: (fam && fam.activatedAt) || FieldValue.serverTimestamp(),
+              activatedAtMs: typeof fam?.activatedAtMs === 'number' && fam.activatedAtMs > 0 ? fam.activatedAtMs : now,
+              autoReason: 'auto_female_free',
+            },
+            updatedAt: FieldValue.serverTimestamp(),
+          },
+          { merge: true }
+        );
+
+        result = { status: 'auto_female_free', blocked: false, windowHours };
+        return;
+      }
+
       const state = computeFreeActiveMembershipState(user, now);
 
       if (!state.active) {

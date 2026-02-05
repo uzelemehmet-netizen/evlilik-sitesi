@@ -19,7 +19,7 @@ function formatRelative(ms) {
   return `${d} gün önce`;
 }
 
-export default function LiveJoinEvents({ className = '' }) {
+export default function LiveJoinEvents({ className = '', variant = 'light' }) {
   const [items, setItems] = useState([]);
   const [error, setError] = useState('');
 
@@ -50,33 +50,45 @@ export default function LiveJoinEvents({ className = '' }) {
   const count24h = items.length;
   const recent = items.slice(0, 6);
 
+  const isDark = variant === 'dark';
+  const cardClass = isDark
+    ? 'rounded-2xl border border-white/10 bg-white/5 p-4 md:p-5 shadow-[0_20px_60px_rgba(0,0,0,0.25)]'
+    : 'rounded-2xl border border-slate-200 bg-white p-4 md:p-5';
+  const titleClass = isDark ? 'text-white' : 'text-slate-900';
+  const textClass = isDark ? 'text-white/70' : 'text-slate-600';
+  const subtleClass = isDark ? 'text-white/55' : 'text-slate-500';
+  const itemClass = isDark
+    ? 'flex items-center justify-between rounded-xl border border-white/10 bg-white/5 px-3 py-2'
+    : 'flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-3 py-2';
+  const itemTextClass = isDark ? 'text-white/85' : 'text-slate-700';
+
   return (
     <div className={className}>
-      <div className="rounded-2xl border border-white/10 bg-white/5 p-4 md:p-5 shadow-[0_20px_60px_rgba(0,0,0,0.25)]">
+      <div className={cardClass}>
         <div className="flex items-center justify-between gap-3">
           <div>
-            <div className="text-sm font-semibold text-white">Canlı katılım</div>
-            <div className="mt-0.5 text-[12px] text-white/70">Son 24 saatte {count24h} yeni kişi katıldı</div>
+            <div className={`text-sm font-semibold ${titleClass}`}>Canlı katılım</div>
+            <div className={`mt-0.5 text-[12px] ${textClass}`}>Son 24 saatte {count24h} yeni kişi katıldı</div>
           </div>
-          <div className="text-[11px] text-white/55">Realtime</div>
+          <div className={`text-[11px] ${subtleClass}`}>Realtime</div>
         </div>
 
-        {error ? <div className="mt-2 text-[12px] text-rose-200/90">{error}</div> : null}
+        {error ? <div className="mt-2 text-[12px] text-rose-600">{error}</div> : null}
 
         {recent.length ? (
           <div className="mt-3 grid grid-cols-1 gap-2">
             {recent.map((it) => (
-              <div key={it.id} className="flex items-center justify-between rounded-xl border border-white/10 bg-white/5 px-3 py-2">
-                <div className="text-[12px] text-white/85">Yeni üye katıldı</div>
-                <div className="text-[11px] text-white/55">{formatRelative(it.createdAtMs)}</div>
+              <div key={it.id} className={itemClass}>
+                <div className={`text-[12px] ${itemTextClass}`}>Yeni üye katıldı</div>
+                <div className={`text-[11px] ${subtleClass}`}>{formatRelative(it.createdAtMs)}</div>
               </div>
             ))}
           </div>
         ) : (
-          <div className="mt-3 text-[12px] text-white/65">Henüz yeni katılım görünmüyor.</div>
+          <div className={`mt-3 text-[12px] ${textClass}`}>Henüz yeni katılım görünmüyor.</div>
         )}
 
-        <div className="mt-3 text-[11px] text-white/50">
+        <div className={`mt-3 text-[11px] ${subtleClass}`}>
           Not: Burada kişisel bilgi gösterilmez.
         </div>
       </div>

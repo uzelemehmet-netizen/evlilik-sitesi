@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 export default function ImageLightbox({ images, currentIndex, onClose }) {
+  const { t } = useTranslation();
   const [index, setIndex] = useState(currentIndex);
 
   useEffect(() => {
@@ -46,7 +48,7 @@ export default function ImageLightbox({ images, currentIndex, onClose }) {
       <button
         onClick={onClose}
         className="absolute top-4 right-4 text-white hover:text-gray-300 transition-colors z-10"
-        aria-label="Kapat"
+        aria-label={t('ui.lightbox.close')}
       >
         <X size={32} />
       </button>
@@ -59,7 +61,7 @@ export default function ImageLightbox({ images, currentIndex, onClose }) {
               handlePrevious();
             }}
             className="absolute left-4 text-white hover:text-gray-300 transition-colors z-10 bg-black/50 rounded-full p-2"
-            aria-label="Önceki"
+            aria-label={t('ui.lightbox.prev')}
           >
             <svg
               xmlns="http://www.w3.org/2000/svg"
@@ -78,7 +80,7 @@ export default function ImageLightbox({ images, currentIndex, onClose }) {
               handleNext();
             }}
             className="absolute right-4 text-white hover:text-gray-300 transition-colors z-10 bg-black/50 rounded-full p-2"
-            aria-label="Sonraki"
+            aria-label={t('ui.lightbox.next')}
           >
             <svg
               xmlns="http://www.w3.org/2000/svg"
@@ -100,7 +102,7 @@ export default function ImageLightbox({ images, currentIndex, onClose }) {
       >
         <img
           src={images[index]}
-          alt={`Görsel ${index + 1}`}
+          alt={t('ui.lightbox.imageAlt', { index: index + 1 })}
           className="max-w-full max-h-full object-contain"
         />
       </div>

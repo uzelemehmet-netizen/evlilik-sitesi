@@ -1,5 +1,5 @@
 import { getAdmin, normalizeBody, requireIdToken } from './_firebaseAdmin.js';
-import { ensureEligibleOrThrow } from './_matchmakingEligibility.js';
+import { ensureEligibleOrThrow, ensureProfileCompleteOrThrow } from './_matchmakingEligibility.js';
 
 function safeStr(v) {
   return typeof v === 'string' ? v.trim() : '';
@@ -35,7 +35,15 @@ export default async function handler(req, res) {
     // Etkileşim kuralı: cevap vermek de aksiyon sayılır.
     const meUserSnap = await db.collection('matchmakingUsers').doc(uid).get();
     const meUser = meUserSnap.exists ? meUserSnap.data() || {} : {};
-    ensureEligibleOrThrow(meUser, '');
+    try {
+      await ensureProfileCompleteOrThrow(db, uid);
+      ensureEligibleOrThrow(meUser, '');
+    } catch (e2) {
+      res.statusCode = e2?.statusCode || 402;
+      res.setHeader('content-type', 'application/json');
+      res.end(JSON.stringify({ ok: false, error: String(e2?.message || 'membership_required') }));
+      return;
+    }
 
     const requestId = `${fromUid}__${uid}`;
     const inboxRef = db.collection('matchmakingUsers').doc(uid).collection('inboxAccessRequests').doc(requestId);

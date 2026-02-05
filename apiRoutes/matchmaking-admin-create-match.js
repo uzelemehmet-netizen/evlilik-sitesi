@@ -34,6 +34,10 @@ function buildProfileSnapshot(app, userDoc) {
   const details = app?.details || {};
   const about = typeof app?.about === 'string' ? app.about.trim() : '';
   const expectations = typeof app?.expectations === 'string' ? app.expectations.trim() : '';
+  const aboutTr = typeof app?.aboutTr === 'string' ? app.aboutTr.trim() : '';
+  const aboutId = typeof app?.aboutId === 'string' ? app.aboutId.trim() : '';
+  const expectationsTr = typeof app?.expectationsTr === 'string' ? app.expectationsTr.trim() : '';
+  const expectationsId = typeof app?.expectationsId === 'string' ? app.expectationsId.trim() : '';
   const clip = (s, maxLen) => {
     const v = typeof s === 'string' ? s.trim() : '';
     if (!v) return '';
@@ -60,7 +64,11 @@ function buildProfileSnapshot(app, userDoc) {
       ? app.photoUrls.filter((u) => typeof u === 'string' && u.trim())
       : [],
     about: clip(about, 360),
+    aboutTr: clip(aboutTr, 360),
+    aboutId: clip(aboutId, 360),
     expectations: clip(expectations, 360),
+    expectationsTr: clip(expectationsTr, 360),
+    expectationsId: clip(expectationsId, 360),
     details: {
       maritalStatus: safeStr(details?.maritalStatus),
       occupation: safeStr(details?.occupation),

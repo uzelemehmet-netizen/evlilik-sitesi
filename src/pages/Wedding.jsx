@@ -10,6 +10,7 @@ import { buildWhatsAppUrl } from '../utils/whatsapp';
 import { db } from '../config/firebase';
 import { doc, getDoc } from 'firebase/firestore';
 import { useAuth } from '../auth/AuthProvider';
+import { staticAssetUrl } from '../utils/staticAssetUrl';
 
 const DEFAULT_MEDIA = Object.freeze({
   heroBackgroundUrl:
@@ -21,7 +22,7 @@ const DEFAULT_MEDIA = Object.freeze({
 export default function Wedding() {
 	const { t, i18n } = useTranslation();
   const { user } = useAuth();
-  const BRAND_LOGO_SRC = "/brand.png";
+  const BRAND_LOGO_SRC = staticAssetUrl('/brand.png');
   const tArray = (key) => {
     const value = t(key, { returnObjects: true });
     return Array.isArray(value) ? value : [];
@@ -284,7 +285,7 @@ export default function Wedding() {
           </button>
 
           <Link
-            to="/uniqah"
+            to="/eslestirme"
             className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-slate-900 text-white px-5 md:px-6 py-2 md:py-2.5 rounded-full font-medium text-xs md:text-sm shadow-md hover:bg-slate-900 hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200"
           >
             <MessageCircle size={18} className="text-white" />

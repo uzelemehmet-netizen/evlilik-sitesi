@@ -1,5 +1,5 @@
 import { getAdmin, normalizeBody, requireIdToken } from './_firebaseAdmin.js';
-import { ensureEligibleOrThrow } from './_matchmakingEligibility.js';
+import { ensureEligibleOrThrow, ensureProfileCompleteOrThrow } from './_matchmakingEligibility.js';
 
 function safeStr(v) {
   return typeof v === 'string' ? v.trim() : '';
@@ -68,7 +68,11 @@ function isMembershipActiveUserDoc(userDoc) {
 function buildMatchProfile(app, userDoc) {
   const details = app?.details || {};
   const about = typeof app?.about === 'string' ? app.about.trim() : '';
+  const aboutTr = typeof app?.aboutTr === 'string' ? app.aboutTr.trim() : '';
+  const aboutId = typeof app?.aboutId === 'string' ? app.aboutId.trim() : '';
   const expectations = typeof app?.expectations === 'string' ? app.expectations.trim() : '';
+  const expectationsTr = typeof app?.expectationsTr === 'string' ? app.expectationsTr.trim() : '';
+  const expectationsId = typeof app?.expectationsId === 'string' ? app.expectationsId.trim() : '';
   const clip = (s, maxLen) => {
     const v = typeof s === 'string' ? s.trim() : '';
     if (!v) return '';
@@ -80,6 +84,13 @@ function buildMatchProfile(app, userDoc) {
     membershipActive: !!(userDoc && isMembershipActiveUserDoc(userDoc)),
     membershipPlan: safeStr(userDoc?.membership?.plan || userDoc?.membershipPlan),
     proMember: !!(userDoc && isMembershipActiveUserDoc(userDoc) && String(userDoc?.membership?.plan || userDoc?.membershipPlan || '') === 'pro'),
+    userCode: safeStr(userDoc?.userCode) || safeStr(userDoc?.publicProfile?.userCode),
+    userCodeNo:
+      typeof userDoc?.userCodeNo === 'number' && Number.isFinite(userDoc.userCodeNo)
+        ? userDoc.userCodeNo
+        : (typeof userDoc?.publicProfile?.userCodeNo === 'number' && Number.isFinite(userDoc.publicProfile.userCodeNo)
+            ? userDoc.publicProfile.userCodeNo
+            : null),
     profileNo: asNum(app?.profileNo),
     profileCode: safeStr(app?.profileCode) || (typeof app?.profileNo === 'number' ? `MK-${app.profileNo}` : ''),
     username: safeStr(app?.username),
@@ -89,7 +100,11 @@ function buildMatchProfile(app, userDoc) {
     country: safeStr(app?.country),
     photoUrls: Array.isArray(app?.photoUrls) ? app.photoUrls.filter((u) => typeof u === 'string' && u.trim()) : [],
     about: clip(about, 360),
+    aboutTr: clip(aboutTr, 360),
+    aboutId: clip(aboutId, 360),
     expectations: clip(expectations, 360),
+    expectationsTr: clip(expectationsTr, 360),
+    expectationsId: clip(expectationsId, 360),
     details: {
       maritalStatus: safeStr(details?.maritalStatus),
       occupation: safeStr(details?.occupation),
@@ -109,14 +124,6 @@ export default async function handler(req, res) {
     res.end(JSON.stringify({ ok: false, error: 'method_not_allowed' }));
     return;
   }
-
-      userCode: safeStr(userDoc?.userCode) || safeStr(userDoc?.publicProfile?.userCode),
-      userCodeNo:
-        typeof userDoc?.userCodeNo === 'number' && Number.isFinite(userDoc.userCodeNo)
-          ? userDoc.userCodeNo
-          : (typeof userDoc?.publicProfile?.userCodeNo === 'number' && Number.isFinite(userDoc.publicProfile.userCodeNo)
-              ? userDoc.publicProfile.userCodeNo
-              : null),
   try {
     const decoded = await requireIdToken(req);
     const uid = safeStr(decoded?.uid);
@@ -137,7 +144,15 @@ export default async function handler(req, res) {
     // Etkileşim kuralı: cevap vermek de aksiyon sayılır.
     const meUserSnap = await db.collection('matchmakingUsers').doc(uid).get();
     const meUser = meUserSnap.exists ? (meUserSnap.data() || {}) : {};
-    ensureEligibleOrThrow(meUser, '');
+    try {
+      await ensureProfileCompleteOrThrow(db, uid);
+      ensureEligibleOrThrow(meUser, '');
+    } catch (e2) {
+      res.statusCode = e2?.statusCode || 402;
+      res.setHeader('content-type', 'application/json');
+      res.end(JSON.stringify({ ok: false, error: String(e2?.message || 'membership_required') }));
+      return;
+    }
 
     const requestId = `${fromUid}__${uid}`;
     const inboxRef = db.collection('matchmakingUsers').doc(uid).collection('inboxPreMatchRequests').doc(requestId);

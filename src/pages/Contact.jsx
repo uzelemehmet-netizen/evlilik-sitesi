@@ -2,7 +2,7 @@ import Navigation from '../components/Navigation';
 import Footer from '../components/Footer';
 import HeroSocialButtons from '../components/HeroSocialButtons';
 import { useState, useEffect } from 'react';
-import { CheckCircle, AlertCircle, Mail, Phone, MapPin, MessageCircle, Instagram, Youtube } from 'lucide-react';
+import { CheckCircle, AlertCircle, Mail, Phone, MapPin, MessageCircle, Youtube } from 'lucide-react';
 import emailjs from '@emailjs/browser';
 import { buildWhatsAppUrl } from '../utils/whatsapp';
 import { useTranslation, Trans } from 'react-i18next';
@@ -94,8 +94,8 @@ export default function Contact() {
     {
       icon: Mail,
       title: t('contact.sidebar.email'),
-      value: 'uzelemehmet@gmail.com',
-      href: 'mailto:uzelemehmet@gmail.com'
+      value: 'info@uniqah.com',
+      href: 'mailto:info@uniqah.com'
     },
     {
       icon: MessageCircle,
@@ -113,14 +113,9 @@ export default function Contact() {
 
   const socialLinks = [
     {
-      icon: Instagram,
-      name: 'Instagram',
-      href: 'https://www.instagram.com/endonezyakasifi'
-    },
-    {
       icon: Youtube,
       name: 'YouTube',
-      href: 'https://www.youtube.com/@endonezyakasifi'
+      href: '/youtube'
     },
     {
       icon: MessageCircle,

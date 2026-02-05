@@ -78,14 +78,16 @@ function chunkArray(arr, size) {
   return out;
 }
 
-function formatPersonSummary(app) {
-  const fullName = safeStr(app?.fullName);
-  const age = typeof app?.age === 'number' ? app.age : null;
-  const gender = safeStr(app?.gender);
-  const city = safeStr(app?.city);
-  const country = safeStr(app?.country);
-  const username = safeStr(app?.username);
-  const profileCode = safeStr(app?.profileCode);
+function formatPersonSummary(app, userDoc) {
+  const fullName = safeStr(app?.fullName) || safeStr(userDoc?.fullName) || safeStr(userDoc?.publicProfile?.fullName) || safeStr(userDoc?.details?.fullName);
+  const age =
+    (typeof app?.age === 'number' ? app.age : null) ??
+    (typeof userDoc?.age === 'number' ? userDoc.age : null);
+  const gender = safeStr(app?.gender) || safeStr(userDoc?.gender);
+  const city = safeStr(app?.city) || safeStr(userDoc?.city);
+  const country = safeStr(app?.country) || safeStr(userDoc?.country);
+  const username = safeStr(app?.username) || safeStr(userDoc?.username);
+  const profileCode = safeStr(app?.profileCode) || safeStr(userDoc?.profileCode) || safeStr(userDoc?.userCode);
 
   const bits = [];
   if (fullName) bits.push(fullName);
@@ -234,7 +236,7 @@ export default function MatchmakingIdentityTab() {
           const files = u?.identityVerification?.files || null;
           const hasFiles = !!(safeStr(files?.idFrontUrl) || safeStr(files?.idBackUrl) || safeStr(files?.selfieUrl));
           const app = appByUserId?.[userId] || null;
-          const person = formatPersonSummary(app);
+          const person = formatPersonSummary(app, u);
           const appId = safeStr(app?.id);
           const profileCode = formatProfileCode(app);
 

@@ -5,7 +5,7 @@ import { useTranslation, Trans } from 'react-i18next';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { auth, db, storage } from '../config/firebase';
 import { collection, doc, getDoc, getDocs, limit, query, serverTimestamp, setDoc, where } from 'firebase/firestore';
-import { ref, uploadBytes } from 'firebase/storage';
+import { getDownloadURL, ref, uploadBytes } from 'firebase/storage';
 import {
   getRecaptchaEnterpriseToken,
   isRecaptchaEnterpriseEnabled,
@@ -14,6 +14,7 @@ import {
 import { useAuth } from '../auth/AuthProvider';
 import { uploadImageToCloudinaryAuto } from '../utils/cloudinaryUpload';
 import { authFetch } from '../utils/authFetch';
+import { staticAssetUrl } from '../utils/staticAssetUrl';
 
 function toNumberOrNull(value) {
   if (value === null || value === undefined) return null;
@@ -185,7 +186,7 @@ export default function MatchmakingApply() {
     setWizardStep(0);
   }, [isWizardMode]);
 
-  const BRAND_LOGO_SRC = '/brand.png';
+  const BRAND_LOGO_SRC = staticAssetUrl('/brand.png');
 
   const submitFeedbackRef = useRef(null);
   const wizardTopRef = useRef(null);
@@ -1235,7 +1236,7 @@ export default function MatchmakingApply() {
       const photoUrls = [];
       const photoCloudinary = [];
 
-      const folder = `endonezya-kasifi/matchmakingApplications/${docRef.id}`;
+      const folder = `uniqah/matchmakingApplications/${docRef.id}`;
       const tags = ['matchmaking', 'application'];
 
       const hasAnyPhoto = !!(compressed1 || compressed2 || compressed3);
@@ -1286,18 +1287,33 @@ export default function MatchmakingApply() {
           const storageRef1 = ref(storage, `matchmakingApplications/${docRef.id}/photo1.jpg`);
           await uploadBytes(storageRef1, compressed1, { contentType: compressed1.type || 'image/jpeg' });
           photoPaths.push(storageRef1.fullPath);
+          try {
+            photoUrls.push(await getDownloadURL(storageRef1));
+          } catch {
+            // ignore (rules/missing)
+          }
         }
 
         if (compressed2) {
           const storageRef2 = ref(storage, `matchmakingApplications/${docRef.id}/photo2.jpg`);
           await uploadBytes(storageRef2, compressed2, { contentType: compressed2.type || 'image/jpeg' });
           photoPaths.push(storageRef2.fullPath);
+          try {
+            photoUrls.push(await getDownloadURL(storageRef2));
+          } catch {
+            // ignore (rules/missing)
+          }
         }
 
         if (compressed3) {
           const storageRef3 = ref(storage, `matchmakingApplications/${docRef.id}/photo3.jpg`);
           await uploadBytes(storageRef3, compressed3, { contentType: compressed3.type || 'image/jpeg' });
           photoPaths.push(storageRef3.fullPath);
+          try {
+            photoUrls.push(await getDownloadURL(storageRef3));
+          } catch {
+            // ignore (rules/missing)
+          }
         }
       }
 
@@ -1429,9 +1445,11 @@ export default function MatchmakingApply() {
           action: recaptchaAction,
           token: recaptchaToken,
         },
+        // createdAt server-side set edilecek (API submit). Firestore direct create eskisi için.
         createdAt: serverTimestamp(),
         pool: {
           active: true,
+          // addedAt server-side set edilecek (API submit). Firestore direct create eskisi için.
           addedAt: serverTimestamp(),
           addedAtMs: Date.now(),
           reason: isEditOnceMode ? 'edit_once' : 'apply_submit',
@@ -1448,6 +1466,12 @@ export default function MatchmakingApply() {
         delete editPayload.photoCloudinary;
         delete editPayload.photoContentTypes;
         delete editPayload.photoOriginalTypes;
+
+        if (editPayload.pool && typeof editPayload.pool === 'object') {
+          const nextPool = { ...editPayload.pool };
+          delete nextPool.addedAt;
+          editPayload.pool = nextPool;
+        }
 
         if (!Array.isArray(photoUrls) || photoUrls.length === 0) {
           delete editPayload.photoUrls;
@@ -1468,7 +1492,21 @@ export default function MatchmakingApply() {
         return;
       }
 
-      await setDoc(docRef, payload);
+      // API üzerinden submit: write-once + PII engeli + TR<->ID çeviri server-side.
+      // Not: Firestore serverTimestamp() sentinel'ları JSON'a çevrilemez; gönderirken çıkarıyoruz.
+      const submitPayload = { ...payload };
+      delete submitPayload.createdAt;
+      if (submitPayload.pool && typeof submitPayload.pool === 'object') {
+        const nextPool = { ...submitPayload.pool };
+        delete nextPool.addedAt;
+        submitPayload.pool = nextPool;
+      }
+
+      await authFetch('/api/matchmaking-application-submit', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ docId: docRef.id, payload: submitPayload }),
+      });
 
       setLastApplicationId(docRef.id);
 
@@ -1486,6 +1524,7 @@ export default function MatchmakingApply() {
     } catch (err) {
       console.error('matchmaking submit error:', err);
       const code = err?.code || err?.name || '';
+      const apiMsg = typeof err?.message === 'string' ? err.message.trim() : '';
       if (code === 'permission-denied') {
         // Bu sayfada create izinleri dar; permission-denied en sık "doc zaten var" (username taken)
         // veya gerçek yetki problemi olur. EditOnce modunda update zaten admin'e ait.
@@ -1494,6 +1533,14 @@ export default function MatchmakingApply() {
         } else {
           setError(t('matchmakingPage.form.errors.permissionDenied'));
         }
+      } else if (apiMsg === 'username_taken') {
+        setError(t('matchmakingPage.form.errors.usernameTaken'));
+      } else if (apiMsg === 'already_submitted') {
+        setError(t('matchmakingPage.form.errors.alreadySubmitted'));
+      } else if (apiMsg === 'profile_text_write_once_used') {
+        setError(t('matchmakingPage.form.errors.profileTextWriteOnceUsed'));
+      } else if (apiMsg === 'profile_text_pii_blocked') {
+        setError(t('matchmakingPage.form.errors.profileTextPII'));
       } else if (code === 'unauthenticated') {
         setError(t('matchmakingPage.form.errors.mustLogin'));
       } else if (typeof code === 'string' && (code.startsWith('storage/') || code.startsWith('cloudinary/'))) {

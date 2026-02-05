@@ -17,10 +17,17 @@ function safeStr(v) {
 }
 
 export default async function handler(req, res) {
+  if (req.method === 'OPTIONS') {
+    res.statusCode = 204;
+    res.setHeader('allow', 'POST, OPTIONS');
+    res.end('');
+    return;
+  }
   if (req.method !== 'POST') {
     res.statusCode = 405;
+    res.setHeader('allow', 'POST');
     res.setHeader('content-type', 'application/json');
-    res.end(JSON.stringify({ ok: false, error: 'method_not_allowed' }));
+    res.end(JSON.stringify({ ok: false, error: 'method_not_allowed', allowed: ['POST'] }));
     return;
   }
 

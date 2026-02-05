@@ -13,9 +13,42 @@ function withTimeout(promise, timeoutMs) {
   ]);
 }
 
+const PUSH_TOKEN_STORAGE_KEY = 'pushToken';
+
+function persistPushToken(token) {
+  try {
+    if (!token) return;
+    localStorage.setItem(PUSH_TOKEN_STORAGE_KEY, String(token));
+  } catch {
+    // ignore
+  }
+}
+
+function readPersistedPushToken() {
+  try {
+    const t = String(localStorage.getItem(PUSH_TOKEN_STORAGE_KEY) || '').trim();
+    return t || '';
+  } catch {
+    return '';
+  }
+}
+
+export function hasSavedPushToken() {
+  return !!readPersistedPushToken();
+}
+
 export async function enablePushForCurrentUser() {
   if (!canUseNotifications()) {
     return { ok: false, code: 'not_supported' };
+  }
+
+  // Push + service worker çoğu tarayıcıda güvenli context (HTTPS/localhost) ister.
+  try {
+    if (typeof window !== 'undefined' && window.isSecureContext === false) {
+      return { ok: false, code: 'not_secure_context' };
+    }
+  } catch {
+    // ignore
   }
 
   if (!firebaseWebPushVapidKey) {
@@ -42,34 +75,102 @@ export async function enablePushForCurrentUser() {
 
   let registration;
   try {
-    registration = await withTimeout(navigator.serviceWorker.ready, 8000);
+    // Eğer SW henüz register edilmediyse (özellikle ilk yükleme / yavaş ağ), hazır olmayı beklemek boşa gidebilir.
+    registration = await navigator.serviceWorker.getRegistration();
+    if (!registration) {
+      try {
+        registration = await navigator.serviceWorker.register('/pwa-sw.js');
+      } catch {
+        // ignore; aşağıda ready beklerken tekrar deneyeceğiz.
+      }
+    }
+
+    // `ready` bazen ilk kurulumda (cache/workbox) daha uzun sürebilir.
+    registration = await withTimeout(navigator.serviceWorker.ready, 20000);
   } catch {
     return { ok: false, code: 'service_worker_not_ready' };
   }
 
   const messaging = getMessaging(app);
-  const token = await getToken(messaging, {
-    vapidKey: firebaseWebPushVapidKey,
-    serviceWorkerRegistration: registration,
-  });
+  let token = '';
+  try {
+    token = await getToken(messaging, {
+      vapidKey: firebaseWebPushVapidKey,
+      serviceWorkerRegistration: registration,
+    });
+  } catch (e) {
+    const code = String(e?.code || '').trim();
+    const message = String(e?.message || '').trim();
+
+    if (code === 'messaging/unsupported-browser') return { ok: false, code: 'messaging_not_supported' };
+    if (code === 'messaging/permission-blocked') return { ok: false, code: 'permission_denied' };
+    if (code === 'messaging/invalid-vapid-key') return { ok: false, code: 'invalid_vapid_key' };
+    if (code === 'messaging/failed-service-worker-registration') return { ok: false, code: 'service_worker_not_ready' };
+    if (/vapid/i.test(message) && /invalid|missing/i.test(message)) return { ok: false, code: 'missing_vapid_key' };
+
+    return { ok: false, code: 'token_failed' };
+  }
 
   if (!token) {
     return { ok: false, code: 'no_token' };
   }
 
-  await authFetch('/api/push-token-upsert', {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ token }),
-  });
+  persistPushToken(token);
 
-  return { ok: true, code: 'enabled', token };
+  try {
+    await authFetch('/api/push-token-upsert', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ token }),
+    });
+    return { ok: true, code: 'enabled', token, serverSync: true };
+  } catch (e) {
+    const msg = String(e?.message || '').trim();
+    // Token is created and permission is granted, but server sync failed.
+    // Keep UX stable (do not mark as disabled) and let the UI show a clearer message.
+    return { ok: true, code: 'enabled', token, serverSync: false, serverError: msg || 'server_sync_failed' };
+  }
 }
 
 export async function sendTestPushToMe({ title, body, url } = {}) {
-  return await authFetch('/api/push-send-test', {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ title, body, url }),
-  });
+  try {
+    return await authFetch('/api/push-send-test', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ title, body, url }),
+    });
+  } catch (e) {
+    const msg = String(e?.message || '').trim();
+
+    // Edge-case: permission granted but server has no token recorded (cache/first-run/old SW).
+    // If we have a persisted token, re-upsert and retry once.
+    if (msg === 'no_tokens') {
+      const token = readPersistedPushToken();
+      if (token) {
+        await authFetch('/api/push-token-upsert', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ token }),
+        });
+
+        return await authFetch('/api/push-send-test', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ title, body, url }),
+        });
+      }
+
+      // If we don't have a persisted token (e.g. storage cleared), try to re-enable push.
+      const enabled = await enablePushForCurrentUser().catch(() => null);
+      if (enabled?.ok) {
+        return await authFetch('/api/push-send-test', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ title, body, url }),
+        });
+      }
+    }
+
+    throw e;
+  }
 }

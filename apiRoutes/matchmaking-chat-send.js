@@ -1,5 +1,5 @@
 import { getAdmin, normalizeBody, requireIdToken } from './_firebaseAdmin.js';
-import { ensureEligibleOrThrow } from './_matchmakingEligibility.js';
+import { ensureEligibleOrThrow, ensureProfileCompleteOrThrow } from './_matchmakingEligibility.js';
 import { assertNotResetIgnoredMatch, getMatchmakingResetAtMs } from './_matchmakingReset.js';
 
 function safeStr(v) {
@@ -155,11 +155,11 @@ function ageRangeFromApp(app, { ageOverride = null } = {}) {
 }
 
 function canInteractByAge({ requesterApp, targetApp }) {
+  // Ürün kararı (2026-02): yaş aralığı uyumu şartı kaldırıldı.
   const requesterAge = getAge(requesterApp);
-  if (requesterAge === null) return { ok: false, reason: 'age_required' };
-
-  const { min, max } = ageRangeFromApp(targetApp, { ageOverride: getAge(targetApp) });
-  if (requesterAge < min || requesterAge > max) return { ok: false, reason: 'not_in_their_age_range' };
+  const targetAge = getAge(targetApp);
+  if (requesterAge === null || targetAge === null) return { ok: true };
+  if (requesterAge < MIN_AGE || targetAge < MIN_AGE) return { ok: false, reason: 'age_required' };
   return { ok: true };
 }
 
@@ -235,6 +235,16 @@ export default async function handler(req, res) {
     // Yeni model: Kullanıcı kendi dilinde yazar; çeviri sadece gelen mesajlarda manuel yapılır.
 
     const { db, FieldValue } = getAdmin();
+
+    // Etkileşim kuralı: profil tamamlanmadan iletişim/mesaj yok.
+    try {
+      await ensureProfileCompleteOrThrow(db, uid);
+    } catch (e2) {
+      res.statusCode = e2?.statusCode || 428;
+      res.setHeader('content-type', 'application/json');
+      res.end(JSON.stringify({ ok: false, error: String(e2?.message || 'profile_incomplete') }));
+      return;
+    }
 
     const matchRef = db.collection('matchmakingMatches').doc(matchId);
     const meRef = db.collection('matchmakingUsers').doc(uid);

@@ -6,23 +6,9 @@ import fs from 'node:fs';
 let cachedProjectId = '';
 
 function parseAdminEmails() {
-  const raw = process.env.ADMIN_EMAILS || process.env.VITE_ADMIN_EMAILS || '';
-  const envList = String(raw)
-    .split(',')
-    .map((s) => s.trim().toLowerCase())
-    .filter(Boolean);
-
-  const ruleAdmins = ['uzelemehmet@gmail.com', 'articelikkapi@gmail.com'];
-  const ruleAdminSet = new Set(ruleAdmins);
-
-  // Firestore rules ile birebir uyum: sadece kural listesi geçerli olsun.
-  // Env listesi varsa, sadece kural listesiyle kesişenleri al.
-  if (envList.length) {
-    const filtered = envList.filter((email) => ruleAdminSet.has(email));
-    return filtered.length ? filtered : ruleAdmins;
-  }
-
-  return ruleAdmins;
+  // Güvenlik: Admin endpoint'leri TEK kullanıcı ile sınırlı.
+  // Env ile genişletmeyin; yanlışlıkla başka hesaplar admin olmasın.
+  return ['uzelemehmet@gmail.com'];
 }
 
 function normalizeBody(req) {
@@ -88,9 +74,25 @@ export function getAdmin() {
       throw err;
     }
 
-    cachedProjectId = String(serviceAccount?.project_id || '').trim();
+    const projectId = String(serviceAccount?.project_id || '').trim();
+    const clientEmail = String(serviceAccount?.client_email || '').trim();
+    const privateKey = String(serviceAccount?.private_key || '').trim();
+    if (!projectId || !clientEmail || !privateKey) {
+      const err = new Error('firebase_admin_invalid_service_account_missing_project_id_client_email_or_private_key');
+      err.statusCode = 503;
+      throw err;
+    }
 
-    initializeApp({ credential: cert(serviceAccount) });
+    cachedProjectId = projectId;
+
+    try {
+      initializeApp({ credential: cert(serviceAccount) });
+    } catch (e) {
+      const err = new Error('firebase_admin_init_failed');
+      err.statusCode = 503;
+      err.cause = e;
+      throw err;
+    }
   }
 
   return {

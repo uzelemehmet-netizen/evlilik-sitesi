@@ -32,6 +32,8 @@ export function translateStudioApiError(t, raw) {
   if (s === 'not_in_their_age_range') return t('studio.errors.notInTheirAgeRange');
   if (s === 'age_required') return t('studio.errors.ageRequired');
 
+  if (s === 'profile_incomplete') return t('studio.profileGate.body');
+
   if (
     s === 'membership_required' ||
     s === 'membership_or_verification_required' ||
@@ -44,6 +46,18 @@ export function translateStudioApiError(t, raw) {
   if (s === 'not_available') return t('studio.errors.notAvailable');
   if (s === 'forbidden') return t('studio.errors.forbidden');
 
+  // Referral
+  if (s === 'referral_disabled') return t('studio.referral.errors.referralDisabled');
+  if (s === 'user_code_missing') return t('studio.referral.errors.userCodeMissing');
+  if (s === 'invalid_invite_code') return t('studio.referral.errors.invalidInviteCode');
+  if (s === 'invite_code_not_found') return t('studio.referral.errors.inviteCodeNotFound');
+  if (s === 'self_referral_not_allowed') return t('studio.referral.errors.selfReferralNotAllowed');
+  if (s === 'already_referred') return t('studio.referral.errors.alreadyReferred');
+  if (s === 'referral_not_found') return t('studio.referral.errors.referralNotFound');
+  if (s === 'referral_not_accepted') return t('studio.referral.errors.referralNotAccepted');
+  if (s === 'referral_mismatch') return t('studio.referral.errors.referralMismatch');
+  if (s === 'verification_required') return t('studio.referral.errors.verificationRequired');
+
   // Chat translate
   if (s === 'translate_too_long') return t('studio.matchProfile.translate.errors.tooLong');
   if (s === 'only_incoming') return t('studio.matchProfile.translate.errors.onlyIncoming');
@@ -51,6 +65,10 @@ export function translateStudioApiError(t, raw) {
   if (s === 'translate_rate_limited') return t('studio.matchProfile.translate.errors.rateLimited');
   if (s === 'pii_blocked') return t('studio.matchProfile.translate.errors.piiBlocked');
   if (s === 'translate_failed') return t('studio.matchProfile.translate.errors.failed');
+
+  // Profile texts (About/Expectations)
+  if (s === 'profile_text_write_once_used') return t('matchmakingPage.form.errors.profileTextWriteOnceUsed');
+  if (s === 'profile_text_pii_blocked') return t('matchmakingPage.form.errors.profileTextPII');
 
   const cooldown = /^cancel_cooldown_(\d+)m$/.exec(s);
   if (cooldown) {

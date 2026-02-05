@@ -44,6 +44,13 @@ function tsToMs(v) {
   return 0;
 }
 
+function lastSeenMsFromUserDoc(userDoc) {
+  const ms = typeof userDoc?.lastSeenAtMs === 'number' && Number.isFinite(userDoc.lastSeenAtMs) ? userDoc.lastSeenAtMs : 0;
+  if (ms > 0) return ms;
+  const ts = tsToMs(userDoc?.lastSeenAt);
+  return ts > 0 ? ts : 0;
+}
+
 const MIN_AGE = 18;
 
 function toNumOrNull(v, { min, max } = {}) {
@@ -245,7 +252,10 @@ export default async function handler(req, res) {
     }
 
     const viewerAge = getAge(myApp);
-    const { min, max } = ageRangeFromApp(myApp, { ageOverride: viewerAge });
+    // Ürün kararı (2026-02): Keşfet'te yaş filtresi yok. Herkes herkesi görebilir.
+    // Minimum yaş onayı/signup tarafında kalır; keşfet/browse tarafında yaş uyumu uygulanmaz.
+    const min = 18;
+    const max = 99;
 
     // Havuzda zaten match olduğun kişileri göstermeyelim.
     // Soft reset varsa reset öncesi match'leri yok say.
@@ -310,12 +320,16 @@ export default async function handler(req, res) {
     const cand = entry?.data || {};
     const applicationId = safeStr(entry?.id);
 
+    const source = safeStr(cand?.source).toLowerCase();
+    const isStub = source === 'auto_stub' || cand?.details?.autoBootstrap === true;
+
     const age = getAge(cand);
-    if (age === null) continue;
-    if (age < min || age > max) continue;
     const details = asObj(cand?.details);
 
-    const dist = viewerAge === null ? 999 : Math.abs(age - viewerAge);
+    const dist =
+      viewerAge === null || typeof age !== 'number' || !Number.isFinite(age)
+        ? 999
+        : Math.abs(age - viewerAge);
     const candRange = ageRangeFromApp(cand, { ageOverride: age });
     const genderOk = poolGenderOk(myApp, cand);
     if (!genderOk) continue;
@@ -331,15 +345,21 @@ export default async function handler(req, res) {
         (typeof cand?.createdAtMs === 'number' && Number.isFinite(cand.createdAtMs) ? cand.createdAtMs : 0) || tsToMs(cand?.createdAt),
       profile: {
         username: safeStr(cand?.username),
+        profileIncomplete: isStub,
         userCode: '',
-        age,
+        lastSeenAtMs: 0,
+        age: typeof age === 'number' && Number.isFinite(age) ? age : null,
         city: safeStr(cand?.city),
         country: safeStr(cand?.country),
         gender: safeStr(cand?.gender),
         lookingForGender: safeStr(cand?.lookingForGender),
         photoUrls: Array.isArray(cand?.photoUrls) ? cand.photoUrls.filter((u) => typeof u === 'string' && u.trim()).slice(0, 3) : [],
         about: clipText(cand?.about, 360),
+        aboutTr: clipText(cand?.aboutTr, 360),
+        aboutId: clipText(cand?.aboutId, 360),
         expectations: clipText(cand?.expectations, 360),
+        expectationsTr: clipText(cand?.expectationsTr, 360),
+        expectationsId: clipText(cand?.expectationsId, 360),
         details: {
           maritalStatus: safeStr(details?.maritalStatus),
           occupation: safeStr(details?.occupation),
@@ -358,29 +378,32 @@ export default async function handler(req, res) {
     const chunks = [];
     for (let i = 0; i < uids.length; i += 10) chunks.push(uids.slice(i, i + 10));
     const codeByUid = new Map();
+    const lastSeenByUid = new Map();
     for (const chunk of chunks) {
       const snap = await db.collection('matchmakingUsers').where('__name__', 'in', chunk).get();
       snap.docs.forEach((d) => {
         const u = d.data() || {};
         const code = safeStr(u?.userCode) || safeStr(u?.publicProfile?.userCode);
         if (code) codeByUid.set(d.id, code);
+
+        const lastSeenAtMs = lastSeenMsFromUserDoc(u);
+        if (lastSeenAtMs > 0) lastSeenByUid.set(d.id, lastSeenAtMs);
       });
     }
     items.forEach((it) => {
       const code = codeByUid.get(String(it?.uid || '')) || '';
       if (code && it?.profile && typeof it.profile === 'object') it.profile.userCode = code;
+
+      const lastSeenAtMs = lastSeenByUid.get(String(it?.uid || '')) || 0;
+      if (lastSeenAtMs && it?.profile && typeof it.profile === 'object') it.profile.lastSeenAtMs = lastSeenAtMs;
     });
   } catch {
     // ignore
   }
 
-  // Sırala: yaş yakınlığı -> daha yeni
-  // Not: Dist (viewer yaşına yakınlık) farklı kullanıcılar için farklı sıralama üretir.
-  // Aynı yaş aralığında daha deterministik bir liste için aday yaşı -> daha yeni -> uid sıralaması.
+  // Sırala: daha yeni -> uid (deterministik)
   items.sort((a, b) => {
-    const aa = typeof a?.profile?.age === 'number' ? a.profile.age : 999;
-    const ab = typeof b?.profile?.age === 'number' ? b.profile.age : 999;
-    return (aa - ab) || (b.createdAtMs - a.createdAtMs) || a.uid.localeCompare(b.uid);
+    return (b.createdAtMs - a.createdAtMs) || a.uid.localeCompare(b.uid);
   });
 
     res.statusCode = 200;
@@ -390,8 +413,6 @@ export default async function handler(req, res) {
         ok: true,
         meta: {
           viewerAge,
-          ageMin: min,
-          ageMax: max,
           total: items.length,
           returned: Math.min(limitOut, items.length),
         },

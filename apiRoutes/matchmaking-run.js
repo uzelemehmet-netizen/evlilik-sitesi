@@ -275,27 +275,12 @@ function setHas(list, v) {
 }
 
 function ageCompatibleOneWay(seeker, candidate) {
+  // Ürün kararı (2026-02): yaş uyumluluğu filtresi kaldırıldı.
+  // Minimum yaş (MIN_AGE) onayı signup / başvuru tarafında kalır.
   const seekerAge = getAge(seeker);
   const candAge = getAge(candidate);
-  if (seekerAge === null || candAge === null) return false;
-
-  const p = seeker?.partnerPreferences || {};
-
-  const min = toNumOrNull(p?.ageMin, { min: MIN_AGE, max: 99 });
-  const max = toNumOrNull(p?.ageMax, { min: MIN_AGE, max: 99 });
-  if (min !== null || max !== null) {
-    return (min === null || candAge >= min) && (max === null || candAge <= max);
-  }
-
-  const older = toNumOrNull(p?.ageMaxOlderYears, { min: 0, max: 99 });
-  const younger = toNumOrNull(p?.ageMaxYoungerYears, { min: 0, max: 99 });
-  if (older !== null || younger !== null) {
-    const o = older ?? 0;
-    const y = younger ?? 0;
-    return candAge >= Math.max(MIN_AGE, seekerAge - y) && candAge <= Math.min(99, seekerAge + o);
-  }
-
-  // Tercih yoksa: yaş aralığı kuralı kısıt üretmesin.
+  if (seekerAge === null || candAge === null) return true;
+  if (seekerAge < MIN_AGE || candAge < MIN_AGE) return false;
   return true;
 }
 
@@ -309,11 +294,12 @@ function ageCompatibleBoth(a, b) {
 }
 
 function ageCompatibleBothRelaxed(a, b, windowYears) {
+  // Yaş filtresi kaldırıldı (relaxed/strict ayrımı yok).
   const aa = getAge(a);
   const ab = getAge(b);
   if (aa === null || ab === null) return true;
-  const w = Number.isFinite(windowYears) && windowYears > 0 ? windowYears : 7;
-  return Math.abs(aa - ab) <= w;
+  if (aa < MIN_AGE || ab < MIN_AGE) return false;
+  return true;
 }
 
 function ageCompatibleBothWithMode(a, b, { relaxAge } = {}) {
@@ -594,7 +580,11 @@ function computeFitScore(seeker, candidate) {
 function buildPublicProfile(app, userStatus) {
   const details = app?.details || {};
   const about = typeof app?.about === 'string' ? app.about.trim() : '';
+  const aboutTr = typeof app?.aboutTr === 'string' ? app.aboutTr.trim() : '';
+  const aboutId = typeof app?.aboutId === 'string' ? app.aboutId.trim() : '';
   const expectations = typeof app?.expectations === 'string' ? app.expectations.trim() : '';
+  const expectationsTr = typeof app?.expectationsTr === 'string' ? app.expectationsTr.trim() : '';
+  const expectationsId = typeof app?.expectationsId === 'string' ? app.expectationsId.trim() : '';
   const clip = (s, maxLen) => {
     const v = typeof s === 'string' ? s.trim() : '';
     if (!v) return '';
@@ -608,6 +598,7 @@ function buildPublicProfile(app, userStatus) {
     proMember: !!userStatus?.membershipActive && String(userStatus?.membershipPlan || '') === 'pro',
     membershipActive: !!userStatus?.membershipActive,
     membershipPlan: safeStr(userStatus?.membershipPlan),
+    lastSeenAtMs: typeof userStatus?.lastSeenAtMs === 'number' && Number.isFinite(userStatus.lastSeenAtMs) ? userStatus.lastSeenAtMs : 0,
     userCode: safeStr(userStatus?.userCode),
     userCodeNo: typeof userStatus?.userCodeNo === 'number' && Number.isFinite(userStatus.userCodeNo) ? userStatus.userCodeNo : null,
     profileNo: asNum(app?.profileNo),
@@ -618,7 +609,11 @@ function buildPublicProfile(app, userStatus) {
     country: safeStr(app?.country),
     photoUrls: Array.isArray(app?.photoUrls) ? app.photoUrls.filter((u) => typeof u === 'string' && u.trim()) : [],
     about: clip(about, 360),
+    aboutTr: clip(aboutTr, 360),
+    aboutId: clip(aboutId, 360),
     expectations: clip(expectations, 360),
+    expectationsTr: clip(expectationsTr, 360),
+    expectationsId: clip(expectationsId, 360),
     details: {
       maritalStatus: safeStr(details?.maritalStatus),
       occupation: safeStr(details?.occupation),

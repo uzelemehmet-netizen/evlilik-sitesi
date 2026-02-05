@@ -1,5 +1,5 @@
 import { getAdmin, normalizeBody, requireIdToken } from './_firebaseAdmin.js';
-import { ensureEligibleOrThrow, normalizeGender } from './_matchmakingEligibility.js';
+import { ensureEligibleOrThrow, ensureProfileCompleteOrThrow, normalizeGender } from './_matchmakingEligibility.js';
 
 function safeStr(v) {
   return typeof v === 'string' ? v.trim() : '';
@@ -165,11 +165,6 @@ function ageRangeFromApp(app, { ageOverride = null } = {}) {
 }
 
 function myPoolRuleOk({ requesterApp, targetApp }) {
-  const requesterAge = getAge(requesterApp);
-  const targetAge = getAge(targetApp);
-  if (requesterAge === null) return { ok: false, reason: 'age_required' };
-  if (targetAge === null) return { ok: false, reason: 'target_age_required' };
-
   const requesterGender = normalizeGender(requesterApp?.gender);
   const requesterLookingFor = normalizeGender(requesterApp?.lookingForGender);
   const targetGender = normalizeGender(targetApp?.gender);
@@ -180,9 +175,6 @@ function myPoolRuleOk({ requesterApp, targetApp }) {
 
   if (requesterWants && targetGender && targetGender !== requesterWants) return { ok: false, reason: 'gender_mismatch' };
   if (requesterGender && targetGender && requesterGender === targetGender) return { ok: false, reason: 'gender_mismatch' };
-
-  const { min, max } = ageRangeFromApp(requesterApp, { ageOverride: requesterAge });
-  if (targetAge < min || targetAge > max) return { ok: false, reason: 'not_in_my_age_range' };
 
   return { ok: true };
 }
@@ -203,6 +195,11 @@ function buildFromProfile(app) {
     hasChildren: typeof app?.hasChildren === 'boolean' ? app.hasChildren : null,
     wantChildren: typeof app?.wantChildren === 'boolean' ? app.wantChildren : null,
     about: safeStr(app?.about),
+    aboutTr: safeStr(app?.aboutTr),
+    aboutId: safeStr(app?.aboutId),
+    expectations: safeStr(app?.expectations),
+    expectationsTr: safeStr(app?.expectationsTr),
+    expectationsId: safeStr(app?.expectationsId),
     photoUrl: safeStr(myPhotoUrls[0] || ''),
     photoUrls: myPhotoUrls,
   };
@@ -254,6 +251,8 @@ export default async function handler(req, res) {
     try {
       const meUserSnap = await db.collection('matchmakingUsers').doc(uid).get();
       const meUser = meUserSnap.exists ? (meUserSnap.data() || {}) : {};
+
+      await ensureProfileCompleteOrThrow(db, uid);
       ensureEligibleOrThrow(meUser, safeStr(myApp?.gender));
     } catch (e2) {
       res.statusCode = e2?.statusCode || 402;
@@ -264,8 +263,8 @@ export default async function handler(req, res) {
 
     const rule = myPoolRuleOk({ requesterApp: myApp, targetApp });
     if (!rule.ok) {
-      // Pool kuralı: sadece benim yaş aralığım + karşı cins. Aksi durumda istek gönderme.
-      res.statusCode = rule.reason === 'age_required' || rule.reason === 'target_age_required' ? 400 : 403;
+      // Ürün kararı (2026-02): yaş aralığı kuralı yok. Sadece temel uyuşmazlıklarda (örn. cinsiyet) engelle.
+      res.statusCode = 403;
       res.setHeader('content-type', 'application/json');
       res.end(JSON.stringify({ ok: false, error: rule.reason }));
       return;

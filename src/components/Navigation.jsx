@@ -3,9 +3,11 @@ import { useEffect, useMemo, useState } from "react";
 import { Menu } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { isFeatureEnabled } from "../config/siteVariant";
+import { trackClick } from "../utils/clickTracker";
+import { staticAssetUrl } from '../utils/staticAssetUrl';
 
 export default function Navigation({ variant = 'default' } = {}) {
-  const BRAND_LOGO_SRC = "/brand.png";
+  const BRAND_LOGO_SRC = staticAssetUrl('/brand-horizontal-source.jpg');
   const { t, i18n } = useTranslation();
   const location = useLocation();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -25,6 +27,15 @@ export default function Navigation({ variant = 'default' } = {}) {
     return location.pathname.startsWith(path);
   };
 
+  const trackNav = (to) => {
+    try {
+      const dest = String(to || '').trim() || '/';
+      trackClick(`nav_click:${dest}`, { page: String(location.pathname || '/') });
+    } catch {
+      // ignore
+    }
+  };
+
   useEffect(() => {
     setIsMobileMenuOpen(false);
   }, [location.pathname]);
@@ -35,7 +46,7 @@ export default function Navigation({ variant = 'default' } = {}) {
       { to: "/about", label: t("navigation.about"), active: isActive("/about") },
       { to: "/kurumsal", label: t("navigation.corporate"), active: isActive("/kurumsal") },
       ...(showWedding
-        ? [{ to: "/uniqah", label: t("navigation.matchmaking"), active: isActive("/uniqah") }]
+        ? [{ to: "/eslestirme", label: t("navigation.matchmaking"), active: isActive("/eslestirme") }]
         : []),
       ...(showWedding ? [{ to: "/profilim", label: t("navigation.panel"), active: isActive("/profilim") }] : []),
       ...(showWedding
@@ -67,8 +78,8 @@ export default function Navigation({ variant = 'default' } = {}) {
               {/* Mobile */}
               <img
                 src={BRAND_LOGO_SRC}
-                alt="Turk&Indo"
-                className="h-12 w-auto md:hidden"
+                alt="Uniqah"
+                className="h-14 w-auto max-w-[200px] object-contain md:hidden"
                 loading="eager"
                 decoding="async"
               />
@@ -76,8 +87,8 @@ export default function Navigation({ variant = 'default' } = {}) {
               {/* Desktop */}
               <img
                 src={BRAND_LOGO_SRC}
-                alt="Turk&Indo"
-                className="hidden md:block h-14 lg:h-16 w-auto"
+                alt="Uniqah"
+                className="hidden md:block h-16 lg:h-20 w-auto max-w-[260px] lg:max-w-[320px] object-contain"
                 loading="eager"
                 decoding="async"
               />
@@ -85,11 +96,6 @@ export default function Navigation({ variant = 'default' } = {}) {
               <div className="hidden md:block mt-1">
                 {!isWeddingOnly && (
                   <div className="text-[11px] text-slate-700 font-semibold tracking-wide">{t('navigation.taglineTravelOrg')}</div>
-                )}
-                {showWedding && (
-                  <div className="text-[10px] text-slate-600 font-semibold tracking-wide mt-0.5">
-                    {t('navigation.taglineWeddingGuidance')}
-                  </div>
                 )}
               </div>
             </div>
@@ -145,29 +151,29 @@ export default function Navigation({ variant = 'default' } = {}) {
               isActive('/') 
                 ? 'bg-emerald-500 text-white shadow-lg' 
                 : 'text-gray-700 hover:bg-emerald-500 hover:text-white'
-            }`} style={{ fontFamily: '"Poppins", sans-serif' }}>
+            }`} style={{ fontFamily: '"Poppins", sans-serif' }} onClick={() => trackNav('/') }>
               {t('navigation.home')}
             </Link>
             <Link to="/about" className={`px-2 sm:px-3 py-1.5 rounded-full text-xs sm:text-sm font-medium transition-all duration-200 shadow-md hover:shadow-lg whitespace-nowrap ${
               isActive('/about')
                 ? 'bg-emerald-500 text-white shadow-lg'
                 : 'text-gray-700 hover:bg-emerald-500 hover:text-white'
-            }`} style={{ fontFamily: '"Poppins", sans-serif' }}>
+            }`} style={{ fontFamily: '"Poppins", sans-serif' }} onClick={() => trackNav('/about')}>
               {t('navigation.about')}
             </Link>
             <Link to="/kurumsal" className={`px-2 sm:px-3 py-1.5 rounded-full text-xs sm:text-sm font-medium transition-all duration-200 shadow-md hover:shadow-lg whitespace-nowrap ${
               isActive('/kurumsal')
                 ? 'bg-slate-800 text-white shadow-lg'
                 : 'text-slate-700 hover:bg-slate-800 hover:text-white'
-            }`} style={{ fontFamily: '"Poppins", sans-serif' }}>
+            }`} style={{ fontFamily: '"Poppins", sans-serif' }} onClick={() => trackNav('/kurumsal')}>
               {t('navigation.corporate')}
             </Link>
             {showWedding && (
-              <Link to="/uniqah" className={`px-2 sm:px-3 py-1.5 rounded-full text-xs sm:text-sm font-medium transition-all duration-200 shadow-md hover:shadow-lg whitespace-nowrap ${
-                isActive('/uniqah')
+              <Link to="/eslestirme" className={`px-2 sm:px-3 py-1.5 rounded-full text-xs sm:text-sm font-medium transition-all duration-200 shadow-md hover:shadow-lg whitespace-nowrap ${
+                isActive('/eslestirme')
                   ? 'bg-emerald-500 text-white shadow-lg'
                   : 'text-gray-700 hover:bg-emerald-500 hover:text-white'
-              }`} style={{ fontFamily: '"Poppins", sans-serif' }}>
+              }`} style={{ fontFamily: '"Poppins", sans-serif' }} onClick={() => trackNav('/eslestirme')}>
                 {t('navigation.matchmaking')}
               </Link>
             )}
@@ -176,7 +182,7 @@ export default function Navigation({ variant = 'default' } = {}) {
                 isActive('/profilim')
                   ? 'bg-slate-900 text-white shadow-lg'
                   : 'text-slate-800 hover:bg-slate-900 hover:text-white'
-              }`} style={{ fontFamily: '"Poppins", sans-serif' }}>
+              }`} style={{ fontFamily: '"Poppins", sans-serif' }} onClick={() => trackNav('/profilim')}>
                 {t('navigation.panel')}
               </Link>
             )}
@@ -185,7 +191,7 @@ export default function Navigation({ variant = 'default' } = {}) {
                 isActive('/wedding')
                   ? 'bg-emerald-500 text-white shadow-lg'
                   : 'text-gray-700 hover:bg-emerald-500 hover:text-white'
-              }`} style={{ fontFamily: '"Poppins", sans-serif' }}>
+              }`} style={{ fontFamily: '"Poppins", sans-serif' }} onClick={() => trackNav('/wedding')}>
                 {t('navigation.wedding')}
               </Link>
             )}
@@ -193,14 +199,14 @@ export default function Navigation({ variant = 'default' } = {}) {
               isActive('/youtube')
                 ? 'bg-red-500 text-white shadow-lg'
                 : 'text-red-600 hover:bg-red-500 hover:text-white'
-            }`} style={{ fontFamily: '"Poppins", sans-serif' }}>
+            }`} style={{ fontFamily: '"Poppins", sans-serif' }} onClick={() => trackNav('/youtube')}>
               {t('navigation.youtube')}
             </Link>
             <Link to="/contact" className={`px-2 sm:px-3 py-1.5 rounded-full text-xs sm:text-sm font-medium transition-all duration-200 shadow-md hover:shadow-lg whitespace-nowrap ${
               isActive('/contact')
                 ? 'bg-blue-500 text-white shadow-lg'
                 : 'text-blue-600 hover:bg-blue-500 hover:text-white'
-            }`} style={{ fontFamily: '"Poppins", sans-serif' }}>
+            }`} style={{ fontFamily: '"Poppins", sans-serif' }} onClick={() => trackNav('/contact')}>
               {t('navigation.contact')}
             </Link>
             </div>
@@ -222,7 +228,7 @@ export default function Navigation({ variant = 'default' } = {}) {
               <div className="flex items-center justify-center pb-3">
                 <img
                   src={BRAND_LOGO_SRC}
-                  alt="Turk&Indo"
+                  alt="Uniqah"
                   className="h-28 w-auto"
                   loading="eager"
                   decoding="async"
@@ -280,7 +286,10 @@ export default function Navigation({ variant = 'default' } = {}) {
                   <Link
                     key={item.to}
                     to={item.to}
-                    onClick={() => setIsMobileMenuOpen(false)}
+                    onClick={() => {
+                      setIsMobileMenuOpen(false);
+                      trackNav(item.to);
+                    }}
                     className={[
                       "w-full px-4 py-3 rounded-xl text-sm font-semibold transition-colors",
                       item.active ? "bg-emerald-600 text-white" : "bg-slate-50 text-slate-800 hover:bg-slate-100",

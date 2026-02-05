@@ -28,6 +28,12 @@ function deepMerge(base, override) {
 // Indonesian translations: no TR/EN fallback here.
 // Only keys defined below will be shown in Indonesian.
 const overrides = {
+  appErrorBoundary: {
+    title: 'Terjadi kesalahan',
+    body: 'Halaman tidak dapat dimuat. Silakan coba muat ulang.',
+    tryAgain: 'Coba lagi',
+    reload: 'Muat ulang halaman',
+  },
   navigation: {
     siteTitle: "Uniqah",
     siteSubtitle: "PT MoonStar Global Indonesia",
@@ -40,7 +46,7 @@ const overrides = {
     tours: "Paket Tur",
     explore: "Jelajahi",
     wedding: "Panduan Pernikahan",
-    matchmaking: "Uniqah",
+    matchmaking: "Pencocokan",
     panel: "Profil saya",
     documents: "Dokumen",
     youtube: "YouTube",
@@ -50,6 +56,55 @@ const overrides = {
     openMenu: "Buka menu",
     closeMenu: "Tutup menu",
     close: "Tutup",
+  },
+
+  footer: {
+    brandBlurb:
+      'Bagian dari {{company}}. Kami menghubungkan orang dengan penuh perhatian — dari perkenalan hingga pernikahan.',
+    brandsTitle: 'Merek',
+    brandNoteDameturk: '(Turki)',
+    sections: {
+      quickLinks: 'Tautan Cepat',
+      legal: 'Legal',
+      contact: 'Kontak',
+      social: 'Sosial',
+    },
+    links: {
+      membership: 'Keanggotaan',
+      whatsapp: 'WhatsApp',
+    },
+    legal: {
+      userAgreement: 'Perjanjian Penggunaan (Pencocokan)',
+      siteRules: 'Aturan Situs',
+      refundPolicy: 'Kebijakan Pembatalan & Pengembalian Dana',
+      privacyPolicy: 'Kebijakan Privasi',
+    },
+    companyInfo: {
+      title: 'Informasi Perusahaan',
+      labels: {
+        legalName: 'Nama resmi',
+        address: 'Alamat',
+        tax: 'Pajak',
+        nib: 'NIB',
+      },
+    },
+    phoneNotes: {
+      trLine: 'Nomor Turki',
+      idLine: 'Nomor Indonesia',
+    },
+    whatsappMessages: {
+      general: 'Halo, saya ingin bertanya informasi.',
+      wedding: 'Halo, saya ingin informasi tentang panduan pernikahan dan proses Uniqah.',
+      youtube: 'Halo, saya punya pertanyaan tentang konten YouTube Anda.',
+      contact: 'Halo, saya ingin menghubungi Anda.',
+      home: 'Halo, saya sedang melihat situs Anda dan ingin informasi lebih lanjut.',
+    },
+    social: {
+      instagram: 'Instagram',
+      youtube: 'YouTube',
+      whatsapp: 'WhatsApp',
+    },
+    copyright: '© {{year}} {{company}}. Seluruh hak cipta dilindungi.',
   },
 
   admin: {
@@ -327,6 +382,10 @@ const overrides = {
   },
 
   studio: {
+    accessInbox: {
+      openButton: 'Permintaan masuk',
+      openButtonWithCount: 'Permintaan masuk ({{count}})',
+    },
     common: {
       back: 'Kembali',
       open: 'Buka',
@@ -339,10 +398,51 @@ const overrides = {
       profile: 'Profil',
       verified: 'Terverifikasi',
       unknown: 'Tidak diketahui',
+      zoom: 'Perbesar',
+      enlargePhotoAria: 'Perbesar foto {{name}}',
+    },
+
+    presence: {
+      online: 'Online',
+      lastSeenMinutes_one: 'Terakhir aktif: {{count}} menit lalu',
+      lastSeenMinutes_other: 'Terakhir aktif: {{count}} menit lalu',
+      lastSeenHours_one: 'Terakhir aktif: {{count}} jam lalu',
+      lastSeenHours_other: 'Terakhir aktif: {{count}} jam lalu',
+      lastSeenDays_one: 'Terakhir aktif: {{count}} hari lalu',
+      lastSeenDays_other: 'Terakhir aktif: {{count}} hari lalu',
     },
 
     errors: {
       generic: 'Kesalahan',
+    },
+
+    referral: {
+      title: 'Undang Teman',
+      description: 'Undang teman. Setelah kalian berdua menyelesaikan verifikasi identitas, kalian berdua akan mendapat keanggotaan gratis.',
+      myCodeLabel: 'Kode undangan Anda',
+      copy: 'Salin',
+      copied: 'Tersalin.',
+      enterCodeLabel: 'Kode undangan',
+      enterCodePlaceholder: 'UC-1001',
+      acceptButton: 'Konfirmasi kode',
+      invitedByLabel: 'Diundang oleh',
+      claimButton: 'Klaim keanggotaan gratis',
+      statusAccepted: 'Kode undangan tersimpan.',
+      statusAlreadyAccepted: 'Kode undangan ini sudah tersimpan.',
+      statusClaimed: 'Hadiah diterapkan. Keanggotaan Anda diperbarui.',
+      statusAlreadyClaimed: 'Hadiah sudah diklaim.',
+      errors: {
+        referralDisabled: 'Sistem referral sedang dinonaktifkan.',
+        userCodeMissing: 'Kode undangan Anda belum siap. Coba lagi nanti.',
+        invalidInviteCode: 'Kode undangan tidak valid.',
+        inviteCodeNotFound: 'Kode undangan tidak ditemukan.',
+        selfReferralNotAllowed: 'Anda tidak bisa memakai kode Anda sendiri.',
+        alreadyReferred: 'Anda sudah pernah memakai kode undangan.',
+        referralNotFound: 'Data referral tidak ditemukan.',
+        referralNotAccepted: 'Referral belum dikonfirmasi.',
+        referralMismatch: 'Data referral tidak cocok.',
+        verificationRequired: 'Kedua pengguna harus terverifikasi identitas untuk mengklaim hadiah.',
+      },
     },
 
     feedback: {
@@ -398,6 +498,29 @@ const overrides = {
       requested: 'Meminta izin untuk melihat profilmu',
       approve: 'Izinkan',
       reject: 'Tolak',
+      openButton: 'Permintaan masuk',
+      openButtonWithCount: 'Permintaan masuk ({{count}})',
+    },
+
+    inboxModal: {
+      emptyMessages: 'Belum ada pesan baru.',
+      emptyRequests: 'Belum ada permintaan baru.',
+      new: 'Baru',
+      markRead: 'Tandai dibaca',
+      read: 'Dibaca',
+      reviewProfile: 'Tinjau profil',
+      hideProfile: 'Sembunyikan profil',
+      approve: 'Setujui',
+      allow: 'Izinkan',
+      prev: 'Sebelumnya',
+      next: 'Berikutnya',
+      photoAlt: 'Foto',
+      wantChildren: 'Ingin punya anak',
+      requestText: {
+        preMatch: 'Mengirim permintaan pra-kecocokan.',
+        photoAccess: 'Meminta izin untuk melihat foto Anda.',
+        profileAccess: 'Meminta izin untuk melihat profil Anda.',
+      },
     },
 
     pool: {
@@ -407,7 +530,7 @@ const overrides = {
       lastUpdated: 'Otomatis diperbarui (20 dtk).',
       countHint: 'Total: {{total}} • Ditampilkan: {{shown}}',
       filtersHint: 'Rentang usia: {{min}} – {{max}}',
-      empty: 'Tidak ada profil untuk filter ini.',
+      empty: 'Belum ada profil untuk ditampilkan.',
       requestProfileNow: 'Kirim permintaan kecocokan',
       requesting: 'Mengirim…',
       requestSent: 'Terkirim',
@@ -418,11 +541,30 @@ const overrides = {
       notInTheirRangeShort: 'Rentang usia tidak cocok',
     },
 
+    waitingNote: {
+      title: 'Sedang mencari pasangan yang cocok',
+      body:
+        'Kami sedang mencari pasangan yang sesuai dengan informasi profil dan kriteria Anda. Profil yang cocok akan tampil di tab <explore>Jelajah</explore> (Discover). Instal aplikasi dan aktifkan notifikasi agar mendapat pemberitahuan secara instan.',
+    },
+
     paywall: {
       upgradeTitle: 'Perlu keanggotaan',
       upgradeToInteract: 'Keanggotaan aktif diperlukan untuk melakukan ini. Upgrade ke paket berbayar untuk menyukai dan mengirim pesan.',
       upgradeToReply: 'Keanggotaan aktif diperlukan untuk membalas. Upgrade ke paket berbayar untuk mengirim pesan.',
       upgradeCta: 'Upgrade',
+    },
+
+    profileGate: {
+      important: 'PENTING',
+      title: 'Lengkapi profilmu',
+      body: 'Untuk mengaktifkan keanggotaan dan berinteraksi dengan pengguna lain, kamu harus mengisi formulir profil terlebih dahulu. Sampai formulir dikirim, kamu tidak bisa mengirim permintaan atau membalas permintaan yang masuk.',
+      cta: 'Isi formulir profil',
+      badge: 'Pengguna tidak dikenal',
+    },
+
+    membershipModal: {
+      deletePhrase: 'hapus akun saya',
+      deleteTypePrompt: 'Jika Anda benar-benar ingin menghapus akun: ketik "{{phrase}}".',
     },
 
     myInfo: {
@@ -528,7 +670,7 @@ const overrides = {
         reciprocityHint: 'Catatan: Jika Anda menyembunyikan foto dari seseorang, Anda juga tidak bisa melihat foto mereka (resiprositas).',
         reciprocityConfirm:
           'Jika Anda menyembunyikan foto Anda, Anda juga tidak akan bisa melihat foto orang ini (resiprositas). Lanjutkan?',
-        reciprocityBlocked: 'Foto terkunci karena Anda menyembunyikan foto Anda',
+        reciprocityBlocked: 'Foto terkunci: karena Anda menyembunyikan foto Anda.',
       },
       photoAccess: {
         needOtherPermission: 'Untuk melihat foto, Anda harus mendapatkan izin dari pihak lain.',
@@ -608,6 +750,7 @@ const overrides = {
         },
       },
       errors: {
+          goToMatchCard: 'Buka kartu kecocokan',
         activeLocked: 'Saat Anda punya pencocokan aktif, Anda tidak bisa mengirim pesan ke profil lain. Batalkan pencocokan aktif Anda secara mutual terlebih dahulu.',
         shortLimit: 'Anda sudah menggunakan semua pesan singkat (5). Untuk lanjut, setelah saling suka Anda harus memulai pencocokan aktif.',
       },
@@ -694,9 +837,9 @@ const overrides = {
       subscriptionActiveDesc: 'Keanggotaan Anda aktif. Anda dapat mengakses semua fitur.',
       subscriptionPassiveDesc: 'Keanggotaan Anda tidak aktif. Beberapa tindakan mungkin dibatasi tanpa keanggotaan.',
       buySoon: 'Beli keanggotaan (segera)',
-      activateMembership: 'Aktifkan keanggotaan saya',
+      activateMembership: 'Aktifkan akun gratis',
       cancelMembership: 'Batalkan keanggotaan',
-      membershipActivated: 'Keanggotaan diaktifkan.',
+      membershipActivated: 'Akun diaktifkan.',
       membershipCancelled: 'Keanggotaan dibatalkan.',
       confirmCancelMembership: 'Apakah Anda ingin membatalkan keanggotaan?',
       myInfo: 'Info saya',
@@ -711,11 +854,19 @@ const overrides = {
       deleting: 'Menghapus…',
       oldPanel: 'Panel lama (sementara)',
       verifyModalTitle: 'Verifikasi identitas',
+      verifyModalInfo:
+        'Kami melakukan verifikasi identitas agar pengguna saling percaya.\nSetelah disetujui, informasi identitas Anda akan dihapus dari sistem.\nVerifikasi identitas tidak wajib.\nLencana profil terverifikasi dibuat agar Anda terlihat lebih tepercaya.',
+      verifyMethodUpload: 'Unggah foto identitas',
+      verifyMethodWhatsApp: 'Panggilan video WhatsApp',
+      verifyWhatsAppTitle: 'Verifikasi lewat panggilan video WhatsApp',
+      verifyWhatsAppBody: 'Verifikasi dilakukan melalui panggilan video WhatsApp. Anda dapat membuat permintaan dan membuka WhatsApp.',
+      verifyWhatsAppCta: 'Buka WhatsApp',
       idType: 'Jenis ID',
       idTypeTrId: 'ID Nasional',
       idTypePassport: 'Paspor',
       idTypeDriver: 'SIM',
       verifyPhotosHint: 'Foto hanya digunakan untuk verifikasi.',
+      verifyPrivacyNote: 'Tidak perlu menampilkan seluruh identitas; nama/penyebutan dan tanggal lahir sudah cukup.',
       idFront: 'Depan ID',
       idBack: 'Belakang ID',
       selfie: 'Selfie',
@@ -725,7 +876,7 @@ const overrides = {
       confirmDelete: 'Apakah Anda ingin menghapus akun secara permanen? Ini tidak dapat dibatalkan.',
 
       photoPrivacy: {
-        title: 'Privasi foto',
+        title: 'Foto',
         body:
           'Saat Anda memburamkan foto Anda, foto akan tampil blur pada kartu pencocokan dan hanya orang yang Anda izinkan yang dapat melihatnya dengan jelas.',
         toggleLabel: 'Buramkan foto saya',
@@ -769,6 +920,13 @@ const overrides = {
           },
           preparations: {
             title: '2) Persiapan pernikahan',
+            panel: {
+              membership: {
+                title: 'Syarat keanggotaan',
+                lead: 'Syarat keanggotaan:',
+                freeActiveTermsTitle: 'Syarat aktivasi gratis',
+              },
+            },
             items: [
               'Menyiapkan dokumen yang diperlukan',
               'Memulai proses hukum',
@@ -846,7 +1004,7 @@ const overrides = {
       },
       photos: {
         onlyAllowed: 'Hanya yang diberi izin dapat melihat',
-        reciprocityBlocked: 'Foto terkunci karena Anda menyembunyikan foto Anda',
+        reciprocityBlocked: 'Foto terkunci: karena Anda menyembunyikan foto Anda.',
       },
       profileTitle: 'Info profil',
       contactHidden:
@@ -933,14 +1091,14 @@ const overrides = {
   home: {
     hero: {
       badgeCompany: 'Terdaftar di Indonesia: PT MoonStar Global Indonesia',
-      badgeSocial: 'Akun sosial EndonezyaKaşifi',
+      badgeSocial: 'Kanal sosial Uniqah',
       title: 'Uniqah',
-      subtitle: 'Organisasi tur • Panduan pernikahan • Dukungan langsung di lapangan',
+      subtitle: 'Matchmaking • Panduan pernikahan • Dukungan di lapangan di Indonesia',
       description:
-        'Kami menyiapkan paket tur butik untuk bulan madu, eksplorasi, dan liburan di Indonesia, serta rencana perjalanan yang disesuaikan. Selain itu, kami mendampingi pasangan yang menikah di Indonesia dalam urusan hotel, transportasi, penerjemahan, dan proses dokumen resmi secara bertahap.',
+        'Uniqah adalah sistem matchmaking kami yang berfokus pada Indonesia. Kami menargetkan proses yang aman, saling menghormati, dan transparan dengan langkah-langkah yang jelas. Jika diperlukan, kami juga memberi dukungan di lapangan seperti penerjemahan dan panduan langkah resmi.',
       note: 'Didirikan oleh wirausahawan Turki yang tinggal di Indonesia, berbasis di Indonesia.',
-      ctaTours: 'Lihat paket tur',
-      ctaBrochures: 'Unduh brosur PDF',
+      ctaTours: 'Mulai ajukan',
+      ctaBrochures: 'Lihat dokumen',
       ctaTrust: 'Kepercayaan & Legal',
     },
     trust: {
@@ -963,19 +1121,19 @@ const overrides = {
       title: 'Apa yang kami lakukan untuk Anda?',
       cards: {
         joinTours: {
-          title: 'Ikut tur grup',
+          title: 'Dukungan aplikasi & profil',
           description:
-            'Anda dapat ikut paket tur terjadwal ke Bali, Lombok, Komodo, dan pulau Indonesia lainnya sendiri, bersama keluarga, atau teman.',
+            'Dukungan langkah demi langkah untuk aplikasi, pembuatan profil, dan pengelolaan proses.',
         },
         groupTours: {
-          title: 'Organisasi tur korporat',
+          title: 'Koordinasi keluarga/komunitas',
           description:
-            'Untuk perusahaan, sekolah, komunitas, dan kelompok teman, kami menyiapkan tur grup khusus sesuai tanggal, jumlah peserta, dan anggaran; termasuk rapat, acara, dan program team-building.',
+            'Panduan untuk komunikasi keluarga dan koordinasi bila diperlukan.',
         },
         privateTravel: {
-          title: 'Perjalanan pribadi / keluarga',
+          title: 'Panduan praktis',
           description:
-            'Kami menyiapkan rencana liburan Indonesia yang dipersonalisasi mencakup penerbangan, akomodasi, dan rute—agar Anda menjelajah Bali dan sekitarnya dengan ritme sendiri.',
+            'Panduan praktis di lapangan bila diperlukan.',
         },
         wedding: {
           title: 'Konsultasi pernikahan',
@@ -1040,6 +1198,7 @@ const overrides = {
       title: 'Mari kita jelaskan semua hal tentang Indonesia bersama-sama',
       description:
         'Baik tentang paket tur maupun rencana perjalanan pribadi Anda… Tanyakan semuanya, dan kami bantu menyederhanakan prosesnya.',
+      ctaTryFree: 'Coba gratis',
       ctaContact: 'Buka formulir kontak',
       ctaWhatsapp: 'Tanya via WhatsApp',
     },
@@ -1055,7 +1214,7 @@ const overrides = {
       brandLine:
         'adalah merek dari perusahaan {{company}} yang terdaftar di Indonesia. Pihak kontrak dan proses penagihan dilakukan oleh badan hukum ini.',
       documents: 'Dokumen & Kontrak',
-      brochures: 'Brosur tur (PDF)',
+      brochures: 'Dokumen (PDF)',
     },
     brandInfo: {
       title: 'Informasi merek & perusahaan',
@@ -1065,7 +1224,7 @@ const overrides = {
         tax: 'NPWP',
         nib: 'NIB',
       },
-      socialNote: 'Nama akun YouTube dan Instagram kami tetap endonezyakasifi dan mendukung komunikasi merek.',
+      socialNote: 'Kami membagikan konten dan panduan melalui Uniqah.',
     },
     contact: {
       title: 'Kontak & alamat',
@@ -1087,7 +1246,7 @@ const overrides = {
         },
         contract: {
           title: 'Pihak kontrak',
-          body: 'Dalam kontrak paket tur/penjualan jarak jauh, badan hukum yang tercantum adalah {{company}}.',
+          body: 'Dalam kontrak layanan/penjualan jarak jauh, badan hukum yang tercantum adalah {{company}}.',
         },
       },
     },
@@ -1095,8 +1254,8 @@ const overrides = {
       title: 'Pusat dokumen',
       body: 'Semua dokumen, kontrak, dan kebijakan terbaru ada di sini.',
       cta: 'Buka dokumen',
-      brochureNote: 'Jika ingin mengunduh brosur PDF:',
-      brochureLink: 'Brosur Tur',
+      brochureNote: 'Dokumen tambahan:',
+      brochureLink: 'Dokumen',
     },
     otherBrand: {
       title: 'Merek kami yang lain',
@@ -1127,12 +1286,13 @@ const overrides = {
   },
 
   matchmakingHub: {
-    metaTitle: "Uniqah",
+    metaTitle: "Pencocokan",
     badge: "Proses privat & dimoderasi",
     title: "Sistem pencocokan untuk pernikahan",
     description:
       "Sistem pencocokan tertutup yang mempertemukan orang-orang yang serius ingin menikah—dengan syarat yang adil dan aman. Profil tidak publik; sistem menampilkan kandidat paling cocok di panel Anda dan membantu Anda menemukan pasangan yang tepat lebih cepat.",
     actions: {
+      loginExisting: "Masuk jika sudah punya profil",
       apply: "Ajukan pencocokan",
       goPanel: "Profil saya",
       backWedding: "Kembali ke halaman pernikahan",
@@ -1341,6 +1501,12 @@ const overrides = {
       },
       contactPrivacyNotice:
         'Detail kontak Anda (WhatsApp/email/Instagram) bersifat privat. Tidak ditampilkan secara publik saat Anda mengisi formulir maupun di tampilan aplikasi. Detail ini hanya dapat dibagikan kepada orang yang benar-benar cocok dengan Anda setelah periode pencocokan aktif 48 jam, dan hanya dengan persetujuan Anda.',
+      confirmGender: {
+        title: 'Konfirmasi gender',
+        text: 'Anda memilih gender Anda sebagai "{{gender}}". Konfirmasi?',
+        cancel: 'Batal',
+        confirm: 'Konfirmasi',
+      },
       labels: {
         username: 'Nama pengguna',
         fullName: 'Nama lengkap',
@@ -1436,15 +1602,6 @@ const overrides = {
           yes: 'Ya',
           no: 'Tidak',
           unsure: 'Belum yakin',
-      confirmGender: {
-        title: 'Konfirmasi gender',
-        text: 'Anda memilih gender Anda sebagai "{{gender}}". Konfirmasi?',
-        cancel: 'Batal',
-        confirm: 'Konfirmasi',
-      },
-      hints: {
-        lookingForGenderAuto: 'Gender yang Anda cari diatur otomatis berdasarkan gender Anda.',
-      },
           doesntMatter: 'Tidak masalah',
         },
         nationality: {
@@ -1554,6 +1711,7 @@ const overrides = {
         },
       },
       hints: {
+        lookingForGenderAuto: 'Gender yang Anda cari diatur otomatis berdasarkan gender Anda.',
         foreignLanguages: 'Jika tidak ada, pilih “Tidak ada”. Jika memilih “Lainnya”, tuliskan bahasanya.',
         multiSelect: 'Anda dapat memilih lebih dari satu opsi.',
         partnerAgeNeedsYourAge: 'Rentang usia dihitung berdasarkan usia Anda.',
@@ -1570,6 +1728,9 @@ const overrides = {
       submitting: 'Mengirim…',
       success: 'Pengajuan Anda berhasil dikirim.',
       errors: {
+        alreadySubmitted: 'Anda sudah memiliki pengajuan matchmaking. Teks “Tentang saya / Kriteria pasangan” hanya bisa ditulis sekali.',
+        profileTextWriteOnceUsed: 'Teks “Tentang saya” dan “Kriteria pasangan” hanya bisa ditulis sekali dan tidak bisa diubah setelah disimpan.',
+        profileTextPII: 'Jangan menulis info kontak (telepon, email, tautan, Instagram, IBAN, dll.) di “Tentang saya” atau “Kriteria pasangan”.',
         honeypotTriggered: 'Pengiriman diblokir (terdeteksi spam).',
         tooFast: 'Anda mengirim terlalu cepat. Silakan coba lagi.',
         rateLimited: 'Terlalu banyak percobaan. Silakan coba lagi nanti.',
@@ -1681,7 +1842,13 @@ const overrides = {
     googleCta: "Lanjut dengan Google",
     googleSignupCta: "Daftar dengan Google",
     redirecting: "Mengarahkan ke masuk Google…",
-    signupGuide: "Untuk mendaftar, pilih jenis kelamin dan kewarganegaraan, lalu konfirmasi batas usia.",
+    redirectScreen: {
+      title: "Mengalihkan…",
+      body: "Membuka profil Anda. Jika layar ini lama, Anda bisa lanjut lewat tombol di bawah.",
+      goProfile: "Ke profil saya",
+      refresh: "Muat ulang",
+    },
+    signupGuide: "Untuk mendaftar, masukkan jenis kelamin, kewarganegaraan, dan usia Anda.",
     or: "atau",
     labels: {
       email: 'Email',
@@ -1689,12 +1856,14 @@ const overrides = {
       gender: 'Jenis kelamin',
       nationality: 'Kewarganegaraan',
       nationalityOther: 'Kewarganegaraan lain (tulis)',
+      age: 'Usia',
     },
     placeholders: {
       email: 'contoh@email.com',
       password: 'Kata sandi Anda',
       nationality: 'Pilih kewarganegaraan',
       nationalityOther: 'contoh: Jerman',
+      age: 'contoh: 27',
     },
     actions: {
       login: 'Masuk',
@@ -1709,8 +1878,7 @@ const overrides = {
       nationalityTr: 'Turki',
       nationalityId: 'Indonesia',
       nationalityOther: 'Lainnya',
-      ageConfirm: 'Saya mengonfirmasi bahwa saya berusia minimal {{minAge}} tahun. (Buka perjanjian untuk detail)',
-      ageConfirmLink: 'Perjanjian',
+      ageHint: 'Anda harus berusia minimal {{minAge}} tahun.',
     },
     forgotHint: {
       prefix: 'Jika Anda lupa kata sandi, klik',
@@ -1724,6 +1892,19 @@ const overrides = {
     },
     resetSent: 'Tautan reset kata sandi telah dikirim ke email Anda.',
     errors: {
+      noAccountFoundSignupRequired:
+        'Akun tidak ditemukan. Anda perlu mendaftar terlebih dahulu. Kami mengalihkan Anda ke pendaftaran—pilih jenis kelamin/kewarganegaraan, masukkan usia, lalu coba lagi.',
+      accountExistsWithDifferentCredential:
+        'Email ini sudah terdaftar dengan metode lain. Silakan masuk dengan email/kata sandi dulu; setelah itu kami bisa menautkan login Google.',
+      domainNotFound: '(domain tidak ditemukan)',
+      googleFailedDev:
+        'Login Google gagal ({{code}}).\n\nDi Firebase Console → Authentication → Settings → Authorized domains, tambahkan: {{host}}\nJuga periksa VITE_FIREBASE_AUTH_DOMAIN di env Anda.',
+      googleUnauthorizedDomain:
+        'Login Google gagal (unauthorized-domain).\n\nTambahkan domain ini di Firebase Console → Authentication → Settings → Authorized domains: {{host}}',
+      googleOperationNotAllowed:
+        'Login Google dinonaktifkan. Aktifkan penyedia Google di Firebase Console → Authentication → Sign-in method.',
+      firebaseAuthInvalidConfig:
+        'Konfigurasi Firebase Auth tidak valid. Periksa nilai `VITE_FIREBASE_*` di `.env.local` (dan env Vercel).',
       googleFailed: 'Masuk dengan Google gagal.',
       invalidCredential: 'Email atau kata sandi salah (atau akun tidak ditemukan). Jika Anda lupa kata sandi, gunakan “Lupa kata sandi”.',
       invalidEmail: 'Alamat email tampak tidak valid. Silakan periksa dan coba lagi.',
@@ -1733,6 +1914,8 @@ const overrides = {
       genderRequired: 'Pilih jenis kelamin untuk mendaftar.',
       nationalityRequired: 'Pilih kewarganegaraan untuk mendaftar.',
       nationalityOtherRequired: 'Tuliskan kewarganegaraan Anda.',
+      ageRequired: 'Masukkan usia Anda untuk mendaftar.',
+      ageMin: 'Untuk mendaftar, Anda harus berusia minimal {{minAge}} tahun.',
       ageConfirmRequired: 'Untuk mendaftar, Anda harus mengonfirmasi bahwa Anda berusia minimal {{minAge}} tahun.',
       loginFailed: 'Gagal masuk.',
       resetEmailRequired: 'Masukkan email untuk mereset kata sandi.',
@@ -1742,6 +1925,19 @@ const overrides = {
       emailVerificationSend: 'Kirim ulang email verifikasi',
       emailVerificationFailed: 'Email verifikasi gagal dikirim. Silakan coba lagi.',
     },
+  },
+
+  newsletter: {
+    title: 'Buletin Uniqah',
+    subtitle: 'Tinggalkan email Anda untuk menerima pembaruan Uniqah, fitur baru, dan pengumuman penting.',
+    placeholderEmail: 'Alamat email Anda',
+    cta: {
+      subscribe: 'Berlangganan',
+      sending: 'Mengirim…',
+    },
+    success: 'Berhasil disimpan! Terima kasih.',
+    error: 'Email ini sudah terdaftar atau terjadi kesalahan.',
+    privacy: 'Kami menghormati privasi Anda. Anda dapat berhenti berlangganan kapan saja.',
   },
 
   matchmakingPanel: {
@@ -1755,6 +1951,13 @@ const overrides = {
         },
     title: 'Profil Saya',
     subtitle: 'Langkah pencocokan, keanggotaan, dan kontak Anda akan tampil di sini.',
+    studioBanner: {
+      text: 'UI Studio baru sudah tersedia. Beralih untuk tampilan profil + kecocokan yang lebih rapi.',
+    },
+    membershipPromo: {
+      freeLabel: 'Gratis',
+      until: 'Sampai {{date}}',
+    },
     tabs: {
       info: 'Info/Aturan',
       matches: 'Kecocokan saya',
@@ -1811,6 +2014,7 @@ const overrides = {
     actions: {
       logout: 'Keluar',
       profileForm: 'Formulir profil',
+      goToStudio: 'Buka Studio',
       whatsapp: 'Chat via WhatsApp',
       remove: 'Hapus',
       sending: 'Mengirim…',
@@ -1839,6 +2043,8 @@ const overrides = {
       removedCreditNotice: 'Kecocokan ini dihapus dari daftar Anda. 1 kredit diberikan untuk meminta kecocokan baru. Cooldown: {{remaining}}',
     },
     chat: {
+      sidebarTitle: 'Chat',
+      noActiveChat: 'Belum ada chat aktif saat ini.',
       inputPlaceholderShort: 'Tulis pesan singkat…',
       lock48h: {
         approving: 'Menyetujui…',
@@ -1873,12 +2079,12 @@ const overrides = {
       title: 'Aktivasi keanggotaan & pembayaran',
       lead:
         'Anda dapat mengikuti langkah aktivasi/membuka aksi dari sini. Jika keanggotaan Anda belum aktif, lakukan pembayaran dan kirim “laporan pembayaran” dengan bukti/nomor referensi (keanggotaan aktif setelah persetujuan admin).',
-      freePaidMembershipCta: 'Aktifkan keanggotaan saya gratis',
+      freePaidMembershipCta: 'Aktifkan akun gratis',
       paidMembershipCta: 'Aktifkan keanggotaan',
-      freeActiveTitle: 'Wanita: keanggotaan aktif gratis',
+      freeActiveTitle: 'Aktivasi gratis',
       freeActiveBody:
-        'Jika identitas Anda terverifikasi, Anda dapat mengajukan keanggotaan aktif gratis. Ini dapat membuka aksi tanpa keanggotaan berbayar (aturan tidak aktif 48/24 jam berlaku).',
-      freeActiveNeedsVerification: 'Verifikasi identitas diperlukan untuk keanggotaan aktif gratis.',
+        'Jika identitas Anda terverifikasi, Anda dapat mengaktifkan akun secara gratis. (Aturan tidak aktif 48/24 jam berlaku.)',
+      freeActiveNeedsVerification: 'Verifikasi identitas diperlukan untuk aktivasi gratis.',
       paymentTitle: 'Keanggotaan berbayar (bulanan) / pembayaran',
       paymentBody:
         'Untuk mengaktifkan keanggotaan, lakukan pembayaran dengan salah satu metode di bawah ini, lalu kirim laporan pembayaran dengan detail bukti/referensi.',
@@ -1898,9 +2104,9 @@ const overrides = {
       rejectAllFailed: 'Gagal menolak semua.',
       membershipRequired: 'Keanggotaan aktif diperlukan untuk setuju/tolak.',
       verificationRequired: 'Verifikasi identitas diperlukan untuk melakukan aksi ini.',
-      membershipOrVerificationRequired: 'Aksi ini membutuhkan keanggotaan berbayar atau (untuk wanita) verifikasi identitas + keanggotaan aktif gratis.',
-      freeActiveMembershipRequired: 'Aksi ini membutuhkan keanggotaan aktif gratis Anda. Jika sudah terverifikasi, Anda bisa mengajukan dari panel.',
-      freeActiveMembershipBlocked: 'Hak keanggotaan aktif gratis Anda dinonaktifkan. Anda perlu keanggotaan berbayar untuk aksi ini.',
+      membershipOrVerificationRequired: 'Aksi ini membutuhkan akun aktif.',
+      freeActiveMembershipRequired: 'Aksi ini membutuhkan akun aktif.',
+      freeActiveMembershipBlocked: 'Hak aktivasi Anda dinonaktifkan. Anda perlu keanggotaan berbayar untuk aksi ini.',
       otherUserMatched: 'Orang ini sudah cocok dengan orang lain.',
       alreadyMatched: 'Anda sudah memiliki kecocokan.',
       userLocked: 'Proses kecocokan Anda terkunci. Aksi ini tidak diizinkan.',
@@ -1908,7 +2114,7 @@ const overrides = {
       requestNewFailed: 'Tidak bisa meminta kecocokan baru.',
       requestNewRateLimited: 'Anda terlalu sering meminta. Silakan coba lagi nanti.',
       requestNewQuotaExhausted: 'Kuota permintaan kecocokan baru hari ini sudah habis (3/3). Silakan coba lagi besok.',
-      requestNewFreeActiveBlocked: 'Anda tidak bisa meminta kecocokan baru karena hak keanggotaan aktif gratis Anda dibatalkan. Anda perlu keanggotaan berbayar untuk mengaktifkan kembali.',
+      requestNewFreeActiveBlocked: 'Anda tidak bisa meminta kecocokan baru karena hak aktivasi Anda dibatalkan. Anda perlu keanggotaan berbayar untuk mengaktifkan kembali.',
       freeSlotFailed: 'Aksi mengosongkan slot gagal.',
       freeSlotQuotaExhausted: 'Kuota mengosongkan slot hari ini sudah habis (1/1). Silakan coba lagi besok.',
       cooldownActive: 'Silakan tunggu sebentar sebelum mencoba lagi. Sisa: {{remaining}}',
@@ -1926,6 +2132,7 @@ const overrides = {
     application: {
       title: 'Pengajuan Pencocokan Pernikahan',
       empty: 'Anda belum memiliki pengajuan pencocokan.',
+      profileNotCreatedHint: 'Profil Anda belum dibuat. Silakan isi formulir pengajuan terlebih dahulu.',
       goToForm: 'Buka formulir pengajuan',
       fallbackName: 'Pengajuan',
       profileNo: 'Kode Pengajuan',
@@ -1989,14 +2196,15 @@ const overrides = {
       },
       inactive: 'Keanggotaan tidak aktif. Sampai aktif, Anda tidak bisa melihat detail penuh atau memberi suka/tolak.',
       inactiveMale: 'Keanggotaan tidak aktif. Sampai aktif, Anda tidak bisa melihat detail penuh atau memberi suka/tolak.',
-      inactiveFemale: 'Keanggotaan tidak aktif. Pencocokan dan pratinjau terbatas gratis. Untuk melakukan aksi, Anda perlu keanggotaan aktif gratis (dengan verifikasi) atau keanggotaan berbayar.',
-      activeViaVerification: 'Identitas Anda terverifikasi. Untuk melakukan aksi, Anda bisa mengajukan keanggotaan aktif gratis atau membeli keanggotaan berbayar.',
-      freeActiveActive: 'Keanggotaan aktif gratis Anda aktif (melalui verifikasi identitas).',
-      freeActiveTermsTitle: 'Syarat keanggotaan aktif gratis',
-      freeActiveTermsBody: 'Jika Anda mendapatkan keanggotaan aktif gratis lewat verifikasi identitas dan tidak aktif selama 48 jam, keanggotaan aktif gratis akan dibatalkan. Saat mengajukan kembali, batas waktu turun menjadi 24 jam. Jika tetap tidak aktif, Anda tidak bisa mendapatkan keanggotaan aktif gratis sampai membeli keanggotaan berbayar, dan Anda tidak bisa meminta kecocokan baru.',
-      freeActiveApply: 'Ajukan keanggotaan aktif gratis',
+      inactiveFemale: 'Keanggotaan tidak aktif. Untuk beberapa aksi, akun Anda harus aktif.',
+      activeViaVerification: 'Identitas Anda terverifikasi. Anda dapat mengaktifkan akun Anda.',
+      freeActiveActive: 'Akun Anda aktif.',
+      freeActiveTermsTitle: 'Syarat aktivasi gratis',
+      freeActiveTermsBody:
+        'Jika Anda mengaktifkan akun gratis dan tidak aktif selama 48 jam, status aktivasi dapat dibatalkan. Saat mengaktifkan kembali, batas waktu turun menjadi 24 jam. Jika tetap tidak aktif, Anda perlu keanggotaan berbayar untuk mengaktifkan kembali dan meminta kecocokan baru.',
+      freeActiveApply: 'Aktifkan akun gratis',
       freeActiveApplying: 'Mengajukan…',
-      freeActiveApplied: 'Keanggotaan aktif gratis Anda diaktifkan. Durasi: {{hours}} jam.',
+      freeActiveApplied: 'Akun gratis diaktifkan. Durasi: {{hours}} jam.',
       daysLeft_one: 'Sisa waktu: {{count}} hari.',
       daysLeft_other: 'Sisa waktu: {{count}} hari.',
       until: 'Berakhir: {{date}}.',
@@ -2004,18 +2212,17 @@ const overrides = {
     membershipNotice: {
       title: 'Info suka / detail / kontak',
       male: {
-        lead: 'Alur untuk pengguna pria:',
+        lead: 'Akses fitur:',
         points: [
           'Pencocokan dan pratinjau terbatas gratis.',
           'Melihat detail penuh, suka/tolak, dan menghubungi memerlukan membership berbayar.',
         ],
       },
       female: {
-        lead: 'Alur untuk pengguna wanita:',
+        lead: 'Akses fitur:',
         points: [
           'Pencocokan dan pratinjau terbatas gratis.',
-          'Melihat detail penuh, suka/tolak, dan menghubungi memerlukan verifikasi identitas + free active membership atau membership berbayar.',
-          'Free active membership memiliki aturan tidak aktif (lihat bagian syarat di panel).',
+          'Melihat detail penuh, suka/tolak, dan menghubungi memerlukan akun aktif.',
         ],
       },
     },
@@ -2031,11 +2238,11 @@ const overrides = {
           },
           {
             q: 'Apa yang diperlukan untuk suka / detail / kontak?',
-            a: 'Untuk pengguna pria, membership berbayar diperlukan. Untuk pengguna wanita, verifikasi identitas + free active membership atau membership berbayar diperlukan.',
+            a: 'Suka / detail lengkap / kontak memerlukan akun aktif.',
           },
           {
             q: 'Untuk apa verifikasi identitas?',
-            a: 'Sebagai lencana kepercayaan. Membantu proses keluhan dengan bukti dan (untuk wanita) dapat membuka alur free active membership.',
+            a: 'Sebagai lencana kepercayaan. Membantu proses keluhan dengan bukti dan dapat membuka beberapa alur.',
           },
           {
             q: 'Jika ada perilaku mencurigakan/penipuan, apa yang harus saya lakukan?',
@@ -2051,7 +2258,7 @@ const overrides = {
       eligibilityPointMale:
         'Pencocokan dan pratinjau profil tidak memerlukan keanggotaan. Untuk melihat detail penuh, setuju/tolak, atau menghubungi pasangan, Anda perlu keanggotaan aktif.',
       eligibilityPointFemale:
-        'Pencocokan dan pratinjau profil tidak memerlukan keanggotaan. Untuk setuju/tolak atau menghubungi pasangan, Anda perlu verifikasi identitas + free active membership atau keanggotaan berbayar.',
+        'Pencocokan dan pratinjau profil tidak memerlukan keanggotaan. Untuk setuju/tolak atau menghubungi pasangan, Anda perlu akun aktif.',
       points: [
         'Profil tidak bersifat publik. Hanya pengguna yang cocok yang bisa melihat detail satu sama lain.',
         'Di panel Anda ditampilkan maksimal 3 / 5 / 10 kandidat sesuai paket. Menandai satu kandidat tidak menghapus kandidat lain; Anda bisa memilih untuk menampilkan hanya pilihan Anda.',
@@ -2133,7 +2340,7 @@ const overrides = {
       requiredBody: 'Verifikasi identitas adalah lencana kepercayaan. Jika ada pelanggaran aturan, Anda bisa mengajukan keluhan dengan screenshot/bukti.',
       unverifiedTitle: 'Belum terverifikasi (lencana)',
       unverifiedBodyMale: 'Verifikasi identitas bersifat opsional. Catatan: untuk pria, aksi membutuhkan keanggotaan aktif.',
-      unverifiedBodyFemale: 'Verifikasi identitas bersifat opsional. Catatan: wanita bisa menggunakan aksi dengan keanggotaan atau verifikasi identitas.',
+      unverifiedBodyFemale: 'Verifikasi identitas bersifat opsional. Catatan: verifikasi identitas dapat membuka beberapa alur.',
       referenceCode: 'Kode verifikasi',
       manualUpload: {
         title: 'Verifikasi di situs (manual)',
@@ -2169,7 +2376,8 @@ const overrides = {
       cancel: 'Batalkan keanggotaan saya',
       cancelDisabledHint: 'Anda tidak bisa membatalkan sebelum keanggotaan aktif.',
       deleteAccount: 'Hapus akun',
-      deleteTypePrompt: 'Jika Anda benar-benar ingin menghapus akun: ketik "hesabımı sil".',
+      deletePhrase: 'hapus akun saya',
+      deleteTypePrompt: 'Jika Anda benar-benar ingin menghapus akun: ketik "{{phrase}}".',
       deleteFinalConfirm: 'Akun Anda akan dihapus permanen dari sistem. Anda yakin?',
       deleteCancel: 'Batal',
       deleteContinue: 'Lanjutkan',
@@ -2261,6 +2469,26 @@ const overrides = {
       cancelConfirm: 'Yakin ingin membatalkan kecocokan ini?',
       errors: {
         activeLocked: 'Proses kecocokan Anda terkunci. Aksi ini tidak diizinkan.',
+      },
+      proposedActions: {
+        interested: 'Tertarik',
+        notSuitable: 'Tidak cocok',
+      },
+      proposedChat: {
+        title: 'Pesan langsung',
+        noticeTitle: 'Informasi',
+        noticeBody: 'Ini adalah kanal pesan langsung yang terbatas. Harap tulis singkat dan sopan.',
+      },
+      rejectReason: {
+        title: 'Pilih alasan…',
+      },
+      contactShare: {
+        title: 'Berbagi kontak',
+        approved: 'Detail kontak dibagikan dengan persetujuan bersama.',
+        pending: 'Permintaan kontak dikirim. Menunggu persetujuan pihak lain.',
+        lock48h: 'Untuk berbagi nomor telepon, diperlukan 48 jam chat di dalam situs. Sisa waktu: {{time}}.',
+        requestCta: 'Minta berbagi kontak',
+        requestHint: 'Jika pihak lain menyetujui, nomor telepon akan terlihat.',
       },
       presence: {
         online: 'Online',
@@ -2393,6 +2621,7 @@ const overrides = {
         rulesTitle: 'Aturan',
         rulesBody: 'Nomor telepon/WhatsApp, Instagram/Facebook dan link tidak boleh pada tahap ini.',
         empty: 'Belum ada pesan. Anda bisa kirim pesan pertama.',
+        lastMessages: 'Pesan terakhir',
         placeholder: 'Tulis pesan…',
         send: 'Kirim',
         lockedByActive: {
@@ -2453,6 +2682,8 @@ const overrides = {
             locked: 'Tidak bisa dikonfirmasi sebelum 48 jam berlalu.',
             confirmRequired: 'Berbagi kontak memerlukan konfirmasi kecocokan terlebih dahulu.',
             contactLocked: 'Anda tidak bisa mengirim permintaan kontak sebelum 48 jam berlalu.',
+            approveLocked: 'Tidak bisa menyetujui sebelum 48 jam berlalu.',
+            contactNotPending: 'Tidak ada permintaan berbagi kontak yang menunggu untuk disetujui.',
           },
         },
       },
@@ -2547,6 +2778,13 @@ const overrides = {
     downloadPdf: 'Unduh PDF',
     learnMore: 'Pelajari',
     back: 'Kembali',
+    you: 'Kamu',
+    them: 'Dia',
+    enlarge: 'Perbesar',
+    time: {
+      minutesShort: '{{minutes}} mnt',
+      hmShort: '{{h}}j {{m}}mnt',
+    },
     privacySecurity: {
       title: 'Privasi & Keamanan',
       text: 'Halaman ini dilacak dengan Google Analytics. Data Anda dilindungi dengan enkripsi SSL/TLS.',
@@ -2590,12 +2828,12 @@ const overrides = {
     messages: {
       default: 'Halo, saya ingin mendapatkan informasi lebih lanjut.',
       home: 'Halo, saya ingin mendapatkan informasi tentang Uniqah.',
-      explore: 'Halo, saya ingin mendapatkan informasi tentang destinasi di Indonesia.',
-      travel: 'Halo, saya ingin mendapatkan informasi tentang rencana liburan ke Indonesia.',
+      explore: 'Halo, saya ingin mendapatkan informasi lebih lanjut.',
+      travel: 'Halo, saya ingin mendapatkan informasi lebih lanjut.',
       wedding: 'Halo, saya ingin mendapatkan informasi tentang menikah di Indonesia.',
       youtube: 'Halo, saya ingin mendapatkan informasi tentang video YouTube Anda.',
       contact: 'Halo, saya ingin mendapatkan informasi tentang cara menghubungi Anda.',
-      tours: 'Halo, saya ingin mendapatkan informasi tentang paket tur Anda.',
+      tours: 'Halo, saya ingin mendapatkan informasi lebih lanjut.',
       documents: 'Halo, saya ingin mendapatkan informasi tentang dokumen Anda.',
     },
   },
@@ -2604,25 +2842,182 @@ const overrides = {
     hero: {
       title: 'Tentang Kami',
       subtitle:
-        'Kami memudahkan pengalaman perjalanan dan tur Anda di Indonesia selangkah demi selangkah dengan struktur dan pengalaman di lapangan.',
+        'Uniqah adalah sistem pencocokan (matchmaking) dan dukungan perjalanan menuju pernikahan yang berfokus pada Indonesia. Tujuan kami: mempertemukan orang yang tepat melalui proses yang aman, saling menghormati, dan transparan—serta memberi dukungan nyata di lapangan bila diperlukan (penerjemahan, logistik, langkah resmi).',
     },
     brand: {
-      title: 'Uniqah',
+      title: 'Di bawah MoonStar Global Indonesia',
       p1:
-        'Situs ini adalah etalase dan titik kontak layanan yang kami jalankan di bawah PT MoonStar Global Indonesia. Komunikasi merek publik kami dilakukan dengan nama Uniqah.',
+        'Situs ini adalah etalase dan titik kontak layanan Uniqah yang kami jalankan di bawah PT MoonStar Global Indonesia.',
       p2:
-        'MoonStar Global Indonesia dibangun oleh wirausahawan Turki yang tinggal di Indonesia untuk memahami kebutuhan tamu Turki secara langsung dan menyelesaikannya di lapangan.',
+        'MoonStar Global Indonesia didirikan oleh wirausahawan Turki yang tinggal di Indonesia untuk membangun jembatan yang andal antara dua budaya, mengelola proses pernikahan dengan benar, dan menyediakan solusi praktis di lapangan bagi orang yang bepergian ke Indonesia.',
       cards: {
-        toursTitle: 'Organisasi tur',
-        toursDesc: 'Tur terencana dan rencana perjalanan khusus untuk Bali, Lombok, Komodo, dan lainnya.',
-        weddingTitle: 'Panduan pernikahan',
-        weddingDesc: 'Pendampingan menyeluruh termasuk hotel, transportasi, penerjemahan, dan dokumen resmi.',
+        communityContentTitle: 'Konten komunitas',
+        communityContentDesc:
+          'Panduan dan konten bermanfaat tentang hubungan, komunikasi, dan alur proses.',
+        toursTitle: 'Panduan pernikahan',
+        toursDesc: 'Panduan langkah resmi, penerjemahan, dan koordinasi.',
+        weddingTitle: 'Uniqah – Matchmaking',
+        weddingDesc:
+          'Pencocokan serius dengan langkah keamanan, pengelolaan profil, alur chat, dan proses keputusan yang jelas.',
         dameturkTitle: 'DaMeTurk',
         dameturkDesc:
-          'Merek es krim Turki asli kami di bawah PT MoonStar Global Indonesia. Kunjungi dameturk.com untuk detail.',
+          'Produksi dan penjualan es krim Turki asli di Indonesia—dibangun sebagai nilai merek lokal di bawah PT MoonStar Global Indonesia. dameturk.com',
       },
       socialNote:
-        'Nama akun YouTube dan Instagram kami tetap endonezyakasifi dan mendukung merek ini melalui produksi konten.',
+        'Kami mendukung komunitas Uniqah melalui panduan dan konten.',
+    },
+
+    philosophy: {
+      title: 'Cara kami melihat matchmaking',
+      intro:
+        'Bagi kami, pernikahan bukan sekadar bertemu—melainkan perjalanan yang dibangun dengan saling menghormati, kecocokan, dan kepercayaan. Kami membangun Uniqah dengan cara pandang ini: sistem yang memperjelas proses, memprioritaskan keamanan, dan membantu komunikasi yang sehat antara dua budaya.',
+      sections: {
+        direct: {
+          title: 'Sistem + tanggung jawab di lapangan',
+          p1:
+            'Uniqah bukan papan daftar publik. Profil, foto, dan alur proses dirancang untuk mengurangi penyalahgunaan. Bila perlu, kami turun tangan dengan peninjauan manual dan dukungan, serta mengambil tanggung jawab atas prosesnya.',
+          p2:
+            'Tujuan kami adalah lingkungan yang saling menghormati, di mana pengguna yang serius merasa aman dan dapat bertemu orang yang tepat.',
+        },
+        planning: {
+          title: 'Bertahap, fokus pada kecocokan',
+          p1:
+            'Kami tidak menyerahkan semuanya pada kebetulan. Kami memandang pengajuan, pengecekan kelayakan, pembuatan profil, pencocokan, dan chat sebagai alur bertahap. Dengan begitu ekspektasi lebih jelas dan keputusan lebih sehat.',
+          bullets: [
+            'Pengajuan dan pengecekan kelayakan (usia/aturan).',
+            'Pembuatan profil dan verifikasi foto.',
+            'Pencocokan, chat, dan keputusan bersama.',
+            'Penerjemahan dan panduan komunikasi lintas budaya bila diperlukan.',
+          ],
+          p2: 'Dengan demikian proses tetap manusiawi—namun konsisten dan terukur.',
+        },
+        transparency: {
+          title: 'Transparansi dan privasi',
+          p1:
+            'Langkah proses, aturan, dan ekspektasi harus jelas sejak awal. Pada saat yang sama, privasi adalah fondasi: data pribadi dan komunikasi dikelola secara terkendali, dengan kanal dukungan dan pelaporan bila dibutuhkan.',
+        },
+        comfort: {
+          title: 'Komunikasi yang sopan dan batasan',
+          p1:
+            'Saling menghormati, kesopanan, dan menjaga batasan adalah prinsip utama. Komunitas Uniqah memiliki aturan dan mekanisme keamanan untuk menjaga kualitas komunikasi.',
+          p2:
+            'Dengan alur pelaporan, pemblokiran, dan dukungan, kami berupaya mencegah pengalaman negatif terulang.',
+        },
+        guidance: {
+          title: 'Jembatan antara dua budaya',
+          p1:
+            'Jika komunikasi Turki–Indonesia dan perbedaan budaya tidak dikelola dengan baik, proses menjadi lebih sulit. Kami membantu kedua pihak mengekspresikan diri dengan benar melalui penerjemahan, dukungan komunikasi, dan panduan.',
+        },
+        wedding: {
+          title: 'Panduan pernikahan di Indonesia',
+          p1:
+            'Selain matchmaking, kami membimbing pasangan yang merencanakan pernikahan di Indonesia terkait waktu, praktik lokal, dan koordinasi proses.',
+          p2:
+            'Mulai dari dokumen dan janji temu, penerjemahan, akomodasi/transport, hingga perencanaan acara—kami mengambil tanggung jawab sebagai tim di lapangan.',
+        },
+        expectation: {
+          title: 'Ekspektasi jelas, waktu realistis',
+          p1:
+            'Di Uniqah, langkah proses, aturan, dan perkiraan waktu dibicarakan secara terbuka. Pengguna tahu apa yang diharapkan dan bisa melangkah tanpa terburu-buru mengambil keputusan.',
+        },
+      },
+      outro:
+        'Untuk informasi lebih lanjut tentang sistem matchmaking <1>Uniqah</1> dan panduan <3>Pernikahan</3> di Indonesia, Anda dapat melihat halaman tersebut. Untuk teks dan kebijakan resmi, gunakan bagian <5>Dokumen</5>.',
+    },
+
+    story: {
+      title: 'Cerita singkat kami',
+      steps: [
+        'Kami pindah ke Indonesia dan membangun kehidupan serta rutinitas di sini.',
+        'Kami membangun jaringan di lapangan dan komunitas yang memperkuat komunikasi lintas budaya.',
+        'Kami mulai memproduksi konten dan panduan agar proses lebih mudah dipahami.',
+        'Hari ini, kami menjalankan matchmaking Uniqah bersama panduan pernikahan dan layanan pendukung lainnya di bawah MoonStar Global Indonesia.',
+      ],
+      stepLabel: 'Langkah',
+    },
+
+    support: {
+      title: 'Kami membantu Anda dalam hal',
+      items: {
+        joinScheduled: {
+          title: 'Dukungan aplikasi & profil',
+          description:
+            'Dukungan langkah demi langkah untuk aplikasi, pembuatan profil, dan pengelolaan proses.',
+        },
+        translation: {
+          title: 'Dukungan penerjemahan & komunikasi',
+          description:
+            'Kami dapat membantu komunikasi Turki–Indonesia dengan penerjemah untuk chat matchmaking, pertemuan resmi, atau kebutuhan perjalanan—mengurangi hambatan bahasa dan meningkatkan rasa percaya diri.',
+        },
+        privatePlan: {
+          title: 'Perencanaan perjalanan pribadi & bulan madu',
+          description:
+            'Jika Anda ingin merencanakan perjalanan Indonesia atau bulan madu tanpa ikut tur grup, kami menyusun penerbangan, akomodasi, rute harian, dan rekomendasi pengalaman bersama lalu membuat rencana yang sesuai untuk Anda.',
+        },
+        privateGroups: {
+          title: 'Tur khusus untuk perusahaan & grup teman',
+          description:
+            'Untuk perusahaan, komunitas, atau grup teman, kami merancang program tur khusus berdasarkan tanggal, anggaran, dan ekspektasi Anda—serta merencanakan rute, tempo, dan logistik dari awal sampai akhir.',
+        },
+        logistics: {
+          title: 'Perencanaan akomodasi & transportasi',
+          description:
+            'Untuk hotel, penerbangan, transfer, atau sewa mobil, kami membantu Anda memilih opsi yang aman dan sesuai anggaran/kenyamanan Anda.',
+        },
+        wedding: {
+          title: 'Panduan proses pernikahan di Indonesia',
+          description:
+            'Untuk pasangan yang berencana menikah di Indonesia, kami memberi panduan terkait waktu, praktik lokal, penerjemahan, dan koordinasi proses.',
+        },
+      },
+    },
+
+    galleryTeaser: {
+      title: 'Beberapa momen dari kehidupan dan pekerjaan kami',
+      description:
+        'Di bawah ini Anda bisa melihat beberapa momen pilihan dari kehidupan kami di Indonesia, pekerjaan kami di lapangan, dan perjalanan kami. Untuk lebih banyak, silakan kunjungi galeri.',
+      cta: 'Kunjungi galeri untuk melihat semua foto',
+      previewAlt1: 'Momen dari kehidupan kami di Indonesia',
+      previewAlt2: 'Momen dari hari yang kami habiskan bersama di Indonesia',
+      previewAlt3: 'Momen dari kenangan spesial di Indonesia',
+    },
+
+    youtubeHighlights: {
+      title: 'Video yang paling menggambarkan kami',
+      description:
+        'Di kanal YouTube kami, Anda dapat menemukan video tentang kehidupan di Indonesia, budaya, perjalanan, dan pengalaman kami di lapangan. Dua video di bawah ini merangkum pendekatan kami dan dukungan yang kami berikan.',
+      v1Title: 'Kisah pasangan yang kami dukung selama proses pernikahan di Indonesia',
+      v1Desc:
+        'Anda dapat melihat pengalaman pasangan yang menjalani proses pernikahan di Indonesia bersama kami dan bagaimana kami membantu.',
+      v1ThumbAlt: 'Kisah pasangan yang kami dukung selama proses pernikahan di Indonesia',
+      v2Title: 'Anda tidak akan percaya tempat seperti ini ada di Indonesia! Petualangan Citumang',
+      v2Desc: 'Potongan seru tentang alam, petualangan, dan kehidupan sehari-hari di Indonesia.',
+      v2ThumbAlt: 'Video petualangan Citumang',
+    },
+
+    whyUs: {
+      title: 'Kenapa kami?',
+      items: [
+        {
+          title: 'Sistem + pengalaman lapangan',
+          description:
+            'Kami menggabungkan sistem terstruktur dengan pengalaman di lapangan—mengambil tanggung jawab dalam matchmaking, komunikasi, dan panduan proses.',
+        },
+        {
+          title: 'Fokus keamanan dan privasi',
+          description:
+            'Aturan, langkah, dan prinsip privasi jelas. Kami bekerja dengan mekanisme keamanan yang dirancang untuk mengurangi penyalahgunaan.',
+        },
+        {
+          title: 'Komunikasi sehat lintas budaya',
+          description:
+            'Dengan penerjemahan dan panduan komunikasi Turki–Indonesia, kami mengurangi kesalahpahaman dan mendukung proses yang lebih sehat.',
+        },
+      ],
+    },
+
+    modal: {
+      close: 'Tutup',
     },
   },
 
@@ -2682,7 +3077,7 @@ const overrides = {
           'Nama lengkap',
           'Alamat email',
           'Nomor telepon',
-          'Preferensi perjalanan',
+          'Informasi aplikasi/profil',
           'Informasi browser dan perangkat',
         ],
       },
@@ -2690,7 +3085,7 @@ const overrides = {
         title: '3. Penggunaan Data',
         text: 'Data yang dikumpulkan digunakan untuk tujuan berikut:',
         items: [
-          'Menyediakan layanan perjalanan dan pernikahan',
+          'Menyediakan layanan matchmaking dan panduan',
           'Menyediakan komunikasi dan dukungan pelanggan',
           'Meningkatkan situs web',
           'Mengirim pesan pemasaran dan promosi (dengan persetujuan)',
@@ -2709,7 +3104,7 @@ const overrides = {
       contact: {
         title: '6. Kontak',
         text:
-          'Jika Anda memiliki pertanyaan tentang kebijakan privasi ini, Anda dapat menghubungi kami di <emailLink>endonezyakasifi@gmail.com</emailLink>.',
+          'Jika Anda memiliki pertanyaan tentang kebijakan privasi ini, Anda dapat menghubungi kami di <emailLink>{{email}}</emailLink>.',
       },
     },
     lastUpdated: 'Terakhir diperbarui: {{date}}',
@@ -2722,17 +3117,246 @@ const overrides = {
 
   weddingPage: {
     hero: {
+      badge: 'Pendampingan khusus untuk pasangan Turki–Indonesia',
+      title: 'Kami mendampingi persiapan pernikahan Anda di Indonesia',
+      description:
+        'Dokumen, prosedur resmi, komunikasi antar keluarga, dan seluruh proses organisasi di Indonesia kami rencanakan bersama—mengubahnya menjadi perjalanan yang menenangkan, jauh dari pertanyaan yang mengganggu.',
       actions: {
+        openForm: 'Buka Form Rencana Pernikahan',
+        matchmakingHub: 'Pencocokan',
         matchmakingApply: 'Ajukan pencocokan',
+        quickChat: 'Konsultasi cepat via WhatsApp',
+        enableNotifications: 'Aktifkan notifikasi',
+        notificationsEnabled: 'Notifikasi aktif.',
+        notificationsDenied: 'Izin notifikasi tidak diberikan.',
+        notificationsNotSupported: 'Browser ini tidak mendukung notifikasi.',
+        notificationTitle: 'Pesan baru',
+        notificationBody: 'Anda mendapat pesan baru dari pasangan Anda.',
       },
     },
+    whatsapp: {
+      quickChatMessage: 'Halo, saya ingin mendapatkan informasi tentang pernikahan di Indonesia.',
+    },
+    stickyBackToProfile: {
+      label: 'Kembali ke profil saya',
+      aria: 'Kembali ke halaman profil',
+    },
+    intro: {
+      servicesTitle: 'Layanan kami',
+      cards: [
+        {
+          title: 'Dokumen & proses resmi',
+          items: [
+            'Persiapan dan pengecekan semua dokumen yang diperlukan',
+            'Pengajuan resmi pernikahan dan pemantauan proses',
+            'Penyelesaian urusan resmi setelah pernikahan',
+          ],
+        },
+        {
+          title: 'Komunikasi & penerjemahan',
+          items: [
+            'Dukungan komunikasi dengan calon pasangan dan keluarganya',
+            'Penerjemahan untuk WhatsApp dan pertemuan tatap muka',
+            'Jawaban jelas untuk pertanyaan Anda sepanjang proses',
+          ],
+        },
+        {
+          title: 'Transportasi & akomodasi',
+          items: [
+            'Rencana perjalanan bagi yang pertama kali bepergian ke luar negeri',
+            'Pengaturan transportasi kendaraan pribadi di Indonesia',
+            'Perencanaan hotel dan akomodasi',
+          ],
+        },
+        {
+          title: 'Pendampingan berkelanjutan & visa',
+          items: [
+            'Pendampingan tanpa henti hingga pernikahan selesai',
+            'Konsultasi visa dan izin tinggal untuk menetap di Indonesia',
+            'Arahan proses visa pasangan dan izin tinggal untuk tinggal di Turki',
+          ],
+        },
+      ],
+      flexibleTitle: 'Pendekatan layanan yang fleksibel',
+      flexibleP1:
+        'Anda bisa menggunakan semua layanan kami dari A sampai Z, atau meminta dukungan hanya pada bagian yang Anda butuhkan.',
+      flexibleP2:
+        'Anda dapat mengenal proses, kami, dan cara kerja kami lebih dekat dengan menonton video di kanal YouTube kami.',
+      flexibleNote:
+        'Anda dapat mengisi form "Rencana Pernikahan" di bawah, atau meninjau dokumen yang diperlukan secara detail pada tab "Dokumen Pernikahan di Indonesia".',
+    },
+    steps: [
+      {
+        title: 'Kami memahami Anda dan situasi Anda',
+        description:
+          'Anda mengisi form; dengan informasi yang Anda berikan, kami memperjelas kebutuhan Anda.',
+      },
+      {
+        title: 'Kami merencanakan bersama Anda',
+        description:
+          'Dokumen, tanggal, dan langkah proses kami susun bersama sesuai anggaran dan harapan Anda.',
+      },
+      {
+        title: 'Kami mengelola proses langkah demi langkah',
+        description:
+          'Dari kedatangan Anda di Indonesia hingga pernikahan selesai, kami mendampingi di setiap langkah.',
+      },
+    ],
+    images: {
+      prepAlt: 'Detail persiapan pernikahan di Indonesia',
+      ceremonyAlt: 'Upacara pernikahan di Indonesia',
+    },
+    tabs: {
+      plan: 'Rencana Pernikahan',
+      documents: 'Dokumen Pernikahan di Indonesia',
+    },
     plan: {
+      title: 'Sampaikan rencana pernikahan Anda kepada kami',
+      subtitle:
+        'Isi kolom di bawah; kami akan segera menghubungi Anda dengan respons yang sesuai dengan situasi Anda.',
+      successTitle: 'Permintaan Anda berhasil dikirim!',
+      successText: 'Terima kasih telah mengisi form. Kami akan menghubungi Anda dalam 24 jam.',
       form: {
         sections: {
+          basicInfo: {
+            title: '1. Informasi dasar Anda',
+            labels: {
+              name: 'Nama lengkap',
+              phone: 'Nomor kontak',
+              city: 'Kota',
+              age: 'Usia',
+            },
+            placeholders: {
+              name: 'Nama lengkap Anda',
+              phone: '+90 555 034 3852',
+              city: 'Kota Anda',
+              age: 'Usia Anda',
+            },
+          },
           privacyNote:
             'Catatan privasi: Detail pengajuan Anda diproses untuk pencocokan dan keamanan; profil Anda tidak ditampilkan secara publik. Jika ada pelanggaran aturan, Anda dapat menghubungi dukungan dengan bukti (mis. screenshot).',
         },
+        services: {
+          title: '2. Layanan yang Anda butuhkan',
+          hint:
+            'Anda dapat memilih lebih dari satu opsi. Jika Anda belum yakin, Anda bisa membiarkannya kosong.',
+          options: {
+            consulting: 'Konsultasi',
+            paperworkTracking: 'Pelacakan dokumen',
+            familyCommunication: 'Komunikasi antar keluarga',
+            transport: 'Transportasi',
+            interpretation: 'Penerjemahan',
+            ongoingGuidance: 'Pendampingan berkelanjutan sepanjang proses',
+            accommodation: 'Akomodasi',
+            honeymoon: 'Bulan madu',
+          },
+        },
+        schedule: {
+          weddingDateLabel: 'Tanggal pernikahan yang direncanakan',
+          privacyConsent:
+            'Saya telah membaca dan menyetujui <privacyLink>Kebijakan Privasi</privacyLink>.',
+          privacyNote:
+            'Informasi yang Anda bagikan akan digunakan hanya untuk perencanaan pernikahan dan tidak akan dibagikan kepada pihak ketiga.',
+        },
+        actions: {
+          submit: 'Minta penawaran untuk rencana pernikahan saya',
+          submitting: 'Mengirim...',
+        },
+        errors: {
+          privacyConsent: 'Anda harus mengonfirmasi bahwa Anda telah membaca dan menyetujui Kebijakan Privasi.',
+          sendFailed: 'Terjadi kesalahan saat mengirim permintaan Anda. Silakan coba lagi.',
+        },
+        note:
+          'Jika Anda tidak ingin mengisi form, Anda dapat menghubungi kami langsung melalui tombol WhatsApp di bagian bawah halaman.',
       },
+    },
+    documents: {
+      title: 'Dokumen yang diperlukan untuk pernikahan warga asing–Indonesia di Indonesia',
+      subtitle:
+        'Judul-judul di bawah ini hanya informasi umum. Kami akan memeriksa daftar yang tepat dan terbaru sesuai situasi Anda bersama-sama.',
+      foreignSpouse: {
+        title: 'Dokumen untuk pasangan asing',
+        intro: 'Secara umum, ini adalah dokumen utama yang diminta dari pasangan asing:',
+        items: [
+          'Paspor yang masih berlaku (minimal 6 bulan masa berlaku)',
+          'Visa masuk Indonesia atau ITAS/ITAP',
+          'Surat keterangan tidak ada halangan menikah (dari Kedutaan Besar Turki di Indonesia)',
+          'Akte kelahiran (multibahasa)',
+          'Surat keterangan belum menikah (diterjemahkan ke Bahasa Indonesia dan apostille)',
+          'Jika ada: putusan cerai atau akta kematian (diterjemahkan dan dilegalisasi)',
+          'Bukti domisili',
+          'Pas foto diambil dalam 6 bulan terakhir',
+        ],
+      },
+      indonesianSpouse: {
+        title: 'Dokumen untuk pasangan WNI',
+        intro: 'Untuk pasangan WNI, dokumen berikut umumnya diperlukan:',
+        items: [
+          'KTP (kartu tanda penduduk)',
+          'Akte Lahir',
+          'Kartu Keluarga',
+          'Surat keterangan status perkawinan (lajang / cerai / duda/janda)',
+          'Formulir N1–N10 dan persetujuan RW/RT',
+          'Pas foto diambil dalam 6 bulan terakhir',
+        ],
+      },
+      extras: {
+        title: 'Dokumen tambahan yang mungkin diminta',
+        intro:
+          'Tidak wajib untuk setiap kasus, namun di beberapa kota dokumen berikut juga dapat diminta:',
+        items: ['Bukti penghasilan atau laporan keuangan', 'SKCK / catatan kepolisian', 'Surat keterangan sehat', 'Ijazah'],
+      },
+      importantNotes: {
+        title: '📌 Catatan penting',
+        items: [
+          'Untuk banyak dokumen, apostille dan terjemahan Bahasa Indonesia bersifat wajib. (Periksa dengan KUA tempat pasangan Anda terdaftar)',
+          'Satu kesalahan ketik kecil, dokumen yang kurang, atau urutan proses yang salah dapat berdampak buruk pada seluruh pengajuan.',
+          'Dokumen yang diperlukan dan alur kerja dapat berbeda tergantung kota, instansi, dan petugas.',
+        ],
+      },
+      personalDifferences: {
+        title: '⚠️ Perbedaan kondisi pribadi',
+        p1:
+          'Judul-judul ini menjelaskan kerangka umum; faktor seperti pernah menikah, memiliki anak, atau kewarganegaraan dapat mengubah daftar dokumen Anda.',
+        p2:
+          'Kami memverifikasi daftar yang tepat sesuai situasi Anda dan membimbing Anda langkah demi langkah agar semuanya siap dengan benar.',
+      },
+      faqTitle: 'Pertanyaan yang sering diajukan',
+      whatsappCta: {
+        title: 'Masih ragu soal dokumen?',
+        description:
+          'Kirim pesan; berdasarkan kota, kewarganegaraan, dan situasi Anda, mari kita perjelas daftar dokumen terbaru bersama.',
+        action: 'Tanyakan daftar dokumen saya di WhatsApp',
+        message: 'Halo, saya ingin mendapatkan informasi tentang proses pernikahan dan dokumen yang diperlukan di Indonesia.',
+      },
+    },
+    faq: {
+      items: [
+        {
+          q: 'Rata-rata berapa lama proses pernikahan di Indonesia?',
+          a: 'Tergantung kesiapan dokumen, kota tempat mengajukan, dan beban kerja instansi; perencanaan dan prosedur resmi biasanya memakan waktu dari beberapa minggu hingga beberapa bulan.',
+        },
+        {
+          q: 'Apa langkah pertama untuk menikah di Indonesia?',
+          a: 'Langkah pertama adalah memastikan dokumen apa saja yang dibutuhkan untuk kasus Anda. Setelah itu, Anda bisa menghubungi kami via WhatsApp untuk menyusun checklist terbaru berdasarkan kota dan situasi Anda.',
+        },
+        {
+          q: 'Apakah Anda mengelola seluruh proses dari awal sampai akhir?',
+          a: 'Sesuai kebutuhan Anda, kami bisa membantu hanya pada langkah tertentu, atau mengorganisir seluruh dokumen, janji temu, dan prosedur resmi secara menyeluruh.',
+        },
+        {
+          q: 'Bisakah saya mengurus prosesnya sendiri?',
+          a: 'Bisa—namun penting untuk memahami setiap langkah dan dokumen yang diminta secara rinci. Kesalahan kecil, pengajuan yang keliru, atau dokumen yang kurang dapat menyebabkan kerugian waktu dan biaya yang signifikan, serta menambah beban emosional.',
+        },
+      ],
+    },
+    bottomCta: {
+      title: 'Mari rencanakan pernikahan Anda bersama',
+      description: 'Isi form di bawah atau hubungi kami via WhatsApp sekarang juga.',
+      action: 'Tanyakan sekarang di WhatsApp',
+      message: 'Halo, saya ingin mendapatkan informasi tentang paket pernikahan.',
+      note:
+        'Kami membalas dalam Bahasa Turki; jika diperlukan, kami juga membantu Anda berkomunikasi dengan keluarga pasangan dalam Bahasa Indonesia.',
     },
   },
 
@@ -2740,7 +3364,99 @@ const overrides = {
     membership: {
       title: "Syarat keanggotaan",
       lead: "Syarat keanggotaan:",
-      freeActiveTermsTitle: "Syarat keanggotaan aktif gratis",
+      freeActiveTermsTitle: "Syarat aktivasi gratis",
+    },
+  },
+
+  pwa: {
+    install: {
+      title: 'Pasang aplikasi',
+      lead:
+        'Tambahkan ke layar utama agar lebih cepat dibuka. Aktifkan notifikasi untuk mendapat info instan tentang pesan, like, dan permintaan match.',
+      installButton: 'Pasang aplikasi',
+      installed: 'Terpasang',
+      installedHint: 'Aplikasi sudah ada di layar utama. Anda juga bisa mengaktifkan notifikasi.',
+      installAvailableHint: 'Browser Anda mendukung instalasi. Klik untuk memasang.',
+      installNotAvailableHint:
+        'Jika tombol install tidak muncul: buka menu browser lalu pilih “Tambah ke Layar Utama / Pasang aplikasi” (di beberapa perangkat muncul setelah kunjungan pertama via HTTPS).',
+      ios: {
+        title: 'Untuk iPhone/iPad (Safari)',
+        step1: 'Buka situs di Safari.',
+        step2: 'Ketuk Bagikan (kotak + panah).',
+        step3: 'Pilih “Tambah ke Layar Utama” lalu konfirmasi.',
+      },
+      notifications: {
+        title: 'Notifikasi',
+        lead: 'Jika Anda mengaktifkan notifikasi (jika didukung), kami dapat menampilkan notifikasi untuk:',
+        button: 'Aktifkan notifikasi',
+        testButton: 'Kirim notifikasi uji',
+        testHint: 'Aktifkan notifikasi terlebih dulu (registrasi token push).',
+        testTitle: 'Notifikasi uji',
+        testBody: 'Ini adalah notifikasi uji.',
+        testSent: 'Notifikasi uji dikirim (mungkin butuh beberapa detik).',
+        testFailed: 'Notifikasi uji gagal dikirim. (Token tidak ada atau konfigurasi belum lengkap.)',
+        alreadyEnabled: 'Izin notifikasi sudah aktif.',
+        enabled: 'Notifikasi diaktifkan.',
+        enabledButNotSaved:
+          'Izin notifikasi aktif, tetapi token tidak dapat disimpan ke server. Silakan login lalu coba lagi (atau muat ulang halaman).',
+        denied: 'Izin tidak diberikan. Anda bisa mengaktifkannya dari pengaturan browser.',
+        notSupported: 'Notifikasi tidak didukung di perangkat/browser ini.',
+        notSecureContext: 'Notifikasi memerlukan HTTPS. Silakan buka situs melalui https.',
+        serviceWorkerNotReady: 'Sistem notifikasi belum siap. Muat ulang halaman lalu coba lagi.',
+        missingSetup: 'Konfigurasi push belum lengkap: kunci VAPID belum disetel.',
+        invalidVapidKey:
+          'Konfigurasi push tidak valid: kunci VAPID tidak benar. Salin Public key yang benar dari Firebase Console.',
+        notLoggedIn: 'Anda harus login untuk mengaktifkan notifikasi.',
+        testNoTokens: 'Token notifikasi tidak ditemukan. Tekan “Aktifkan notifikasi” lalu coba lagi.',
+        error: 'Notifikasi tidak dapat diaktifkan. Silakan coba lagi.',
+        note:
+          'Catatan: Di beberapa perangkat Anda harus menambahkan aplikasi ke layar utama terlebih dulu. Push saat aplikasi tertutup mungkin memerlukan pengaturan tambahan.',
+        items: {
+          newMessage: 'Pesan baru pada match aktif',
+          newLike: 'Like / interaksi',
+          profileAccess: 'Permintaan/izin melihat profil',
+          shortMessage: 'Pesan singkat / pesan pertama',
+          activeMatch: 'Permintaan/persetujuan match aktif',
+          poolCandidates: 'Kandidat baru di pool',
+        },
+        photos: {
+          showMine: 'Tampilkan foto saya',
+          hideMine: 'Sembunyikan foto saya',
+          reciprocityHint: 'Catatan: Jika Anda menyembunyikan foto Anda, Anda juga tidak bisa melihat foto mereka (resiprositas).',
+          reciprocityConfirm:
+            'Jika Anda menyembunyikan foto Anda, Anda juga tidak bisa melihat foto orang ini (resiprositas). Lanjutkan?',
+          reciprocityBlocked: 'Foto terkunci karena Anda menyembunyikan foto Anda sendiri.',
+        },
+        photoAccess: {
+          needOtherPermission: 'Untuk melihat foto, Anda perlu izin dari pihak lain.',
+          request: 'Minta izin foto',
+          status: {
+            pending: 'Permintaan terkirim (menunggu)',
+            approved: 'Permintaan disetujui',
+            granted: 'Izin sudah diberikan',
+            unknown: 'Status: {{status}}',
+          },
+          actions: {
+            requested: 'Permintaan terkirim',
+            granted: 'Izin diberikan',
+          },
+        },
+      },
+    },
+  },
+
+  memberFeed: {
+    badge: {
+      newUser: 'Baru',
+    },
+    toast: {
+      title: 'Live',
+      closeAria: 'Tutup',
+      generic: 'Ada aktivitas baru.',
+      signupAnonymous: 'Seseorang baru saja bergabung.',
+      signupKnown: '{{label}} baru saja bergabung.',
+      profileCompletedAnonymous: 'Pengguna baru menyelesaikan profilnya.',
+      profileCompletedKnown: '{{label}} menyelesaikan profilnya.',
     },
   },
 };
@@ -2788,7 +3504,7 @@ export default {
       },
     },
   navigation: {
-    siteTitle: "Endonezya Kaşifi",
+    siteTitle: "Uniqah",
     siteSubtitle: "PT MoonStar Global Indonesia",
       taglineTravelOrg: "Organisasi perjalanan",
       taglineWeddingGuidance: "Panduan pernikahan",
@@ -2799,14 +3515,23 @@ export default {
     tours: "Paket Tur",
     explore: "Jelajahi",
     wedding: "Panduan Pernikahan",
-    matchmaking: "Uniqah",
+    matchmaking: "Pencocokan",
     documents: "Dokumen",
     youtube: "YouTube",
     contact: "Kontak",
   },
 
+  ui: {
+    lightbox: {
+      close: 'Tutup',
+      prev: 'Sebelumnya',
+      next: 'Berikutnya',
+      imageAlt: 'Gambar {{index}}',
+    },
+  },
+
   matchmakingHub: {
-    metaTitle: 'Uniqah',
+    metaTitle: 'Pencocokan',
     badge: 'Proses privat & dimoderasi',
     title: 'Sistem pencocokan untuk pernikahan',
     description:
@@ -2855,11 +3580,11 @@ export default {
   },
 
   meta: {
-    baseTitle: "Endonezya Kaşifi | PT MoonStar Global Indonesia",
+    baseTitle: "Uniqah | PT MoonStar Global Indonesia",
             consentsRequired: 'Untuk mengirim, Anda harus menyetujui kotak persetujuan (18+, Kebijakan Privasi, Syarat & Ketentuan, persetujuan foto).',
-      "Endonezya Kaşifi (PT MoonStar Global Indonesia) menyediakan layanan tur di Indonesia, perencanaan perjalanan khusus, bulan madu, serta panduan pernikahan.",
+      "Uniqah (PT MoonStar Global Indonesia) menyediakan layanan matchmaking dan panduan proses pernikahan di Indonesia.",
     pages: {
-      home: { title: "Endonezya Kaşifi | PT MoonStar Global Indonesia" },
+      home: { title: "Uniqah | PT MoonStar Global Indonesia" },
       about: { title: "Tentang Kami" },
       corporate: { title: "Perusahaan" },
       contact: { title: "Kontak" },
@@ -2965,7 +3690,7 @@ export default {
         description:
           "Dokumen, tanggal, dan langkah proses kami susun bersama sesuai anggaran dan harapan Anda.",
       baseDescription:
-        "Endonezya Kaşifi (PT MoonStar Global Indonesia) menyediakan layanan tur di Indonesia, perencanaan perjalanan khusus, bulan madu, serta panduan pernikahan.",
+        "Uniqah (PT MoonStar Global Indonesia) menyediakan layanan matchmaking dan panduan proses pernikahan di Indonesia.",
         title: "Kami mengelola proses langkah demi langkah",
         description:
           "Dari kedatangan Anda di Indonesia hingga pernikahan selesai, kami mendampingi di setiap langkah.",
@@ -3185,7 +3910,7 @@ export default {
     ariaLabel: "Chat lewat WhatsApp",
     messages: {
       default: "Halo, saya ingin mendapatkan informasi lebih lanjut.",
-      home: "Halo, saya ingin mendapatkan informasi tentang Endonezya Kaşifi.",
+      home: "Halo, saya ingin mendapatkan informasi tentang Uniqah.",
       explore: "Halo, saya ingin mendapatkan informasi tentang destinasi di Indonesia.",
       travel: "Halo, saya ingin mendapatkan informasi tentang rencana liburan ke Indonesia.",
       wedding: "Halo, saya ingin mendapatkan informasi tentang menikah di Indonesia.",
@@ -3199,15 +3924,16 @@ export default {
   home: {
     hero: {
       badgeCompany: "Terdaftar di Indonesia: PT MoonStar Global Indonesia",
-      badgeSocial: "akun sosial endonezyakasifi",
-      title: "Endonezya Kaşifi",
-      subtitle: "Organisasi tur • Panduan pernikahan • Dukungan di lapangan",
+      badgeSocial: "kanal sosial Uniqah",
+      title: "Uniqah",
+      subtitle: "Matchmaking • Panduan pernikahan • Dukungan di lapangan di Indonesia",
       description:
-        "Kami merancang paket tur butik dan rencana perjalanan khusus di Indonesia yang berfokus pada bulan madu, eksplorasi, dan liburan. Kami juga membimbing pasangan yang datang ke Indonesia untuk menikah—langkah demi langkah—dalam hotel, transportasi, penerjemahan, dan proses dokumen resmi.",
+        "Uniqah adalah sistem matchmaking kami yang berfokus pada Indonesia. Kami menargetkan proses yang aman, saling menghormati, dan transparan dengan langkah-langkah yang jelas. Jika diperlukan, kami juga memberi dukungan di lapangan seperti penerjemahan, logistik, dan panduan langkah resmi.",
       note: "Struktur berbasis Indonesia yang didirikan oleh wirausahawan Turki yang tinggal di Indonesia.",
-      ctaTours: "Lihat paket tur",
-      ctaBrochures: "Unduh brosur (PDF)",
+      ctaTours: "Mulai ajukan",
+      ctaBrochures: "Lihat dokumen",
       ctaTrust: "Kepercayaan & Legal",
+      ctaHow: "Cara kerja",
     },
     trust: {
       items: [
@@ -3221,43 +3947,39 @@ export default {
         },
         {
           title: "Struktur legal",
-          description: "Endonezya Kaşifi adalah merek di bawah PT MoonStar Global Indonesia di Indonesia.",
+          description: "Uniqah adalah merek di bawah PT MoonStar Global Indonesia di Indonesia.",
         },
       ],
     },
     services: {
       title: "Apa yang kami lakukan untuk Anda?",
       cards: {
-        joinTours: {
-          title: "Ikut tur grup terjadwal",
+        matchmaking: {
+          title: "Matchmaking Uniqah",
           description:
-            "Anda dapat ikut paket tur terencana kami ke Bali, Lombok, Komodo, dan pulau Indonesia lainnya—sendiri, bersama keluarga, atau teman.",
+            "Pengalaman matchmaking yang terstruktur untuk niat serius: pengajuan, kelayakan, alur profil, chat, dan keputusan bersama.",
         },
-        groupTours: {
-          title: "Tur grup perusahaan",
+        communityContent: {
+          title: "Konten komunitas",
+          aria: "Konten komunitas",
           description:
-            "Untuk perusahaan, sekolah, komunitas, dan grup teman kami merencanakan tur grup Indonesia sesuai tanggal, jumlah orang, dan anggaran—termasuk program meeting dan event.",
-        },
-        privateTravel: {
-          title: "Perjalanan pribadi / keluarga",
-          description:
-            "Kami menyiapkan rencana liburan Indonesia khusus termasuk penerbangan, akomodasi, dan rute—agar Anda bisa menjelajahi Bali dan sekitarnya sesuai tempo Anda.",
+            "Kami membagikan panduan dan konten bermanfaat tentang hubungan, komunikasi, dan alur proses untuk komunitas Uniqah.",
         },
         wedding: {
-          title: "Konsultasi pernikahan",
+          title: "Panduan pernikahan di Indonesia",
           description:
-            "Kami mendampingi proses pernikahan Anda—dokumen, prosedur legal, panduan, penerjemahan, transportasi, dan akomodasi—agar pernikahan Anda di Indonesia berjalan lancar.",
+            "Panduan langkah demi langkah untuk dokumen, prosedur lokal, penerjemahan, transportasi, dan akomodasi—agar proses Anda lebih tenang dan mudah dikelola.",
         },
         youtube: {
           title: "Video YouTube",
           description:
-            "Tonton pilihan video dari perjalanan dan proses pernikahan kami di situs ini; temukan lebih banyak di kanal YouTube kami.",
+            "Kenali pendekatan kami lewat video tentang kehidupan di Indonesia, budaya, perjalanan, dan proses pernikahan.",
         },
         dameturk: {
           title: "DaMeTurk (sub-merek)",
           aria: "DaMeTurk - Es krim Turki asli",
           description:
-            "Di bawah PT MoonStar Global Indonesia, kami menjalankan merek DaMeTurk untuk es krim Turki asli di Indonesia. Kunjungi dameturk.com untuk detail dan pembaruan.",
+            "Di bawah PT MoonStar Global Indonesia, kami menjalankan DaMeTurk untuk produksi dan penjualan es krim Turki asli di Indonesia. Kunjungi dameturk.com untuk detail.",
         },
       },
     },
@@ -3266,19 +3988,19 @@ export default {
       title: "Bagaimana prosesnya?",
       steps: [
         {
-          title: "1) Pra-registrasi",
-          description: "Gratis dan tidak mengikat. Kami memahami kebutuhan Anda.",
+          title: "1) Ajukan",
+          description: "Setujui aturan dan selesaikan pengajuan Anda.",
         },
         {
-          title: "2) Paket tertulis",
-          description: "Program + termasuk/tidak termasuk + catatan penting dibagikan secara tertulis.",
+          title: "2) Profil & verifikasi",
+          description: "Buat profil Anda dan jelaskan foto serta detailnya.",
         },
         {
-          title: "3) Persetujuan & pembayaran",
-          description: "Tinjau kontrak → pembayaran → reservasi dikonfirmasi.",
+          title: "3) Pencocokan & chat",
+          description: "Chat dengan match yang sesuai dan putuskan bersama.",
         },
       ],
-      ctaTours: "Lihat paket tur",
+      ctaTours: "Buka Uniqah",
       ctaDocuments: "Dokumen",
     },
 
@@ -3286,28 +4008,46 @@ export default {
       title: "Mengapa lebih mudah bersama kami?",
       items: [
         {
-          title: "Panduan dari pengalaman nyata",
+          title: "Keamanan dan alur proses",
           description:
-            "Kami menggunakan pengalaman tinggal di Indonesia dan mengatur tur di lapangan untuk rute, akomodasi, dan alur harian.",
+            "Tujuan kami bukan pencocokan acak—melainkan lingkungan yang aman dan sopan dengan alur bertahap yang jelas.",
         },
         {
-          title: "Komunikasi sederhana & transparan",
+          title: "Komunikasi jelas",
           description:
-            "Dengan dukungan bahasa Indonesia, Turki, dan Inggris, kami menjelaskan proses dengan jelas sejak awal.",
+            "Dengan dukungan bahasa Turki dan Indonesia, kami membantu kedua pihak menyampaikan maksud dengan benar dan mengurangi salah paham.",
         },
         {
-          title: "Perencanaan sesuai anggaran",
+          title: "Dukungan nyata di lapangan",
           description:
-            "Dengan mempertimbangkan biaya perjalanan, akomodasi, dan pengeluaran harian, kami meminimalkan biaya tak terduga.",
+            "Bila diperlukan, kami memberi dukungan praktis di lapangan untuk matchmaking dan panduan pernikahan.",
+        },
+      ],
+    },
+
+    faq: {
+      title: 'FAQ singkat',
+      items: [
+        {
+          q: 'Apakah pengajuan gratis?',
+          a: 'Memulai pengajuan dan mengisi info dasar gratis. Saat proses berlanjut (verifikasi/keanggotaan/dukungan khusus), detail dan biaya dijelaskan bertahap.',
+        },
+        {
+          q: 'Bagaimana menjaga keamanannya?',
+          a: 'Tujuan kami bukan pencocokan acak. Kami memakai aturan, kontrol kelayakan dasar, dan alur bertahap untuk lingkungan yang lebih aman dan sopan.',
+        },
+        {
+          q: 'Berapa lama prosesnya?',
+          a: 'Tergantung orangnya. Berdasarkan kelengkapan profil, verifikasi, dan kecepatan keputusan bersama, bisa beberapa hari hingga beberapa minggu.',
         },
       ],
     },
 
     cta: {
       eyebrow: "Silakan bertanya",
-      title: "Mari kita jelaskan semuanya tentang Indonesia bersama",
+      title: "Mari kita jelaskan semuanya tentang Uniqah dan proses di Indonesia",
       description:
-        "Baik paket tur maupun rencana perjalanan pribadi Anda… Anda bisa bertanya, dan kami akan membuat prosesnya lebih sederhana dan jelas.",
+        "Alur matchmaking atau panduan pernikahan… tanyakan apa pun dan kita buat prosesnya lebih sederhana dan jelas bersama.",
       ctaContact: "Buka formulir kontak",
       ctaWhatsapp: "Tanya via WhatsApp",
     },
@@ -3317,14 +4057,14 @@ export default {
     hero: {
       title: "Tentang Kami",
       subtitle:
-        "Kami memudahkan pengalaman perjalanan dan tur Anda di Indonesia selangkah demi selangkah dengan struktur dan pengalaman di lapangan.",
+        "Uniqah adalah sistem matchmaking dan panduan proses pernikahan yang berfokus pada Indonesia.",
     },
     brand: {
       title: "Struktur merek",
       p1:
-        "Situs ini adalah etalase dan titik kontak layanan yang kami jalankan di bawah PT MoonStar Global Indonesia. Komunikasi merek publik kami dilakukan dengan nama Endonezya Kaşifi.",
+        "Situs ini adalah etalase dan titik kontak layanan Uniqah yang kami jalankan di bawah PT MoonStar Global Indonesia.",
       p2:
-        "MoonStar Global Indonesia dibangun oleh wirausahawan Turki yang tinggal di Indonesia untuk memahami kebutuhan tamu Turki secara langsung dan menyelesaikannya di lapangan. Paket tur dan komunikasi penjualan dilakukan di bawah merek Endonezya Kaşifi agar lebih mudah dipahami.",
+        "MoonStar Global Indonesia dibangun oleh wirausahawan Turki yang tinggal di Indonesia untuk membangun jembatan komunikasi lintas budaya dan menyediakan dukungan praktis di lapangan.",
       cards: {
         toursTitle: "Organisasi tur",
         toursDesc: "Tur terencana dan rencana perjalanan khusus untuk Bali, Lombok, Komodo, dan lainnya.",
@@ -3335,7 +4075,7 @@ export default {
           "Merek es krim Turki asli kami di bawah PT MoonStar Global Indonesia. Kunjungi dameturk.com untuk detail.",
       },
       socialNote:
-        "Nama akun YouTube dan Instagram kami tetap endonezyakasifi dan mendukung merek ini melalui produksi konten.",
+        "Kami membagikan panduan dan konten melalui Uniqah.",
     },
     philosophy: {
       title: "Cara kami melihat perjalanan",
@@ -3542,7 +4282,15 @@ export default {
     },
     forceInfo: 'Untuk aksi ini diminta masuk ulang. Silakan masuk kembali.',
     googleCta: 'Lanjutkan dengan Google',
+    googleSignupCta: 'Daftar dengan Google',
     redirecting: 'Mengalihkan ke login Google…',
+    redirectScreen: {
+      title: 'Mengalihkan…',
+      body: 'Membuka profil Anda. Jika layar ini lama, Anda bisa lanjut lewat tombol di bawah.',
+      goProfile: 'Ke profil saya',
+      refresh: 'Muat ulang',
+    },
+    signupGuide: 'Untuk mendaftar, masukkan jenis kelamin, kewarganegaraan, dan usia Anda.',
     or: 'atau',
     labels: {
       email: 'Email',
@@ -3550,12 +4298,14 @@ export default {
       gender: 'Jenis kelamin',
       nationality: 'Kewarganegaraan',
       nationalityOther: 'Kewarganegaraan lain (tulis)',
+      age: 'Usia',
     },
     placeholders: {
       email: 'contoh@email.com',
       password: 'Kata sandi Anda',
       nationality: 'Pilih kewarganegaraan',
       nationalityOther: 'contoh: Jerman',
+      age: 'contoh: 27',
     },
     actions: {
       login: 'Masuk',
@@ -3570,8 +4320,7 @@ export default {
       nationalityTr: 'Turki',
       nationalityId: 'Indonesia',
       nationalityOther: 'Lainnya',
-      ageConfirm: 'Saya mengonfirmasi bahwa saya berusia minimal {{minAge}} tahun. (Buka perjanjian untuk detail)',
-      ageConfirmLink: 'Perjanjian',
+      ageHint: 'Anda harus berusia minimal {{minAge}} tahun.',
     },
     forgotHint: {
       prefix: 'Jika Anda lupa kata sandi, klik',
@@ -3585,6 +4334,19 @@ export default {
     },
     resetSent: 'Tautan reset kata sandi telah dikirim ke email Anda.',
     errors: {
+      noAccountFoundSignupRequired:
+        'Akun tidak ditemukan. Anda perlu mendaftar terlebih dahulu. Kami mengalihkan Anda ke pendaftaran—pilih jenis kelamin/kewarganegaraan, masukkan usia, lalu coba lagi.',
+      accountExistsWithDifferentCredential:
+        'Email ini sudah terdaftar dengan metode lain. Silakan masuk dengan email/kata sandi dulu; setelah itu kami bisa menautkan login Google.',
+      domainNotFound: '(domain tidak ditemukan)',
+      googleFailedDev:
+        'Login Google gagal ({{code}}).\n\nDi Firebase Console → Authentication → Settings → Authorized domains, tambahkan: {{host}}\nJuga periksa VITE_FIREBASE_AUTH_DOMAIN di env Anda.',
+      googleUnauthorizedDomain:
+        'Login Google gagal (unauthorized-domain).\n\nTambahkan domain ini di Firebase Console → Authentication → Settings → Authorized domains: {{host}}',
+      googleOperationNotAllowed:
+        'Login Google dinonaktifkan. Aktifkan penyedia Google di Firebase Console → Authentication → Sign-in method.',
+      firebaseAuthInvalidConfig:
+        'Konfigurasi Firebase Auth tidak valid. Periksa nilai `VITE_FIREBASE_*` di `.env.local` (dan env Vercel).',
       googleFailed: 'Masuk dengan Google gagal.',
       invalidCredential: 'Email atau kata sandi salah (atau akun tidak ditemukan). Jika Anda lupa kata sandi, gunakan “Lupa kata sandi”.',
       invalidEmail: 'Alamat email tampak tidak valid. Silakan periksa dan coba lagi.',
@@ -3594,6 +4356,8 @@ export default {
       genderRequired: 'Pilih jenis kelamin untuk mendaftar.',
       nationalityRequired: 'Pilih kewarganegaraan untuk mendaftar.',
       nationalityOtherRequired: 'Tuliskan kewarganegaraan Anda.',
+      ageRequired: 'Masukkan usia Anda untuk mendaftar.',
+      ageMin: 'Untuk mendaftar, Anda harus berusia minimal {{minAge}} tahun.',
       ageConfirmRequired: 'Untuk mendaftar, Anda harus mengonfirmasi bahwa Anda berusia minimal {{minAge}} tahun.',
       loginFailed: 'Gagal masuk.',
       resetEmailRequired: 'Masukkan email untuk mereset kata sandi.',
@@ -3658,6 +4422,7 @@ export default {
       logout: 'Keluar',
       whatsapp: 'Chat via WhatsApp',
       remove: 'Hapus',
+      copy: 'Salin',
       sending: 'Mengirim…',
       pending: 'Menunggu…',
       accept: 'Setujui',
@@ -3686,16 +4451,16 @@ export default {
       rejectAllFailed: 'Gagal menolak semua.',
       membershipRequired: 'Keanggotaan aktif diperlukan untuk setuju/tolak.',
       verificationRequired: 'Verifikasi identitas diperlukan untuk melakukan aksi ini.',
-      membershipOrVerificationRequired: 'Aksi ini membutuhkan keanggotaan berbayar atau (untuk wanita) verifikasi identitas + keanggotaan aktif gratis.',
-      freeActiveMembershipRequired: 'Aksi ini membutuhkan keanggotaan aktif gratis Anda. Jika sudah terverifikasi, Anda bisa mengajukan dari panel.',
-      freeActiveMembershipBlocked: 'Hak keanggotaan aktif gratis Anda dinonaktifkan. Anda perlu keanggotaan berbayar untuk aksi ini.',
+      membershipOrVerificationRequired: 'Aksi ini membutuhkan akun aktif.',
+      freeActiveMembershipRequired: 'Aksi ini membutuhkan akun aktif.',
+      freeActiveMembershipBlocked: 'Hak aktivasi Anda dinonaktifkan. Anda perlu keanggotaan berbayar untuk aksi ini.',
       otherUserMatched: 'Orang ini sudah cocok dengan orang lain.',
       alreadyMatched: 'Anda sudah memiliki kecocokan.',
       userLocked: 'Proses kecocokan Anda terkunci. Aksi ini tidak diizinkan.',
       requestNewFailed: 'Tidak bisa meminta kecocokan baru.',
       requestNewRateLimited: 'Anda terlalu sering meminta. Silakan coba lagi nanti.',
       requestNewQuotaExhausted: 'Kuota permintaan kecocokan baru hari ini sudah habis (3/3). Silakan coba lagi besok.',
-      requestNewFreeActiveBlocked: 'Anda tidak bisa meminta kecocokan baru karena hak keanggotaan aktif gratis Anda dibatalkan. Anda perlu keanggotaan berbayar untuk mengaktifkan kembali.',
+      requestNewFreeActiveBlocked: 'Anda tidak bisa meminta kecocokan baru karena hak aktivasi Anda dibatalkan. Anda perlu keanggotaan berbayar untuk mengaktifkan kembali.',
     },
     afterSubmit: {
       title: 'Pengajuan Anda diterima.',
@@ -3751,14 +4516,15 @@ export default {
       active: 'Keanggotaan Anda aktif.',
       inactive: 'Keanggotaan tidak aktif. Sampai aktif, Anda tidak bisa melihat detail penuh atau memberi suka/tolak.',
       inactiveMale: 'Keanggotaan tidak aktif. Sampai aktif, Anda tidak bisa melihat detail penuh atau memberi suka/tolak.',
-      inactiveFemale: 'Keanggotaan tidak aktif. Pencocokan dan pratinjau terbatas gratis. Untuk melakukan aksi, Anda perlu keanggotaan aktif gratis (dengan verifikasi) atau keanggotaan berbayar.',
-      activeViaVerification: 'Identitas Anda terverifikasi. Untuk melakukan aksi, Anda bisa mengajukan keanggotaan aktif gratis atau membeli keanggotaan berbayar.',
-      freeActiveActive: 'Keanggotaan aktif gratis Anda aktif (melalui verifikasi identitas).',
-      freeActiveTermsTitle: 'Syarat keanggotaan aktif gratis',
-      freeActiveTermsBody: 'Jika Anda mendapatkan keanggotaan aktif gratis lewat verifikasi identitas dan tidak aktif selama 48 jam, keanggotaan aktif gratis akan dibatalkan. Saat mengajukan kembali, batas waktu turun menjadi 24 jam. Jika tetap tidak aktif, Anda tidak bisa mendapatkan keanggotaan aktif gratis sampai membeli keanggotaan berbayar, dan Anda tidak bisa meminta kecocokan baru.',
-      freeActiveApply: 'Ajukan keanggotaan aktif gratis',
+      inactiveFemale: 'Keanggotaan tidak aktif. Untuk beberapa aksi, akun Anda harus aktif.',
+      activeViaVerification: 'Identitas Anda terverifikasi. Anda dapat mengaktifkan akun Anda.',
+      freeActiveActive: 'Akun Anda aktif.',
+      freeActiveTermsTitle: 'Syarat aktivasi gratis',
+      freeActiveTermsBody:
+        'Jika Anda mengaktifkan akun gratis dan tidak aktif selama 48 jam, status aktivasi dapat dibatalkan. Saat mengaktifkan kembali, batas waktu turun menjadi 24 jam. Jika tetap tidak aktif, Anda perlu keanggotaan berbayar untuk mengaktifkan kembali dan meminta kecocokan baru.',
+      freeActiveApply: 'Aktifkan akun gratis',
       freeActiveApplying: 'Mengajukan…',
-      freeActiveApplied: 'Keanggotaan aktif gratis Anda diaktifkan. Durasi: {{hours}} jam.',
+      freeActiveApplied: 'Akun gratis diaktifkan. Durasi: {{hours}} jam.',
       daysLeft_one: 'Sisa waktu: {{count}} hari.',
       daysLeft_other: 'Sisa waktu: {{count}} hari.',
       until: 'Berakhir: {{date}}.',
@@ -3766,18 +4532,17 @@ export default {
     membershipNotice: {
       title: 'Info suka / detail / kontak',
       male: {
-        lead: 'Alur untuk pengguna pria:',
+        lead: 'Akses fitur:',
         points: [
           'Pencocokan dan pratinjau terbatas gratis.',
           'Melihat detail penuh, suka/tolak, dan menghubungi memerlukan membership berbayar.',
         ],
       },
       female: {
-        lead: 'Alur untuk pengguna wanita:',
+        lead: 'Akses fitur:',
         points: [
           'Pencocokan dan pratinjau terbatas gratis.',
-          'Melihat detail penuh, suka/tolak, dan menghubungi memerlukan verifikasi identitas + free active membership atau membership berbayar.',
-          'Free active membership memiliki aturan tidak aktif (lihat bagian syarat di panel).',
+          'Melihat detail penuh, suka/tolak, dan menghubungi memerlukan akun aktif.',
         ],
       },
     },
@@ -3793,11 +4558,11 @@ export default {
           },
           {
             q: 'Apa yang diperlukan untuk suka / detail / kontak?',
-            a: 'Untuk pengguna pria, membership berbayar diperlukan. Untuk pengguna wanita, verifikasi identitas + free active membership atau membership berbayar diperlukan.',
+            a: 'Suka / detail lengkap / kontak memerlukan akun aktif.',
           },
           {
             q: 'Untuk apa verifikasi identitas?',
-            a: 'Sebagai lencana kepercayaan. Membantu proses keluhan dengan bukti dan (untuk wanita) dapat membuka alur free active membership.',
+            a: 'Sebagai lencana kepercayaan. Membantu proses keluhan dengan bukti dan dapat membuka beberapa alur.',
           },
           {
             q: 'Jika ada perilaku mencurigakan/penipuan, apa yang harus saya lakukan?',
@@ -3813,7 +4578,7 @@ export default {
       requiredBody: 'Verifikasi identitas adalah lencana kepercayaan. Jika ada pelanggaran aturan, Anda bisa mengajukan keluhan dengan screenshot/bukti.',
       unverifiedTitle: 'Belum terverifikasi (lencana)',
       unverifiedBodyMale: 'Verifikasi identitas bersifat opsional. Catatan: untuk pria, aksi membutuhkan keanggotaan aktif.',
-      unverifiedBodyFemale: 'Verifikasi identitas bersifat opsional. Catatan: wanita bisa menggunakan aksi dengan keanggotaan atau verifikasi identitas.',
+      unverifiedBodyFemale: 'Verifikasi identitas bersifat opsional. Catatan: verifikasi identitas dapat membuka beberapa alur.',
       referenceCode: 'Kode verifikasi',
       actions: {
         startWhatsapp: 'Verifikasi via WhatsApp',
@@ -4094,14 +4859,23 @@ export default {
         methodQris: 'QRIS',
         methodOther: 'Lainnya',
         reference: 'Referensi / keterangan (opsional)',
+        referenceHint: 'Saat membayar, tulis ini di kolom referensi/deskripsi: {{code}}',
         referencePlaceholder: 'No bukti, keterangan, nama pengirim…',
         note: 'Catatan (opsional)',
         notePlaceholder: 'Tambahkan info jika perlu',
+        noteHelpEftFastWise:
+          'Saat mengirim EFT/transfer (atau Wise/SWIFT), Anda harus menulis kode pengguna MK di atas persis pada kolom “Referensi / Deskripsi” bank.',
+        noteHelpEftFastExtra:
+          'Dengan EFT/FAST, pembayaran masuk ke rekening Turki milik pihak berwenang atas nama perusahaan kami.',
+        noteHelpOther:
+          'Tergantung metode pembayaran, kolom referensi mungkin tidak wajib. Namun tetap simpan info referensi di atas.',
         receipt: 'Bukti bayar (opsional)',
         receiptHelp: 'Anda bisa unggah foto atau tempel tautan bukti bayar di bawah.',
         receiptLink: 'Tautan bukti bayar (opsional)',
         viewReceipt: 'Lihat bukti bayar',
         uploadingReceipt: 'Mengunggah bukti bayar…',
+        receiptViaUpload: 'Unggah bukti pembayaran',
+        receiptViaWhatsapp: 'Saya akan mengirim bukti via WhatsApp',
         sendPayment: 'Kirim pemberitahuan pembayaran ({{amount}} {{currency}})',
         supportWhatsapp: 'Dukungan WhatsApp',
         supportWhatsappMessage: 'Saya butuh bantuan terkait keanggotaan/pembayaran dalam proses pencocokan. Kode Kecocokan: {{matchCode}}',
@@ -4112,7 +4886,7 @@ export default {
       body: 'Tujuan kami adalah membantu orang yang berniat menikah berkenalan dengan aman. Poin di bawah menjelaskan cara kerja sistem sebenarnya.',
       cta: 'Isi formulir pencocokan',
       eligibilityPointMale: 'Pencocokan dan pratinjau profil di dalam situs tidak memerlukan keanggotaan. Untuk melihat detail profil lengkap, setuju/tolak, atau menghubungi pasangan, Anda harus membeli keanggotaan aktif.',
-      eligibilityPointFemale: 'Pencocokan dan melihat info profil terbatas di dalam situs tidak memerlukan keanggotaan. Untuk setuju/tolak dan menghubungi pasangan, Anda harus mengajukan keanggotaan aktif gratis dengan verifikasi identitas atau membeli keanggotaan berbayar.',
+      eligibilityPointFemale: 'Pencocokan dan melihat info profil terbatas di dalam situs tidak memerlukan keanggotaan. Untuk setuju/tolak dan menghubungi pasangan, Anda perlu akun aktif.',
       points: [
         'Profil tidak bersifat publik. Hanya pengguna yang cocok yang bisa melihat detail satu sama lain.',
         'Maksimal 3 / 5 / 10 kandidat ditampilkan sesuai paket. Menandai/memilih kandidat tidak menghapus kandidat lain; Anda bisa memilih untuk menampilkan hanya pilihan Anda.',

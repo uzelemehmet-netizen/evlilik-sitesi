@@ -10,6 +10,7 @@ import { useAuth } from '../../auth/AuthProvider';
 import { db } from '../../config/firebase';
 import { authFetch } from '../../utils/authFetch';
 import { translateStudioApiError } from '../../utils/studioErrorI18n';
+import { getLocalizedProfileText } from '../../utils/profileText';
 
 function safeStr(v) {
   return typeof v === 'string' ? v.trim() : '';
@@ -360,8 +361,8 @@ export default function StudioMatchProfile() {
   const otherHasChildrenRaw = safeStr(otherMerged?.details?.hasChildren);
   const otherChildrenCount = typeof otherMerged?.details?.childrenCount === 'number' ? otherMerged.details.childrenCount : null;
   const otherChildrenLiving = safeStr(otherMerged?.details?.childrenLivingSituation);
-  const otherAbout = safeStr(otherMerged?.about || otherMerged?.bio || otherMerged?.details?.about || otherMerged?.details?.bio);
-  const otherExpectations = safeStr(otherMerged?.expectations || otherMerged?.details?.expectations);
+  const otherAbout = getLocalizedProfileText(otherMerged, 'about', i18n.language);
+  const otherExpectations = getLocalizedProfileText(otherMerged, 'expectations', i18n.language);
 
   const otherPhotos = useMemo(() => {
     const list = Array.isArray(otherMerged?.photoUrls) ? otherMerged.photoUrls : [];

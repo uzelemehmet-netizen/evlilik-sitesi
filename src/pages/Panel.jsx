@@ -4,15 +4,17 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { signOut } from "firebase/auth";
 import { collection, doc, limit, onSnapshot, orderBy, query, where } from "firebase/firestore";
+import { getDownloadURL, ref } from 'firebase/storage';
 import Navigation from "../components/Navigation";
 import Footer from "../components/Footer";
-import { auth, db } from "../config/firebase";
+import { auth, db, storage } from "../config/firebase";
 import { useAuth } from "../auth/AuthProvider";
 import { buildWhatsAppUrl, getWhatsAppNumber } from "../utils/whatsapp";
 import { normalizePhoneForWhatsApp } from "../utils/phone";
 import { authFetch } from "../utils/authFetch";
 import { uploadImageToCloudinaryAuto } from '../utils/cloudinaryUpload';
 import ImageLightbox from '../components/ImageLightbox';
+import { getLocalizedProfileText } from '../utils/profileText';
 
 export default function Panel() {
   const { t, i18n } = useTranslation();
@@ -42,6 +44,15 @@ export default function Panel() {
   const [membershipPromoEnabled, setMembershipPromoEnabled] = useState(null);
   const membershipPromoActive = (membershipPromoEnabled !== false) && Date.now() <= promoCutoffMs;
 
+  const promoCutoffTextShort = useMemo(() => {
+    const locale = i18n?.language === 'id' ? 'id-ID' : i18n?.language === 'en' ? 'en-US' : 'tr-TR';
+    try {
+      return new Intl.DateTimeFormat(locale, { year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(promoCutoffMs));
+    } catch {
+      return '';
+    }
+  }, [i18n?.language, promoCutoffMs]);
+
   const autoMatchRunMinutes = useMemo(() => {
     const raw = Number(import.meta.env.VITE_MATCHMAKING_AUTO_RUN_MINUTES || import.meta.env.VITE_MATCHMAKING_CRON_MINUTES || 10);
     return Number.isFinite(raw) && raw > 0 ? Math.round(raw) : 10;
@@ -57,9 +68,49 @@ export default function Panel() {
   const identityInlinePanelRef = useRef(null);
   const identityInlineButtonRef = useRef(null);
   const [identityInlineOpen, setIdentityInlineOpen] = useState(false);
+  const [identityVerificationMode, setIdentityVerificationMode] = useState('upload'); // upload | whatsapp_call
 
   const [matchmaking, setMatchmaking] = useState(null);
   const [matchmakingLoading, setMatchmakingLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const m = matchmaking;
+    if (!m) return;
+
+    const directUrls = Array.isArray(m.photoUrls) ? m.photoUrls.map(String).map((s) => s.trim()).filter(Boolean) : [];
+    if (directUrls.length) return;
+
+    const paths = Array.isArray(m.photoPaths) ? m.photoPaths.map(String).map((s) => s.trim()).filter(Boolean) : [];
+    if (!paths.length) return;
+
+    (async () => {
+      const resolved = [];
+      for (const p of paths) {
+        if (!p) continue;
+        try {
+          resolved.push(await getDownloadURL(ref(storage, p)));
+        } catch {
+          // ignore
+        }
+      }
+
+      if (cancelled) return;
+      if (!resolved.length) return;
+
+      setMatchmaking((prev) => {
+        if (!prev || prev.id !== m.id) return prev;
+        const prevUrls = Array.isArray(prev.photoUrls) ? prev.photoUrls.filter(Boolean) : [];
+        if (prevUrls.length) return prev;
+        return { ...prev, photoUrls: resolved };
+      });
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [matchmaking?.id, matchmaking?.photoUrls?.length, matchmaking?.photoPaths?.length]);
 
   const [matchmakingUser, setMatchmakingUser] = useState(null);
   const [matchmakingUserLoading, setMatchmakingUserLoading] = useState(true);
@@ -240,6 +291,16 @@ export default function Panel() {
   useEffect(() => {
     if (!identityInlineOpen) return;
 
+    try {
+      const st = String(matchmakingUser?.identityVerification?.status || '').toLowerCase().trim();
+      const m = String(matchmakingUser?.identityVerification?.method || '').toLowerCase().trim();
+      if (st === 'pending' && m === 'whatsapp') {
+        setIdentityVerificationMode('whatsapp_call');
+      }
+    } catch {
+      // ignore
+    }
+
     const onPointerDown = (e) => {
       const panel = identityInlinePanelRef.current;
       const btn = identityInlineButtonRef.current;
@@ -265,7 +326,7 @@ export default function Panel() {
       document.removeEventListener('touchstart', onPointerDown, true);
       window.removeEventListener('keydown', onKeyDown, true);
     };
-  }, [identityInlineOpen]);
+  }, [identityInlineOpen, matchmakingUser?.identityVerification?.status, matchmakingUser?.identityVerification?.method]);
 
   const scrollToIdentityVerification = () => {
     setDashboardTab('profile');
@@ -1385,6 +1446,43 @@ export default function Panel() {
     }
   };
 
+  const startWhatsAppCallVerification = async () => {
+    if (verificationAction.loading) return;
+    if (!whatsappNumber) {
+      setVerificationAction({ loading: false, error: t('matchmakingPanel.verification.errors.whatsappNotConfigured'), result: null });
+      return;
+    }
+
+    setVerificationAction({ loading: true, error: '', result: null });
+    try {
+      const data = await authFetch('/api/matchmaking-verification-select', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ method: 'whatsapp' }),
+      });
+
+      setVerificationAction({ loading: false, error: '', result: data || null });
+
+      const msg = String(data?.whatsappMessage || '').trim();
+      const urlFromServer = String(data?.whatsappUrl || '').trim();
+      const url = urlFromServer || (msg ? buildWhatsAppUrl(msg) : '');
+      if (url) {
+        try {
+          window.open(url, '_blank', 'noopener,noreferrer');
+        } catch {
+          window.location.href = url;
+        }
+      }
+    } catch (e) {
+      const code = String(e?.message || '').trim();
+      const mapped =
+        code === 'whatsapp_not_configured'
+          ? t('matchmakingPanel.verification.errors.whatsappNotConfigured')
+          : (code || t('matchmakingPanel.errors.actionFailed'));
+      setVerificationAction({ loading: false, error: mapped, result: null });
+    }
+  };
+
   const submitManualVerification = async () => {
     if (manualVerificationAction.loading) return;
 
@@ -1549,7 +1647,29 @@ export default function Panel() {
     }
   };
 
-  const isDeleteConfirmTextOk = (norm) => norm === 'hesabımı sil' || norm === 'hesabimi sil';
+  const deleteConfirmPhrase = String(t('matchmakingPanel.membershipModal.deletePhrase') || '').trim();
+  const isDeleteConfirmTextOk = (norm) => {
+    const candidates = [
+      deleteConfirmPhrase,
+      'hesabımı sil',
+      'hesabimi sil',
+      'delete my account',
+      'hapus akun saya',
+    ].map((x) => normalizeDeleteConfirmText(x));
+
+    return candidates.includes(norm);
+  };
+
+  const formatMinutesShort = (mins) => {
+    if (!mins || mins <= 0) return '';
+    return t('common.time.minutesShort', { minutes: mins });
+  };
+
+  const formatHoursMinutesShort = (hours, minutes) => {
+    const h = typeof hours === 'number' && Number.isFinite(hours) ? hours : 0;
+    const m = typeof minutes === 'number' && Number.isFinite(minutes) ? minutes : 0;
+    return t('common.time.hmShort', { h, m });
+  };
 
   const startDeleteAccountFlow = () => {
     if (membershipModalAction.loading) return;
@@ -1583,7 +1703,7 @@ export default function Panel() {
         ? new Intl.DateTimeFormat(locale, { year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(validUntilMs))
         : '';
       const untilTextSlash = validUntilMs
-        ? new Intl.DateTimeFormat('en-GB', { year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(validUntilMs))
+        ? new Intl.DateTimeFormat(locale, { year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(validUntilMs))
         : '';
 
       const promoSuccessText = untilText
@@ -1659,7 +1779,11 @@ export default function Panel() {
 
     const norm = normalizeDeleteConfirmText(membershipDeleteTyped);
     if (!isDeleteConfirmTextOk(norm)) {
-      setMembershipModalAction({ loading: false, error: t('matchmakingPanel.membershipModal.deleteTypePrompt'), success: '' });
+      setMembershipModalAction({
+        loading: false,
+        error: t('matchmakingPanel.membershipModal.deleteTypePrompt', { phrase: deleteConfirmPhrase }),
+        success: '',
+      });
       setMembershipDeleteStep('type');
       return;
     }
@@ -1810,7 +1934,7 @@ export default function Panel() {
         if (creditGranted > 0) {
           const remainingMs = cooldownUntilMs > Date.now() ? cooldownUntilMs - Date.now() : 0;
           const mins = remainingMs > 0 ? Math.ceil(remainingMs / 60000) : 0;
-          const remaining = mins > 0 ? `${mins} dk` : '';
+          const remaining = formatMinutesShort(mins);
           setMatchmakingAction({ loading: false, error: '', success: t('matchmakingPanel.actions.removedCreditNotice', { remaining }) });
           return;
         }
@@ -1859,7 +1983,7 @@ export default function Panel() {
       if (creditGranted > 0) {
         const remainingMs = cooldownUntilMs > Date.now() ? cooldownUntilMs - Date.now() : 0;
         const mins = remainingMs > 0 ? Math.ceil(remainingMs / 60000) : 0;
-        const remaining = mins > 0 ? `${mins} dk` : '';
+        const remaining = formatMinutesShort(mins);
         setDismissAction({ loading: false, error: '', matchId: '' });
         setMatchmakingAction({ loading: false, error: '', success: t('matchmakingPanel.actions.removedCreditNotice', { remaining }) });
         return;
@@ -1888,11 +2012,11 @@ export default function Panel() {
       if (created <= 0) {
         const reason = String(data?.noMatchReason || '').trim();
         const refunded = data?.refunded === true;
-        const hint = refunded ? ' (hak harcanmadı)' : '';
+        const suffix = refunded ? t('matchmakingPanel.hints.creditNotSpentSuffix') : '';
         const msg =
           reason === 'no_candidates'
-            ? `Şu an uygun aday bulunamadı${hint}.` 
-            : `Şu an yeni eşleşme üretilemedi${hint}.`;
+            ? t('matchmakingPanel.errors.noCandidatesNow', { suffix })
+            : t('matchmakingPanel.errors.noMatchGeneratedNow', { suffix });
         setRequestNewAction({ loading: false, error: msg, success: '' });
         return;
       }
@@ -1911,12 +2035,12 @@ export default function Panel() {
       const cooldownUntilMs = typeof e?.details?.cooldownUntilMs === 'number' ? e.details.cooldownUntilMs : 0;
       const remainingMs = cooldownUntilMs > Date.now() ? cooldownUntilMs - Date.now() : 0;
       const mins = remainingMs > 0 ? Math.ceil(remainingMs / 60000) : 0;
-      const remaining = mins > 0 ? `${mins} dk` : '';
+      const remaining = formatMinutesShort(mins);
       const mapped =
         msg === 'quota_exhausted'
           ? t('matchmakingPanel.errors.requestNewQuotaExhausted')
           : msg === 'application_required'
-            ? 'Önce eşleştirme başvurunu tamamlamalısın.'
+            ? t('matchmakingPanel.errors.applicationRequired')
           : msg === 'cooldown_active'
             ? t('matchmakingPanel.errors.cooldownActive', { remaining })
           : msg === 'rate_limited'
@@ -1956,7 +2080,7 @@ export default function Panel() {
       const cooldownUntilMs = typeof data?.cooldownUntilMs === 'number' ? data.cooldownUntilMs : 0;
       const remainingMs = cooldownUntilMs > Date.now() ? cooldownUntilMs - Date.now() : 0;
       const mins = remainingMs > 0 ? Math.ceil(remainingMs / 60000) : 0;
-      const remaining = mins > 0 ? `${mins} dk` : '';
+      const remaining = formatMinutesShort(mins);
       setFreeSlotAction({
         loading: false,
         error: '',
@@ -1968,7 +2092,7 @@ export default function Panel() {
       const cooldownUntilMs = typeof e?.details?.cooldownUntilMs === 'number' ? e.details.cooldownUntilMs : 0;
       const remainingMs = cooldownUntilMs > Date.now() ? cooldownUntilMs - Date.now() : 0;
       const mins = remainingMs > 0 ? Math.ceil(remainingMs / 60000) : 0;
-      const remaining = mins > 0 ? `${mins} dk` : '';
+      const remaining = formatMinutesShort(mins);
       const mapped =
         msg === 'quota_exhausted'
           ? t('matchmakingPanel.errors.requestNewQuotaExhausted')
@@ -2067,11 +2191,11 @@ export default function Panel() {
       const msg = String(e?.message || '').trim();
       const mapped =
         msg === 'contact_locked'
-          ? '48 saat dolmadan onay verilemez.'
+          ? t('matchmakingPanel.matches.chat.confirm48h.errors.approveLocked')
           : msg === 'confirm_required'
             ? t('matchmakingPanel.matches.chat.confirm48h.errors.confirmRequired')
           : msg === 'contact_not_pending'
-            ? 'Onaylanacak bir iletişim isteği yok.'
+            ? t('matchmakingPanel.matches.chat.confirm48h.errors.contactNotPending')
             : msg === 'membership_required'
               ? t('matchmakingPanel.errors.membershipRequired')
               : msg === 'free_active_membership_required'
@@ -2872,7 +2996,9 @@ export default function Panel() {
                 disabled={!!matchCancelById?.[matchId]?.loading}
                 className="px-3 py-2 rounded-full bg-rose-600 text-white text-xs font-semibold hover:bg-rose-700 disabled:opacity-60"
               >
-                {matchCancelById?.[matchId]?.loading ? 'İptal ediliyor…' : 'Eşleşmeyi iptal et'}
+                {matchCancelById?.[matchId]?.loading
+                  ? t('matchmakingPanel.actions.canceling')
+                  : t('matchmakingPanel.matches.interaction.cancel')}
               </button>
             ) : null}
             </div>
@@ -2912,17 +3038,18 @@ export default function Panel() {
               ) : null}
 
               <div className="mt-2 rounded-xl border border-white/10 bg-white/[0.04] p-3 text-sm text-white/85">
-                <p className="font-semibold">İletişim paylaşımı</p>
+                <p className="font-semibold">{t('matchmakingPanel.matches.contactShare.title')}</p>
                 {contactStatus === 'approved' ? (
-                  <p className="mt-1 text-white/70">İletişim bilgileri karşılıklı onayla paylaşıldı.</p>
+                  <p className="mt-1 text-white/70">{t('matchmakingPanel.matches.contactShare.approved')}</p>
                 ) : contactStatus === 'pending' ? (
-                  <p className="mt-1 text-white/70">İletişim isteği gönderildi. Karşı tarafın onayı bekleniyor.</p>
+                  <p className="mt-1 text-white/70">{t('matchmakingPanel.matches.contactShare.pending')}</p>
                 ) : contactLocked ? (
                   <p className="mt-1 text-white/70">
                     {(() => {
                       const h = Math.floor(remainingMs / 3600000);
                       const m = Math.floor((remainingMs % 3600000) / 60000);
-                      return `Telefon numaralarını paylaşmak için 48 saat site içi iletişim gerekli. Kalan süre: ${h}s ${m}dk.`;
+                      const time = formatHoursMinutesShort(h, m);
+                      return t('matchmakingPanel.matches.contactShare.lock48h', { time });
                     })()}
                   </p>
                 ) : !isConfirmed ? (
@@ -2935,9 +3062,9 @@ export default function Panel() {
                       onClick={() => requestContactShare(matchId)}
                       className="px-4 py-2 rounded-full bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700 disabled:opacity-60"
                     >
-                      {requestLoading ? 'Gönderiliyor…' : 'İletişim isteği gönder'}
+                      {requestLoading ? t('matchmakingPanel.actions.sending') : t('matchmakingPanel.matches.contactShare.requestCta')}
                     </button>
-                    <p className="text-xs text-white/60">Karşı taraf onaylarsa telefon numaraları görünür.</p>
+                    <p className="text-xs text-white/60">{t('matchmakingPanel.matches.contactShare.requestHint')}</p>
                   </div>
                 )}
 
@@ -3682,6 +3809,10 @@ export default function Panel() {
       const mapped =
         msg === 'edit_once_used'
           ? t('matchmakingPanel.profileForm.editOnceUsed')
+          : msg === 'profile_text_write_once_used'
+            ? t('matchmakingPage.form.errors.profileTextWriteOnceUsed')
+            : msg === 'profile_text_pii_blocked'
+              ? t('matchmakingPage.form.errors.profileTextPII')
           : msg === 'application_not_found'
             ? t('matchmakingPanel.profileForm.editOnceErrors.notFound')
             : msg === 'empty_update'
@@ -3700,13 +3831,13 @@ export default function Panel() {
         <div className="mx-auto max-w-7xl px-4 mt-4">
           <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
             <div className="text-sm text-white/80">
-              Yeni Studio arayüzü aktif. Daha sade profil + eşleşme görünümü için geçiş yapabilirsiniz.
+              {t('matchmakingPanel.studioBanner.text')}
             </div>
             <Link
               to="/profilim"
               className="inline-flex items-center justify-center rounded-full bg-emerald-500 px-4 py-2 text-sm font-semibold text-slate-950 hover:brightness-110 transition"
             >
-              Studio arayüzüne git
+              {t('matchmakingPanel.actions.goToStudio')}
             </Link>
           </div>
         </div>
@@ -3757,7 +3888,7 @@ export default function Panel() {
                       onChange={(e) => setMembershipDeleteTyped(e.target.value)}
                       disabled={membershipModalAction.loading}
                       className="mt-3 w-full px-4 py-2 rounded-xl border border-white/10 bg-white/5 text-white placeholder:text-white/40 outline-none focus:ring-2 focus:ring-white/20"
-                      placeholder="hesabımı sil"
+                      placeholder={deleteConfirmPhrase}
                     />
                     <div className="mt-3 grid grid-cols-2 gap-2">
                       <button
@@ -3866,8 +3997,8 @@ export default function Panel() {
                                   <div className="text-right">
                                     {isEcoPromo ? (
                                       <>
-                                        <p className="text-sm font-bold text-emerald-200">Ücretsiz</p>
-                                        <p className="mt-0.5 text-[11px] text-white/55">10 Şubat'a kadar</p>
+                                        <p className="text-sm font-bold text-emerald-200">{t('matchmakingPanel.membershipPromo.freeLabel')}</p>
+                                        <p className="mt-0.5 text-[11px] text-white/55">{t('matchmakingPanel.membershipPromo.until', { date: promoCutoffTextShort })}</p>
                                       </>
                                     ) : (
                                       <>
@@ -3961,11 +4092,11 @@ export default function Panel() {
                                 disabled={!paymentReferenceText || membershipPayment.loading}
                                 className="shrink-0 px-3 py-2 rounded-xl border border-white/10 bg-white/10 text-white/85 text-xs font-semibold hover:bg-white/[0.16] disabled:opacity-60"
                               >
-                                Kopyala
+                                {t('matchmakingPanel.actions.copy')}
                               </button>
                             </div>
                             <p className="mt-2 text-[11px] text-white/60">
-                              Ödeme yaparken açıklama/ref. kısmına bu <span className="font-semibold">MK kullanıcı kodunu</span> aynen yazın.
+                              {t('matchmakingPanel.matches.payment.referenceHint', { code: paymentReferenceText || '-' })}
                             </p>
                           </div>
 
@@ -3975,18 +4106,17 @@ export default function Panel() {
                               {(membershipPaymentForm.method === 'eft_fast' || membershipPaymentForm.method === 'swift_wise') ? (
                                 <div className="space-y-2">
                                   <p>
-                                    EFT/Havale (veya Wise/SWIFT) gönderirken bankanın “Açıklama / Reference” alanına yukarıdaki <span className="font-semibold">MK kullanıcı kodunu</span>
-                                    <span className="font-semibold"> tam olarak</span> yazmanız gerekiyor.
+                                    {t('matchmakingPanel.matches.payment.noteHelpEftFastWise')}
                                   </p>
                                   {membershipPaymentForm.method === 'eft_fast' ? (
                                     <p className="text-amber-100/90">
-                                      EFT/FAST seçeneği ile ödemeler şirketimiz adına yetkili kişinin Türkiye hesabına yapılmaktadır.
+                                      {t('matchmakingPanel.matches.payment.noteHelpEftFastExtra')}
                                     </p>
                                   ) : null}
                                 </div>
                               ) : (
                                 <p>
-                                  Ödeme yöntemine göre açıklama alanı gerekmeyebilir. Yine de yukarıdaki referans bilgisini saklayın.
+                                  {t('matchmakingPanel.matches.payment.noteHelpOther')}
                                 </p>
                               )}
                             </div>
@@ -4002,7 +4132,7 @@ export default function Panel() {
                                   onChange={() => setMembershipPaymentForm((p) => ({ ...p, receiptVia: 'upload' }))}
                                   disabled={membershipPayment.loading}
                                 />
-                                Dekont yükle
+                                {t('matchmakingPanel.matches.payment.receiptViaUpload')}
                               </label>
                               <label className="inline-flex items-center gap-2 text-xs text-white/80">
                                 <input
@@ -4011,7 +4141,7 @@ export default function Panel() {
                                   onChange={() => setMembershipPaymentForm((p) => ({ ...p, receiptVia: 'whatsapp', receiptUrl: '' }))}
                                   disabled={membershipPayment.loading}
                                 />
-                                Dekontu WhatsApp’tan göndereceğim
+                                {t('matchmakingPanel.matches.payment.receiptViaWhatsapp')}
                               </label>
                             </div>
 
@@ -4137,7 +4267,7 @@ export default function Panel() {
               <button
                 type="button"
                 onClick={handleLogout}
-                className="w-full sm:w-48 h-8 inline-flex items-center justify-start text-left whitespace-nowrap px-3 rounded-full bg-gradient-to-r from-rose-600 to-rose-500 text-white text-xs font-extrabold tracking-wide shadow-[0_14px_45px_rgba(244,63,94,0.35)] ring-1 ring-rose-200/20 hover:from-rose-500 hover:to-rose-500 transition"
+                className="app-btn app-btn-logout w-full sm:w-48 justify-start"
               >
                 {t('matchmakingPanel.actions.logout')}
               </button>
@@ -4383,11 +4513,11 @@ export default function Panel() {
                       <div className="grid grid-cols-1 gap-3">
                         <div>
                           <p className="text-xs text-white/60">{t('matchmakingPage.form.labels.about')}</p>
-                          <p className="text-sm text-white/80 whitespace-pre-wrap">{matchmaking?.about || '-'}</p>
+                          <p className="text-sm text-white/80 whitespace-pre-wrap">{getLocalizedProfileText(matchmaking, 'about', i18n.language) || '-'}</p>
                         </div>
                         <div>
                           <p className="text-xs text-white/60">{t('matchmakingPage.form.labels.expectations')}</p>
-                          <p className="text-sm text-white/80 whitespace-pre-wrap">{matchmaking?.expectations || '-'}</p>
+                          <p className="text-sm text-white/80 whitespace-pre-wrap">{getLocalizedProfileText(matchmaking, 'expectations', i18n.language) || '-'}</p>
                         </div>
                       </div>
 
@@ -5010,6 +5140,7 @@ export default function Panel() {
 
                     {(() => {
                       const st = String(matchmakingUser?.identityVerification?.status || '').toLowerCase().trim();
+                      const method = String(matchmakingUser?.identityVerification?.method || '').toLowerCase().trim();
                       const ref = String(matchmakingUser?.identityVerification?.referenceCode || '').trim();
                       const files = matchmakingUser?.identityVerification?.files || null;
                       const hasFiles = !!(
@@ -5017,13 +5148,54 @@ export default function Panel() {
                         String(files?.idBackUrl || '').trim() ||
                         String(files?.selfieUrl || '').trim()
                       );
+                      const pendingAny = st === 'pending';
                       const pendingWithFiles = st === 'pending' && hasFiles;
+                      const pendingHint =
+                        pendingAny && method === 'whatsapp'
+                          ? 'WhatsApp görüntülü arama talebiniz alındı. Ekibimiz sizinle WhatsApp üzerinden iletişime geçecek.'
+                          : t('matchmakingPanel.verification.manualUpload.pendingHint');
 
                       return (
                         <div className="mt-3">
+                          <div className="rounded-xl border border-white/10 bg-white/[0.03] p-2">
+                            <div className="grid grid-cols-2 gap-2">
+                              <button
+                                type="button"
+                                onClick={() => setIdentityVerificationMode('upload')}
+                                disabled={pendingAny || manualVerificationAction.loading || verificationAction.loading}
+                                className={
+                                  "px-3 py-2 rounded-xl text-xs font-semibold border transition " +
+                                  (identityVerificationMode === 'upload'
+                                    ? 'bg-white/15 border-white/15 text-white'
+                                    : 'bg-transparent border-white/10 text-white/75 hover:bg-white/10')
+                                }
+                              >
+                                Kimlik yükleme
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setIdentityVerificationMode('whatsapp_call')}
+                                disabled={pendingAny || manualVerificationAction.loading || verificationAction.loading}
+                                className={
+                                  "px-3 py-2 rounded-xl text-xs font-semibold border transition " +
+                                  (identityVerificationMode === 'whatsapp_call'
+                                    ? 'bg-white/15 border-white/15 text-white'
+                                    : 'bg-transparent border-white/10 text-white/75 hover:bg-white/10')
+                                }
+                              >
+                                WhatsApp görüntülü arama
+                              </button>
+                            </div>
+                            {pendingAny ? (
+                              <p className="mt-2 text-[11px] text-white/60">
+                                Başvurunuz inceleniyor. Yöntem: <span className="font-semibold text-white/80">{method || '-'}</span>
+                              </p>
+                            ) : null}
+                          </div>
+
                           {st === 'pending' ? (
                             <div className="rounded-xl border border-amber-300/30 bg-amber-500/10 p-3">
-                              <p className="text-xs font-semibold text-amber-100">{t('matchmakingPanel.verification.manualUpload.pendingHint')}</p>
+                              <p className="text-xs font-semibold text-amber-100">{pendingHint}</p>
                               {ref ? (
                                 <p className="mt-1 text-xs text-white/70">
                                   {t('matchmakingPanel.verification.referenceCode')}: <span className="font-mono">{ref}</span>
@@ -5032,80 +5204,126 @@ export default function Panel() {
                             </div>
                           ) : null}
 
-                          <p className="mt-3 text-xs font-semibold text-white/90">{t('matchmakingPanel.verification.manualUpload.title')}</p>
-                          <p className="mt-1 text-xs text-white/60">{t('matchmakingPanel.verification.manualUpload.lead')}</p>
-
-                          <div className="mt-3 space-y-3">
-                            <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
-                              <p className="text-xs font-semibold text-white/80">{t('matchmakingPanel.verification.manualUpload.idFrontLabel')}</p>
-                              <input
-                                type="file"
-                                accept="image/*"
-                                className="mt-2 block w-full text-xs text-white/80 file:mr-3 file:rounded-lg file:border-0 file:bg-white/10 file:px-3 file:py-2 file:text-xs file:font-semibold file:text-white/90 hover:file:bg-white/15"
-                                onChange={(e) => setManualVerificationFiles((p) => ({ ...p, idFront: e.target.files?.[0] || null }))}
-                                disabled={pendingWithFiles || manualVerificationAction.loading}
-                              />
-                              <p className="mt-2 text-[11px] text-white/60 break-words">
-                                {manualVerificationFiles?.idFront?.name || t('matchmakingPage.form.photo.noFileChosen')}
+                          {identityVerificationMode === 'whatsapp_call' ? (
+                            <div className="mt-3">
+                              <p className="text-xs font-semibold text-white/90">WhatsApp görüntülü arama ile doğrulama</p>
+                              <p className="mt-1 text-xs text-white/60">
+                                WhatsApp üzerinden görüntülü arama ile doğrulama yapılır. Talep oluşturup WhatsApp'ı açabilirsiniz.
                               </p>
-                            </div>
-
-                            <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
-                              <p className="text-xs font-semibold text-white/80">{t('matchmakingPanel.verification.manualUpload.idBackLabel')}</p>
-                              <input
-                                type="file"
-                                accept="image/*"
-                                className="mt-2 block w-full text-xs text-white/80 file:mr-3 file:rounded-lg file:border-0 file:bg-white/10 file:px-3 file:py-2 file:text-xs file:font-semibold file:text-white/90 hover:file:bg-white/15"
-                                onChange={(e) => setManualVerificationFiles((p) => ({ ...p, idBack: e.target.files?.[0] || null }))}
-                                disabled={pendingWithFiles || manualVerificationAction.loading}
-                              />
-                              <p className="mt-2 text-[11px] text-white/60 break-words">
-                                {manualVerificationFiles?.idBack?.name || t('matchmakingPage.form.photo.noFileChosen')}
+                              <p className="mt-2 text-[11px] text-white/70">
+                                Kimliğinizin tamamını göstermenize gerek yok; sadece isim soyisim ve doğum tarihi bizim için yeterli.
                               </p>
-                            </div>
 
-                            <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
-                              <p className="text-xs font-semibold text-white/80">{t('matchmakingPanel.verification.manualUpload.selfieLabel')}</p>
-                              <input
-                                type="file"
-                                accept="image/*"
-                                className="mt-2 block w-full text-xs text-white/80 file:mr-3 file:rounded-lg file:border-0 file:bg-white/10 file:px-3 file:py-2 file:text-xs file:font-semibold file:text-white/90 hover:file:bg-white/15"
-                                onChange={(e) => setManualVerificationFiles((p) => ({ ...p, selfie: e.target.files?.[0] || null }))}
-                                disabled={pendingWithFiles || manualVerificationAction.loading}
-                              />
-                              <p className="mt-2 text-[11px] text-white/60 break-words">
-                                {manualVerificationFiles?.selfie?.name || t('matchmakingPage.form.photo.noFileChosen')}
+                              {verificationAction.error ? (
+                                <div className="mt-3 rounded-lg border border-rose-300/30 bg-rose-500/10 p-2 text-rose-100 text-xs">
+                                  {verificationAction.error}
+                                </div>
+                              ) : null}
+
+                              <button
+                                type="button"
+                                onClick={startWhatsAppCallVerification}
+                                disabled={verificationAction.loading || pendingAny || !whatsappNumber}
+                                className="mt-3 inline-flex items-center justify-center w-full px-3 py-2 rounded-full bg-emerald-300 text-slate-950 text-sm font-semibold hover:bg-emerald-200 disabled:opacity-60"
+                              >
+                                {verificationAction.loading ? 'Hazırlanıyor…' : (pendingAny ? 'Beklemede' : 'WhatsApp\'ı aç')}
+                              </button>
+
+                              {!whatsappNumber ? (
+                                <p className="mt-2 text-[11px] text-white/60">WhatsApp hattı şu an yapılandırılmamış görünüyor.</p>
+                              ) : null}
+
+                              {verificationAction?.result?.referenceCode ? (
+                                <p className="mt-2 text-[11px] text-white/65">
+                                  Referans kodu: <span className="font-mono">{String(verificationAction.result.referenceCode || '')}</span>
+                                </p>
+                              ) : null}
+                            </div>
+                          ) : (
+                            <>
+                              <p className="mt-3 text-xs font-semibold text-white/90">{t('matchmakingPanel.verification.manualUpload.title')}</p>
+                              <p className="mt-1 text-xs text-white/60">{t('matchmakingPanel.verification.manualUpload.lead')}</p>
+                              <p className="mt-2 text-[11px] text-white/70">
+                                Kimliğinizin tamamını göstermenize gerek yok; sadece isim soyisim ve doğum tarihi bizim için yeterli.
                               </p>
-                            </div>
-                          </div>
 
-                          {manualVerificationAction.error ? (
-                            <div className="mt-3 rounded-lg border border-rose-300/30 bg-rose-500/10 p-2 text-rose-100 text-xs">
-                              {manualVerificationAction.error}
-                            </div>
-                          ) : null}
-                          {manualVerificationAction.success ? (
-                            <div className="mt-3 rounded-lg border border-emerald-300/30 bg-emerald-500/10 p-2 text-emerald-100 text-xs">
-                              {manualVerificationAction.success}
-                            </div>
-                          ) : null}
+                              <div className="mt-3 space-y-3">
+                                <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
+                                  <p className="text-xs font-semibold text-white/80">{t('matchmakingPanel.verification.manualUpload.idFrontLabel')}</p>
+                                  <input
+                                    type="file"
+                                    accept="image/*"
+                                    className="mt-2 block w-full text-xs text-white/80 file:mr-3 file:rounded-lg file:border-0 file:bg-white/10 file:px-3 file:py-2 file:text-xs file:font-semibold file:text-white/90 hover:file:bg-white/15"
+                                    onChange={(e) => setManualVerificationFiles((p) => ({ ...p, idFront: e.target.files?.[0] || null }))}
+                                    disabled={pendingAny || manualVerificationAction.loading}
+                                  />
+                                  <p className="mt-2 text-[11px] text-white/60 break-words">
+                                    {manualVerificationFiles?.idFront?.name || t('matchmakingPage.form.photo.noFileChosen')}
+                                  </p>
+                                </div>
 
-                          {(pendingWithFiles || !!manualVerificationAction.success) ? (
-                            <p className="mt-2 text-[11px] text-white/65">
-                              {t('matchmakingPanel.verification.manualUpload.reviewNote')}
-                            </p>
-                          ) : null}
+                                <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
+                                  <p className="text-xs font-semibold text-white/80">{t('matchmakingPanel.verification.manualUpload.idBackLabel')}</p>
+                                  <input
+                                    type="file"
+                                    accept="image/*"
+                                    className="mt-2 block w-full text-xs text-white/80 file:mr-3 file:rounded-lg file:border-0 file:bg-white/10 file:px-3 file:py-2 file:text-xs file:font-semibold file:text-white/90 hover:file:bg-white/15"
+                                    onChange={(e) => setManualVerificationFiles((p) => ({ ...p, idBack: e.target.files?.[0] || null }))}
+                                    disabled={pendingAny || manualVerificationAction.loading}
+                                  />
+                                  <p className="mt-2 text-[11px] text-white/60 break-words">
+                                    {manualVerificationFiles?.idBack?.name || t('matchmakingPage.form.photo.noFileChosen')}
+                                  </p>
+                                </div>
 
-                          <button
-                            type="button"
-                            onClick={submitManualVerification}
-                            disabled={pendingWithFiles || manualVerificationAction.loading}
-                            className="mt-3 inline-flex items-center justify-center w-full px-3 py-2 rounded-full bg-white/10 border border-white/10 text-white/90 text-sm font-semibold hover:bg-white/[0.16] disabled:opacity-60"
-                          >
-                            {manualVerificationAction.loading
-                              ? t('matchmakingPanel.verification.manualUpload.uploading')
-                              : t('matchmakingPanel.verification.manualUpload.submit')}
-                          </button>
+                                <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
+                                  <p className="text-xs font-semibold text-white/80">{t('matchmakingPanel.verification.manualUpload.selfieLabel')}</p>
+                                  <input
+                                    type="file"
+                                    accept="image/*"
+                                    className="mt-2 block w-full text-xs text-white/80 file:mr-3 file:rounded-lg file:border-0 file:bg-white/10 file:px-3 file:py-2 file:text-xs file:font-semibold file:text-white/90 hover:file:bg-white/15"
+                                    onChange={(e) => setManualVerificationFiles((p) => ({ ...p, selfie: e.target.files?.[0] || null }))}
+                                    disabled={pendingAny || manualVerificationAction.loading}
+                                  />
+                                  <p className="mt-2 text-[11px] text-white/60 break-words">
+                                    {manualVerificationFiles?.selfie?.name || t('matchmakingPage.form.photo.noFileChosen')}
+                                  </p>
+                                </div>
+                              </div>
+                            </>
+                          )}
+
+                          {identityVerificationMode === 'whatsapp_call' ? null : (
+                            <>
+                              {manualVerificationAction.error ? (
+                                <div className="mt-3 rounded-lg border border-rose-300/30 bg-rose-500/10 p-2 text-rose-100 text-xs">
+                                  {manualVerificationAction.error}
+                                </div>
+                              ) : null}
+                              {manualVerificationAction.success ? (
+                                <div className="mt-3 rounded-lg border border-emerald-300/30 bg-emerald-500/10 p-2 text-emerald-100 text-xs">
+                                  {manualVerificationAction.success}
+                                </div>
+                              ) : null}
+
+                              {(pendingWithFiles || !!manualVerificationAction.success) ? (
+                                <p className="mt-2 text-[11px] text-white/65">
+                                  {t('matchmakingPanel.verification.manualUpload.reviewNote')}
+                                </p>
+                              ) : null}
+
+                              <button
+                                type="button"
+                                onClick={submitManualVerification}
+                                disabled={pendingAny || pendingWithFiles || manualVerificationAction.loading}
+                                className="mt-3 inline-flex items-center justify-center w-full px-3 py-2 rounded-full bg-white/10 border border-white/10 text-white/90 text-sm font-semibold hover:bg-white/[0.16] disabled:opacity-60"
+                              >
+                                {manualVerificationAction.loading
+                                  ? t('matchmakingPanel.verification.manualUpload.uploading')
+                                  : t('matchmakingPanel.verification.manualUpload.submit')}
+                              </button>
+                            </>
+                          )}
                         </div>
                       );
                     })()}
@@ -5213,7 +5431,7 @@ export default function Panel() {
 
           {!matchmakingLoading && !matchmaking ? (
             <p className="mt-6 text-xs text-white/60">
-              Eşleşme profilini oluşturmadın. Önce formu doldurup profilini oluştur.
+              {t('matchmakingPanel.application.profileNotCreatedHint')}
             </p>
           ) : null}
 
@@ -5266,7 +5484,7 @@ export default function Panel() {
                     {t('matchmakingPanel.onboarding.startForm')}
                   </button>
 
-                  <Link to="/uniqah" className="text-sm font-semibold text-sky-200 hover:underline">
+                  <Link to="/eslestirme" className="text-sm font-semibold text-sky-200 hover:underline">
                     {t('matchmakingPanel.onboarding.howWorks')}
                   </Link>
                 </div>
@@ -5282,7 +5500,7 @@ export default function Panel() {
                     <div className="hidden lg:flex rounded-2xl border border-amber-300/20 bg-white/[0.06] p-4 lg:sticky lg:top-24 self-start shadow-[0_25px_80px_rgba(245,158,11,0.10)] flex-col h-[calc(100vh-9rem)] min-h-[28rem]">
                       <div className="flex items-start justify-between gap-3">
                         <div>
-                          <p className="text-sm font-semibold text-white">Sohbet</p>
+                          <p className="text-sm font-semibold text-white">{t('matchmakingPanel.chat.sidebarTitle')}</p>
                         </div>
                       </div>
 
@@ -5290,7 +5508,7 @@ export default function Panel() {
                         {focusedChatMatchId ? (
                           renderFocusedChat(focusedChatMatchId)
                         ) : (
-                          <p className="mt-3 text-sm text-white/60">Şu an sohbet aktif değil.</p>
+                          <p className="mt-3 text-sm text-white/60">{t('matchmakingPanel.chat.noActiveChat')}</p>
                         )}
                       </div>
                     </div>
@@ -5618,7 +5836,7 @@ export default function Panel() {
                                     disabled={!paymentReferenceText || receiptUpload.loading}
                                     className="shrink-0 px-3 py-2 rounded-lg border border-white/15 bg-white/10 text-white/85 text-xs font-semibold hover:bg-white/[0.16] disabled:opacity-60"
                                   >
-                                    Kopyala
+                                    {t('matchmakingPanel.actions.copy')}
                                   </button>
                                 </div>
                               </label>
@@ -5628,20 +5846,13 @@ export default function Panel() {
                                 <div className="mt-1 rounded-lg border border-amber-300/30 bg-amber-500/10 p-3 text-amber-100 text-xs">
                                   {(paymentForm.method === 'eft_fast' || paymentForm.method === 'swift_wise') ? (
                                     <div className="space-y-2">
-                                      <p>
-                                        EFT/Havale (veya Wise/SWIFT) yaparken bankanın “Açıklama / Reference” alanına yukarıdaki <span className="font-semibold">MK kullanıcı kodunu</span>
-                                        <span className="font-semibold">aynen</span> yazın.
-                                      </p>
+                                      <p>{t('matchmakingPanel.matches.payment.noteHelpEftFastWise')}</p>
                                       {paymentForm.method === 'eft_fast' ? (
-                                        <p className="text-amber-100/90">
-                                          EFT/FAST seçeneği ile ödemeler şirketimiz adına yetkili kişinin Türkiye hesabına yapılmaktadır.
-                                        </p>
+                                        <p className="text-amber-100/90">{t('matchmakingPanel.matches.payment.noteHelpEftFastExtra')}</p>
                                       ) : null}
                                     </div>
                                   ) : (
-                                    <p>
-                                      Ödeme yöntemine göre açıklama alanı gerekmeyebilir. Referans bilgisini saklayın.
-                                    </p>
+                                    <p>{t('matchmakingPanel.matches.payment.noteHelpOther')}</p>
                                   )}
                                 </div>
                               </label>
@@ -6269,7 +6480,7 @@ export default function Panel() {
                                       onClick={() => setPhotoLightbox({ open: true, images: arr, index: idx, title: other?.username || '' })}
                                       className="block h-full w-full cursor-zoom-in"
                                       aria-label={t('matchmakingPanel.matches.candidate.photoAlt')}
-                                      title="Büyüt"
+                                      title={t('common.enlarge')}
                                     >
                                       <img
                                         src={u}
@@ -6401,11 +6612,11 @@ export default function Panel() {
                                 <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm text-white/80">
                                   <div>
                                     <p className="text-xs text-white/60">{t('matchmakingPanel.matches.candidate.aboutLabel')}</p>
-                                    <p className="whitespace-pre-wrap">{other.about || '-'}</p>
+                                    <p className="whitespace-pre-wrap">{getLocalizedProfileText(other, 'about', i18n.language) || '-'}</p>
                                   </div>
                                   <div>
                                     <p className="text-xs text-white/60">{t('matchmakingPanel.matches.candidate.expectationsLabel')}</p>
-                                    <p className="whitespace-pre-wrap">{other.expectations || '-'}</p>
+                                    <p className="whitespace-pre-wrap">{getLocalizedProfileText(other, 'expectations', i18n.language) || '-'}</p>
                                   </div>
                                 </div>
 
@@ -6810,7 +7021,7 @@ export default function Panel() {
                                                   disabled={!paymentReferenceText || receiptUpload.loading}
                                                   className="shrink-0 px-3 py-2 rounded-lg border border-white/15 bg-white/10 text-white/85 text-xs font-semibold hover:bg-white/[0.16] disabled:opacity-60"
                                                 >
-                                                  Kopyala
+                                                  {t('matchmakingPanel.actions.copy')}
                                                 </button>
                                               </div>
                                             </label>
@@ -6819,20 +7030,13 @@ export default function Panel() {
                                               <div className="mt-1 rounded-lg border border-amber-300/30 bg-amber-500/10 p-3 text-amber-100 text-xs">
                                                 {(paymentForm.method === 'eft_fast' || paymentForm.method === 'swift_wise') ? (
                                                   <div className="space-y-2">
-                                                    <p>
-                                                      EFT/Havale (veya Wise/SWIFT) yaparken bankanın “Açıklama / Reference” alanına yukarıdaki <span className="font-semibold">MK kullanıcı kodunu</span>
-                                                      <span className="font-semibold">aynen</span> yazın.
-                                                    </p>
+                                                    <p>{t('matchmakingPanel.matches.payment.noteHelpEftFastWise')}</p>
                                                     {paymentForm.method === 'eft_fast' ? (
-                                                      <p className="text-amber-100/90">
-                                                        EFT/FAST seçeneği ile ödemeler şirketimiz adına yetkili kişinin Türkiye hesabına yapılmaktadır.
-                                                      </p>
+                                                      <p className="text-amber-100/90">{t('matchmakingPanel.matches.payment.noteHelpEftFastExtra')}</p>
                                                     ) : null}
                                                   </div>
                                                 ) : (
-                                                  <p>
-                                                    Ödeme yöntemine göre açıklama alanı gerekmeyebilir. Referans bilgisini saklayın.
-                                                  </p>
+                                                  <p>{t('matchmakingPanel.matches.payment.noteHelpOther')}</p>
                                                 )}
                                               </div>
                                             </label>
@@ -6947,13 +7151,12 @@ export default function Panel() {
                             {m.status === 'proposed' && isProposedInlineOpen ? (
                               <div className="mt-3">
                                 <div className="mt-3 rounded-xl border border-white/10 bg-white/[0.03] p-3">
-                                  <p className="text-xs font-semibold text-white">Direkt mesaj</p>
+                                  <p className="text-xs font-semibold text-white">{t('matchmakingPanel.matches.proposedChat.title')}</p>
 
                                   <div className="mt-2 rounded-lg border border-amber-300/30 bg-amber-500/10 p-3 text-amber-100 text-xs">
-                                    <p className="font-semibold">Bilgilendirme</p>
+                                    <p className="font-semibold">{t('matchmakingPanel.matches.proposedChat.noticeTitle')}</p>
                                     <p className="mt-1 text-white/80">
-                                      Bu alan sohbet amaçlı değildir. Eşleşme onayı öncesinde soru-cevap şeklinde, profil hakkında daha fazla bilgi edinmek için
-                                      kullanın.
+                                      {t('matchmakingPanel.matches.proposedChat.noticeBody')}
                                     </p>
                                   </div>
 
@@ -7089,7 +7292,7 @@ export default function Panel() {
                                         const last = items.slice(-5);
                                         return (
                                           <div className="mt-3 rounded-xl border border-white/10 bg-black/20 p-3">
-                                            <p className="text-[11px] font-semibold text-white/70">Son mesajlar</p>
+                                            <p className="text-[11px] font-semibold text-white/70">{t('matchmakingPanel.matches.chat.lastMessages')}</p>
                                             <div className="mt-2 max-h-40 overflow-y-auto overscroll-contain pr-1 space-y-2">
                                               {last.map((msg, idx) => {
                                                 const mine = String(msg?.userId || '') === String(user?.uid || '');
@@ -7126,7 +7329,7 @@ export default function Panel() {
                                                   <div key={msg?.id || `idx-${idx}`} className="text-xs">
                                                     <div className="leading-relaxed">
                                                       <span className={mine ? 'text-sky-200 font-semibold' : 'text-emerald-200 font-semibold'}>
-                                                        {mine ? 'Sen' : 'O'}:
+                                                        {mine ? t('common.you') : t('common.them')}:
                                                       </span>{' '}
                                                       <span className="text-white/85 break-words whitespace-pre-wrap">{text}</span>
                                                     </div>
@@ -7139,9 +7342,9 @@ export default function Panel() {
                                                             {translateBillingMode ? (
                                                               <div className="mt-0.5 text-[11px] text-white/55">
                                                                 {translateBillingMode === 'sponsored'
-                                                                  ? 'Sponsorlu çeviri'
+                                                                  ? t('matchmakingPanel.matches.chat.translate.billing.sponsored')
                                                                   : translateBillingMode === 'self'
-                                                                    ? 'Çeviri kotandan düştü'
+                                                                    ? t('matchmakingPanel.matches.chat.translate.billing.self')
                                                                     : ''}
                                                               </div>
                                                             ) : null}
@@ -7152,9 +7355,11 @@ export default function Panel() {
                                                             onClick={() => translateIncomingMessageForMatch(m.id, msg?.id)}
                                                             disabled={!canTakeActions || translating || !msg?.id}
                                                             className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full border border-white/15 bg-white/5 text-white/85 text-[11px] font-semibold hover:bg-white/[0.12] disabled:opacity-60"
-                                                            title="Mesajı çevir"
+                                                            title={t('matchmakingPanel.matches.chat.translate.title')}
                                                           >
-                                                            {translating ? 'Çevriliyor…' : 'Çevir'}
+                                                            {translating
+                                                              ? t('matchmakingPanel.matches.chat.translate.translating')
+                                                              : t('matchmakingPanel.matches.chat.translate.cta')}
                                                           </button>
                                                         )}
 
@@ -7163,25 +7368,31 @@ export default function Panel() {
                                                             {(() => {
                                                               if (translateErr === 'translate_quota_exceeded') {
                                                                 if (translateUsagePercent !== null)
-                                                                  return `Çeviri limitinin %${translateUsagePercent}'ini kullandın.`;
-                                                                return 'Çeviri limitin doldu.';
+                                                                  return t('matchmakingPanel.matches.chat.translate.errors.quotaExceededWithUsage', {
+                                                                    usagePercent: translateUsagePercent,
+                                                                  });
+                                                                return t('matchmakingPanel.matches.chat.translate.errors.quotaExceeded');
                                                               }
                                                               if (translateErr === 'chat_limit_reached') return t('matchmakingPanel.matches.chat.errors.limitReached');
-                                                              if (translateErr === 'translate_too_long') return 'Bu mesaj çok uzun; çeviri için kısaltılmalı.';
-                                                              if (translateErr === 'only_incoming') return 'Sadece gelen mesajlar çevrilebilir.';
-                                                              if (translateErr === 'missing_auth' || translateErr === 'invalid_auth') return 'Oturum gerekli.';
-                                                              if (translateErr === 'translate_not_configured') return 'Çeviri servisi ayarlı değil.';
+                                                              if (translateErr === 'translate_too_long') return t('matchmakingPanel.matches.chat.translate.errors.tooLong');
+                                                              if (translateErr === 'only_incoming') return t('matchmakingPanel.matches.chat.translate.errors.onlyIncoming');
+                                                              if (translateErr === 'missing_auth' || translateErr === 'invalid_auth')
+                                                                return t('matchmakingPanel.matches.chat.translate.errors.authRequired');
+                                                              if (translateErr === 'translate_not_configured')
+                                                                return t('matchmakingPanel.matches.chat.translate.errors.notConfigured');
                                                               if (translateErr === 'translate_rate_limited')
-                                                                return 'Çeviri yoğun (Gemini dakikada 15 limit). 1 dakika sonra tekrar dene veya ücretli plana geç.';
+                                                                return t('matchmakingPanel.matches.chat.translate.errors.rateLimited');
                                                               if (translateErr === 'pii_blocked')
-                                                                return 'Kişisel/iletişim bilgisi içerdiği için otomatik çeviri yapılmadı. Lütfen bu bilgileri kaldır.';
-                                                              return 'Çeviri başarısız.';
+                                                                return t('matchmakingPanel.matches.chat.translate.errors.piiBlocked');
+                                                              return t('matchmakingPanel.matches.chat.translate.errors.failed');
                                                             })()}
                                                           </div>
                                                         ) : null}
 
                                                         {!translateErr && translateUsagePercent !== null && translateUsagePercent >= 70 ? (
-                                                          <div className="mt-1 text-[11px] text-white/65">{`Limitinin %${translateUsagePercent}'ini kullandın.`}</div>
+                                                          <div className="mt-1 text-[11px] text-white/65">
+                                                            {t('matchmakingPanel.matches.chat.translate.usageWarning', { usagePercent: translateUsagePercent })}
+                                                          </div>
                                                         ) : null}
                                                       </div>
                                                     ) : null}
@@ -7206,10 +7417,10 @@ export default function Panel() {
                                             disabled={!canTakeActions || !!matchmakingAction?.loading}
                                             onClick={() => decideMatch(m.id, 'accept')}
                                             className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-white/15 bg-white/[0.04] text-white/90 text-sm font-semibold hover:bg-white/[0.08] disabled:opacity-60"
-                                            title="İlgileniyorum"
+                                            title={t('matchmakingPanel.matches.proposedActions.interested')}
                                           >
                                             <span aria-hidden="true" className="text-base leading-none">👍</span>
-                                            <span>İlgileniyorum</span>
+                                            <span>{t('matchmakingPanel.matches.proposedActions.interested')}</span>
                                           </button>
 
                                           <button
@@ -7222,10 +7433,10 @@ export default function Panel() {
                                               }))
                                             }
                                             className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-white/15 bg-white/[0.04] text-white/90 text-sm font-semibold hover:bg-white/[0.08] disabled:opacity-60"
-                                            title="Uygun değil"
+                                            title={t('matchmakingPanel.matches.proposedActions.notSuitable')}
                                           >
                                             <span aria-hidden="true" className="text-base leading-none">👎</span>
-                                            <span>Uygun değil</span>
+                                            <span>{t('matchmakingPanel.matches.proposedActions.notSuitable')}</span>
                                           </button>
                                         </>
                                       ) : null}
@@ -7267,7 +7478,7 @@ export default function Panel() {
 
                                     {st === 'proposed' && !!rejectReasonOpenByMatchId?.[m.id] ? (
                                       <div className="mt-3 rounded-xl border border-white/10 bg-white/[0.03] p-3">
-                                        <p className="text-[11px] font-semibold text-white/70">Sebep seç (karşı tarafa kibarca bildirilecek):</p>
+                                        <p className="text-[11px] font-semibold text-white/70">{t('matchmakingPanel.matches.rejectReason.title')}</p>
                                         <div className="mt-2 flex flex-wrap gap-2">
                                           {[
                                             { code: 'not_feeling', key: 'notFeeling' },
@@ -7297,7 +7508,7 @@ export default function Panel() {
                                           onClick={() => setRejectReasonOpenByMatchId((p) => ({ ...p, [m.id]: false }))}
                                           className="mt-3 inline-flex items-center rounded-full border border-white/15 bg-white/[0.04] px-3 py-1.5 text-[11px] font-semibold text-white/80 hover:bg-white/[0.08]"
                                         >
-                                          Vazgeç
+                                          {t('studio.common.cancel')}
                                         </button>
                                       </div>
                                     ) : null}

@@ -45,7 +45,7 @@ export default function Login() {
   const [signupGender, setSignupGender] = useState(""); // male | female
   const [signupNationality, setSignupNationality] = useState(""); // tr | id | other
   const [signupNationalityOther, setSignupNationalityOther] = useState("");
-  const [signupAgeConfirmed, setSignupAgeConfirmed] = useState(false);
+  const [signupAge, setSignupAge] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [info, setInfo] = useState("");
@@ -66,9 +66,13 @@ export default function Login() {
     if (signupGender !== 'male' && signupGender !== 'female') return false;
     if (!signupNationality) return false;
     if (signupNationality === 'other' && !signupNationalityOther.trim()) return false;
-    if (!signupAgeConfirmed) return false;
+    const n = Number(String(signupAge || '').trim());
+    if (!Number.isFinite(n)) return false;
+    if (!Number.isInteger(n)) return false;
+    if (n < requiredSignupAge) return false;
+    if (n > 99) return false;
     return true;
-  }, [mode, signupGender, signupNationality, signupNationalityOther, signupAgeConfirmed]);
+  }, [mode, signupGender, signupNationality, signupNationalityOther, signupAge, requiredSignupAge]);
 
   const nudgeSignupUI = () => {
     setSignupNudge((n) => n + 1);
@@ -162,7 +166,7 @@ export default function Login() {
 
   const showNoAccountFoundMessage = () => {
     setInfo('');
-    setError('Kaydınız bulunamadı. Kayıt olmanız gerekiyor. Kayıt adımına yönlendirildiniz; lütfen cinsiyet/ülke seçip yaş onayını işaretleyin ve tekrar deneyin.');
+    setError(t('authPage.errors.noAccountFoundSignupRequired'));
     nudgeSignupUI();
   };
 
@@ -237,7 +241,9 @@ export default function Login() {
     const candidate = stored?.from || redirectTarget.from || '';
 
     // Kullanıcı "başvuru" sayfasına gitmek istediyse onu koru.
-    if (isMatchmakingApplyPath(candidate)) return candidate;
+    // Not: Yeni kayıt olan kullanıcı, kayıt sonrası doğrudan /profilim'e gitmeli.
+    // Mobilde back tuşu ile formdan çıkma gibi hatalı akışları engeller.
+    if (isMatchmakingApplyPath(candidate)) return isNewUser ? '/profilim' : candidate;
 
     // Mevcut kullanıcıyı (ve yeni kullanıcıyı) her zaman profil sayfasına götür.
     // Böylece Google login sonrası anasayfaya dönüp "form yükleniyor" gibi geçişler yaşanmaz.
@@ -249,7 +255,8 @@ export default function Login() {
     return stored?.fromState || redirectTarget.fromState || null;
   };
 
-  const SIGNUP_FORM_TARGET = '/evlilik/eslestirme-basvuru?w=1';
+  // Ürün kararı (2026-02): Kayıt sonrası kullanıcı form ekranına zorlanmaz.
+  // Kullanıcı /profilim sayfasına yönlendirilir; formu istediği zaman doldurur.
 
   const navigateNext = (target, state) => {
     if (hasNavigatedRef.current) return;
@@ -277,7 +284,7 @@ export default function Login() {
     return 'en';
   };
 
-  const ensureProfileSaved = async (uid, gender, nationality, nationalityOther) => {
+  const ensureProfileSaved = async (uid, gender, nationality, nationalityOther, age) => {
     if (!uid) return;
     if (gender !== "male" && gender !== "female") return;
 
@@ -287,12 +294,17 @@ export default function Login() {
     const existingGender = String(data?.gender || "").toLowerCase().trim();
     const existingNationality = String(data?.nationality || "").toLowerCase().trim();
     const existingNationalityOther = String(data?.nationalityOther || "").trim();
-    if (existingGender && existingNationality) return;
+    const existingAge = typeof data?.age === 'number' ? data.age : null;
+    if (existingGender && existingNationality && typeof existingAge === 'number') return;
+
+    const parsedAge = Number(String(age ?? '').trim());
+    const nextAge = Number.isFinite(parsedAge) && Number.isInteger(parsedAge) ? parsedAge : null;
 
     const payload = {
       gender: existingGender || gender,
       nationality: existingNationality || String(nationality || '').trim(),
       nationalityOther: existingNationalityOther || String(nationalityOther || '').trim(),
+      ...(typeof existingAge === 'number' ? {} : nextAge !== null ? { age: nextAge } : {}),
       updatedAt: serverTimestamp(),
     };
 
@@ -325,6 +337,7 @@ export default function Login() {
           gender: profile?.gender,
           nationality: profile?.nationality,
           nationalityOther: profile?.nationalityOther,
+          age: profile?.age,
           ageConfirmed: profile?.ageConfirmed === true,
         }),
       });
@@ -411,11 +424,12 @@ export default function Login() {
           if (isNewUser && intent === 'signup') {
             const p = readSignupProfile() || {};
             clearSignupProfile();
-            await ensureProfileSaved(result?.user?.uid, p?.gender, p?.nationality, p?.nationalityOther);
+            await ensureProfileSaved(result?.user?.uid, p?.gender, p?.nationality, p?.nationalityOther, p?.age);
             await bootstrapMatchmakingApplication(result?.user, {
               gender: p?.gender,
               nationality: p?.nationality,
               nationalityOther: p?.nationalityOther,
+              age: p?.age,
               ageConfirmed: true,
             });
           }
@@ -451,7 +465,8 @@ export default function Login() {
     if (!redirectCheckDone) return;
     if (user) {
       (async () => {
-        const target = resolvePostAuthTarget(false);
+        const treatAsNew = mode === 'signup';
+        const target = resolvePostAuthTarget(treatAsNew);
         const state = resolvePostAuthState();
         clearStoredRedirect();
         writeForcedTarget('');
@@ -459,7 +474,7 @@ export default function Login() {
       })();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, redirectCheckDone]);
+  }, [user, redirectCheckDone, mode]);
 
   useEffect(() => {
     if (hasNavigatedRef.current) return;
@@ -471,14 +486,15 @@ export default function Login() {
     // sonraki girişlerde de sürekli forma itilir.
     (async () => {
       const forced = readForcedTarget();
-      const target = forced || resolvePostAuthTarget(false);
+      const treatAsNew = mode === 'signup';
+      const target = forced || resolvePostAuthTarget(treatAsNew);
       const state = resolvePostAuthState();
       clearStoredRedirect();
       writeForcedTarget('');
       await navigateNextWithApplyGuard(current?.uid, target, state);
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [redirectTarget.from, redirectTarget.fromState]);
+  }, [redirectTarget.from, redirectTarget.fromState, mode]);
 
   if (user) {
     // Kullanıcı login olduysa bu sayfada form göstermeyelim.
@@ -488,9 +504,9 @@ export default function Login() {
         <Navigation />
         <section className="max-w-lg mx-auto px-4 py-16">
           <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-5 md:p-6">
-            <h1 className="text-xl md:text-2xl font-bold text-gray-900">Yönlendiriliyorsun…</h1>
+            <h1 className="text-xl md:text-2xl font-bold text-gray-900">{t('authPage.redirectScreen.title')}</h1>
             <p className="text-sm text-gray-600 mt-2">
-              Profil sayfası açılıyor. Bu ekran uzun sürerse aşağıdan devam edebilirsin.
+              {t('authPage.redirectScreen.body')}
             </p>
 
             <div className="mt-5 flex gap-2">
@@ -499,7 +515,7 @@ export default function Login() {
                 onClick={() => navigate('/profilim', { replace: true })}
                 className="px-4 py-2 rounded-xl bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700"
               >
-                Profilime Git
+                {t('authPage.redirectScreen.goProfile')}
               </button>
               <button
                 type="button"
@@ -512,7 +528,7 @@ export default function Login() {
                 }}
                 className="px-4 py-2 rounded-xl border border-slate-300 bg-white text-slate-800 text-sm font-semibold hover:bg-slate-50"
               >
-                Yenile
+                {t('authPage.redirectScreen.refresh')}
               </button>
             </div>
           </div>
@@ -530,7 +546,6 @@ export default function Login() {
 
   const handleNationalityChange = (value) => {
     setSignupNationality(value);
-    setSignupAgeConfirmed(false);
     if (value !== 'other') {
       setSignupNationalityOther('');
     }
@@ -565,9 +580,16 @@ export default function Login() {
         setError(t("authPage.errors.nationalityOtherRequired"));
         return;
       }
-      if (mode === 'signup' && !signupAgeConfirmed) {
-        setError(t('authPage.errors.ageConfirmRequired', { minAge: requiredSignupAge }));
-        return;
+      if (mode === 'signup') {
+        const n = Number(String(signupAge || '').trim());
+        if (!Number.isFinite(n) || !Number.isInteger(n) || n > 99) {
+          setError(t('authPage.errors.ageRequired'));
+          return;
+        }
+        if (n < requiredSignupAge) {
+          setError(t('authPage.errors.ageMin', { minAge: requiredSignupAge }));
+          return;
+        }
       }
 
       if (mode === 'signup') {
@@ -575,6 +597,7 @@ export default function Login() {
           gender: signupGender,
           nationality: signupNationality,
           nationalityOther: signupNationalityOther,
+          age: Number(String(signupAge || '').trim()),
         });
       } else {
         clearSignupProfile();
@@ -582,8 +605,10 @@ export default function Login() {
 
       writeAuthIntent(mode);
 
-      // Yeni kullanıcı signup akışında form sayfasını zorla; normal login'de mevcut hedefi bozma.
-      writeForcedTarget(mode === 'signup' ? SIGNUP_FORM_TARGET : '');
+      // Ürün kararı: signup'ta form sayfasını zorlamıyoruz.
+      // Signup akışı: kayıt sonrası her zaman /profilim'e git.
+      // Login akışı: stored redirect hedefini koru.
+      writeForcedTarget(mode === 'signup' ? '/profilim' : '');
       const provider = new GoogleAuthProvider();
       const result = await signInWithPopup(auth, provider);
       const info2 = getAdditionalUserInfo(result);
@@ -608,12 +633,13 @@ export default function Login() {
       }
 
       if (mode === "signup" && isNewUser) {
-        await ensureProfileSaved(result?.user?.uid, signupGender, signupNationality, signupNationalityOther);
+        await ensureProfileSaved(result?.user?.uid, signupGender, signupNationality, signupNationalityOther, signupAge);
         await bootstrapMatchmakingApplication(result?.user, {
           gender: signupGender,
           nationality: signupNationality,
           nationalityOther: signupNationalityOther,
-          ageConfirmed: signupAgeConfirmed,
+          age: Number(String(signupAge || '').trim()),
+          ageConfirmed: true,
         });
       }
       const target = resolvePostAuthTarget(isNewUser);
@@ -628,9 +654,7 @@ export default function Login() {
 
       // Kullanıcının email/password hesabı varsa, Google ile direkt giriş denemesinde bu hata gelebilir.
       if (code === 'auth/account-exists-with-different-credential') {
-        setError(
-          'Bu e-posta ile daha önce farklı bir yöntemle kayıt olmuşsunuz. Lütfen e-posta/şifre ile giriş yapın; ardından hesabınıza Google girişini bağlayabiliriz.'
-        );
+        setError(t('authPage.errors.accountExistsWithDifferentCredential'));
         return;
       }
 
@@ -643,15 +667,16 @@ export default function Login() {
       if (code === 'auth/popup-blocked' || code === 'auth/popup-closed-by-user' || code === 'auth/cancelled-popup-request' || code === 'auth/argument-error') {
         try {
           const provider = new GoogleAuthProvider();
-          setInfo(t('authPage.redirecting') || 'Yönlendiriliyor…');
-          // Popup fallback: sadece signup akışında form hedefini zorla.
-          writeForcedTarget(mode === 'signup' ? SIGNUP_FORM_TARGET : '');
+          setInfo(t('authPage.redirecting'));
+          // Popup fallback: signup'ta da form hedefini zorlamıyoruz.
+          writeForcedTarget(mode === 'signup' ? '/profilim' : '');
           writeAuthIntent(mode);
           if (mode === 'signup') {
             writeSignupProfile({
               gender: signupGender,
               nationality: signupNationality,
               nationalityOther: signupNationalityOther,
+              age: Number(String(signupAge || '').trim()),
             });
           } else {
             clearSignupProfile();
@@ -662,7 +687,10 @@ export default function Login() {
           const host = typeof window !== 'undefined' ? String(window.location.hostname || '') : '';
           setError(
             e2?.message ||
-              `Google ile giriş başarısız (${code}).\n\nFirebase Console → Authentication → Settings → Authorized domains kısmına bu domain'i ekleyin: ${host || '(domain bulunamadı)'}\nAyrıca .env ve Vercel env'de VITE_FIREBASE_AUTH_DOMAIN değerini kontrol edin.`
+              t('authPage.errors.googleFailedDev', {
+                code: code || 'unknown',
+                host: host || t('authPage.errors.domainNotFound'),
+              })
           );
           return;
         }
@@ -671,18 +699,20 @@ export default function Login() {
       if (code === 'auth/unauthorized-domain') {
         const host = typeof window !== 'undefined' ? String(window.location.hostname || '') : '';
         setError(
-          `Google ile giriş başarısız (unauthorized-domain).\n\nFirebase Console → Authentication → Settings → Authorized domains kısmına bu domain'i ekleyin: ${host || '(domain bulunamadı)'}`
+          t('authPage.errors.googleUnauthorizedDomain', {
+            host: host || t('authPage.errors.domainNotFound'),
+          })
         );
         return;
       }
 
       if (code === 'auth/operation-not-allowed') {
-        setError('Google ile giriş kapalı. Firebase Console → Authentication → Sign-in method → Google sağlayıcısını etkinleştirin.');
+        setError(t('authPage.errors.googleOperationNotAllowed'));
         return;
       }
 
       if (code === 'auth/invalid-api-key' || code === 'auth/configuration-not-found') {
-        setError('Firebase Auth yapılandırması geçersiz. `.env.local` içindeki `VITE_FIREBASE_*` değerlerini kontrol edin.');
+        setError(t('authPage.errors.firebaseAuthInvalidConfig'));
         return;
       }
 
@@ -724,9 +754,16 @@ export default function Login() {
         return;
       }
 
-      if (mode === 'signup' && !signupAgeConfirmed) {
-        setError(t('authPage.errors.ageConfirmRequired', { minAge: requiredSignupAge }));
-        return;
+      if (mode === 'signup') {
+        const n = Number(String(signupAge || '').trim());
+        if (!Number.isFinite(n) || !Number.isInteger(n) || n > 99) {
+          setError(t('authPage.errors.ageRequired'));
+          return;
+        }
+        if (n < requiredSignupAge) {
+          setError(t('authPage.errors.ageMin', { minAge: requiredSignupAge }));
+          return;
+        }
       }
 
       if (mode === "signup") {
@@ -736,19 +773,33 @@ export default function Login() {
           setError(t('authPage.errors.emailAlreadyInUse'));
           return;
         }
-        // Yeni kullanıcı kaydı sonrası her zaman form sayfasına yönlendir.
-        // (Kullanıcı login'e hangi sayfadan gelmiş olursa olsun.)
-        writeForcedTarget(SIGNUP_FORM_TARGET);
+        // Ürün kararı: yeni kullanıcı kaydı sonrası form sayfasına zorlamıyoruz.
+        // Önemli: createUserWithEmailAndPassword ile auth state hızlıca değişebilir.
+        // Redirect effect'i tetiklenmeden önce hedefi /profilim'e zorlayalım.
+        writeForcedTarget('/profilim');
         const cred = await createUserWithEmailAndPassword(auth, normalizedEmail, passwordToUse);
-        await ensureProfileSaved(cred?.user?.uid, signupGender, signupNationality, signupNationalityOther);
+        await ensureProfileSaved(cred?.user?.uid, signupGender, signupNationality, signupNationalityOther, signupAge);
         await bootstrapMatchmakingApplication(cred?.user, {
           gender: signupGender,
           nationality: signupNationality,
           nationalityOther: signupNationalityOther,
-          ageConfirmed: signupAgeConfirmed,
+          age: Number(String(signupAge || '').trim()),
+          ageConfirmed: true,
         });
         clearAuthIntent();
         clearSignupProfile();
+
+        // Mobilde bazı tarayıcılarda sessionStorage hedefi okunamayabiliyor ve kullanıcı tekrar forma dönebiliyor.
+        // Signup sonrası kesin olarak profil sayfasına git.
+        try {
+          clearStoredRedirect();
+          writeForcedTarget('');
+        } catch {
+          // ignore
+        }
+        hasNavigatedRef.current = true;
+        navigate('/profilim', { replace: true });
+        return;
       } else {
         // Login: bazı Firebase konfiglerinde fetchSignInMethodsForEmail boş dönebilir.
         // Yanlış "kayıt bulunamadı" göstermemek için direkt signIn dene.
@@ -990,30 +1041,27 @@ export default function Login() {
             )}
 
             {mode === 'signup' && !!signupNationality && (
-              <label
+              <div
                 className={[
-                  'flex items-start gap-2 rounded-xl border px-3 py-2 text-sm cursor-pointer',
-                  signupAgeConfirmed ? 'border-emerald-300 bg-emerald-50' : 'border-slate-300 bg-white',
-                  signupHighlight ? 'ring-2 ring-amber-300 ring-offset-2 ring-offset-white transition' : '',
+                  'rounded-2xl p-3 -mx-1',
+                  signupHighlight ? 'bg-amber-50 ring-2 ring-amber-300 ring-offset-2 ring-offset-white transition' : '',
                 ].join(' ')}
               >
+                <label className="block text-xs font-semibold text-slate-700">{t('authPage.labels.age')}</label>
                 <input
-                  type="checkbox"
-                  checked={signupAgeConfirmed}
-                  onChange={(e) => setSignupAgeConfirmed(!!e.target.checked)}
+                  value={signupAge}
+                  onChange={(e) => {
+                    const raw = String(e.target.value || '');
+                    // Sadece sayısal girişe izin ver (boş bırakılabilir)
+                    if (raw === '' || /^\d{0,2}$/.test(raw)) setSignupAge(raw);
+                  }}
+                  inputMode="numeric"
+                  type="text"
+                  className="mt-2 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
+                  placeholder={t('authPage.placeholders.age')}
                 />
-                <span>
-                  {t('authPage.signup.ageConfirm', { minAge: requiredSignupAge })}{' '}
-                  <a
-                    href="/docs/matchmaking-kullanim-sozlesmesi.html"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-sky-700 hover:underline"
-                  >
-                    {t('authPage.signup.ageConfirmLink')}
-                  </a>
-                </span>
-              </label>
+                <p className="mt-1 text-xs text-slate-500">{t('authPage.signup.ageHint', { minAge: requiredSignupAge })}</p>
+              </div>
             )}
 
             <button
@@ -1056,27 +1104,13 @@ export default function Login() {
           <p className="mt-6 text-xs text-slate-500">
             {t("authPage.legal.prefix")}
             <span className="ml-1">
-              {isFeatureEnabled('travel') ? (
-                <>
-                  <a href="/docs/paket-tur-sozlesmesi.html" target="_blank" rel="noopener noreferrer" className="text-sky-700 hover:underline">
-                    {t("authPage.legal.contract")}
-                  </a>
-                  <span className="mx-1">·</span>
-                  <a href="/docs/iptal-iade-politikasi.html" target="_blank" rel="noopener noreferrer" className="text-sky-700 hover:underline">
-                    {t("authPage.legal.cancelRefund")}
-                  </a>
-                </>
-              ) : (
-                <>
-                  <a href="/docs/matchmaking-kullanim-sozlesmesi.html" target="_blank" rel="noopener noreferrer" className="text-sky-700 hover:underline">
-                    {t("authPage.legal.contract")}
-                  </a>
-                  <span className="mx-1">·</span>
-                  <a href="/docs/iptal-iade-politikasi.html" target="_blank" rel="noopener noreferrer" className="text-sky-700 hover:underline">
-                    {t("authPage.legal.cancelRefund")}
-                  </a>
-                </>
-              )}
+              <a href="/docs/matchmaking-kullanim-sozlesmesi.html" target="_blank" rel="noopener noreferrer" className="text-sky-700 hover:underline">
+                {t("authPage.legal.contract")}
+              </a>
+              <span className="mx-1">·</span>
+              <a href="/docs/iptal-iade-politikasi.html" target="_blank" rel="noopener noreferrer" className="text-sky-700 hover:underline">
+                {t("authPage.legal.cancelRefund")}
+              </a>
               <span className="mx-1">·</span>
               <Link to="/privacy" className="text-sky-700 hover:underline">
                 {t("authPage.legal.privacy")}

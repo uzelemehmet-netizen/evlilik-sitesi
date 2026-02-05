@@ -1,9 +1,79 @@
 import { getAdmin, normalizeBody, requireIdToken } from './_firebaseAdmin.js';
+import { detectPII } from './_pii.js';
+import { isTranslateConfigured, translateTextProfile } from './_translate.js';
+import { emitMemberFeedEvent } from './_memberFeed.js';
+
+const MAX_TEXT_LEN = 1800;
+const TRANSLATE_CHARS = 400;
+const MIN_TRANSLATE_CHARS = 30;
 
 function safeStr(value, maxLen) {
   const s = String(value ?? '').trim();
   if (!s) return '';
   return s.length > maxLen ? s.slice(0, maxLen) : s;
+}
+
+function normalizeProfileLang(v) {
+  const s = safeStr(v, 10).toLowerCase();
+  if (s === 'tr' || s === 'id') return s;
+  return '';
+}
+
+function oppositeLang(lang) {
+  return lang === 'tr' ? 'id' : 'tr';
+}
+
+function detectForbiddenContactPII(text) {
+  const pii = detectPII(text);
+  const reasons = Array.isArray(pii?.reasons) ? pii.reasons : [];
+  const forbidden = reasons.filter((r) => r && r !== 'name');
+  return {
+    hasForbidden: forbidden.length > 0,
+    reasons: forbidden,
+  };
+}
+
+async function buildBilingualText(text, sourceLang) {
+  const original = safeStr(text, MAX_TEXT_LEN);
+  const src = normalizeProfileLang(sourceLang) || 'tr';
+  const target = oppositeLang(src);
+
+  const out = {
+    sourceLang: src,
+    targetLang: target,
+    original,
+    tr: src === 'tr' ? original : '',
+    id: src === 'id' ? original : '',
+    translated: false,
+    skipped: false,
+    truncated: false,
+    translateConfigured: isTranslateConfigured(),
+  };
+
+  if (!original) {
+    out.skipped = true;
+    return out;
+  }
+
+  if (original.length < MIN_TRANSLATE_CHARS) {
+    out.skipped = true;
+    return out;
+  }
+
+  if (!out.translateConfigured) {
+    out.skipped = true;
+    return out;
+  }
+
+  const chunk = original.slice(0, TRANSLATE_CHARS);
+  out.truncated = original.length > TRANSLATE_CHARS;
+  const translated = await translateTextProfile({ text: chunk, targetLang: target });
+  const finalText = out.truncated && translated ? `${translated}…` : translated;
+
+  if (target === 'tr') out.tr = finalText;
+  if (target === 'id') out.id = finalText;
+  out.translated = !!safeStr(finalText, 5000);
+  return out;
 }
 
 function toNumOrNull(value, { min = -Infinity, max = Infinity } = {}) {
@@ -120,8 +190,8 @@ export default async function handler(req, res) {
     gender: safeStr(payload?.gender, 30),
     lookingForNationality: safeStr(payload?.lookingForNationality, 30),
     lookingForGender: safeStr(payload?.lookingForGender, 30),
-    about: safeStr(payload?.about, 1800),
-    expectations: safeStr(payload?.expectations, 1800),
+    about: safeStr(payload?.about, MAX_TEXT_LEN),
+    expectations: safeStr(payload?.expectations, MAX_TEXT_LEN),
     details: {
       heightCm: toNumOrNull(details?.heightCm, { min: 120, max: 230 }),
       weightKg: toNumOrNull(details?.weightKg, { min: 35, max: 250 }),
@@ -236,12 +306,133 @@ export default async function handler(req, res) {
 
   const docRef = bestDoc.ref;
 
+  const cur = bestDoc.data() || {};
+  const curAbout = safeStr(cur?.about, MAX_TEXT_LEN);
+  const curExpectations = safeStr(cur?.expectations, MAX_TEXT_LEN);
+
+  const aboutChanged = safeStr(updates?.about, MAX_TEXT_LEN) !== curAbout;
+  const expectationsChanged = safeStr(updates?.expectations, MAX_TEXT_LEN) !== curExpectations;
+
+  // Write-once enforcement for About/Expectations
+  if ((aboutChanged || expectationsChanged) && (curAbout || curExpectations)) {
+    res.statusCode = 409;
+    res.setHeader('content-type', 'application/json');
+    res.end(JSON.stringify({ ok: false, error: 'profile_text_write_once_used' }));
+    return;
+  }
+
+  // If texts are currently empty and user is trying to set them now, enforce rules + translation.
+  const writingTextsNow = (!curAbout && !!updates?.about) || (!curExpectations && !!updates?.expectations);
+  if (writingTextsNow) {
+    if (!updates?.about || !updates?.expectations) {
+      res.statusCode = 400;
+      res.setHeader('content-type', 'application/json');
+      res.end(JSON.stringify({ ok: false, error: 'bad_request' }));
+      return;
+    }
+
+    for (const [field, value] of [
+      ['about', updates.about],
+      ['expectations', updates.expectations],
+    ]) {
+      const pii = detectForbiddenContactPII(value);
+      if (pii.hasForbidden) {
+        res.statusCode = 422;
+        res.setHeader('content-type', 'application/json');
+        res.end(JSON.stringify({ ok: false, error: 'profile_text_pii_blocked', field, reasons: pii.reasons }));
+        return;
+      }
+    }
+
+    const sourceLang = normalizeProfileLang(payload?.lang) || 'tr';
+    const [aboutBi, expBi] = await Promise.all([
+      buildBilingualText(updates.about, sourceLang),
+      buildBilingualText(updates.expectations, sourceLang),
+    ]);
+
+    updates.profileTextLang = sourceLang;
+    updates.aboutTr = aboutBi.tr;
+    updates.aboutId = aboutBi.id;
+    updates.expectationsTr = expBi.tr;
+    updates.expectationsId = expBi.id;
+    updates.profileTextWriteOnceUsedAtMs = Date.now();
+    updates.profileTextTranslatedAtMs = Date.now();
+    updates.profileTextTranslate = {
+      about: {
+        sourceLang: aboutBi.sourceLang,
+        targetLang: aboutBi.targetLang,
+        translated: aboutBi.translated,
+        skipped: aboutBi.skipped,
+        truncated: aboutBi.truncated,
+        translateConfigured: aboutBi.translateConfigured,
+      },
+      expectations: {
+        sourceLang: expBi.sourceLang,
+        targetLang: expBi.targetLang,
+        translated: expBi.translated,
+        skipped: expBi.skipped,
+        truncated: expBi.truncated,
+        translateConfigured: expBi.translateConfigured,
+      },
+    };
+
+    // Also persist lock + translations in matchmakingUsers cache.
+    const nowMs = Date.now();
+    await db.collection('matchmakingUsers').doc(uid).set(
+      {
+        details: {
+          about: updates.about,
+          bio: updates.about,
+          expectations: updates.expectations,
+          aboutTr: aboutBi.tr,
+          aboutId: aboutBi.id,
+          expectationsTr: expBi.tr,
+          expectationsId: expBi.id,
+        },
+        publicProfile: {
+          about: updates.about,
+          expectations: updates.expectations,
+          aboutTr: aboutBi.tr,
+          aboutId: aboutBi.id,
+          expectationsTr: expBi.tr,
+          expectationsId: expBi.id,
+        },
+        profileTextLang: sourceLang,
+        profileTextWriteOnceUsedAt: FieldValue.serverTimestamp(),
+        profileTextWriteOnceUsedAtMs: nowMs,
+        updatedAt: FieldValue.serverTimestamp(),
+      },
+      { merge: true }
+    );
+  }
+
   await docRef.update({
     ...updates,
     userEditOnceUsedAt: FieldValue.serverTimestamp(),
     userEditOnceUsedBy: uid,
     userEditOnceUpdatedAt: FieldValue.serverTimestamp(),
   });
+
+  // Realtime member feed: kullanıcı profil metinlerini ilk kez yazdıysa "profilini tamamladı" event'i.
+  // Best-effort; hata olursa akışı bozmayalım.
+  if (writingTextsNow) {
+    try {
+      const userSnap = await db.collection('matchmakingUsers').doc(uid).get();
+      const userDoc = userSnap.exists ? (userSnap.data() || {}) : {};
+      const userCode = safeStr(userDoc?.userCode, 40) || safeStr(userDoc?.publicProfile?.userCode, 40);
+      await emitMemberFeedEvent({
+        db,
+        FieldValue,
+        uid,
+        kind: 'profile_completed',
+        username: safeStr(cur?.username, 40),
+        userCode,
+        profileIncomplete: false,
+      });
+    } catch {
+      // best-effort
+    }
+  }
 
   res.statusCode = 200;
   res.setHeader('content-type', 'application/json');
