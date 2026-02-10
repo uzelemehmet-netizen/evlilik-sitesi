@@ -5410,7 +5410,7 @@ export default function Panel() {
                                 const msg = t('matchmakingPanel.matches.payment.supportWhatsappMessage', { matchId: matchId || '-', matchCode });
                                 openWhatsApp(msg);
                               }}
-                              className="mt-3 px-4 py-2 rounded-full border border-emerald-300 text-emerald-900 text-sm font-semibold hover:bg-emerald-50"
+                              className="app-btn app-btn-primary mt-3 w-full sm:w-auto ring-offset-slate-950"
                               disabled={!whatsappNumber}
                             >
                               {t('matchmakingPanel.matches.payment.supportWhatsapp')}
@@ -6605,7 +6605,7 @@ export default function Panel() {
                                                 const msg = t('matchmakingPanel.matches.payment.supportWhatsappMessage', { matchId: matchId || '-', matchCode });
                                             openWhatsApp(msg);
                                           }}
-                                          className="mt-3 px-4 py-2 rounded-full border border-emerald-300 text-emerald-900 text-sm font-semibold hover:bg-emerald-50"
+                                          className="app-btn app-btn-primary mt-3 w-full sm:w-auto ring-offset-slate-950"
                                           disabled={!whatsappNumber}
                                         >
                                           {t('matchmakingPanel.matches.payment.supportWhatsapp')}

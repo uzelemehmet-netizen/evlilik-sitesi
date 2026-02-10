@@ -19,6 +19,7 @@ import Footer from "../components/Footer";
 import { auth, db } from "../config/firebase";
 import { useAuth } from "../auth/AuthProvider";
 import { isFeatureEnabled } from "../config/siteVariant";
+import { authFetch } from "../utils/authFetch";
 
 export default function Login() {
   const { t, i18n } = useTranslation();
@@ -29,7 +30,7 @@ export default function Login() {
   const hasNavigatedRef = useRef(false);
   const authFlowBusyRef = useRef(false);
   const signupSectionRef = useRef(null);
-  const signupGenderFirstRef = useRef(null);
+  const signupAgeFirstRef = useRef(null);
 
   const redirectTarget = useMemo(() => {
     const state = location.state || {};
@@ -43,9 +44,6 @@ export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [signupGender, setSignupGender] = useState(""); // male | female
-  const [signupNationality, setSignupNationality] = useState(""); // tr | id | other
-  const [signupNationalityOther, setSignupNationalityOther] = useState("");
   const [signupAge, setSignupAge] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -56,24 +54,17 @@ export default function Login() {
   const [signupNudge, setSignupNudge] = useState(0);
   const [signupHighlight, setSignupHighlight] = useState(false);
 
-  const requiredSignupAge = useMemo(() => {
-    if (signupNationality === 'id') return 21;
-    // TR ve diğer ülkeler için varsayılan 18+
-    return 18;
-  }, [signupNationality]);
+  const requiredSignupAge = 18;
 
   const isSignupReady = useMemo(() => {
     if (mode !== 'signup') return true;
-    if (signupGender !== 'male' && signupGender !== 'female') return false;
-    if (!signupNationality) return false;
-    if (signupNationality === 'other' && !signupNationalityOther.trim()) return false;
     const n = Number(String(signupAge || '').trim());
     if (!Number.isFinite(n)) return false;
     if (!Number.isInteger(n)) return false;
     if (n < requiredSignupAge) return false;
     if (n > 99) return false;
     return true;
-  }, [mode, signupGender, signupNationality, signupNationalityOther, signupAge, requiredSignupAge]);
+  }, [mode, signupAge]);
 
   const nudgeSignupUI = () => {
     setSignupNudge((n) => n + 1);
@@ -124,6 +115,62 @@ export default function Login() {
 
   const AUTH_INTENT_KEY = 'auth_intent';
   const SIGNUP_PROFILE_KEY = 'auth_signup_profile';
+  const REFERRAL_CODE_KEY = 'auth_referral_code';
+
+  const writeReferralCode = (value) => {
+    try {
+      const v = String(value || '').trim();
+      if (v) sessionStorage.setItem(REFERRAL_CODE_KEY, v);
+      else sessionStorage.removeItem(REFERRAL_CODE_KEY);
+    } catch {
+      // ignore
+    }
+  };
+
+  const readReferralCode = () => {
+    try {
+      return String(sessionStorage.getItem(REFERRAL_CODE_KEY) || '').trim();
+    } catch {
+      return '';
+    }
+  };
+
+  const clearReferralCode = () => writeReferralCode('');
+
+  const isReferralEnabled = () => {
+    const raw = String(import.meta?.env?.VITE_MATCHMAKING_REFERRAL_ENABLED || '').toLowerCase().trim();
+    return raw === '1' || raw === 'true' || raw === 'yes' || raw === 'on';
+  };
+
+  const acceptReferralIfAny = async () => {
+    const code = readReferralCode();
+    if (!code) return;
+    if (!isReferralEnabled()) return;
+
+    try {
+      const res = await authFetch('/api/matchmaking-referral-accept', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ code }),
+      });
+
+      const status = String(res?.status || '').trim();
+      if (status === 'accepted' || status === 'already_accepted') {
+        clearReferralCode();
+      }
+    } catch (e) {
+      const msg = String(e?.message || '').trim();
+      if (
+        msg === 'invalid_invite_code' ||
+        msg === 'invite_code_not_found' ||
+        msg === 'self_referral_not_allowed' ||
+        msg === 'already_referred' ||
+        msg === 'referral_disabled'
+      ) {
+        clearReferralCode();
+      }
+    }
+  };
 
   const writeAuthIntent = (value) => {
     try {
@@ -193,7 +240,7 @@ export default function Login() {
         // İlk alana odaklan
         setTimeout(() => {
           try {
-            signupGenderFirstRef.current?.focus?.();
+            signupAgeFirstRef.current?.focus?.();
           } catch {
             // ignore
           }
@@ -294,26 +341,19 @@ export default function Login() {
     return 'en';
   };
 
-  const ensureProfileSaved = async (uid, gender, nationality, nationalityOther, age) => {
+  const ensureProfileSaved = async (uid, age) => {
     if (!uid) return;
-    if (gender !== "male" && gender !== "female") return;
 
     const ref = doc(db, "matchmakingUsers", uid);
     const snap = await getDoc(ref);
     const data = snap.exists() ? snap.data() || {} : {};
-    const existingGender = String(data?.gender || "").toLowerCase().trim();
-    const existingNationality = String(data?.nationality || "").toLowerCase().trim();
-    const existingNationalityOther = String(data?.nationalityOther || "").trim();
     const existingAge = typeof data?.age === 'number' ? data.age : null;
-    if (existingGender && existingNationality && typeof existingAge === 'number') return;
+    if (typeof existingAge === 'number') return;
 
     const parsedAge = Number(String(age ?? '').trim());
     const nextAge = Number.isFinite(parsedAge) && Number.isInteger(parsedAge) ? parsedAge : null;
 
     const payload = {
-      gender: existingGender || gender,
-      nationality: existingNationality || String(nationality || '').trim(),
-      nationalityOther: existingNationalityOther || String(nationalityOther || '').trim(),
       ...(typeof existingAge === 'number' ? {} : nextAge !== null ? { age: nextAge } : {}),
       updatedAt: serverTimestamp(),
     };
@@ -372,6 +412,9 @@ export default function Login() {
     if (m === "signup" || m === "login") {
       setMode(m);
     }
+
+    const ref = String(params.get('ref') || '').trim();
+    if (ref) writeReferralCode(ref);
 
     const force = params.get("force");
     setForceLogin(force === "1");
@@ -434,14 +477,8 @@ export default function Login() {
           if (isNewUser && intent === 'signup') {
             const p = readSignupProfile() || {};
             clearSignupProfile();
-            await ensureProfileSaved(result?.user?.uid, p?.gender, p?.nationality, p?.nationalityOther, p?.age);
-            await bootstrapMatchmakingApplication(result?.user, {
-              gender: p?.gender,
-              nationality: p?.nationality,
-              nationalityOther: p?.nationalityOther,
-              age: p?.age,
-              ageConfirmed: true,
-            });
+            await ensureProfileSaved(result?.user?.uid, p?.age);
+            await acceptReferralIfAny();
           }
 
           const target = resolvePostAuthTarget(isNewUser);
@@ -548,26 +585,6 @@ export default function Login() {
     );
   }
 
-  const resolveLanguageFromNationality = (value) => {
-    if (value === 'tr') return 'tr';
-    if (value === 'id') return 'id';
-    return 'en';
-  };
-
-  const handleNationalityChange = (value) => {
-    setSignupNationality(value);
-    if (value !== 'other') {
-      setSignupNationalityOther('');
-    }
-    const nextLang = resolveLanguageFromNationality(value);
-    try {
-      localStorage.setItem('preferred_lang_source', 'signup');
-    } catch {
-      // ignore
-    }
-    i18n.changeLanguage(nextLang);
-  };
-
   const handleGoogle = async () => {
     setBusy(true);
     setError("");
@@ -577,19 +594,6 @@ export default function Login() {
       // - Login intent'i ile gelen yeni kullanıcıyı signup'a yönlendir (bizde signup zorunlu alanlar var).
       // - Mevcut kullanıcıysa (isNewUser=false) login modunda Google ile girişe izin ver.
       const intent = mode;
-
-      if (mode === "signup" && signupGender !== "male" && signupGender !== "female") {
-        setError(t("authPage.errors.genderRequired"));
-        return;
-      }
-      if (mode === "signup" && !signupNationality) {
-        setError(t("authPage.errors.nationalityRequired"));
-        return;
-      }
-      if (mode === "signup" && signupNationality === 'other' && !signupNationalityOther.trim()) {
-        setError(t("authPage.errors.nationalityOtherRequired"));
-        return;
-      }
       if (mode === 'signup') {
         const n = Number(String(signupAge || '').trim());
         if (!Number.isFinite(n) || !Number.isInteger(n) || n > 99) {
@@ -604,9 +608,6 @@ export default function Login() {
 
       if (mode === 'signup') {
         writeSignupProfile({
-          gender: signupGender,
-          nationality: signupNationality,
-          nationalityOther: signupNationalityOther,
           age: Number(String(signupAge || '').trim()),
         });
       } else {
@@ -615,10 +616,8 @@ export default function Login() {
 
       writeAuthIntent(mode);
 
-      // Ürün kararı: signup'ta form sayfasını zorlamıyoruz.
-      // Signup akışı: kayıt sonrası her zaman /profilim'e git.
-      // Login akışı: stored redirect hedefini koru.
-      writeForcedTarget(mode === 'signup' ? '/profilim' : '');
+      // Signup akışı: kayıt sonrası ilk adım başvuru formu.
+      writeForcedTarget(mode === 'signup' ? '/evlilik/eslestirme-basvuru?w=1' : '');
       const provider = new GoogleAuthProvider();
       const result = await signInWithPopup(auth, provider);
       const info2 = getAdditionalUserInfo(result);
@@ -643,14 +642,8 @@ export default function Login() {
       }
 
       if (mode === "signup" && isNewUser) {
-        await ensureProfileSaved(result?.user?.uid, signupGender, signupNationality, signupNationalityOther, signupAge);
-        await bootstrapMatchmakingApplication(result?.user, {
-          gender: signupGender,
-          nationality: signupNationality,
-          nationalityOther: signupNationalityOther,
-          age: Number(String(signupAge || '').trim()),
-          ageConfirmed: true,
-        });
+        await ensureProfileSaved(result?.user?.uid, signupAge);
+        await acceptReferralIfAny();
       }
       const target = resolvePostAuthTarget(isNewUser);
       const state = isNewUser ? null : resolvePostAuthState();
@@ -678,14 +671,11 @@ export default function Login() {
         try {
           const provider = new GoogleAuthProvider();
           setInfo(t('authPage.redirecting'));
-          // Popup fallback: signup'ta da form hedefini zorlamıyoruz.
-          writeForcedTarget(mode === 'signup' ? '/profilim' : '');
+          // Popup fallback
+          writeForcedTarget(mode === 'signup' ? '/evlilik/eslestirme-basvuru?w=1' : '');
           writeAuthIntent(mode);
           if (mode === 'signup') {
             writeSignupProfile({
-              gender: signupGender,
-              nationality: signupNationality,
-              nationalityOther: signupNationalityOther,
               age: Number(String(signupAge || '').trim()),
             });
           } else {
@@ -758,19 +748,6 @@ export default function Login() {
         return;
       }
 
-      if (mode === "signup" && signupGender !== "male" && signupGender !== "female") {
-        setError(t("authPage.errors.genderRequired"));
-        return;
-      }
-      if (mode === "signup" && !signupNationality) {
-        setError(t("authPage.errors.nationalityRequired"));
-        return;
-      }
-      if (mode === "signup" && signupNationality === 'other' && !signupNationalityOther.trim()) {
-        setError(t("authPage.errors.nationalityOtherRequired"));
-        return;
-      }
-
       if (mode === 'signup') {
         const n = Number(String(signupAge || '').trim());
         if (!Number.isFinite(n) || !Number.isInteger(n) || n > 99) {
@@ -795,14 +772,8 @@ export default function Login() {
         // Redirect effect'i tetiklenmeden önce hedefi zorlayalım.
         writeForcedTarget('/evlilik/eslestirme-basvuru?w=1');
         const cred = await createUserWithEmailAndPassword(auth, normalizedEmail, passwordToUse);
-        await ensureProfileSaved(cred?.user?.uid, signupGender, signupNationality, signupNationalityOther, signupAge);
-        await bootstrapMatchmakingApplication(cred?.user, {
-          gender: signupGender,
-          nationality: signupNationality,
-          nationalityOther: signupNationalityOther,
-          age: Number(String(signupAge || '').trim()),
-          ageConfirmed: true,
-        });
+        await ensureProfileSaved(cred?.user?.uid, signupAge);
+        await acceptReferralIfAny();
         clearAuthIntent();
         clearSignupProfile();
 
@@ -995,84 +966,7 @@ export default function Login() {
             {/* Signup alanları için anchor */}
             <div ref={signupSectionRef} />
 
-            {mode === "signup" && (
-              <div
-                className={[
-                  'rounded-2xl p-3 -mx-1',
-                  signupHighlight ? 'bg-amber-50 ring-2 ring-amber-300 ring-offset-2 ring-offset-white transition' : '',
-                ].join(' ')}
-              >
-                <label className="block text-xs font-semibold text-slate-700">{t("authPage.labels.gender")}</label>
-                <div className="mt-2 grid grid-cols-2 gap-2">
-                  <label
-                    className={`flex items-center gap-2 rounded-xl border px-3 py-2 text-sm cursor-pointer ${
-                      signupGender === "male" ? "border-emerald-300 bg-emerald-50" : "border-slate-300 bg-white"
-                    }`}
-                  >
-                    <input
-                      ref={signupGenderFirstRef}
-                      type="radio"
-                      name="signupGender"
-                      value="male"
-                      checked={signupGender === "male"}
-                      onChange={() => setSignupGender("male")}
-                    />
-                    <span>{t("authPage.signup.genderMale")}</span>
-                  </label>
-
-                  <label
-                    className={`flex items-center gap-2 rounded-xl border px-3 py-2 text-sm cursor-pointer ${
-                      signupGender === "female" ? "border-emerald-300 bg-emerald-50" : "border-slate-300 bg-white"
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      name="signupGender"
-                      value="female"
-                      checked={signupGender === "female"}
-                      onChange={() => setSignupGender("female")}
-                    />
-                    <span>{t("authPage.signup.genderFemale")}</span>
-                  </label>
-                </div>
-              </div>
-            )}
-
-            {mode === "signup" && (
-              <div
-                className={[
-                  'rounded-2xl p-3 -mx-1',
-                  signupHighlight ? 'bg-amber-50 ring-2 ring-amber-300 ring-offset-2 ring-offset-white transition' : '',
-                ].join(' ')}
-              >
-                <label className="block text-xs font-semibold text-slate-700">{t("authPage.labels.nationality")}</label>
-                <select
-                  value={signupNationality}
-                  onChange={(e) => handleNationalityChange(e.target.value)}
-                  className="mt-2 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
-                >
-                  <option value="">{t('authPage.placeholders.nationality')}</option>
-                  <option value="tr">{t('authPage.signup.nationalityTr')}</option>
-                  <option value="id">{t('authPage.signup.nationalityId')}</option>
-                  <option value="other">{t('authPage.signup.nationalityOther')}</option>
-                </select>
-              </div>
-            )}
-
-            {mode === "signup" && signupNationality === 'other' && (
-              <div>
-                <label className="block text-xs font-semibold text-slate-700">{t("authPage.labels.nationalityOther")}</label>
-                <input
-                  value={signupNationalityOther}
-                  onChange={(e) => setSignupNationalityOther(e.target.value)}
-                  type="text"
-                  className="mt-2 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
-                  placeholder={t('authPage.placeholders.nationalityOther')}
-                />
-              </div>
-            )}
-
-            {mode === 'signup' && !!signupNationality && (
+            {mode === 'signup' && (
               <div
                 className={[
                   'rounded-2xl p-3 -mx-1',
@@ -1081,6 +975,7 @@ export default function Login() {
               >
                 <label className="block text-xs font-semibold text-slate-700">{t('authPage.labels.age')}</label>
                 <input
+                  ref={signupAgeFirstRef}
                   value={signupAge}
                   onChange={(e) => {
                     const raw = String(e.target.value || '');

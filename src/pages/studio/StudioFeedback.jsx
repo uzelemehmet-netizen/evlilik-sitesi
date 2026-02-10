@@ -131,10 +131,19 @@ export default function StudioFeedback() {
 
       <main className="container mx-auto px-4 py-8">
         <div className="mx-auto max-w-3xl">
-          <Link to="/profilim" className="inline-flex items-center gap-2 text-sm font-semibold text-slate-700 hover:text-slate-900">
-            <ArrowLeft className="h-4 w-4" />
-            {t('studio.feedback.backToProfile')}
-          </Link>
+          <div className="sm:hidden sticky top-0 z-20 -mx-4 border-b border-slate-200 bg-slate-50/95 px-4 py-2 backdrop-blur">
+            <Link to="/profilim" className="app-btn app-btn-danger w-full justify-center">
+              <ArrowLeft className="h-4 w-4" />
+              {t('studio.feedback.backToProfile')}
+            </Link>
+          </div>
+
+          <div className="hidden sm:block">
+            <Link to="/profilim" className="inline-flex items-center gap-2 text-sm font-semibold text-slate-700 hover:text-slate-900">
+              <ArrowLeft className="h-4 w-4" />
+              {t('studio.feedback.backToProfile')}
+            </Link>
+          </div>
 
           <div className="mt-4 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
             <div className="border-b border-slate-200 p-6">
@@ -151,15 +160,17 @@ export default function StudioFeedback() {
 
             <div className="p-6">
               <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-slate-700">
-                {t('studio.feedback.urgentNote')}{' '}
-                <a
-                  className="font-semibold text-amber-800 underline"
-                  href={buildWhatsAppUrl(t('matchmakingHub.whatsappSupportMessage'))}
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  {t('studio.feedback.whatsappCta')}
-                </a>
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="min-w-0">{t('studio.feedback.urgentNote')}</div>
+                  <a
+                    className="app-btn app-btn-primary h-8 px-3 text-xs w-full sm:w-auto justify-center"
+                    href={buildWhatsAppUrl(t('matchmakingHub.whatsappSupportMessage'))}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    {t('studio.feedback.whatsappCta')}
+                  </a>
+                </div>
               </div>
 
               <div className="mt-6 grid grid-cols-1 gap-4">

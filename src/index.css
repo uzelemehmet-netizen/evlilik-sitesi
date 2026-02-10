@@ -1,4 +1,4 @@
-﻿@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Poppins:wght@400;500;600;700;800;900&display=swap");
+﻿@import url("https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800;900&family=Poppins:wght@400;500;600;700;800;900&display=swap");
 @import url("https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@200..800&display=swap");
 
 @import url("./styles/geminiTheme.css");
@@ -14,13 +14,13 @@
 }
 
 html {
-  font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen", "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue", sans-serif;
+  font-family: "Rajdhani", "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen", "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue", sans-serif;
   /* Tüm yazı ölçeğini bir tık küçült */
   font-size: 15px;
 }
 
 body {
-  font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen", "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue", sans-serif;
+  font-family: "Rajdhani", "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen", "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue", sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
@@ -28,13 +28,13 @@ body {
 }
 
 h1, h2, h3, h4, h5, h6 {
-  font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-family: "Rajdhani", "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   font-weight: 500;
   letter-spacing: 0;
 }
 
 p, span, a, div, li {
-  font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-family: "Rajdhani", "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   letter-spacing: 0;
 }
 
@@ -121,61 +121,302 @@ h3 {
 
 @layer components {
   .app-btn {
-    @apply inline-flex h-9 select-none items-center justify-center gap-2 rounded-xl px-3 text-sm font-semibold text-center;
-    @apply bg-gradient-to-b from-emerald-600 to-emerald-800 text-white ring-1 ring-emerald-600/30;
-    @apply transition-[transform,box-shadow,background-color,color,opacity] duration-150 ease-out;
-    @apply hover:-translate-y-0.5 hover:from-emerald-700 hover:to-emerald-900 active:translate-y-0 active:scale-[0.99];
-    @apply focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 focus-visible:ring-offset-2;
+    /* Default button style across the app: glossy PNG skins */
+    @apply inline-flex h-9 select-none items-center justify-center gap-2 rounded-xl px-3 text-xs font-semibold text-center;
+    @apply text-white;
+    @apply ring-1 ring-slate-300/70 ring-offset-1 ring-offset-white;
+    @apply transition-[transform,filter,opacity] duration-150 ease-out;
+    @apply hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.99];
+    @apply focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-400/70 focus-visible:ring-offset-2;
     @apply disabled:pointer-events-none disabled:opacity-60;
 
-    /* “mobil app” hissi: yumuşak gölge */
-    box-shadow: 0 10px 30px rgba(2, 6, 23, 0.08), 0 2px 6px rgba(2, 6, 23, 0.06);
+    --app-btn-skin: url('/glossy-button-set/btn-01.png');
+
+    background-color: transparent;
+    background-image: var(--app-btn-skin);
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: 100% 100%;
+
+    box-shadow: none;
+    text-shadow: 0 1px 2px rgba(2, 6, 23, 0.35);
+  }
+
+  /* Buttons: icon layout (icons on the right, bigger, not glued to edge) */
+  .app-btn > :not(svg) {
+    order: 1;
+  }
+
+  .app-btn > svg {
+    order: 2;
+    width: 22px;
+    height: 22px;
+    flex: 0 0 auto;
+  }
+
+  .app-btn > svg:last-child {
+    margin-left: auto;
+    margin-right: 4px;
+  }
+
+  /* Buttons: Orbitron everywhere (including inner spans) */
+  .app-btn,
+  .app-btn *,
+  .app-btn-logo,
+  .app-btn-logo *,
+  button,
+  button * {
+    font-family: "Orbitron", "Poppins", "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif !important;
   }
 
   .app-btn:hover {
-    box-shadow: 0 14px 40px rgba(2, 6, 23, 0.10), 0 4px 10px rgba(2, 6, 23, 0.08);
+    filter: brightness(1.03) saturate(1.03);
   }
 
   .app-btn-primary {
-    @apply bg-gradient-to-b from-emerald-700 to-emerald-900 text-white ring-emerald-700/35;
-    box-shadow: 0 14px 40px rgba(4, 120, 87, 0.26), 0 4px 12px rgba(2, 6, 23, 0.10);
+    --app-btn-skin: url('/glossy-button-set/btn-04.png');
   }
 
   .app-btn-primary:hover {
-    @apply from-emerald-800 to-emerald-950;
-    box-shadow: 0 18px 50px rgba(4, 120, 87, 0.30), 0 6px 16px rgba(2, 6, 23, 0.12);
+    filter: brightness(1.04) saturate(1.04);
   }
 
   .app-btn-primary-light {
-    @apply bg-gradient-to-b from-emerald-500 to-emerald-700 text-white ring-emerald-500/30;
-    box-shadow: 0 12px 34px rgba(4, 120, 87, 0.20), 0 3px 10px rgba(2, 6, 23, 0.10);
+    --app-btn-skin: url('/glossy-button-set/btn-09.png');
   }
 
   .app-btn-primary-light:hover {
-    @apply from-emerald-600 to-emerald-800;
-    box-shadow: 0 16px 44px rgba(4, 120, 87, 0.24), 0 5px 14px rgba(2, 6, 23, 0.12);
+    filter: brightness(1.04) saturate(1.04);
   }
 
+  /* PNG pack palette variants (use Tailwind tokens; keep premium gradient feel) */
+  .app-btn-indigo {
+    --app-btn-skin: url('/glossy-button-set/btn-02.png');
+  }
+
+  .app-btn-indigo:hover {
+    filter: brightness(1.04) saturate(1.04);
+  }
+
+  .app-btn-sky {
+    --app-btn-skin: url('/glossy-button-set/btn-07.png');
+  }
+
+  .app-btn-sky:hover {
+    filter: brightness(1.04) saturate(1.04);
+  }
+
+  .app-btn-purple {
+    --app-btn-skin: url('/glossy-button-set/btn-06.png');
+  }
+
+  .app-btn-purple:hover {
+    filter: brightness(1.04) saturate(1.04);
+  }
+
+  .app-btn-orange {
+    --app-btn-skin: url('/glossy-button-set/btn-10.png');
+  }
+
+  .app-btn-orange:hover {
+    filter: brightness(1.04) saturate(1.04);
+  }
+
+  .app-btn-teal {
+    --app-btn-skin: url('/glossy-button-set/btn-09.png');
+  }
+
+  .app-btn-teal:hover {
+    filter: brightness(1.04) saturate(1.04);
+  }
+
+  .app-btn-pink {
+    --app-btn-skin: url('/glossy-button-set/btn-05.png');
+  }
+
+  .app-btn-pink:hover {
+    filter: brightness(1.04) saturate(1.04);
+  }
+
+  /* SVG-inspired flat button (vecteezy_flat-web-page-button-collection_143242.svg) */
+  .app-btn-flat {
+    @apply bg-slate-700 text-white ring-1 ring-white/10;
+    @apply h-12 px-4;
+    @apply hover:bg-slate-800;
+    @apply focus-visible:ring-2 focus-visible:ring-white/60 focus-visible:ring-offset-2;
+
+    /* IMPORTANT: base .app-btn sets a gradient background-image; remove it */
+    background-image: none;
+
+    /* keep the "app" feel but not too glossy */
+    box-shadow: 0 10px 26px rgba(2, 6, 23, 0.14), 0 2px 6px rgba(2, 6, 23, 0.10);
+  }
+
+  .app-btn-flat:hover {
+    background-image: none;
+  }
+
+  .app-btn-flat:active {
+    background-image: none;
+    transform: none;
+  }
+
+  .app-btn-flat:hover {
+    box-shadow: 0 14px 34px rgba(2, 6, 23, 0.18), 0 4px 10px rgba(2, 6, 23, 0.12);
+  }
+
+  .app-btn-flat-icon {
+    @apply inline-flex items-center justify-center;
+    width: 3.25rem;
+    margin-left: -0.25rem;
+    position: relative;
+  }
+
+  .app-btn-flat-icon::after {
+    content: '';
+    position: absolute;
+    right: -0.25rem;
+    top: 0.55rem;
+    bottom: 0.55rem;
+    width: 1px;
+    background: rgba(255, 255, 255, 0.35);
+  }
+
+  /* Button pack skins (PNG assets under public/button-pack/) */
+  .app-btn-pack {
+    @apply ring-0;
+    @apply text-white;
+    @apply h-14 px-5;
+    @apply font-bold;
+    @apply focus-visible:ring-2 focus-visible:ring-white/70 focus-visible:ring-offset-2;
+
+    font-family: "Poppins", sans-serif;
+    letter-spacing: 0.01em;
+    text-shadow: 0 1px 2px rgba(2, 6, 23, 0.35);
+
+    background-color: transparent;
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: 100% 100%;
+
+    /* PNG pack has its own depth; don't double-shadow */
+    box-shadow: none;
+  }
+
+  .app-btn-pack:hover {
+    filter: brightness(1.04) saturate(1.04);
+  }
+
+  .app-btn-pack:active {
+    filter: brightness(0.98) saturate(1.02);
+  }
+
+  .app-btn-pack-indigo { background-image: url('/button-pack/btn-indigo.png'); }
+  .app-btn-pack-sky { background-image: url('/button-pack/btn-sky.png'); }
+  .app-btn-pack-purple { background-image: url('/button-pack/btn-purple.png'); }
+  .app-btn-pack-teal { background-image: url('/button-pack/btn-teal.png'); }
+  .app-btn-pack-pink { background-image: url('/button-pack/btn-pink.png'); }
+  .app-btn-pack-orange { background-image: url('/button-pack/btn-orange.png'); }
+
+  /* Glossy button set skins (public/logos/glossy-web-buttons-set-different-colors.png -> public/glossy-button-set/*.png) */
+  .app-btn-logo {
+    /* chrome frame */
+    @apply ring-1 ring-slate-300 ring-offset-1 ring-offset-white;
+    @apply text-white;
+    @apply font-semibold;
+    @apply inline-flex;
+    @apply items-center;
+    @apply justify-center;
+
+    /* fixed size: labels won't change button size */
+    height: 38px;
+    width: 100%;
+    max-width: 184px;
+    padding: 0;
+
+    /* override base .app-btn emerald gradient */
+    background-color: transparent;
+    background-image: none;
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: 100% 100%;
+
+    font-family: "Orbitron", "Poppins", "Inter", sans-serif !important;
+    letter-spacing: 0.01em;
+    white-space: nowrap;
+
+    font-size: 12px;
+    line-height: 1;
+
+    text-transform: uppercase;
+    position: relative;
+    overflow: hidden;
+
+    box-shadow: none;
+    text-shadow: 0 1px 2px rgba(2, 6, 23, 0.35);
+  }
+
+  @media (max-width: 420px) {
+    .app-btn-logo {
+      font-size: 10px;
+    }
+  }
+
+  .app-btn-logo * {
+    font-family: "Orbitron", "Poppins", "Inter", sans-serif !important;
+  }
+
+  /* glossy assets are used directly */
+
+  .app-btn-logo:hover {
+    filter: brightness(1.03) saturate(1.03);
+  }
+
+  .app-btn-logo:active {
+    filter: brightness(0.98) saturate(1.02);
+  }
+
+  /* app-btn-logo: right icon bigger + slightly left */
+  .app-btn-logo span[aria-hidden="true"] {
+    right: 1.25rem;
+  }
+
+  .app-btn-logo span[aria-hidden="true"] svg {
+    width: 26px;
+    height: 26px;
+  }
+
+  .app-btn-logo-blue { background-image: url('/glossy-button-set/btn-01.png'); }
+  .app-btn-logo-purple { background-image: url('/glossy-button-set/btn-02.png'); }
+  .app-btn-logo-red { background-image: url('/glossy-button-set/btn-03.png'); }
+  .app-btn-logo-green { background-image: url('/glossy-button-set/btn-04.png'); }
+  .app-btn-logo-yellow { background-image: url('/glossy-button-set/btn-05.png'); }
+  .app-btn-logo-navy { background-image: url('/glossy-button-set/btn-06.png'); }
+  .app-btn-logo-cyan { background-image: url('/glossy-button-set/btn-07.png'); }
+  .app-btn-logo-gray { background-image: url('/glossy-button-set/btn-08.png'); }
+  .app-btn-logo-teal { background-image: url('/glossy-button-set/btn-09.png'); }
+
   .app-btn-soft {
-    @apply bg-gradient-to-b from-emerald-600 to-emerald-800 text-white ring-emerald-600/30;
+    --app-btn-skin: url('/glossy-button-set/btn-09.png');
   }
 
   .app-btn-soft:hover {
-    @apply from-emerald-700 to-emerald-900;
+    filter: brightness(1.04) saturate(1.04);
   }
 
   .app-btn-accent {
-    @apply bg-gradient-to-b from-emerald-600 to-emerald-800 text-white ring-emerald-600/30;
-    box-shadow: 0 12px 34px rgba(4, 120, 87, 0.18), 0 3px 10px rgba(2, 6, 23, 0.08);
+    --app-btn-skin: url('/glossy-button-set/btn-01.png');
   }
 
   .app-btn-accent:hover {
-    @apply from-emerald-700 to-emerald-900;
-    box-shadow: 0 16px 44px rgba(4, 120, 87, 0.22), 0 5px 14px rgba(2, 6, 23, 0.10);
+    filter: brightness(1.04) saturate(1.04);
   }
 
   .app-btn-outline {
     @apply bg-white text-slate-800 ring-1 ring-slate-200;
+    --app-btn-skin: none;
+    background-image: none;
+    text-shadow: none;
   }
 
   .app-btn-outline:hover {
@@ -185,6 +426,9 @@ h3 {
   .app-btn-ghost {
     @apply bg-transparent text-slate-700 ring-0;
     box-shadow: none;
+    --app-btn-skin: none;
+    background-image: none;
+    text-shadow: none;
   }
 
   .app-btn-ghost:hover {
@@ -193,21 +437,19 @@ h3 {
   }
 
   .app-btn-danger {
-    @apply bg-gradient-to-b from-rose-600 to-rose-800 text-white ring-rose-600/30;
+    --app-btn-skin: url('/glossy-button-set/btn-03.png');
   }
 
   .app-btn-danger:hover {
-    @apply from-rose-700 to-rose-900;
+    filter: brightness(1.04) saturate(1.04);
   }
 
   .app-btn-logout {
-    @apply bg-gradient-to-b from-red-900 to-black text-white ring-red-900/45;
-    box-shadow: 0 14px 40px rgba(127, 29, 29, 0.26), 0 4px 12px rgba(2, 6, 23, 0.10);
+    --app-btn-skin: url('/glossy-button-set/btn-03.png');
   }
 
   .app-btn-logout:hover {
-    @apply from-black to-black;
-    box-shadow: 0 18px 50px rgba(127, 29, 29, 0.30), 0 6px 16px rgba(2, 6, 23, 0.14);
+    filter: brightness(1.04) saturate(1.04);
   }
 
   .app-badge {

@@ -98,7 +98,7 @@ export default function StudioProfilePreview() {
                 </button>
                 <Link
                   to="/evlilik/eslestirme-basvuru?w=1"
-                  className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-5 text-sm font-semibold text-slate-800 transition hover:bg-slate-50"
+                  className="app-btn app-btn-outline h-10 px-5"
                 >
                   {t('matchmakingPreview.gate.ctaApply')}
                 </Link>
@@ -117,7 +117,7 @@ export default function StudioProfilePreview() {
                 <button
                   type="button"
                   onClick={gatedAction('matches')}
-                  className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-800 hover:bg-slate-50"
+                  className="app-btn app-btn-outline h-10 px-4"
                 >
                   {t('matchmakingPreview.cards.matches.cta')}
                   <ArrowRight size={18} />
@@ -135,7 +135,7 @@ export default function StudioProfilePreview() {
                 <button
                   type="button"
                   onClick={gatedAction('pool')}
-                  className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-800 hover:bg-slate-50"
+                  className="app-btn app-btn-outline h-10 px-4"
                 >
                   {t('matchmakingPreview.cards.pool.cta')}
                   <ArrowRight size={18} />
@@ -145,7 +145,7 @@ export default function StudioProfilePreview() {
                   type="button"
                   onClick={gatedAction('pool')}
                   data-tutorial-id="pool-pre-match-request"
-                  className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 text-sm font-semibold text-emerald-900 hover:bg-emerald-100"
+                  className="app-btn app-btn-primary-light h-10 px-4"
                 >
                   {t('matchmakingPreview.cards.pool.request')}
                   <ArrowRight size={18} />
@@ -155,7 +155,7 @@ export default function StudioProfilePreview() {
                   type="button"
                   onClick={gatedAction('pool')}
                   data-tutorial-id="match-like"
-                  className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-rose-200 bg-rose-50 px-4 text-sm font-semibold text-rose-900 hover:bg-rose-100"
+                  className="app-btn app-btn-outline h-10 px-4"
                 >
                   <Heart size={18} />
                   {t('matchmakingPreview.cards.pool.like')}
@@ -191,7 +191,7 @@ export default function StudioProfilePreview() {
                       type="button"
                       data-tutorial-id="chat-send"
                       onClick={gatedAction('chat')}
-                      className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-800 hover:bg-slate-50"
+                      className="app-btn app-btn-primary h-10 px-4"
                     >
                       {t('matchmakingPreview.cards.chat.send')}
                     </button>

@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { collection, doc, getDoc, getDocFromServer, getDocs, limit, onSnapshot, query, where } from 'firebase/firestore';
 import { signOut } from 'firebase/auth';
 import { getDownloadURL, ref } from 'firebase/storage';
-import { AlertTriangle, BookOpen, Edit, Images, LogOut, MessageCircle, ShieldCheck, Star, Trash2, UploadCloud, Users } from 'lucide-react';
+import { AlertTriangle, BookOpen, Edit, Images, LogOut, Menu, MessageCircle, Share2, ShieldCheck, Star, Trash2, UploadCloud, Users, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import Navigation from '../../components/Navigation';
 import Footer from '../../components/Footer';
@@ -12,7 +12,7 @@ import { auth, db, storage } from '../../config/firebase';
 import { authFetch } from '../../utils/authFetch';
 import { uploadImageToCloudinaryAuto } from '../../utils/cloudinaryUpload';
 import { translateStudioApiError } from '../../utils/studioErrorI18n';
-import { buildWhatsAppUrl, getWhatsAppNumber } from '../../utils/whatsapp';
+import { buildWhatsAppShareUrl, buildWhatsAppUrl, getWhatsAppNumber } from '../../utils/whatsapp';
 import PwaInstallCard from '../../components/PwaInstallCard.jsx';
 import { openPreviewGate } from '../../utils/previewGate';
 import { buildPreviewProfile } from '../../utils/studioPreviewData';
@@ -86,7 +86,42 @@ export default function StudioProfile() {
   const { user } = useAuth();
   const { t, i18n } = useTranslation();
 
+  const [profileMenuOpen, setProfileMenuOpen] = useState(false);
+  const profileMenuWrapRef = useRef(null);
+
+  useEffect(() => {
+    setProfileMenuOpen(false);
+  }, [location?.pathname]);
+
+  useEffect(() => {
+    if (!profileMenuOpen) return;
+
+    const onKeyDown = (e) => {
+      if (e.key === 'Escape') setProfileMenuOpen(false);
+    };
+
+    const onPointerDown = (e) => {
+      const wrap = profileMenuWrapRef.current;
+      if (!wrap) return;
+      if (wrap.contains(e.target)) return;
+      setProfileMenuOpen(false);
+    };
+
+    document.addEventListener('keydown', onKeyDown);
+    document.addEventListener('mousedown', onPointerDown);
+    document.addEventListener('touchstart', onPointerDown, { passive: true });
+
+    return () => {
+      document.removeEventListener('keydown', onKeyDown);
+      document.removeEventListener('mousedown', onPointerDown);
+      document.removeEventListener('touchstart', onPointerDown);
+    };
+  }, [profileMenuOpen]);
+
   const isPreview = !user || user.isAnonymous;
+
+  const isTr = String(i18n?.language || '').toLowerCase().startsWith('tr');
+  const shortLabel = (fallbackKey, trText) => (isTr ? trText : t(fallbackKey));
 
   const referralUiEnabled = (() => {
     try {
@@ -1265,7 +1300,7 @@ export default function StudioProfile() {
                         <div className="mt-3">
                           <Link
                             to="/evlilik/eslestirme-basvuru?w=1"
-                            className="inline-flex items-center justify-center rounded-lg bg-red-700 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-800 focus:outline-none focus:ring-2 focus:ring-red-600 focus:ring-offset-2"
+                            className="app-btn app-btn-flat"
                           >
                             {t('studio.profileGate.cta')}
                           </Link>
@@ -1277,98 +1312,225 @@ export default function StudioProfile() {
               </div>
 
               <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center">
-                <Link
-                  to="/evlilik/eslestirme-basvurusu?editOnce=1"
-                  className="app-btn w-full sm:w-auto"
-                >
-                  <Edit className="mr-2 h-4 w-4" />
-                  {t('studio.profile.editProfile')}
-                </Link>
-
-                <Link
-                  to="/profilim/destek"
-                  className="app-btn w-full sm:w-auto"
-                >
-                  <MessageCircle className="mr-2 h-4 w-4" />
-                  {t('studio.feedback.nav')}
-                </Link>
-
-                <button
-                  type="button"
-                  onClick={() => toggleTopInlinePanel('membership')}
-                  className="app-btn w-full sm:w-auto"
-                  title={t('studio.profile.subscriptionTitle')}
-                >
-                  <Star className="mr-2 h-4 w-4" />
-                  {t('studio.profile.subscriptionTitle')}
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => toggleTopInlinePanel('identity')}
-                  className="app-btn w-full sm:w-auto"
-                  title={t('studio.profile.identityTitle')}
-                >
-                  <ShieldCheck className="mr-2 h-4 w-4" />
-                  {t('studio.profile.identityTitle')}
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => toggleTopInlinePanel('photoPrivacy')}
-                  className="app-btn w-full sm:w-auto"
-                  title={t('studio.profile.photoPrivacy.title')}
-                >
-                  <Images className="mr-2 h-4 w-4" />
-                  {t('studio.profile.photoPrivacy.title')}
-                </button>
-
-                {referralUiEnabled ? (
+                <div ref={profileMenuWrapRef} className="relative col-span-2 sm:col-span-1">
                   <button
                     type="button"
-                    onClick={() => {
-                      setReferralAcceptState({ loading: false, error: '', success: '' });
-                      setReferralClaimState({ loading: false, error: '', success: '' });
-                      toggleTopInlinePanel('referral');
-                    }}
-                    className="app-btn w-full sm:w-auto"
-                    title={t('studio.referral.title')}
+                    onClick={() => setProfileMenuOpen((v) => !v)}
+                    className="app-btn app-btn-danger w-full sm:w-auto h-10 px-5"
+                    aria-expanded={profileMenuOpen}
+                    aria-controls="profile-hamburger-menu"
                   >
-                    <Users className="mr-2 h-4 w-4" />
-                    {t('studio.referral.title')}
+                    {profileMenuOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
+                    {isTr ? 'İşlem Menüsü' : t('studio.common.actionMenu', { defaultValue: 'Actions' })}
                   </button>
-                ) : null}
 
-                <button
-                  type="button"
-                  onClick={() => setGuidanceModalOpen(true)}
-                  className="app-btn w-full sm:w-auto"
-                  title={t('studio.profile.guidance.button')}
-                >
-                  <BookOpen className="mr-2 h-4 w-4" />
-                  {t('studio.profile.guidance.button')}
-                </button>
+                  {profileMenuOpen ? (
+                    <div
+                      id="profile-hamburger-menu"
+                      className="absolute left-1/2 top-full z-30 mt-2 w-[calc(100vw-1rem)] max-w-[520px] -translate-x-1/2 rounded-xl border border-slate-200 bg-white p-2 shadow-lg"
+                      role="dialog"
+                      aria-modal="false"
+                    >
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="text-sm font-semibold text-slate-900">
+                            {isTr ? 'İşlem Menüsü' : t('studio.common.actionMenu', { defaultValue: 'Actions' })}
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setProfileMenuOpen(false)}
+                            className="app-btn app-btn-outline"
+                            aria-label={isTr ? 'Kapat' : t('studio.common.close', { defaultValue: 'Close' })}
+                          >
+                            <X className="h-4 w-4" />
+                            {isTr ? 'Kapat' : t('studio.common.close', { defaultValue: 'Close' })}
+                          </button>
+                        </div>
 
-                <Link
-                  to="/app/matches"
-                  data-tutorial-id="profile-my-matches"
-                  className="app-btn app-btn-accent w-full sm:w-auto"
-                >
-                  <span className="inline-flex items-center justify-center gap-2">
-                    <span>{t('studio.profile.myMatches')}</span>
-                    <span className="app-badge">Liste</span>
-                  </span>
-                </Link>
+                      <div className="mt-2 grid max-h-[60vh] grid-cols-2 justify-items-center gap-2 overflow-auto">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setProfileMenuOpen(false);
+                            navigate('/evlilik/eslestirme-basvurusu?editOnce=1');
+                          }}
+                          className="app-btn app-btn-logo app-btn-logo-blue"
+                          aria-label={shortLabel('studio.profile.editProfile', 'Profil')}
+                        >
+                          <span className="relative z-10 block w-full px-3">
+                            <span className="pointer-events-none absolute inset-0 flex items-center justify-center px-12">
+                              <span className="min-w-0 truncate text-center">{shortLabel('studio.profile.editProfile', 'Profil')}</span>
+                            </span>
+                            <span className="absolute right-4 top-1/2 -translate-y-1/2" aria-hidden="true">
+                              <Edit className="h-5 w-5 opacity-95" />
+                            </span>
+                          </span>
+                        </button>
 
-                <button
-                  type="button"
-                  onClick={logoutNow}
-                  className="app-btn app-btn-logout w-full sm:w-auto"
-                  title={t('studio.profile.logout')}
-                >
-                  <LogOut className="mr-2 h-4 w-4" />
-                  {t('studio.profile.logout')}
-                </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setProfileMenuOpen(false);
+                            navigate('/profilim/destek');
+                          }}
+                          className="app-btn app-btn-logo app-btn-logo-blue"
+                          aria-label={shortLabel('studio.feedback.nav', 'Şikayet')}
+                        >
+                          <span className="relative z-10 block w-full px-3">
+                            <span className="pointer-events-none absolute inset-0 flex items-center justify-center px-10">
+                              <span className="min-w-0 truncate text-center">{shortLabel('studio.feedback.nav', 'Şikayet')}</span>
+                            </span>
+                            <span className="absolute right-4 top-1/2 -translate-y-1/2" aria-hidden="true">
+                              <MessageCircle className="h-5 w-5 opacity-95" />
+                            </span>
+                          </span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setProfileMenuOpen(false);
+                            toggleTopInlinePanel('membership');
+                          }}
+                          className="app-btn app-btn-logo app-btn-logo-blue"
+                          title={t('studio.profile.subscriptionTitle')}
+                          aria-label={shortLabel('studio.profile.subscriptionTitle', 'Üyelik')}
+                        >
+                          <span className="relative z-10 block w-full px-3">
+                            <span className="pointer-events-none absolute inset-0 flex items-center justify-center px-10">
+                              <span className="min-w-0 truncate text-center">{shortLabel('studio.profile.subscriptionTitle', 'Üyelik')}</span>
+                            </span>
+                            <span className="absolute right-4 top-1/2 -translate-y-1/2" aria-hidden="true">
+                              <Star className="h-5 w-5 opacity-95" />
+                            </span>
+                          </span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setProfileMenuOpen(false);
+                            toggleTopInlinePanel('identity');
+                          }}
+                          className="app-btn app-btn-logo app-btn-logo-blue"
+                          title={t('studio.profile.identityTitle')}
+                          aria-label={shortLabel('studio.profile.identityTitle', 'Kimlik')}
+                        >
+                          <span className="relative z-10 block w-full px-3">
+                            <span className="pointer-events-none absolute inset-0 flex items-center justify-center px-10">
+                              <span className="min-w-0 truncate text-center">{shortLabel('studio.profile.identityTitle', 'Kimlik')}</span>
+                            </span>
+                            <span className="absolute right-4 top-1/2 -translate-y-1/2" aria-hidden="true">
+                              <ShieldCheck className="h-5 w-5 opacity-95" />
+                            </span>
+                          </span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setProfileMenuOpen(false);
+                            toggleTopInlinePanel('photoPrivacy');
+                          }}
+                          className="app-btn app-btn-logo app-btn-logo-blue"
+                          title={t('studio.profile.photoPrivacy.title')}
+                          aria-label={shortLabel('studio.profile.photoPrivacy.title', 'Fotoğraf')}
+                        >
+                          <span className="relative z-10 block w-full px-3">
+                            <span className="pointer-events-none absolute inset-0 flex items-center justify-center px-10">
+                              <span className="min-w-0 truncate text-center">{shortLabel('studio.profile.photoPrivacy.title', 'Fotoğraf')}</span>
+                            </span>
+                            <span className="absolute right-4 top-1/2 -translate-y-1/2" aria-hidden="true">
+                              <Images className="h-5 w-5 opacity-95" />
+                            </span>
+                          </span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setProfileMenuOpen(false);
+                            setGuidanceModalOpen(true);
+                          }}
+                          className="app-btn app-btn-logo app-btn-logo-blue"
+                          title={t('studio.profile.guidance.button')}
+                          aria-label={shortLabel('studio.profile.guidance.button', 'Rehberlik')}
+                        >
+                          <span className="relative z-10 block w-full px-3">
+                            <span className="pointer-events-none absolute inset-0 flex items-center justify-center px-8">
+                              <span className="min-w-0 truncate text-center">{shortLabel('studio.profile.guidance.button', 'Rehberlik')}</span>
+                            </span>
+                            <span className="absolute right-4 top-1/2 -translate-y-1/2" aria-hidden="true">
+                              <BookOpen className="h-5 w-5 opacity-95" />
+                            </span>
+                          </span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setProfileMenuOpen(false);
+                            navigate('/app/matches');
+                          }}
+                          className="app-btn app-btn-logo app-btn-logo-blue"
+                          aria-label={shortLabel('studio.profile.myMatches', 'Kişilerim')}
+                        >
+                          <span className="relative z-10 block w-full px-3">
+                            <span className="pointer-events-none absolute inset-0 flex items-center justify-center px-10">
+                              <span className="min-w-0 truncate text-center">{shortLabel('studio.profile.myMatches', 'Kişilerim')}</span>
+                            </span>
+                            <span className="absolute right-4 top-1/2 -translate-y-1/2" aria-hidden="true">
+                              <Users className="h-5 w-5 opacity-95" />
+                            </span>
+                          </span>
+                        </button>
+
+                        {referralUiEnabled ? (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setProfileMenuOpen(false);
+                              setReferralAcceptState({ loading: false, error: '', success: '' });
+                              setReferralClaimState({ loading: false, error: '', success: '' });
+                              toggleTopInlinePanel('referral');
+                            }}
+                            className="app-btn app-btn-logo app-btn-logo-blue"
+                            title={t('studio.referral.title')}
+                            aria-label={shortLabel('studio.referral.title', 'Davet')}
+                          >
+                            <span className="relative z-10 block w-full px-3">
+                              <span className="pointer-events-none absolute inset-0 flex items-center justify-center px-10">
+                                <span className="min-w-0 truncate text-center">{shortLabel('studio.referral.title', 'Davet')}</span>
+                              </span>
+                              <span className="absolute right-4 top-1/2 -translate-y-1/2" aria-hidden="true">
+                                <Users className="h-5 w-5 opacity-95" />
+                              </span>
+                            </span>
+                          </button>
+                        ) : null}
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setProfileMenuOpen(false);
+                            logoutNow();
+                          }}
+                          className="app-btn app-btn-logo app-btn-logo-red"
+                          title={t('studio.profile.logout')}
+                          aria-label={shortLabel('studio.profile.logout', 'Çıkış')}
+                        >
+                          <span className="relative z-10 block w-full px-3">
+                            <span className="pointer-events-none absolute inset-0 flex items-center justify-center px-10">
+                              <span className="min-w-0 truncate text-center">{shortLabel('studio.profile.logout', 'Çıkış')}</span>
+                            </span>
+                            <span className="absolute right-4 top-1/2 -translate-y-1/2" aria-hidden="true">
+                              <LogOut className="h-5 w-5 opacity-95" />
+                            </span>
+                          </span>
+                        </button>
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
               </div>
             </div>
 
@@ -1397,7 +1559,7 @@ export default function StudioProfile() {
                       <button
                         type="button"
                         disabled
-                        className="inline-flex items-center justify-center rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-500"
+                        className="app-btn app-btn-outline disabled:opacity-60"
                         title={t('studio.profile.buySoon')}
                       >
                         {t('studio.profile.buySoon')}
@@ -1407,7 +1569,7 @@ export default function StudioProfile() {
                         type="button"
                         onClick={activateFreeMembership}
                         disabled={membershipAction.loading}
-                        className="inline-flex items-center justify-center rounded-md bg-emerald-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-60"
+                        className="app-btn app-btn-primary disabled:opacity-60"
                       >
                         {membershipAction.loading ? t('studio.common.processing') : t('studio.profile.activateMembership')}
                       </button>
@@ -1416,14 +1578,14 @@ export default function StudioProfile() {
                         type="button"
                         onClick={cancelMembership}
                         disabled={membershipAction.loading}
-                        className="inline-flex items-center justify-center rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 transition hover:bg-slate-50 disabled:opacity-60"
+                        className="app-btn app-btn-danger disabled:opacity-60"
                       >
                         {t('studio.profile.cancelMembership')}
                       </button>
 
                       <Link
                         to="/profilim/bilgilerim"
-                        className="inline-flex items-center justify-center rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 transition hover:bg-slate-50"
+                        className="app-btn app-btn-outline"
                       >
                         {t('studio.profile.myInfo')}
                       </Link>
@@ -1459,7 +1621,7 @@ export default function StudioProfile() {
                           setVerifyMode('upload');
                           setVerifyModalOpen(true);
                         }}
-                        className="inline-flex items-center justify-center rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 transition hover:bg-slate-50"
+                        className="app-btn app-btn-outline"
                       >
                         <UploadCloud className="mr-2 h-4 w-4" />
                         {t('studio.profile.verifyNow')}
@@ -1474,7 +1636,7 @@ export default function StudioProfile() {
                           setVerifyModalOpen(true);
                         }}
                         disabled={!whatsappNumber || String(profile?.identityStatus || '').toLowerCase().trim() === 'pending'}
-                        className="inline-flex items-center justify-center rounded-md bg-emerald-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-60"
+                        className="app-btn app-btn-primary disabled:opacity-60"
                       >
                         <MessageCircle className="mr-2 h-4 w-4" />
                         {t('studio.profile.verifyMethodWhatsApp')}
@@ -1584,7 +1746,7 @@ export default function StudioProfile() {
                           type="button"
                           onClick={requestPhotoUpdate}
                           disabled={photoUpdateAction.loading}
-                          className="mt-3 inline-flex items-center justify-center rounded-md bg-indigo-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-800 disabled:opacity-60"
+                          className="mt-3 app-btn app-btn-primary disabled:opacity-60"
                         >
                           {photoUpdateAction.loading ? t('studio.common.processing') : t('matchmakingPanel.photos.updateRequest.cta')}
                         </button>
@@ -1656,11 +1818,45 @@ export default function StudioProfile() {
                         </div>
 
                         <div className="flex items-center gap-2">
+                          {(() => {
+                            const code = safeStr(mmUser?.userCode || (mmUser?.publicProfile && mmUser.publicProfile.userCode));
+                            if (!code) return null;
+                            let inviteUrl = '';
+                            try {
+                              if (typeof window !== 'undefined') {
+                                const u = new URL('/login', window.location.origin);
+                                u.searchParams.set('mode', 'signup');
+                                u.searchParams.set('ref', code);
+                                inviteUrl = u.toString();
+                              }
+                            } catch {
+                              // ignore
+                            }
+                            if (!inviteUrl) {
+                              inviteUrl = `/login?mode=signup&ref=${encodeURIComponent(code)}`;
+                            }
+                            const shareText = t('studio.referral.shareMessage', { url: inviteUrl });
+                            const waShareUrl = buildWhatsAppShareUrl(shareText);
+
+                            return (
+                              <a
+                                href={waShareUrl}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="app-btn app-btn-primary"
+                                title={t('studio.referral.shareButton')}
+                                aria-label={t('studio.referral.shareButton')}
+                              >
+                                {t('studio.referral.shareButton')}
+                                <Share2 className="h-4 w-4" />
+                              </a>
+                            );
+                          })()}
                           <button
                             type="button"
                             onClick={copyInviteCode}
                             disabled={!safeStr(mmUser?.userCode || (mmUser?.publicProfile && mmUser.publicProfile.userCode))}
-                            className="inline-flex items-center justify-center rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 transition hover:bg-slate-50 disabled:opacity-60"
+                            className="app-btn app-btn-outline disabled:opacity-60"
                           >
                             {t('studio.referral.copy')}
                           </button>
@@ -1690,7 +1886,7 @@ export default function StudioProfile() {
                             type="button"
                             onClick={claimReferralReward}
                             disabled={referralClaimState.loading}
-                            className="inline-flex items-center justify-center rounded-md bg-emerald-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-60"
+                            className="app-btn app-btn-primary disabled:opacity-60"
                           >
                             {referralClaimState.loading ? t('studio.common.processing') : t('studio.referral.claimButton')}
                           </button>
@@ -1714,7 +1910,7 @@ export default function StudioProfile() {
                             type="button"
                             onClick={acceptReferralCode}
                             disabled={referralAcceptState.loading}
-                            className="inline-flex items-center justify-center rounded-md bg-indigo-700 px-3 py-2 text-sm font-semibold text-white transition hover:bg-indigo-800 disabled:opacity-60"
+                            className="app-btn app-btn-primary disabled:opacity-60"
                           >
                             {referralAcceptState.loading ? t('studio.common.processing') : t('studio.referral.acceptButton')}
                           </button>
@@ -1754,7 +1950,7 @@ export default function StudioProfile() {
                   <button
                     type="button"
                     onClick={() => setApplyBannerOpen(false)}
-                    className="rounded-md px-2 py-1 text-sm font-semibold text-slate-700 hover:bg-amber-100"
+                    className="app-btn app-btn-ghost h-8 px-2 text-xs text-slate-700 hover:bg-amber-100"
                   >
                     {t('studio.common.close')}
                   </button>
@@ -1774,7 +1970,7 @@ export default function StudioProfile() {
                 <div className="mt-4 grid grid-cols-1 gap-2 sm:flex sm:flex-wrap sm:items-center">
                   <Link
                     to="/app/pool"
-                    className="app-btn app-btn-primary w-full sm:w-auto"
+                    className="app-btn app-btn-orange w-full sm:w-auto"
                   >
                     {t('studio.profile.applySuccess.ctas.pool')}
                   </Link>
@@ -1820,7 +2016,7 @@ export default function StudioProfile() {
                   type="button"
                   onClick={saveProfileTexts}
                   disabled={textSaveState.loading || !textTouched}
-                  className="inline-flex items-center justify-center rounded-md bg-emerald-600 px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 disabled:opacity-60"
+                  className="app-btn app-btn-primary disabled:opacity-60"
                 >
                   {textSaveState.loading ? t('studio.common.processing') : t('studio.profile.saveTexts')}
                 </button>
@@ -1876,7 +2072,7 @@ export default function StudioProfile() {
                 <button
                   type="button"
                   onClick={openPartnerPrefsModal}
-                  className="inline-flex items-center justify-center rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 shadow-sm transition hover:bg-slate-50"
+                  className="app-btn app-btn-outline"
                 >
                   <Edit className="mr-2 h-4 w-4" />
                   {t('studio.profile.partnerPrefsCta')}
@@ -1901,7 +2097,7 @@ export default function StudioProfile() {
                   type="button"
                   onClick={deleteAccount}
                   disabled={deleteState.loading}
-                  className="mt-3 inline-flex items-center justify-center rounded-md bg-rose-600 px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-rose-700 disabled:opacity-60"
+                  className="mt-3 app-btn app-btn-danger disabled:opacity-60"
                 >
                   <Trash2 className="mr-2 h-4 w-4" />
                   {deleteState.loading ? t('studio.profile.deleting') : t('studio.profile.deleteAccount')}
@@ -1917,7 +2113,7 @@ export default function StudioProfile() {
                     <button
                       type="button"
                       onClick={closeVerifyModal}
-                      className="rounded-md px-2 py-1 text-sm font-semibold text-slate-600 hover:bg-slate-100"
+                      className="app-btn app-btn-ghost h-8 px-2 text-xs"
                     >
                       {t('studio.common.close')}
                     </button>
@@ -1989,7 +2185,7 @@ export default function StudioProfile() {
                           type="button"
                           onClick={startWhatsAppCallVerification}
                           disabled={verifySelectAction.loading || !whatsappNumber || String(profile?.identityStatus || '').toLowerCase().trim() === 'pending'}
-                          className="mt-3 inline-flex w-full items-center justify-center rounded-md bg-emerald-600 px-3 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-60"
+                          className="mt-3 app-btn app-btn-primary w-full disabled:opacity-60"
                         >
                           {verifySelectAction.loading ? t('studio.common.loading') : t('studio.profile.verifyWhatsAppCta')}
                         </button>
@@ -2066,7 +2262,7 @@ export default function StudioProfile() {
                         type="button"
                         onClick={closeVerifyModal}
                         disabled={verifyAction.loading || verifySelectAction.loading}
-                        className="rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 hover:bg-slate-50 disabled:opacity-60"
+                        className="app-btn app-btn-outline disabled:opacity-60"
                       >
                         {t('studio.common.cancel')}
                       </button>
@@ -2075,7 +2271,7 @@ export default function StudioProfile() {
                           type="button"
                           onClick={submitManualVerification}
                           disabled={verifyAction.loading || String(profile?.identityStatus || '').toLowerCase().trim() === 'pending'}
-                          className="rounded-md bg-emerald-600 px-3 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-60"
+                          className="app-btn app-btn-primary disabled:opacity-60"
                         >
                           {verifyAction.loading ? t('studio.common.loading') : t('studio.profile.submitVerification')}
                         </button>
@@ -2095,7 +2291,7 @@ export default function StudioProfile() {
                       type="button"
                       onClick={closePartnerPrefsModal}
                       disabled={partnerPrefsSaveState.loading}
-                      className="rounded-md px-2 py-1 text-sm font-semibold text-slate-600 hover:bg-slate-100 disabled:opacity-60"
+                      className="app-btn app-btn-ghost h-8 px-2 text-xs disabled:opacity-60"
                     >
                       {t('studio.common.close')}
                     </button>
@@ -2429,7 +2625,7 @@ export default function StudioProfile() {
                         type="button"
                         onClick={closePartnerPrefsModal}
                         disabled={partnerPrefsSaveState.loading}
-                        className="inline-flex items-center justify-center rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 shadow-sm transition hover:bg-slate-50 disabled:opacity-60"
+                        className="app-btn app-btn-outline disabled:opacity-60"
                       >
                         {t('studio.common.cancel')}
                       </button>
@@ -2437,7 +2633,7 @@ export default function StudioProfile() {
                         type="button"
                         onClick={savePartnerPrefs}
                         disabled={partnerPrefsSaveState.loading}
-                        className="inline-flex items-center justify-center rounded-md bg-emerald-600 px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 disabled:opacity-60"
+                        className="app-btn app-btn-primary disabled:opacity-60"
                       >
                         {partnerPrefsSaveState.loading ? t('studio.profile.partnerPrefsSaving') : t('studio.profile.partnerPrefsSave')}
                       </button>
@@ -2458,7 +2654,7 @@ export default function StudioProfile() {
                     <button
                       type="button"
                       onClick={() => setGuidanceModalOpen(false)}
-                      className="rounded-md px-2 py-1 text-sm font-semibold text-slate-600 hover:bg-slate-100"
+                      className="app-btn app-btn-ghost h-8 px-2 text-xs"
                     >
                       {t('studio.common.close')}
                     </button>
@@ -2486,7 +2682,7 @@ export default function StudioProfile() {
                   <div className="border-t border-slate-200 p-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between shrink-0">
                     <Link
                       to="/evlilik"
-                      className="inline-flex items-center justify-center rounded-md bg-emerald-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-emerald-700"
+                      className="app-btn app-btn-primary"
                       onClick={() => setGuidanceModalOpen(false)}
                     >
                       {t('studio.profile.guidance.learnMore')}
@@ -2496,7 +2692,7 @@ export default function StudioProfile() {
                       href={guidanceWhatsAppUrl}
                       target="_blank"
                       rel="noreferrer"
-                      className="inline-flex items-center justify-center rounded-md bg-emerald-500 px-3 py-2 text-sm font-semibold text-white transition hover:bg-emerald-600"
+                      className="app-btn app-btn-primary"
                     >
                       {t('studio.profile.guidance.whatsappCta')}
                     </a>
@@ -2504,7 +2700,7 @@ export default function StudioProfile() {
                     <button
                       type="button"
                       onClick={() => setGuidanceModalOpen(false)}
-                      className="inline-flex items-center justify-center rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 transition hover:bg-slate-50"
+                      className="app-btn app-btn-outline"
                     >
                       {t('studio.common.close')}
                     </button>

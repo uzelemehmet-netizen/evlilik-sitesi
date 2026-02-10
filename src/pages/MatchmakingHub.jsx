@@ -1,15 +1,14 @@
 import Navigation from '../components/Navigation';
 import Footer from '../components/Footer';
 import { Link } from 'react-router-dom';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { CheckCircle, MessageCircle, ShieldCheck, UserCheck, Sparkles, Lock, Crown, ArrowRight, LogIn } from 'lucide-react';
 import { buildWhatsAppUrl } from '../utils/whatsapp';
 import { useAuth } from '../auth/AuthProvider';
-import { collection, getDocs, limit, query, where } from 'firebase/firestore';
+import { collection, getDocs, limit, onSnapshot, orderBy, query, where } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import GeminiFAQ from '../components/gemini/GeminiFAQ';
-import LiveJoinEvents from '../components/LiveJoinEvents';
 import PwaInstallCard from '../components/PwaInstallCard.jsx';
 import { staticAssetUrl } from '../utils/staticAssetUrl';
 
@@ -20,6 +19,11 @@ export default function MatchmakingHub() {
 
   const [checkingApplication, setCheckingApplication] = useState(false);
   const [hasApplication, setHasApplication] = useState(false);
+
+  const [joinToastVisible, setJoinToastVisible] = useState(false);
+  const joinToastTimerRef = useRef(null);
+  const lastJoinCreatedAtMsRef = useRef(0);
+  const joinListenerInitializedRef = useRef(false);
 
   useEffect(() => {
     if (!user?.uid) {
@@ -48,6 +52,51 @@ export default function MatchmakingHub() {
     };
   }, [user?.uid]);
 
+  useEffect(() => {
+    const cutoffMs = Date.now() - 24 * 60 * 60 * 1000;
+    const colRef = collection(db, 'publicJoinEvents');
+    const q = query(colRef, where('createdAtMs', '>=', cutoffMs), orderBy('createdAtMs', 'desc'), limit(1));
+
+    const unsub = onSnapshot(
+      q,
+      (snap) => {
+        const doc = snap.docs?.[0];
+        const data = doc?.data?.() || {};
+        const createdAtMs = data?.createdAtMs;
+        if (typeof createdAtMs !== 'number' || !Number.isFinite(createdAtMs)) return;
+
+        if (!joinListenerInitializedRef.current) {
+          joinListenerInitializedRef.current = true;
+          lastJoinCreatedAtMsRef.current = createdAtMs;
+          return;
+        }
+
+        if (createdAtMs <= lastJoinCreatedAtMsRef.current) return;
+        lastJoinCreatedAtMsRef.current = createdAtMs;
+
+        setJoinToastVisible(true);
+        if (joinToastTimerRef.current) {
+          clearTimeout(joinToastTimerRef.current);
+        }
+        joinToastTimerRef.current = setTimeout(() => {
+          setJoinToastVisible(false);
+          joinToastTimerRef.current = null;
+        }, 2000);
+      },
+      () => {
+        // ignore realtime errors on public feed
+      }
+    );
+
+    return () => {
+      unsub();
+      if (joinToastTimerRef.current) {
+        clearTimeout(joinToastTimerRef.current);
+        joinToastTimerRef.current = null;
+      }
+    };
+  }, []);
+
   const howSteps = t('matchmakingHub.how.steps', { returnObjects: true });
   const matchingPoints = t('matchmakingHub.matching.points', { returnObjects: true });
   const safetyPoints = t('matchmakingHub.safety.points', { returnObjects: true });
@@ -58,6 +107,18 @@ export default function MatchmakingHub() {
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900">
       <Navigation />
+
+      {joinToastVisible ? (
+        <div className="fixed top-3 left-1/2 z-50 w-[calc(100%-2rem)] max-w-sm -translate-x-1/2">
+          <div
+            className="rounded-xl border border-slate-200 bg-white/95 px-3 py-2 text-sm font-semibold text-slate-900 shadow-sm backdrop-blur"
+            role="status"
+            aria-live="polite"
+          >
+            {t('matchmakingHub.liveJoinToast')}
+          </div>
+        </div>
+      ) : null}
 
       <main className="relative">
         {/* Background */}
@@ -144,14 +205,11 @@ export default function MatchmakingHub() {
                       href={buildWhatsAppUrl(t('matchmakingHub.whatsappSupportMessage'))}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-5 text-sm font-semibold text-slate-800 transition hover:bg-slate-50"
+                      className="app-btn app-btn-primary h-10 px-5"
                     >
                       <MessageCircle size={18} />
                       {t('matchmakingHub.actions.supportWhatsApp')}
                     </a>
-                  </div>
-                  <div className="mt-6">
-                    <LiveJoinEvents variant="light" />
                   </div>
 
                   <div className="mt-5">

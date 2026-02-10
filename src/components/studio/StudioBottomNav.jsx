@@ -252,6 +252,7 @@ export default function StudioBottomNav({ className = '' } = {}) {
           {items.map((it) => {
             const Icon = it.icon;
             const active = !!it.active;
+            const isDiscover = it.key === 'discover';
             const badge = typeof it.badge === 'number' && Number.isFinite(it.badge) ? it.badge : 0;
             return (
               <Link
@@ -260,11 +261,28 @@ export default function StudioBottomNav({ className = '' } = {}) {
                 onClick={it.onClick}
                 className={
                   'relative flex flex-col items-center justify-center rounded-lg px-2 py-1.5 text-[11px] font-semibold transition ' +
-                  (active ? 'bg-emerald-50 text-emerald-800' : 'text-slate-700 hover:bg-slate-50')
+                  (active
+                    ? isDiscover
+                      ? 'bg-orange-50 text-orange-800'
+                      : 'bg-emerald-50 text-emerald-800'
+                    : isDiscover
+                      ? 'text-slate-700 hover:bg-orange-50/60'
+                      : 'text-slate-700 hover:bg-slate-50')
                 }
               >
                 <span className="relative">
-                  <Icon className={'h-5 w-5 ' + (active ? 'text-emerald-700' : 'text-slate-600')} />
+                  <Icon
+                    className={
+                      'h-5 w-5 ' +
+                      (active
+                        ? isDiscover
+                          ? 'text-orange-700'
+                          : 'text-emerald-700'
+                        : isDiscover
+                          ? 'text-orange-700/80'
+                          : 'text-slate-600')
+                    }
+                  />
                   {badge > 0 ? (
                     <span className="absolute -right-2 -top-1 inline-flex min-w-5 items-center justify-center rounded-full bg-emerald-600 px-1.5 py-0.5 text-[10px] font-extrabold text-white ring-2 ring-white">
                       {badge > 99 ? '99+' : String(badge)}

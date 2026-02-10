@@ -495,6 +495,7 @@ const overrides = {
     common: {
       back: 'Kembali',
       open: 'Buka',
+      actionMenu: 'Menu aksi',
       close: 'Tutup',
       cancel: 'Batal',
       send: 'Kirim',
@@ -526,6 +527,8 @@ const overrides = {
       title: 'Undang Teman',
       description: 'Undang teman. Setelah kalian berdua menyelesaikan verifikasi identitas, kalian berdua akan mendapat keanggotaan gratis.',
       myCodeLabel: 'Kode undangan Anda',
+      shareButton: 'Bagikan via WhatsApp',
+      shareMessage: 'Bergabung ke Uniqah: {{url}}',
       copy: 'Salin',
       copied: 'Tersalin.',
       enterCodeLabel: 'Kode undangan',
@@ -868,6 +871,7 @@ const overrides = {
 
     chat: {
       backToMatches: '← Kembali ke pencocokan',
+      translateTargetLabel: 'Terjemahkan ke',
       chatTitle: 'Chat',
       emoji: 'Emoji',
       emojiHint: 'Anda bisa menambahkan emoji',
@@ -1407,6 +1411,7 @@ const overrides = {
     metaTitle: "Pencocokan",
     badge: "Proses privat & dimoderasi",
     title: "Sistem pencocokan untuk pernikahan",
+    liveJoinToast: 'Peserta baru bergabung',
     description:
       "Sistem ini masih baru—mohon bersabar. Pencocokan biasanya datang dalam 1–3 hari. Instal aplikasinya dan aktifkan notifikasi agar tidak ketinggalan pembaruan.",
     preview: {

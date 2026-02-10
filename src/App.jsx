@@ -185,6 +185,33 @@ function TitleManager() {
   return null;
 }
 
+function StudioBodyClass() {
+  const location = useLocation();
+
+  useEffect(() => {
+    const path = String(location.pathname || '/');
+    const isStudio = path.startsWith('/app/') || path.startsWith('/profilim');
+    const cls = 'studio-ui';
+
+    try {
+      if (isStudio) document.body.classList.add(cls);
+      else document.body.classList.remove(cls);
+    } catch {
+      // noop
+    }
+
+    return () => {
+      try {
+        document.body.classList.remove(cls);
+      } catch {
+        // noop
+      }
+    };
+  }, [location.pathname]);
+
+  return null;
+}
+
 function AdminLanguageLock() {
   const location = useLocation();
   const { i18n } = useTranslation();
@@ -333,6 +360,7 @@ function App() {
     <Router>
       <ScrollToTop />
       <TitleManager />
+      <StudioBodyClass />
       <AdminLanguageLock />
       <AnalyticsTracker />
       <MatchmakingHeartbeatGlobal />

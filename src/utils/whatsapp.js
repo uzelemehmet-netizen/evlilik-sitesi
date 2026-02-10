@@ -85,6 +85,20 @@ export function buildWhatsAppUrl(text, opts = {}) {
   return `https://wa.me/${number}?text=${msg}`;
 }
 
+export function buildWhatsAppShareUrl(text, opts = {}) {
+  const msg = encodeURIComponent(String(text || ''));
+  const forceApi = !!opts?.forceApi;
+  const useApi = forceApi || isAndroidDevice();
+
+  // phone parametresi olmadan genel paylaşım.
+  // api.whatsapp.com/send genelde daha stabil açılıyor.
+  if (useApi) {
+    return `https://api.whatsapp.com/send?text=${msg}`;
+  }
+
+  return `https://wa.me/?text=${msg}`;
+}
+
 export function openWhatsApp(url) {
   if (typeof window === "undefined") return;
 

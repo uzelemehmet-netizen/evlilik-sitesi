@@ -286,6 +286,7 @@ export default {
     common: {
       back: 'Back',
       open: 'Open',
+      actionMenu: 'Actions',
       close: 'Close',
       cancel: 'Cancel',
       send: 'Send',
@@ -319,6 +320,8 @@ export default {
       title: 'Invite a Friend',
       description: 'Invite a friend. Once both of you complete identity verification, you both get free membership.',
       myCodeLabel: 'Your invite code',
+      shareButton: 'Share on WhatsApp',
+      shareMessage: 'Join Uniqah: {{url}}',
       copy: 'Copy',
       copied: 'Copied.',
       enterCodeLabel: 'Invite code',
@@ -661,6 +664,7 @@ export default {
     },
     chat: {
       backToMatches: '← Back to matches',
+      translateTargetLabel: 'Translate to',
       chatTitle: 'Chat',
       emoji: 'Emoji',
       emojiHint: 'You can add emojis',
@@ -1275,6 +1279,7 @@ export default {
     metaTitle: 'Matchmaking',
     badge: 'Private & moderated process',
     title: 'Marriage matchmaking system',
+    liveJoinToast: 'New participant joined',
     description:
       'The system is new—please be patient. Matches usually arrive within 1–3 days. Install the app and enable notifications so you don’t miss updates.',
     preview: {

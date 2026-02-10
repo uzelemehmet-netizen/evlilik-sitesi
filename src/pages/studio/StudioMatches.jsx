@@ -1142,7 +1142,7 @@ export default function StudioMatches() {
             <button
               type="button"
               onClick={() => setInboxModal({ open: true, mode: 'messages' })}
-              className="app-btn w-full sm:w-auto"
+              className="app-btn app-btn-primary w-full sm:w-auto"
             >
               <span className="inline-flex items-center justify-center gap-2">
                 <MessageCircle className="h-4 w-4" />
@@ -1153,7 +1153,7 @@ export default function StudioMatches() {
 
             <Link
               to="/profilim"
-              className="app-btn w-full sm:w-auto"
+              className="app-btn app-btn-danger w-full sm:w-auto"
             >
               <span className="inline-flex items-center justify-center gap-2">
                 <User className="h-4 w-4" />
@@ -1163,7 +1163,7 @@ export default function StudioMatches() {
             <Link
               to="/app/pool"
               data-tutorial-id="matches-go-pool"
-              className="app-btn w-full sm:w-auto"
+              className="app-btn app-btn-orange w-full sm:w-auto"
             >
               <span className="inline-flex items-center justify-center gap-2">
                 <Compass className="h-4 w-4" />
@@ -1243,7 +1243,7 @@ export default function StudioMatches() {
             </div>
             <p className="mt-1 text-sm text-amber-900/80">{paywallNotice}</p>
             <div className="mt-3">
-              <button type="button" onClick={activateFreeMembershipNow} className="text-sm font-semibold underline">
+              <button type="button" onClick={activateFreeMembershipNow} className="app-btn app-btn-indigo h-10 px-4">
                 {t('studio.paywall.upgradeCta')}
               </button>
             </div>
@@ -1305,13 +1305,13 @@ export default function StudioMatches() {
             <div className="mt-4 flex items-center justify-center gap-2">
               <Link
                 to="/app/pool"
-                className="inline-flex items-center justify-center rounded-md bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700"
+                className="app-btn app-btn-orange"
               >
                 {t('studio.pool.title')}
               </Link>
               <Link
                 to="/profilim"
-                className="inline-flex items-center justify-center rounded-md border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-800 shadow-sm transition hover:bg-slate-50"
+                className="app-btn app-btn-outline"
               >
                 {t('studio.matches.backToProfile')}
               </Link>
@@ -1370,7 +1370,7 @@ export default function StudioMatches() {
                 <button
                   type="button"
                   onClick={() => setShortModal({ open: false, matchId: '', displayName: '' })}
-                  className="rounded-md px-2 py-1 text-sm font-semibold text-slate-600 hover:bg-slate-100"
+                  className="app-btn app-btn-ghost h-8 px-2 text-xs"
                 >
                   {t('studio.common.close')}
                 </button>
@@ -1446,14 +1446,14 @@ export default function StudioMatches() {
                   <button
                     type="button"
                     onClick={() => setShortModal({ open: false, matchId: '', displayName: '' })}
-                    className="rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 shadow-sm hover:bg-slate-50"
+                    className="app-btn app-btn-outline"
                   >
                     {t('studio.common.cancel')}
                   </button>
                   <button
                     type="submit"
                     disabled={shortState.loading || !String(shortText || '').trim() || shortLimitInfo.remaining <= 0}
-                    className="rounded-md bg-emerald-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-emerald-700 disabled:opacity-60"
+                    className="app-btn app-btn-primary disabled:opacity-60"
                   >
                     {shortState.loading ? t('studio.common.processing') : t('studio.common.send')}
                   </button>

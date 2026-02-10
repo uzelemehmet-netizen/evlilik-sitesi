@@ -697,7 +697,7 @@ export default function StudioPool() {
               </div>
               <p className="mt-1 text-sm text-amber-900/80">{paywallNotice}</p>
               <div className="mt-3">
-                <button type="button" onClick={activateFreeMembershipNow} className="text-sm font-semibold underline">
+                <button type="button" onClick={activateFreeMembershipNow} className="app-btn app-btn-indigo h-10 px-4">
                   {t('studio.paywall.upgradeCta')}
                 </button>
               </div>

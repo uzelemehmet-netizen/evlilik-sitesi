@@ -809,7 +809,7 @@ export default function StudioMatchCard({
               type="button"
               onClick={requestOtherPhotoAccess}
               disabled={photoRequestState.loading || photoRequestState.status === 'pending' || photoRequestState.status === 'approved' || lockedByActiveMatch}
-              className="inline-flex items-center justify-center rounded-md bg-emerald-500 px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-600 disabled:opacity-60"
+              className="app-btn app-btn-primary w-full disabled:opacity-60"
             >
               {photoRequestState.loading
                 ? t('studio.common.processing')

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Bell, Download, Info } from 'lucide-react';
-import { enablePushForCurrentUser, hasSavedPushToken, sendTestPushToMe } from '../utils/pushNotifications';
+import { enablePushForCurrentUser, hasSavedPushToken } from '../utils/pushNotifications';
 import { firebaseWebPushVapidKey } from '../config/firebasePublicConfig';
 
 function isIos() {
@@ -33,7 +33,6 @@ export default function PwaInstallCard({ variant = 'light', flat = false }) {
   const [installed, setInstalled] = useState(() => isInstalled());
   const [notifyStatus, setNotifyStatus] = useState('');
   const [notifyBusy, setNotifyBusy] = useState(false);
-  const [testBusy, setTestBusy] = useState(false);
   const [pushEnabled, setPushEnabled] = useState(false);
 
   const canBrowserNotify = useMemo(() => {
@@ -102,13 +101,9 @@ export default function PwaInstallCard({ variant = 'light', flat = false }) {
   const textClass = isDark ? 'text-white/70' : 'text-slate-600';
   const subtleClass = isDark ? 'text-white/60' : 'text-slate-500';
 
-  const primaryBtnClass = isDark
-    ? 'inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-amber-300 to-amber-500 text-slate-950 px-4 py-2 text-sm font-semibold hover:brightness-110 transition disabled:opacity-60'
-    : 'inline-flex items-center justify-center gap-2 rounded-md bg-emerald-500 text-white px-4 py-2 text-sm font-semibold hover:bg-emerald-600 transition disabled:opacity-60';
-
-  const secondaryBtnClass = isDark
-    ? 'inline-flex items-center justify-center gap-2 rounded-full border border-white/15 bg-white/5 text-white/90 px-4 py-2 text-sm font-semibold hover:bg-white/[0.10] transition disabled:opacity-60'
-    : 'inline-flex items-center justify-center gap-2 rounded-md border border-slate-200 bg-white text-slate-800 px-4 py-2 text-sm font-semibold hover:bg-slate-50 transition disabled:opacity-60';
+  const darkRingOffset = isDark ? 'ring-offset-slate-950' : '';
+  const installBtnClass = `app-btn app-btn-primary w-full sm:w-auto ${darkRingOffset}`.trim();
+  const enableNotifyBtnClass = `app-btn app-btn-primary w-full sm:w-auto ${darkRingOffset}`.trim();
 
   const installAvailable = !installed && !!deferredPrompt;
 
@@ -211,34 +206,6 @@ export default function PwaInstallCard({ variant = 'light', flat = false }) {
     }
   };
 
-  const onSendTestNotification = async () => {
-    if (testBusy) return;
-    setTestBusy(true);
-    setNotifyStatus('');
-    try {
-      await sendTestPushToMe({
-        title: t('pwa.install.notifications.testTitle'),
-        body: t('pwa.install.notifications.testBody'),
-        url: '/profilim',
-      });
-      setNotifyStatus(t('pwa.install.notifications.testSent'));
-    } catch (e) {
-      const msg = String(e?.message || '').trim();
-      if (msg === 'not_authenticated') {
-        setNotifyStatus(t('pwa.install.notifications.notLoggedIn'));
-      } else if (msg === 'no_tokens') {
-        setNotifyStatus(t('pwa.install.notifications.testNoTokens'));
-      } else if (msg.startsWith('firebase_admin_') || msg === 'firebase_admin_init_failed') {
-        setNotifyStatus(t('pwa.install.notifications.missingSetup'));
-      } else {
-        const base = t('pwa.install.notifications.testFailed');
-        setNotifyStatus(debugPush && msg ? `${base} (error=${msg})` : base);
-      }
-    } finally {
-      setTestBusy(false);
-    }
-  };
-
   // If the user already granted permission and we have a saved token, mark as enabled for UX.
   useEffect(() => {
     if (notificationPermission !== 'granted') return;
@@ -266,27 +233,16 @@ export default function PwaInstallCard({ variant = 'light', flat = false }) {
           type="button"
           onClick={onInstall}
           disabled={!installAvailable}
-          className={primaryBtnClass}
+          className={installBtnClass}
           title={installAvailable ? '' : t('pwa.install.installNotAvailableHint')}
         >
           <Download size={18} />
           {installed ? t('pwa.install.installed') : t('pwa.install.installButton')}
         </button>
 
-        <button type="button" onClick={onEnableNotifications} className={secondaryBtnClass} disabled={notifyBusy}>
+        <button type="button" onClick={onEnableNotifications} className={enableNotifyBtnClass} disabled={notifyBusy}>
           <Bell size={18} />
           {notifyBusy ? t('studio.common.processing') : t('pwa.install.notifications.button')}
-        </button>
-
-        <button
-          type="button"
-          onClick={onSendTestNotification}
-          className={secondaryBtnClass}
-          disabled={testBusy || (!pushEnabled && notificationPermission !== 'granted')}
-          title={pushEnabled || notificationPermission === 'granted' ? '' : t('pwa.install.notifications.testHint')}
-        >
-          <Bell size={18} />
-          {testBusy ? t('studio.common.processing') : t('pwa.install.notifications.testButton')}
         </button>
       </div>
 

@@ -1235,7 +1235,7 @@ export default function StudioMatchProfile() {
             </div>
             <p className="mt-1 text-sm text-amber-900/80">{paywallNotice}</p>
             <div className="mt-3">
-              <button type="button" onClick={activateFreeMembershipNow} className="text-sm font-semibold underline">
+              <button type="button" onClick={activateFreeMembershipNow} className="app-btn app-btn-indigo h-10 px-4">
                 {t('studio.paywall.upgradeCta')}
               </button>
             </div>
@@ -1262,7 +1262,18 @@ export default function StudioMatchProfile() {
             </div>
           </div>
         ) : null}
-        <div className="mb-4 flex items-center justify-between gap-3">
+        <div className="sm:hidden sticky top-0 z-20 -mx-4 mb-3 border-b border-slate-200 bg-slate-50/95 px-4 py-2 backdrop-blur">
+          <div className="flex items-center gap-2">
+            <Link to="/app/matches" className="app-btn app-btn-outline flex-1 justify-center">
+              {t('studio.chat.backToMatches')}
+            </Link>
+            <Link to="/profilim" className="app-btn app-btn-danger flex-1 justify-center">
+              {t('studio.matches.backToProfile')}
+            </Link>
+          </div>
+        </div>
+
+        <div className="mb-4 hidden items-center justify-between gap-3 sm:flex">
           <Link to="/app/matches" className="text-sm font-semibold text-emerald-700 hover:underline">
             {t('studio.chat.backToMatches')}
           </Link>
@@ -1469,7 +1480,7 @@ export default function StudioMatchProfile() {
                               profileAccessReq.status === 'approved' ||
                               profileAccessReq.status === 'granted'
                             }
-                            className="app-btn app-btn-primary disabled:opacity-60"
+                            className="app-btn app-btn-sky disabled:opacity-60"
                           >
                             {profileAccessReq.loading
                               ? t('studio.common.processing')
@@ -1591,7 +1602,7 @@ export default function StudioMatchProfile() {
                             type="button"
                             onClick={() => setMyPhotoAccessForThisMatch(true)}
                             disabled={myPhotoAccessState.loading}
-                            className="inline-flex items-center justify-center rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-700 disabled:opacity-60"
+                            className="app-btn app-btn-primary disabled:opacity-60"
                           >
                             {myPhotoAccessState.loading ? t('studio.common.processing') : t('studio.match.photos.showMine')}
                           </button>
@@ -1604,7 +1615,7 @@ export default function StudioMatchProfile() {
                               setMyPhotoAccessForThisMatch(false);
                             }}
                             disabled={myPhotoAccessState.loading}
-                            className="inline-flex items-center justify-center rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 shadow-sm transition hover:bg-slate-50 disabled:opacity-60"
+                            className="app-btn app-btn-outline disabled:opacity-60"
                           >
                             {myPhotoAccessState.loading ? t('studio.common.processing') : t('studio.match.photos.hideMine')}
                           </button>
@@ -1646,7 +1657,7 @@ export default function StudioMatchProfile() {
                               photoAccessReq.status === 'approved' ||
                               photoAccessReq.status === 'granted'
                             }
-                            className="inline-flex items-center justify-center rounded-md bg-emerald-600 px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 disabled:opacity-60"
+                            className="app-btn app-btn-orange disabled:opacity-60"
                           >
                             {photoAccessReq.loading
                               ? t('studio.common.processing')
@@ -1660,7 +1671,7 @@ export default function StudioMatchProfile() {
                           <button
                             type="button"
                             onClick={() => setProfileReloadKey((k) => k + 1)}
-                            className="inline-flex items-center justify-center rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 shadow-sm transition hover:bg-slate-50"
+                            className="app-btn app-btn-outline"
                           >
                             {t('studio.matchProfile.detailsAccess.refresh')}
                           </button>
@@ -1796,7 +1807,7 @@ export default function StudioMatchProfile() {
                     type="button"
                     onClick={cancelActiveMutual}
                     disabled={cancelState.loading || cancelCooldownRemainingMs > 0}
-                    className="rounded-md bg-rose-600 px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-rose-700 disabled:opacity-60"
+                    className="app-btn app-btn-danger disabled:opacity-60"
                   >
                     {cancelState.loading
                       ? t('studio.common.processing')
@@ -1955,7 +1966,7 @@ export default function StudioMatchProfile() {
                 <button
                   type="submit"
                   disabled={!safeStr(sendText) || sendState.loading}
-                  className="inline-flex items-center justify-center rounded-lg bg-emerald-600 px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 disabled:opacity-60"
+                  className="app-btn app-btn-primary h-10 px-4 disabled:opacity-60"
                 >
                   {sendState.loading ? t('studio.common.processing') : t('studio.common.send')}
                 </button>
@@ -1979,7 +1990,7 @@ export default function StudioMatchProfile() {
                 <button
                   type="button"
                   onClick={() => setShortModalOpen(false)}
-                  className="rounded-md px-2 py-1 text-sm font-semibold text-slate-600 hover:bg-slate-100"
+                  className="app-btn app-btn-ghost h-8 px-2 text-xs"
                 >
                   {t('studio.common.close')}
                 </button>
@@ -2073,14 +2084,14 @@ export default function StudioMatchProfile() {
                   <button
                     type="button"
                     onClick={() => setShortModalOpen(false)}
-                    className="rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 shadow-sm hover:bg-slate-50"
+                    className="app-btn app-btn-outline"
                   >
                     {t('studio.common.cancel')}
                   </button>
                   <button
                     type="submit"
                     disabled={shortState.loading || !safeStr(shortText) || shortLimitInfo.remaining <= 0}
-                    className="rounded-md bg-emerald-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-emerald-700 disabled:opacity-60"
+                    className="app-btn app-btn-primary disabled:opacity-60"
                   >
                     {shortState.loading ? t('studio.common.processing') : t('studio.common.send')}
                   </button>

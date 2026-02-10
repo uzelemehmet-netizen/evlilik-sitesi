@@ -476,7 +476,7 @@ export default function StudioMyInfo() {
             </div>
             <Link
               to="/profilim"
-              className="inline-flex items-center justify-center rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 shadow-sm transition hover:bg-slate-50"
+              className="app-btn app-btn-outline"
             >
               {t('studio.common.back')}
             </Link>

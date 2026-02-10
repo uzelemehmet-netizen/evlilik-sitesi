@@ -234,6 +234,7 @@ export default {
     common: {
       back: 'Geri',
       open: 'Aç',
+      actionMenu: 'İşlem Menüsü',
       close: 'Kapat',
       cancel: 'Vazgeç',
       send: 'Gönder',
@@ -267,6 +268,8 @@ export default {
       title: 'Arkadaşını Davet Et',
       description: 'Bir arkadaşını davet et. İkiniz de kimlik doğrulaması yapınca ikinize de ücretsiz üyelik verilir.',
       myCodeLabel: 'Davet kodun',
+      shareButton: 'WhatsApp’tan paylaş',
+      shareMessage: 'Uniqah’a katıl: {{url}}',
       copy: 'Kopyala',
       copied: 'Kopyalandı.',
       enterCodeLabel: 'Davet kodu',
@@ -608,6 +611,7 @@ export default {
     },
     chat: {
       backToMatches: '← Eşleşmelere dön',
+      translateTargetLabel: 'Şu dile çevir',
       chatTitle: 'Chat',
       emoji: 'Emoji',
       emojiHint: 'Emoji ekleyebilirsiniz',
@@ -1268,6 +1272,7 @@ export default {
     metaTitle: 'Eşleştirme',
     badge: 'Gizli ve kontrollü süreç',
     title: 'Evlilik eşleştirme sistemi',
+    liveJoinToast: 'Yeni katılım oldu',
     description:
       'Sistem yeni; lütfen sabırlı olun. Eşleşmeler genelde 1–3 gün içinde gelir. Uygulamayı indirip bildirimleri açarak değişikliklerden anında haberdar olabilirsin.',
     preview: {

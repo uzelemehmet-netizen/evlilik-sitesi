@@ -771,7 +771,7 @@ export default function StudioChat() {
             </div>
             <p className="mt-1 text-sm text-amber-900/80">{paywallNotice}</p>
             <div className="mt-3">
-              <button type="button" onClick={activateFreeMembershipNow} className="app-btn app-btn-primary h-10 px-4">
+              <button type="button" onClick={activateFreeMembershipNow} className="app-btn app-btn-indigo h-10 px-4">
                 <Unlock className="h-4 w-4" />
                 {t('studio.paywall.upgradeCta')}
               </button>
@@ -794,14 +794,25 @@ export default function StudioChat() {
             </div>
             <p className="mt-1 text-sm text-amber-900/80">{profileGateNotice}</p>
             <div className="mt-3">
-              <Link to="/evlilik/eslestirme-basvuru?w=1" className="app-btn app-btn-primary h-10 px-4">
+              <Link to="/evlilik/eslestirme-basvuru?w=1" className="app-btn app-btn-sky h-10 px-4">
                 <Unlock className="h-4 w-4" />
                 {t('studio.profileGate.cta')}
               </Link>
             </div>
           </div>
         ) : null}
-        <div className="mb-4 flex items-center justify-between gap-3">
+        <div className="sm:hidden sticky top-0 z-20 -mx-4 mb-3 border-b border-slate-200 bg-slate-50/95 px-4 py-2 backdrop-blur">
+          <div className="flex items-center gap-2">
+            <Link to="/app/matches" className="app-btn app-btn-outline flex-1 justify-center">
+              {t('studio.chat.backToMatches')}
+            </Link>
+            <Link to="/profilim" className="app-btn app-btn-danger flex-1 justify-center">
+              {t('studio.matches.backToProfile')}
+            </Link>
+          </div>
+        </div>
+
+        <div className="mb-4 hidden items-center justify-between gap-3 sm:flex">
           <Link to="/app/matches" className="text-sm font-semibold text-emerald-700 hover:underline">
             {t('studio.chat.backToMatches')}
           </Link>
@@ -1105,7 +1116,7 @@ export default function StudioChat() {
                               type="button"
                               onClick={() => translateMessage({ messageId: m.id })}
                               disabled={translateState.loadingId === m.id}
-                              className="app-btn app-btn-outline h-8 px-2 text-xs disabled:opacity-60"
+                              className="app-btn app-btn-purple h-8 px-2 text-xs disabled:opacity-60"
                             >
                               {translateState.loadingId === m.id
                                 ? t('studio.matches.shortModal.translating')
