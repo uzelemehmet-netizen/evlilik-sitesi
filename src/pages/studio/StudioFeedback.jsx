@@ -260,7 +260,7 @@ export default function StudioFeedback() {
                     {submitState.id ? (
                       <div className="mt-3">
                         <a
-                          className="inline-flex items-center justify-center rounded-md bg-emerald-600 px-3 py-2 text-sm font-semibold text-white hover:bg-emerald-700"
+                          className="app-btn app-btn-primary"
                           href={buildWhatsAppUrl(ticketWhatsAppMsg)}
                           target="_blank"
                           rel="noreferrer"
@@ -277,7 +277,7 @@ export default function StudioFeedback() {
                   type="button"
                   onClick={submit}
                   disabled={!canSubmit}
-                  className="inline-flex items-center justify-center rounded-md bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:opacity-60"
+                  className="app-btn app-btn-primary h-10 px-5 disabled:opacity-60"
                 >
                   {submitState.loading || screenshotUpload.loading ? t('studio.common.processing') : t('studio.feedback.submit')}
                 </button>

@@ -1469,7 +1469,7 @@ export default function StudioMatchProfile() {
                               profileAccessReq.status === 'approved' ||
                               profileAccessReq.status === 'granted'
                             }
-                            className="inline-flex items-center justify-center rounded-md bg-emerald-600 px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 disabled:opacity-60"
+                            className="app-btn app-btn-primary disabled:opacity-60"
                           >
                             {profileAccessReq.loading
                               ? t('studio.common.processing')
@@ -1483,7 +1483,7 @@ export default function StudioMatchProfile() {
                           <button
                             type="button"
                             onClick={() => setProfileReloadKey((k) => k + 1)}
-                            className="inline-flex items-center justify-center rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 shadow-sm transition hover:bg-slate-50"
+                            className="app-btn app-btn-outline"
                           >
                             {t('studio.matchProfile.detailsAccess.retry')}
                           </button>
@@ -1494,7 +1494,7 @@ export default function StudioMatchProfile() {
                               onClick={() => {
                                 setProfileReloadKey((k) => k + 1);
                               }}
-                              className="inline-flex items-center justify-center rounded-md bg-slate-900 px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800"
+                              className="app-btn app-btn-outline"
                             >
                               {t('studio.matchProfile.detailsAccess.viewPersonProfile')}
                             </button>
@@ -1507,7 +1507,7 @@ export default function StudioMatchProfile() {
                         <button
                           type="button"
                           onClick={() => setProfileReloadKey((k) => k + 1)}
-                          className="inline-flex items-center justify-center rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 shadow-sm transition hover:bg-slate-50"
+                          className="app-btn app-btn-outline"
                         >
                           {t('studio.matchProfile.detailsAccess.refresh')}
                         </button>

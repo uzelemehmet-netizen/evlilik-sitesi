@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { collection, doc, getDoc, getDocFromServer, limit, onSnapshot, orderBy, query } from 'firebase/firestore';
-import { Lock, Send, ShieldCheck, Share2, Unlock } from 'lucide-react';
+import { Lock, Send, ShieldCheck, Share2, Unlock, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import Navigation from '../../components/Navigation';
 import Footer from '../../components/Footer';
@@ -763,14 +763,16 @@ export default function StudioChat() {
               <button
                 type="button"
                 onClick={() => setPaywallNotice('')}
-                className="rounded-md px-2 py-1 text-sm font-semibold text-amber-900/70 hover:bg-amber-100"
+                className="app-btn app-btn-ghost h-8 px-2 text-xs text-amber-900/80 hover:bg-amber-100"
               >
+                <X className="h-4 w-4" />
                 {t('studio.common.close')}
               </button>
             </div>
             <p className="mt-1 text-sm text-amber-900/80">{paywallNotice}</p>
             <div className="mt-3">
-              <button type="button" onClick={activateFreeMembershipNow} className="text-sm font-semibold underline">
+              <button type="button" onClick={activateFreeMembershipNow} className="app-btn app-btn-primary h-10 px-4">
+                <Unlock className="h-4 w-4" />
                 {t('studio.paywall.upgradeCta')}
               </button>
             </div>
@@ -784,14 +786,16 @@ export default function StudioChat() {
               <button
                 type="button"
                 onClick={() => setProfileGateNotice('')}
-                className="rounded-md px-2 py-1 text-sm font-semibold text-amber-900/70 hover:bg-amber-100"
+                className="app-btn app-btn-ghost h-8 px-2 text-xs text-amber-900/80 hover:bg-amber-100"
               >
+                <X className="h-4 w-4" />
                 {t('studio.common.close')}
               </button>
             </div>
             <p className="mt-1 text-sm text-amber-900/80">{profileGateNotice}</p>
             <div className="mt-3">
-              <Link to="/evlilik/eslestirme-basvuru?w=1" className="text-sm font-semibold underline">
+              <Link to="/evlilik/eslestirme-basvuru?w=1" className="app-btn app-btn-primary h-10 px-4">
+                <Unlock className="h-4 w-4" />
                 {t('studio.profileGate.cta')}
               </Link>
             </div>
@@ -881,7 +885,7 @@ export default function StudioChat() {
                     <button
                       type="button"
                       onClick={() => setLockPanelExpanded((v) => !v)}
-                      className="shrink-0 rounded-md bg-white px-2 py-1 text-xs font-semibold text-emerald-800 shadow-sm ring-1 ring-emerald-200 hover:bg-emerald-100"
+                      className="app-btn app-btn-outline h-8 px-2 text-xs shrink-0"
                     >
                       {lockPanelExpanded ? t('studio.common.readLess') : t('studio.common.readMore')}
                     </button>
@@ -933,8 +937,9 @@ export default function StudioChat() {
                         href={contactInfo.otherWaUrl}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="inline-flex items-center justify-center rounded-md bg-emerald-600 px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700"
+                        className="app-btn app-btn-primary"
                       >
+                        <Share2 className="h-4 w-4" />
                         {t('studio.chat.lock48h.openInWhatsApp')}
                       </a>
                     ) : canApproveContact ? (
@@ -942,9 +947,9 @@ export default function StudioChat() {
                         type="button"
                         onClick={approveContact}
                         disabled={!canApproveContact}
-                        className="inline-flex items-center justify-center rounded-md bg-emerald-600 px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 disabled:opacity-60"
+                        className="app-btn app-btn-primary disabled:opacity-60"
                       >
-                        <Share2 className="mr-2 h-4 w-4" />
+                        <Share2 className="h-4 w-4" />
                         {contactApproveState.loading ? t('studio.chat.lock48h.approving') : t('studio.chat.lock48h.approveContact')}
                       </button>
                     ) : canRequestContact ? (
@@ -952,9 +957,9 @@ export default function StudioChat() {
                         type="button"
                         onClick={requestContact}
                         disabled={!canRequestContact}
-                        className="inline-flex items-center justify-center rounded-md bg-emerald-500 px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-600 disabled:opacity-60"
+                        className="app-btn app-btn-primary-light disabled:opacity-60"
                       >
-                        <Share2 className="mr-2 h-4 w-4" />
+                        <Share2 className="h-4 w-4" />
                         {contactRequestState.loading ? t('studio.chat.lock48h.requesting') : t('studio.chat.lock48h.requestContact')}
                       </button>
                     ) : (
@@ -962,9 +967,9 @@ export default function StudioChat() {
                         type="button"
                         onClick={confirm48h}
                         disabled={!canConfirm}
-                        className="inline-flex items-center justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-emerald-800 shadow-sm ring-1 ring-emerald-200 transition hover:bg-emerald-100 disabled:opacity-60"
+                        className="app-btn app-btn-outline disabled:opacity-60"
                       >
-                        <Unlock className="mr-2 h-4 w-4" />
+                        <Unlock className="h-4 w-4" />
                         {confirmState.loading
                           ? t('studio.chat.lock48h.confirming')
                           : lockInfo.myConfirmed
@@ -1018,7 +1023,7 @@ export default function StudioChat() {
                             type="button"
                             onClick={cancelActiveMutual}
                             disabled={cancelState.loading || cancelCooldownRemainingMs > 0 || iCancelled}
-                            className="inline-flex w-full items-center justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-emerald-800 shadow-sm ring-1 ring-emerald-200 transition hover:bg-emerald-100 disabled:opacity-60"
+                            className="app-btn app-btn-danger w-full disabled:opacity-60"
                           >
                             {cancelState.loading
                               ? t('studio.matchProfile.cancel.requestSent')
@@ -1100,7 +1105,7 @@ export default function StudioChat() {
                               type="button"
                               onClick={() => translateMessage({ messageId: m.id })}
                               disabled={translateState.loadingId === m.id}
-                              className="text-xs font-semibold text-emerald-700 hover:underline disabled:opacity-60"
+                              className="app-btn app-btn-outline h-8 px-2 text-xs disabled:opacity-60"
                             >
                               {translateState.loadingId === m.id
                                 ? t('studio.matches.shortModal.translating')
@@ -1185,7 +1190,7 @@ export default function StudioChat() {
                 type="submit"
                 data-tutorial-id="chat-send"
                 disabled={!canSend}
-                className="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-600 text-white shadow-sm transition hover:bg-emerald-700 disabled:opacity-60"
+                className="app-btn app-btn-primary h-10 w-10 px-0 disabled:opacity-60"
                 aria-label={t('studio.common.send')}
               >
                 <Send className="h-4 w-4" />

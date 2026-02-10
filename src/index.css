@@ -174,12 +174,30 @@ h3 {
     box-shadow: 0 16px 44px rgba(4, 120, 87, 0.22), 0 5px 14px rgba(2, 6, 23, 0.10);
   }
 
+  .app-btn-outline {
+    @apply bg-white text-slate-800 ring-1 ring-slate-200;
+  }
+
+  .app-btn-outline:hover {
+    @apply bg-slate-50;
+  }
+
+  .app-btn-ghost {
+    @apply bg-transparent text-slate-700 ring-0;
+    box-shadow: none;
+  }
+
+  .app-btn-ghost:hover {
+    @apply bg-slate-100;
+    box-shadow: none;
+  }
+
   .app-btn-danger {
-    @apply bg-gradient-to-b from-emerald-600 to-emerald-800 text-white ring-emerald-600/30;
+    @apply bg-gradient-to-b from-rose-600 to-rose-800 text-white ring-rose-600/30;
   }
 
   .app-btn-danger:hover {
-    @apply from-emerald-700 to-emerald-900;
+    @apply from-rose-700 to-rose-900;
   }
 
   .app-btn-logout {

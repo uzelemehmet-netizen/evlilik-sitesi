@@ -1033,7 +1033,7 @@ export default function StudioMatches() {
                 type="button"
                 onClick={refreshInboxViaApi}
                 disabled={inboxLoad.loading}
-                className="inline-flex items-center justify-center rounded-md bg-rose-700 px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-rose-800 disabled:opacity-60"
+                className="app-btn app-btn-danger disabled:opacity-60"
               >
                 {inboxLoad.loading ? t('studio.matches.inboxSync.refreshing') : t('studio.matches.inboxSync.refresh')}
               </button>
@@ -1085,7 +1085,7 @@ export default function StudioMatches() {
                       {mid ? (
                         <Link
                           to={`/app/match/${mid}`}
-                          className="inline-flex items-center justify-center rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 shadow-sm transition hover:bg-slate-50"
+                          className="app-btn app-btn-outline"
                         >
                           {t('studio.inbox.viewProfile')}
                         </Link>
@@ -1095,7 +1095,7 @@ export default function StudioMatches() {
                         type="button"
                         disabled={acting || !mid}
                         onClick={() => respondInboxLike({ matchId: mid, decision: 'accept' })}
-                        className="inline-flex items-center justify-center rounded-md bg-emerald-600 px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 disabled:opacity-60"
+                        className="app-btn app-btn-primary disabled:opacity-60"
                       >
                         {acting ? t('studio.common.processing') : t('studio.inbox.accept')}
                       </button>
@@ -1104,7 +1104,7 @@ export default function StudioMatches() {
                         type="button"
                         disabled={acting || !mid}
                         onClick={() => respondInboxLike({ matchId: mid, decision: 'reject' })}
-                        className="inline-flex items-center justify-center rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-800 shadow-sm transition hover:bg-rose-100 disabled:opacity-60"
+                        className="app-btn app-btn-danger disabled:opacity-60"
                       >
                         {t('studio.inbox.reject')}
                       </button>
