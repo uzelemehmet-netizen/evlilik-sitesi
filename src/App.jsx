@@ -15,10 +15,12 @@ const MatchmakingApply = lazy(() => import('./pages/MatchmakingApply'));
 const MatchmakingHub = lazy(() => import('./pages/MatchmakingHub'));
 const MatchmakingMembership = lazy(() => import('./pages/MatchmakingMembership'));
 const YouTube = lazy(() => import('./pages/YouTube'));
+const DocumentsHub = lazy(() => import('./pages/DocumentsHub'));
 const Privacy = lazy(() => import('./pages/Privacy'));
 const NotFound = lazy(() => import('./pages/NotFound'));
 
 const StudioProfile = lazy(() => import('./pages/studio/StudioProfile'));
+// Studio preview is now the same pages in guest mode.
 const StudioMyInfo = lazy(() => import('./pages/studio/StudioMyInfo'));
 const StudioMatches = lazy(() => import('./pages/studio/StudioMatches'));
 const StudioChat = lazy(() => import('./pages/studio/StudioChat'));
@@ -41,6 +43,8 @@ import { useAuth } from './auth/AuthProvider.jsx';
 import { authFetch } from './utils/authFetch.js';
 import { clearAppBadge, resetServiceWorkerBadge } from './utils/appBadge.js';
 import MemberFeedToasts from './components/MemberFeedToasts.jsx';
+import StudioOneTimeTour from './components/tutorial/StudioOneTimeTour.jsx';
+import PreviewGateGlobal from './components/PreviewGateGlobal.jsx';
 
 function ScrollToTop() {
   const location = useLocation();
@@ -63,6 +67,17 @@ function TitleManager() {
   useEffect(() => {
     const path = location.pathname || '/';
     const baseUrl = 'https://uniqah.com';
+
+    const setMetaByName = (name, content) => {
+      if (!name) return;
+      let metaEl = document.querySelector(`meta[name="${name}"]`);
+      if (!metaEl) {
+        metaEl = document.createElement('meta');
+        metaEl.setAttribute('name', name);
+        document.head.appendChild(metaEl);
+      }
+      metaEl.setAttribute('content', String(content ?? ''));
+    };
 
     const canonicalPath = path.startsWith('/') ? path : `/${path}`;
     const canonicalUrl = `${baseUrl}${canonicalPath === '/' ? '/' : canonicalPath}`;
@@ -91,8 +106,32 @@ function TitleManager() {
       if (meta) {
         meta.setAttribute('content', 'Admin yönetim paneli.');
       }
+
+      // Admin ekranlarını indeksleme.
+      setMetaByName('robots', 'noindex,nofollow');
       return;
     }
+
+    // Auth/uygulama içi sayfalar Google'da görünmesin.
+    const isNoIndexPath = (() => {
+      // Auth / app içi sayfalar
+      if (path === '/login') return true;
+      if (path === '/profilim') return true;
+      if (path.startsWith('/app/')) return true;
+      if (path.startsWith('/studio/')) return true;
+      if (path === '/wedding/apply') return true;
+      if (path === '/evlilik/eslestirme-basvuru' || path === '/evlilik/eslestirme-basvurusu') return true;
+
+      // Google sonuçlarında görünmesi gerekmeyen vitrin sayfaları
+      if (path === '/kurumsal') return true;
+      if (path === '/travel' || path.startsWith('/travel/')) return true;
+      if (path === '/tours' || path.startsWith('/tours/')) return true;
+      if (path === '/explore' || path.startsWith('/explore/')) return true;
+      if (path === '/gallery' || path.startsWith('/gallery/')) return true;
+
+      return false;
+    })();
+    setMetaByName('robots', isNoIndexPath ? 'noindex,nofollow' : 'index,follow');
 
     const base = t('meta.baseTitle');
 
@@ -131,6 +170,8 @@ function TitleManager() {
       pageTitle = `${t('meta.pages.youtube.title')} | ${base}`;
     } else if (path === '/privacy') {
       pageTitle = `${t('meta.pages.privacy.title')} | ${base}`;
+    } else if (path === '/documents') {
+      pageTitle = `${t('documentsHub.title')} | ${base}`;
     }
 
     document.title = pageTitle;
@@ -297,6 +338,8 @@ function App() {
       <MatchmakingHeartbeatGlobal />
       <FloatingWhatsApp />
       <MemberFeedToasts />
+      <StudioOneTimeTour />
+      <PreviewGateGlobal />
       {import.meta.env.DEV ? <DevOverlay /> : null}
       <Suspense
         fallback={<RouteLoading />}
@@ -315,6 +358,8 @@ function App() {
               </RequireAuth>
             }
           />
+
+          <Route path="/profilim-onizleme" element={<Navigate to="/profilim" replace />} />
           <Route
             path="/profilim/destek"
             element={
@@ -418,6 +463,7 @@ function App() {
             />
           )}
           <Route path="/youtube" element={<YouTube />} />
+          <Route path="/documents" element={<DocumentsHub />} />
           <Route path="/privacy" element={<Privacy />} />
 
           <Route path="/admin" element={<AdminLogin />} />

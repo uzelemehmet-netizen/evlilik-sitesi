@@ -566,7 +566,7 @@ export default function MatchmakingUserToolsTab() {
                 type="button"
                 disabled={acting}
                 onClick={markWhatsappVerified}
-                className="px-4 py-2 rounded-lg bg-emerald-700 text-white text-sm font-semibold hover:bg-emerald-800 disabled:opacity-60"
+                className="px-4 py-2 rounded-lg bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700 disabled:opacity-60"
               >
                 WhatsApp ile doğrulandı
               </button>
@@ -635,7 +635,7 @@ export default function MatchmakingUserToolsTab() {
                 type="button"
                 disabled={acting}
                 onClick={grantMembership}
-                className="px-4 py-2 rounded-lg bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700 disabled:opacity-60"
+                className="px-4 py-2 rounded-lg bg-emerald-500 text-white text-sm font-semibold hover:bg-emerald-600 disabled:opacity-60"
               >
                 Üyelik ver
               </button>

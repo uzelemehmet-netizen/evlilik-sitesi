@@ -1,5 +1,6 @@
 import { getAdmin, requireIdToken } from './_firebaseAdmin.js';
 import { computeFreeActiveMembershipState, isFreeActiveEnabled } from './_matchmakingEligibility.js';
+import { getMinAgeFromEnv } from './_matchmakingAgePolicy.js';
 
 async function loadMatchmakingRun() {
   const mod = await import('./matchmaking-run.js');
@@ -101,6 +102,7 @@ function normalizeNat(v) {
   if (s === 'tr' || s === 'turkey' || s === 'türkiye') return 'tr';
   if (s === 'id' || s === 'indonesia' || s === 'endonezya') return 'id';
   if (s === 'other') return 'other';
+  if (/^[a-z]{2}$/.test(s)) return s;
   return '';
 }
 
@@ -159,7 +161,7 @@ async function ensureAutoStubApplicationIfMissing({ db, FieldValue, uid, userDoc
         },
 
         // Firestore rules create'da bu alanlar zorunlu olabilir.
-        consent18Plus: typeof age === 'number' ? age >= (nationality === 'id' ? 21 : 18) : true,
+        consent18Plus: typeof age === 'number' ? age >= getMinAgeFromEnv() : true,
         consentPrivacy: false,
         consentTerms: false,
         consentPhotoShare: false,

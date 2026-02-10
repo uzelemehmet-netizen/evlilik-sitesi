@@ -256,8 +256,8 @@ const PAIRS = [
 
   ['İlk yüz yüze görüşmeyi ne zaman planlayalım', 'Kapan kita rencanakan pertemuan tatap muka pertama'],
   ['Görüşme için hangi şehir daha uygun', 'Kota mana yang lebih cocok untuk bertemu'],
-  ['Vize süreçleri hakkında bilgin var mı', 'Apakah kamu tahu tentang proses visa'],
-  ['Pasaport vize gibi konularda planın var mı', 'Apakah kamu sudah punya rencana soal paspor dan visa'],
+  ['Seyahat hazırlıkların hakkında planın var mı', 'Apakah kamu sudah punya rencana untuk persiapan perjalanan'],
+  ['Yüz yüze görüşme için en pratik plan sence ne olur', 'Menurutmu rencana paling praktis untuk bertemu langsung seperti apa'],
   ['Uçuş masraflarını nasıl planlayalım', 'Bagaimana kita merencanakan biaya penerbangan'],
   ['Ailelerin buluşması için hangi ülke daha kolay', 'Negara mana yang lebih mudah untuk pertemuan keluarga'],
   ['Uzun mesafe ilişkisinde en zor kısım sence ne', 'Menurutmu apa bagian tersulit dari hubungan jarak jauh'],

@@ -26,6 +26,7 @@
     "playwright:install-deps": "playwright install-deps chromium",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
+    "test:unit": "node --test unit-tests/*.test.mjs",
     "generate:brochure-pdfs": "node scripts/generate-brochure-pdfs.mjs",
     "generate:brochure-pdfs:strict": "node scripts/generate-brochure-pdfs.mjs --strict",
     "build": "vite build",

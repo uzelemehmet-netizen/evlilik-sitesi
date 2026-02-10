@@ -3,6 +3,16 @@ import { auth } from '../config/firebase';
 function isDebugApiEnabled() {
   if (typeof window === 'undefined') return false;
   try {
+    try {
+      if (
+        window.localStorage &&
+        (window.localStorage.getItem('debugApi') === '1' || window.localStorage.getItem('debugApi') === 'true')
+      ) {
+        return true;
+      }
+    } catch {
+      // ignore
+    }
     const sp = new URLSearchParams(window.location.search);
     return sp.get('debugApi') === '1' || sp.get('debugPush') === '1';
   } catch {

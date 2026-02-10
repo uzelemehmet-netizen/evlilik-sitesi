@@ -1,5 +1,6 @@
 import { getAdmin, normalizeBody, requireIdToken } from './_firebaseAdmin.js';
 import { emitMemberFeedEvent } from './_memberFeed.js';
+import { getMinAgeFromEnv } from './_matchmakingAgePolicy.js';
 
 function safeStr(v) {
   return typeof v === 'string' ? v.trim() : '';
@@ -17,6 +18,7 @@ function normalizeNat(v) {
   if (s === 'tr' || s === 'turkey' || s === 'türkiye') return 'tr';
   if (s === 'id' || s === 'indonesia' || s === 'endonezya') return 'id';
   if (s === 'other') return 'other';
+  if (/^[a-z]{2}$/.test(s)) return s;
   return '';
 }
 
@@ -28,8 +30,8 @@ function normalizeAge(v) {
   return n;
 }
 
-function minAgeForNat(nat) {
-  return nat === 'id' ? 21 : 18;
+function minAgeForNat() {
+  return getMinAgeFromEnv();
 }
 
 function oppositeGender(g) {
@@ -39,8 +41,6 @@ function oppositeGender(g) {
 }
 
 function defaultLookingForNationality(nat) {
-  if (nat === 'tr') return 'id';
-  if (nat === 'id') return 'tr';
   return 'other';
 }
 

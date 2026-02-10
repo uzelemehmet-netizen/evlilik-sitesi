@@ -6,10 +6,70 @@ const MAX_TEXT_LEN = 1800;
 const TRANSLATE_CHARS = 400;
 const MIN_TRANSLATE_CHARS = 30;
 
+function toNumOrNull(value, { min, max } = {}) {
+  const n = typeof value === 'number' ? value : Number(String(value ?? '').trim());
+  if (!Number.isFinite(n)) return null;
+  const i = Math.trunc(n);
+  if (typeof min === 'number' && Number.isFinite(min) && i < min) return null;
+  if (typeof max === 'number' && Number.isFinite(max) && i > max) return null;
+  return i;
+}
+
+function asObj(value) {
+  return value && typeof value === 'object' && !Array.isArray(value) ? value : {};
+}
+
 function safeStr(value, maxLen) {
   const s = String(value ?? '').trim();
   if (!s) return '';
   return typeof maxLen === 'number' && maxLen > 0 && s.length > maxLen ? s.slice(0, maxLen) : s;
+}
+
+function tsToMs(v) {
+  if (!v) return 0;
+  if (typeof v === 'number' && Number.isFinite(v)) return v;
+  if (typeof v?.toMillis === 'function') {
+    try {
+      return v.toMillis();
+    } catch {
+      return 0;
+    }
+  }
+  const seconds = typeof v?.seconds === 'number' ? v.seconds : null;
+  const nanoseconds = typeof v?.nanoseconds === 'number' ? v.nanoseconds : 0;
+  if (seconds !== null) return Math.floor(seconds * 1000 + nanoseconds / 1e6);
+  return 0;
+}
+
+function isAutoStubApplication(app) {
+  const source = safeStr(app?.source).toLowerCase();
+  if (source === 'auto_stub') return true;
+  if (app?.details?.autoBootstrap === true) return true;
+  return false;
+}
+
+function appCreatedAtMs(app) {
+  const ms = typeof app?.createdAtMs === 'number' && Number.isFinite(app.createdAtMs) ? app.createdAtMs : 0;
+  if (ms > 0) return ms;
+  const ts = tsToMs(app?.createdAt);
+  return ts > 0 ? ts : 0;
+}
+
+function pickBestNonStubApplication(apps) {
+  const list = Array.isArray(apps) ? apps : [];
+  let best = null;
+  let bestScore = -Infinity;
+  for (const a of list) {
+    if (!a || typeof a !== 'object') continue;
+    const created = appCreatedAtMs(a);
+    const isStub = isAutoStubApplication(a);
+    const score = (isStub ? 0 : 1000) + (created > 0 ? created : 0);
+    if (score > bestScore) {
+      bestScore = score;
+      best = a;
+    }
+  }
+  return best;
 }
 
 function normalizeProfileLang(v) {
@@ -32,8 +92,13 @@ function detectForbiddenContactPII(text) {
   };
 }
 
-async function buildBilingualText(text, sourceLang) {
-  const original = safeStr(text, MAX_TEXT_LEN);
+async function buildBilingualText(text, sourceLang, opts = {}) {
+  const maxLen = typeof opts?.maxLen === 'number' && Number.isFinite(opts.maxLen) ? opts.maxLen : MAX_TEXT_LEN;
+  const translateChars =
+    typeof opts?.translateChars === 'number' && Number.isFinite(opts.translateChars) ? opts.translateChars : TRANSLATE_CHARS;
+  const minChars = typeof opts?.minChars === 'number' && Number.isFinite(opts.minChars) ? opts.minChars : MIN_TRANSLATE_CHARS;
+
+  const original = safeStr(text, maxLen);
   const src = normalizeProfileLang(sourceLang) || 'tr';
   const target = oppositeLang(src);
 
@@ -54,7 +119,7 @@ async function buildBilingualText(text, sourceLang) {
     return out;
   }
 
-  if (original.length < MIN_TRANSLATE_CHARS) {
+  if (original.length < minChars) {
     out.skipped = true;
     return out;
   }
@@ -64,8 +129,8 @@ async function buildBilingualText(text, sourceLang) {
     return out;
   }
 
-  const chunk = original.slice(0, TRANSLATE_CHARS);
-  out.truncated = original.length > TRANSLATE_CHARS;
+  const chunk = original.slice(0, translateChars);
+  out.truncated = original.length > translateChars;
 
   const translated = await translateTextProfile({ text: chunk, targetLang: target });
   const finalText = out.truncated && translated ? `${translated}…` : translated;
@@ -110,7 +175,7 @@ export default async function handler(req, res) {
   const about = safeStr(payload?.about, MAX_TEXT_LEN);
   const expectations = safeStr(payload?.expectations, MAX_TEXT_LEN);
 
-  if (!about || !expectations) {
+  if (!about) {
     res.statusCode = 400;
     res.setHeader('content-type', 'application/json');
     res.end(JSON.stringify({ ok: false, error: 'bad_request' }));
@@ -134,10 +199,10 @@ export default async function handler(req, res) {
   const { db, FieldValue } = getAdmin();
   const nowMs = Date.now();
 
-  const [meSnap, existingAppIdSnap, anyAppSnap] = await Promise.all([
+  const [meSnap, existingAppIdSnap, myAppsSnap] = await Promise.all([
     db.collection('matchmakingUsers').doc(uid).get(),
     db.collection('matchmakingApplications').doc(docId).get(),
-    db.collection('matchmakingApplications').where('userId', '==', uid).limit(1).get(),
+    db.collection('matchmakingApplications').where('userId', '==', uid).limit(10).get(),
   ]);
 
   const me = meSnap.exists ? meSnap.data() || {} : {};
@@ -149,57 +214,151 @@ export default async function handler(req, res) {
     return;
   }
 
-  const usedMs = typeof me?.profileTextWriteOnceUsedAtMs === 'number' && Number.isFinite(me.profileTextWriteOnceUsedAtMs)
-    ? me.profileTextWriteOnceUsedAtMs
-    : 0;
-  if (usedMs > 0) {
-    res.statusCode = 409;
-    res.setHeader('content-type', 'application/json');
-    res.end(JSON.stringify({ ok: false, error: 'profile_text_write_once_used' }));
-    return;
-  }
+  const myApps = Array.isArray(myAppsSnap?.docs) ? myAppsSnap.docs.map((d) => ({ id: d.id, ...(d.data() || {}) })) : [];
+  const bestMyApp = pickBestNonStubApplication(myApps);
 
-  // If user already has ANY application, treat profile texts as already written.
-  if (!anyAppSnap.empty) {
-    await db.collection('matchmakingUsers').doc(uid).set(
-      {
-        profileTextWriteOnceUsedAt: FieldValue.serverTimestamp(),
-        profileTextWriteOnceUsedAtMs: nowMs,
-      },
-      { merge: true }
-    );
+  let targetAppId = docId;
+  let isUpdate = false;
 
-    res.statusCode = 409;
-    res.setHeader('content-type', 'application/json');
-    res.end(JSON.stringify({ ok: false, error: 'already_submitted' }));
-    return;
-  }
+  // If we update an existing application that was created by an older flow,
+  // it may be missing createdAt/createdAtMs. Those docs become invisible in
+  // queries that orderBy('createdAt'). We'll repair on update (best-effort).
+  let existingTargetApp = null;
 
   if (existingAppIdSnap.exists) {
     const cur = existingAppIdSnap.data() || {};
+    existingTargetApp = cur;
     const owner = safeStr(cur?.userId);
-    res.statusCode = 409;
-    res.setHeader('content-type', 'application/json');
-    res.end(JSON.stringify({ ok: false, error: owner && owner !== uid ? 'username_taken' : 'already_submitted' }));
-    return;
+    if (owner && owner !== uid) {
+      res.statusCode = 409;
+      res.setHeader('content-type', 'application/json');
+      res.end(JSON.stringify({ ok: false, error: 'username_taken' }));
+      return;
+    }
+
+    // Same docId exists and belongs to this user => update.
+    targetAppId = docId;
+    isUpdate = true;
+  } else if (bestMyApp && safeStr(bestMyApp?.id)) {
+    // User already has an application => update the best existing one.
+    targetAppId = safeStr(bestMyApp.id);
+    isUpdate = true;
+    existingTargetApp = bestMyApp;
   }
 
-  const [aboutBi, expBi] = await Promise.all([
+  const existingCreatedAtMs = existingTargetApp ? appCreatedAtMs(existingTargetApp) : 0;
+  const existingHasCreatedAt = !!(existingTargetApp && (existingTargetApp?.createdAt || existingTargetApp?.createdAtMs));
+  const needsCreatedAtRepair = isUpdate && !existingHasCreatedAt;
+
+  const detailsRaw = asObj(payload?.details);
+  const detailsOccupation = safeStr(detailsRaw?.occupation, 160);
+  const detailsEducationDepartment = safeStr(detailsRaw?.educationDepartment, 160);
+  const detailsReligiousValues = safeStr(detailsRaw?.religiousValues, 300);
+  const detailsCommunicationLanguageOther = safeStr(detailsRaw?.communicationLanguageOther, 120);
+  const detailsNativeOther = safeStr(detailsRaw?.languages?.native?.other, 120);
+  const detailsForeignOther = safeStr(detailsRaw?.languages?.foreign?.other, 120);
+
+  const [aboutBi, expBi, occBi, eduDeptBi, relValBi, commOtherBi, nativeOtherBi, foreignOtherBi] = await Promise.all([
     buildBilingualText(about, sourceLang),
     buildBilingualText(expectations, sourceLang),
+    buildBilingualText(detailsOccupation, sourceLang, { maxLen: 160, translateChars: 160, minChars: 1 }),
+    buildBilingualText(detailsEducationDepartment, sourceLang, { maxLen: 160, translateChars: 160, minChars: 1 }),
+    buildBilingualText(detailsReligiousValues, sourceLang, { maxLen: 300, translateChars: 240, minChars: 1 }),
+    buildBilingualText(detailsCommunicationLanguageOther, sourceLang, { maxLen: 120, translateChars: 120, minChars: 1 }),
+    buildBilingualText(detailsNativeOther, sourceLang, { maxLen: 120, translateChars: 120, minChars: 1 }),
+    buildBilingualText(detailsForeignOther, sourceLang, { maxLen: 120, translateChars: 120, minChars: 1 }),
   ]);
 
-  const appRef = db.collection('matchmakingApplications').doc(docId);
+  const detailsWithTranslations = {
+    ...detailsRaw,
+    // If this application originated as auto-stub, explicitly clear the stub marker on submit.
+    autoBootstrap: false,
+    ...(detailsOccupation
+      ? {
+          occupationTr: occBi.tr,
+          occupationId: occBi.id,
+        }
+      : {}),
+    ...(detailsEducationDepartment
+      ? {
+          educationDepartmentTr: eduDeptBi.tr,
+          educationDepartmentId: eduDeptBi.id,
+        }
+      : {}),
+    ...(detailsReligiousValues
+      ? {
+          religiousValuesTr: relValBi.tr,
+          religiousValuesId: relValBi.id,
+        }
+      : {}),
+    ...(detailsCommunicationLanguageOther
+      ? {
+          communicationLanguageOtherTr: commOtherBi.tr,
+          communicationLanguageOtherId: commOtherBi.id,
+        }
+      : {}),
+    ...(detailsNativeOther
+      ? {
+          nativeLanguageOtherTr: nativeOtherBi.tr,
+          nativeLanguageOtherId: nativeOtherBi.id,
+        }
+      : {}),
+    ...(detailsForeignOther
+      ? {
+          foreignLanguageOtherTr: foreignOtherBi.tr,
+          foreignLanguageOtherId: foreignOtherBi.id,
+        }
+      : {}),
+    profileDetailsTranslatedAtMs: nowMs,
+  };
+
+  const appRef = db.collection('matchmakingApplications').doc(targetAppId);
   const userRef = db.collection('matchmakingUsers').doc(uid);
+
+  const coreUsername = safeStr(payload?.username, 60);
+  const coreUsernameLower = safeStr(payload?.usernameLower, 80) || safeStr(docId, 120);
+  const coreFullName = safeStr(payload?.fullName, 120);
+  const coreAge = toNumOrNull(payload?.age, { min: 18, max: 99 });
+  const coreCity = safeStr(payload?.city, 80);
+  const coreCountry = safeStr(payload?.country, 80);
+  const coreNationality = safeStr(payload?.nationality, 40);
+  const coreGender = safeStr(payload?.gender, 30);
+  const coreLookingForNationality = safeStr(payload?.lookingForNationality, 40);
+  const coreLookingForGender = safeStr(payload?.lookingForGender, 30);
+  const coreDetails = detailsWithTranslations;
+  const corePartnerPreferences = asObj(payload?.partnerPreferences);
+  const corePhotoUrls = Array.isArray(payload?.photoUrls)
+    ? payload.photoUrls.filter((u) => typeof u === 'string' && u.trim()).slice(0, 3)
+    : [];
+  const corePhotoPaths = Array.isArray(payload?.photoPaths)
+    ? payload.photoPaths.filter((p) => typeof p === 'string' && p.trim()).slice(0, 3)
+    : [];
 
   const appData = {
     ...(payload && typeof payload === 'object' ? payload : {}),
 
+    // Server-authoritative: a real user submit should never stay as an auto-stub.
+    source: 'apply_submit',
+
+    // Ensure translated detail fields are stored server-side.
+    details: coreDetails,
+
     // Server-authoritative fields
     userId: uid,
-    createdAt: FieldValue.serverTimestamp(),
-    createdAtMs: nowMs,
-    status: 'new',
+    ...(!isUpdate
+      ? {
+          createdAt: FieldValue.serverTimestamp(),
+          createdAtMs: nowMs,
+          status: 'new',
+        }
+      : needsCreatedAtRepair
+        ? {
+            createdAt: FieldValue.serverTimestamp(),
+            createdAtMs: existingCreatedAtMs > 0 ? existingCreatedAtMs : nowMs,
+          }
+        : {}),
+    updatedAt: FieldValue.serverTimestamp(),
+    updatedAtMs: nowMs,
 
     // Original texts
     about,
@@ -213,7 +372,6 @@ export default async function handler(req, res) {
     expectationsId: expBi.id,
 
     // Meta
-    profileTextWriteOnceUsedAtMs: nowMs,
     profileTextTranslatedAtMs: nowMs,
     profileTextTranslate: {
       about: {
@@ -240,16 +398,57 @@ export default async function handler(req, res) {
   appData.pool = {
     ...(payload?.pool && typeof payload.pool === 'object' ? payload.pool : {}),
     active: true,
-    addedAt: FieldValue.serverTimestamp(),
-    addedAtMs: nowMs,
+    ...(isUpdate
+      ? {}
+      : {
+          addedAt: FieldValue.serverTimestamp(),
+          addedAtMs: nowMs,
+        }),
     reason: 'apply_submit',
   };
 
   const batch = db.batch();
-  batch.create(appRef, appData);
+  if (isUpdate) {
+    batch.set(appRef, appData, { merge: true });
+  } else {
+    batch.create(appRef, appData);
+  }
   batch.set(
     userRef,
     {
+      // Core fields for UI/admin screens (many places prefer matchmakingUsers cache).
+      applicationId: targetAppId,
+      ...(coreUsername ? { username: coreUsername } : {}),
+      ...(coreUsernameLower ? { usernameLower: coreUsernameLower } : {}),
+      ...(coreFullName ? { fullName: coreFullName } : {}),
+      ...(typeof coreAge === 'number' ? { age: coreAge } : {}),
+      ...(coreCity ? { city: coreCity } : {}),
+      ...(coreCountry ? { country: coreCountry } : {}),
+      ...(coreNationality ? { nationality: coreNationality } : {}),
+      ...(coreGender ? { gender: coreGender } : {}),
+      ...(coreLookingForNationality ? { lookingForNationality: coreLookingForNationality } : {}),
+      ...(coreLookingForGender ? { lookingForGender: coreLookingForGender } : {}),
+
+      // Cache application snapshot to avoid "unknown" when application fetch isn't available.
+      application: {
+        ...(coreUsername ? { username: coreUsername } : {}),
+        ...(coreUsernameLower ? { usernameLower: coreUsernameLower } : {}),
+        ...(coreFullName ? { fullName: coreFullName } : {}),
+        ...(typeof coreAge === 'number' ? { age: coreAge } : {}),
+        ...(coreCity ? { city: coreCity } : {}),
+        ...(coreCountry ? { country: coreCountry } : {}),
+        ...(coreNationality ? { nationality: coreNationality } : {}),
+        ...(coreGender ? { gender: coreGender } : {}),
+        ...(coreLookingForNationality ? { lookingForNationality: coreLookingForNationality } : {}),
+        ...(coreLookingForGender ? { lookingForGender: coreLookingForGender } : {}),
+        ...(corePhotoUrls.length ? { photoUrls: corePhotoUrls } : {}),
+        ...(corePhotoPaths.length ? { photoPaths: corePhotoPaths } : {}),
+        ...(Object.keys(coreDetails).length ? { details: coreDetails } : {}),
+        ...(Object.keys(corePartnerPreferences).length ? { partnerPreferences: corePartnerPreferences } : {}),
+        ...(payload?.profileNo !== undefined ? { profileNo: payload.profileNo } : {}),
+        ...(payload?.profileCode ? { profileCode: safeStr(payload.profileCode, 80) } : {}),
+      },
+
       details: {
         about,
         bio: about,
@@ -260,6 +459,18 @@ export default async function handler(req, res) {
         expectationsId: expBi.id,
       },
       publicProfile: {
+        ...(coreUsername ? { username: coreUsername } : {}),
+        ...(coreUsernameLower ? { usernameLower: coreUsernameLower } : {}),
+        ...(coreFullName ? { fullName: coreFullName } : {}),
+        ...(typeof coreAge === 'number' ? { age: coreAge } : {}),
+        ...(coreCity ? { city: coreCity } : {}),
+        ...(coreCountry ? { country: coreCountry } : {}),
+        ...(coreNationality ? { nationality: coreNationality } : {}),
+        ...(coreGender ? { gender: coreGender } : {}),
+        ...(coreLookingForNationality ? { lookingForNationality: coreLookingForNationality } : {}),
+        ...(coreLookingForGender ? { lookingForGender: coreLookingForGender } : {}),
+        ...(corePhotoUrls.length ? { photoUrls: corePhotoUrls } : {}),
+        ...(corePhotoPaths.length ? { photoPaths: corePhotoPaths } : {}),
         about,
         expectations,
         aboutTr: aboutBi.tr,
@@ -268,8 +479,6 @@ export default async function handler(req, res) {
         expectationsId: expBi.id,
       },
       profileTextLang: sourceLang,
-      profileTextWriteOnceUsedAt: FieldValue.serverTimestamp(),
-      profileTextWriteOnceUsedAtMs: nowMs,
       updatedAt: FieldValue.serverTimestamp(),
     },
     { merge: true }
@@ -282,7 +491,8 @@ export default async function handler(req, res) {
   res.end(
     JSON.stringify({
       ok: true,
-      applicationId: docId,
+      applicationId: targetAppId,
+      updatedExisting: isUpdate,
       translated: {
         about: aboutBi.translated,
         expectations: expBi.translated,

@@ -1,13 +1,9 @@
-import React, { useMemo, useState } from 'react';
+import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import Navigation from '../components/Navigation';
 import Footer from '../components/Footer';
 import { authFetch } from '../utils/authFetch';
-
-function promoCutoffMsTR() {
-  return new Date('2026-02-10T23:59:59.999+03:00').getTime();
-}
 
 export default function MatchmakingMembership() {
   const { t, i18n } = useTranslation();
@@ -15,22 +11,7 @@ export default function MatchmakingMembership() {
 
   const [action, setAction] = useState({ loading: false, error: '', success: '' });
 
-  const cutoffMs = useMemo(() => promoCutoffMsTR(), []);
-  const now = Date.now();
-  const promoActive = now <= cutoffMs;
-
-  const goToPaidFlow = () => {
-    navigate('/profilim', { state: { openMembershipActivation: true } });
-  };
-
-  const cutoffText = useMemo(() => {
-    const locale = i18n?.language === 'id' ? 'id-ID' : i18n?.language === 'en' ? 'en-US' : 'tr-TR';
-    try {
-      return new Intl.DateTimeFormat(locale, { year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(cutoffMs));
-    } catch {
-      return '';
-    }
-  }, [cutoffMs, i18n?.language]);
+  const locale = i18n?.language === 'id' ? 'id-ID' : i18n?.language === 'en' ? 'en-US' : 'tr-TR';
 
   const activateFree = async () => {
     setAction({ loading: true, error: '', success: '' });
@@ -43,14 +24,14 @@ export default function MatchmakingMembership() {
 
       const untilMs = typeof data?.validUntilMs === 'number' ? data.validUntilMs : 0;
       const untilText = untilMs
-        ? new Intl.DateTimeFormat('en-GB', { year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(untilMs))
+        ? new Intl.DateTimeFormat(locale, { year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(untilMs))
         : '';
 
       setAction({
         loading: false,
         error: '',
         success: untilText
-          ? t('matchmakingMembership.freeActivatedInfo', { date: untilText, translatedCount: 200, dailyLimit: 3 })
+          ? t('matchmakingMembership.activatedUntil', { date: untilText })
           : t('matchmakingMembership.activated'),
       });
 
@@ -63,12 +44,10 @@ export default function MatchmakingMembership() {
         (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
 
       const mapped =
-        msg === 'promo_expired'
-          ? t('matchmakingMembership.promoExpired', { date: cutoffText })
-          : msg === 'promo_disabled'
-            ? t('matchmakingMembership.promoDisabled')
-            : msg === 'api_unreachable'
-              ? (isLocalhost ? t('matchmakingMembership.errors.apiUnavailableDev') : t('matchmakingMembership.activateFailed'))
+        msg === 'free_membership_disabled'
+          ? t('matchmakingMembership.freeDisabled')
+          : msg === 'api_unreachable'
+            ? (isLocalhost ? t('matchmakingMembership.errors.apiUnavailableDev') : t('matchmakingMembership.activateFailed'))
           : msg === 'missing_auth' || msg === 'invalid_auth' || msg === 'not_authenticated'
             ? t('matchmakingMembership.errors.notAuthenticated')
             : msg === 'firebase_admin_not_configured'
@@ -99,84 +78,8 @@ export default function MatchmakingMembership() {
           <p className="text-sm text-white/70 mt-1">{t('matchmakingMembership.lead')}</p>
 
           <div className="mt-5 rounded-2xl border border-white/10 bg-white/[0.04] p-4">
-            <p className="text-sm font-semibold text-white">{t('matchmakingMembership.planTitle')}</p>
-
-            <div className="mt-3 rounded-2xl border border-white/10 bg-white/[0.04] p-4">
-              <p className="text-xs font-semibold text-white">Tüm paketlerde açık olanlar</p>
-              <ul className="mt-2 list-disc pl-5 space-y-1 text-xs text-white/75">
-                <li>Beğeni / reddetme</li>
-                <li>Site içi mesajlaşma</li>
-                <li>İletişim bilgisi paylaşma isteğinde bulunabilme (karşılıklı onay sonrası)</li>
-                <li>Eşleşmeyi sonlandırma / panelden kaldırma</li>
-              </ul>
-            </div>
-
-            <div className="mt-3 grid grid-cols-1 gap-3">
-              {[
-                {
-                  tier: 'eco',
-                  price: promoActive ? 'Ücretsiz' : '25$',
-                  features: [
-                    'Eşleşme ekranında aynı anda en fazla 3 eşleşme',
-                    'Mesaj çevirisi: günlük 80 mesaj',
-                    'Sponsorlu çeviri: karşı taraf Standart/Pro ise otomatik',
-                  ],
-                },
-                {
-                  tier: 'standard',
-                  price: '40$',
-                  features: [
-                    'Eşleşme ekranında aynı anda en fazla 5 eşleşme',
-                    'Mesaj çevirisi: günlük 300 mesaj',
-                    'Panel ve eşleşmelerde STANDART rozeti',
-                    'Sponsorlu çeviri: Eko kullanıcılarla sohbetlerde otomatik',
-                  ],
-                },
-                {
-                  tier: 'pro',
-                  price: '75$',
-                  features: [
-                    'Eşleşme ekranında aynı anda en fazla 10 eşleşme',
-                    'Mesaj çevirisi: günlük 2000 mesaj',
-                    'Sponsorlu çeviri (Eko/Free kullanıcılar için): otomatik',
-                    'Sohbet içinde sponsorlu çeviriyi aç/kapat',
-                    'Panel ve eşleşmelerde PRO rozeti',
-                  ],
-                },
-              ].map((p) => (
-                <div key={p.tier} className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="text-sm font-bold text-white">{p.tier === 'eco' ? 'Eko' : p.tier === 'standard' ? 'Standart' : 'Pro'}</p>
-                      <p className="text-xs text-white/60 mt-1">Aylık üyelik</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-sm font-semibold text-white">{p.price}</p>
-                      <p className="text-[11px] text-white/50">{p.tier === 'eco' && promoActive ? `10 Şubat'a kadar` : '(örnek fiyat)'}</p>
-                    </div>
-                  </div>
-                  <div className="mt-3 text-xs text-white/75">
-                    <ul className="list-disc pl-5 space-y-1">
-                      {p.features.map((f, idx) => (
-                        <li key={`${p.tier}-${idx}`}>{f}</li>
-                      ))}
-                    </ul>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            {promoActive ? (
-              <div className="mt-3 rounded-xl border border-emerald-300/30 bg-emerald-500/10 p-3">
-                <p className="text-xs font-semibold text-emerald-100">{t('matchmakingMembership.promoTitle')}</p>
-                <p className="mt-1 text-sm text-white/75">{t('matchmakingMembership.promoBody', { date: cutoffText })}</p>
-              </div>
-            ) : (
-              <div className="mt-3 rounded-xl border border-amber-300/30 bg-amber-500/10 p-3">
-                <p className="text-xs font-semibold text-amber-100">{t('matchmakingMembership.promoEndedTitle')}</p>
-                <p className="mt-1 text-sm text-white/75">{t('matchmakingMembership.promoEndedBody', { date: cutoffText })}</p>
-              </div>
-            )}
+            <p className="text-sm font-semibold text-white">{t('matchmakingMembership.freeNowTitle')}</p>
+            <p className="mt-2 text-sm text-white/75 whitespace-pre-line">{t('matchmakingMembership.freeNowBody')}</p>
           </div>
 
           {action.error ? (
@@ -191,33 +94,14 @@ export default function MatchmakingMembership() {
           ) : null}
 
           <div className="mt-5 flex flex-col sm:flex-row gap-3 sm:items-center">
-            {promoActive ? (
-              <>
-                <button
-                  type="button"
-                  onClick={activateFree}
-                  disabled={action.loading}
-                  className="px-5 py-2.5 rounded-full bg-emerald-400 text-slate-950 text-sm font-semibold hover:bg-emerald-300 disabled:opacity-60"
-                >
-                  {action.loading ? t('matchmakingMembership.activating') : t('matchmakingMembership.freeActivateCta')}
-                </button>
-                <button
-                  type="button"
-                  onClick={goToPaidFlow}
-                  className="px-5 py-2.5 rounded-full border border-white/10 bg-white/5 text-white/90 text-sm font-semibold hover:bg-white/[0.12] transition"
-                >
-                  {t('matchmakingMembership.paidActivationCta')}
-                </button>
-              </>
-            ) : (
-              <button
-                type="button"
-                onClick={goToPaidFlow}
-                className="px-5 py-2.5 rounded-full bg-amber-300 text-slate-950 text-sm font-semibold hover:bg-amber-200"
-              >
-                {t('matchmakingMembership.paidActivationCta')}
-              </button>
-            )}
+            <button
+              type="button"
+              onClick={activateFree}
+              disabled={action.loading}
+              className="px-5 py-2.5 rounded-full bg-emerald-400 text-slate-950 text-sm font-semibold hover:bg-emerald-300 disabled:opacity-60"
+            >
+              {action.loading ? t('matchmakingMembership.activating') : t('matchmakingMembership.freeActivateCta')}
+            </button>
 
             <Link
               to="/profilim"
@@ -227,11 +111,7 @@ export default function MatchmakingMembership() {
             </Link>
           </div>
 
-          <p className="mt-5 text-xs text-white/55">
-            {promoActive
-              ? t('matchmakingMembership.paymentMethodsSoon', { date: cutoffText })
-              : t('matchmakingMembership.paidAdminApprovalNote', { date: cutoffText })}
-          </p>
+          <p className="mt-5 text-xs text-white/55">{t('matchmakingMembership.freeNowFootnote')}</p>
         </div>
       </section>
 

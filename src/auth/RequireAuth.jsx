@@ -7,7 +7,19 @@ export default function RequireAuth({ children }) {
   const location = useLocation();
 
   const isPublicPath = (pathname) => {
-    const path = String(pathname || '/');
+    const rawPath = String(pathname || '/');
+    const path = rawPath.replace(/\/+$/, '') || '/';
+
+    // Explicit protected pages that live under otherwise-public prefixes.
+    // These must require a real (non-anonymous) authenticated user.
+    if (
+      path === '/wedding/apply' ||
+      path === '/evlilik/eslestirme-basvuru' ||
+      path === '/evlilik/eslestirme-basvurusu' ||
+      path === '/evlilik/uyelik'
+    ) {
+      return false;
+    }
 
     // Exact public pages
     if (
@@ -16,6 +28,7 @@ export default function RequireAuth({ children }) {
       path === '/kurumsal' ||
       path === '/contact' ||
       path === '/login' ||
+      path === '/documents' ||
       path === '/privacy'
     ) {
       return true;
@@ -46,7 +59,7 @@ export default function RequireAuth({ children }) {
         to="/login"
         replace
         state={{
-          from: location.pathname,
+          from: `${location.pathname || ''}${location.search || ''}`,
           fromState: location.state || null,
         }}
       />

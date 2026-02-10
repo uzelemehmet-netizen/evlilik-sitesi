@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
-import { collection, doc, limit, onSnapshot, orderBy, query } from 'firebase/firestore';
+import { Link, useNavigate, useParams } from 'react-router-dom';
+import { collection, doc, getDoc, getDocFromServer, limit, onSnapshot, orderBy, query } from 'firebase/firestore';
 import { Lock, Send, ShieldCheck, Share2, Unlock } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import Navigation from '../../components/Navigation';
@@ -11,33 +11,190 @@ import { db } from '../../config/firebase';
 import { authFetch } from '../../utils/authFetch';
 import { normalizePhoneForWhatsApp } from '../../utils/phone';
 import { translateStudioApiError } from '../../utils/studioErrorI18n';
+import StudioBottomNav from '../../components/studio/StudioBottomNav';
+
+function isDebugApiEnabled() {
+  if (typeof window === 'undefined') return false;
+  try {
+    try {
+      if (window.localStorage && (window.localStorage.getItem('debugApi') === '1' || window.localStorage.getItem('debugApi') === 'true')) {
+        return true;
+      }
+    } catch {
+      // ignore
+    }
+    const sp = new URLSearchParams(window.location.search);
+    return sp.get('debugApi') === '1' || sp.get('debugPush') === '1';
+  } catch {
+    return false;
+  }
+}
 
 export default function StudioChat() {
   const { matchId } = useParams();
   const { user } = useAuth();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const navigate = useNavigate();
 
   const [match, setMatch] = useState(null);
   const [matchLoading, setMatchLoading] = useState(true);
   const [myLock, setMyLock] = useState({ active: false, matchId: '' });
+  const [myProfileComplete, setMyProfileComplete] = useState(true);
+  const [myMembership, setMyMembership] = useState({ active: false });
+  const [paywallNotice, setPaywallNotice] = useState('');
+  const [profileGateNotice, setProfileGateNotice] = useState('');
   const [messages, setMessages] = useState([]);
   const [messagesLoading, setMessagesLoading] = useState(true);
   const [sendText, setSendText] = useState('');
   const [sendState, setSendState] = useState({ loading: false, error: '' });
 
+  const [myCommLanguage, setMyCommLanguage] = useState('');
+
+  const [translateState, setTranslateState] = useState({ loadingId: '', error: '' });
+
   const [confirmState, setConfirmState] = useState({ loading: false, error: '' });
   const [contactRequestState, setContactRequestState] = useState({ loading: false, error: '' });
   const [contactApproveState, setContactApproveState] = useState({ loading: false, error: '' });
+  const [cancelState, setCancelState] = useState({ loading: false, error: '' });
 
   const scrollRef = useRef(null);
   const inputRef = useRef(null);
 
+  const [nowTickMs, setNowTickMs] = useState(() => Date.now());
+
+  const [lockPanelExpanded, setLockPanelExpanded] = useState(false);
+
+  const activateMembershipRef = useRef(false);
+
   const uid = String(user?.uid || '').trim();
   const mid = String(matchId || '').trim();
+
+  const uiLang = useMemo(() => {
+    const raw = String(i18n?.language || 'tr');
+    const base = raw.split('-')[0];
+    return base || 'tr';
+  }, [i18n?.language]);
+
+  const translateTargetStorageKey = useMemo(() => {
+    if (!uid || !mid) return '';
+    return `studio_chat_translate_target:${uid}:${mid}`;
+  }, [mid, uid]);
+
+  const normalizeTranslateTarget = (raw) => {
+    const s = String(raw || '').trim().toLowerCase();
+    if (s === 'tr' || s === 'id' || s === 'en') return s;
+    return '';
+  };
+
+  const [translateTargetLang, setTranslateTargetLang] = useState('');
+  useEffect(() => {
+    // Default: my communication language; allow override via localStorage
+    const fallback = normalizeTranslateTarget(myCommLanguage) || normalizeTranslateTarget(uiLang) || 'tr';
+    if (!translateTargetStorageKey) {
+      setTranslateTargetLang(fallback);
+      return;
+    }
+    try {
+      const saved = normalizeTranslateTarget(window.localStorage.getItem(translateTargetStorageKey));
+      setTranslateTargetLang(saved || fallback);
+    } catch {
+      setTranslateTargetLang(fallback);
+    }
+  }, [myCommLanguage, translateTargetStorageKey, uiLang]);
+
+  const effectiveTargetLang = normalizeTranslateTarget(translateTargetLang) || normalizeTranslateTarget(uiLang) || 'tr';
+
+  const asMs = (v) => {
+    if (typeof v === 'number' && Number.isFinite(v)) return v;
+    if (v && typeof v.toMillis === 'function') return v.toMillis();
+    if (v && typeof v.seconds === 'number' && Number.isFinite(v.seconds)) return v.seconds * 1000;
+    return 0;
+  };
+
+  const requirePaid = () => {
+    setPaywallNotice(t('studio.paywall.upgradeToInteract'));
+    try {
+      if (typeof window !== 'undefined') window.scrollTo({ top: 0, behavior: 'smooth' });
+    } catch {
+      // noop
+    }
+  };
+
+  const requireProfile = () => {
+    setProfileGateNotice(t('studio.profileGate.body'));
+    try {
+      if (typeof window !== 'undefined') window.scrollTo({ top: 0, behavior: 'smooth' });
+    } catch {
+      // noop
+    }
+  };
+
+  const activateFreeMembershipNow = async () => {
+    if (!uid) return;
+    if (activateMembershipRef.current) return;
+    activateMembershipRef.current = true;
+
+    try {
+      await authFetch('/api/matchmaking-membership-activate-free', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({}),
+      });
+      setMyMembership({ active: true });
+      setPaywallNotice('');
+    } catch (e) {
+      const msg = String(e?.message || '').trim() || 'membership_activate_failed';
+      setPaywallNotice(translateStudioApiError(t, msg) || msg);
+    } finally {
+      activateMembershipRef.current = false;
+    }
+  };
 
   useEffect(() => {
     if (!uid) return;
     const ref = doc(db, 'matchmakingUsers', uid);
+
+    let cancelled = false;
+    (async () => {
+      try {
+        let snap;
+        try {
+          snap = await getDocFromServer(ref);
+        } catch {
+          snap = await getDoc(ref);
+        }
+        if (cancelled) return;
+        const d = snap?.exists?.() ? snap.data() || {} : {};
+
+        const lock = d?.matchmakingLock && typeof d.matchmakingLock === 'object' ? d.matchmakingLock : null;
+        const active = !!lock?.active;
+        const matchId = typeof lock?.matchId === 'string' ? String(lock.matchId).trim() : '';
+        setMyLock({ active, matchId });
+
+        const membershipObj = d?.membership && typeof d.membership === 'object' ? d.membership : null;
+        const membershipValidUntilMs = asMs(membershipObj?.validUntilMs);
+        const now = Date.now();
+        const membershipActive =
+          (membershipValidUntilMs > 0 && membershipValidUntilMs > now) ||
+          (!!membershipObj?.active && (!membershipValidUntilMs || membershipValidUntilMs > now));
+        setMyMembership({ active: membershipActive });
+
+        const about = String(
+          d?.details?.about ||
+            d?.publicProfile?.about ||
+            d?.application?.about ||
+            d?.application?.aboutTr ||
+            d?.application?.aboutId ||
+            ''
+        ).trim();
+        setMyProfileComplete(!!about);
+
+        setMyCommLanguage(String(d?.details?.communicationLanguage || '').trim());
+      } catch {
+        // best-effort
+      }
+    })();
+
     const unsub = onSnapshot(
       ref,
       (snap) => {
@@ -46,13 +203,38 @@ export default function StudioChat() {
         const active = !!lock?.active;
         const matchId = typeof lock?.matchId === 'string' ? String(lock.matchId).trim() : '';
         setMyLock({ active, matchId });
+
+        const membershipObj = d?.membership && typeof d.membership === 'object' ? d.membership : null;
+        const membershipValidUntilMs = asMs(membershipObj?.validUntilMs);
+        const now = Date.now();
+        const membershipActive =
+          (membershipValidUntilMs > 0 && membershipValidUntilMs > now) ||
+          (!!membershipObj?.active && (!membershipValidUntilMs || membershipValidUntilMs > now));
+        setMyMembership({ active: membershipActive });
+
+        const about = String(
+          d?.details?.about ||
+            d?.publicProfile?.about ||
+            d?.application?.about ||
+            d?.application?.aboutTr ||
+            d?.application?.aboutId ||
+            ''
+        ).trim();
+        // 2026-02: Apply form no longer asks for expectations.
+        setMyProfileComplete(!!about);
+
+        setMyCommLanguage(String(d?.details?.communicationLanguage || '').trim());
       },
       () => {
         setMyLock({ active: false, matchId: '' });
+        setMyProfileComplete(true);
+        setMyMembership({ active: false });
+        setMyCommLanguage('');
       }
     );
 
     return () => {
+      cancelled = true;
       try {
         unsub();
       } catch {
@@ -310,11 +492,185 @@ export default function StudioChat() {
     !!lockInfo.requestedByUid &&
     lockInfo.requestedByUid !== uid;
 
+  const activeCancelByUid = match?.activeCancelByUid && typeof match.activeCancelByUid === 'object' ? match.activeCancelByUid : {};
+  const iCancelled = !!(uid && activeCancelByUid?.[uid]);
+
+  const cancelCooldownRemainingMs = useMemo(() => {
+    if (!match) return 0;
+    const baseMs =
+      (typeof match?.chatEnabledAtMs === 'number' && Number.isFinite(match.chatEnabledAtMs) ? match.chatEnabledAtMs : 0) ||
+      (typeof match?.mutualAcceptedAtMs === 'number' && Number.isFinite(match.mutualAcceptedAtMs) ? match.mutualAcceptedAtMs : 0) ||
+      0;
+    if (!baseMs) return 0;
+    const cooldownMs = 2 * 60 * 60 * 1000;
+    const untilMs = baseMs + cooldownMs;
+    return Math.max(0, untilMs - nowTickMs);
+  }, [match, nowTickMs]);
+
+  const cancelCooldownText = useMemo(() => {
+    const remainingMin = Math.max(0, Math.ceil((cancelCooldownRemainingMs || 0) / 60000));
+    const hours = Math.floor(remainingMin / 60);
+    const minutes = remainingMin % 60;
+    if (hours <= 0) return t('studio.matchProfile.time.minutes', { minutes: minutes || 1 });
+    if (minutes <= 0) return t('studio.matchProfile.time.hours', { hours });
+    return t('studio.matchProfile.time.hm', { hours, minutes });
+  }, [cancelCooldownRemainingMs, t]);
+
+  useEffect(() => {
+    if (!longChatAllowed) return;
+    if (cancelCooldownRemainingMs <= 0) return;
+    const timer = setInterval(() => setNowTickMs(Date.now()), 30000);
+    return () => clearInterval(timer);
+  }, [cancelCooldownRemainingMs, longChatAllowed]);
+
+  const cancelActiveMutual = async () => {
+    if (!uid || !mid) return;
+    if (!isActiveMatchForMe) return;
+    if (cancelCooldownRemainingMs > 0) return;
+    if (cancelState.loading) return;
+
+    const ok = typeof window !== 'undefined' ? window.confirm(t('studio.matchProfile.cancel.confirmPrompt')) : true;
+    if (!ok) return;
+
+    setCancelState({ loading: true, error: '' });
+    try {
+      await authFetch('/api/matchmaking-active-cancel', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ matchId: mid }),
+      });
+      setCancelState({ loading: false, error: '' });
+    } catch (e) {
+      const code = String(e?.message || '').trim();
+      const friendly = translateStudioApiError(t, code) || code || 'cancel_failed';
+      setCancelState({ loading: false, error: friendly });
+    }
+  };
+
+  const autoTranslateInFlightRef = useRef(false);
+  const autoTranslateAttemptedRef = useRef(new Set());
+
+  const translateMessage = async ({ messageId }) => {
+    const msgId = String(messageId || '').trim();
+    if (!uid || !mid || !msgId) return;
+    if (translateState.loadingId) return;
+
+    setTranslateState({ loadingId: msgId, error: '' });
+    try {
+      await authFetch('/api/matchmaking-chat-translate', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ matchId: mid, messageId: msgId, targetLang: effectiveTargetLang }),
+      });
+      setTranslateState({ loadingId: '', error: '' });
+    } catch (e) {
+      const code = String(e?.message || '').trim();
+      const friendly = translateStudioApiError(t, code) || code || 'translate_failed';
+
+      if (isDebugApiEnabled()) {
+        const d = e?.details;
+        const apiDetails = d?.details && typeof d.details === 'object' ? d.details : null;
+        const provider = String(apiDetails?.provider || apiDetails?.providerUsed || '').trim();
+        const providerStatus = String(apiDetails?.providerStatus || apiDetails?.providerErrorStatus || '').trim();
+        const providerMsg = String(apiDetails?.providerErrorMessage || '').trim();
+        const extra = [
+          provider ? `provider=${provider}` : '',
+          providerStatus ? `status=${providerStatus}` : '',
+          providerMsg ? `msg=${providerMsg}` : '',
+        ].filter(Boolean).join(' ');
+
+        setTranslateState({ loadingId: '', error: extra ? `${friendly} (${extra})` : friendly });
+      } else {
+        setTranslateState({ loadingId: '', error: friendly });
+      }
+    }
+  };
+
+  const autoTranslateMessage = async ({ messageId }) => {
+    const msgId = String(messageId || '').trim();
+    if (!uid || !mid || !msgId) return;
+    try {
+      await authFetch('/api/matchmaking-chat-translate', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ matchId: mid, messageId: msgId, targetLang: effectiveTargetLang }),
+      });
+    } catch {
+      // silent
+    }
+  };
+
+  useEffect(() => {
+    if (!uid || !mid) return;
+    if (!effectiveTargetLang) return;
+    if (messagesLoading) return;
+    if (!Array.isArray(messages) || messages.length === 0) return;
+    if (autoTranslateInFlightRef.current) return;
+
+    const candidateIds = [];
+    for (let i = messages.length - 1; i >= 0 && candidateIds.length < 3; i -= 1) {
+      const m = messages[i];
+      const msgId = String(m?.id || '').trim();
+      if (!msgId) continue;
+
+      const senderUid = String(m?.userId || '').trim();
+      if (!senderUid || senderUid === uid) continue; // only incoming
+
+      const text = String(m?.text || '').trim();
+      if (!text) continue;
+
+      const existing = m?.translations && typeof m.translations === 'object' ? String(m.translations?.[effectiveTargetLang] || '').trim() : '';
+      if (existing) continue;
+
+      const attemptedKey = `${effectiveTargetLang}:${msgId}`;
+      if (autoTranslateAttemptedRef.current.has(attemptedKey)) continue;
+
+      candidateIds.push(msgId);
+    }
+
+    if (!candidateIds.length) return;
+
+    const timer = setTimeout(() => {
+      (async () => {
+        if (autoTranslateInFlightRef.current) return;
+        autoTranslateInFlightRef.current = true;
+        try {
+          for (const msgId of candidateIds) {
+            const attemptedKey = `${effectiveTargetLang}:${msgId}`;
+            autoTranslateAttemptedRef.current.add(attemptedKey);
+            // keep set bounded (best-effort)
+            if (autoTranslateAttemptedRef.current.size > 800) {
+              autoTranslateAttemptedRef.current = new Set(Array.from(autoTranslateAttemptedRef.current).slice(-500));
+            }
+            await autoTranslateMessage({ messageId: msgId });
+          }
+        } finally {
+          autoTranslateInFlightRef.current = false;
+        }
+      })();
+    }, 350);
+
+    return () => clearTimeout(timer);
+  }, [effectiveTargetLang, messages, messagesLoading, mid, uid]);
+
   const sendMessage = async (e) => {
     e?.preventDefault?.();
     const text = String(sendText || '').trim();
     if (!uid || !mid || !text) return;
     if (sendState.loading) return;
+
+    if (!myProfileComplete) {
+      requireProfile();
+      setSendState({ loading: false, error: t('studio.profileGate.body') });
+      return;
+    }
+
+    // Üyelik aktif değilken kısa mesaj gönderemez (okuma serbest).
+    if (shortChatAllowed && !myMembership?.active) {
+      requirePaid();
+      setSendState({ loading: false, error: t('studio.paywall.upgradeToReply') });
+      return;
+    }
 
     setSendState({ loading: true, error: '' });
     try {
@@ -396,10 +752,51 @@ export default function StudioChat() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900">
+    <div className="min-h-screen bg-slate-50 text-slate-900 pb-24 sm:pb-0">
       <Navigation />
 
       <main className="container mx-auto px-4 py-6">
+        {paywallNotice ? (
+          <div className="mb-4 mx-auto max-w-4xl rounded-xl border border-amber-200 bg-amber-50 p-4 text-amber-900">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="font-semibold">{t('studio.paywall.upgradeTitle')}</p>
+              <button
+                type="button"
+                onClick={() => setPaywallNotice('')}
+                className="rounded-md px-2 py-1 text-sm font-semibold text-amber-900/70 hover:bg-amber-100"
+              >
+                {t('studio.common.close')}
+              </button>
+            </div>
+            <p className="mt-1 text-sm text-amber-900/80">{paywallNotice}</p>
+            <div className="mt-3">
+              <button type="button" onClick={activateFreeMembershipNow} className="text-sm font-semibold underline">
+                {t('studio.paywall.upgradeCta')}
+              </button>
+            </div>
+          </div>
+        ) : null}
+
+        {profileGateNotice ? (
+          <div className="mb-4 mx-auto max-w-4xl rounded-xl border border-amber-200 bg-amber-50 p-4 text-amber-950">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="font-semibold">{t('studio.profileGate.title')}</p>
+              <button
+                type="button"
+                onClick={() => setProfileGateNotice('')}
+                className="rounded-md px-2 py-1 text-sm font-semibold text-amber-900/70 hover:bg-amber-100"
+              >
+                {t('studio.common.close')}
+              </button>
+            </div>
+            <p className="mt-1 text-sm text-amber-900/80">{profileGateNotice}</p>
+            <div className="mt-3">
+              <Link to="/evlilik/eslestirme-basvuru?w=1" className="text-sm font-semibold underline">
+                {t('studio.profileGate.cta')}
+              </Link>
+            </div>
+          </div>
+        ) : null}
         <div className="mb-4 flex items-center justify-between gap-3">
           <Link to="/app/matches" className="text-sm font-semibold text-emerald-700 hover:underline">
             {t('studio.chat.backToMatches')}
@@ -427,7 +824,30 @@ export default function StudioChat() {
                   </span>
                 ) : null}
               </div>
-              <p className="text-sm text-slate-500">{t('studio.chat.chatTitle')}</p>
+              <div className="mt-1 flex flex-wrap items-center gap-2">
+                <p className="text-sm text-slate-500">{t('studio.chat.chatTitle')}</p>
+                <div className="ml-auto flex items-center gap-2">
+                  <span className="text-[11px] font-semibold text-slate-500">{t('studio.chat.translateTargetLabel')}</span>
+                  <select
+                    value={effectiveTargetLang}
+                    onChange={(e) => {
+                      const next = normalizeTranslateTarget(e.target.value) || 'tr';
+                      setTranslateTargetLang(next);
+                      try {
+                        if (translateTargetStorageKey) window.localStorage.setItem(translateTargetStorageKey, next);
+                      } catch {
+                        // noop
+                      }
+                    }}
+                    className="h-8 rounded-md border border-slate-200 bg-white px-2 text-xs font-semibold text-slate-700 shadow-sm"
+                    aria-label={t('studio.chat.translateTargetLabel')}
+                  >
+                    <option value="tr">{t('matchmakingPage.form.options.commLanguage.tr')}</option>
+                    <option value="id">{t('matchmakingPage.form.options.commLanguage.id')}</option>
+                    <option value="en">{t('matchmakingPage.form.options.commLanguage.en')}</option>
+                  </select>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -449,121 +869,176 @@ export default function StudioChat() {
 
           {/* Studio tarzı 48h / confirm / contact (sadece aktif eşleşmede anlamlı) */}
           {longChatAllowed ? (
-            <div className="m-4 rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-emerald-900">
-            <div className="flex items-start gap-2">
-              <Lock className="mt-0.5 h-4 w-4" />
-              <div className="flex-1">
-                <p className="font-semibold">{t('studio.chat.lock48h.title')}</p>
-                <p className="mt-1 text-sm text-emerald-900/80">{t('studio.chat.lock48h.subtitle')}</p>
-
-                {!lockInfo.unlocked && lockInfo.unlockAtMs ? (
-                  <p className="mt-2 text-sm text-emerald-900/80">
-                    {t('studio.chat.lock48h.lockedRemaining', {
-                      time: t('studio.chat.remainingTime', {
-                        hours: lockInfo.remainingHours,
-                        minutes: lockInfo.remainingMinutes,
-                      }),
-                    })}
-                  </p>
-                ) : null}
-
-                <div className="mt-3 flex flex-col sm:flex-row gap-2">
-                  <button
-                    type="button"
-                    onClick={confirm48h}
-                    disabled={!canConfirm}
-                    className="inline-flex items-center justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-emerald-800 shadow-sm ring-1 ring-emerald-200 transition hover:bg-emerald-100 disabled:opacity-60"
-                  >
-                    <Unlock className="mr-2 h-4 w-4" />
-                    {confirmState.loading
-                      ? t('studio.chat.lock48h.confirming')
-                      : lockInfo.myConfirmed
-                        ? t('studio.chat.lock48h.confirmed')
-                        : t('studio.chat.lock48h.confirm')}
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={requestContact}
-                    disabled={!canRequestContact}
-                    className="inline-flex items-center justify-center rounded-md bg-emerald-600 px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 disabled:opacity-60"
-                  >
-                    <Share2 className="mr-2 h-4 w-4" />
-                    {contactRequestState.loading ? t('studio.chat.lock48h.requesting') : t('studio.chat.lock48h.requestContact')}
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={approveContact}
-                    disabled={!canApproveContact}
-                    className="inline-flex items-center justify-center rounded-md bg-emerald-700 px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-800 disabled:opacity-60"
-                  >
-                    <Share2 className="mr-2 h-4 w-4" />
-                    {contactApproveState.loading ? t('studio.chat.lock48h.approving') : t('studio.chat.lock48h.approveContact')}
-                  </button>
-                </div>
-
-                {/* Status lines */}
-                <div className="mt-3 text-sm text-emerald-900/80 space-y-1">
-                  <div>
-                    {t('studio.chat.lock48h.confirmStatusLabel')}{' '}
-                    <span className="font-semibold">
-                      {lockInfo.isConfirmed
-                        ? t('studio.chat.lock48h.confirmStatus.both')
-                        : lockInfo.myConfirmed
-                          ? t('studio.chat.lock48h.confirmStatus.you')
-                          : lockInfo.otherConfirmed
-                            ? t('studio.chat.lock48h.confirmStatus.other')
-                            : t('studio.chat.lock48h.confirmStatus.none')}
-                    </span>
-                  </div>
-                  <div>
-                    {t('studio.chat.lock48h.contactStatusLabel')}{' '}
-                    <span className="font-semibold">
-                      {lockInfo.contactStatus === 'approved'
-                        ? t('studio.chat.lock48h.contactStatus.approved')
-                        : lockInfo.contactStatus === 'pending'
-                          ? lockInfo.requestedByUid === uid
-                            ? t('studio.chat.lock48h.contactStatus.pendingMine')
-                            : t('studio.chat.lock48h.contactStatus.pendingOther')
-                          : t('studio.chat.lock48h.contactStatus.closed')}
-                    </span>
-                  </div>
-                </div>
-
-                {confirmState.error ? (
-                  <div className="mt-3 rounded-md border border-rose-200 bg-white p-2 text-sm text-rose-700">
-                    {t('studio.chat.lock48h.confirmError', { error: confirmState.error })}
-                  </div>
-                ) : null}
-                {contactRequestState.error ? (
-                  <div className="mt-3 rounded-md border border-rose-200 bg-white p-2 text-sm text-rose-700">
-                    {t('studio.chat.lock48h.contactRequestError', { error: contactRequestState.error })}
-                  </div>
-                ) : null}
-                {contactApproveState.error ? (
-                  <div className="mt-3 rounded-md border border-rose-200 bg-white p-2 text-sm text-rose-700">
-                    {t('studio.chat.lock48h.contactApproveError', { error: contactApproveState.error })}
-                  </div>
-                ) : null}
-
-                {lockInfo.contactStatus === 'approved' && contactInfo?.otherDigits ? (
-                  <div className="mt-3 rounded-md border border-emerald-200 bg-white p-3 text-sm">
-                    <p className="font-semibold text-emerald-800">{t('studio.chat.lock48h.whatsappTitle')}</p>
-                    <p className="mt-1 text-slate-700">{contactInfo.otherWhatsapp || contactInfo.otherDigits}</p>
-                    <a
-                      href={contactInfo.otherWaUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="mt-2 inline-flex items-center justify-center rounded-md bg-emerald-600 px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700"
+            <div className="m-4 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-emerald-900">
+              <div className="flex items-start gap-2">
+                <Lock className="mt-0.5 h-4 w-4" />
+                <div className="flex-1">
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <p className="font-semibold">{t('studio.chat.lock48h.title')}</p>
+                      <p className="mt-0.5 text-sm text-emerald-900/80">{t('studio.chat.lock48h.subtitle')}</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setLockPanelExpanded((v) => !v)}
+                      className="shrink-0 rounded-md bg-white px-2 py-1 text-xs font-semibold text-emerald-800 shadow-sm ring-1 ring-emerald-200 hover:bg-emerald-100"
                     >
-                      {t('studio.chat.lock48h.openInWhatsApp')}
-                    </a>
+                      {lockPanelExpanded ? t('studio.common.readLess') : t('studio.common.readMore')}
+                    </button>
                   </div>
-                ) : null}
+
+                  {!lockInfo.unlocked && lockInfo.unlockAtMs ? (
+                    <p className="mt-2 text-sm text-emerald-900/80">
+                      {t('studio.chat.lock48h.lockedRemaining', {
+                        time: t('studio.chat.remainingTime', {
+                          hours: lockInfo.remainingHours,
+                          minutes: lockInfo.remainingMinutes,
+                        }),
+                      })}
+                    </p>
+                  ) : null}
+
+                  {/* Compact status */}
+                  <div className="mt-2 text-sm text-emerald-900/80 space-y-1">
+                    <div>
+                      {t('studio.chat.lock48h.confirmStatusLabel')}{' '}
+                      <span className="font-semibold">
+                        {lockInfo.isConfirmed
+                          ? t('studio.chat.lock48h.confirmStatus.both')
+                          : lockInfo.myConfirmed
+                            ? t('studio.chat.lock48h.confirmStatus.you')
+                            : lockInfo.otherConfirmed
+                              ? t('studio.chat.lock48h.confirmStatus.other')
+                              : t('studio.chat.lock48h.confirmStatus.none')}
+                      </span>
+                    </div>
+                    <div>
+                      {t('studio.chat.lock48h.contactStatusLabel')}{' '}
+                      <span className="font-semibold">
+                        {lockInfo.contactStatus === 'approved'
+                          ? t('studio.chat.lock48h.contactStatus.approved')
+                          : lockInfo.contactStatus === 'pending'
+                            ? lockInfo.requestedByUid === uid
+                              ? t('studio.chat.lock48h.contactStatus.pendingMine')
+                              : t('studio.chat.lock48h.contactStatus.pendingOther')
+                            : t('studio.chat.lock48h.contactStatus.closed')}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Primary action always visible */}
+                  <div className="mt-3 flex flex-col sm:flex-row gap-2">
+                    {lockInfo.contactStatus === 'approved' && contactInfo?.otherWaUrl ? (
+                      <a
+                        href={contactInfo.otherWaUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center justify-center rounded-md bg-emerald-600 px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700"
+                      >
+                        {t('studio.chat.lock48h.openInWhatsApp')}
+                      </a>
+                    ) : canApproveContact ? (
+                      <button
+                        type="button"
+                        onClick={approveContact}
+                        disabled={!canApproveContact}
+                        className="inline-flex items-center justify-center rounded-md bg-emerald-600 px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 disabled:opacity-60"
+                      >
+                        <Share2 className="mr-2 h-4 w-4" />
+                        {contactApproveState.loading ? t('studio.chat.lock48h.approving') : t('studio.chat.lock48h.approveContact')}
+                      </button>
+                    ) : canRequestContact ? (
+                      <button
+                        type="button"
+                        onClick={requestContact}
+                        disabled={!canRequestContact}
+                        className="inline-flex items-center justify-center rounded-md bg-emerald-500 px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-600 disabled:opacity-60"
+                      >
+                        <Share2 className="mr-2 h-4 w-4" />
+                        {contactRequestState.loading ? t('studio.chat.lock48h.requesting') : t('studio.chat.lock48h.requestContact')}
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={confirm48h}
+                        disabled={!canConfirm}
+                        className="inline-flex items-center justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-emerald-800 shadow-sm ring-1 ring-emerald-200 transition hover:bg-emerald-100 disabled:opacity-60"
+                      >
+                        <Unlock className="mr-2 h-4 w-4" />
+                        {confirmState.loading
+                          ? t('studio.chat.lock48h.confirming')
+                          : lockInfo.myConfirmed
+                            ? t('studio.chat.lock48h.confirmed')
+                            : t('studio.chat.lock48h.confirm')}
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Details */}
+                  {lockPanelExpanded ? (
+                    <>
+                      {confirmState.error ? (
+                        <div className="mt-3 rounded-md border border-rose-200 bg-white p-2 text-sm text-rose-700">
+                          {t('studio.chat.lock48h.confirmError', { error: confirmState.error })}
+                        </div>
+                      ) : null}
+                      {contactRequestState.error ? (
+                        <div className="mt-3 rounded-md border border-rose-200 bg-white p-2 text-sm text-rose-700">
+                          {t('studio.chat.lock48h.contactRequestError', { error: contactRequestState.error })}
+                        </div>
+                      ) : null}
+                      {contactApproveState.error ? (
+                        <div className="mt-3 rounded-md border border-rose-200 bg-white p-2 text-sm text-rose-700">
+                          {t('studio.chat.lock48h.contactApproveError', { error: contactApproveState.error })}
+                        </div>
+                      ) : null}
+
+                      {lockInfo.contactStatus === 'approved' && contactInfo?.otherDigits ? (
+                        <div className="mt-3 rounded-md border border-emerald-200 bg-white p-3 text-sm">
+                          <p className="font-semibold text-emerald-800">{t('studio.chat.lock48h.whatsappTitle')}</p>
+                          <p className="mt-1 text-slate-700">{contactInfo.otherWhatsapp || contactInfo.otherDigits}</p>
+                        </div>
+                      ) : null}
+
+                      {/* Aktif eşleşmeyi bitir (karşılıklı) */}
+                      <div className="mt-4 rounded-md border border-emerald-200 bg-white p-3 text-sm">
+                        <p className="font-semibold text-emerald-900">{t('studio.matchProfile.cancel.title')}</p>
+                        <p className="mt-1 text-emerald-900/80">{t('studio.matchProfile.cancel.desc')}</p>
+
+                        {cancelCooldownRemainingMs > 0 ? (
+                          <p className="mt-2 text-emerald-900/80">
+                            {t('studio.matchProfile.cancel.cooldown', { time: cancelCooldownText })}
+                          </p>
+                        ) : iCancelled ? (
+                          <p className="mt-2 text-emerald-900/80">{t('studio.matchProfile.cancel.waitingOther')}</p>
+                        ) : null}
+
+                        <div className="mt-3">
+                          <button
+                            type="button"
+                            onClick={cancelActiveMutual}
+                            disabled={cancelState.loading || cancelCooldownRemainingMs > 0 || iCancelled}
+                            className="inline-flex w-full items-center justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-emerald-800 shadow-sm ring-1 ring-emerald-200 transition hover:bg-emerald-100 disabled:opacity-60"
+                          >
+                            {cancelState.loading
+                              ? t('studio.matchProfile.cancel.requestSent')
+                              : iCancelled
+                                ? t('studio.matchProfile.cancel.requestSent')
+                                : t('studio.matchProfile.cancel.request')}
+                          </button>
+                        </div>
+
+                        {cancelState.error ? (
+                          <div className="mt-3 rounded-md border border-rose-200 bg-rose-50 p-2 text-sm text-rose-700">
+                            {cancelState.error}
+                          </div>
+                        ) : null}
+                      </div>
+                    </>
+                  ) : null}
+                </div>
               </div>
             </div>
-          </div>
           ) : null}
 
           {/* Messages */}
@@ -581,11 +1056,20 @@ export default function StudioChat() {
                 <p className="text-sm text-slate-500">{t('studio.chat.noMessages')}</p>
               ) : null}
 
+              {translateState.error ? (
+                <p className="mt-2 text-sm text-rose-700">{t('studio.matches.shortModal.translateError', { error: translateState.error })}</p>
+              ) : null}
+
               <div className="space-y-3">
                 {(Array.isArray(messages) ? messages : []).map((m) => {
                   const fromMe = !!uid && String(m?.userId || '') === uid;
                   const text = String(m?.text || '').trim();
                   if (!text) return null;
+
+                  const translated =
+                    m?.translations && typeof m.translations === 'object'
+                      ? String(m.translations?.[effectiveTargetLang] || '').trim()
+                      : '';
 
                   return (
                     <div key={m.id} className={`flex items-end gap-2 ${fromMe ? 'justify-end' : 'justify-start'}`}>
@@ -604,6 +1088,26 @@ export default function StudioChat() {
                         }
                       >
                         {text}
+
+                        {!fromMe ? (
+                          <div className="mt-2 flex items-center justify-between gap-2">
+                            {translated ? (
+                              <div className="text-xs text-slate-600">{effectiveTargetLang.toUpperCase()}: {translated}</div>
+                            ) : (
+                              <span />
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => translateMessage({ messageId: m.id })}
+                              disabled={translateState.loadingId === m.id}
+                              className="text-xs font-semibold text-emerald-700 hover:underline disabled:opacity-60"
+                            >
+                              {translateState.loadingId === m.id
+                                ? t('studio.matches.shortModal.translating')
+                                : t('studio.matches.shortModal.translate')}
+                            </button>
+                          </div>
+                        ) : null}
                       </div>
 
                       {fromMe ? <div className="h-7 w-7 rounded-full bg-emerald-100" title={t('studio.chat.you')} /> : null}
@@ -662,6 +1166,7 @@ export default function StudioChat() {
               />
               <input
                 ref={inputRef}
+                data-tutorial-id="chat-input"
                 value={sendText}
                 onChange={(e) => setSendText(e.target.value)}
                 placeholder={
@@ -678,6 +1183,7 @@ export default function StudioChat() {
               />
               <button
                 type="submit"
+                data-tutorial-id="chat-send"
                 disabled={!canSend}
                 className="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-600 text-white shadow-sm transition hover:bg-emerald-700 disabled:opacity-60"
                 aria-label={t('studio.common.send')}
@@ -689,6 +1195,7 @@ export default function StudioChat() {
         </div>
       </main>
 
+      <StudioBottomNav />
       <Footer />
     </div>
   );

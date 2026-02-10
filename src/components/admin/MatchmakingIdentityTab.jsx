@@ -318,7 +318,7 @@ export default function MatchmakingIdentityTab() {
                       type="button"
                       onClick={() => approve(userId, true)}
                       disabled={acting}
-                      className="px-4 py-2 rounded-full bg-emerald-700 text-white text-sm font-semibold hover:bg-emerald-800 disabled:opacity-60"
+                      className="px-4 py-2 rounded-full bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700 disabled:opacity-60"
                     >
                       Onayla
                     </button>

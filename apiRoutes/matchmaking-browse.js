@@ -245,9 +245,12 @@ export default async function handler(req, res) {
     const myApp = pickBestNonStubApplication(myApps);
 
     if (!myApp) {
-      res.statusCode = 404;
+      // Business gating: user has not submitted an application yet.
+      // Returning 200 avoids noisy "Failed to load resource" logs and lets the UI handle the state.
+      res.statusCode = 200;
       res.setHeader('content-type', 'application/json');
-      res.end(JSON.stringify({ ok: false, error: 'application_not_found' }));
+      res.setHeader('cache-control', 'no-store');
+      res.end(JSON.stringify({ ok: false, error: 'application_not_found', needsApplication: true }));
       return;
     }
 
@@ -282,11 +285,40 @@ export default async function handler(req, res) {
   // NOTE: Eski kayıtların bir kısmında age alanı kökte değil (details.age / birthYear / birthDate vs).
   // Bu yüzden sadece age index'ine bağlı kalırsak havuz "boş" görünebiliyor.
   // Bu endpoint düşük hacimli studio ekranı için tasarlandı: son N başvuruyu alıp yaş filtresini bellek içinde uygula.
-  const candSnap = await db
-    .collection('matchmakingApplications')
-    .orderBy('createdAt', 'desc')
-    .limit(1200)
-    .get();
+  // Some legacy/buggy application docs may be missing createdAt. Those are excluded from
+  // orderBy('createdAt') queries. Fetch from both createdAt + createdAtMs and merge.
+  const candDocs = [];
+  const seenDocIds = new Set();
+
+  try {
+    const snapByCreatedAt = await db
+      .collection('matchmakingApplications')
+      .orderBy('createdAt', 'desc')
+      .limit(1200)
+      .get();
+    for (const d of snapByCreatedAt.docs) {
+      if (seenDocIds.has(d.id)) continue;
+      seenDocIds.add(d.id);
+      candDocs.push(d);
+    }
+  } catch {
+    // best-effort
+  }
+
+  try {
+    const snapByCreatedAtMs = await db
+      .collection('matchmakingApplications')
+      .orderBy('createdAtMs', 'desc')
+      .limit(1200)
+      .get();
+    for (const d of snapByCreatedAtMs.docs) {
+      if (seenDocIds.has(d.id)) continue;
+      seenDocIds.add(d.id);
+      candDocs.push(d);
+    }
+  } catch {
+    // best-effort
+  }
 
   const bestByUid = new Map();
 
@@ -298,7 +330,7 @@ export default async function handler(req, res) {
     return (isStub ? 0 : 1000) + (ms > 0 ? ms : 0);
   };
 
-  for (const d of candSnap.docs) {
+  for (const d of candDocs) {
     const cand = d.data() || {};
     const candUid = safeStr(cand?.userId);
     if (!candUid || candUid === uid) continue;

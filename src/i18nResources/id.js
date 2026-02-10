@@ -62,9 +62,23 @@ const overrides = {
     brandBlurb:
       'Bagian dari {{company}}. Kami menghubungkan orang dengan penuh perhatian — dari perkenalan hingga pernikahan.',
     brandsTitle: 'Merek',
-    brandNoteDameturk: '(Turki)',
+    brandNoteDameturk: '',
     sections: {
       quickLinks: 'Tautan Cepat',
+    preview: {
+      matches: {
+        title: 'Profil Anda: Kecocokan',
+        body: 'Kecocokan, permintaan, dan chat dikelola dari layar Profil Anda.',
+      },
+      pool: {
+        title: 'Pool: Kandidat',
+        body: 'Anda bisa melihat kandidat dan mengirim permintaan atau like.',
+      },
+      request: {
+        title: 'Kirim permintaan cocok',
+        body: 'Tombol ini hanya pratinjau. Untuk aksi sebenarnya, Anda harus daftar dan mengisi formulir terlebih dulu.',
+      },
+    },
       legal: 'Legal',
       contact: 'Kontak',
       social: 'Sosial',
@@ -74,7 +88,9 @@ const overrides = {
       whatsapp: 'WhatsApp',
     },
     legal: {
+      documents: 'Dokumen',
       userAgreement: 'Perjanjian Penggunaan (Pencocokan)',
+      kvkkNotice: 'Pemberitahuan Data Pribadi (KVKK)',
       siteRules: 'Aturan Situs',
       refundPolicy: 'Kebijakan Pembatalan & Pengembalian Dana',
       privacyPolicy: 'Kebijakan Privasi',
@@ -89,8 +105,8 @@ const overrides = {
       },
     },
     phoneNotes: {
-      trLine: 'Nomor Turki',
-      idLine: 'Nomor Indonesia',
+      trLine: 'Nomor WhatsApp',
+      idLine: 'Nomor WhatsApp (Alternatif)',
     },
     whatsappMessages: {
       general: 'Halo, saya ingin bertanya informasi.',
@@ -105,6 +121,95 @@ const overrides = {
       whatsapp: 'WhatsApp',
     },
     copyright: '© {{year}} {{company}}. Seluruh hak cipta dilindungi.',
+  },
+
+  matchmakingPreview: {
+    badge: 'Pratinjau Profil Anda',
+    title: 'Pratinjau layar Profil Anda (tutorial)',
+    subtitle:
+      'Bagian di bawah ini adalah pratinjau. Untuk mengirim permintaan, like, atau chat, Anda harus daftar dan mengisi formulir terlebih dulu.',
+    actions: {
+      signup: 'Daftar',
+      goProfile: 'Ke Profil Anda',
+      goApply: 'Isi formulir',
+    },
+    gate: {
+      title: 'Anda harus daftar terlebih dulu',
+      body: 'Untuk like, chat, atau mengirim permintaan cocok, Anda harus daftar dan mengisi formulir terlebih dulu.',
+      ctaSignup: 'Daftar dan isi formulir',
+      ctaApply: 'Ke formulir',
+    },
+    cards: {
+      matches: {
+        title: 'Kecocokan',
+        body: 'Pantau permintaan, like, dan kecocokan di sini.',
+        cta: 'Lihat kecocokan',
+      },
+      pool: {
+        title: 'Pool',
+        body: 'Lihat kandidat dan kirim permintaan atau like.',
+        cta: 'Ke pool',
+        request: 'Kirim permintaan',
+        like: 'Like',
+      },
+      chat: {
+        title: 'Chat',
+        body: 'Jika cocok, Anda bisa chat di sini.',
+        mockTitle: 'Contoh chat',
+        mockSystem: 'Sistem',
+        mockMsg1: 'Halo, apa kabar?',
+        mockMsg2: 'Baik, terima kasih. Kamu?',
+        inputPlaceholder: 'Tulis pesan…',
+        send: 'Kirim',
+        gateHint: 'Untuk chat, Anda harus daftar dulu.',
+      },
+    },
+    note: 'Catatan: Ini pratinjau; data asli akan muncul di halaman profil Anda.',
+  },
+
+  tour: {
+    common: {
+      skip: 'Lewati',
+      next: 'Lanjut',
+      done: 'Selesai',
+      missingHint: 'Langkah ini belum terlihat saat ini. Anda bisa melanjutkan.',
+    },
+    onboarding: {
+      matches: {
+        title: 'Kecocokan',
+        body: 'Kelola suka, permintaan, dan kecocokan di layar ini.',
+      },
+      pool: {
+        title: 'Pool',
+        body: 'Lihat kandidat dan kirim permintaan kecocokan.',
+      },
+      request: {
+        title: 'Permintaan kecocokan',
+        body: 'Kirim permintaan kecocokan. Jika disetujui, kecocokan dibuat.',
+      },
+    },
+    like: {
+      title: 'Suka',
+      body: 'Gunakan Suka untuk menunjukkan minat. Anda dapat membatalkannya nanti.',
+    },
+    activeStart: {
+      title: 'Kecocokan aktif',
+      body: 'Setelah saling suka, mulai kecocokan aktif untuk membuka chat.',
+    },
+    chat: {
+      input: {
+        title: 'Pesan',
+        body: 'Ketik pesan Anda di sini.',
+      },
+      send: {
+        title: 'Kirim',
+        body: 'Gunakan tombol ini untuk mengirim pesan.',
+      },
+    },
+    profileDetails: {
+      title: 'Detail profil',
+      body: 'Minta izin untuk melihat detail profil.',
+    },
   },
 
   admin: {
@@ -295,6 +400,7 @@ const overrides = {
         failed: 'Gagal menyalin.',
         what: {
           userId: 'User ID',
+          translateTargetLabel: 'Terjemahkan ke',
           matchId: 'Match ID',
           reference: 'Referensi',
           receiptLink: 'Tautan bukti',
@@ -537,7 +643,7 @@ const overrides = {
       openProfile: 'Buka profil',
       profileModalTitle: 'Profil',
       actionsSoon: 'Segera: pesan singkat',
-      notInTheirRange: 'Untuk berinteraksi, kamu juga harus masuk rentang usia yang dia tentukan.',
+      notInTheirRange: 'Untuk interaksi, kamu harus masuk rentang usianya.',
       notInTheirRangeShort: 'Rentang usia tidak cocok',
     },
 
@@ -548,16 +654,16 @@ const overrides = {
     },
 
     paywall: {
-      upgradeTitle: 'Perlu keanggotaan',
-      upgradeToInteract: 'Keanggotaan aktif diperlukan untuk melakukan ini. Upgrade ke paket berbayar untuk menyukai dan mengirim pesan.',
-      upgradeToReply: 'Keanggotaan aktif diperlukan untuk membalas. Upgrade ke paket berbayar untuk mengirim pesan.',
-      upgradeCta: 'Upgrade',
+      upgradeTitle: 'Aktivasi keanggotaan diperlukan',
+      upgradeToInteract: 'Aktifkan keanggotaan untuk lanjut. Gratis untuk saat ini.',
+      upgradeToReply: 'Aktifkan keanggotaan untuk membalas. Gratis untuk saat ini.',
+      upgradeCta: 'Aktifkan keanggotaan (Gratis)',
     },
 
     profileGate: {
       important: 'PENTING',
       title: 'Lengkapi profilmu',
-      body: 'Untuk mengaktifkan keanggotaan dan berinteraksi dengan pengguna lain, kamu harus mengisi formulir profil terlebih dahulu. Sampai formulir dikirim, kamu tidak bisa mengirim permintaan atau membalas permintaan yang masuk.',
+      body: 'Isi formulir profil untuk chat dan kirim/balas permintaan.',
       cta: 'Isi formulir profil',
       badge: 'Pengguna tidak dikenal',
     },
@@ -662,6 +768,7 @@ const overrides = {
         liked: 'Disukai',
         unlike: 'Batalkan suka',
         message: 'Pesan singkat',
+        messageLong: 'Pesan',
         profileDetails: 'Detail profil',
       },
       photos: {
@@ -689,6 +796,8 @@ const overrides = {
       banners: {
         locked: 'Anda punya pencocokan aktif — yang lain terkunci',
         newMessage: 'Pesan baru',
+        incomingLikeNote: 'Orang ini mengirimkan suka kepada Anda',
+        activeChatStarted: 'Pencocokan aktif Anda sudah dimulai. Ketuk tombol Pesan untuk mulai chat tanpa batas.',
       },
     },
 
@@ -720,28 +829,29 @@ const overrides = {
       ],
       activeLockTitle: 'Anda punya pencocokan aktif',
       activeLockBody: 'Interaksi dengan profil lain terkunci. Buka <link>halaman pencocokan aktif</link> untuk mengelolanya.',
-      requestFailed: 'Permintaan pencocokan gagal: {{error}}',
+      requestFailed: 'Permintaan gagal: {{error}}',
       requestOk: 'Permintaan terkirim. Bisa muncul di daftar dalam beberapa detik.',
       loading: 'Memuat…',
-      loadFailed: 'Pencocokan tidak bisa dimuat. ({{error}})',
+      loadFailed: 'Pencocokan tidak bisa dimuat: {{error}}',
       noneTitle: 'Belum ada pencocokan.',
-      noneBody: 'Jika Anda baru membuat profil, pencocokan pertama bisa dibuat dalam beberapa detik. Anda juga bisa memicunya secara manual di sini.',
+      noneBody:
+        'Jika Anda baru saja membuat profil, Anda dapat berinteraksi di daftar pencocokan dengan mengirim permintaan dari halaman Jelajahi kepada profil yang sesuai, atau dengan menyetujui permintaan masuk untuk menambahkannya ke daftar pencocokan Anda. Setelah cocok, Anda bisa menggunakan fitur suka, pesan singkat, dan melihat profil secara lebih detail. Jika Anda belum menemukan profil yang cocok, instal aplikasi di ponsel dan aktifkan notifikasi agar langsung mendapat kabar saat ada pembaruan. Jika tujuan Anda adalah menikah, menemukan orang yang tepat bisa memakan waktu; kami menyarankan Anda untuk bersabar.',
       shortModal: {
         subtitle: 'Pesan singkat (batas 5) • untuk info singkat di luar profil',
         remaining: 'Sisa: {{remaining}} / {{limit}}',
         noMessages: 'Belum ada pesan.',
-        translateError: 'Kesalahan terjemahan: {{error}}',
+        translateError: 'Terjemahan gagal: {{error}}',
         translating: 'Menerjemahkan…',
         translate: 'Terjemahkan',
         placeholder: 'Tulis pertanyaan singkat…',
       },
       inboxSync: {
-        title: 'Masalah sinkronisasi inbox',
+        title: 'Masalah inbox',
         refresh: 'Muat ulang dari server',
         refreshing: 'Memuat ulang…',
-        note: 'Catatan: Tombol ini mengambil data yang sama lewat server (Admin SDK) meskipun listener Firestore bermasalah.',
+        note: 'Catatan: Ambil data dari server jika listener Firestore bermasalah.',
         permissionDenied: 'Tidak ada izin baca Firestore (permission-denied). Proyek Firebase: {{projectId}} (coba muat ulang dari server)',
-        listenFailed: 'Listener inbox Firestore ({{kind}}) gagal: {{error}} (coba muat ulang dari server)',
+        listenFailed: 'Inbox Firestore ({{kind}}) gagal: {{error}} (coba muat ulang dari server)',
         kinds: {
           likes: 'suka',
           requests: 'permintaan',
@@ -751,8 +861,8 @@ const overrides = {
       },
       errors: {
           goToMatchCard: 'Buka kartu kecocokan',
-        activeLocked: 'Saat Anda punya pencocokan aktif, Anda tidak bisa mengirim pesan ke profil lain. Batalkan pencocokan aktif Anda secara mutual terlebih dahulu.',
-        shortLimit: 'Anda sudah menggunakan semua pesan singkat (5). Untuk lanjut, setelah saling suka Anda harus memulai pencocokan aktif.',
+        activeLocked: 'Anda tidak bisa mengirim pesan ke profil lain saat punya pencocokan aktif. Akhiri dulu pencocokan aktif Anda.',
+        shortLimit: 'Pesan singkat Anda habis (5). Untuk lanjut, mulai pencocokan aktif.',
       },
     },
 
@@ -763,29 +873,28 @@ const overrides = {
       emojiHint: 'Anda bisa menambahkan emoji',
       matchTestOnlyActive: 'Tes kecocokan hanya bisa dibuka pada pencocokan aktif.',
       shortAreaTitle: 'Area pesan singkat',
-      shortAreaDesc:
-        'Area ini hanya untuk mengetahui lebih banyak tentang orang tersebut (topik yang tidak ada di profil, pertanyaan singkat tentang karakter).',
-      shortAreaLimit: 'Batas Anda {{limit}} pesan. Sisa: {{remaining}}',
-      otherActiveLock: 'Karena pencocokan aktif Anda dengan orang lain, chat panjang tidak tersedia di pencocokan ini.',
+      shortAreaDesc: 'Untuk pertanyaan cepat (topik di luar profil).',
+      shortAreaLimit: 'Batas: {{limit}} • Sisa: {{remaining}}',
+      otherActiveLock: 'Pencocokan aktif Anda dengan orang lain. Chat panjang di sini ditutup.',
       noMessages: 'Belum ada pesan. Kirim pesan pertama.',
       matchLoading: 'Memuat pencocokan…',
       matchNotFound: 'Pencocokan tidak ditemukan.',
       messagesLoading: 'Memuat pesan…',
-      sendFailed: 'Pesan tidak bisa dikirim: {{error}}',
+      sendFailed: 'Pesan tidak bisa dikirim. {{error}}',
       inputPlaceholderLong: 'Tulis pesan…',
       inputPlaceholderShort: 'Tulis pertanyaan/pesan singkat…',
       notAvailable: 'Pesan saat ini tidak tersedia.',
       lockedTitle: 'Pencocokan lain sementara terkunci',
-      lockedBody: 'Saat Anda memiliki pencocokan aktif, pesan di pencocokan lain dinonaktifkan. Akan terbuka kembali saat lock berakhir.',
+      lockedBody: 'Saat Anda memiliki pencocokan aktif, pesan di pencocokan lain dinonaktifkan.',
       notAllowed: 'Anda tidak diizinkan melihat chat ini.',
       notOpenTitle: 'Pesan belum dibuka',
-      notOpenBody: 'Pesan terbuka setelah pencocokan menjadi aktif (persetujuan kedua pihak).',
+      notOpenBody: 'Pesan terbuka saat pencocokan menjadi aktif.',
       you: 'Anda',
       remainingTime: '{{hours}}j {{minutes}}m',
       lock48h: {
         title: 'Chat privat 48 jam + berbagi kontak',
         subtitle: 'Setelah konfirmasi mutual dan waktu selesai, kontak dapat dibagikan.',
-        lockedRemaining: 'Masih terkunci. Sisa: {{time}}',
+        lockedRemaining: 'Terkunci. Sisa: {{time}}',
         confirming: 'Mengonfirmasi…',
         confirmed: 'Dikonfirmasi',
         confirm: 'Konfirmasi 48 jam',
@@ -807,9 +916,9 @@ const overrides = {
           pendingOther: 'Pihak lain meminta (Anda bisa menyetujui)',
           closed: 'Tertutup',
         },
-        confirmError: 'Kesalahan konfirmasi: {{error}}',
-        contactRequestError: 'Kesalahan permintaan kontak: {{error}}',
-        contactApproveError: 'Kesalahan persetujuan kontak: {{error}}',
+        confirmError: 'Konfirmasi gagal: {{error}}',
+        contactRequestError: 'Permintaan kontak gagal: {{error}}',
+        contactApproveError: 'Persetujuan kontak gagal: {{error}}',
         whatsappTitle: 'WhatsApp',
         openInWhatsApp: 'Buka di WhatsApp',
       },
@@ -833,6 +942,16 @@ const overrides = {
       expectationsPlaceholder: 'Tulis apa yang Anda cari…',
       saveTexts: 'Simpan',
       textsSaved: 'Tersimpan.',
+
+      partnerPrefsTitle: 'Preferensi pasangan',
+      partnerPrefsCta: 'Edit',
+      partnerPrefsSave: 'Simpan',
+      partnerPrefsSaving: 'Menyimpan…',
+      partnerPrefsSaved: 'Tersimpan.',
+      partnerPrefsErrors: {
+        failed: 'Tidak dapat menyimpan. Silakan coba lagi.',
+      },
+
       subscriptionTitle: 'Langganan',
       subscriptionActiveDesc: 'Keanggotaan Anda aktif. Anda dapat mengakses semua fitur.',
       subscriptionPassiveDesc: 'Keanggotaan Anda tidak aktif. Beberapa tindakan mungkin dibatasi tanpa keanggotaan.',
@@ -949,8 +1068,7 @@ const overrides = {
             title: '4) Setelah pernikahan',
             items: [
               'Pencatatan/registrasi pernikahan di instansi Turki dan Indonesia',
-              'Jika tinggal di Turki: pengajuan visa keluarga',
-              'Jika tinggal di Indonesia: pengurusan izin tinggal',
+              'Perencanaan langkah administrasi setelah menikah berdasarkan negara domisili',
             ],
           },
         },
@@ -1027,14 +1145,14 @@ const overrides = {
         waitingNotice: 'Permintaan terkirim. Menunggu persetujuan pihak lain.',
       },
       cancel: {
-        title: 'Batalkan pencocokan aktif',
-        desc: 'Pembatalan bersifat mutual. Setelah Anda membatalkan, pihak lain juga harus membatalkan.',
+        title: 'Akhiri pencocokan aktif',
+        desc: 'Pengakhiran bersifat mutual. Setelah Anda mengakhiri, pihak lain juga harus mengakhiri.',
         cooldown: 'Untuk mencegah penyalahgunaan, pembatalan dinonaktifkan selama 2 jam pertama. Sisa: {{time}}',
-        request: 'Batalkan pencocokan aktif',
-        requestSent: 'Permintaan pembatalan terkirim',
-        waitingOther: 'Menunggu pihak lain membatalkan.',
+        request: 'Akhiri pencocokan aktif',
+        requestSent: 'Permintaan pengakhiran terkirim',
+        waitingOther: 'Menunggu pihak lain mengakhiri.',
         confirmPrompt:
-          'Anda akan membatalkan pencocokan aktif.\n\n- Pembatalan mutual: pencocokan ditutup setelah kedua pihak membatalkan.\n- Setelah dibatalkan, lock interaksi dengan profil lain dihapus.\n\nApakah Anda setuju?',
+          'Anda akan mengakhiri pencocokan aktif.\n\n- Pengakhiran mutual: pencocokan ditutup setelah kedua pihak mengakhiri.\n- Setelah diakhiri, lock interaksi dengan profil lain dihapus.\n\nApakah Anda setuju?',
       },
       mutualLike: {
         title: 'Anda memiliki suka timbal balik',
@@ -1090,13 +1208,13 @@ const overrides = {
 
   home: {
     hero: {
-      badgeCompany: 'Terdaftar di Indonesia: PT MoonStar Global Indonesia',
+      badgeCompany: 'PT MoonStar Global Indonesia',
       badgeSocial: 'Kanal sosial Uniqah',
       title: 'Uniqah',
-      subtitle: 'Matchmaking • Panduan pernikahan • Dukungan di lapangan di Indonesia',
+      subtitle: 'Matchmaking • Panduan pernikahan • Komunikasi aman di aplikasi',
       description:
-        'Uniqah adalah sistem matchmaking kami yang berfokus pada Indonesia. Kami menargetkan proses yang aman, saling menghormati, dan transparan dengan langkah-langkah yang jelas. Jika diperlukan, kami juga memberi dukungan di lapangan seperti penerjemahan dan panduan langkah resmi.',
-      note: 'Didirikan oleh wirausahawan Turki yang tinggal di Indonesia, berbasis di Indonesia.',
+        'Uniqah adalah sistem matchmaking berorientasi pernikahan. Kami menargetkan proses yang aman, saling menghormati, dan transparan dengan langkah-langkah yang jelas. Jika diperlukan, kami juga memberi dukungan seperti penerjemahan dan panduan proses.',
+      note: 'Berorientasi pernikahan dengan privasi dan keamanan sebagai prioritas.',
       ctaTours: 'Mulai ajukan',
       ctaBrochures: 'Lihat dokumen',
       ctaTrust: 'Kepercayaan & Legal',
@@ -1108,12 +1226,12 @@ const overrides = {
           description: 'Pra-pendaftaran → penawaran tertulis → kontrak/pembayaran berjalan jelas.',
         },
         {
-          title: 'Dukungan bahasa Turki',
-          description: 'Dukungan WhatsApp jalur Turki; operasi di lapangan Indonesia.',
+          title: 'Dukungan cepat',
+          description: 'Dukungan via WhatsApp; bantuan multi-bahasa bila diperlukan.',
         },
         {
           title: 'Struktur legal',
-          description: 'Uniqah adalah merek PT MoonStar Global Indonesia yang terdaftar di Indonesia.',
+          description: 'Uniqah adalah merek di bawah PT MoonStar Global Indonesia.',
         },
       ],
     },
@@ -1212,7 +1330,7 @@ const overrides = {
     },
     summary: {
       brandLine:
-        'adalah merek dari perusahaan {{company}} yang terdaftar di Indonesia. Pihak kontrak dan proses penagihan dilakukan oleh badan hukum ini.',
+        'adalah merek dari perusahaan {{company}}. Pihak kontrak dan proses penagihan dilakukan oleh badan hukum ini.',
       documents: 'Dokumen & Kontrak',
       brochures: 'Dokumen (PDF)',
     },
@@ -1267,7 +1385,7 @@ const overrides = {
       items: {
         siteCompany: {
           q: 'Situs ini milik perusahaan mana?',
-          a: '{{brand}} adalah merek dari {{company}} yang terdaftar di Indonesia. Kontrak dan penagihan dilakukan oleh badan hukum ini.',
+          a: '{{brand}} adalah merek dari {{company}}. Kontrak dan penagihan dilakukan oleh badan hukum ini.',
         },
         paymentCompany: {
           q: 'Jika di layar pembayaran muncul nama perusahaan berbeda?',
@@ -1290,11 +1408,48 @@ const overrides = {
     badge: "Proses privat & dimoderasi",
     title: "Sistem pencocokan untuk pernikahan",
     description:
-      "Sistem pencocokan tertutup yang mempertemukan orang-orang yang serius ingin menikah—dengan syarat yang adil dan aman. Profil tidak publik; sistem menampilkan kandidat paling cocok di panel Anda dan membantu Anda menemukan pasangan yang tepat lebih cepat.",
+      "Sistem ini masih baru—mohon bersabar. Pencocokan biasanya datang dalam 1–3 hari. Instal aplikasinya dan aktifkan notifikasi agar tidak ketinggalan pembaruan.",
+    preview: {
+      title: "Setelah daftar, apa yang akan kamu lihat di 'Profil Saya'?",
+      subtitle:
+        'Kartu contoh ini bukan data pengguna nyata; hanya untuk memperlihatkan alur sistem setelah registrasi secara singkat.',
+      cta: 'Daftar gratis',
+      cards: {
+        matches: {
+          title: 'Kecocokan & status',
+          body: 'Minat bersama, aktivasi, dan langkah komunikasi berjalan di sini—setiap langkah terkontrol.',
+          mockTitle: 'Contoh',
+          mockItem1: 'Kecocokan yang disarankan',
+          mockItem1Sub: 'Status: minat bersama (contoh)',
+          mockTag1: 'Lihat',
+          mockItem2: 'Kecocokan aktif',
+          mockItem2Sub: 'Status: chat terbuka (contoh)',
+          mockTag2: 'Pesan',
+        },
+        pool: {
+          title: 'Pool (kandidat)',
+          body: 'Lihat kandidat yang sesuai, kirim permintaan, atau lewati. Jika disetujui, kartu kecocokan terbuka.',
+          mockTitle: 'Contoh',
+          mockItem1: 'Kartu profil kandidat (contoh)',
+          mockItem1Sub: 'Usia • Kota • Ringkasan singkat (contoh)',
+          mockCta: 'Kirim permintaan',
+        },
+        chat: {
+          title: 'Chat lebih aman',
+          body: 'Pesan difilter; berbagi telepon/email/link di tahap awal diblokir.',
+          mockTitle: 'Contoh',
+          mockSystem: 'Sistem: Komunikasi lebih aman aktif',
+          mockMsg1: 'Halo, apa kabar? (contoh)',
+          mockMsg2: 'Chat dulu, lalu langkah persetujuan (contoh)',
+          mockHint: 'Catatan: berbagi kontak terbuka setelah 48 jam + persetujuan kedua pihak.',
+        },
+      },
+    },
     actions: {
       loginExisting: "Masuk jika sudah punya profil",
       apply: "Ajukan pencocokan",
       goPanel: "Profil saya",
+      tour: "Lihat tur panel",
       backWedding: "Kembali ke halaman pernikahan",
       supportWhatsApp: "Dukungan WhatsApp",
     },
@@ -1454,7 +1609,22 @@ const overrides = {
     bottomNote:
       'Catatan: Ini adalah pendaftaran berfokus pada pernikahan; profil tidak ditampilkan secara publik di situs.',
     form: {
+      previewProfile: {
+        title: 'Pratinjau layar Profil Anda (tutorial)',
+        body: 'Sebelum mengirim, lihat singkat cara kerja layar Profil Anda. Pratinjau terbuka di tab baru.',
+        open: 'Buka pratinjau profil',
+      },
+      preSubmitTour: {
+        title: 'Sebelum mengirim, lihat dulu layar Profil Anda',
+        body:
+          'Setelah pengajuan terkirim, Anda akan mengelola kecocokan dari layar “Profil Anda”. Sebelum pengiriman terakhir, mari lihat tutorial singkat. (Terbuka di tab baru; formulir ini tetap terbuka.)',
+        open: 'Buka Profil Anda (tab baru)',
+        continue: 'Lanjut dan kirim pengajuan',
+        later: 'Nanti saja',
+      },
       applicationIdLabel: 'ID Pengajuan',
+      deferCta: 'Isi nanti',
+      deferError: 'Tidak dapat mengarahkan sekarang. Silakan coba lagi.',
       wizard: {
         badge: 'Pengajuan Cepat',
         step: 'Langkah {{current}} / {{total}}',
@@ -1484,6 +1654,8 @@ const overrides = {
         },
       },
       editOnce: {
+        oneTimeWarning:
+          'Peringatan: Anda hanya dapat memperbarui formulir ini satu kali. Pastikan semua informasi sudah benar sebelum menyimpan.',
         usernameLocked: 'Dalam mode edit, nama pengguna tidak dapat diubah (perbaikan satu kali).',
         photosLocked: 'Dalam mode edit, pembaruan foto dinonaktifkan. Anda hanya dapat memperbaiki kolom formulir.',
       },
@@ -1720,7 +1892,8 @@ const overrides = {
       photoHint: 'Silakan unggah 3 foto terbaru yang jelas (wajah terlihat), tanpa filter berat.',
       consents: {
         age: 'Saya berusia 18+.',
-        privacy: 'Saya menyetujui pemrosesan data sesuai kebijakan privasi.',
+        privacy:
+          'Saya telah membaca <privacyLink>Kebijakan Privasi</privacyLink> dan <kvkkLink>Pemberitahuan Data Pribadi (KVKK)</kvkkLink>, serta menyetujui pemrosesan data untuk evaluasi/komunikasi.',
         terms: 'Saya telah membaca dan menyetujui <termsLink>Syarat & Ketentuan</termsLink>.',
         photo: 'Saya menyetujui penggunaan foto untuk proses pencocokan (tidak dipublikasikan).',
       },
@@ -1728,7 +1901,7 @@ const overrides = {
       submitting: 'Mengirim…',
       success: 'Pengajuan Anda berhasil dikirim.',
       errors: {
-        alreadySubmitted: 'Anda sudah memiliki pengajuan matchmaking. Teks “Tentang saya / Kriteria pasangan” hanya bisa ditulis sekali.',
+        alreadySubmitted: 'Anda sudah memiliki pengajuan matchmaking. Anda bisa memperbarui info dari halaman Profil.',
         profileTextWriteOnceUsed: 'Teks “Tentang saya” dan “Kriteria pasangan” hanya bisa ditulis sekali dan tidak bisa diubah setelah disimpan.',
         profileTextPII: 'Jangan menulis info kontak (telepon, email, tautan, Instagram, IBAN, dll.) di “Tentang saya” atau “Kriteria pasangan”.',
         honeypotTriggered: 'Pengiriman diblokir (terdeteksi spam).',
@@ -1825,6 +1998,8 @@ const overrides = {
         mustLogin: 'Anda harus masuk untuk mengirim pengajuan.',
         blocked: 'Akun Anda diblokir dari pengajuan.',
         permissionDenied: 'Izin ditolak. Silakan hubungi dukungan.',
+        editOnceUsed:
+          'Formulir profil hanya bisa diperbarui satu kali. Karena hak edit Anda sudah habis, permintaan Anda tidak dapat diproses.',
         submitFailed: 'Pengiriman gagal. Silakan coba lagi.',
       },
     },
@@ -1853,6 +2028,7 @@ const overrides = {
     labels: {
       email: 'Email',
       password: 'Kata sandi',
+      confirmPassword: 'Konfirmasi kata sandi',
       gender: 'Jenis kelamin',
       nationality: 'Kewarganegaraan',
       nationalityOther: 'Kewarganegaraan lain (tulis)',
@@ -1861,6 +2037,7 @@ const overrides = {
     placeholders: {
       email: 'contoh@email.com',
       password: 'Kata sandi Anda',
+      confirmPassword: 'Ketik ulang kata sandi Anda',
       nationality: 'Pilih kewarganegaraan',
       nationalityOther: 'contoh: Jerman',
       age: 'contoh: 27',
@@ -1910,6 +2087,7 @@ const overrides = {
       invalidEmail: 'Alamat email tampak tidak valid. Silakan periksa dan coba lagi.',
       emailAlreadyInUse: 'Akun dengan email ini sudah ada. Silakan masuk atau gunakan “Lupa kata sandi”.',
       weakPassword: 'Kata sandi terlalu lemah. Silakan pilih kata sandi yang lebih kuat (mis. minimal 6 karakter).',
+      passwordsDoNotMatch: 'Kata sandi tidak cocok. Silakan ketik ulang kata sandi yang sama.',
       emailPasswordRequired: 'Email dan kata sandi wajib diisi.',
       genderRequired: 'Pilih jenis kelamin untuk mendaftar.',
       nationalityRequired: 'Pilih kewarganegaraan untuk mendaftar.',
@@ -1968,13 +2146,13 @@ const overrides = {
       empty: 'Belum ada foto yang diunggah.',
       updateRequest: {
         title: 'Permintaan pembaruan foto',
-        lead: 'Unggah 3 foto baru. Foto akan diperbarui setelah disetujui admin.',
+        lead: 'Unggah 1–3 foto baru. Foto akan diperbarui setelah disetujui admin.',
         pending: 'Sedang ditinjau',
         cta: 'Kirim permintaan',
         uploading: 'Mengunggah…',
         success: 'Permintaan diterima. Foto akan diperbarui setelah ditinjau.',
         errors: {
-          photosRequired: 'Silakan pilih 3 foto.',
+          photosRequired: 'Silakan pilih minimal 1 foto.',
           photoType: 'Silakan pilih file gambar saja (jpg/png/webp).',
           applicationNotFound: 'Pengajuan tidak ditemukan. Silakan isi formulir terlebih dahulu.',
           failed: 'Tidak bisa mengirim permintaan. Silakan coba lagi.',
@@ -2065,10 +2243,13 @@ const overrides = {
       editOnceTitle: 'Perbaiki formulir (satu kali)',
       editOnceLead:
         'Jika Anda meninggalkan kolom kosong atau mengisi sesuatu dengan salah, Anda dapat memperbaruinya di sini. Ini hanya bisa digunakan satu kali (setelah disimpan tidak bisa diubah lagi).',
+      editOnceWarning:
+        'Peringatan: Hak perbaikan ini hanya satu kali. Setelah disimpan, formulir tidak bisa diedit lagi.',
       editOnceCta: 'Simpan perubahan (satu kali)',
       editOnceSaving: 'Menyimpan…',
       editOnceSuccess: 'Pembaruan diterima. Formulir Anda telah diperbarui.',
-      editOnceUsed: 'Hak edit satu kali sudah digunakan. Formulir tidak dapat diedit lagi.',
+      editOnceUsed:
+        'Formulir profil hanya bisa diperbarui satu kali. Karena hak edit Anda sudah habis, permintaan Anda tidak dapat diproses.',
       editOnceErrors: {
         failed: 'Pembaruan gagal. Silakan coba lagi.',
         empty: 'Anda tidak dapat mengirim pembaruan kosong. Isi setidaknya satu kolom.',
@@ -2111,10 +2292,11 @@ const overrides = {
       alreadyMatched: 'Anda sudah memiliki kecocokan.',
       userLocked: 'Proses kecocokan Anda terkunci. Aksi ini tidak diizinkan.',
       pendingContinueExists: 'Anda sudah memilih seseorang untuk dilanjutkan. Putuskan dulu di kecocokan itu.',
+      applicationRequired: 'Anda harus menyelesaikan pengajuan pencocokan terlebih dahulu.',
       requestNewFailed: 'Tidak bisa meminta kecocokan baru.',
       requestNewRateLimited: 'Anda terlalu sering meminta. Silakan coba lagi nanti.',
       requestNewQuotaExhausted: 'Kuota permintaan kecocokan baru hari ini sudah habis (3/3). Silakan coba lagi besok.',
-      requestNewFreeActiveBlocked: 'Anda tidak bisa meminta kecocokan baru karena hak aktivasi Anda dibatalkan. Anda perlu keanggotaan berbayar untuk mengaktifkan kembali.',
+      requestNewFreeActiveBlocked: 'Anda tidak bisa meminta kecocokan baru karena hak aktivasi Anda dibatalkan. Silakan hubungi dukungan.',
       freeSlotFailed: 'Aksi mengosongkan slot gagal.',
       freeSlotQuotaExhausted: 'Kuota mengosongkan slot hari ini sudah habis (1/1). Silakan coba lagi besok.',
       cooldownActive: 'Silakan tunggu sebentar sebelum mencoba lagi. Sisa: {{remaining}}',
@@ -2373,6 +2555,7 @@ const overrides = {
       title: 'Kelola keanggotaan',
       statusLabel: 'Keanggotaan',
       activate: 'Aktifkan keanggotaan saya',
+      freeActivateCta: 'Aktifkan gratis',
       cancel: 'Batalkan keanggotaan saya',
       cancelDisabledHint: 'Anda tidak bisa membatalkan sebelum keanggotaan aktif.',
       deleteAccount: 'Hapus akun',
@@ -2386,7 +2569,10 @@ const overrides = {
       loading: 'Memproses…',
       alreadyActive: 'Keanggotaan Anda sudah aktif',
       successActivated: 'Keanggotaan Anda diaktifkan.',
+      successActivatedUntil: 'Keanggotaan Anda diaktifkan. Berlaku sampai: {{date}} (sisa {{count}} hari).',
       promoActivated: 'Paket Eco Anda diaktifkan gratis. Berakhir pada {{date}} (sisa {{count}} hari).',
+      freeNowTitle: 'Keanggotaan gratis untuk saat ini',
+      freeNowBody: 'Keanggotaan saat ini gratis dan bisa diaktifkan langsung.\nSaat jumlah anggota sudah cukup, kami dapat menambahkan pembayaran dan beralih ke model berbayar.',
       successCancelled: 'Keanggotaan Anda dibatalkan.',
     },
 
@@ -2716,22 +2902,16 @@ const overrides = {
 
   matchmakingMembership: {
     title: 'Aktivasi keanggotaan',
-    lead: 'Anda dapat mengaktifkan keanggotaan Anda di sini.',
-    planTitle: 'Keanggotaan bulanan',
-    monthlyPrice: 'Harga: ${{amount}} / bulan',
-    promoTitle: 'Promo: Aktivasi gratis',
-    promoBody: 'Aktivasi keanggotaan gratis sampai {{date}}.',
-    promoEndedTitle: 'Promo berakhir',
-    promoEndedBody: 'Setelah {{date}}, aktivasi keanggotaan berbayar dan aktif setelah pembayaran.',
+    lead: 'Keanggotaan gratis untuk saat ini. Kamu bisa mengaktifkannya dengan satu klik.',
+    freeNowTitle: 'Gratis untuk saat ini',
+    freeNowBody: 'Keanggotaan saat ini gratis. Saat jumlah anggota sudah cukup, kami dapat menambahkan pembayaran dan beralih ke model berbayar.',
     freeActivateCta: 'Aktifkan keanggotaan saya gratis',
-    paidActivationCta: 'Lanjut ke pembayaran',
     activating: 'Mengaktifkan…',
     activated: 'Keanggotaan diaktifkan.',
     activatedUntil: 'Keanggotaan diaktifkan. Berlaku sampai: {{date}}',
     freeActivatedInfo:
       'Keanggotaan gratis Anda berlaku sampai {{date}}.\nDengan keanggotaan ini, Anda dapat like/tolak profil kecocokan dan menggunakan {{translatedCount}} pesan terjemahan.\nBatas ganti kecocokan harian Anda adalah {{dailyLimit}}.',
-    promoExpired: 'Promo berakhir. Setelah {{date}}, aktivasi berbayar dan aktif setelah pembayaran.',
-    promoDisabled: 'Promo saat ini dinonaktifkan. Silakan coba lagi nanti.',
+    freeDisabled: 'Aktivasi keanggotaan gratis sedang dinonaktifkan. Silakan coba lagi nanti.',
     activateFailed: 'Tidak dapat mengaktifkan keanggotaan. Silakan coba lagi.',
     errors: {
       notAuthenticated: 'Sesi tidak dapat diverifikasi. Silakan keluar lalu masuk kembali.',
@@ -2739,16 +2919,15 @@ const overrides = {
       apiUnavailableDev: 'API tidak dapat dijangkau. Di local dev, jalankan `npm run dev` (api+web).',
     },
     backToPanel: 'Kembali ke panel',
-    paymentMethodsSoon: 'Catatan: Aktivasi keanggotaan gratis sampai {{date}}.',
-    paidAdminApprovalNote: 'Catatan: Setelah {{date}}, aktivasi berbayar dan aktif setelah pembayaran.',
+    freeNowFootnote: 'Catatan: Keanggotaan gratis untuk saat ini. Langkah pembayaran dapat ditambahkan nanti.',
   },
 
   meta: {
-    baseTitle: 'Uniqah | PT MoonStar Global Indonesia',
+    baseTitle: 'Uniqah | Matchmaking Pernikahan',
     baseDescription:
-      'Uniqah (PT MoonStar Global Indonesia) menyediakan layanan pencocokan, langkah terpandu, dan komunikasi yang lebih aman untuk prosesnya.',
+      'Uniqah adalah sistem matchmaking tertutup yang berfokus pada pernikahan dan komunikasi yang lebih aman di dalam aplikasi.',
     pages: {
-      home: { title: 'Uniqah | PT MoonStar Global Indonesia' },
+      home: { title: 'Uniqah | Matchmaking Pernikahan' },
       about: { title: 'Tentang Kami' },
       corporate: { title: 'Perusahaan' },
       contact: { title: 'Kontak' },
@@ -2830,7 +3009,7 @@ const overrides = {
       home: 'Halo, saya ingin mendapatkan informasi tentang Uniqah.',
       explore: 'Halo, saya ingin mendapatkan informasi lebih lanjut.',
       travel: 'Halo, saya ingin mendapatkan informasi lebih lanjut.',
-      wedding: 'Halo, saya ingin mendapatkan informasi tentang menikah di Indonesia.',
+      wedding: 'Halo, saya ingin mendapatkan informasi tentang proses pernikahan.',
       youtube: 'Halo, saya ingin mendapatkan informasi tentang video YouTube Anda.',
       contact: 'Halo, saya ingin mendapatkan informasi tentang cara menghubungi Anda.',
       tours: 'Halo, saya ingin mendapatkan informasi lebih lanjut.',
@@ -2904,14 +3083,14 @@ const overrides = {
             'Dengan alur pelaporan, pemblokiran, dan dukungan, kami berupaya mencegah pengalaman negatif terulang.',
         },
         guidance: {
-          title: 'Jembatan antara dua budaya',
+          title: 'Jembatan lintas bahasa dan budaya',
           p1:
-            'Jika komunikasi Turki–Indonesia dan perbedaan budaya tidak dikelola dengan baik, proses menjadi lebih sulit. Kami membantu kedua pihak mengekspresikan diri dengan benar melalui penerjemahan, dukungan komunikasi, dan panduan.',
+            'Jika komunikasi lintas bahasa dan perbedaan budaya tidak dikelola dengan baik, proses menjadi lebih sulit. Kami membantu kedua pihak mengekspresikan diri dengan benar melalui penerjemahan, dukungan komunikasi, dan panduan.',
         },
         wedding: {
-          title: 'Panduan pernikahan di Indonesia',
+          title: 'Panduan pernikahan',
           p1:
-            'Selain matchmaking, kami membimbing pasangan yang merencanakan pernikahan di Indonesia terkait waktu, praktik lokal, dan koordinasi proses.',
+            'Selain matchmaking, kami membimbing pasangan yang merencanakan proses pernikahan terkait waktu, praktik lokal, dan koordinasi proses.',
           p2:
             'Mulai dari dokumen dan janji temu, penerjemahan, akomodasi/transport, hingga perencanaan acara—kami mengambil tanggung jawab sebagai tim di lapangan.',
         },
@@ -2922,7 +3101,7 @@ const overrides = {
         },
       },
       outro:
-        'Untuk informasi lebih lanjut tentang sistem matchmaking <1>Uniqah</1> dan panduan <3>Pernikahan</3> di Indonesia, Anda dapat melihat halaman tersebut. Untuk teks dan kebijakan resmi, gunakan bagian <5>Dokumen</5>.',
+        'Untuk informasi lebih lanjut tentang sistem matchmaking <1>Uniqah</1> dan panduan <3>Pernikahan</3>, Anda dapat melihat halaman tersebut. Untuk teks dan kebijakan resmi, gunakan bagian <5>Dokumen</5>.',
     },
 
     story: {
@@ -2947,7 +3126,7 @@ const overrides = {
         translation: {
           title: 'Dukungan penerjemahan & komunikasi',
           description:
-            'Kami dapat membantu komunikasi Turki–Indonesia dengan penerjemah untuk chat matchmaking, pertemuan resmi, atau kebutuhan perjalanan—mengurangi hambatan bahasa dan meningkatkan rasa percaya diri.',
+            'Kami dapat membantu komunikasi lintas bahasa dengan penerjemah untuk chat matchmaking, pertemuan resmi, atau kebutuhan lain—mengurangi hambatan bahasa dan meningkatkan rasa percaya diri.',
         },
         privatePlan: {
           title: 'Perencanaan perjalanan pribadi & bulan madu',
@@ -2965,9 +3144,9 @@ const overrides = {
             'Untuk hotel, penerbangan, transfer, atau sewa mobil, kami membantu Anda memilih opsi yang aman dan sesuai anggaran/kenyamanan Anda.',
         },
         wedding: {
-          title: 'Panduan proses pernikahan di Indonesia',
+          title: 'Panduan proses pernikahan',
           description:
-            'Untuk pasangan yang berencana menikah di Indonesia, kami memberi panduan terkait waktu, praktik lokal, penerjemahan, dan koordinasi proses.',
+            'Untuk pasangan yang berencana menikah, kami memberi panduan terkait waktu, praktik lokal, penerjemahan, dan koordinasi proses.',
         },
       },
     },
@@ -3011,7 +3190,7 @@ const overrides = {
         {
           title: 'Komunikasi sehat lintas budaya',
           description:
-            'Dengan penerjemahan dan panduan komunikasi Turki–Indonesia, kami mengurangi kesalahpahaman dan mendukung proses yang lebih sehat.',
+            'Dengan penerjemahan dan panduan komunikasi lintas bahasa, kami mengurangi kesalahpahaman dan mendukung proses yang lebih sehat.',
         },
       ],
     },
@@ -3117,10 +3296,10 @@ const overrides = {
 
   weddingPage: {
     hero: {
-      badge: 'Pendampingan khusus untuk pasangan Turki–Indonesia',
-      title: 'Kami mendampingi persiapan pernikahan Anda di Indonesia',
+      badge: 'Pendampingan untuk proses pernikahan',
+      title: 'Kami mendampingi persiapan pernikahan Anda',
       description:
-        'Dokumen, prosedur resmi, komunikasi antar keluarga, dan seluruh proses organisasi di Indonesia kami rencanakan bersama—mengubahnya menjadi perjalanan yang menenangkan, jauh dari pertanyaan yang mengganggu.',
+        'Dokumen, prosedur resmi, komunikasi antar keluarga, dan langkah organisasi utama kami rencanakan bersama—mengubahnya menjadi perjalanan yang menenangkan, jauh dari pertanyaan yang mengganggu.',
       actions: {
         openForm: 'Buka Form Rencana Pernikahan',
         matchmakingHub: 'Pencocokan',
@@ -3135,7 +3314,7 @@ const overrides = {
       },
     },
     whatsapp: {
-      quickChatMessage: 'Halo, saya ingin mendapatkan informasi tentang pernikahan di Indonesia.',
+      quickChatMessage: 'Halo, saya ingin mendapatkan informasi tentang persiapan pernikahan dan pendampingan.',
     },
     stickyBackToProfile: {
       label: 'Kembali ke profil saya',
@@ -3169,11 +3348,11 @@ const overrides = {
           ],
         },
         {
-          title: 'Pendampingan berkelanjutan & visa',
+          title: 'Pendampingan berkelanjutan',
           items: [
             'Pendampingan tanpa henti hingga pernikahan selesai',
-            'Konsultasi visa dan izin tinggal untuk menetap di Indonesia',
-            'Arahan proses visa pasangan dan izin tinggal untuk tinggal di Turki',
+            'Panduan umum untuk langkah resmi (melalui instansi resmi)',
+            'Peta jalan administrasi tingkat tinggi setelah menikah',
           ],
         },
       ],
@@ -3465,6 +3644,12 @@ export default deepMerge(en, overrides);
 
 /*
 export default {
+      previewGate: {
+        title: 'Anda harus mendaftar dulu',
+        body: 'Untuk melakukan ini, Anda harus mendaftar dan mengisi formulir matchmaking terlebih dahulu.',
+        signup: 'Daftar',
+        dismiss: 'Lewati',
+      },
     pwa: {
       install: {
         title: 'Pasang aplikasi',
@@ -3535,10 +3720,47 @@ export default {
     badge: 'Proses privat & dimoderasi',
     title: 'Sistem pencocokan untuk pernikahan',
     description:
-      'Sistem pencocokan tertutup yang mempertemukan orang-orang yang serius ingin menikah—dengan syarat yang adil dan aman. Profil tidak publik; sistem menampilkan kandidat paling cocok di panel Anda dan membantu Anda menemukan pasangan yang tepat lebih cepat.',
+      'Sistem ini masih baru—mohon bersabar. Pencocokan biasanya datang dalam 1–3 hari. Instal aplikasinya dan aktifkan notifikasi agar tidak ketinggalan pembaruan.',
+    preview: {
+      title: "Setelah daftar, apa yang akan kamu lihat di 'Profil Saya'?",
+      subtitle:
+        'Kartu contoh ini bukan data pengguna nyata; hanya untuk memperlihatkan alur sistem setelah registrasi secara singkat.',
+      cta: 'Daftar gratis',
+      cards: {
+        matches: {
+          title: 'Kecocokan & status',
+          body: 'Minat bersama, aktivasi, dan langkah komunikasi berjalan di sini—setiap langkah terkontrol.',
+          mockTitle: 'Contoh',
+          mockItem1: 'Kecocokan yang disarankan',
+          mockItem1Sub: 'Status: minat bersama (contoh)',
+          mockTag1: 'Lihat',
+          mockItem2: 'Kecocokan aktif',
+          mockItem2Sub: 'Status: chat terbuka (contoh)',
+          mockTag2: 'Pesan',
+        },
+        pool: {
+          title: 'Pool (kandidat)',
+          body: 'Lihat kandidat yang sesuai, kirim permintaan, atau lewati. Jika disetujui, kartu kecocokan terbuka.',
+          mockTitle: 'Contoh',
+          mockItem1: 'Kartu profil kandidat (contoh)',
+          mockItem1Sub: 'Usia • Kota • Ringkasan singkat (contoh)',
+          mockCta: 'Kirim permintaan',
+        },
+        chat: {
+          title: 'Chat lebih aman',
+          body: 'Pesan difilter; berbagi telepon/email/link di tahap awal diblokir.',
+          mockTitle: 'Contoh',
+          mockSystem: 'Sistem: Komunikasi lebih aman aktif',
+          mockMsg1: 'Halo, apa kabar? (contoh)',
+          mockMsg2: 'Chat dulu, lalu langkah persetujuan (contoh)',
+          mockHint: 'Catatan: berbagi kontak terbuka setelah 48 jam + persetujuan kedua pihak.',
+        },
+      },
+    },
     actions: {
       apply: 'Ajukan pencocokan',
       goPanel: 'Profil saya',
+      tour: 'Lihat tur panel',
       backWedding: 'Kembali ke halaman pernikahan',
       supportWhatsApp: 'Dukungan WhatsApp',
     },
@@ -3611,10 +3833,10 @@ export default {
 
   weddingPage: {
     hero: {
-      badge: "Pendampingan khusus untuk pasangan Turki–Indonesia",
-      title: "Kami mendampingi persiapan pernikahan Anda di Indonesia",
+      badge: 'Pendampingan untuk proses pernikahan',
+      title: 'Kami mendampingi persiapan pernikahan Anda',
       description:
-        "Dokumen, prosedur resmi, komunikasi antar keluarga, dan seluruh proses organisasi di Indonesia kami rencanakan bersama—mengubahnya menjadi perjalanan yang menenangkan, jauh dari pertanyaan yang mengganggu.",
+        'Dokumen, prosedur resmi, komunikasi antar keluarga, dan langkah organisasi utama kami rencanakan bersama—mengubahnya menjadi perjalanan yang menenangkan, jauh dari pertanyaan yang mengganggu.',
       actions: {
         openForm: "Buka Form Rencana Pernikahan",
         matchmakingHub: "Pencocokan",
@@ -3629,7 +3851,7 @@ export default {
       },
     },
     whatsapp: {
-      quickChatMessage: "Halo, saya ingin mendapatkan informasi tentang pernikahan di Indonesia.",
+      quickChatMessage: 'Halo, saya ingin mendapatkan informasi tentang persiapan pernikahan dan pendampingan.',
     },
     stickyBackToProfile: {
       label: 'Kembali ke profil saya',
@@ -3913,7 +4135,7 @@ export default {
       home: "Halo, saya ingin mendapatkan informasi tentang Uniqah.",
       explore: "Halo, saya ingin mendapatkan informasi tentang destinasi di Indonesia.",
       travel: "Halo, saya ingin mendapatkan informasi tentang rencana liburan ke Indonesia.",
-      wedding: "Halo, saya ingin mendapatkan informasi tentang menikah di Indonesia.",
+      wedding: 'Halo, saya ingin mendapatkan informasi tentang proses pernikahan.',
       youtube: "Halo, saya ingin mendapatkan informasi tentang video YouTube Anda.",
       contact: "Halo, saya ingin mendapatkan informasi tentang cara menghubungi Anda.",
       tours: "Halo, saya ingin mendapatkan informasi tentang paket tur Anda.",
@@ -3923,13 +4145,13 @@ export default {
 
   home: {
     hero: {
-      badgeCompany: "Terdaftar di Indonesia: PT MoonStar Global Indonesia",
+      badgeCompany: 'PT MoonStar Global Indonesia',
       badgeSocial: "kanal sosial Uniqah",
       title: "Uniqah",
-      subtitle: "Matchmaking • Panduan pernikahan • Dukungan di lapangan di Indonesia",
+      subtitle: 'Matchmaking • Panduan pernikahan • Komunikasi aman di aplikasi',
       description:
-        "Uniqah adalah sistem matchmaking kami yang berfokus pada Indonesia. Kami menargetkan proses yang aman, saling menghormati, dan transparan dengan langkah-langkah yang jelas. Jika diperlukan, kami juga memberi dukungan di lapangan seperti penerjemahan, logistik, dan panduan langkah resmi.",
-      note: "Struktur berbasis Indonesia yang didirikan oleh wirausahawan Turki yang tinggal di Indonesia.",
+        'Uniqah adalah sistem matchmaking berorientasi pernikahan. Kami menargetkan proses yang aman, saling menghormati, dan transparan dengan langkah-langkah yang jelas. Jika diperlukan, kami juga memberi dukungan seperti penerjemahan dan panduan proses.',
+      note: 'Berorientasi pernikahan dengan privasi dan keamanan sebagai prioritas.',
       ctaTours: "Mulai ajukan",
       ctaBrochures: "Lihat dokumen",
       ctaTrust: "Kepercayaan & Legal",
@@ -3942,12 +4164,12 @@ export default {
           description: "Pra-registrasi → penawaran tertulis → langkah kontrak/pembayaran.",
         },
         {
-          title: "Dukungan bahasa Turki",
-          description: "Dukungan WhatsApp via jalur Türkiye; operasi di Indonesia.",
+          title: 'Dukungan cepat',
+          description: 'Dukungan via WhatsApp; bantuan multi-bahasa bila diperlukan.',
         },
         {
           title: "Struktur legal",
-          description: "Uniqah adalah merek di bawah PT MoonStar Global Indonesia di Indonesia.",
+          description: 'Uniqah adalah merek di bawah PT MoonStar Global Indonesia.',
         },
       ],
     },
@@ -3966,9 +4188,9 @@ export default {
             "Kami membagikan panduan dan konten bermanfaat tentang hubungan, komunikasi, dan alur proses untuk komunitas Uniqah.",
         },
         wedding: {
-          title: "Panduan pernikahan di Indonesia",
+          title: 'Panduan pernikahan',
           description:
-            "Panduan langkah demi langkah untuk dokumen, prosedur lokal, penerjemahan, transportasi, dan akomodasi—agar proses Anda lebih tenang dan mudah dikelola.",
+            'Panduan langkah demi langkah untuk dokumen, prosedur lokal, penerjemahan, transportasi, dan akomodasi—agar proses Anda lebih tenang dan mudah dikelola.',
         },
         youtube: {
           title: "Video YouTube",
@@ -4295,6 +4517,7 @@ export default {
     labels: {
       email: 'Email',
       password: 'Kata sandi',
+      confirmPassword: 'Konfirmasi kata sandi',
       gender: 'Jenis kelamin',
       nationality: 'Kewarganegaraan',
       nationalityOther: 'Kewarganegaraan lain (tulis)',
@@ -4303,6 +4526,7 @@ export default {
     placeholders: {
       email: 'contoh@email.com',
       password: 'Kata sandi Anda',
+      confirmPassword: 'Ketik ulang kata sandi Anda',
       nationality: 'Pilih kewarganegaraan',
       nationalityOther: 'contoh: Jerman',
       age: 'contoh: 27',
@@ -4352,6 +4576,7 @@ export default {
       invalidEmail: 'Alamat email tampak tidak valid. Silakan periksa dan coba lagi.',
       emailAlreadyInUse: 'Akun dengan email ini sudah ada. Silakan masuk atau gunakan “Lupa kata sandi”.',
       weakPassword: 'Kata sandi terlalu lemah. Silakan pilih kata sandi yang lebih kuat (mis. minimal 6 karakter).',
+      passwordsDoNotMatch: 'Kata sandi tidak cocok. Silakan ketik ulang kata sandi yang sama.',
       emailPasswordRequired: 'Email dan kata sandi wajib diisi.',
       genderRequired: 'Pilih jenis kelamin untuk mendaftar.',
       nationalityRequired: 'Pilih kewarganegaraan untuk mendaftar.',
@@ -4453,7 +4678,7 @@ export default {
       verificationRequired: 'Verifikasi identitas diperlukan untuk melakukan aksi ini.',
       membershipOrVerificationRequired: 'Aksi ini membutuhkan akun aktif.',
       freeActiveMembershipRequired: 'Aksi ini membutuhkan akun aktif.',
-      freeActiveMembershipBlocked: 'Hak aktivasi Anda dinonaktifkan. Anda perlu keanggotaan berbayar untuk aksi ini.',
+      freeActiveMembershipBlocked: 'Hak aktivasi Anda dinonaktifkan. Silakan hubungi dukungan.',
       otherUserMatched: 'Orang ini sudah cocok dengan orang lain.',
       alreadyMatched: 'Anda sudah memiliki kecocokan.',
       userLocked: 'Proses kecocokan Anda terkunci. Aksi ini tidak diizinkan.',
@@ -4521,7 +4746,7 @@ export default {
       freeActiveActive: 'Akun Anda aktif.',
       freeActiveTermsTitle: 'Syarat aktivasi gratis',
       freeActiveTermsBody:
-        'Jika Anda mengaktifkan akun gratis dan tidak aktif selama 48 jam, status aktivasi dapat dibatalkan. Saat mengaktifkan kembali, batas waktu turun menjadi 24 jam. Jika tetap tidak aktif, Anda perlu keanggotaan berbayar untuk mengaktifkan kembali dan meminta kecocokan baru.',
+        'Jika Anda mengaktifkan akun gratis dan tidak aktif selama 48 jam, status aktivasi dapat dibatalkan. Saat mengaktifkan kembali, batas waktu turun menjadi 24 jam. Jika tetap tidak aktif, aktivasi dapat dibatalkan lagi dan permintaan kecocokan baru bisa dibatasi.',
       freeActiveApply: 'Aktifkan akun gratis',
       freeActiveApplying: 'Mengajukan…',
       freeActiveApplied: 'Akun gratis diaktifkan. Durasi: {{hours}} jam.',
@@ -4535,14 +4760,14 @@ export default {
         lead: 'Akses fitur:',
         points: [
           'Pencocokan dan pratinjau terbatas gratis.',
-          'Melihat detail penuh, suka/tolak, dan menghubungi memerlukan membership berbayar.',
+          'Melihat detail penuh, suka/tolak, dan menghubungi memerlukan keanggotaan aktif (gratis untuk saat ini).',
         ],
       },
       female: {
         lead: 'Akses fitur:',
         points: [
           'Pencocokan dan pratinjau terbatas gratis.',
-          'Melihat detail penuh, suka/tolak, dan menghubungi memerlukan akun aktif.',
+          'Melihat detail penuh, suka/tolak, dan menghubungi memerlukan keanggotaan aktif (gratis untuk saat ini).',
         ],
       },
     },

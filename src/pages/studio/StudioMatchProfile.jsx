@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useLocation, useParams } from 'react-router-dom';
-import { collection, doc, limit, onSnapshot, orderBy, query } from 'firebase/firestore';
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
+import { collection, doc, getDoc, getDocFromServer, limit, onSnapshot, orderBy, query } from 'firebase/firestore';
 import { Lock, MessageCircle, ShieldCheck, Sparkles } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import Navigation from '../../components/Navigation';
@@ -11,6 +11,9 @@ import { db } from '../../config/firebase';
 import { authFetch } from '../../utils/authFetch';
 import { translateStudioApiError } from '../../utils/studioErrorI18n';
 import { getLocalizedProfileText } from '../../utils/profileText';
+import { openPreviewGate } from '../../utils/previewGate';
+import { buildPreviewMatchById } from '../../utils/studioPreviewData';
+import StudioBottomNav from '../../components/studio/StudioBottomNav';
 
 function safeStr(v) {
   return typeof v === 'string' ? v.trim() : '';
@@ -98,28 +101,82 @@ function friendlyErrorMessage(raw, t) {
   return translateStudioApiError(t, s);
 }
 
+function isDebugApiEnabled() {
+  if (typeof window === 'undefined') return false;
+  try {
+    try {
+      if (window.localStorage && (window.localStorage.getItem('debugApi') === '1' || window.localStorage.getItem('debugApi') === 'true')) {
+        return true;
+      }
+    } catch {
+      // ignore
+    }
+    const sp = new URLSearchParams(window.location.search);
+    return sp.get('debugApi') === '1' || sp.get('debugPush') === '1';
+  } catch {
+    return false;
+  }
+}
+
 export default function StudioMatchProfile() {
   const { matchId } = useParams();
   const location = useLocation();
   const { user } = useAuth();
   const { t, i18n } = useTranslation();
+  const navigate = useNavigate();
+  const [myCommLanguage, setMyCommLanguage] = useState('');
 
-  const uid = safeStr(user?.uid);
+  const isPreview = !user || user.isAnonymous;
+  const effectiveUid = isPreview ? '' : safeStr(user?.uid);
+  const currentUidForView = isPreview ? 'guest' : effectiveUid;
+
+  const uid = effectiveUid;
   const mid = safeStr(matchId);
 
-  const targetLang = useMemo(() => {
+  const uiLang = useMemo(() => {
     const raw = String(i18n?.language || 'tr');
     const base = raw.split('-')[0];
     return base || 'tr';
   }, [i18n?.language]);
 
+  const translateTargetStorageKey = useMemo(() => {
+    if (!uid || !mid) return '';
+    return `studio_match_profile_translate_target:${uid}:${mid}`;
+  }, [mid, uid]);
+
+  const normalizeTranslateTarget = (raw) => {
+    const s = String(raw || '').trim().toLowerCase();
+    if (s === 'tr' || s === 'id' || s === 'en') return s;
+    return '';
+  };
+
+  const [translateTargetLang, setTranslateTargetLang] = useState('');
+  useEffect(() => {
+    const fallback = normalizeTranslateTarget(myCommLanguage) || normalizeTranslateTarget(uiLang) || 'tr';
+    if (!translateTargetStorageKey) {
+      setTranslateTargetLang(fallback);
+      return;
+    }
+    try {
+      const saved = normalizeTranslateTarget(window.localStorage.getItem(translateTargetStorageKey));
+      setTranslateTargetLang(saved || fallback);
+    } catch {
+      setTranslateTargetLang(fallback);
+    }
+  }, [myCommLanguage, translateTargetStorageKey, uiLang]);
+
+  const effectiveTargetLang = normalizeTranslateTarget(translateTargetLang) || normalizeTranslateTarget(uiLang) || 'tr';
+
   const [match, setMatch] = useState(null);
   const [matchLoading, setMatchLoading] = useState(true);
   const [myLock, setMyLock] = useState({ active: false, matchId: '' });
 
+  const [myProfileComplete, setMyProfileComplete] = useState(true);
+
   const [myMembership, setMyMembership] = useState({ active: false });
 
   const [paywallNotice, setPaywallNotice] = useState('');
+  const [profileGateNotice, setProfileGateNotice] = useState('');
 
   const asMs = (v) => {
     if (typeof v === 'number' && Number.isFinite(v)) return v;
@@ -160,8 +217,23 @@ export default function StudioMatchProfile() {
   const sendInputRef = useRef(null);
   const shortTextareaRef = useRef(null);
 
+  const activateMembershipRef = useRef(false);
+
   useEffect(() => {
     if (!mid) return;
+
+    if (isPreview) {
+      setMatch(buildPreviewMatchById(mid, { currentUid: currentUidForView }));
+      setMatchLoading(false);
+      setMessages([]);
+      setMessagesLoading(false);
+      setPaywallNotice('');
+      setProfileGateNotice('');
+      setMyLock({ active: false, matchId: '' });
+      setMyMembership({ active: false });
+      setMyProfileComplete(false);
+      return;
+    }
 
     setMatchLoading(true);
     const ref = doc(db, 'matchmakingMatches', mid);
@@ -184,11 +256,52 @@ export default function StudioMatchProfile() {
         // noop
       }
     };
-  }, [mid]);
+  }, [currentUidForView, isPreview, mid]);
 
   useEffect(() => {
     if (!uid) return;
     const ref = doc(db, 'matchmakingUsers', uid);
+
+    let cancelled = false;
+    (async () => {
+      try {
+        let snap;
+        try {
+          snap = await getDocFromServer(ref);
+        } catch {
+          snap = await getDoc(ref);
+        }
+        if (cancelled) return;
+        const d = snap?.exists?.() ? snap.data() || {} : {};
+
+        const lock = d?.matchmakingLock && typeof d.matchmakingLock === 'object' ? d.matchmakingLock : null;
+        const active = !!lock?.active;
+        const matchId2 = typeof lock?.matchId === 'string' ? safeStr(lock.matchId) : '';
+        setMyLock({ active, matchId: matchId2 });
+
+        const membershipObj = d?.membership && typeof d.membership === 'object' ? d.membership : null;
+        const membershipValidUntilMs = asMs(membershipObj?.validUntilMs);
+        const now = Date.now();
+        const membershipActive =
+          (membershipValidUntilMs > 0 && membershipValidUntilMs > now) ||
+          (!!membershipObj?.active && (!membershipValidUntilMs || membershipValidUntilMs > now));
+        setMyMembership({ active: membershipActive });
+
+        const about = String(
+          d?.details?.about ||
+            d?.publicProfile?.about ||
+            d?.application?.about ||
+            d?.application?.aboutTr ||
+            d?.application?.aboutId ||
+            ''
+        ).trim();
+        setMyProfileComplete(!!about);
+        setMyCommLanguage(safeStr(d?.details?.communicationLanguage));
+      } catch {
+        // best-effort
+      }
+    })();
+
     const unsub = onSnapshot(
       ref,
       (snap) => {
@@ -205,14 +318,29 @@ export default function StudioMatchProfile() {
           (membershipValidUntilMs > 0 && membershipValidUntilMs > now) ||
           (!!membershipObj?.active && (!membershipValidUntilMs || membershipValidUntilMs > now));
         setMyMembership({ active: membershipActive });
+
+        const about = String(
+          d?.details?.about ||
+            d?.publicProfile?.about ||
+            d?.application?.about ||
+            d?.application?.aboutTr ||
+            d?.application?.aboutId ||
+            ''
+        ).trim();
+        // 2026-02: Apply form no longer asks for expectations.
+        setMyProfileComplete(!!about);
+        setMyCommLanguage(safeStr(d?.details?.communicationLanguage));
       },
       () => {
         setMyLock({ active: false, matchId: '' });
         setMyMembership({ active: false });
+        setMyProfileComplete(true);
+        setMyCommLanguage('');
       }
     );
 
     return () => {
+      cancelled = true;
       try {
         unsub();
       } catch {
@@ -220,6 +348,36 @@ export default function StudioMatchProfile() {
       }
     };
   }, [uid]);
+
+  const requireProfile = () => {
+    setProfileGateNotice(t('studio.profileGate.body'));
+    try {
+      if (typeof window !== 'undefined') window.scrollTo({ top: 0, behavior: 'smooth' });
+    } catch {
+      // noop
+    }
+  };
+
+  const activateFreeMembershipNow = async () => {
+    if (!uid) return;
+    if (activateMembershipRef.current) return;
+    activateMembershipRef.current = true;
+
+    try {
+      await authFetch('/api/matchmaking-membership-activate-free', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({}),
+      });
+      setMyMembership({ active: true });
+      setPaywallNotice('');
+    } catch (e) {
+      const msg = String(e?.message || '').trim() || 'membership_activate_failed';
+      setPaywallNotice(friendlyErrorMessage(msg, t) || msg);
+    } finally {
+      activateMembershipRef.current = false;
+    }
+  };
 
   useEffect(() => {
     if (!mid) return;
@@ -371,6 +529,10 @@ export default function StudioMatchProfile() {
 
   const [myPhotoAccessState, setMyPhotoAccessState] = useState({ loading: false, error: '' });
   const setMyPhotoAccessForThisMatch = async (next) => {
+    if (isPreview) {
+      openPreviewGate({ reason: t('previewGate.body') });
+      return;
+    }
     if (!uid || !mid) return;
     if (!myPhotosBlurred) return;
     if (myPhotoAccessState.loading) return;
@@ -501,7 +663,10 @@ export default function StudioMatchProfile() {
     const languages = otherMerged?.details?.languages && typeof otherMerged.details.languages === 'object' ? otherMerged.details.languages : {};
     const native = languages?.native && typeof languages.native === 'object' ? languages.native : {};
     const code = safeStr(native?.code || otherMerged?.details?.nativeLanguage);
-    const otherText = safeStr(native?.other || otherMerged?.details?.nativeLanguageOther);
+    const otherText =
+      safeStr(native?.other) ||
+      getLocalizedProfileText(otherMerged?.details, 'nativeLanguageOther', i18n.language) ||
+      safeStr(otherMerged?.details?.nativeLanguageOther);
     if (!code) return '';
     if (code === 'other') return otherText;
     return tOption('commLanguage', code) || code;
@@ -512,7 +677,10 @@ export default function StudioMatchProfile() {
     const native = languages?.native && typeof languages.native === 'object' ? languages.native : {};
     const foreign = languages?.foreign && typeof languages.foreign === 'object' ? languages.foreign : {};
     const nativeCode = safeStr(native?.code);
-    const foreignOther = safeStr(foreign?.other || otherMerged?.details?.foreignLanguageOther);
+    const foreignOther =
+      safeStr(foreign?.other) ||
+      getLocalizedProfileText(otherMerged?.details, 'foreignLanguageOther', i18n.language) ||
+      safeStr(otherMerged?.details?.foreignLanguageOther);
     const codes = Array.isArray(foreign?.codes)
       ? foreign.codes.map((x) => safeStr(x)).filter(Boolean)
       : Array.isArray(otherMerged?.details?.foreignLanguages)
@@ -541,6 +709,13 @@ export default function StudioMatchProfile() {
 
   useEffect(() => {
     if (!profileOpen) return;
+    if (isPreview) {
+      // Preview modda API çağırma; örnek profili göster.
+      setFullProfile((prev) => prev || (other && typeof other === 'object' ? other : null));
+      setFullProfileState({ loading: false, error: '' });
+      return;
+    }
+
     if (!uid || !mid) return;
 
     let alive = true;
@@ -580,7 +755,7 @@ export default function StudioMatchProfile() {
     return () => {
       alive = false;
     };
-  }, [mid, profileOpen, profileReloadKey, t, uid]);
+  }, [isPreview, mid, other, profileOpen, profileReloadKey, t, uid]);
 
   useEffect(() => {
     if (!profileOpen) setProfileTab('preview');
@@ -599,8 +774,19 @@ export default function StudioMatchProfile() {
   }, [location?.state]);
 
   const requestProfileAccess = async () => {
+    if (isPreview) {
+      openPreviewGate({ reason: t('previewGate.body') });
+      return;
+    }
     if (!uid || !otherUid) return;
     if (profileAccessReq.loading) return;
+
+    if (!myProfileComplete) {
+      requireProfile();
+      setProfileAccessReq({ loading: false, error: t('studio.profileGate.body'), status: '' });
+      return;
+    }
+
     setProfileAccessReq({ loading: true, error: '', status: '' });
     try {
       const data = await authFetch('/api/matchmaking-profile-access-request', {
@@ -637,9 +823,25 @@ export default function StudioMatchProfile() {
   };
 
   const requestPhotoAccess = async () => {
+    if (isPreview) {
+      openPreviewGate({ reason: t('previewGate.body') });
+      return;
+    }
     if (!uid || !mid || !otherUid) return;
     if (photoAccessReq.loading) return;
     setPhotoAccessReq({ loading: true, error: '', status: '' });
+
+    if (!myProfileComplete) {
+      requireProfile();
+      setPhotoAccessReq({ loading: false, error: t('studio.profileGate.body'), status: '' });
+      return;
+    }
+
+    if (!myMembership?.active) {
+      requirePaid();
+      setPhotoAccessReq({ loading: false, error: t('studio.paywall.upgradeToInteract'), status: '' });
+      return;
+    }
 
     try {
       const data = await authFetch('/api/matchmaking-photo-access-request', {
@@ -694,6 +896,10 @@ export default function StudioMatchProfile() {
   const iStarted = !!(uid && activeStartByUid?.[uid]);
 
   const openShortModal = async () => {
+    if (isPreview) {
+      openPreviewGate({ reason: t('previewGate.body') });
+      return;
+    }
     if (!uid || !mid) return;
     if (lockedByOtherActiveMatch) {
       setShortState({ loading: false, error: t('studio.errors.activeLocked') });
@@ -715,10 +921,25 @@ export default function StudioMatchProfile() {
 
   const sendShort = async (e) => {
     e?.preventDefault?.();
+    if (isPreview) {
+      openPreviewGate({ reason: t('previewGate.body') });
+      return;
+    }
     const text = safeStr(shortText);
     if (!uid || !mid || !text) return;
 
-    if (!canInteract) return;
+    if (!myProfileComplete) {
+      requireProfile();
+      setShortState({ loading: false, error: t('studio.profileGate.body') });
+      return;
+    }
+
+    if (!myMembership?.active) {
+      requirePaid();
+      setShortState({ loading: false, error: t('studio.paywall.upgradeToReply') });
+      return;
+    }
+
     if (shortState.loading) return;
 
     setShortState({ loading: true, error: '' });
@@ -742,11 +963,19 @@ export default function StudioMatchProfile() {
 
   const sendLong = async (e) => {
     e?.preventDefault?.();
+    if (isPreview) {
+      openPreviewGate({ reason: t('previewGate.body') });
+      return;
+    }
     const text = safeStr(sendText);
     if (!uid || !mid || !text) return;
     if (!longChatAllowed || sendState.loading) return;
 
-    if (!canInteract) return;
+    if (!myProfileComplete) {
+      requireProfile();
+      setSendState({ loading: false, error: t('studio.profileGate.body') });
+      return;
+    }
 
     setSendState({ loading: true, error: '' });
     try {
@@ -772,6 +1001,10 @@ export default function StudioMatchProfile() {
   };
 
   const translateMessage = async ({ messageId }) => {
+    if (isPreview) {
+      openPreviewGate({ reason: t('previewGate.body') });
+      return;
+    }
     const msgId = safeStr(messageId);
     if (!uid || !mid || !msgId) return;
     if (translateState.loadingId) return;
@@ -781,19 +1014,121 @@ export default function StudioMatchProfile() {
       await authFetch('/api/matchmaking-chat-translate', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ matchId: mid, messageId: msgId, targetLang }),
+        body: JSON.stringify({ matchId: mid, messageId: msgId, targetLang: effectiveTargetLang }),
       });
       setTranslateState({ loadingId: '', error: '' });
     } catch (e) {
-      const msg = safeStr(e?.message);
-      setTranslateState({
-        loadingId: '',
-        error: translateStudioApiError(t, msg) || msg || 'translate_failed',
-      });
+      const code = safeStr(e?.message);
+      const friendly = translateStudioApiError(t, code) || code || 'translate_failed';
+
+      if (isDebugApiEnabled()) {
+        const d = e?.details;
+        const apiDetails = d?.details && typeof d.details === 'object' ? d.details : null;
+        const provider = safeStr(apiDetails?.provider || apiDetails?.providerUsed);
+        const providerStatus = safeStr(apiDetails?.providerStatus || apiDetails?.providerErrorStatus);
+        const providerMsg = safeStr(apiDetails?.providerErrorMessage);
+        const extra = [
+          provider ? `provider=${provider}` : '',
+          providerStatus ? `status=${providerStatus}` : '',
+          providerMsg ? `msg=${providerMsg}` : '',
+        ].filter(Boolean).join(' ');
+
+        setTranslateState({
+          loadingId: '',
+          error: extra ? `${friendly} (${extra})` : friendly,
+        });
+      } else {
+        setTranslateState({
+          loadingId: '',
+          error: friendly,
+        });
+      }
     }
   };
 
+  const autoTranslateInFlightRef = useRef(false);
+  const autoTranslateAttemptedRef = useRef(new Set());
+
+  const autoTranslateMessage = async ({ messageId }) => {
+    if (isPreview) return;
+    const msgId = safeStr(messageId);
+    if (!uid || !mid || !msgId) return;
+    try {
+      await authFetch('/api/matchmaking-chat-translate', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ matchId: mid, messageId: msgId, targetLang: effectiveTargetLang }),
+      });
+    } catch {
+      // silent
+    }
+  };
+
+  useEffect(() => {
+    if (isPreview) return;
+    if (!uid || !mid) return;
+    if (!effectiveTargetLang) return;
+    if (!longChatAllowed) return;
+    if (messagesLoading) return;
+    if (!Array.isArray(messages) || messages.length === 0) return;
+    if (autoTranslateInFlightRef.current) return;
+
+    const candidateIds = [];
+    for (let i = messages.length - 1; i >= 0 && candidateIds.length < 3; i -= 1) {
+      const m = messages[i];
+      const msgId = safeStr(m?.id);
+      if (!msgId) continue;
+
+      const senderUid = safeStr(m?.userId);
+      if (!senderUid || senderUid === uid) continue; // only incoming
+
+      const text = safeStr(m?.text);
+      if (!text) continue;
+
+      const isShort = safeStr(m?.chatMode) === 'short';
+      if (isShort) continue;
+
+      const existing =
+        m?.translations && typeof m.translations === 'object'
+          ? safeStr(m.translations?.[effectiveTargetLang])
+          : '';
+      if (existing) continue;
+
+      const attemptedKey = `${effectiveTargetLang}:${msgId}`;
+      if (autoTranslateAttemptedRef.current.has(attemptedKey)) continue;
+
+      candidateIds.push(msgId);
+    }
+
+    if (!candidateIds.length) return;
+
+    const timer = setTimeout(() => {
+      (async () => {
+        if (autoTranslateInFlightRef.current) return;
+        autoTranslateInFlightRef.current = true;
+        try {
+          for (const msgId of candidateIds) {
+            const attemptedKey = `${effectiveTargetLang}:${msgId}`;
+            autoTranslateAttemptedRef.current.add(attemptedKey);
+            if (autoTranslateAttemptedRef.current.size > 800) {
+              autoTranslateAttemptedRef.current = new Set(Array.from(autoTranslateAttemptedRef.current).slice(-500));
+            }
+            await autoTranslateMessage({ messageId: msgId });
+          }
+        } finally {
+          autoTranslateInFlightRef.current = false;
+        }
+      })();
+    }, 350);
+
+    return () => clearTimeout(timer);
+  }, [effectiveTargetLang, isPreview, longChatAllowed, messages, messagesLoading, mid, uid]);
+
   const startActive = async () => {
+    if (isPreview) {
+      openPreviewGate({ reason: t('previewGate.body') });
+      return;
+    }
     if (!uid || !mid) return;
     if (lockedByOtherActiveMatch) {
       setActiveStartState({ loading: false, error: t('studio.matchProfile.errors.activeStartLocked') });
@@ -841,6 +1176,7 @@ export default function StudioMatchProfile() {
   };
 
   useEffect(() => {
+    if (isPreview) return;
     if (!mid || !uid) return;
     // Profile sayfası açılınca unread söndür.
     authFetch('/api/matchmaking-chat-mark-read', {
@@ -848,13 +1184,17 @@ export default function StudioMatchProfile() {
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ matchId: mid }),
     }).catch(() => undefined);
-  }, [mid, uid]);
+  }, [isPreview, mid, uid]);
 
   const [cancelState, setCancelState] = useState({ loading: false, error: '' });
   const activeCancelByUid = match?.activeCancelByUid && typeof match.activeCancelByUid === 'object' ? match.activeCancelByUid : {};
   const iCancelled = !!(uid && activeCancelByUid?.[uid]);
 
   const cancelActiveMutual = async () => {
+    if (isPreview) {
+      openPreviewGate({ reason: t('previewGate.body') });
+      return;
+    }
     if (!uid || !mid) return;
     if (!isActiveMatchForMe) return;
     if (cancelCooldownRemainingMs > 0) return;
@@ -877,7 +1217,7 @@ export default function StudioMatchProfile() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900">
+    <div className="min-h-screen bg-slate-50 text-slate-900 pb-24 sm:pb-0">
       <Navigation />
 
       <main className="container mx-auto px-4 py-6">
@@ -895,8 +1235,29 @@ export default function StudioMatchProfile() {
             </div>
             <p className="mt-1 text-sm text-amber-900/80">{paywallNotice}</p>
             <div className="mt-3">
-              <Link to="/profilim" className="text-sm font-semibold underline">
+              <button type="button" onClick={activateFreeMembershipNow} className="text-sm font-semibold underline">
                 {t('studio.paywall.upgradeCta')}
+              </button>
+            </div>
+          </div>
+        ) : null}
+
+        {profileGateNotice ? (
+          <div className="mb-4 mx-auto max-w-4xl rounded-xl border border-amber-200 bg-amber-50 p-4 text-amber-950">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="font-semibold">{t('studio.profileGate.title')}</p>
+              <button
+                type="button"
+                onClick={() => setProfileGateNotice('')}
+                className="rounded-md px-2 py-1 text-sm font-semibold text-amber-900/70 hover:bg-amber-100"
+              >
+                {t('studio.common.close')}
+              </button>
+            </div>
+            <p className="mt-1 text-sm text-amber-900/80">{profileGateNotice}</p>
+            <div className="mt-3">
+              <Link to="/evlilik/eslestirme-basvuru?w=1" className="text-sm font-semibold underline">
+                {t('studio.profileGate.cta')}
               </Link>
             </div>
           </div>
@@ -1099,6 +1460,7 @@ export default function StudioMatchProfile() {
                         <div className="mt-3 flex flex-wrap items-center gap-2">
                           <button
                             type="button"
+                            data-tutorial-id="match-profile-request-details"
                             onClick={requestProfileAccess}
                             disabled={
                               profileAccessReq.loading ||
@@ -1315,7 +1677,9 @@ export default function StudioMatchProfile() {
 
                   {/* Önizleme alanları (full profile gerekmez) */}
                   <InfoRow label={t('studio.myInfo.fields.city')} value={otherCity} />
-                  {otherOccupation ? <InfoRow label={t('studio.myInfo.fields.occupation')} value={otherOccupation} /> : null}
+                  {safeStr(occupationLabel) || otherOccupation ? (
+                    <InfoRow label={t('studio.myInfo.fields.occupation')} value={safeStr(occupationLabel) || otherOccupation} />
+                  ) : null}
                   {!isSingleMarital && otherHasChildrenRaw === 'yes' ? (
                     <InfoRow
                       label={t('studio.myInfo.fields.hasChildren')}
@@ -1355,10 +1719,20 @@ export default function StudioMatchProfile() {
                       <InfoRow label={t('studio.myInfo.fields.heightCm')} value={safeStr(otherMerged?.details?.heightCm)} />
                       <InfoRow label={t('studio.myInfo.fields.weightKg')} value={safeStr(otherMerged?.details?.weightKg)} />
                       <InfoRow label={t('studio.myInfo.fields.education')} value={safeStr(educationLabel) || safeStr(otherMerged?.details?.education)} />
-                      <InfoRow label={t('studio.myInfo.fields.educationDepartment')} value={safeStr(otherMerged?.details?.educationDepartment)} />
+                      <InfoRow
+                        label={t('studio.myInfo.fields.educationDepartment')}
+                        value={getLocalizedProfileText(otherMerged?.details, 'educationDepartment', i18n.language) || safeStr(otherMerged?.details?.educationDepartment)}
+                      />
                       {/* occupation artık önizleme alanında gösteriliyor; burada tekrar etmiyoruz */}
                       <InfoRow label={t('studio.myInfo.fields.religion')} value={safeStr(religionLabel) || safeStr(otherMerged?.details?.religion)} />
-                      <InfoRow label={t('studio.myInfo.fields.religiousValues')} value={safeStr(otherMerged?.details?.religiousValues)} />
+                      <InfoRow
+                        label={t('studio.myInfo.fields.religiousValues')}
+                        value={
+                          getLocalizedProfileText(otherMerged?.details, 'religiousValues', i18n.language) ||
+                          tOption('religiousValues', otherMerged?.details?.religiousValues) ||
+                          safeStr(otherMerged?.details?.religiousValues)
+                        }
+                      />
                       {/* hasChildren artık önizleme alanında gösteriliyor; burada tekrar etmiyoruz */}
                       {String(otherMerged?.details?.hasChildren || '').trim() === 'yes' ? (
                         <>
@@ -1375,7 +1749,13 @@ export default function StudioMatchProfile() {
                       <InfoRow label={t('studio.myInfo.fields.relocationWillingness')} value={safeStr(relocationLabel) || safeStr(otherMerged?.details?.relocationWillingness)} />
                       <InfoRow label={t('studio.myInfo.fields.preferredLivingCountry')} value={safeStr(preferredLivingCountryLabel) || safeStr(otherMerged?.details?.preferredLivingCountry)} />
                       <InfoRow label={t('studio.myInfo.fields.communicationLanguage')} value={safeStr(commLanguageLabel) || safeStr(otherMerged?.details?.communicationLanguage)} />
-                      <InfoRow label={t('studio.myInfo.fields.communicationLanguageOther')} value={safeStr(otherMerged?.details?.communicationLanguageOther)} />
+                      <InfoRow
+                        label={t('studio.myInfo.fields.communicationLanguageOther')}
+                        value={
+                          getLocalizedProfileText(otherMerged?.details, 'communicationLanguageOther', i18n.language) ||
+                          safeStr(otherMerged?.details?.communicationLanguageOther)
+                        }
+                      />
                       <InfoRow label={t('studio.myInfo.fields.smoking')} value={safeStr(smokingLabel) || safeStr(otherMerged?.details?.smoking)} />
                       <InfoRow label={t('studio.myInfo.fields.alcohol')} value={safeStr(alcoholLabel) || safeStr(otherMerged?.details?.alcohol)} />
                       <InfoRow
@@ -1388,7 +1768,11 @@ export default function StudioMatchProfile() {
                       />
                       <InfoRow
                         label={t('studio.myInfo.fields.foreignLanguageOther')}
-                        value={safeStr(otherMerged?.details?.languages?.foreign?.other || otherMerged?.details?.foreignLanguageOther)}
+                        value={
+                          safeStr(otherMerged?.details?.languages?.foreign?.other) ||
+                          getLocalizedProfileText(otherMerged?.details, 'foreignLanguageOther', i18n.language) ||
+                          safeStr(otherMerged?.details?.foreignLanguageOther)
+                        }
                       />
                       {/* about/expectations artık önizleme alanında gösteriliyor; burada tekrar etmiyoruz */}
                     </>
@@ -1451,6 +1835,27 @@ export default function StudioMatchProfile() {
           {/* Long chat area (only active match) */}
           {longChatAllowed ? (
             <div ref={chatSectionRef} className="p-4">
+              <div className="mb-2 flex items-center justify-end gap-2">
+                <span className="text-[11px] font-semibold text-slate-500">{t('studio.chat.translateTargetLabel')}</span>
+                <select
+                  value={effectiveTargetLang}
+                  onChange={(e) => {
+                    const next = normalizeTranslateTarget(e.target.value) || 'tr';
+                    setTranslateTargetLang(next);
+                    try {
+                      if (translateTargetStorageKey) window.localStorage.setItem(translateTargetStorageKey, next);
+                    } catch {
+                      // noop
+                    }
+                  }}
+                  className="h-8 rounded-md border border-slate-200 bg-white px-2 text-xs font-semibold text-slate-700 shadow-sm"
+                  aria-label={t('studio.chat.translateTargetLabel')}
+                >
+                  <option value="tr">{t('matchmakingPage.form.options.commLanguage.tr')}</option>
+                  <option value="id">{t('matchmakingPage.form.options.commLanguage.id')}</option>
+                  <option value="en">{t('matchmakingPage.form.options.commLanguage.en')}</option>
+                </select>
+              </div>
               <div ref={scrollRef} className="h-[52vh] overflow-y-auto rounded-lg border border-slate-200 bg-slate-50 p-3">
                 {messagesLoading ? <p className="text-sm text-slate-500">{t('studio.chat.messagesLoading')}</p> : null}
                 {!messagesLoading && Array.isArray(messages) && messages.length === 0 ? (
@@ -1473,7 +1878,7 @@ export default function StudioMatchProfile() {
 
                     const translated =
                       m?.translations && typeof m.translations === 'object'
-                        ? safeStr(m.translations?.[targetLang])
+                        ? safeStr(m.translations?.[effectiveTargetLang])
                         : '';
 
                     return (
@@ -1495,7 +1900,7 @@ export default function StudioMatchProfile() {
                           {text}
                           {!fromMe ? (
                             <div className="mt-2 flex items-center justify-between gap-2">
-                              {translated ? <div className="text-xs text-slate-600">{targetLang.toUpperCase()}: {translated}</div> : <span />}
+                              {translated ? <div className="text-xs text-slate-600">{effectiveTargetLang.toUpperCase()}: {translated}</div> : <span />}
                               <button
                                 type="button"
                                 onClick={() => translateMessage({ messageId: m.id })}
@@ -1686,6 +2091,7 @@ export default function StudioMatchProfile() {
         ) : null}
       </main>
 
+      <StudioBottomNav />
       <Footer />
     </div>
   );

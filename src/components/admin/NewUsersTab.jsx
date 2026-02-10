@@ -65,6 +65,37 @@ function getUcCodeFromApplicationDoc(appDoc) {
   return uc;
 }
 
+function getAnyAbout(app) {
+  const it = app && typeof app === 'object' ? app : null;
+  if (!it) return '';
+
+  const legacyBio = safeStr(it?.bio);
+  if (legacyBio) return legacyBio;
+
+  const direct = safeStr(it?.about) || safeStr(it?.aboutTr) || safeStr(it?.aboutId);
+  if (direct) return direct;
+
+  const details = it?.details && typeof it.details === 'object' ? it.details : null;
+  const detailsAbout =
+    safeStr(details?.about) ||
+    safeStr(details?.bio) ||
+    safeStr(details?.aboutTr) ||
+    safeStr(details?.aboutId) ||
+    safeStr(details?.bioTr) ||
+    safeStr(details?.bioId);
+  if (detailsAbout) return detailsAbout;
+
+  const pp = it?.publicProfile && typeof it.publicProfile === 'object' ? it.publicProfile : null;
+  const ppAbout =
+    safeStr(pp?.about) ||
+    safeStr(pp?.bio) ||
+    safeStr(pp?.aboutTr) ||
+    safeStr(pp?.aboutId) ||
+    safeStr(pp?.bioTr) ||
+    safeStr(pp?.bioId);
+  return ppAbout;
+}
+
 function isStubAndIncomplete(it) {
   const isStub = (() => {
     const src = safeStr(it?.source).toLowerCase();
@@ -74,13 +105,14 @@ function isStubAndIncomplete(it) {
   })();
 
   const isFormCompleted = (() => {
-    const about = safeStr(it?.about);
-    const expectations = safeStr(it?.expectations);
+    const about = getAnyAbout(it);
+    const expectations = safeStr(it?.expectations) || safeStr(it?.expectationsTr) || safeStr(it?.expectationsId);
     const wroteOnceMs = typeof it?.profileTextWriteOnceUsedAtMs === 'number' && Number.isFinite(it.profileTextWriteOnceUsedAtMs)
       ? it.profileTextWriteOnceUsedAtMs
       : 0;
     const hasEditOnce = !!it?.userEditOnceUsedAt || wroteOnceMs > 0;
-    return hasEditOnce || (!!about && !!expectations);
+    // 2026-02: Apply form no longer asks for expectations.
+    return hasEditOnce || !!about || (!!about && !!expectations);
   })();
 
   return isStub && !isFormCompleted;
@@ -634,7 +666,7 @@ export default function NewUsersTab() {
                   setNotifyEnabled(next);
                 }}
                 className={`px-3 py-2 rounded-lg text-xs font-semibold border transition ${
-                  notifyEnabled ? 'bg-emerald-600 text-white border-emerald-700' : 'bg-white text-slate-800 border-slate-200 hover:bg-slate-50'
+                  notifyEnabled ? 'bg-emerald-500 text-white border-emerald-600' : 'bg-white text-slate-800 border-slate-200 hover:bg-slate-50'
                 }`}
                 title={
                   canNotify()

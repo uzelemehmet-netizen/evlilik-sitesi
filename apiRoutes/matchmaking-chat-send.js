@@ -1,6 +1,7 @@
 import { getAdmin, normalizeBody, requireIdToken } from './_firebaseAdmin.js';
-import { ensureEligibleOrThrow, ensureProfileCompleteOrThrow } from './_matchmakingEligibility.js';
+import { ensureMembershipActiveOrThrow, ensureProfileCompleteOrThrow } from './_matchmakingEligibility.js';
 import { assertNotResetIgnoredMatch, getMatchmakingResetAtMs } from './_matchmakingReset.js';
+import { detectForbiddenChatText } from './_chatTextFilter.js';
 
 function safeStr(v) {
   return typeof v === 'string' ? v.trim() : '';
@@ -170,29 +171,7 @@ const LIMITED_CHAT_TEXT_MAX = 240;
 
 // Eligibility kontrolü artık ortak helper üzerinden.
 
-function containsContactLikeText(text) {
-  const s = String(text || '').toLowerCase();
-
-  // Links / domains
-  if (/https?:\/\//i.test(s) || /www\./i.test(s) || /\b[a-z0-9-]+\.(com|net|org|id|tr|me)\b/i.test(s)) return true;
-
-  // Social keywords
-  if (/(instagram|insta|\big\b|facebook|\bfb\b|telegram|\bt\.me\b|whatsapp|\bwa\.me\b|line\b|tiktok|discord)/i.test(s)) return true;
-
-  // Handle-like
-  if (/@[a-z0-9_\.]{2,}/i.test(s)) return true;
-
-  // Phone-like: long digit sequences (avoid false positives like 170 cm)
-  const digitsOnly = s.replace(/[^0-9]/g, '');
-  if (digitsOnly.length >= 8) {
-    // require either +, or multiple separators, or very long number
-    if (/\+\s*\d{8,}/.test(s)) return true;
-    if (digitsOnly.length >= 10) return true;
-    if (/(\d[\s\-\.\(\)]*){8,}/.test(s)) return true;
-  }
-
-  return false;
-}
+// Text filtering is handled by shared helper.
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -225,7 +204,8 @@ export default async function handler(req, res) {
       return;
     }
 
-    if (containsContactLikeText(text)) {
+    const filtered = detectForbiddenChatText(text);
+    if (filtered.forbidden) {
       res.statusCode = 400;
       res.setHeader('content-type', 'application/json');
       res.end(JSON.stringify({ ok: false, error: 'filtered' }));
@@ -299,6 +279,12 @@ export default async function handler(req, res) {
       const lockMatchId = safeStr(lock?.matchId);
       const longChatAllowed = (status === 'mutual_accepted' || status === 'contact_unlocked') && lockActive && lockMatchId === matchId;
 
+      // Ürün kuralı: Üyelik aktif değilken sadece mesaj alabilir; kısa mesaj gönderemez.
+      // Long chat (aktif eşleşme) akışında üyelik zorunlu değil.
+      if (!longChatAllowed) {
+        ensureMembershipActiveOrThrow(me);
+      }
+
       // Yeni ürün kuralı: Aktif eşleşme varken diğer profillerle etkileşim yok.
       // Bu yüzden, aktif lock başka bir match'e aitse kısa mesaj da engellenir.
       if (!longChatAllowed && lockActive && lockMatchId && lockMatchId !== matchId) {
@@ -349,10 +335,6 @@ export default async function handler(req, res) {
           throw err;
         }
       }
-
-      // Etkileşim kuralı: (env ile) mesaj göndermek için üyelik gerekebilir.
-      // Not: Alıcı taraf için eligibility zorlamıyoruz.
-      ensureEligibleOrThrow(me, myGender);
 
       // Uzun chat kapalıysa: kısa mesaj + limit + daha kısa uzunluk.
       if (!longChatAllowed) {

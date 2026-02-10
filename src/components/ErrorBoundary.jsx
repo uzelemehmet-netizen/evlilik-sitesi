@@ -21,10 +21,39 @@ export default class ErrorBoundary extends React.Component {
     }
   }
 
-  componentDidUpdate(prevProps) {
+  componentDidUpdate(prevProps, prevState) {
     // Dev HMR sonrası: hata düzeldiyse beyaz ekranda takılı kalmasın.
     if (this.state.hasError && prevProps.resetKey !== this.props.resetKey) {
       this.reset();
+      return;
+    }
+
+    // İlk kez hata ekranına düşüldüyse ve bu bir chunk/SW hatasına benziyorsa,
+    // SW + cache temizleyip otomatik reload deneriz (session başına 1 kez).
+    if (!prevState?.hasError && this.state.hasError) {
+      try {
+        const msg = this.getErrorMessage();
+        if (this.isLikelyChunkLoadError(msg)) {
+          const key = '__uniqah_auto_repair_attempted__';
+          const attempted = (() => {
+            try {
+              return sessionStorage.getItem(key) === '1';
+            } catch {
+              return false;
+            }
+          })();
+          if (!attempted) {
+            try {
+              sessionStorage.setItem(key, '1');
+            } catch {
+              // ignore
+            }
+            this.hardReload({ reason: 'chunk_load_error_auto' });
+          }
+        }
+      } catch {
+        // ignore
+      }
     }
   }
 
@@ -36,12 +65,94 @@ export default class ErrorBoundary extends React.Component {
     }
   };
 
-  handleReload = () => {
+  getErrorMessage = () => {
+    const e = this.state.error;
+    if (!e) return '';
+    if (typeof e === 'string') return e;
+    if (typeof e?.message === 'string') return e.message;
+    try {
+      return String(e);
+    } catch {
+      return '';
+    }
+  };
+
+  isLikelyChunkLoadError = (msg) => {
+    const s = String(msg || '').toLowerCase();
+    if (!s) return false;
+    return (
+      s.includes('loading chunk') ||
+      s.includes('chunkloaderror') ||
+      s.includes('failed to fetch dynamically imported module') ||
+      s.includes('importing a module script failed') ||
+      s.includes('dynamically imported module') ||
+      s.includes('cannot find module') ||
+      s.includes('unexpected token <')
+    );
+  };
+
+  hardReload = async ({ reason } = {}) => {
+    try {
+      // Service worker unregister (PWA cache mismatch'i çözmek için)
+      if (typeof navigator !== 'undefined' && navigator.serviceWorker?.getRegistrations) {
+        try {
+          const regs = await navigator.serviceWorker.getRegistrations();
+          await Promise.all(
+            regs.map((r) => {
+              try {
+                return r.unregister();
+              } catch {
+                return false;
+              }
+            })
+          );
+        } catch {
+          // ignore
+        }
+      }
+
+      // Cache API temizle
+      if (typeof caches !== 'undefined' && caches?.keys) {
+        try {
+          const keys = await caches.keys();
+          await Promise.all(
+            keys.map((k) => {
+              try {
+                return caches.delete(k);
+              } catch {
+                return false;
+              }
+            })
+          );
+        } catch {
+          // ignore
+        }
+      }
+
+      // Cache-buster ile yeniden yükle (CDN/HTTP cache'in eski index'i servis etmesini azaltır)
+      try {
+        const url = new URL(window.location.href);
+        url.searchParams.set('__reload', String(Date.now()));
+        if (reason) url.searchParams.set('__reason', String(reason));
+        window.location.replace(url.toString());
+        return;
+      } catch {
+        // ignore
+      }
+    } catch {
+      // ignore
+    }
+
+    // Son çare
     try {
       window.location.reload();
     } catch {
       // ignore
     }
+  };
+
+  handleReload = () => {
+    this.hardReload({ reason: 'user_clicked_reload' });
   };
 
   render() {
@@ -62,17 +173,7 @@ export default class ErrorBoundary extends React.Component {
         }
       };
 
-      const errMsg = (() => {
-        const e = this.state.error;
-        if (!e) return '';
-        if (typeof e === 'string') return e;
-        if (typeof e?.message === 'string') return e.message;
-        try {
-          return String(e);
-        } catch {
-          return '';
-        }
-      })();
+      const errMsg = this.getErrorMessage();
 
       return (
         <div className="min-h-screen bg-white flex items-center justify-center px-4">

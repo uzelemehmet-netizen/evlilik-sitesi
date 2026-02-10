@@ -144,6 +144,11 @@ export default function Footer() {
             </h4>
             <ul className="space-y-2 text-gray-400">
               <li>
+                <Link to="/documents" className="hover:text-white transition">
+                  {t('footer.legal.documents')}
+                </Link>
+              </li>
+              <li>
                 <a
                   href="/docs/matchmaking-kullanim-sozlesmesi.html"
                   target="_blank"
@@ -151,6 +156,16 @@ export default function Footer() {
                   className="hover:text-white transition"
                 >
                   {t('footer.legal.userAgreement')}
+                </a>
+              </li>
+              <li>
+                <a
+                  href="/docs/kvkk-aydinlatma-metni.html"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="hover:text-white transition"
+                >
+                  {t('footer.legal.kvkkNotice')}
                 </a>
               </li>
               <li>

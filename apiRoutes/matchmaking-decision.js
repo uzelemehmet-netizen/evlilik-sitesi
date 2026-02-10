@@ -1,6 +1,6 @@
 import { getAdmin, normalizeBody, requireIdToken } from './_firebaseAdmin.js';
 import { assertNotResetIgnoredMatch, getMatchmakingResetAtMs } from './_matchmakingReset.js';
-import { ensureEligibleOrThrow, ensureProfileCompleteOrThrow } from './_matchmakingEligibility.js';
+import { ensureMembershipActiveOrThrow, ensureProfileCompleteOrThrow } from './_matchmakingEligibility.js';
 
 function normalizeDecision(v) {
   const s = String(v || '').toLowerCase().trim();
@@ -383,12 +383,10 @@ export default async function handler(req, res) {
         }
       }
 
-      const myGender = safeStr(myApp?.gender);
-
-      // Üyelik/eligibility: beğeni/reddetme aksiyonları için zorunlu.
-      // revoke (geri alma) ise, kullanıcı kilitlenmesin diye serbest bırakıyoruz.
-      if (decision !== 'revoke') {
-        ensureEligibleOrThrow(meUser, myGender);
+      // Üyelik: beğeni (accept) göndermek için zorunlu.
+      // Not: reject / revoke serbest (kullanıcıyı kilitlememek ve inbox temizliği için).
+      if (decision === 'accept') {
+        ensureMembershipActiveOrThrow(meUser);
       }
 
       const decisions = {

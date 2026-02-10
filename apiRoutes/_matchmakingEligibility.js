@@ -74,6 +74,17 @@ function ensureEligibleOrThrow(userDoc, gender) {
   }
 }
 
+function ensureMembershipActiveOrThrow(userDoc) {
+  if (isDevBypassEnabled()) return;
+
+  const member = isMembershipActive(userDoc);
+  if (!member) {
+    const err = new Error('membership_required');
+    err.statusCode = 402;
+    throw err;
+  }
+}
+
 async function ensureProfileCompleteOrThrow(db, uid) {
   const userId = safeStr(uid);
   if (!db || !userId) {
@@ -113,6 +124,7 @@ export {
   isIdentityVerified,
   computeFreeActiveMembershipState,
   ensureEligibleOrThrow,
+  ensureMembershipActiveOrThrow,
   ensureProfileCompleteOrThrow,
   isFreeActiveEnabled,
   isInteractionMembershipOnlyEnabled,

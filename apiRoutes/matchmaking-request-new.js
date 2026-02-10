@@ -112,6 +112,38 @@ function isSeedApplication(app) {
   return false;
 }
 
+function isAutoStubApplication(app) {
+  const source = safeStr(app?.source).toLowerCase();
+  if (source === 'auto_stub') return true;
+  if (app?.details?.autoBootstrap === true) return true;
+  return false;
+}
+
+function pickBestNonStubApplication(apps) {
+  const list = Array.isArray(apps) ? apps : [];
+  let best = null;
+  let bestScore = -Infinity;
+  for (const a of list) {
+    if (!a || typeof a !== 'object') continue;
+    const created = appCreatedAtMs(a);
+    const isStub = isAutoStubApplication(a);
+    const score = (isStub ? 0 : 1000) + (created > 0 ? created : 0);
+    if (score > bestScore) {
+      bestScore = score;
+      best = a;
+    }
+  }
+  return best;
+}
+
+function genderFromApplication(app) {
+  const direct = normalizeGender(app?.gender);
+  if (direct) return direct;
+  const nested = normalizeGender(app?.details?.gender);
+  if (nested) return nested;
+  return '';
+}
+
 function dedupeAppsByUserIdKeepFirst(apps) {
   const list = Array.isArray(apps) ? apps : [];
   const seen = new Set();
@@ -491,11 +523,10 @@ function canRematchMatchDoc(match, nowMs) {
 
 async function resolveGenderFromAnyApplication(db, uid) {
   try {
-    const snap = await db.collection('matchmakingApplications').where('userId', '==', uid).limit(1).get();
-    const doc = snap?.docs?.[0];
-    if (!doc) return '';
-    const data = doc.data() || {};
-    return typeof data?.gender === 'string' ? data.gender.trim() : '';
+    const snap = await db.collection('matchmakingApplications').where('userId', '==', uid).limit(10).get();
+    const apps = Array.isArray(snap?.docs) ? snap.docs.map((d) => d.data() || {}) : [];
+    const best = pickBestNonStubApplication(apps);
+    return genderFromApplication(best);
   } catch {
     return '';
   }
@@ -547,12 +578,12 @@ export default async function handler(req, res) {
       .limit(10)
       .get();
     const seekerDocsPre = Array.isArray(seekerSnapPre?.docs) ? seekerSnapPre.docs : [];
-    const seekerPre = seekerDocsPre
-      .map((d) => ({ id: d.id, ...(d.data() || {}) }))
-      .sort((a, b) => appCreatedAtMs(b) - appCreatedAtMs(a))[0] || null;
+    const seekerAppsPre = seekerDocsPre.map((d) => ({ id: d.id, ...(d.data() || {}) }));
+    const seekerPre = pickBestNonStubApplication(seekerAppsPre);
     // Minimal model: sadece cinsiyet + yaş aralığı uyumu.
     // lookingForGender zorunlu değil (eski başvurularla uyum için).
-    if (!seekerPre || !seekerPre?.userId || !seekerPre?.gender) {
+    const seekerGenderPre = genderFromApplication(seekerPre);
+    if (!seekerPre || !seekerPre?.userId || !seekerGenderPre) {
       const err = new Error('application_required');
       err.statusCode = 400;
       throw err;
@@ -560,7 +591,7 @@ export default async function handler(req, res) {
 
     // Transaction içinde query yapmamak için gender fallback’ını burada çöz.
     // Preflight ile seeker gender zaten var; yine de ekstra güvenlik için fallback bırakıyoruz.
-    const genderFallback = normalizeGender(seekerPre?.gender) || normalizeGender(await resolveGenderFromAnyApplication(db, uid));
+    const genderFallback = seekerGenderPre || normalizeGender(await resolveGenderFromAnyApplication(db, uid));
 
     const ts = nowMs();
     const today = dayKeyUtc(ts);

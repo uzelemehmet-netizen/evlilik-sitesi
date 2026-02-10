@@ -34,12 +34,43 @@ function genderLabel(g) {
   return '-';
 }
 
+function getAnyAbout(app) {
+  const it = app && typeof app === 'object' ? app : null;
+  if (!it) return '';
+
+  const legacyBio = safeStr(it?.bio);
+  if (legacyBio) return legacyBio;
+
+  const direct = safeStr(it?.about) || safeStr(it?.aboutTr) || safeStr(it?.aboutId);
+  if (direct) return direct;
+
+  const details = it?.details && typeof it.details === 'object' ? it.details : null;
+  const detailsAbout =
+    safeStr(details?.about) ||
+    safeStr(details?.bio) ||
+    safeStr(details?.aboutTr) ||
+    safeStr(details?.aboutId) ||
+    safeStr(details?.bioTr) ||
+    safeStr(details?.bioId);
+  if (detailsAbout) return detailsAbout;
+
+  const pp = it?.publicProfile && typeof it.publicProfile === 'object' ? it.publicProfile : null;
+  const ppAbout =
+    safeStr(pp?.about) ||
+    safeStr(pp?.bio) ||
+    safeStr(pp?.aboutTr) ||
+    safeStr(pp?.aboutId) ||
+    safeStr(pp?.bioTr) ||
+    safeStr(pp?.bioId);
+  return ppAbout;
+}
+
 function isUnknownUser(app) {
   const source = safeStr(app?.source).toLowerCase();
   const isStub = source === 'auto_stub' || app?.details?.autoBootstrap === true;
 
-  const about = safeStr(app?.about);
-  const expectations = safeStr(app?.expectations);
+  const about = getAnyAbout(app);
+  const expectations = safeStr(app?.expectations) || safeStr(app?.expectationsTr) || safeStr(app?.expectationsId);
 
   const wroteOnceMs =
     typeof app?.profileTextWriteOnceUsedAtMs === 'number' && Number.isFinite(app.profileTextWriteOnceUsedAtMs)
@@ -47,7 +78,8 @@ function isUnknownUser(app) {
       : 0;
 
   const hasEditOnce = !!app?.userEditOnceUsedAt || wroteOnceMs > 0;
-  const completed = hasEditOnce || (!!about && !!expectations);
+  // 2026-02: Apply form no longer asks for expectations.
+  const completed = hasEditOnce || !!about || (!!about && !!expectations);
 
   return isStub && !completed;
 }
@@ -154,7 +186,7 @@ export default function NewUsers48hTab() {
             className={
               `px-3 py-2 rounded-lg text-sm font-semibold border transition ` +
               (subTab === 'filled'
-                ? 'bg-emerald-600 text-white border-emerald-700'
+                ? 'bg-emerald-500 text-white border-emerald-600'
                 : 'bg-white text-gray-800 border-gray-200 hover:bg-gray-50')
             }
           >

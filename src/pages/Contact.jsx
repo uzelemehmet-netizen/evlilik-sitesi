@@ -335,7 +335,7 @@ export default function Contact() {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full bg-emerald-600 text-white py-3 rounded-lg font-semibold hover:bg-emerald-700 transition disabled:opacity-50"
+                  className="w-full bg-emerald-500 text-white py-3 rounded-lg font-semibold hover:bg-emerald-600 transition disabled:opacity-50"
                   style={{ fontFamily: '"Poppins", sans-serif' }}
                 >
                   {loading ? t('contact.form.submitting') : t('contact.form.submit')}

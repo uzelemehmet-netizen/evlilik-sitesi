@@ -35,12 +35,12 @@ export default defineConfig(({ mode }) => {
         manifestFilename: 'pwa-manifest.webmanifest',
         // Bazı ortamlarda plugin generateSW'e düşebildiği için aynı kuralı workbox tarafına da koyuyoruz.
         workbox: {
-          globPatterns: ['**/*.{js,css,html,ico,svg,woff2,webmanifest,txt,xml,json}'],
+          globPatterns: ['**/*.{js,css,ico,svg,woff2,webmanifest,txt,xml,json}'],
           globIgnores: ['**/*.{jpg,jpeg,png,webp,avif,gif,mp4,mov,m4v}'],
         },
         injectManifest: {
           // Precache sadece "app shell" için: büyük görseller (public/*.jpg vb.) build'i kırmasın.
-          globPatterns: ['**/*.{js,css,html,ico,svg,woff2,webmanifest,txt,xml,json}'],
+          globPatterns: ['**/*.{js,css,ico,svg,woff2,webmanifest,txt,xml,json}'],
           globIgnores: ['**/*.{jpg,jpeg,png,webp,avif,gif,mp4,mov,m4v}'],
         },
         manifest: {

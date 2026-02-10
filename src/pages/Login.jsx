@@ -42,6 +42,7 @@ export default function Login() {
   const [mode, setMode] = useState("login"); // login | signup
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [signupGender, setSignupGender] = useState(""); // male | female
   const [signupNationality, setSignupNationality] = useState(""); // tr | id | other
   const [signupNationalityOther, setSignupNationalityOther] = useState("");
@@ -89,12 +90,21 @@ export default function Login() {
     return path === '/wedding/apply' || path === '/evlilik/eslestirme-basvuru' || path === '/evlilik/eslestirme-basvurusu';
   };
 
-  const hasExistingApplication = async (uid) => {
+  const hasCompletedApplication = async (uid) => {
     if (!uid) return false;
     try {
-      const q = query(collection(db, 'matchmakingApplications'), where('userId', '==', uid), limit(1));
+      const q = query(collection(db, 'matchmakingApplications'), where('userId', '==', uid), limit(10));
       const snap = await getDocs(q);
-      return !snap.empty;
+      if (snap.empty) return false;
+
+      // "auto_stub" / autoBootstrap başvurular gerçek profil sayılmaz.
+      for (const d of snap.docs) {
+        const a = d.data() || {};
+        const source = String(a?.source || '').trim().toLowerCase();
+        const isStub = source === 'auto_stub' || a?.details?.autoBootstrap === true;
+        if (!isStub) return true;
+      }
+      return false;
     } catch (e) {
       // Hata olursa kullanıcıyı bloklamayalım; varsayılan akış devam etsin.
       return false;
@@ -240,10 +250,11 @@ export default function Login() {
     const stored = readStoredRedirect();
     const candidate = stored?.from || redirectTarget.from || '';
 
+    // Yeni kayıt: kayıt sonrası ilk adım profil formu.
+    if (isNewUser) return '/evlilik/eslestirme-basvuru?w=1';
+
     // Kullanıcı "başvuru" sayfasına gitmek istediyse onu koru.
-    // Not: Yeni kayıt olan kullanıcı, kayıt sonrası doğrudan /profilim'e gitmeli.
-    // Mobilde back tuşu ile formdan çıkma gibi hatalı akışları engeller.
-    if (isMatchmakingApplyPath(candidate)) return isNewUser ? '/profilim' : candidate;
+    if (isMatchmakingApplyPath(candidate)) return candidate;
 
     // Mevcut kullanıcıyı (ve yeni kullanıcıyı) her zaman profil sayfasına götür.
     // Böylece Google login sonrası anasayfaya dönüp "form yükleniyor" gibi geçişler yaşanmaz.
@@ -255,8 +266,7 @@ export default function Login() {
     return stored?.fromState || redirectTarget.fromState || null;
   };
 
-  // Ürün kararı (2026-02): Kayıt sonrası kullanıcı form ekranına zorlanmaz.
-  // Kullanıcı /profilim sayfasına yönlendirilir; formu istediği zaman doldurur.
+  // Not: 2026-02 ürün kararındaki "signup sonrası forma zorlamama" akışı geri alındı.
 
   const navigateNext = (target, state) => {
     if (hasNavigatedRef.current) return;
@@ -269,7 +279,7 @@ export default function Login() {
   const navigateNextWithApplyGuard = async (uid, target, state) => {
     let next = target;
     if (isMatchmakingApplyPath(next)) {
-      const exists = await hasExistingApplication(uid);
+      const exists = await hasCompletedApplication(uid);
       if (exists) {
         next = '/profilim';
         state = null;
@@ -513,7 +523,7 @@ export default function Login() {
               <button
                 type="button"
                 onClick={() => navigate('/profilim', { replace: true })}
-                className="px-4 py-2 rounded-xl bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700"
+                className="px-4 py-2 rounded-xl bg-emerald-500 text-white text-sm font-semibold hover:bg-emerald-600"
               >
                 {t('authPage.redirectScreen.goProfile')}
               </button>
@@ -735,9 +745,16 @@ export default function Login() {
       // Copy/paste sırasında şifrenin başına/sonuna boşluk gelmesi çok yaygın.
       const rawPassword = String(password || '');
       const passwordToUse = rawPassword.trim();
+      const rawConfirmPassword = String(confirmPassword || '');
+      const confirmPasswordToUse = rawConfirmPassword.trim();
 
       if (!normalizedEmail || !passwordToUse) {
         setError(t("authPage.errors.emailPasswordRequired"));
+        return;
+      }
+
+      if (mode === 'signup' && passwordToUse !== confirmPasswordToUse) {
+        setError(t('authPage.errors.passwordsDoNotMatch'));
         return;
       }
 
@@ -773,10 +790,10 @@ export default function Login() {
           setError(t('authPage.errors.emailAlreadyInUse'));
           return;
         }
-        // Ürün kararı: yeni kullanıcı kaydı sonrası form sayfasına zorlamıyoruz.
+        // Signup sonrası ilk adım: başvuru formu.
         // Önemli: createUserWithEmailAndPassword ile auth state hızlıca değişebilir.
-        // Redirect effect'i tetiklenmeden önce hedefi /profilim'e zorlayalım.
-        writeForcedTarget('/profilim');
+        // Redirect effect'i tetiklenmeden önce hedefi zorlayalım.
+        writeForcedTarget('/evlilik/eslestirme-basvuru?w=1');
         const cred = await createUserWithEmailAndPassword(auth, normalizedEmail, passwordToUse);
         await ensureProfileSaved(cred?.user?.uid, signupGender, signupNationality, signupNationalityOther, signupAge);
         await bootstrapMatchmakingApplication(cred?.user, {
@@ -789,8 +806,8 @@ export default function Login() {
         clearAuthIntent();
         clearSignupProfile();
 
-        // Mobilde bazı tarayıcılarda sessionStorage hedefi okunamayabiliyor ve kullanıcı tekrar forma dönebiliyor.
-        // Signup sonrası kesin olarak profil sayfasına git.
+        // Mobilde bazı tarayıcılarda sessionStorage hedefi okunamayabiliyor.
+        // Signup sonrası kesin olarak başvuru sayfasına git.
         try {
           clearStoredRedirect();
           writeForcedTarget('');
@@ -798,7 +815,7 @@ export default function Login() {
           // ignore
         }
         hasNavigatedRef.current = true;
-        navigate('/profilim', { replace: true });
+        navigate('/evlilik/eslestirme-basvuru?w=1', { replace: true });
         return;
       } else {
         // Login: bazı Firebase konfiglerinde fetchSignInMethodsForEmail boş dönebilir.
@@ -960,6 +977,21 @@ export default function Login() {
               />
             </div>
 
+            {mode === 'signup' && (
+              <div>
+                <label className="block text-xs font-semibold text-slate-700">{t('authPage.labels.confirmPassword')}</label>
+                <input
+                  data-testid="signup-confirm-password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  type="password"
+                  autoComplete="new-password"
+                  className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
+                  placeholder={t('authPage.placeholders.confirmPassword')}
+                />
+              </div>
+            )}
+
             {/* Signup alanları için anchor */}
             <div ref={signupSectionRef} />
 
@@ -1068,7 +1100,7 @@ export default function Login() {
               data-testid="login-submit"
               type="submit"
               disabled={busy}
-              className="w-full px-5 py-3 rounded-2xl bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700 disabled:opacity-60"
+              className="w-full px-5 py-3 rounded-2xl bg-emerald-500 text-white text-sm font-semibold hover:bg-emerald-600 disabled:opacity-60"
             >
               {mode === "signup" ? t("authPage.actions.signup") : t("authPage.actions.login")}
             </button>
@@ -1115,6 +1147,18 @@ export default function Login() {
               <Link to="/privacy" className="text-sky-700 hover:underline">
                 {t("authPage.legal.privacy")}
               </Link>
+              <span className="mx-1">·</span>
+              <Link to="/documents" className="text-sky-700 hover:underline">
+                {t('footer.legal.documents')}
+              </Link>
+              <span className="mx-1">·</span>
+              <a href="/docs/kvkk-aydinlatma-metni.html" target="_blank" rel="noopener noreferrer" className="text-sky-700 hover:underline">
+                {t('footer.legal.kvkkNotice')}
+              </a>
+              <span className="mx-1">·</span>
+              <a href="/docs/site-kurallari.html" target="_blank" rel="noopener noreferrer" className="text-sky-700 hover:underline">
+                {t('footer.legal.siteRules')}
+              </a>
             </span>
           </p>
         </div>

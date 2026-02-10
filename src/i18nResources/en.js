@@ -1,4 +1,10 @@
 export default {
+    previewGate: {
+      title: 'You need to sign up first',
+      body: 'To do this, you must sign up and complete the matchmaking form first.',
+      signup: 'Sign up',
+      dismiss: 'Skip',
+    },
   appErrorBoundary: {
     title: 'Something went wrong',
     body: 'The page could not be loaded. Please try refreshing.',
@@ -12,6 +18,20 @@ export default {
           'Add to your home screen for faster access. Enable notifications to get instant alerts for messages, likes, and match requests.',
         installButton: 'Install app',
         installed: 'Installed',
+      preview: {
+        matches: {
+          title: 'My Profile: Matches',
+          body: 'Matches, requests and chats are managed from the My Profile screen.',
+        },
+        pool: {
+          title: 'Pool: Candidates',
+          body: 'You can browse candidates and send requests or likes.',
+        },
+        request: {
+          title: 'Send a match request',
+          body: 'These buttons are a preview. To perform real actions, you must sign up and complete the application form first.',
+        },
+      },
         installedHint: 'The app is on your home screen. You can also enable notifications.',
         installAvailableHint: 'Your browser supports installation. Click to install.',
         installNotAvailableHint:
@@ -113,11 +133,55 @@ export default {
     close: "Close",
   },
 
+  matchmakingPreview: {
+    badge: 'My Profile preview',
+    title: 'Preview the My Profile screen (tutorial)',
+    subtitle:
+      'The sections below are a preview. To send requests, like, or message, you must sign up first and complete the application form.',
+    actions: {
+      signup: 'Sign up',
+      goProfile: 'Go to My Profile',
+      goApply: 'Fill the form',
+    },
+    gate: {
+      title: 'You must sign up first',
+      body: 'To like, message, or send a match request, you must sign up and complete the form first.',
+      ctaSignup: 'Sign up and fill the form',
+      ctaApply: 'Go to the form',
+    },
+    cards: {
+      matches: {
+        title: 'Matches',
+        body: 'Track requests, likes, and matches here.',
+        cta: 'View matches',
+      },
+      pool: {
+        title: 'Pool',
+        body: 'Browse candidates and send requests or likes.',
+        cta: 'Go to pool',
+        request: 'Send match request',
+        like: 'Like',
+      },
+      chat: {
+        title: 'Chat',
+        body: 'If you match, you can chat here.',
+        mockTitle: 'Sample chat',
+        mockSystem: 'System',
+        mockMsg1: 'Hi, how are you?',
+        mockMsg2: 'I’m good, thanks. How about you?',
+        inputPlaceholder: 'Type a message…',
+        send: 'Send',
+        gateHint: 'Sign up first to chat.',
+      },
+    },
+    note: 'Note: This is a preview; real data appears on your profile page.',
+  },
+
   footer: {
     brandBlurb:
       'A brand of {{company}}. We connect people with care — and support your journey from meeting to marriage.',
     brandsTitle: 'Brands',
-    brandNoteDameturk: '(Turkey)',
+    brandNoteDameturk: '',
     sections: {
       quickLinks: 'Quick Links',
       legal: 'Legal',
@@ -129,12 +193,14 @@ export default {
       whatsapp: 'WhatsApp',
     },
     legal: {
+      documents: 'Documents',
       userAgreement: 'Matchmaking User Agreement',
+      kvkkNotice: 'Personal Data Notice (KVKK)',
       siteRules: 'Site Rules',
       refundPolicy: 'Cancellation & Refund Policy',
-      privacyPolicy: 'Privacy Policy',
-    },
-    companyInfo: {
+        confirmError: 'Confirmation failed: {{error}}',
+        contactRequestError: 'Contact request failed: {{error}}',
+        contactApproveError: 'Contact approval failed: {{error}}',
       title: 'Company Information',
       labels: {
         legalName: 'Legal name',
@@ -144,8 +210,8 @@ export default {
       },
     },
     phoneNotes: {
-      trLine: 'Turkey line',
-      idLine: 'Indonesia line',
+      trLine: 'WhatsApp line',
+      idLine: 'Alternative WhatsApp line',
     },
     whatsappMessages: {
       general: 'Hello, I’d like to get information.',
@@ -160,6 +226,51 @@ export default {
       whatsapp: 'WhatsApp',
     },
     copyright: '© {{year}} {{company}}. All rights reserved.',
+  },
+
+  tour: {
+    common: {
+      skip: 'Skip',
+      next: 'Next',
+      done: 'Done',
+      missingHint: 'This step is not visible right now. You can continue.',
+    },
+    onboarding: {
+      matches: {
+        title: 'Matches',
+        body: 'Manage likes, requests, and matches on this screen.',
+      },
+      pool: {
+        title: 'Pool',
+        body: 'Browse candidates and send a match request.',
+      },
+      request: {
+        title: 'Match request',
+        body: 'Send a match request. If the other user approves, a match is created.',
+      },
+    },
+    like: {
+      title: 'Like',
+      body: 'Use Like to show interest. You can undo it later.',
+    },
+    activeStart: {
+      title: 'Active match',
+      body: 'After mutual like, start the active match to open chat.',
+    },
+    chat: {
+      input: {
+        title: 'Message',
+        body: 'Type your message here.',
+      },
+      send: {
+        title: 'Send',
+        body: 'Use this button to send your message.',
+      },
+    },
+    profileDetails: {
+      title: 'Profile details',
+      body: 'Request permission to view profile details.',
+    },
   },
 
   ui: {
@@ -326,7 +437,7 @@ export default {
       goToMatchCard: 'Go to match card',
       profileModalTitle: 'Profile',
       actionsSoon: 'Coming soon: short message',
-      notInTheirRange: "To interact, you must also be within their age range.",
+      notInTheirRange: 'To interact, you must be within their age range.',
       notInTheirRangeShort: 'Age range mismatch',
     },
 
@@ -337,16 +448,16 @@ export default {
     },
 
     paywall: {
-      upgradeTitle: 'Membership required',
-      upgradeToInteract: 'An active membership is required to do this. Upgrade to a paid plan to like and send messages.',
-      upgradeToReply: 'An active membership is required to reply. Upgrade to a paid plan to send messages.',
-      upgradeCta: 'Upgrade',
+      upgradeTitle: 'Membership activation required',
+      upgradeToInteract: 'Activate membership to continue. Free for now.',
+      upgradeToReply: 'Activate membership to reply. Free for now.',
+      upgradeCta: 'Activate membership (Free)',
     },
 
     profileGate: {
       important: 'IMPORTANT',
       title: 'Complete your profile',
-      body: 'To activate your membership and interact with other users, you must first complete the profile form. Until you submit the form, you cannot send requests or respond to incoming requests.',
+      body: 'Complete the profile form to chat and send/answer requests.',
       cta: 'Fill the profile form',
       badge: 'Unknown user',
     },
@@ -452,6 +563,7 @@ export default {
         liked: 'Liked',
         unlike: 'Undo like',
         message: 'Short message',
+        messageLong: 'Message',
         profileDetails: 'Profile details',
       },
       photos: {
@@ -479,6 +591,8 @@ export default {
       banners: {
         locked: 'You have an active match — others are locked',
         newMessage: 'New message',
+        incomingLikeNote: 'This person sent you a like',
+        activeChatStarted: 'Your active match has started. Tap the Message button to begin unlimited messaging.',
       },
     },
     matches: {
@@ -509,28 +623,29 @@ export default {
       ],
       activeLockTitle: 'You have an active match',
       activeLockBody: 'Interactions with other profiles are locked. Go to the <link>active match page</link> to manage it.',
-      requestFailed: 'Match request failed: {{error}}',
+      requestFailed: 'Request failed: {{error}}',
       requestOk: 'Request sent. It may appear in your list within seconds.',
       loading: 'Loading…',
-      loadFailed: 'Matches could not be loaded. ({{error}})',
+      loadFailed: 'Matches could not be loaded: {{error}}',
       noneTitle: 'No matches yet.',
-      noneBody: 'If you just created a profile, the first match can be generated within seconds. You can also trigger it manually here.',
+      noneBody:
+        'If you have just created a new profile, you can interact in your match list by sending requests from the Explore page to suitable profiles, or by approving incoming requests to add them to your match list. Once you match, you can use likes, short messages, and detailed profile viewing. If you couldn’t find a suitable match, install the app on your phone and enable notifications so you can be informed instantly about updates. If your goal is marriage, finding the right person can take time; we recommend being patient.',
       shortModal: {
         subtitle: 'Short message (limit 5) • for quick, profile-external info',
         remaining: 'Remaining: {{remaining}} / {{limit}}',
         noMessages: 'No messages yet.',
-        translateError: 'Translation error: {{error}}',
+        translateError: 'Translation failed: {{error}}',
         translating: 'Translating…',
         translate: 'Translate',
         placeholder: 'Write a short question…',
       },
       inboxSync: {
-        title: 'Inbox sync issue',
+        title: 'Inbox issue',
         refresh: 'Refresh from server',
         refreshing: 'Refreshing…',
-        note: 'Note: This button fetches the same data via the server (Admin SDK) even if Firestore listeners are broken.',
+        note: 'Note: Fetches the same data from the server if Firestore listeners are broken.',
         permissionDenied: 'No Firestore read permission (permission-denied). Firebase project: {{projectId}} (try refreshing from server)',
-        listenFailed: 'Firestore {{kind}} inbox listener failed: {{error}} (try refreshing from server)',
+        listenFailed: 'Firestore inbox ({{kind}}) failed: {{error}} (try refreshing from server)',
         kinds: {
           likes: 'likes',
           requests: 'requests',
@@ -540,8 +655,8 @@ export default {
       },
       errors: {
           goToMatchCard: 'Go to match card',
-        activeLocked: 'You cannot message other profiles while you have an active match. First, mutually cancel your active match.',
-        shortLimit: 'You have used all your short messages (5). To continue, after mutual like you must start the active match.',
+        activeLocked: 'You cannot message other profiles while you have an active match. End your active match first.',
+        shortLimit: 'You used all short messages (5). To continue, start the active match.',
       },
     },
     chat: {
@@ -551,29 +666,28 @@ export default {
       emojiHint: 'You can add emojis',
       matchTestOnlyActive: 'Match test can only be opened in an active match.',
       shortAreaTitle: 'Short message area',
-      shortAreaDesc:
-        'This area is only for learning more about the person (topics not in the profile, short questions about character).',
-      shortAreaLimit: 'Your limit is {{limit}} messages. Remaining: {{remaining}}',
-      otherActiveLock: 'Because your active match is with someone else, long chat is not available in this match.',
+      shortAreaDesc: 'For quick questions (topics not in the profile).',
+      shortAreaLimit: 'Limit: {{limit}} • Left: {{remaining}}',
+      otherActiveLock: 'Your active match is with someone else. Long chat is closed here.',
       noMessages: 'No messages yet. Send the first message.',
       matchLoading: 'Loading match…',
       matchNotFound: 'Match not found.',
       messagesLoading: 'Loading messages…',
-      sendFailed: 'Message could not be sent: {{error}}',
+      sendFailed: 'Message could not be sent. {{error}}',
       inputPlaceholderLong: 'Write a message…',
       inputPlaceholderShort: 'Write a short question/message…',
       notAvailable: 'Messaging is currently unavailable.',
       lockedTitle: 'Other matches are temporarily locked',
-      lockedBody: 'While you have an active match, messaging in other matches is disabled. It will re-open when the lock expires.',
+      lockedBody: 'While you have an active match, messaging in other matches is disabled.',
       notAllowed: 'You are not allowed to view this chat.',
       notOpenTitle: 'Messaging is not open yet',
-      notOpenBody: 'Messaging opens after the match becomes active (mutual approval).',
+      notOpenBody: 'Messaging opens when the match becomes active.',
       you: 'You',
       remainingTime: '{{hours}}h {{minutes}}m',
       lock48h: {
         title: '48-hour private chat + contact sharing',
-        subtitle: 'After mutual confirmation and the timer completes, contact details can be shared.',
-        lockedRemaining: 'Still locked. Remaining: {{time}}',
+        subtitle: 'Contact unlocks after confirmation + time.',
+        lockedRemaining: 'Locked. Left: {{time}}',
         confirming: 'Confirming…',
         confirmed: 'Confirmed',
         confirm: 'Confirm 48 hours',
@@ -595,9 +709,9 @@ export default {
           pendingOther: 'Other side requested (you can approve)',
           closed: 'Closed',
         },
-        confirmError: 'Confirmation error: {{error}}',
-        contactRequestError: 'Contact request error: {{error}}',
-        contactApproveError: 'Contact approval error: {{error}}',
+        confirmError: 'Confirmation failed: {{error}}',
+        contactRequestError: 'Contact request failed: {{error}}',
+        contactApproveError: 'Contact approval failed: {{error}}',
         whatsappTitle: 'WhatsApp',
         openInWhatsApp: 'Open in WhatsApp',
       },
@@ -657,14 +771,14 @@ export default {
           'You are about to start the active match.\n\n- You can have only 1 active match (other profiles will be locked).\n- After activation, you cannot cancel for the first 2 hours.\n\nDo you confirm?',
       },
       cancel: {
-        title: 'Cancel active match',
-        desc: 'Cancellation is mutual. After you cancel, the other side must also cancel.',
+        title: 'End active match',
+        desc: 'Ending is mutual. After you end it, the other side must also end it.',
         cooldown: 'To prevent abuse, cancellation is disabled for the first 2 hours after activation. Remaining: {{time}}',
-        request: 'Cancel active match',
-        requestSent: 'Cancel request sent',
-        waitingOther: 'Waiting for the other side to cancel.',
+        request: 'End active match',
+        requestSent: 'End request sent',
+        waitingOther: 'Waiting for the other side to end it.',
         confirmPrompt:
-          'You are about to cancel the active match.\n\n- Cancellation is mutual: the match closes only after both sides cancel.\n- After cancellation, the interaction lock with other profiles is removed.\n\nDo you confirm?',
+          'You are about to end the active match.\n\n- Ending is mutual: the match closes only after both sides end it.\n- After ending, the interaction lock with other profiles is removed.\n\nDo you confirm?',
       },
       mutualLike: {
         title: 'You have a mutual like',
@@ -718,6 +832,16 @@ export default {
       expectationsPlaceholder: 'Write what you are looking for…',
       saveTexts: 'Save',
       textsSaved: 'Saved.',
+
+      partnerPrefsTitle: 'Partner preferences',
+      partnerPrefsCta: 'Edit',
+      partnerPrefsSave: 'Save',
+      partnerPrefsSaving: 'Saving…',
+      partnerPrefsSaved: 'Saved.',
+      partnerPrefsErrors: {
+        failed: 'Could not save. Please try again.',
+      },
+
       subscriptionTitle: 'Subscription',
       subscriptionActiveDesc: 'Your membership is active. You can access all features.',
       subscriptionPassiveDesc: 'Your membership is inactive. Some actions may be restricted without membership.',
@@ -834,8 +958,7 @@ export default {
             title: '4) After marriage',
             items: [
               'Registering the marriage with Turkish and Indonesian authorities',
-              'If living in Türkiye: family visa application',
-              'If living in Indonesia: residence permit procedures',
+              'Planning post-marriage administrative steps based on your country of residence',
             ],
           },
         },
@@ -1061,6 +1184,7 @@ export default {
         failed: 'Copy failed.',
         what: {
           userId: 'User ID',
+          translateTargetLabel: 'Translate to',
           matchId: 'Match ID',
           reference: 'Reference',
           receiptLink: 'Receipt link',
@@ -1152,7 +1276,43 @@ export default {
     badge: 'Private & moderated process',
     title: 'Marriage matchmaking system',
     description:
-      'A closed matchmaking system that brings together people who are serious about marriage—on equal and safe terms. Profiles are not public; the system shows the most compatible candidates in your panel and helps you find the right person faster.',
+      'The system is new—please be patient. Matches usually arrive within 1–3 days. Install the app and enable notifications so you don’t miss updates.',
+    preview: {
+      title: "What will you see in 'My Profile' after signing up?",
+      subtitle:
+        'These sample cards are not real user data; they are only a quick walkthrough of how the system works after registration.',
+      cta: 'Sign up free',
+      cards: {
+        matches: {
+          title: 'Matches & statuses',
+          body: 'Mutual interest, activation, and communication steps progress here—each step is controlled.',
+          mockTitle: 'Example',
+          mockItem1: 'Suggested match',
+          mockItem1Sub: 'Status: mutual interest (example)',
+          mockTag1: 'Review',
+          mockItem2: 'Active match',
+          mockItem2Sub: 'Status: chat open (example)',
+          mockTag2: 'Message',
+        },
+        pool: {
+          title: 'Pool (candidates)',
+          body: 'Browse eligible candidates, send a request, or skip. If the other side approves, a match card opens.',
+          mockTitle: 'Example',
+          mockItem1: 'Candidate profile card (example)',
+          mockItem1Sub: 'Age • City • Short summary (example)',
+          mockCta: 'Send request',
+        },
+        chat: {
+          title: 'Safer messaging',
+          body: 'Messages are filtered; early-stage phone/email/link sharing is blocked.',
+          mockTitle: 'Example',
+          mockSystem: 'System: Safer communication enabled',
+          mockMsg1: 'Hi, how are you? (example)',
+          mockMsg2: 'Chat first, then approval steps (example)',
+          mockHint: 'Note: Contact sharing unlocks after 48 hours + mutual approval.',
+        },
+      },
+    },
     actions: {
       loginExisting: 'Log in if you already have a profile',
         package: 'Package',
@@ -1175,6 +1335,7 @@ export default {
         packageHelp: 'Price and permissions are applied based on the selected package.',
       apply: 'Apply for matchmaking',
       goPanel: 'My profile',
+      tour: 'Show panel tour',
       backWedding: 'Back to wedding page',
       supportWhatsApp: 'WhatsApp support',
     },
@@ -1327,11 +1488,11 @@ export default {
   },
 
   meta: {
-    baseTitle: "Uniqah | PT MoonStar Global Indonesia",
+    baseTitle: 'Uniqah | Marriage Matchmaking',
     baseDescription:
-      "Uniqah (PT MoonStar Global Indonesia) provides matchmaking, guided steps, and safer communication for the process.",
+      'Uniqah is a closed matchmaking system focused on marriage and safer in-app communication.',
     pages: {
-      home: { title: "Uniqah | PT MoonStar Global Indonesia" },
+      home: { title: 'Uniqah | Marriage Matchmaking' },
       about: { title: "About" },
       corporate: { title: "Corporate" },
       contact: { title: "Contact" },
@@ -1356,10 +1517,10 @@ export default {
 
   weddingPage: {
     hero: {
-      badge: "Guidance for Turkish–Indonesian couples",
-      title: "We’re with you for your wedding preparation in Indonesia",
+      badge: 'Guidance for the marriage process',
+      title: 'We’re with you for your wedding preparation',
       description:
-        "We plan the paperwork, official procedures, family-to-family communication, and the full organization process in Indonesia together—turning it into a reassuring journey away from uncertainty.",
+        'We plan the paperwork, official procedures, family-to-family communication, and the key organization steps together—turning it into a reassuring journey away from uncertainty.',
       actions: {
         openForm: "Open the Wedding Plan Form",
         matchmakingHub: "Matchmaking",
@@ -1374,7 +1535,7 @@ export default {
       },
     },
     whatsapp: {
-      quickChatMessage: "Hello, I'd like to get information about getting married in Indonesia.",
+      quickChatMessage: "Hello, I'd like to get information about wedding preparation and guidance.",
     },
     stickyBackToProfile: {
       label: 'Back to my profile',
@@ -1408,11 +1569,11 @@ export default {
           ],
         },
         {
-          title: "Ongoing guidance & visas",
+          title: "Ongoing guidance",
           items: [
             "Continuous guidance until the marriage is completed",
-            "Visa and residence permit guidance for living in Indonesia",
-            "Spouse visa and residence process guidance for living in Turkey",
+            "General guidance on official steps (via official authorities)",
+            "A high-level post-marriage administrative roadmap",
           ],
         },
       ],
@@ -1422,7 +1583,7 @@ export default {
       flexibleP2:
         "You can get to know the process, us, and how we work better by watching the videos on our YouTube channel.",
       flexibleNote:
-        'You can fill out the "Wedding Plan" form below, or review the required documents in detail from the "Marriage Documents in Indonesia" tab.',
+        'You can fill out the "Wedding Plan" form below, or review the required documents in detail from the "Marriage Documents" tab.',
     },
     steps: [
       {
@@ -1438,16 +1599,16 @@ export default {
       {
         title: "We manage the process step by step",
         description:
-          "From your arrival in Indonesia until the marriage is completed, we’re with you at every step.",
+          'From your arrival until the marriage is completed, we’re with you at every step.',
       },
     ],
     images: {
-      prepAlt: "Wedding preparation details in Indonesia",
-      ceremonyAlt: "Wedding ceremony in Indonesia",
+      prepAlt: 'Wedding preparation details',
+      ceremonyAlt: 'Wedding ceremony',
     },
     tabs: {
       plan: "Wedding Plan",
-      documents: "Marriage Documents in Indonesia",
+      documents: 'Marriage Documents',
     },
     plan: {
       title: "Share your wedding plan with us",
@@ -1511,7 +1672,7 @@ export default {
       },
     },
     documents: {
-      title: "Required documents for foreign–Indonesian marriage in Indonesia",
+      title: 'Required documents for marriage (general checklist)',
       subtitle:
         "The headings below are for general information. We check the exact and up-to-date list for your situation together.",
       foreignSpouse: {
@@ -1519,24 +1680,24 @@ export default {
         intro: "In general, these are the core documents requested from the foreign spouse:",
         items: [
           "Valid passport (with at least 6 months validity)",
-          "Indonesian entry visa or ITAS/ITAP",
-          "Certificate of no impediment to marriage (from the Turkish Embassy in Indonesia)",
+          'Entry/residency requirements (if applicable)',
+          'Certificate of no impediment to marriage (from the relevant consulate/authority)',
           "Birth certificate (multilingual)",
-          "Single status certificate (translated into Indonesian and apostilled)",
+          'Single status certificate (translated/apostilled if required)',
           "If applicable, divorce decree or death certificate (translated and notarized)",
           "Proof of residence",
           "Passport photo taken within the last 6 months",
         ],
       },
       indonesianSpouse: {
-        title: "Documents for the Indonesian spouse",
-        intro: "For the Indonesian citizen spouse, the following documents are commonly required:",
+        title: 'Documents for the local spouse',
+        intro: 'For the locally registered spouse, the following documents are commonly required:',
         items: [
-          "KTP (identity card)",
-          "Akte Lahir (birth certificate)",
-          "Kartu Keluarga (family card)",
-          "Marital status letter (single / divorced / widowed)",
-          "Forms N1–N10 and RW/RT approvals",
+          'National identity document',
+          'Birth certificate',
+          'Family registry document',
+          'Marital status letter (single / divorced / widowed)',
+          'Local application forms and required approvals',
           "Passport photo taken within the last 6 months",
         ],
       },
@@ -1554,7 +1715,7 @@ export default {
       importantNotes: {
         title: "📌 Important notes",
         items: [
-          "For many documents, apostille and Indonesian translation are mandatory. (Check with the KUA your partner is affiliated with)",
+          'For many documents, apostille and local-language translation may be required (check with the relevant authority).',
           "A single typo, a missing document, or an incorrect processing order can negatively affect the whole application.",
           "The required documents and workflow may vary by city, institution, and officer.",
         ],
@@ -1573,17 +1734,17 @@ export default {
           "Message us; based on your city, citizenship, and situation, let’s clarify the most up-to-date document list together.",
         action: "Ask my document list on WhatsApp",
         message:
-          "Hello, I'd like to get information about the marriage process and required documents in Indonesia.",
+          "Hello, I'd like to get information about the marriage process and required documents.",
       },
     },
     faq: {
       items: [
         {
-          q: "How long does the marriage process take on average in Indonesia?",
+          q: 'How long does the marriage process take on average?',
           a: "Depending on your document readiness, the city you apply in, and institutional workload, the planning and official procedures typically take from a few weeks to a few months.",
         },
         {
-          q: "What should be my first step for getting married in Indonesia?",
+          q: 'What should be my first step for getting married?',
           a: "First, you should clarify which documents are required for your case. After reviewing the list, you can contact us on WhatsApp so we can build an up-to-date checklist based on your city and situation.",
         },
         {
@@ -1776,7 +1937,7 @@ export default {
       home: "Hi, I'd like to get information about Uniqah.",
       explore: "Hi, I'd like to get more information.",
       travel: "Hi, I'd like to get more information.",
-      wedding: "Hi, I'd like to get information about getting married in Indonesia.",
+      wedding: "Hi, I'd like to get information about the marriage process.",
       youtube: "Hi, I'd like to get information about your YouTube videos.",
       contact: "Hi, I'd like to get information about contacting you.",
       tours: "Hi, I'd like to get more information.",
@@ -1786,13 +1947,13 @@ export default {
 
   home: {
     hero: {
-      badgeCompany: "Registered in Indonesia: PT MoonStar Global Indonesia",
+      badgeCompany: 'PT MoonStar Global Indonesia',
       badgeSocial: "Uniqah social channels",
       title: "Uniqah",
-      subtitle: "Matchmaking • Wedding guidance • On-the-ground support in Indonesia",
+      subtitle: 'Matchmaking • Wedding guidance • Safer in-app communication',
       description:
-        "Uniqah is our Indonesia-focused matchmaking system. We aim for a safe, respectful and transparent process with clear steps. When needed, we also provide on-the-ground support such as translation, logistics and guidance for official steps.",
-      note: "A Indonesia-based setup founded by a Turkish entrepreneur living in Indonesia.",
+        'Uniqah is our marriage-oriented matchmaking system. We aim for a safe, respectful, and transparent process with clear steps. When needed, we also provide translation and process guidance.',
+      note: 'A marriage-oriented setup with privacy and safety as priorities.',
       ctaTours: "Start application",
       ctaBrochures: "View documents",
       ctaTrust: "Trust & Legal",
@@ -1805,8 +1966,8 @@ export default {
           description: "Pre-registration → written offer → contract/payment steps are straightforward.",
         },
         {
-          title: "Turkish support",
-          description: "WhatsApp support via Türkiye line; operations in Indonesia.",
+          title: 'Fast support',
+          description: 'WhatsApp-based support; multi-language help when needed.',
         },
         {
           title: "Legal structure",
@@ -1995,14 +2156,14 @@ export default {
             "With reporting, blocking and support flows, we aim to prevent negative experiences from repeating.",
         },
         guidance: {
-          title: "A bridge between two cultures",
+          title: 'A bridge across languages and cultures',
           p1:
-            "When Turkish–Indonesian communication and cultural differences are not managed well, processes become harder. We help both sides express themselves through translation, communication support and guidance.",
+            'When cross-language communication and cultural differences are not managed well, processes become harder. We help both sides express themselves through translation, communication support and guidance.',
         },
         wedding: {
-          title: "Wedding guidance in Indonesia",
+          title: 'Wedding guidance',
           p1:
-            "Alongside matchmaking, we guide couples planning to get married in Indonesia on timing, local practices and overall coordination.",
+            'Alongside matchmaking, we guide couples planning their wedding process on timing, local practices and overall coordination.',
           p2:
             "From paperwork and appointments to translation, accommodation/transport and ceremony planning, we take responsibility as an on-the-ground team.",
         },
@@ -2013,7 +2174,7 @@ export default {
         },
       },
       outro:
-        "For more information about the <1>Uniqah</1> matchmaking system and <3>Wedding</3> guidance in Indonesia, you can explore these pages. For official texts and policies, use the <5>Documents</5> section.",
+        'For more information about the <1>Uniqah</1> matchmaking system and <3>Wedding</3> guidance, you can explore these pages. For official texts and policies, use the <5>Documents</5> section.',
     },
     story: {
       title: "Our short story",
@@ -2037,7 +2198,7 @@ export default {
         translation: {
           title: "Translation & communication support",
           description:
-            "We can support Turkish–Indonesian communication with interpreters for matchmaking chats and official meetings—reducing the language barrier and increasing confidence.",
+            'We can support cross-language communication with interpreters for matchmaking chats and official meetings—reducing the language barrier and increasing confidence.',
         },
         privatePlan: {
           title: "Process planning",
@@ -2055,9 +2216,9 @@ export default {
             "Practical guidance on the ground when needed.",
         },
         wedding: {
-          title: "Guidance for getting married in Indonesia",
+          title: 'Wedding guidance',
           description:
-            "For couples planning to marry in Indonesia, we provide guidance on timing, local practices, translation and overall coordination.",
+            'For couples planning to marry, we provide guidance on timing, local practices, translation and overall coordination.',
         },
       },
     },
@@ -2101,7 +2262,7 @@ export default {
         {
           title: "Healthy communication across cultures",
           description:
-            "With translation and guidance for Turkish–Indonesian communication, we reduce misunderstandings and support a healthier process.",
+            'With translation and communication guidance across languages, we reduce misunderstandings and support a healthier process.',
         },
       ],
     },
@@ -2259,6 +2420,7 @@ export default {
     labels: {
       email: 'Email',
       password: 'Password',
+      confirmPassword: 'Confirm password',
       gender: 'Gender',
       nationality: 'Nationality',
       nationalityOther: 'Other nationality (specify)',
@@ -2267,6 +2429,7 @@ export default {
     placeholders: {
       email: 'example@email.com',
       password: 'Your password',
+      confirmPassword: 'Repeat your password',
       nationality: 'Select nationality',
       nationalityOther: 'e.g., Germany',
       age: 'e.g., 27',
@@ -2316,6 +2479,7 @@ export default {
       invalidEmail: 'That email address looks invalid. Please check it and try again.',
       emailAlreadyInUse: 'An account already exists with this email. Please sign in or use “Forgot password”.',
       weakPassword: 'Password is too weak. Please choose a stronger password (e.g., at least 6 characters).',
+      passwordsDoNotMatch: 'Passwords do not match. Please type the same password again.',
       emailPasswordRequired: 'Email and password are required.',
       genderRequired: 'Please select your gender to sign up.',
       nationalityRequired: 'Please select your nationality to sign up.',
@@ -2374,13 +2538,13 @@ export default {
       empty: 'No photos uploaded yet.',
       updateRequest: {
         title: 'Photo update request',
-        lead: 'Upload 3 new photos. They will be updated after admin approval.',
+        lead: 'Upload 1–3 new photos. They will be updated after admin approval.',
         pending: 'Under review',
         cta: 'Send request',
         uploading: 'Uploading…',
         success: 'Request received. Your photos will be updated after review.',
         errors: {
-          photosRequired: 'Please choose 3 photos.',
+          photosRequired: 'Please choose at least 1 photo.',
           photoType: 'Please select image files only (jpg/png/webp).',
           applicationNotFound: 'Application not found. Please fill the form first.',
           failed: 'Could not send request. Please try again.',
@@ -2512,7 +2676,8 @@ export default {
       editOnceCta: 'Save changes (one-time)',
       editOnceSaving: 'Saving…',
       editOnceSuccess: 'Update received. Your form has been updated.',
-      editOnceUsed: 'This one-time edit has already been used. The form cannot be edited again.',
+      editOnceUsed: 'Profile information can be updated only once. Your request failed because you have no edits left.',
+      editOnceWarning: 'Warning: this is a one-time edit. Please make sure your information is correct before submitting.',
       editOnceErrors: {
         failed: 'Update failed. Please try again.',
         empty: 'You cannot submit an empty update. Please fill at least one field.',
@@ -2571,7 +2736,7 @@ export default {
       verificationRequired: 'Identity verification is required to perform this action.',
       membershipOrVerificationRequired: 'This action requires an active membership.',
       freeActiveMembershipRequired: 'This action requires an active account.',
-      freeActiveMembershipBlocked: 'Your activation privilege is disabled. You need a paid membership for this action.',
+      freeActiveMembershipBlocked: 'Your activation privilege is disabled. Please contact support.',
       otherUserMatched: 'This person is already matched with someone else.',
       alreadyMatched: 'You already have a match.',
       userLocked: 'Your match process is locked. This action is not allowed.',
@@ -2582,7 +2747,7 @@ export default {
       requestNewFailed: 'Could not request a new match.',
       requestNewRateLimited: 'You are requesting too often. Please try again later.',
       requestNewQuotaExhausted: 'You have used up today’s new match quota (3/3). Please try again tomorrow.',
-      requestNewFreeActiveBlocked: 'You cannot request a new match because your activation privilege was cancelled. You need a paid membership to reactivate.',
+      requestNewFreeActiveBlocked: 'You cannot request a new match because your activation privilege was cancelled. Please contact support.',
       freeSlotFailed: 'Free slot action failed.',
       freeSlotQuotaExhausted: 'You have used today\'s free slot quota (1/1). Please try again tomorrow.',
       cooldownActive: 'Please wait a bit before doing this again. Remaining: {{remaining}}',
@@ -2673,7 +2838,7 @@ export default {
       freeActiveActive: 'Your account is active.',
       freeActiveTermsTitle: 'Free activation terms',
       freeActiveTermsBody:
-        'If you activate your account for free and you are inactive for 48 hours, activation may be cancelled. On re-activation, the window drops to 24 hours. If you are inactive again, you need a paid membership to reactivate and you cannot request a new match.',
+        'If you activate your account for free and you are inactive for 48 hours, activation may be cancelled. On re-activation, the window drops to 24 hours. If you are inactive again, activation may be cancelled again and new match requests may be restricted.',
       freeActiveApply: 'Activate account for free',
       freeActiveApplying: 'Applying…',
       freeActiveApplied: 'Free activation enabled. Window: {{hours}} hours.',
@@ -2697,7 +2862,7 @@ export default {
         lead: 'Flow for male users:',
         points: [
           'Matching and limited previews are free.',
-          'Viewing full details, like/reject and contacting require a paid membership.',
+          'Viewing full details, like/reject and contacting require an active membership (free for now).',
         ],
       },
       female: {
@@ -2774,6 +2939,7 @@ export default {
       title: 'Membership actions',
       statusLabel: 'Membership',
       activate: 'Activate my membership',
+      freeActivateCta: 'Activate membership for free',
       cancel: 'Cancel my membership',
       cancelDisabledHint: 'You cannot cancel until membership is active.',
       deleteAccount: 'Delete account',
@@ -2787,7 +2953,10 @@ export default {
       loading: 'Working…',
       alreadyActive: 'Your membership is already active',
       successActivated: 'Your membership was activated.',
+      successActivatedUntil: 'Your membership was activated. Valid until: {{date}} ({{count}} days left).',
       promoActivated: 'Your Eco plan was activated for free. Ends on {{date}} ({{count}} days left).',
+      freeNowTitle: 'Membership is free for now',
+      freeNowBody: 'Membership is currently free and can be activated instantly.\nOnce we reach enough members, we may add a payment step and switch to a paid model.',
       successCancelled: 'Your membership was cancelled.',
     },
     membershipGate: {
@@ -3351,7 +3520,22 @@ export default {
     bottomNote:
       'Note: This form is a marriage-focused matchmaking application; profiles are not publicly listed on the site.',
     form: {
+      previewProfile: {
+        title: 'Preview the My Profile screen (tutorial)',
+        body: 'Before submitting, quickly see how the My Profile screen works. The preview opens in a new tab.',
+        open: 'Open profile preview',
+      },
+      preSubmitTour: {
+        title: 'Before sending, let’s preview the My Profile screen',
+        body:
+          'After you send your application, you will manage your matches from the “My Profile” screen. Before the final submission, let’s show a quick tutorial. (It opens in a new tab; this form stays open.)',
+        open: 'Open My Profile (new tab)',
+        continue: 'Continue and send application',
+        later: 'Not now',
+      },
       applicationIdLabel: 'Application ID',
+      deferCta: 'Fill later',
+      deferError: 'Could not redirect right now. Please try again.',
       wizard: {
         badge: 'Quick Application',
         step: 'Step {{current}} / {{total}}',
@@ -3430,7 +3614,7 @@ export default {
         religion: 'Religion',
         religiousValues: 'Religious values',
         familyApprovalStatus: 'Family approval',
-        familyObstacle: 'Is there a family obstacle for a Turkish–Indonesian marriage?',
+        familyObstacle: 'Is there a family obstacle for an international marriage?',
         marriageTimeline: 'Marriage timeline',
         relocationWillingness: 'Relocation willingness',
         preferredLivingCountry: 'Preferred living country',
@@ -3617,7 +3801,7 @@ export default {
       consents: {
         age: 'I confirm that I am older than {{minAge}}.',
         privacy:
-          'I have read the <privacyLink>Privacy Policy</privacyLink> and agree to my data being processed for evaluation/communication purposes.',
+          'I have read the <privacyLink>Privacy Policy</privacyLink> and the <kvkkLink>Personal Data Notice (KVKK)</kvkkLink> and agree to my data being processed for evaluation/communication purposes.',
         terms: 'I have read and accept the <termsLink>User Agreement</termsLink>.',
         photo: 'I agree that the admin team can view my photo(s) for evaluation purposes (profile is not public).',
       },
@@ -3627,7 +3811,7 @@ export default {
       errors: {
         blocked: 'This account is blocked from submitting matchmaking applications. Please contact support if you think this is a mistake.',
         mustLogin: 'You must be signed in to submit the application.',
-        alreadySubmitted: 'You already have a matchmaking application. Profile texts (About/Expectations) can only be written once.',
+        alreadySubmitted: 'You already have a matchmaking application. You can update your info from your Profile page.',
         profileTextWriteOnceUsed: 'Your “About” and “Expectations” texts can only be written once. They cannot be edited afterwards.',
         profileTextPII: 'Do not share contact info (phone, email, link, Instagram, IBAN, etc.) in “About” or “Expectations”.',
         consentsRequired:
@@ -3728,22 +3912,16 @@ export default {
 
   matchmakingMembership: {
     title: 'Membership activation',
-    lead: 'You can activate your membership here.',
-    planTitle: 'Monthly membership',
-    monthlyPrice: 'Price: ${{amount}} / month',
-    promoTitle: 'Promo: Free activation',
-    promoBody: 'Membership activation is free until {{date}}.',
-    promoEndedTitle: 'Promo ended',
-    promoEndedBody: 'After {{date}}, membership activation is paid and becomes active after payment.',
+    lead: 'Membership is free for now. You can activate it with one click.',
+    freeNowTitle: 'Free for now',
+    freeNowBody: 'Membership is currently free. Once we reach enough members, we may add payment and switch to a paid model.',
     freeActivateCta: 'Activate my membership for free',
-    paidActivationCta: 'Continue to payment',
     activating: 'Activating…',
     activated: 'Membership activated.',
     activatedUntil: 'Membership activated. Valid until: {{date}}',
     freeActivatedInfo:
       'Your free membership is assigned until {{date}}.\nWith this membership, you can like/reject match profiles and use {{translatedCount}} translated messages.\nYour daily match-change limit is {{dailyLimit}}.',
-    promoExpired: 'Promo expired. After {{date}}, activations are paid and become active after payment.',
-    promoDisabled: 'The promo is currently disabled. Please try again later.',
+    freeDisabled: 'Free membership activation is currently disabled. Please try again later.',
     activateFailed: 'Could not activate membership. Please try again.',
     errors: {
       notAuthenticated: 'Session could not be verified. Please log out and log in again.',
@@ -3751,8 +3929,7 @@ export default {
       apiUnavailableDev: 'API is not reachable. In local dev, run `npm run dev` (api+web).',
     },
     backToPanel: 'Back to panel',
-    paymentMethodsSoon: 'Note: Membership activation is free until {{date}}.',
-    paidAdminApprovalNote: 'Note: After {{date}}, activation is paid and becomes active after payment.',
+    freeNowFootnote: 'Note: Membership is free for now. A payment step may be added later.',
   },
 
   memberFeed: {

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { collection, doc, limit, onSnapshot, orderBy, query, where } from 'firebase/firestore';
-import { Link } from 'react-router-dom';
+import { collection, doc, getDoc, getDocFromServer, limit, onSnapshot, orderBy, query, where } from 'firebase/firestore';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Trans, useTranslation } from 'react-i18next';
 import { useAuth } from '../../auth/AuthProvider';
 import { db } from '../../config/firebase';
@@ -13,10 +13,19 @@ import { authFetch } from '../../utils/authFetch';
 import { translateStudioApiError } from '../../utils/studioErrorI18n';
 import { useMatchmakingResetAtMs } from '../../utils/matchmakingReset';
 import { HelpCircle, MessageCircle, User, Compass } from 'lucide-react';
+import { openPreviewGate } from '../../utils/previewGate';
+import { buildPreviewMatches } from '../../utils/studioPreviewData';
+import StudioBottomNav from '../../components/studio/StudioBottomNav';
 
 export default function StudioMatches() {
   const { user } = useAuth();
   const { t, i18n } = useTranslation();
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  const isPreview = !user || user.isAnonymous;
+  const effectiveUid = isPreview ? '' : String(user?.uid || '').trim();
+  const currentUidForView = isPreview ? 'guest' : effectiveUid;
 
   const howItemsRaw = t('studio.matches.howItems', { returnObjects: true });
   const howItems = Array.isArray(howItemsRaw) ? howItemsRaw : [];
@@ -46,6 +55,21 @@ export default function StudioMatches() {
 
   const [inboxModal, setInboxModal] = useState({ open: false, mode: 'requests' });
 
+  useEffect(() => {
+    const st = location?.state && typeof location.state === 'object' ? location.state : null;
+    const requestedMode = String(st?.openInbox || '').trim();
+    if (!requestedMode) return;
+
+    const nextMode = requestedMode === 'messages' ? 'messages' : 'requests';
+    setInboxModal({ open: true, mode: nextMode });
+
+    try {
+      navigate(`${location.pathname || '/app/matches'}${location.search || ''}${location.hash || ''}`, { replace: true, state: {} });
+    } catch {
+      // noop
+    }
+  }, [location.hash, location.pathname, location.search, location.state, navigate]);
+
   const [inboxLoad, setInboxLoad] = useState({ loading: false, error: '', lastSource: '' });
   const clientProjectId = useMemo(() => {
     try {
@@ -64,14 +88,33 @@ export default function StudioMatches() {
   const shortScrollRef = useRef(null);
   const [translateState, setTranslateState] = useState({ loadingId: '', error: '' });
 
+  const activateMembershipRef = useRef(false);
+
   const [myLock, setMyLock] = useState({ active: false, matchId: '' });
   const [myMembership, setMyMembership] = useState({ active: false });
-  const [myGender, setMyGender] = useState('');
   const [paywallNotice, setPaywallNotice] = useState('');
   const [profileGateNotice, setProfileGateNotice] = useState('');
   const [myProfileComplete, setMyProfileComplete] = useState(true);
 
   const [presenceByUid, setPresenceByUid] = useState({});
+
+  useEffect(() => {
+    if (!isPreview) return;
+    const sample = buildPreviewMatches({ currentUid: currentUidForView });
+    setMatches(sample);
+    setLoading(false);
+    setError('');
+    setInboxLikes([]);
+    setInboxAccess([]);
+    setInboxProfileAccess([]);
+    setInboxMessages([]);
+    setPaywallNotice('');
+    setProfileGateNotice('');
+    setMyLock({ active: false, matchId: '' });
+    setMyMembership({ active: false });
+    setMyProfileComplete(false);
+    setPresenceByUid({});
+  }, [currentUidForView, isPreview]);
 
   const asMs = (v) => {
     if (typeof v === 'number' && Number.isFinite(v)) return v;
@@ -101,10 +144,50 @@ export default function StudioMatches() {
   };
 
   useEffect(() => {
-    const uid = String(user?.uid || '').trim();
+    const uid = effectiveUid;
     if (!uid) return;
 
     const ref = doc(db, 'matchmakingUsers', uid);
+
+    let cancelled = false;
+    (async () => {
+      try {
+        let snap;
+        try {
+          snap = await getDocFromServer(ref);
+        } catch {
+          snap = await getDoc(ref);
+        }
+        if (cancelled) return;
+        const d = snap?.exists?.() ? snap.data() || {} : {};
+
+        const lock = d?.matchmakingLock && typeof d.matchmakingLock === 'object' ? d.matchmakingLock : null;
+        const active = !!lock?.active;
+        const matchId = typeof lock?.matchId === 'string' ? String(lock.matchId).trim() : '';
+        setMyLock({ active, matchId });
+
+        const membershipObj = d?.membership && typeof d.membership === 'object' ? d.membership : null;
+        const membershipValidUntilMs = asMs(membershipObj?.validUntilMs);
+        const now = Date.now();
+        const membershipActive =
+          (membershipValidUntilMs > 0 && membershipValidUntilMs > now) ||
+          (!!membershipObj?.active && (!membershipValidUntilMs || membershipValidUntilMs > now));
+        setMyMembership({ active: membershipActive });
+
+        const about = String(
+          d?.details?.about ||
+            d?.publicProfile?.about ||
+            d?.application?.about ||
+            d?.application?.aboutTr ||
+            d?.application?.aboutId ||
+            ''
+        ).trim();
+        setMyProfileComplete(!!about);
+      } catch {
+        // best-effort
+      }
+    })();
+
     const unsub = onSnapshot(
       ref,
       (snap) => {
@@ -122,38 +205,33 @@ export default function StudioMatches() {
           (!!membershipObj?.active && (!membershipValidUntilMs || membershipValidUntilMs > now));
         setMyMembership({ active: membershipActive });
 
-        const appFromUser = d?.application && typeof d.application === 'object' ? d.application : null;
-        const publicProfile = d?.publicProfile && typeof d.publicProfile === 'object' ? d.publicProfile : null;
-        const g = String(appFromUser?.gender || publicProfile?.gender || d?.gender || '').trim().toLowerCase();
-        setMyGender(g);
-
-        const wroteOnce = typeof d?.profileTextWriteOnceUsedAtMs === 'number' && Number.isFinite(d.profileTextWriteOnceUsedAtMs)
-          ? d.profileTextWriteOnceUsedAtMs
-          : 0;
-        const about = String(d?.details?.about || d?.publicProfile?.about || '').trim();
-        const expectations = String(d?.details?.expectations || d?.publicProfile?.expectations || '').trim();
-        setMyProfileComplete(!!(wroteOnce > 0 || (about && expectations)));
+        const about = String(
+          d?.details?.about ||
+            d?.publicProfile?.about ||
+            d?.application?.about ||
+            d?.application?.aboutTr ||
+            d?.application?.aboutId ||
+            ''
+        ).trim();
+        // 2026-02: Apply form no longer asks for expectations.
+        setMyProfileComplete(!!about);
       },
       () => {
         setMyLock({ active: false, matchId: '' });
         setMyMembership({ active: false });
-        setMyGender('');
         setMyProfileComplete(true);
       }
     );
 
     return () => {
+      cancelled = true;
       try {
         unsub();
       } catch {
         // noop
       }
     };
-  }, [user?.uid]);
-
-  const canInteract = useMemo(() => {
-    return myProfileComplete && (!!myMembership.active || String(myGender || '').toLowerCase() === 'female');
-  }, [myGender, myMembership.active, myProfileComplete]);
+  }, [effectiveUid]);
 
   const requireProfile = () => {
     setProfileGateNotice(t('studio.profileGate.body'));
@@ -163,6 +241,28 @@ export default function StudioMatches() {
       // noop
     }
   };
+
+  const activateFreeMembershipNow = useCallback(async () => {
+    const uid = effectiveUid;
+    if (!uid) return;
+    if (activateMembershipRef.current) return;
+    activateMembershipRef.current = true;
+
+    try {
+      await authFetch('/api/matchmaking-membership-activate-free', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({}),
+      });
+      setMyMembership({ active: true });
+      setPaywallNotice('');
+    } catch (e) {
+      const msg = String(e?.message || '').trim() || 'membership_activate_failed';
+      setPaywallNotice(translateStudioApiError(t, msg) || msg);
+    } finally {
+      activateMembershipRef.current = false;
+    }
+  }, [effectiveUid, t]);
 
   const buildMatchesQuery = ({ uid, preferUpdatedAt }) => {
     const base = [collection(db, 'matchmakingMatches'), where('userIds', 'array-contains', uid)];
@@ -174,7 +274,7 @@ export default function StudioMatches() {
 
   // Gelen beğeniler (inbox)
   useEffect(() => {
-    const uid = String(user?.uid || '').trim();
+    const uid = effectiveUid;
     if (!uid) {
       setInboxLikes([]);
       return;
@@ -219,11 +319,11 @@ export default function StudioMatches() {
         // noop
       }
     };
-  }, [clientProjectId, resetAtMs, t, user?.uid]);
+  }, [clientProjectId, effectiveUid, resetAtMs, t]);
 
   // Gelen ön eşleşme istekleri
   useEffect(() => {
-    const uid = String(user?.uid || '').trim();
+    const uid = effectiveUid;
     if (!uid) {
       setInboxAccess([]);
       return;
@@ -267,11 +367,11 @@ export default function StudioMatches() {
         // noop
       }
     };
-  }, [clientProjectId, t, user?.uid]);
+  }, [clientProjectId, effectiveUid, t]);
 
   // Gelen profil erişim istekleri
   useEffect(() => {
-    const uid = String(user?.uid || '').trim();
+    const uid = effectiveUid;
     if (!uid) {
       setInboxProfileAccess([]);
       return;
@@ -315,11 +415,11 @@ export default function StudioMatches() {
         // noop
       }
     };
-  }, [clientProjectId, t, user?.uid]);
+  }, [clientProjectId, effectiveUid, t]);
 
   // Gelen direkt mesajlar (inbox)
   useEffect(() => {
-    const uid = String(user?.uid || '').trim();
+    const uid = effectiveUid;
     if (!uid) {
       setInboxMessages([]);
       return;
@@ -363,10 +463,15 @@ export default function StudioMatches() {
         // noop
       }
     };
-  }, [clientProjectId, t, user?.uid]);
+  }, [clientProjectId, effectiveUid, t]);
 
   const respondInboxLike = async ({ matchId, decision }) => {
-    const uid = String(user?.uid || '').trim();
+    if (isPreview) {
+      openPreviewGate({ reason: t('previewGate.body') });
+      return;
+    }
+
+    const uid = effectiveUid;
     const mid = String(matchId || '').trim();
     const d = String(decision || '').trim();
     if (!uid || !mid || (d !== 'accept' && d !== 'reject')) return;
@@ -375,6 +480,13 @@ export default function StudioMatches() {
     if (!myProfileComplete) {
       requireProfile();
       setInboxAction({ loadingId: '', error: t('studio.profileGate.body') });
+      return;
+    }
+
+    // Üyelik aktif değilken beğeni (accept) gönderemez; reject serbest.
+    if (d === 'accept' && !myMembership?.active) {
+      requirePaid();
+      setInboxAction({ loadingId: '', error: t('studio.paywall.upgradeToInteract') });
       return;
     }
 
@@ -393,7 +505,12 @@ export default function StudioMatches() {
   };
 
   const respondAccessRequest = async ({ fromUid, decision, type }) => {
-    const uid = String(user?.uid || '').trim();
+    if (isPreview) {
+      openPreviewGate({ reason: t('previewGate.body') });
+      return;
+    }
+
+    const uid = effectiveUid;
     const from = String(fromUid || '').trim();
     const d = String(decision || '').trim();
     if (!uid || !from || (d !== 'approve' && d !== 'reject')) return;
@@ -429,7 +546,7 @@ export default function StudioMatches() {
   };
 
   useEffect(() => {
-    const uid = String(user?.uid || '').trim();
+    const uid = effectiveUid;
     const mid = String(shortModal?.matchId || '').trim();
     if (!uid || !shortModal?.open || !mid) {
       setShortMatch(null);
@@ -476,7 +593,7 @@ export default function StudioMatches() {
         // noop
       }
     };
-  }, [shortModal?.matchId, shortModal?.open, user?.uid]);
+  }, [effectiveUid, shortModal?.matchId, shortModal?.open]);
 
   useEffect(() => {
     if (!shortModal?.open) return;
@@ -490,7 +607,7 @@ export default function StudioMatches() {
   }, [shortModal?.open, shortMessages.length]);
 
   const shortLimitInfo = useMemo(() => {
-    const uid = String(user?.uid || '').trim();
+    const uid = effectiveUid;
     const m = shortMatch && typeof shortMatch === 'object' ? shortMatch : null;
     const status = String(m?.status || '').trim();
     const limit = 5;
@@ -508,10 +625,10 @@ export default function StudioMatches() {
     const used = typeof counts?.[uid] === 'number' ? counts[uid] : 0;
     const u = Number.isFinite(used) && used > 0 ? used : 0;
     return { used: u, remaining: Math.max(0, limit - u), limit };
-  }, [shortMatch, user?.uid]);
+  }, [effectiveUid, shortMatch]);
 
   const shortOther = useMemo(() => {
-    const uid = String(user?.uid || '').trim();
+    const uid = effectiveUid;
     const m = shortMatch && typeof shortMatch === 'object' ? shortMatch : null;
     if (!uid || !m) return null;
 
@@ -523,7 +640,7 @@ export default function StudioMatches() {
 
     const p = m?.profiles?.[otherSide] && typeof m.profiles[otherSide] === 'object' ? m.profiles[otherSide] : null;
     return p;
-  }, [shortMatch, user?.uid]);
+  }, [effectiveUid, shortMatch]);
 
   const shortOtherName = useMemo(() => {
     const n =
@@ -539,7 +656,7 @@ export default function StudioMatches() {
   }, [shortOther]);
 
   useEffect(() => {
-    const uid = String(user?.uid || '').trim();
+    const uid = effectiveUid;
     if (!uid) return;
 
     setLoading(true);
@@ -589,7 +706,7 @@ export default function StudioMatches() {
         // noop
       }
     };
-  }, [user?.uid]);
+  }, [effectiveUid]);
 
   const visibleMatches = useMemo(() => {
     const list = Array.isArray(matches) ? matches : [];
@@ -703,7 +820,8 @@ export default function StudioMatches() {
   };
 
   const refreshInboxViaApi = async () => {
-    const uid = String(user?.uid || '').trim();
+    if (isPreview) return;
+    const uid = effectiveUid;
     if (!uid || inboxLoad.loading) return;
     setInboxLoad({ loading: true, error: '', lastSource: inboxLoad.lastSource || '' });
     try {
@@ -733,7 +851,8 @@ export default function StudioMatches() {
   };
 
   const refreshPresence = useCallback(async () => {
-    const uid = String(user?.uid || '').trim();
+    if (isPreview) return;
+    const uid = effectiveUid;
     if (!uid) return;
 
     const list = Array.isArray(matches) ? matches : [];
@@ -766,7 +885,7 @@ export default function StudioMatches() {
     } catch {
       // best-effort
     }
-  }, [matches, user?.uid]);
+  }, [effectiveUid, isPreview, matches]);
 
   useEffect(() => {
     refreshPresence();
@@ -794,7 +913,12 @@ export default function StudioMatches() {
   }, [refreshPresence]);
 
   const openShort = async ({ matchId, displayName }) => {
-    const uid = String(user?.uid || '').trim();
+    if (isPreview) {
+      openPreviewGate({ reason: t('previewGate.body') });
+      return;
+    }
+
+    const uid = effectiveUid;
     const mid = String(matchId || '').trim();
     if (!uid || !mid) return;
 
@@ -821,7 +945,12 @@ export default function StudioMatches() {
 
   const sendShort = async (e) => {
     e?.preventDefault?.();
-    const uid = String(user?.uid || '').trim();
+    if (isPreview) {
+      openPreviewGate({ reason: t('previewGate.body') });
+      return;
+    }
+
+    const uid = effectiveUid;
     const mid = String(shortModal?.matchId || '').trim();
     const text = String(shortText || '').trim();
 
@@ -866,7 +995,12 @@ export default function StudioMatches() {
   };
 
   const translateMessage = async ({ matchId, messageId }) => {
-    const uid = String(user?.uid || '').trim();
+    if (isPreview) {
+      openPreviewGate({ reason: t('previewGate.body') });
+      return;
+    }
+
+    const uid = effectiveUid;
     const mid = String(matchId || '').trim();
     const msgId = String(messageId || '').trim();
     if (!uid || !mid || !msgId) return;
@@ -887,7 +1021,7 @@ export default function StudioMatches() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900">
+    <div className="min-h-screen bg-slate-50 text-slate-900 pb-24 sm:pb-0">
       <Navigation />
 
       <main className="container mx-auto px-4 py-8">
@@ -1028,6 +1162,7 @@ export default function StudioMatches() {
             </Link>
             <Link
               to="/app/pool"
+              data-tutorial-id="matches-go-pool"
               className="app-btn w-full sm:w-auto"
             >
               <span className="inline-flex items-center justify-center gap-2">
@@ -1056,11 +1191,6 @@ export default function StudioMatches() {
           actionsDisabled={inboxModal?.mode !== 'messages' && !myProfileComplete}
           onRequireProfile={() => {
             requireProfile();
-            try {
-              window.location.href = '/evlilik/eslestirme-basvuru?w=1';
-            } catch {
-              // noop
-            }
           }}
           loadingId={accessAction.loadingId}
           error={accessAction.error}
@@ -1113,9 +1243,9 @@ export default function StudioMatches() {
             </div>
             <p className="mt-1 text-sm text-amber-900/80">{paywallNotice}</p>
             <div className="mt-3">
-              <Link to="/profilim" className="text-sm font-semibold underline">
+              <button type="button" onClick={activateFreeMembershipNow} className="text-sm font-semibold underline">
                 {t('studio.paywall.upgradeCta')}
-              </Link>
+              </button>
             </div>
           </div>
         ) : null}
@@ -1193,10 +1323,20 @@ export default function StudioMatches() {
               <StudioMatchCard
                 key={m.id}
                 match={m}
-                currentUid={String(user?.uid || '')}
-                onOpenShort={openShort}
+                currentUid={currentUidForView}
+                onOpenShort={
+                  isPreview
+                    ? () => openPreviewGate({ reason: t('previewGate.body') })
+                    : openShort
+                }
+                interactionsDisabled={isPreview}
+                onInteractDisabled={() => openPreviewGate({ reason: t('previewGate.body') })}
                 canSeeFullProfiles={myMembership.active}
-                canInteract={canInteract}
+                profileComplete={myProfileComplete}
+                membershipActive={!!myMembership.active}
+                onRequireProfile={() => {
+                  requireProfile();
+                }}
                 onRequirePaid={requirePaid}
                 activeLockMatchId={myLock?.active ? myLock?.matchId : ''}
                 presenceByUid={presenceByUid}
@@ -1255,7 +1395,7 @@ export default function StudioMatches() {
                       .filter((m) => String(m?.chatMode || '') === 'short')
                       .slice(-40)
                       .map((m) => {
-                        const fromMe = String(m?.userId || '').trim() === String(user?.uid || '').trim();
+                        const fromMe = String(m?.userId || '').trim() === String(currentUidForView || '').trim();
                         const translated =
                           m?.translations && typeof m.translations === 'object'
                             ? String(m.translations?.[targetLang] || '').trim()
@@ -1324,6 +1464,7 @@ export default function StudioMatches() {
         ) : null}
       </main>
 
+      <StudioBottomNav />
       <Footer />
     </div>
   );

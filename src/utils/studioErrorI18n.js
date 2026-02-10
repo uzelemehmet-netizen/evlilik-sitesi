@@ -67,7 +67,6 @@ export function translateStudioApiError(t, raw) {
   if (s === 'translate_failed') return t('studio.matchProfile.translate.errors.failed');
 
   // Profile texts (About/Expectations)
-  if (s === 'profile_text_write_once_used') return t('matchmakingPage.form.errors.profileTextWriteOnceUsed');
   if (s === 'profile_text_pii_blocked') return t('matchmakingPage.form.errors.profileTextPII');
 
   const cooldown = /^cancel_cooldown_(\d+)m$/.exec(s);

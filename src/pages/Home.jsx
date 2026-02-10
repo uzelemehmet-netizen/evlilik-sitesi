@@ -16,7 +16,7 @@ export default function Home() {
 
   const showWedding = isFeatureEnabled('wedding');
 
-  const primaryCtaHref = showWedding ? '/evlilik/eslestirme-basvuru?w=1' : '/contact';
+  const primaryCtaHref = showWedding ? '/login?mode=signup' : '/contact';
   const primaryCtaLabel = showWedding ? t('home.cta.ctaTryFree') : t('home.cta.ctaContact');
 
   const scrollToSection = (id) => {
@@ -378,7 +378,7 @@ export default function Home() {
             href={buildWhatsAppUrl(t('floatingWhatsapp.messages.home'))}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-emerald-600 text-white shadow-md hover:bg-emerald-700 transition"
+            className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-emerald-500 text-white shadow-md hover:bg-emerald-600 transition"
             aria-label={t('home.cta.ctaWhatsapp')}
             onClick={() => trackClick('cta_whatsapp_home_sticky', { page: '/' })}
           >

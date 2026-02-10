@@ -156,11 +156,11 @@ export const COMMON_QUESTIONS_TR_ID = [
   { tr: 'Evlilik sonrası çalışma planın nedir', id: 'Apa rencana kerjamu setelah menikah', category: 'Yerleşim' },
   { tr: 'Eşinin ülkesine taşınmak için en büyük endişen ne olur', id: 'Apa kekhawatiran terbesarmu jika pindah ke negara pasangan', category: 'Yerleşim' },
 
-  // Vize, seyahat, buluşma
+  // Seyahat & buluşma
   { tr: 'İlk yüz yüze görüşmeyi ne zaman planlayalım', id: 'Kapan kita rencanakan pertemuan tatap muka pertama', category: 'Lojistik' },
   { tr: 'Görüşme için hangi şehir daha uygun', id: 'Kota mana yang lebih cocok untuk bertemu', category: 'Lojistik' },
-  { tr: 'Vize süreçleri hakkında bilgin var mı', id: 'Apakah kamu tahu tentang proses visa', category: 'Lojistik' },
-  { tr: 'Pasaport vize gibi konularda planın var mı', id: 'Apakah kamu sudah punya rencana soal paspor dan visa', category: 'Lojistik' },
+  { tr: 'Seyahat hazırlıkların hakkında planın var mı', id: 'Apakah kamu sudah punya rencana untuk persiapan perjalanan', category: 'Lojistik' },
+  { tr: 'Yüz yüze görüşme için en pratik plan sence ne olur', id: 'Menurutmu rencana paling praktis untuk bertemu langsung seperti apa', category: 'Lojistik' },
   { tr: 'Uçuş masraflarını nasıl planlayalım', id: 'Bagaimana kita merencanakan biaya penerbangan', category: 'Lojistik' },
   { tr: 'Ailelerin buluşması için hangi ülke daha kolay', id: 'Negara mana yang lebih mudah untuk pertemuan keluarga', category: 'Lojistik' },
   { tr: 'Uzun mesafe ilişkisinde en zor kısım sence ne', id: 'Menurutmu apa bagian tersulit dari hubungan jarak jauh', category: 'Lojistik' },

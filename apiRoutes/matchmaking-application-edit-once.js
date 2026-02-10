@@ -13,6 +13,10 @@ function safeStr(value, maxLen) {
   return s.length > maxLen ? s.slice(0, maxLen) : s;
 }
 
+function normalizeUsernameLower(value) {
+  return safeStr(value, 80).toLowerCase();
+}
+
 function normalizeProfileLang(v) {
   const s = safeStr(v, 10).toLowerCase();
   if (s === 'tr' || s === 'id') return s;
@@ -177,8 +181,17 @@ export default async function handler(req, res) {
 
   const photoUrls = Array.isArray(payload?.photoUrls) ? payload.photoUrls : null;
 
+  const nextUsername = safeStr(payload?.username, 60);
+  const nextUsernameLower = normalizeUsernameLower(payload?.username || payload?.usernameLower);
+
   // Whitelist: kullanıcı sadece bu alanları bir defa güncelleyebilir.
   const updates = {
+    ...(nextUsernameLower
+      ? {
+          username: nextUsername,
+          usernameLower: nextUsernameLower,
+        }
+      : {}),
     fullName: safeStr(payload?.fullName, 120),
     age: toNumOrNull(payload?.age, { min: 18, max: 99 }),
     city: safeStr(payload?.city, 80),
@@ -271,6 +284,15 @@ export default async function handler(req, res) {
     return;
   }
 
+  if (safeStr(payload?.username, 80) || safeStr(payload?.usernameLower, 80)) {
+    if (!nextUsernameLower) {
+      res.statusCode = 400;
+      res.setHeader('content-type', 'application/json');
+      res.end(JSON.stringify({ ok: false, error: 'bad_request' }));
+      return;
+    }
+  }
+
   // Kullanıcının başvurusunu bul.
   const snap = await db
     .collection('matchmakingApplications')
@@ -307,19 +329,15 @@ export default async function handler(req, res) {
   const docRef = bestDoc.ref;
 
   const cur = bestDoc.data() || {};
+  const curId = safeStr(bestDoc.id, 160);
+  const curUsernameLower = normalizeUsernameLower(cur?.usernameLower || cur?.username);
   const curAbout = safeStr(cur?.about, MAX_TEXT_LEN);
   const curExpectations = safeStr(cur?.expectations, MAX_TEXT_LEN);
 
   const aboutChanged = safeStr(updates?.about, MAX_TEXT_LEN) !== curAbout;
   const expectationsChanged = safeStr(updates?.expectations, MAX_TEXT_LEN) !== curExpectations;
 
-  // Write-once enforcement for About/Expectations
-  if ((aboutChanged || expectationsChanged) && (curAbout || curExpectations)) {
-    res.statusCode = 409;
-    res.setHeader('content-type', 'application/json');
-    res.end(JSON.stringify({ ok: false, error: 'profile_text_write_once_used' }));
-    return;
-  }
+  // About/Expectations can be edited (edit-once mode still limits overall usage via userEditOnceUsedAt).
 
   // If texts are currently empty and user is trying to set them now, enforce rules + translation.
   const writingTextsNow = (!curAbout && !!updates?.about) || (!curExpectations && !!updates?.expectations);
@@ -355,7 +373,6 @@ export default async function handler(req, res) {
     updates.aboutId = aboutBi.id;
     updates.expectationsTr = expBi.tr;
     updates.expectationsId = expBi.id;
-    updates.profileTextWriteOnceUsedAtMs = Date.now();
     updates.profileTextTranslatedAtMs = Date.now();
     updates.profileTextTranslate = {
       about: {
@@ -398,20 +415,122 @@ export default async function handler(req, res) {
           expectationsId: expBi.id,
         },
         profileTextLang: sourceLang,
-        profileTextWriteOnceUsedAt: FieldValue.serverTimestamp(),
-        profileTextWriteOnceUsedAtMs: nowMs,
         updatedAt: FieldValue.serverTimestamp(),
       },
       { merge: true }
     );
   }
 
-  await docRef.update({
-    ...updates,
-    userEditOnceUsedAt: FieldValue.serverTimestamp(),
-    userEditOnceUsedBy: uid,
-    userEditOnceUpdatedAt: FieldValue.serverTimestamp(),
-  });
+  // Username uniqueness: in this system, new applications use docId=usernameLower.
+  // If user changes usernameLower in editOnce mode, migrate the document to keep docId-based uniqueness.
+  let finalApplicationId = curId;
+  const wantsUsernameChange = !!updates?.usernameLower && updates.usernameLower !== curUsernameLower;
+  const wantsDocIdChange = wantsUsernameChange && updates.usernameLower !== curId;
+
+  if (wantsDocIdChange) {
+    const desiredId = String(updates.usernameLower);
+
+    // Best-effort global uniqueness check (covers legacy docs not using usernameLower as docId).
+    const takenQuery = await db.collection('matchmakingApplications').where('usernameLower', '==', desiredId).limit(2).get();
+    const takenByOtherDoc = takenQuery.docs.some((d) => String(d.id || '') !== curId);
+    if (takenByOtherDoc) {
+      res.statusCode = 409;
+      res.setHeader('content-type', 'application/json');
+      res.end(JSON.stringify({ ok: false, error: 'username_taken' }));
+      return;
+    }
+
+    const desiredRef = db.collection('matchmakingApplications').doc(desiredId);
+    try {
+      await db.runTransaction(async (tx) => {
+        // Ensure target doesn't exist.
+        const targetSnap = await tx.get(desiredRef);
+        if (targetSnap.exists) {
+          const err = new Error('username_taken');
+          err.statusCode = 409;
+          throw err;
+        }
+
+        // Create new doc with merged data, then delete old.
+        tx.create(desiredRef, {
+          ...(cur && typeof cur === 'object' ? cur : {}),
+          ...updates,
+          migratedFrom: curId,
+          migratedAt: FieldValue.serverTimestamp(),
+          userEditOnceUsedAt: FieldValue.serverTimestamp(),
+          userEditOnceUsedBy: uid,
+          userEditOnceUpdatedAt: FieldValue.serverTimestamp(),
+          updatedAt: FieldValue.serverTimestamp(),
+        });
+
+        tx.delete(docRef);
+      });
+
+      finalApplicationId = desiredId;
+    } catch (e) {
+      const msg = String(e?.message || '').trim();
+      if (msg === 'username_taken' || e?.statusCode === 409) {
+        res.statusCode = 409;
+        res.setHeader('content-type', 'application/json');
+        res.end(JSON.stringify({ ok: false, error: 'username_taken' }));
+        return;
+      }
+      throw e;
+    }
+  } else {
+    await docRef.update({
+      ...updates,
+      userEditOnceUsedAt: FieldValue.serverTimestamp(),
+      userEditOnceUsedBy: uid,
+      userEditOnceUpdatedAt: FieldValue.serverTimestamp(),
+    });
+  }
+
+  // Keep matchmakingUsers cache in sync for UI/admin screens.
+  try {
+    const patchCore = {
+      ...(typeof updates?.age === 'number' && Number.isFinite(updates.age) ? { age: updates.age } : {}),
+      ...(safeStr(updates?.city, 80) ? { city: safeStr(updates.city, 80) } : {}),
+      ...(safeStr(updates?.country, 80) ? { country: safeStr(updates.country, 80) } : {}),
+      ...(safeStr(updates?.nationality, 40) ? { nationality: safeStr(updates.nationality, 40) } : {}),
+      ...(safeStr(updates?.gender, 30) ? { gender: safeStr(updates.gender, 30) } : {}),
+      ...(safeStr(updates?.lookingForNationality, 40) ? { lookingForNationality: safeStr(updates.lookingForNationality, 40) } : {}),
+      ...(safeStr(updates?.lookingForGender, 30) ? { lookingForGender: safeStr(updates.lookingForGender, 30) } : {}),
+    };
+
+    const appPatch = {
+      ...(patchCore.age !== undefined ? { age: patchCore.age } : {}),
+      ...(patchCore.city ? { city: patchCore.city } : {}),
+      ...(patchCore.country ? { country: patchCore.country } : {}),
+      ...(patchCore.nationality ? { nationality: patchCore.nationality } : {}),
+      ...(patchCore.gender ? { gender: patchCore.gender } : {}),
+      ...(patchCore.lookingForNationality ? { lookingForNationality: patchCore.lookingForNationality } : {}),
+      ...(patchCore.lookingForGender ? { lookingForGender: patchCore.lookingForGender } : {}),
+      ...(updates?.details && typeof updates.details === 'object' ? { details: updates.details } : {}),
+      ...(updates?.partnerPreferences && typeof updates.partnerPreferences === 'object' ? { partnerPreferences: updates.partnerPreferences } : {}),
+    };
+
+    const userPatch = {
+      ...(updates?.usernameLower ? { username: safeStr(updates.username, 60), usernameLower: safeStr(updates.usernameLower, 80) } : {}),
+      ...(updates?.fullName ? { fullName: safeStr(updates.fullName, 120) } : {}),
+      ...patchCore,
+      ...(finalApplicationId ? { applicationId: finalApplicationId } : {}),
+      ...(Object.keys(appPatch).length ? { application: appPatch } : {}),
+      publicProfile: {
+        ...(updates?.usernameLower ? { username: safeStr(updates.username, 60), usernameLower: safeStr(updates.usernameLower, 80) } : {}),
+        ...(updates?.fullName ? { fullName: safeStr(updates.fullName, 120) } : {}),
+        ...patchCore,
+      },
+      details: {
+        ...(updates?.fullName ? { fullName: safeStr(updates.fullName, 120) } : {}),
+      },
+      updatedAt: FieldValue.serverTimestamp(),
+    };
+
+    await db.collection('matchmakingUsers').doc(uid).set(userPatch, { merge: true });
+  } catch {
+    // best-effort
+  }
 
   // Realtime member feed: kullanıcı profil metinlerini ilk kez yazdıysa "profilini tamamladı" event'i.
   // Best-effort; hata olursa akışı bozmayalım.
@@ -436,5 +555,5 @@ export default async function handler(req, res) {
 
   res.statusCode = 200;
   res.setHeader('content-type', 'application/json');
-  res.end(JSON.stringify({ ok: true }));
+  res.end(JSON.stringify({ ok: true, applicationId: finalApplicationId }));
 }

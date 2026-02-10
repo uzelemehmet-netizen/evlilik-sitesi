@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Trans, useTranslation } from 'react-i18next';
-import { collection, doc, limit, onSnapshot, orderBy, query } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocFromServer, limit, onSnapshot, orderBy, query } from 'firebase/firestore';
 import Navigation from '../../components/Navigation';
 import { useAuth } from '../../auth/AuthProvider';
 import { db } from '../../config/firebase';
@@ -12,6 +12,9 @@ import { useMatchmakingResetAtMs } from '../../utils/matchmakingReset';
 import { HelpCircle, RefreshCcw, Users } from 'lucide-react';
 import ImageLightbox from '../../components/ImageLightbox';
 import PwaInstallCard from '../../components/PwaInstallCard';
+import { openPreviewGate } from '../../utils/previewGate';
+import { buildPreviewPoolItems } from '../../utils/studioPreviewData';
+import StudioBottomNav from '../../components/studio/StudioBottomNav';
 
 const NEW_USER_BADGE_WINDOW_MS = 48 * 60 * 60 * 1000;
 
@@ -71,6 +74,10 @@ export default function StudioPool() {
   const { t } = useTranslation();
   const { user } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+
+  const isPreview = !user || user.isAnonymous;
+  const effectiveUid = isPreview ? '' : String(user?.uid || '').trim();
 
   const mmReset = useMatchmakingResetAtMs();
   const resetAtMs = typeof mmReset?.resetAtMs === 'number' && Number.isFinite(mmReset.resetAtMs) ? mmReset.resetAtMs : 0;
@@ -79,6 +86,8 @@ export default function StudioPool() {
   const [meta, setMeta] = useState(null);
   const [items, setItems] = useState([]);
   const [lastUpdatedMs, setLastUpdatedMs] = useState(0);
+  const [autoRefreshEnabled, setAutoRefreshEnabled] = useState(true);
+  const [needsApplication, setNeedsApplication] = useState(false);
 
   const [outboxMap, setOutboxMap] = useState({});
   const [grantedMap, setGrantedMap] = useState({});
@@ -99,9 +108,20 @@ export default function StudioPool() {
   const [myProfileComplete, setMyProfileComplete] = useState(true);
 
   const cancelledRef = useRef(false);
+  const activateMembershipRef = useRef(false);
 
   const load = useCallback(
     async ({ silent } = { silent: false }) => {
+      if (isPreview) {
+        const sample = buildPreviewPoolItems();
+        setNeedsApplication(false);
+        setAutoRefreshEnabled(false);
+        setMeta({ total: sample.length });
+        setItems(sample);
+        setLastUpdatedMs(Date.now());
+        setState({ loading: false, error: '' });
+        return;
+      }
       if (!silent) setState({ loading: true, error: '' });
       try {
         const data = await authFetch('/api/matchmaking-browse', {
@@ -111,6 +131,8 @@ export default function StudioPool() {
         });
 
         if (cancelledRef.current) return;
+        setNeedsApplication(false);
+        setAutoRefreshEnabled(true);
         setMeta(data?.meta || null);
         setItems(Array.isArray(data?.items) ? data.items : []);
         setLastUpdatedMs(Date.now());
@@ -118,17 +140,36 @@ export default function StudioPool() {
       } catch (e) {
         if (cancelledRef.current) return;
         const msg = safeStr(e?.message) || 'load_failed';
+
+        if (msg === 'application_not_found') {
+          setNeedsApplication(true);
+          setAutoRefreshEnabled(false);
+        }
+
         setItems([]);
         setMeta(null);
         setState({ loading: false, error: translateStudioApiError(t, msg) || msg });
       }
     },
-    [t]
+    [isPreview, t]
   );
+
+  useEffect(() => {
+    if (!isPreview) return;
+    const sample = buildPreviewPoolItems();
+    setNeedsApplication(false);
+    setAutoRefreshEnabled(false);
+    setMeta({ total: sample.length });
+    setItems(sample);
+    setLastUpdatedMs(Date.now());
+    setState({ loading: false, error: '' });
+    setMyPhotosBlurred(false);
+    setMyProfileComplete(false);
+  }, [isPreview]);
 
   // Outbox (benim gönderdiğim ön eşleşme istekleri)
   useEffect(() => {
-    const uid = String(user?.uid || '').trim();
+    const uid = effectiveUid;
     if (!uid) {
       setOutboxMap({});
       return;
@@ -177,11 +218,11 @@ export default function StudioPool() {
         // noop
       }
     };
-  }, [resetAtMs, user?.uid]);
+  }, [effectiveUid, resetAtMs]);
 
   // Gelen ön eşleşme istekleri (inbox)
   useEffect(() => {
-    const uid = String(user?.uid || '').trim();
+    const uid = effectiveUid;
     if (!uid) {
       setInboxAccess([]);
       return;
@@ -217,12 +258,12 @@ export default function StudioPool() {
         // noop
       }
     };
-  }, [resetAtMs, user?.uid]);
+  }, [effectiveUid, resetAtMs]);
 
 
   // Üyelik durumu (paywall için)
   useEffect(() => {
-    const uid = String(user?.uid || '').trim();
+    const uid = effectiveUid;
     if (!uid) {
       setMyLock({ active: false, matchId: '' });
       setMyMembership({ active: false });
@@ -238,6 +279,55 @@ export default function StudioPool() {
     };
 
     const ref = doc(db, 'matchmakingUsers', uid);
+
+    let cancelled = false;
+    (async () => {
+      try {
+        let snap;
+        try {
+          snap = await getDocFromServer(ref);
+        } catch {
+          snap = await getDoc(ref);
+        }
+
+        if (cancelled) return;
+        const d = snap?.exists?.() ? snap.data() || {} : {};
+
+        const lock = d?.matchmakingLock && typeof d.matchmakingLock === 'object' ? d.matchmakingLock : null;
+        const active = !!lock?.active;
+        const matchId = typeof lock?.matchId === 'string' ? String(lock.matchId).trim() : '';
+        setMyLock({ active, matchId });
+
+        const membershipObj = d?.membership && typeof d.membership === 'object' ? d.membership : null;
+        const membershipValidUntilMs = asMs(membershipObj?.validUntilMs);
+        const now = Date.now();
+        const membershipActive =
+          (membershipValidUntilMs > 0 && membershipValidUntilMs > now) ||
+          (!!membershipObj?.active && (!membershipValidUntilMs || membershipValidUntilMs > now));
+        setMyMembership({ active: membershipActive });
+
+        const appFromUser = d?.application && typeof d.application === 'object' ? d.application : null;
+        const publicProfile = d?.publicProfile && typeof d.publicProfile === 'object' ? d.publicProfile : null;
+        const g = String(appFromUser?.gender || publicProfile?.gender || d?.gender || '').trim().toLowerCase();
+        setMyGender(g);
+
+        const about =
+          safeStr(d?.details?.about) ||
+          safeStr(d?.publicProfile?.about) ||
+          safeStr(d?.application?.about) ||
+          safeStr(d?.application?.aboutTr) ||
+          safeStr(d?.application?.aboutId);
+        setMyProfileComplete(!!about);
+
+        const v1 = d?.publicProfile && typeof d.publicProfile === 'object' ? d.publicProfile.photosBlurred : undefined;
+        const v2 = d?.photosBlurred;
+        const blur = typeof v1 === 'boolean' ? v1 : typeof v2 === 'boolean' ? v2 : false;
+        setMyPhotosBlurred(!!blur);
+      } catch {
+        // best-effort
+      }
+    })();
+
     const unsub = onSnapshot(
       ref,
       (snap) => {
@@ -261,12 +351,14 @@ export default function StudioPool() {
         const g = String(appFromUser?.gender || publicProfile?.gender || d?.gender || '').trim().toLowerCase();
         setMyGender(g);
 
-        const wroteOnce = typeof d?.profileTextWriteOnceUsedAtMs === 'number' && Number.isFinite(d.profileTextWriteOnceUsedAtMs)
-          ? d.profileTextWriteOnceUsedAtMs
-          : 0;
-        const about = safeStr(d?.details?.about) || safeStr(d?.publicProfile?.about);
-        const expectations = safeStr(d?.details?.expectations) || safeStr(d?.publicProfile?.expectations);
-        setMyProfileComplete(!!(wroteOnce > 0 || (about && expectations)));
+        const about =
+          safeStr(d?.details?.about) ||
+          safeStr(d?.publicProfile?.about) ||
+          safeStr(d?.application?.about) ||
+          safeStr(d?.application?.aboutTr) ||
+          safeStr(d?.application?.aboutId);
+        // 2026-02: Apply form no longer asks for expectations; don't block interactions for missing expectations.
+        setMyProfileComplete(!!about);
 
         const v1 = d?.publicProfile && typeof d.publicProfile === 'object' ? d.publicProfile.photosBlurred : undefined;
         const v2 = d?.photosBlurred;
@@ -283,17 +375,19 @@ export default function StudioPool() {
     );
 
     return () => {
+      cancelled = true;
       try {
         unsub();
       } catch {
         // noop
       }
     };
-  }, [user?.uid]);
+  }, [effectiveUid]);
 
   const canInteract = useMemo(() => {
-    return myProfileComplete && (!!myMembership.active || String(myGender || '').toLowerCase() === 'female');
-  }, [myGender, myMembership.active, myProfileComplete]);
+    // Ürün kuralı: etkileşim başlatmak için aktif üyelik gerekir.
+    return myProfileComplete && !!myMembership.active;
+  }, [myMembership.active, myProfileComplete]);
 
   const requireProfile = () => {
     setProfileGateNotice(t('studio.profileGate.body'));
@@ -303,6 +397,37 @@ export default function StudioPool() {
       // noop
     }
   };
+
+  useEffect(() => {
+    const st = location?.state && typeof location.state === 'object' ? location.state : null;
+    if (!st?.profileGate) return;
+    requireProfile();
+    // Not: state'i burada temizlemiyoruz; sadece best-effort uyarı göster.
+    // Aksi halde history replace karmaşıklaşabiliyor.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location?.state]);
+
+  const activateFreeMembershipNow = useCallback(async () => {
+    const uid = effectiveUid;
+    if (!uid) return;
+    if (activateMembershipRef.current) return;
+    activateMembershipRef.current = true;
+
+    try {
+      await authFetch('/api/matchmaking-membership-activate-free', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({}),
+      });
+      setMyMembership({ active: true });
+      setPaywallNotice('');
+    } catch (e) {
+      const msg = safeStr(e?.message) || 'membership_activate_failed';
+      setPaywallNotice(translateStudioApiError(t, msg) || msg);
+    } finally {
+      activateMembershipRef.current = false;
+    }
+  }, [effectiveUid, t]);
 
   const goToProfileForm = () => {
     try {
@@ -317,6 +442,17 @@ export default function StudioPool() {
     }
   };
 
+  useEffect(() => {
+    if (!needsApplication) return;
+    setProfileGateNotice(t('studio.profileGate.body'));
+    try {
+      if (typeof window !== 'undefined') window.scrollTo({ top: 0, behavior: 'smooth' });
+    } catch {
+      // noop
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [needsApplication, t]);
+
   const requirePaid = () => {
     setPaywallNotice(t('studio.paywall.upgradeToInteract'));
     try {
@@ -327,7 +463,12 @@ export default function StudioPool() {
   };
 
   const respondAccessRequest = async ({ fromUid, decision }) => {
-    const uid = String(user?.uid || '').trim();
+    if (isPreview) {
+      openPreviewGate({ reason: t('previewGate.body') });
+      return;
+    }
+
+    const uid = effectiveUid;
     const from = safeStr(fromUid);
     const d = safeStr(decision);
     if (!uid || !from || (d !== 'approve' && d !== 'reject')) return;
@@ -349,7 +490,7 @@ export default function StudioPool() {
 
   // Granted (bana verilmiş profil izinleri)
   useEffect(() => {
-    const uid = String(user?.uid || '').trim();
+    const uid = effectiveUid;
     if (!uid) {
       setGrantedMap({});
       return;
@@ -378,11 +519,17 @@ export default function StudioPool() {
         // noop
       }
     };
-  }, [user?.uid]);
+  }, [effectiveUid]);
 
   useEffect(() => {
     cancelledRef.current = false;
     load({ silent: false });
+
+    if (!autoRefreshEnabled) {
+      return () => {
+        cancelledRef.current = true;
+      };
+    }
 
     const id = setInterval(() => {
       load({ silent: true });
@@ -396,7 +543,7 @@ export default function StudioPool() {
         // noop
       }
     };
-  }, [load]);
+  }, [autoRefreshEnabled, load]);
 
   const headerHint = useMemo(() => {
     // Yaş filtresi kaldırıldı; header'da yaş aralığı göstermiyoruz.
@@ -404,7 +551,12 @@ export default function StudioPool() {
   }, [meta, t]);
 
   const requestAccess = async ({ targetUid } = {}) => {
-    const uid = String(user?.uid || '').trim();
+    if (isPreview) {
+      openPreviewGate({ reason: t('previewGate.body') });
+      return;
+    }
+
+    const uid = effectiveUid;
     const toUid = safeStr(targetUid);
     if (!uid || !toUid || requestingUid) return;
 
@@ -475,7 +627,7 @@ export default function StudioPool() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900">
+    <div className="min-h-screen bg-slate-50 text-slate-900 pb-24 sm:pb-0">
       <Navigation />
 
       <main className="container mx-auto px-4 py-8">
@@ -485,7 +637,10 @@ export default function StudioPool() {
             <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center">
               <button
                 type="button"
-                onClick={() => setInboxModal({ open: true })}
+                onClick={() => {
+                  if (!myProfileComplete) requireProfile();
+                  setInboxModal({ open: true });
+                }}
                 className="app-btn w-full sm:w-auto"
               >
                 <span className="inline-flex items-center justify-center gap-2">
@@ -542,9 +697,9 @@ export default function StudioPool() {
               </div>
               <p className="mt-1 text-sm text-amber-900/80">{paywallNotice}</p>
               <div className="mt-3">
-                <Link to="/profilim" className="text-sm font-semibold underline">
+                <button type="button" onClick={activateFreeMembershipNow} className="text-sm font-semibold underline">
                   {t('studio.paywall.upgradeCta')}
-                </Link>
+                </button>
               </div>
             </div>
           ) : null}
@@ -742,6 +897,7 @@ export default function StudioPool() {
                       ) : (
                         <button
                           type="button"
+                          data-tutorial-id="pool-pre-match-request"
                           disabled={requestingUid === targetUid}
                           onClick={() => {
                             requestAccess({ targetUid });
@@ -770,7 +926,6 @@ export default function StudioPool() {
             actionsDisabled={!myProfileComplete}
             onRequireProfile={() => {
               requireProfile();
-              goToProfileForm();
             }}
             loadingId={accessAction.loadingId}
             error={accessAction.error}
@@ -785,6 +940,8 @@ export default function StudioPool() {
           ) : null}
         </div>
       </main>
+
+      <StudioBottomNav />
     </div>
   );
 }

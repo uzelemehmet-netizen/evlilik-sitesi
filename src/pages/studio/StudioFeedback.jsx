@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { ArrowLeft, CheckCircle, MessageCircleWarning } from 'lucide-react';
 import Navigation from '../../components/Navigation';
 import Footer from '../../components/Footer';
+import StudioBottomNav from '../../components/studio/StudioBottomNav';
 import { authFetch } from '../../utils/authFetch';
 import { buildWhatsAppUrl } from '../../utils/whatsapp';
 import { uploadImageToCloudinaryAuto } from '../../utils/cloudinaryUpload';
@@ -125,7 +126,7 @@ export default function StudioFeedback() {
   }, [i18n?.language, kind, matchId, step, submitState.id]);
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900">
+    <div className="min-h-screen bg-slate-50 text-slate-900 pb-24 sm:pb-0">
       <Navigation />
 
       <main className="container mx-auto px-4 py-8">
@@ -259,7 +260,7 @@ export default function StudioFeedback() {
                     {submitState.id ? (
                       <div className="mt-3">
                         <a
-                          className="inline-flex items-center justify-center rounded-md bg-emerald-700 px-3 py-2 text-sm font-semibold text-white hover:bg-emerald-800"
+                          className="inline-flex items-center justify-center rounded-md bg-emerald-600 px-3 py-2 text-sm font-semibold text-white hover:bg-emerald-700"
                           href={buildWhatsAppUrl(ticketWhatsAppMsg)}
                           target="_blank"
                           rel="noreferrer"
@@ -288,6 +289,7 @@ export default function StudioFeedback() {
         </div>
       </main>
 
+      <StudioBottomNav />
       <Footer />
     </div>
   );

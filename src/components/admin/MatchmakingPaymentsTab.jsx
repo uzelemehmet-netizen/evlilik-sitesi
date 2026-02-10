@@ -507,7 +507,7 @@ export default function MatchmakingPaymentsTab() {
                             const selectedTier = normalizeTier(tierByPaymentId?.[p.id] ?? p?.appliedTier ?? p?.tier ?? 'pro');
                             approve(p.id, true, selectedTier);
                           }}
-                          className="px-4 py-2 rounded-full bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700 disabled:opacity-60"
+                          className="px-4 py-2 rounded-full bg-emerald-500 text-white text-sm font-semibold hover:bg-emerald-600 disabled:opacity-60"
                         >
                           {t('admin.matchmakingPayments.actions.approve')}
                         </button>

@@ -88,9 +88,13 @@ export default function StudioMatchCard({
   onOpenShort,
   activeLockMatchId,
   canSeeFullProfiles = true,
-  canInteract = true,
+  profileComplete = true,
+  membershipActive = true,
+  onRequireProfile,
   onRequirePaid,
   presenceByUid,
+  interactionsDisabled = false,
+  onInteractDisabled,
 }) {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -102,6 +106,14 @@ export default function StudioMatchCard({
   const [lightbox, setLightbox] = useState({ open: false, images: [], index: 0 });
   const [aboutExpanded, setAboutExpanded] = useState(false);
   const [expectExpanded, setExpectExpanded] = useState(false);
+
+  const blockInteraction = () => {
+    try {
+      if (typeof onInteractDisabled === 'function') onInteractDisabled();
+    } catch {
+      // noop
+    }
+  };
 
   const other = useMemo(() => {
     if (!match) return null;
@@ -230,10 +242,21 @@ export default function StudioMatchCard({
   const canSeeOtherPhotos = (!otherPhotosBlurred || otherToMeAllowed) && (!myPhotosBlurred || myToOtherAllowed);
 
   const requestOtherPhotoAccess = async () => {
+    if (interactionsDisabled) {
+      blockInteraction();
+      return;
+    }
     if (!match?.id || !currentUid || !otherUid) return;
     if (photoRequestState.loading) return;
 
-    if (!canInteract) {
+    if (!profileComplete) {
+      const msg = t('studio.profileGate.body');
+      setPhotoRequestState({ loading: false, error: msg, status: '' });
+      if (typeof onRequireProfile === 'function') onRequireProfile();
+      return;
+    }
+
+    if (!membershipActive) {
       const msg = t('studio.paywall.upgradeToInteract');
       setPhotoRequestState({ loading: false, error: msg, status: '' });
       if (typeof onRequirePaid === 'function') onRequirePaid();
@@ -256,6 +279,10 @@ export default function StudioMatchCard({
   };
 
   const setMyPhotoAccessForThisMatch = async (next) => {
+    if (interactionsDisabled) {
+      blockInteraction();
+      return;
+    }
     if (!match?.id || !currentUid) return;
     if (!myPhotosBlurred) return;
     if (photoAccessState.loading) return;
@@ -308,15 +335,55 @@ export default function StudioMatchCard({
     return unreadCount > 99 ? '99+' : String(unreadCount);
   }, [unreadCount]);
 
+  const isActiveMatchForMe = useMemo(() => {
+    const lockId = safeStr(activeLockMatchId);
+    const id = safeStr(match?.id);
+    return !!lockId && !!id && lockId === id;
+  }, [activeLockMatchId, match?.id]);
+
+  const longChatAllowedHere = useMemo(() => {
+    if (!isActiveMatchForMe) return false;
+    return status === 'mutual_accepted' || status === 'contact_unlocked';
+  }, [isActiveMatchForMe, status]);
+
+  const activeChatNoticeKey = useMemo(() => {
+    const id = safeStr(match?.id);
+    const uid = safeStr(currentUid);
+    if (!id || !uid) return '';
+    return `studio_active_chat_notice_seen:${uid}:${id}`;
+  }, [currentUid, match?.id]);
+
+  const [activeChatNoticeSeen, setActiveChatNoticeSeen] = useState(true);
+  useEffect(() => {
+    if (!activeChatNoticeKey) {
+      setActiveChatNoticeSeen(true);
+      return;
+    }
+    try {
+      setActiveChatNoticeSeen(window.localStorage.getItem(activeChatNoticeKey) === '1');
+    } catch {
+      setActiveChatNoticeSeen(true);
+    }
+  }, [activeChatNoticeKey]);
+
   const lockedByActiveMatch = !!activeLockMatchId && safeStr(activeLockMatchId) !== safeStr(match?.id);
 
   const startActive = async () => {
+    if (interactionsDisabled) {
+      blockInteraction();
+      return;
+    }
     if (!match?.id || !currentUid) return;
     if (lockedByActiveMatch) {
       setActiveStartState({ loading: false, error: t('studio.errors.activeLocked'), notice: '' });
       return;
     }
-    if (!canInteract) {
+    if (!profileComplete) {
+      setActiveStartState({ loading: false, error: t('studio.profileGate.body'), notice: '' });
+      if (typeof onRequireProfile === 'function') onRequireProfile();
+      return;
+    }
+    if (!membershipActive) {
       setActiveStartState({ loading: false, error: t('studio.paywall.upgradeToInteract'), notice: '' });
       if (typeof onRequirePaid === 'function') onRequirePaid();
       return;
@@ -348,12 +415,21 @@ export default function StudioMatchCard({
   };
 
   const like = async () => {
+    if (interactionsDisabled) {
+      blockInteraction();
+      return;
+    }
     if (!match?.id || !currentUid) return;
     if (lockedByActiveMatch) {
       setLikeState({ loading: false, error: t('studio.errors.activeLocked') });
       return;
     }
-    if (!canInteract) {
+    if (!profileComplete) {
+      setLikeState({ loading: false, error: t('studio.profileGate.body') });
+      if (typeof onRequireProfile === 'function') onRequireProfile();
+      return;
+    }
+    if (!membershipActive) {
       setLikeState({ loading: false, error: t('studio.paywall.upgradeToInteract') });
       if (typeof onRequirePaid === 'function') onRequirePaid();
       return;
@@ -374,14 +450,18 @@ export default function StudioMatchCard({
   };
 
   const reject = async () => {
+    if (interactionsDisabled) {
+      blockInteraction();
+      return;
+    }
     if (!match?.id || !currentUid) return;
     if (lockedByActiveMatch) {
       setLikeState({ loading: false, error: t('studio.errors.activeLocked') });
       return;
     }
-    if (!canInteract) {
-      setLikeState({ loading: false, error: t('studio.paywall.upgradeToInteract') });
-      if (typeof onRequirePaid === 'function') onRequirePaid();
+    if (!profileComplete) {
+      setLikeState({ loading: false, error: t('studio.profileGate.body') });
+      if (typeof onRequireProfile === 'function') onRequireProfile();
       return;
     }
     if (likeState.loading) return;
@@ -400,9 +480,35 @@ export default function StudioMatchCard({
   };
 
   const openShort = () => {
+    if (interactionsDisabled) {
+      blockInteraction();
+      return;
+    }
     if (typeof onOpenShort !== 'function') return;
     if (lockedByActiveMatch) return;
     onOpenShort({ matchId: match?.id, displayName });
+  };
+
+  const openMessage = () => {
+    if (interactionsDisabled) {
+      blockInteraction();
+      return;
+    }
+    if (lockedByActiveMatch) return;
+    if (!match?.id) return;
+
+    if (longChatAllowedHere) {
+      try {
+        if (activeChatNoticeKey) window.localStorage.setItem(activeChatNoticeKey, '1');
+      } catch {
+        // noop
+      }
+      setActiveChatNoticeSeen(true);
+      navigate(`/app/chat/${match.id}`);
+      return;
+    }
+
+    openShort();
   };
 
   const openProfileDetails = () => {
@@ -415,6 +521,7 @@ export default function StudioMatchCard({
 
   const photoBlockedByReciprocity = !!myPhotosBlurred && !myToOtherAllowed;
   const photoBlockedByOtherPrivacy = !!otherPhotosBlurred && !otherToMeAllowed;
+  const incomingLikeNeedsDecision = !!isIncomingLike && !isLiked;
 
   return (
     <>
@@ -428,12 +535,13 @@ export default function StudioMatchCard({
           </div>
 
           {isIncomingLike ? (
-            <div className="pointer-events-none absolute left-3 top-12">
+            <div className="pointer-events-none absolute right-3 top-3">
               <span
-                className="inline-flex items-center rounded-full bg-emerald-950/80 px-2 py-1 text-[11px] font-semibold text-emerald-50 ring-2 ring-emerald-400/70 shadow-[0_0_18px_rgba(52,211,153,0.55)]"
-                title={t('matchmakingPanel.matches.candidate.likeBadge')}
+                className="relative inline-flex items-center justify-center rounded-full bg-rose-600 px-2 py-1 text-[11px] font-extrabold text-white ring-2 ring-white shadow-sm"
+                title={t('studio.match.banners.incomingLikeNote')}
               >
-                {t('matchmakingPanel.matches.candidate.likeBadge')}
+                <Heart className="mr-1 h-4 w-4 fill-white" />
+                1
               </span>
             </div>
           ) : null}
@@ -503,6 +611,30 @@ export default function StudioMatchCard({
             ) : (
               <div className="h-full w-full bg-slate-100" />
             )}
+
+            {status === 'mutual_interest' && mutualLiked ? (
+              <div className="pointer-events-none absolute inset-x-3 bottom-3 flex items-center justify-center">
+                <button
+                  type="button"
+                  data-tutorial-id="match-start-active"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    startActive();
+                  }}
+                  disabled={activeStartState.loading || lockedByActiveMatch}
+                  className="pointer-events-auto app-btn app-btn-primary w-full disabled:opacity-60"
+                  title={t('studio.matchProfile.activeStart.start')}
+                >
+                  <Sparkles className="mr-2 h-5 w-5" />
+                  {activeStartState.loading
+                    ? t('studio.matchProfile.activeStart.starting')
+                    : iStartedActive
+                      ? t('studio.matchProfile.activeStart.waiting')
+                      : t('studio.matchProfile.activeStart.start')}
+                </button>
+              </div>
+            ) : null}
           </div>
 
           {!canSeeOtherPhotos ? (
@@ -666,12 +798,18 @@ export default function StudioMatchCard({
         </div>
 
         <div className="p-4 pt-0 flex flex-col gap-2">
+          {isIncomingLike ? (
+            <div className="rounded-md border border-rose-200 bg-rose-50 p-2 text-xs font-semibold text-rose-800">
+              {t('studio.match.banners.incomingLikeNote')}
+            </div>
+          ) : null}
+
           {photoBlockedByOtherPrivacy && !photoBlockedByReciprocity ? (
             <button
               type="button"
               onClick={requestOtherPhotoAccess}
               disabled={photoRequestState.loading || photoRequestState.status === 'pending' || photoRequestState.status === 'approved' || lockedByActiveMatch}
-              className="inline-flex items-center justify-center rounded-md bg-emerald-600 px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 disabled:opacity-60"
+              className="inline-flex items-center justify-center rounded-md bg-emerald-500 px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-600 disabled:opacity-60"
             >
               {photoRequestState.loading
                 ? t('studio.common.processing')
@@ -718,75 +856,127 @@ export default function StudioMatchCard({
 
           {photoAccessState.error ? <div className="text-sm text-rose-700">{photoAccessState.error}</div> : null}
 
-          <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-nowrap sm:items-center sm:justify-between">
-          <button
-            type="button"
-            onClick={like}
-            disabled={likeState.loading || lockedByActiveMatch}
-            className={
-              'app-btn w-full sm:flex-1 disabled:opacity-60 ' +
-              (isLiked ? 'app-btn-primary' : 'app-btn')
-            }
-          >
-            <Heart className={`mr-2 h-5 w-5 ${isLiked ? 'fill-white' : ''}`} />
-            {likeState.loading
-              ? t('studio.common.processing')
-              : isLiked
-                ? t('studio.match.actions.unlike')
-                : t('studio.match.actions.like')}
-          </button>
+          <div className="space-y-2">
+            {incomingLikeNeedsDecision ? (
+              <>
+                <button
+                  type="button"
+                  data-tutorial-id="match-like"
+                  onClick={like}
+                  disabled={likeState.loading || lockedByActiveMatch}
+                  className="app-btn app-btn-primary w-full disabled:opacity-60"
+                >
+                  <span className="relative mr-2 inline-flex">
+                    <Heart className={'h-5 w-5 ' + (isLiked ? 'fill-white' : isIncomingLike ? 'text-rose-600 fill-rose-600' : '')} />
+                    {isIncomingLike && !isLiked ? (
+                      <span className="absolute -right-1 -top-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-600 px-1 text-[10px] font-extrabold text-white ring-2 ring-white">
+                        1
+                      </span>
+                    ) : null}
+                  </span>
+                  {likeState.loading
+                    ? t('studio.common.processing')
+                    : isLiked
+                      ? t('studio.match.actions.unlike')
+                      : t('studio.match.actions.like')}
+                </button>
 
-          <button
-            type="button"
-            onClick={openProfileDetails}
-            disabled={lockedByActiveMatch}
-            className="app-btn w-full sm:flex-1 disabled:opacity-60"
-            title={t('studio.match.actions.profileDetails')}
-          >
-            <User className="mr-2 h-5 w-5" />
-            {t('studio.match.actions.profileDetails')}
-          </button>
+                <button
+                  type="button"
+                  onClick={reject}
+                  disabled={likeState.loading || lockedByActiveMatch}
+                  className="app-btn app-btn-danger w-full disabled:opacity-60"
+                  title={t('studio.inbox.reject')}
+                >
+                  {t('studio.inbox.reject')}
+                </button>
 
-          {isIncomingLike ? (
-            <button
-              type="button"
-              onClick={reject}
-              disabled={likeState.loading || lockedByActiveMatch}
-              className="inline-flex w-full sm:w-auto items-center justify-center rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-800 shadow-sm transition hover:bg-rose-100 active:scale-[0.99] disabled:opacity-60"
-              title={t('studio.inbox.reject')}
-            >
-              {t('studio.inbox.reject')}
-            </button>
-          ) : null}
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={openProfileDetails}
+                    disabled={lockedByActiveMatch}
+                    className="app-btn w-full disabled:opacity-60"
+                    title={t('studio.match.actions.profileDetails')}
+                  >
+                    <User className="mr-2 h-5 w-5" />
+                    {t('studio.match.actions.profileDetails')}
+                  </button>
 
-          {status === 'mutual_interest' && mutualLiked ? (
-            <button
-              type="button"
-              onClick={startActive}
-              disabled={activeStartState.loading || lockedByActiveMatch}
-              className="app-btn app-btn-primary w-full sm:w-auto disabled:opacity-60"
-              title={t('studio.matchProfile.activeStart.start')}
-            >
-              <Sparkles className="mr-2 h-5 w-5" />
-              {activeStartState.loading
-                ? t('studio.matchProfile.activeStart.starting')
-                : iStartedActive
-                  ? t('studio.matchProfile.activeStart.waiting')
-                  : t('studio.matchProfile.activeStart.start')}
-            </button>
-          ) : null}
+                  <button
+                    type="button"
+                    data-tutorial-id="match-open-message"
+                    onClick={openMessage}
+                    disabled={lockedByActiveMatch}
+                    className="app-btn app-btn-soft relative w-full disabled:opacity-60"
+                  >
+                    <MessageCircle className="mr-2 h-5 w-5" />
+                    {longChatAllowedHere ? t('studio.match.actions.messageLong') : t('studio.match.actions.message')}
+                    {unreadCount > 0 ? (
+                      <span className="absolute -right-1 -top-1 h-3 w-3 rounded-full bg-emerald-300 ring-2 ring-emerald-600" />
+                    ) : null}
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  data-tutorial-id="match-open-message"
+                  onClick={openMessage}
+                  disabled={lockedByActiveMatch}
+                  className="app-btn app-btn-primary relative w-full disabled:opacity-60"
+                >
+                  <MessageCircle className="mr-2 h-5 w-5" />
+                  {longChatAllowedHere ? t('studio.match.actions.messageLong') : t('studio.match.actions.message')}
+                  {unreadCount > 0 ? (
+                    <span className="absolute -right-1 -top-1 h-3 w-3 rounded-full bg-emerald-300 ring-2 ring-emerald-600" />
+                  ) : null}
+                </button>
 
-          <button
-            type="button"
-            onClick={openShort}
-            disabled={lockedByActiveMatch}
-            className="app-btn app-btn-primary relative w-full sm:w-auto disabled:opacity-60"
-          >
-            <MessageCircle className="mr-2 h-5 w-5" />
-            {t('studio.match.actions.message')}
-            {unreadCount > 0 ? <span className="absolute -right-1 -top-1 h-3 w-3 rounded-full bg-emerald-300 ring-2 ring-emerald-600" /> : null}
-          </button>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    data-tutorial-id="match-like"
+                    onClick={like}
+                    disabled={likeState.loading || lockedByActiveMatch}
+                    className={'app-btn w-full disabled:opacity-60 ' + (isLiked ? 'app-btn-primary' : 'app-btn')}
+                  >
+                    <span className="relative mr-2 inline-flex">
+                      <Heart className={'h-5 w-5 ' + (isLiked ? 'fill-white' : isIncomingLike ? 'text-rose-600 fill-rose-600' : '')} />
+                      {isIncomingLike && !isLiked ? (
+                        <span className="absolute -right-1 -top-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-600 px-1 text-[10px] font-extrabold text-white ring-2 ring-white">
+                          1
+                        </span>
+                      ) : null}
+                    </span>
+                    {likeState.loading
+                      ? t('studio.common.processing')
+                      : isLiked
+                        ? t('studio.match.actions.unlike')
+                        : t('studio.match.actions.like')}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={openProfileDetails}
+                    disabled={lockedByActiveMatch}
+                    className="app-btn w-full disabled:opacity-60"
+                    title={t('studio.match.actions.profileDetails')}
+                  >
+                    <User className="mr-2 h-5 w-5" />
+                    {t('studio.match.actions.profileDetails')}
+                  </button>
+                </div>
+              </>
+            )}
           </div>
+
+          {longChatAllowedHere && !activeChatNoticeSeen ? (
+            <div className="rounded-md border border-emerald-200 bg-emerald-50 p-2 text-xs font-semibold text-emerald-900">
+              {t('studio.match.banners.activeChatStarted')}
+            </div>
+          ) : null}
         </div>
       </div>
 

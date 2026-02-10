@@ -59,6 +59,67 @@ function normalizeGender(v) {
   return null;
 }
 
+function getAnyAboutFromUserDoc(userDoc) {
+  const it = userDoc && typeof userDoc === 'object' ? userDoc : null;
+  if (!it) return '';
+  const d = it?.details && typeof it.details === 'object' ? it.details : null;
+  const pp = it?.publicProfile && typeof it.publicProfile === 'object' ? it.publicProfile : null;
+  const app = it?.application && typeof it.application === 'object' ? it.application : null;
+  return (
+    safeStr(it?.bio) ||
+    safeStr(d?.about) ||
+    safeStr(d?.bio) ||
+    safeStr(d?.aboutTr) ||
+    safeStr(d?.aboutId) ||
+    safeStr(d?.bioTr) ||
+    safeStr(d?.bioId) ||
+    safeStr(pp?.about) ||
+    safeStr(pp?.bio) ||
+    safeStr(pp?.aboutTr) ||
+    safeStr(pp?.aboutId) ||
+    safeStr(pp?.bioTr) ||
+    safeStr(pp?.bioId) ||
+    safeStr(app?.about) ||
+    safeStr(app?.bio) ||
+    safeStr(app?.aboutTr) ||
+    safeStr(app?.aboutId) ||
+    safeStr(app?.bioTr) ||
+    safeStr(app?.bioId)
+  );
+}
+
+function appScoreForAdmin(app) {
+  const source = safeStr(app?.source).toLowerCase();
+  const isStub = source === 'auto_stub' || app?.details?.autoBootstrap === true;
+  const ms =
+    (typeof app?.createdAtMs === 'number' && Number.isFinite(app.createdAtMs) ? app.createdAtMs : 0) ||
+    toMs(app?.createdAt);
+  let score = 0;
+  if (!isStub) score += 1000;
+  if (typeof app?.age === 'number' && Number.isFinite(app.age)) score += 10;
+  if (normalizeGender(app?.gender)) score += 10;
+  if (safeStr(app?.country)) score += 3;
+  if (safeStr(app?.city)) score += 2;
+  if (ms > 0) score += Math.min(50, Math.floor(ms / 1e12));
+  return score;
+}
+
+function pickBestApp(apps) {
+  const list = Array.isArray(apps) ? apps : [];
+  if (!list.length) return null;
+  let best = list[0];
+  let bestScore = appScoreForAdmin(best);
+  for (let i = 1; i < list.length; i += 1) {
+    const cand = list[i];
+    const s = appScoreForAdmin(cand);
+    if (s > bestScore) {
+      best = cand;
+      bestScore = s;
+    }
+  }
+  return best || null;
+}
+
 function looksLikeUserCode(q) {
   const s = safeStr(q);
   if (!s) return false;
@@ -120,6 +181,7 @@ export default async function handler(req, res) {
         const untilMs = userDoc && typeof userDoc?.membership?.validUntilMs === 'number' ? userDoc.membership.validUntilMs : 0;
         const plan = userDoc && typeof userDoc?.membership?.plan === 'string' ? userDoc.membership.plan : '';
         const applicationId = userDoc && typeof userDoc?.applicationId === 'string' ? safeStr(userDoc.applicationId) : '';
+        const cachedAbout = getAnyAboutFromUserDoc(userDoc);
 
         res.statusCode = 200;
         res.setHeader('content-type', 'application/json');
@@ -139,7 +201,7 @@ export default async function handler(req, res) {
                 membershipPlan: plan || null,
                 membershipValidUntilMs: untilMs || null,
                 hasUserDoc: !!userDoc,
-                hasApplication: !!applicationId,
+                hasApplication: !!applicationId || !!cachedAbout,
                 applicationId: applicationId || null,
                 userCode: typeof userDoc?.userCode === 'string' ? userDoc.userCode : null,
                 fullName:
@@ -190,6 +252,7 @@ export default async function handler(req, res) {
       const untilMs = userDoc && typeof userDoc?.membership?.validUntilMs === 'number' ? userDoc.membership.validUntilMs : 0;
       const plan = userDoc && typeof userDoc?.membership?.plan === 'string' ? userDoc.membership.plan : '';
       const applicationId = userDoc && typeof userDoc?.applicationId === 'string' ? safeStr(userDoc.applicationId) : '';
+      const cachedAbout = getAnyAboutFromUserDoc(userDoc);
 
       res.statusCode = 200;
       res.setHeader('content-type', 'application/json');
@@ -209,7 +272,7 @@ export default async function handler(req, res) {
               membershipPlan: plan || null,
               membershipValidUntilMs: untilMs || null,
               hasUserDoc: !!userDoc,
-              hasApplication: !!applicationId,
+              hasApplication: !!applicationId || !!cachedAbout,
               applicationId: applicationId || null,
               userCode: typeof userDoc?.userCode === 'string' ? userDoc.userCode : null,
               fullName: typeof userDoc?.fullName === 'string' && userDoc.fullName.trim() ? userDoc.fullName.trim() : null,
@@ -266,6 +329,42 @@ export default async function handler(req, res) {
 
     const now = Date.now();
 
+    // Enrich missing age/gender from applications (some users have no cache fields).
+    const needsAppUids = uids.filter((uid) => {
+      const d = userDocByUid.get(uid) || null;
+      const age = d ? (parseAge(d?.age) ?? parseAge(d?.publicProfile?.age) ?? parseAge(d?.application?.age)) : null;
+      const gender = d ? (normalizeGender(d?.gender) ?? normalizeGender(d?.publicProfile?.gender) ?? normalizeGender(d?.application?.gender)) : null;
+      const applicationId = d && typeof d?.applicationId === 'string' ? safeStr(d.applicationId) : '';
+      const cachedAbout = getAnyAboutFromUserDoc(d);
+      return age === null || gender === null || (!applicationId && !cachedAbout);
+    });
+
+    const bestAppByUid = new Map();
+    if (needsAppUids.length) {
+      const chunks = [];
+      for (let i = 0; i < needsAppUids.length; i += 10) chunks.push(needsAppUids.slice(i, i + 10));
+      for (const chunk of chunks) {
+        try {
+          const snap = await db.collection('matchmakingApplications').where('userId', 'in', chunk).get();
+          const byUid = new Map();
+          snap.docs.forEach((d) => {
+            const a = d.data() || {};
+            const uid = safeStr(a?.userId);
+            if (!uid) return;
+            const list = byUid.get(uid) || [];
+            list.push({ id: d.id, ...a });
+            byUid.set(uid, list);
+          });
+          for (const [uid, list] of byUid.entries()) {
+            const best = pickBestApp(list);
+            if (best) bestAppByUid.set(uid, best);
+          }
+        } catch {
+          // best-effort
+        }
+      }
+    }
+
     const users = records.map((u) => {
       const uid = String(u.uid);
       const userDoc = userDocByUid.get(uid) || null;
@@ -274,6 +373,10 @@ export default async function handler(req, res) {
       const untilMs = userDoc && typeof userDoc?.membership?.validUntilMs === 'number' ? userDoc.membership.validUntilMs : 0;
       const plan = userDoc && typeof userDoc?.membership?.plan === 'string' ? userDoc.membership.plan : '';
       const applicationId = userDoc && typeof userDoc?.applicationId === 'string' ? safeStr(userDoc.applicationId) : '';
+      const cachedAbout = getAnyAboutFromUserDoc(userDoc);
+      const bestApp = bestAppByUid.get(uid) || null;
+      const effectiveApplicationId = applicationId || (bestApp?.id ? String(bestApp.id) : '');
+      const hasApplication = !!effectiveApplicationId || !!cachedAbout;
 
       return {
         uid,
@@ -287,12 +390,22 @@ export default async function handler(req, res) {
         membershipPlan: plan || null,
         membershipValidUntilMs: untilMs || null,
         hasUserDoc: !!userDoc,
-        hasApplication: !!applicationId,
-        applicationId: applicationId || null,
+        hasApplication,
+        applicationId: effectiveApplicationId || null,
         userCode: typeof userDoc?.userCode === 'string' ? userDoc.userCode : null,
         fullName: typeof userDoc?.fullName === 'string' && userDoc.fullName.trim() ? userDoc.fullName.trim() : null,
-        age: userDoc ? parseAge(userDoc?.age) : null,
-        gender: userDoc ? normalizeGender(userDoc?.gender) : null,
+        age: userDoc
+          ? (parseAge(userDoc?.age) ??
+            parseAge(userDoc?.publicProfile?.age) ??
+            parseAge(userDoc?.application?.age) ??
+            parseAge(bestApp?.age))
+          : (parseAge(bestApp?.age) ?? null),
+        gender: userDoc
+          ? (normalizeGender(userDoc?.gender) ??
+            normalizeGender(userDoc?.publicProfile?.gender) ??
+            normalizeGender(userDoc?.application?.gender) ??
+            normalizeGender(bestApp?.gender))
+          : (normalizeGender(bestApp?.gender) ?? null),
         identityVerified: userDoc ? (userDoc?.identityVerified === true) : null,
         lastApprovedPaymentId:
           userDoc && typeof userDoc?.membership?.lastApprovedPaymentId === 'string'

@@ -113,6 +113,23 @@ try {
 
 precacheAndRoute(self.__WB_MANIFEST);
 
+// SPA navigations (HTML): Network-first.
+// Kök problem: deploy sonrası eski HTML -> eski chunk URL'leri -> "sayfayı yenile" hatası.
+// HTML'i precache'e sokmuyoruz; network-first ile güncel app shell gelir.
+registerRoute(
+  ({ request }) => request.mode === 'navigate',
+  new NetworkFirst({
+    cacheName: 'html-pages',
+    networkTimeoutSeconds: 3,
+    plugins: [
+      new ExpirationPlugin({
+        maxEntries: 5,
+        maxAgeSeconds: 60 * 60, // 1 saat (offline için kısa süreli fallback)
+      }),
+    ],
+  })
+);
+
 // API çağrıları her zaman network'ten gelsin.
 registerRoute(({ url }) => url.pathname.startsWith('/api/'), new NetworkOnly());
 

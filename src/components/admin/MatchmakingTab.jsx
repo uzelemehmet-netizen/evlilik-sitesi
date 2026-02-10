@@ -390,7 +390,7 @@ export default function MatchmakingTab({ items, newCount, onMarkAllRead }) {
             <button
               type="button"
               onClick={onMarkAllRead}
-              className="px-4 py-2 rounded-lg bg-emerald-600 text-white text-sm font-semibold"
+              className="px-4 py-2 rounded-lg bg-emerald-500 text-white text-sm font-semibold"
             >
               Okundu Olarak İşaretle {newCount > 0 ? `(${newCount})` : ''}
             </button>

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { collection, doc, getDocs, limit, onSnapshot, query, where } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocFromServer, getDocs, limit, onSnapshot, query, where } from 'firebase/firestore';
 import { signOut } from 'firebase/auth';
 import { getDownloadURL, ref } from 'firebase/storage';
 import { AlertTriangle, BookOpen, Edit, Images, LogOut, MessageCircle, ShieldCheck, Star, Trash2, UploadCloud, Users } from 'lucide-react';
@@ -14,6 +14,9 @@ import { uploadImageToCloudinaryAuto } from '../../utils/cloudinaryUpload';
 import { translateStudioApiError } from '../../utils/studioErrorI18n';
 import { buildWhatsAppUrl, getWhatsAppNumber } from '../../utils/whatsapp';
 import PwaInstallCard from '../../components/PwaInstallCard.jsx';
+import { openPreviewGate } from '../../utils/previewGate';
+import { buildPreviewProfile } from '../../utils/studioPreviewData';
+import StudioBottomNav from '../../components/studio/StudioBottomNav';
 
 function safeStr(v) {
   return typeof v === 'string' ? v.trim() : '';
@@ -55,11 +58,35 @@ function pickBestNonStubApplication(items) {
   return best ? best.a : null;
 }
 
+function appCompletenessScore(app) {
+  if (!app || typeof app !== 'object') return 0;
+  let s = 0;
+  if (typeof app?.age === 'number' && Number.isFinite(app.age)) s += 3;
+  if (safeStr(app?.gender)) s += 3;
+  if (safeStr(app?.country)) s += 2;
+  if (safeStr(app?.city)) s += 1;
+  if (safeStr(app?.nationality)) s += 1;
+  const photos = Array.isArray(app?.photoUrls) ? app.photoUrls.filter(Boolean) : [];
+  if (photos.length) s += 1;
+  if (safeStr(app?.about) || safeStr(app?.details?.about)) s += 1;
+  if (safeStr(app?.expectations)) s += 1;
+  return s;
+}
+
+function pickMoreCompleteApp(a, b) {
+  const sa = appCompletenessScore(a);
+  const sb = appCompletenessScore(b);
+  if (sb > sa) return b;
+  return a || b || null;
+}
+
 export default function StudioProfile() {
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useAuth();
   const { t, i18n } = useTranslation();
+
+  const isPreview = !user || user.isAnonymous;
 
   const referralUiEnabled = (() => {
     try {
@@ -71,7 +98,11 @@ export default function StudioProfile() {
   })();
 
 
-  const uid = String(user?.uid || '').trim();
+  const uid = isPreview ? '' : String(user?.uid || '').trim();
+
+  const blockInteraction = () => {
+    openPreviewGate({ reason: t('previewGate.body') });
+  };
 
   const [mmUser, setMmUser] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -107,6 +138,29 @@ export default function StudioProfile() {
   const [textTouched, setTextTouched] = useState(false);
   const [textSaveState, setTextSaveState] = useState({ loading: false, error: '', success: '' });
 
+  const [partnerPrefsModalOpen, setPartnerPrefsModalOpen] = useState(false);
+  const [partnerPrefsDraft, setPartnerPrefsDraft] = useState({
+    lookingForNationality: '',
+    lookingForGender: '',
+    partnerPreferences: {
+      heightMinCm: '',
+      heightMaxCm: '',
+      ageMaxOlderYears: '',
+      ageMaxYoungerYears: '',
+      maritalStatus: '',
+      religion: '',
+      livingCountry: '',
+      childrenPreference: '',
+      educationPreference: '',
+      occupationPreference: '',
+      familyValuesPreference: '',
+      smokingPreference: '',
+      alcoholPreference: '',
+      communicationMethods: [],
+    },
+  });
+  const [partnerPrefsSaveState, setPartnerPrefsSaveState] = useState({ loading: false, error: '', success: '' });
+
   const [photoPrivacyState, setPhotoPrivacyState] = useState({ loading: false, error: '' });
   const [localPhotosBlurred, setLocalPhotosBlurred] = useState(null);
 
@@ -118,19 +172,28 @@ export default function StudioProfile() {
 
   const [topInlinePanel, setTopInlinePanel] = useState('');
 
+  const didNormalizeStubRef = useRef(false);
+
+  useEffect(() => {
+    if (!isPreview) return;
+    const sample = buildPreviewProfile();
+    setMmUser(sample?.mmUser || null);
+    setLatestApp(sample?.latestApp || null);
+    setLatestAppId(sample?.latestApp?.id ? String(sample.latestApp.id) : '');
+    setResolvedPhotoUrls(Array.isArray(sample?.resolvedPhotoUrls) ? sample.resolvedPhotoUrls : []);
+    setLoading(false);
+    setAppLoading(false);
+  }, [isPreview]);
+
   const isProfileIncomplete = useMemo(() => {
-    const wroteOnce =
-      typeof mmUser?.profileTextWriteOnceUsedAtMs === 'number' && Number.isFinite(mmUser.profileTextWriteOnceUsedAtMs)
-        ? mmUser.profileTextWriteOnceUsedAtMs
-        : 0;
     const about = safeStr(mmUser?.details?.about) || safeStr(mmUser?.publicProfile?.about);
-    const expectations = safeStr(mmUser?.details?.expectations) || safeStr(mmUser?.publicProfile?.expectations);
-    if (wroteOnce > 0 || (about && expectations)) return false;
+    // 2026-02: Apply form no longer asks for expectations.
+    if (about) return false;
 
     const source = safeStr(latestApp?.source).toLowerCase();
     const isStub = source === 'auto_stub' || latestApp?.details?.autoBootstrap === true;
     return !!isStub;
-  }, [latestApp?.details?.autoBootstrap, latestApp?.source, mmUser?.details?.about, mmUser?.details?.expectations, mmUser?.profileTextWriteOnceUsedAtMs, mmUser?.publicProfile?.about, mmUser?.publicProfile?.expectations]);
+  }, [latestApp?.details?.autoBootstrap, latestApp?.source, mmUser?.details?.about, mmUser?.publicProfile?.about]);
 
   const applySource = String(location?.state?.from || '').trim();
   const applyApplicationId = String(location?.state?.applicationId || '').trim();
@@ -143,6 +206,24 @@ export default function StudioProfile() {
 
     setLoading(true);
     const ref = doc(db, 'matchmakingUsers', uid);
+
+    let cancelled = false;
+    (async () => {
+      try {
+        let snap;
+        try {
+          snap = await getDocFromServer(ref);
+        } catch {
+          snap = await getDoc(ref);
+        }
+        if (cancelled) return;
+        setMmUser(snap?.exists?.() ? { id: snap.id, ...snap.data() } : null);
+        setLoading(false);
+      } catch {
+        // best-effort
+      }
+    })();
+
     const unsub = onSnapshot(
       ref,
       (snap) => {
@@ -157,6 +238,7 @@ export default function StudioProfile() {
     );
 
     return () => {
+      cancelled = true;
       try {
         unsub();
       } catch {
@@ -199,6 +281,31 @@ export default function StudioProfile() {
   }, [uid]);
 
   useEffect(() => {
+    if (isPreview) return;
+    if (!uid) return;
+    if (didNormalizeStubRef.current) return;
+    didNormalizeStubRef.current = true;
+
+    (async () => {
+      try {
+        await authFetch('/api/matchmaking-application-normalize', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({}),
+        });
+      } catch {
+        // best-effort
+      }
+
+      try {
+        await refreshLatestApplication();
+      } catch {
+        // ignore
+      }
+    })();
+  }, [isPreview, uid]);
+
+  useEffect(() => {
     if (!uid || !latestAppId) return;
 
     const ref = doc(db, 'matchmakingApplications', latestAppId);
@@ -224,7 +331,7 @@ export default function StudioProfile() {
 
   const profile = useMemo(() => {
     const appFromUser = mmUser?.application && typeof mmUser.application === 'object' ? mmUser.application : null;
-    const app = appFromUser || latestApp || null;
+    const app = pickMoreCompleteApp(appFromUser, latestApp);
     const publicProfile = mmUser?.publicProfile && typeof mmUser.publicProfile === 'object' ? mmUser.publicProfile : null;
 
     const username = String(app?.username || publicProfile?.username || '').trim();
@@ -312,6 +419,182 @@ export default function StudioProfile() {
     };
   }, [appLoading, latestApp, mmUser, t, user?.email]);
 
+  const bestApp = useMemo(() => {
+    const appFromUser = mmUser?.application && typeof mmUser.application === 'object' ? mmUser.application : null;
+    return pickMoreCompleteApp(appFromUser, latestApp);
+  }, [latestApp, mmUser]);
+
+  const nationalityOptions = useMemo(
+    () => [
+      { id: '', label: t('matchmakingPage.form.options.common.select') },
+      { id: 'tr', label: t('matchmakingPage.form.options.nationality.tr') },
+      { id: 'id', label: t('matchmakingPage.form.options.nationality.id') },
+      { id: 'other', label: t('matchmakingPage.form.options.nationality.other') },
+    ],
+    [t, i18n.language]
+  );
+
+  const genderOptions = useMemo(
+    () => [
+      { id: '', label: t('matchmakingPage.form.options.common.select') },
+      { id: 'male', label: t('matchmakingPage.form.options.gender.male') },
+      { id: 'female', label: t('matchmakingPage.form.options.gender.female') },
+    ],
+    [t, i18n.language]
+  );
+
+  const partnerMaritalStatusOptions = useMemo(
+    () => [
+      { id: '', label: t('matchmakingPage.form.options.common.select') },
+      { id: 'single', label: t('matchmakingPage.form.options.maritalStatus.single') },
+      { id: 'widowed', label: t('matchmakingPage.form.options.maritalStatus.widowed') },
+      { id: 'divorced', label: t('matchmakingPage.form.options.maritalStatus.divorced') },
+      { id: 'doesnt_matter', label: t('matchmakingPage.form.options.maritalStatus.doesnt_matter') },
+    ],
+    [t, i18n.language]
+  );
+
+  const religionOptions = useMemo(
+    () => [
+      { id: '', label: t('matchmakingPage.form.options.common.select') },
+      { id: 'islam', label: t('matchmakingPage.form.options.religion.islam') },
+      { id: 'christian', label: t('matchmakingPage.form.options.religion.christian') },
+      { id: 'hindu', label: t('matchmakingPage.form.options.religion.hindu') },
+      { id: 'buddhist', label: t('matchmakingPage.form.options.religion.buddhist') },
+      { id: 'other', label: t('matchmakingPage.form.options.religion.other') },
+    ],
+    [t, i18n.language]
+  );
+
+  const yesNoDoesntMatterOptions = useMemo(
+    () => [
+      { id: '', label: t('matchmakingPage.form.options.common.select') },
+      { id: 'yes', label: t('matchmakingPage.form.options.common.yes') },
+      { id: 'no', label: t('matchmakingPage.form.options.common.no') },
+      { id: 'doesnt_matter', label: t('matchmakingPage.form.options.common.doesntMatter') },
+    ],
+    [t, i18n.language]
+  );
+
+  const partnerChildrenPreferenceOptions = useMemo(
+    () => [
+      { id: '', label: t('matchmakingPage.form.options.common.select') },
+      { id: 'want_children', label: t('matchmakingPage.form.options.partnerChildren.wantChildren') },
+      { id: 'no_children', label: t('matchmakingPage.form.options.partnerChildren.noChildren') },
+      { id: 'doesnt_matter', label: t('matchmakingPage.form.options.common.doesntMatter') },
+    ],
+    [t, i18n.language]
+  );
+
+  const partnerEducationPreferenceOptions = useMemo(
+    () => [
+      { id: '', label: t('matchmakingPage.form.options.common.select') },
+      { id: 'secondary', label: t('matchmakingPage.form.options.education.secondary') },
+      { id: 'university', label: t('matchmakingPage.form.options.education.university') },
+      { id: 'masters', label: t('matchmakingPage.form.options.education.masters') },
+      { id: 'phd', label: t('matchmakingPage.form.options.education.phd') },
+      { id: 'doesnt_matter', label: t('matchmakingPage.form.options.common.doesntMatter') },
+    ],
+    [t, i18n.language]
+  );
+
+  const partnerOccupationPreferenceOptions = useMemo(
+    () => [
+      { id: '', label: t('matchmakingPage.form.options.common.select') },
+      { id: 'civil_servant', label: t('matchmakingPage.form.options.occupation.civilServant') },
+      { id: 'employee', label: t('matchmakingPage.form.options.occupation.employee') },
+      { id: 'retired', label: t('matchmakingPage.form.options.occupation.retired') },
+      { id: 'business_owner', label: t('matchmakingPage.form.options.occupation.businessOwner') },
+      { id: 'doesnt_matter', label: t('matchmakingPage.form.options.common.doesntMatter') },
+    ],
+    [t, i18n.language]
+  );
+
+  const partnerFamilyValuesPreferenceOptions = useMemo(
+    () => [
+      { id: '', label: t('matchmakingPage.form.options.common.select') },
+      { id: 'religious', label: t('matchmakingPage.form.options.familyValues.religious') },
+      { id: 'liberal', label: t('matchmakingPage.form.options.familyValues.liberal') },
+      { id: 'doesnt_matter', label: t('matchmakingPage.form.options.common.doesntMatter') },
+    ],
+    [t, i18n.language]
+  );
+
+  const partnerCommunicationMethodOptions = useMemo(
+    () => [
+      { id: 'own_language', label: t('matchmakingPage.form.options.partnerCommunicationMethods.ownLanguage') },
+      { id: 'foreign_language', label: t('matchmakingPage.form.options.partnerCommunicationMethods.foreignLanguage') },
+      { id: 'translation_app', label: t('matchmakingPage.form.options.partnerCommunicationMethods.translationApp') },
+    ],
+    [t, i18n.language]
+  );
+
+  const openPartnerPrefsModal = () => {
+    if (isPreview) {
+      blockInteraction();
+      return;
+    }
+
+    const app = bestApp && typeof bestApp === 'object' ? bestApp : {};
+    const partner = app?.partnerPreferences && typeof app.partnerPreferences === 'object' ? app.partnerPreferences : {};
+
+    setPartnerPrefsSaveState({ loading: false, error: '', success: '' });
+    setPartnerPrefsDraft({
+      lookingForNationality: String(app?.lookingForNationality || '').trim(),
+      lookingForGender: String(app?.lookingForGender || '').trim(),
+      partnerPreferences: {
+        heightMinCm: partner?.heightMinCm ?? partner?.heightMinCm === 0 ? String(partner.heightMinCm) : '',
+        heightMaxCm: partner?.heightMaxCm ?? partner?.heightMaxCm === 0 ? String(partner.heightMaxCm) : '',
+        ageMaxOlderYears: partner?.ageMaxOlderYears ?? partner?.ageMaxOlderYears === 0 ? String(partner.ageMaxOlderYears) : '',
+        ageMaxYoungerYears: partner?.ageMaxYoungerYears ?? partner?.ageMaxYoungerYears === 0 ? String(partner.ageMaxYoungerYears) : '',
+        maritalStatus: String(partner?.maritalStatus || '').trim(),
+        religion: String(partner?.religion || '').trim(),
+        livingCountry: String(partner?.livingCountry || '').trim(),
+        childrenPreference: String(partner?.childrenPreference || '').trim(),
+        educationPreference: String(partner?.educationPreference || '').trim(),
+        occupationPreference: String(partner?.occupationPreference || '').trim(),
+        familyValuesPreference: String(partner?.familyValuesPreference || '').trim(),
+        smokingPreference: String(partner?.smokingPreference || '').trim(),
+        alcoholPreference: String(partner?.alcoholPreference || '').trim(),
+        communicationMethods: Array.isArray(partner?.communicationMethods) ? partner.communicationMethods : [],
+      },
+    });
+    setPartnerPrefsModalOpen(true);
+  };
+
+  const closePartnerPrefsModal = () => {
+    if (partnerPrefsSaveState.loading) return;
+    setPartnerPrefsModalOpen(false);
+  };
+
+  const savePartnerPrefs = async () => {
+    if (isPreview) {
+      blockInteraction();
+      return;
+    }
+    if (partnerPrefsSaveState.loading) return;
+
+    setPartnerPrefsSaveState({ loading: true, error: '', success: '' });
+    try {
+      await authFetch('/api/matchmaking-partner-preferences-update', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          payload: {
+            lookingForNationality: partnerPrefsDraft?.lookingForNationality || '',
+            lookingForGender: partnerPrefsDraft?.lookingForGender || '',
+            partnerPreferences: partnerPrefsDraft?.partnerPreferences || {},
+          },
+        }),
+      });
+      setPartnerPrefsSaveState({ loading: false, error: '', success: t('studio.profile.partnerPrefsSaved') });
+    } catch (e) {
+      const msg = String(e?.message || '').trim();
+      const mapped = translateStudioApiError(t, msg) || t('studio.profile.partnerPrefsErrors.failed');
+      setPartnerPrefsSaveState({ loading: false, error: mapped, success: '' });
+    }
+  };
+
   useEffect(() => {
     let cancelled = false;
 
@@ -365,6 +648,7 @@ export default function StudioProfile() {
   };
 
   const refreshLatestApplication = async () => {
+    if (isPreview) return;
     if (!uid) return;
     try {
       const q = query(collection(db, 'matchmakingApplications'), where('userId', '==', uid), limit(10));
@@ -379,6 +663,10 @@ export default function StudioProfile() {
   };
 
   const requestPhotoUpdate = async () => {
+    if (isPreview) {
+      blockInteraction();
+      return;
+    }
     if (!uid) return;
     if (photoUpdateAction.loading) return;
 
@@ -391,34 +679,45 @@ export default function StudioProfile() {
     const f2 = photoUpdateFiles.photo2;
     const f3 = photoUpdateFiles.photo3;
 
-    if (!f1 || !f2 || !f3) {
+    if (!f1 && !f2 && !f3) {
       setPhotoUpdateAction({ loading: false, error: t('matchmakingPanel.photos.updateRequest.errors.photosRequired'), success: '' });
       return;
     }
-    if (!isImageFile(f1) || !isImageFile(f2) || !isImageFile(f3)) {
+
+    const selected = [f1, f2, f3].filter(Boolean);
+    if (selected.some((f) => !isImageFile(f))) {
       setPhotoUpdateAction({ loading: false, error: t('matchmakingPanel.photos.updateRequest.errors.photoType'), success: '' });
       return;
     }
 
     setPhotoUpdateAction({ loading: true, error: '', success: '' });
     try {
-      const up1 = await uploadImageToCloudinaryAuto(f1, {
-        folder: `matchmaking/photo-update-requests/${uid || 'unknown'}`,
-        tags: ['matchmaking', 'photo-update', 'photo1'],
-      });
-      const up2 = await uploadImageToCloudinaryAuto(f2, {
-        folder: `matchmaking/photo-update-requests/${uid || 'unknown'}`,
-        tags: ['matchmaking', 'photo-update', 'photo2'],
-      });
-      const up3 = await uploadImageToCloudinaryAuto(f3, {
-        folder: `matchmaking/photo-update-requests/${uid || 'unknown'}`,
-        tags: ['matchmaking', 'photo-update', 'photo3'],
-      });
+      const up1 = f1
+        ? await uploadImageToCloudinaryAuto(f1, {
+            folder: `matchmaking/photo-update-requests/${uid || 'unknown'}`,
+            tags: ['matchmaking', 'photo-update', 'photo1'],
+          })
+        : null;
+      const up2 = f2
+        ? await uploadImageToCloudinaryAuto(f2, {
+            folder: `matchmaking/photo-update-requests/${uid || 'unknown'}`,
+            tags: ['matchmaking', 'photo-update', 'photo2'],
+          })
+        : null;
+      const up3 = f3
+        ? await uploadImageToCloudinaryAuto(f3, {
+            folder: `matchmaking/photo-update-requests/${uid || 'unknown'}`,
+            tags: ['matchmaking', 'photo-update', 'photo3'],
+          })
+        : null;
 
       await authFetch('/api/matchmaking-photo-update-request', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ photoUrls: [up1.secureUrl, up2.secureUrl, up3.secureUrl] }),
+        body: JSON.stringify({
+          applicationId: latestAppId || '',
+          photoUrls: [up1?.secureUrl || '', up2?.secureUrl || '', up3?.secureUrl || ''],
+        }),
       });
 
       setPhotoUpdateFiles({ photo1: null, photo2: null, photo3: null });
@@ -457,6 +756,10 @@ export default function StudioProfile() {
   }, [mmUser]);
 
   const setPhotosBlurred = async (next) => {
+    if (isPreview) {
+      blockInteraction();
+      return;
+    }
     if (!uid) return;
     if (photoPrivacyState.loading) return;
 
@@ -484,6 +787,10 @@ export default function StudioProfile() {
   }, [profile.aboutText, profile.expectationsText, textTouched]);
 
   const saveProfileTexts = async () => {
+    if (isPreview) {
+      blockInteraction();
+      return;
+    }
     if (!uid) return;
     if (textSaveState.loading) return;
 
@@ -503,6 +810,10 @@ export default function StudioProfile() {
   };
 
   const logoutNow = async () => {
+    if (isPreview) {
+      blockInteraction();
+      return;
+    }
     try {
       await signOut(auth);
     } finally {
@@ -511,14 +822,35 @@ export default function StudioProfile() {
   };
 
   const activateFreeMembership = async () => {
+    if (isPreview) {
+      blockInteraction();
+      return;
+    }
     if (membershipAction.loading) return;
     setMembershipAction({ loading: true, error: '', success: '' });
     try {
-      await authFetch('/api/matchmaking-membership-activate-free', {
+      const data = await authFetch('/api/matchmaking-membership-activate-free', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({}),
       });
+
+      const validUntilMs = typeof data?.validUntilMs === 'number' && Number.isFinite(data.validUntilMs) ? data.validUntilMs : 0;
+      setMmUser((prev) => {
+        if (!prev || typeof prev !== 'object') return prev;
+        const prevMembership = prev?.membership && typeof prev.membership === 'object' ? prev.membership : {};
+        const nextValidUntilMs = validUntilMs || (typeof prevMembership?.validUntilMs === 'number' ? prevMembership.validUntilMs : 0) || 0;
+        return {
+          ...prev,
+          membership: {
+            ...prevMembership,
+            active: true,
+            plan: String(prevMembership?.plan || 'eco').trim() || 'eco',
+            validUntilMs: nextValidUntilMs,
+          },
+        };
+      });
+
       setMembershipAction({ loading: false, error: '', success: t('studio.profile.membershipActivated') });
     } catch (e) {
       const msg = String(e?.message || 'membership_activate_failed').trim();
@@ -527,6 +859,10 @@ export default function StudioProfile() {
   };
 
   const cancelMembership = async () => {
+    if (isPreview) {
+      blockInteraction();
+      return;
+    }
     if (membershipAction.loading) return;
 
     const ok = typeof window !== 'undefined' ? window.confirm(t('studio.profile.confirmCancelMembership')) : true;
@@ -571,6 +907,10 @@ export default function StudioProfile() {
   };
 
   const acceptReferralCode = async () => {
+    if (isPreview) {
+      blockInteraction();
+      return;
+    }
     if (referralAcceptState.loading) return;
 
     const code = String(referralCodeDraft || '').trim();
@@ -597,6 +937,10 @@ export default function StudioProfile() {
   };
 
   const claimReferralReward = async () => {
+    if (isPreview) {
+      blockInteraction();
+      return;
+    }
     if (referralClaimState.loading) return;
     setReferralClaimState({ loading: true, error: '', success: '' });
     try {
@@ -616,6 +960,10 @@ export default function StudioProfile() {
   };
 
   const submitManualVerification = async () => {
+    if (isPreview) {
+      blockInteraction();
+      return;
+    }
     if (verifyAction.loading) return;
 
     const idFront = verifyForm.idFront;
@@ -663,6 +1011,10 @@ export default function StudioProfile() {
   }, []);
 
   const startWhatsAppCallVerification = async () => {
+    if (isPreview) {
+      blockInteraction();
+      return;
+    }
     if (verifySelectAction.loading) return;
 
     if (!whatsappNumber) {
@@ -742,6 +1094,10 @@ export default function StudioProfile() {
   };
 
   const deleteAccount = async () => {
+    if (isPreview) {
+      blockInteraction();
+      return;
+    }
     if (deleteState.loading) return;
 
     const ok = typeof window !== 'undefined' ? window.confirm(t('studio.profile.confirmDelete')) : true;
@@ -820,7 +1176,7 @@ export default function StudioProfile() {
   }, [guidanceModalOpen]);
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900">
+    <div className="min-h-screen bg-slate-50 text-slate-900 pb-24 sm:pb-0">
       <Navigation />
 
       <main className="container mx-auto px-4 py-8">
@@ -995,6 +1351,7 @@ export default function StudioProfile() {
 
                 <Link
                   to="/app/matches"
+                  data-tutorial-id="profile-my-matches"
                   className="app-btn app-btn-accent w-full sm:w-auto"
                 >
                   <span className="inline-flex items-center justify-center gap-2">
@@ -1050,7 +1407,7 @@ export default function StudioProfile() {
                         type="button"
                         onClick={activateFreeMembership}
                         disabled={membershipAction.loading}
-                        className="inline-flex items-center justify-center rounded-md bg-emerald-700 px-3 py-2 text-sm font-semibold text-white transition hover:bg-emerald-800 disabled:opacity-60"
+                        className="inline-flex items-center justify-center rounded-md bg-emerald-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-60"
                       >
                         {membershipAction.loading ? t('studio.common.processing') : t('studio.profile.activateMembership')}
                       </button>
@@ -1117,7 +1474,7 @@ export default function StudioProfile() {
                           setVerifyModalOpen(true);
                         }}
                         disabled={!whatsappNumber || String(profile?.identityStatus || '').toLowerCase().trim() === 'pending'}
-                        className="inline-flex items-center justify-center rounded-md bg-emerald-700 px-3 py-2 text-sm font-semibold text-white transition hover:bg-emerald-800 disabled:opacity-60"
+                        className="inline-flex items-center justify-center rounded-md bg-emerald-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-60"
                       >
                         <MessageCircle className="mr-2 h-4 w-4" />
                         {t('studio.profile.verifyMethodWhatsApp')}
@@ -1261,7 +1618,7 @@ export default function StudioProfile() {
                           disabled={photoPrivacyState.loading}
                           className={
                             'inline-flex items-center justify-center rounded-full px-4 py-2 text-sm font-semibold transition disabled:opacity-60 ' +
-                            (photosBlurred ? 'bg-emerald-700 text-white hover:bg-emerald-800' : 'bg-slate-200 text-slate-900 hover:bg-slate-300')
+                              (photosBlurred ? 'bg-emerald-600 text-white hover:bg-emerald-700' : 'bg-slate-200 text-slate-900 hover:bg-slate-300')
                           }
                         >
                           {photoPrivacyState.loading
@@ -1333,7 +1690,7 @@ export default function StudioProfile() {
                             type="button"
                             onClick={claimReferralReward}
                             disabled={referralClaimState.loading}
-                            className="inline-flex items-center justify-center rounded-md bg-emerald-700 px-3 py-2 text-sm font-semibold text-white transition hover:bg-emerald-800 disabled:opacity-60"
+                            className="inline-flex items-center justify-center rounded-md bg-emerald-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-60"
                           >
                             {referralClaimState.loading ? t('studio.common.processing') : t('studio.referral.claimButton')}
                           </button>
@@ -1463,7 +1820,7 @@ export default function StudioProfile() {
                   type="button"
                   onClick={saveProfileTexts}
                   disabled={textSaveState.loading || !textTouched}
-                  className="inline-flex items-center justify-center rounded-md bg-emerald-700 px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-800 disabled:opacity-60"
+                  className="inline-flex items-center justify-center rounded-md bg-emerald-600 px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 disabled:opacity-60"
                 >
                   {textSaveState.loading ? t('studio.common.processing') : t('studio.profile.saveTexts')}
                 </button>
@@ -1510,6 +1867,20 @@ export default function StudioProfile() {
                   />
                   <p className="mt-1 text-xs text-slate-500">{textDraft.expectations.length} / 1800</p>
                 </div>
+              </div>
+            </div>
+
+            <div className="mt-6 border-t border-slate-200 pt-6">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <h2 className="text-lg font-semibold">{t('studio.profile.partnerPrefsTitle')}</h2>
+                <button
+                  type="button"
+                  onClick={openPartnerPrefsModal}
+                  className="inline-flex items-center justify-center rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 shadow-sm transition hover:bg-slate-50"
+                >
+                  <Edit className="mr-2 h-4 w-4" />
+                  {t('studio.profile.partnerPrefsCta')}
+                </button>
               </div>
             </div>
 
@@ -1579,7 +1950,7 @@ export default function StudioProfile() {
                           className={
                             "rounded-md border px-3 py-2 text-sm font-semibold transition " +
                             (verifyMode === 'whatsapp_call'
-                              ? 'bg-emerald-700 text-white border-emerald-700'
+                              ? 'bg-emerald-600 text-white border-emerald-600'
                               : 'bg-white text-slate-800 border-slate-200 hover:bg-slate-50')
                           }
                         >
@@ -1618,7 +1989,7 @@ export default function StudioProfile() {
                           type="button"
                           onClick={startWhatsAppCallVerification}
                           disabled={verifySelectAction.loading || !whatsappNumber || String(profile?.identityStatus || '').toLowerCase().trim() === 'pending'}
-                          className="mt-3 inline-flex w-full items-center justify-center rounded-md bg-emerald-700 px-3 py-2 text-sm font-semibold text-white hover:bg-emerald-800 disabled:opacity-60"
+                          className="mt-3 inline-flex w-full items-center justify-center rounded-md bg-emerald-600 px-3 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-60"
                         >
                           {verifySelectAction.loading ? t('studio.common.loading') : t('studio.profile.verifyWhatsAppCta')}
                         </button>
@@ -1704,11 +2075,372 @@ export default function StudioProfile() {
                           type="button"
                           onClick={submitManualVerification}
                           disabled={verifyAction.loading || String(profile?.identityStatus || '').toLowerCase().trim() === 'pending'}
-                          className="rounded-md bg-emerald-700 px-3 py-2 text-sm font-semibold text-white hover:bg-emerald-800 disabled:opacity-60"
+                          className="rounded-md bg-emerald-600 px-3 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-60"
                         >
                           {verifyAction.loading ? t('studio.common.loading') : t('studio.profile.submitVerification')}
                         </button>
                       )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ) : null}
+
+            {partnerPrefsModalOpen ? (
+              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+                <div className="w-full max-w-3xl rounded-xl bg-white shadow-xl">
+                  <div className="flex items-center justify-between border-b border-slate-200 p-4">
+                    <h3 className="text-lg font-semibold">{t('studio.profile.partnerPrefsTitle')}</h3>
+                    <button
+                      type="button"
+                      onClick={closePartnerPrefsModal}
+                      disabled={partnerPrefsSaveState.loading}
+                      className="rounded-md px-2 py-1 text-sm font-semibold text-slate-600 hover:bg-slate-100 disabled:opacity-60"
+                    >
+                      {t('studio.common.close')}
+                    </button>
+                  </div>
+
+                  <div className="p-4 space-y-4">
+                    {partnerPrefsSaveState.error ? (
+                      <div className="rounded-md border border-rose-200 bg-rose-50 p-2 text-sm text-rose-900">{partnerPrefsSaveState.error}</div>
+                    ) : null}
+                    {partnerPrefsSaveState.success ? (
+                      <div className="rounded-md border border-emerald-200 bg-emerald-50 p-2 text-sm text-emerald-900">{partnerPrefsSaveState.success}</div>
+                    ) : null}
+
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                      <label className="text-sm font-semibold text-slate-800">
+                        {t('matchmakingPage.form.labels.lookingForNationality')}
+                        <select
+                          value={partnerPrefsDraft?.lookingForNationality || ''}
+                          onChange={(e) =>
+                            setPartnerPrefsDraft((p) => ({
+                              ...(p || {}),
+                              lookingForNationality: e.target.value,
+                            }))
+                          }
+                          className="mt-2 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm outline-none focus:border-emerald-300 focus:ring-2 focus:ring-emerald-100"
+                        >
+                          {nationalityOptions.map((o) => (
+                            <option key={o.id} value={o.id}>
+                              {o.label}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+
+                      <label className="text-sm font-semibold text-slate-800">
+                        {t('matchmakingPage.form.labels.lookingForGender')}
+                        <select
+                          value={partnerPrefsDraft?.lookingForGender || ''}
+                          onChange={(e) =>
+                            setPartnerPrefsDraft((p) => ({
+                              ...(p || {}),
+                              lookingForGender: e.target.value,
+                            }))
+                          }
+                          className="mt-2 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm outline-none focus:border-emerald-300 focus:ring-2 focus:ring-emerald-100"
+                        >
+                          {genderOptions.map((o) => (
+                            <option key={o.id} value={o.id}>
+                              {o.label}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+
+                      <label className="text-sm font-semibold text-slate-800">
+                        {t('matchmakingPage.form.labels.partnerHeightMin')}
+                        <input
+                          inputMode="numeric"
+                          value={partnerPrefsDraft?.partnerPreferences?.heightMinCm ?? ''}
+                          onChange={(e) =>
+                            setPartnerPrefsDraft((p) => ({
+                              ...(p || {}),
+                              partnerPreferences: { ...((p || {})?.partnerPreferences || {}), heightMinCm: e.target.value },
+                            }))
+                          }
+                          className="mt-2 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm outline-none focus:border-emerald-300 focus:ring-2 focus:ring-emerald-100"
+                          placeholder="160"
+                        />
+                      </label>
+
+                      <label className="text-sm font-semibold text-slate-800">
+                        {t('matchmakingPage.form.labels.partnerHeightMax')}
+                        <input
+                          inputMode="numeric"
+                          value={partnerPrefsDraft?.partnerPreferences?.heightMaxCm ?? ''}
+                          onChange={(e) =>
+                            setPartnerPrefsDraft((p) => ({
+                              ...(p || {}),
+                              partnerPreferences: { ...((p || {})?.partnerPreferences || {}), heightMaxCm: e.target.value },
+                            }))
+                          }
+                          className="mt-2 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm outline-none focus:border-emerald-300 focus:ring-2 focus:ring-emerald-100"
+                          placeholder="190"
+                        />
+                      </label>
+
+                      <label className="text-sm font-semibold text-slate-800">
+                        {t('matchmakingPage.form.labels.partnerAgeMaxOlderYears')}
+                        <input
+                          inputMode="numeric"
+                          value={partnerPrefsDraft?.partnerPreferences?.ageMaxOlderYears ?? ''}
+                          onChange={(e) =>
+                            setPartnerPrefsDraft((p) => ({
+                              ...(p || {}),
+                              partnerPreferences: { ...((p || {})?.partnerPreferences || {}), ageMaxOlderYears: e.target.value },
+                            }))
+                          }
+                          className="mt-2 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm outline-none focus:border-emerald-300 focus:ring-2 focus:ring-emerald-100"
+                          placeholder="5"
+                        />
+                      </label>
+
+                      <label className="text-sm font-semibold text-slate-800">
+                        {t('matchmakingPage.form.labels.partnerAgeMaxYoungerYears')}
+                        <input
+                          inputMode="numeric"
+                          value={partnerPrefsDraft?.partnerPreferences?.ageMaxYoungerYears ?? ''}
+                          onChange={(e) =>
+                            setPartnerPrefsDraft((p) => ({
+                              ...(p || {}),
+                              partnerPreferences: { ...((p || {})?.partnerPreferences || {}), ageMaxYoungerYears: e.target.value },
+                            }))
+                          }
+                          className="mt-2 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm outline-none focus:border-emerald-300 focus:ring-2 focus:ring-emerald-100"
+                          placeholder="3"
+                        />
+                      </label>
+
+                      <label className="text-sm font-semibold text-slate-800">
+                        {t('matchmakingPage.form.labels.partnerMaritalStatus')}
+                        <select
+                          value={partnerPrefsDraft?.partnerPreferences?.maritalStatus || ''}
+                          onChange={(e) =>
+                            setPartnerPrefsDraft((p) => ({
+                              ...(p || {}),
+                              partnerPreferences: { ...((p || {})?.partnerPreferences || {}), maritalStatus: e.target.value },
+                            }))
+                          }
+                          className="mt-2 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm outline-none focus:border-emerald-300 focus:ring-2 focus:ring-emerald-100"
+                        >
+                          {partnerMaritalStatusOptions.map((o) => (
+                            <option key={o.id} value={o.id}>
+                              {o.label}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+
+                      <label className="text-sm font-semibold text-slate-800">
+                        {t('matchmakingPage.form.labels.partnerReligion')}
+                        <select
+                          value={partnerPrefsDraft?.partnerPreferences?.religion || ''}
+                          onChange={(e) =>
+                            setPartnerPrefsDraft((p) => ({
+                              ...(p || {}),
+                              partnerPreferences: { ...((p || {})?.partnerPreferences || {}), religion: e.target.value },
+                            }))
+                          }
+                          className="mt-2 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm outline-none focus:border-emerald-300 focus:ring-2 focus:ring-emerald-100"
+                        >
+                          {religionOptions.map((o) => (
+                            <option key={o.id} value={o.id}>
+                              {o.label}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+
+                      <label className="text-sm font-semibold text-slate-800">
+                        {t('matchmakingPage.form.labels.partnerLivingCountry')}
+                        <input
+                          value={partnerPrefsDraft?.partnerPreferences?.livingCountry || ''}
+                          onChange={(e) =>
+                            setPartnerPrefsDraft((p) => ({
+                              ...(p || {}),
+                              partnerPreferences: { ...((p || {})?.partnerPreferences || {}), livingCountry: e.target.value },
+                            }))
+                          }
+                          className="mt-2 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm outline-none focus:border-emerald-300 focus:ring-2 focus:ring-emerald-100"
+                          placeholder={t('matchmakingPage.form.placeholders.country')}
+                        />
+                      </label>
+
+                      <label className="text-sm font-semibold text-slate-800">
+                        {t('matchmakingPage.form.labels.partnerChildrenPreference')}
+                        <select
+                          value={partnerPrefsDraft?.partnerPreferences?.childrenPreference || ''}
+                          onChange={(e) =>
+                            setPartnerPrefsDraft((p) => ({
+                              ...(p || {}),
+                              partnerPreferences: { ...((p || {})?.partnerPreferences || {}), childrenPreference: e.target.value },
+                            }))
+                          }
+                          className="mt-2 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm outline-none focus:border-emerald-300 focus:ring-2 focus:ring-emerald-100"
+                        >
+                          {partnerChildrenPreferenceOptions.map((o) => (
+                            <option key={o.id} value={o.id}>
+                              {o.label}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+
+                      <label className="text-sm font-semibold text-slate-800">
+                        {t('matchmakingPage.form.labels.partnerEducationPreference')}
+                        <select
+                          value={partnerPrefsDraft?.partnerPreferences?.educationPreference || ''}
+                          onChange={(e) =>
+                            setPartnerPrefsDraft((p) => ({
+                              ...(p || {}),
+                              partnerPreferences: { ...((p || {})?.partnerPreferences || {}), educationPreference: e.target.value },
+                            }))
+                          }
+                          className="mt-2 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm outline-none focus:border-emerald-300 focus:ring-2 focus:ring-emerald-100"
+                        >
+                          {partnerEducationPreferenceOptions.map((o) => (
+                            <option key={o.id} value={o.id}>
+                              {o.label}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+
+                      <label className="text-sm font-semibold text-slate-800">
+                        {t('matchmakingPage.form.labels.partnerOccupationPreference')}
+                        <select
+                          value={partnerPrefsDraft?.partnerPreferences?.occupationPreference || ''}
+                          onChange={(e) =>
+                            setPartnerPrefsDraft((p) => ({
+                              ...(p || {}),
+                              partnerPreferences: { ...((p || {})?.partnerPreferences || {}), occupationPreference: e.target.value },
+                            }))
+                          }
+                          className="mt-2 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm outline-none focus:border-emerald-300 focus:ring-2 focus:ring-emerald-100"
+                        >
+                          {partnerOccupationPreferenceOptions.map((o) => (
+                            <option key={o.id} value={o.id}>
+                              {o.label}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+
+                      <label className="text-sm font-semibold text-slate-800">
+                        {t('matchmakingPage.form.labels.partnerFamilyValuesPreference')}
+                        <select
+                          value={partnerPrefsDraft?.partnerPreferences?.familyValuesPreference || ''}
+                          onChange={(e) =>
+                            setPartnerPrefsDraft((p) => ({
+                              ...(p || {}),
+                              partnerPreferences: { ...((p || {})?.partnerPreferences || {}), familyValuesPreference: e.target.value },
+                            }))
+                          }
+                          className="mt-2 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm outline-none focus:border-emerald-300 focus:ring-2 focus:ring-emerald-100"
+                        >
+                          {partnerFamilyValuesPreferenceOptions.map((o) => (
+                            <option key={o.id} value={o.id}>
+                              {o.label}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+
+                      <label className="text-sm font-semibold text-slate-800">
+                        {t('matchmakingPage.form.labels.partnerSmokingPreference')}
+                        <select
+                          value={partnerPrefsDraft?.partnerPreferences?.smokingPreference || ''}
+                          onChange={(e) =>
+                            setPartnerPrefsDraft((p) => ({
+                              ...(p || {}),
+                              partnerPreferences: { ...((p || {})?.partnerPreferences || {}), smokingPreference: e.target.value },
+                            }))
+                          }
+                          className="mt-2 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm outline-none focus:border-emerald-300 focus:ring-2 focus:ring-emerald-100"
+                        >
+                          {yesNoDoesntMatterOptions.map((o) => (
+                            <option key={o.id} value={o.id}>
+                              {o.label}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+
+                      <label className="text-sm font-semibold text-slate-800">
+                        {t('matchmakingPage.form.labels.partnerAlcoholPreference')}
+                        <select
+                          value={partnerPrefsDraft?.partnerPreferences?.alcoholPreference || ''}
+                          onChange={(e) =>
+                            setPartnerPrefsDraft((p) => ({
+                              ...(p || {}),
+                              partnerPreferences: { ...((p || {})?.partnerPreferences || {}), alcoholPreference: e.target.value },
+                            }))
+                          }
+                          className="mt-2 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm outline-none focus:border-emerald-300 focus:ring-2 focus:ring-emerald-100"
+                        >
+                          {yesNoDoesntMatterOptions.map((o) => (
+                            <option key={o.id} value={o.id}>
+                              {o.label}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+
+                      <div className="sm:col-span-2">
+                        <p className="text-sm font-semibold text-slate-800">{t('matchmakingPage.form.labels.partnerCommunicationMethods')}</p>
+                        <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-3">
+                          {partnerCommunicationMethodOptions.map((opt) => (
+                            <label
+                              key={opt.id}
+                              className="flex items-start gap-2 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-800"
+                            >
+                              <input
+                                type="checkbox"
+                                className="mt-1"
+                                checked={
+                                  Array.isArray(partnerPrefsDraft?.partnerPreferences?.communicationMethods)
+                                    ? partnerPrefsDraft.partnerPreferences.communicationMethods.includes(opt.id)
+                                    : false
+                                }
+                                onChange={() =>
+                                  setPartnerPrefsDraft((prev) => {
+                                    const prevObj = prev && typeof prev === 'object' ? prev : {};
+                                    const prevPartner =
+                                      prevObj.partnerPreferences && typeof prevObj.partnerPreferences === 'object' ? prevObj.partnerPreferences : {};
+                                    const list = Array.isArray(prevPartner.communicationMethods) ? prevPartner.communicationMethods : [];
+                                    const has = list.includes(opt.id);
+                                    const next = has ? list.filter((x) => x !== opt.id) : [...list, opt.id];
+                                    return { ...prevObj, partnerPreferences: { ...prevPartner, communicationMethods: next } };
+                                  })
+                                }
+                              />
+                              <span>{opt.label}</span>
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
+                      <button
+                        type="button"
+                        onClick={closePartnerPrefsModal}
+                        disabled={partnerPrefsSaveState.loading}
+                        className="inline-flex items-center justify-center rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 shadow-sm transition hover:bg-slate-50 disabled:opacity-60"
+                      >
+                        {t('studio.common.cancel')}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={savePartnerPrefs}
+                        disabled={partnerPrefsSaveState.loading}
+                        className="inline-flex items-center justify-center rounded-md bg-emerald-600 px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 disabled:opacity-60"
+                      >
+                        {partnerPrefsSaveState.loading ? t('studio.profile.partnerPrefsSaving') : t('studio.profile.partnerPrefsSave')}
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -1754,7 +2486,7 @@ export default function StudioProfile() {
                   <div className="border-t border-slate-200 p-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between shrink-0">
                     <Link
                       to="/evlilik"
-                      className="inline-flex items-center justify-center rounded-md bg-emerald-700 px-3 py-2 text-sm font-semibold text-white transition hover:bg-emerald-800"
+                      className="inline-flex items-center justify-center rounded-md bg-emerald-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-emerald-700"
                       onClick={() => setGuidanceModalOpen(false)}
                     >
                       {t('studio.profile.guidance.learnMore')}
@@ -1764,7 +2496,7 @@ export default function StudioProfile() {
                       href={guidanceWhatsAppUrl}
                       target="_blank"
                       rel="noreferrer"
-                      className="inline-flex items-center justify-center rounded-md bg-emerald-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-emerald-700"
+                      className="inline-flex items-center justify-center rounded-md bg-emerald-500 px-3 py-2 text-sm font-semibold text-white transition hover:bg-emerald-600"
                     >
                       {t('studio.profile.guidance.whatsappCta')}
                     </a>
@@ -1784,6 +2516,7 @@ export default function StudioProfile() {
         </div>
       </main>
 
+      <StudioBottomNav />
       <Footer />
     </div>
   );

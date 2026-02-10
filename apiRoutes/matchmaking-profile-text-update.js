@@ -160,16 +160,6 @@ export default async function handler(req, res) {
   const meSnap = await db.collection('matchmakingUsers').doc(uid).get();
   const me = meSnap.exists ? (meSnap.data() || {}) : {};
 
-  const usedMs = typeof me?.profileTextWriteOnceUsedAtMs === 'number' && Number.isFinite(me.profileTextWriteOnceUsedAtMs)
-    ? me.profileTextWriteOnceUsedAtMs
-    : 0;
-  if (usedMs > 0) {
-    res.statusCode = 409;
-    res.setHeader('content-type', 'application/json');
-    res.end(JSON.stringify({ ok: false, error: 'profile_text_write_once_used' }));
-    return;
-  }
-
   const lastMs = typeof me?.profileTextsUpdatedAtMs === 'number' && Number.isFinite(me.profileTextsUpdatedAtMs) ? me.profileTextsUpdatedAtMs : 0;
   if (lastMs > 0 && nowMs - lastMs < 10_000) {
     res.statusCode = 429;
@@ -182,23 +172,6 @@ export default async function handler(req, res) {
   const appSnap = await db.collection('matchmakingApplications').where('userId', '==', uid).limit(10).get();
   const apps = appSnap.docs.map((d) => ({ id: d.id, ...(d.data() || {}) }));
   const best = pickBestNonStubApplication(apps);
-
-  // Migration safety: existing users already have texts => lock them.
-  const alreadyHasTexts = !!safeStr(best?.about, 1) || !!safeStr(best?.expectations, 1);
-  if (alreadyHasTexts) {
-    await db.collection('matchmakingUsers').doc(uid).set(
-      {
-        profileTextWriteOnceUsedAt: FieldValue.serverTimestamp(),
-        profileTextWriteOnceUsedAtMs: nowMs,
-      },
-      { merge: true }
-    );
-
-    res.statusCode = 409;
-    res.setHeader('content-type', 'application/json');
-    res.end(JSON.stringify({ ok: false, error: 'profile_text_write_once_used' }));
-    return;
-  }
 
   const [aboutBi, expBi] = await Promise.all([
     buildBilingualText(about, sourceLang),
@@ -220,7 +193,6 @@ export default async function handler(req, res) {
         aboutId: aboutBi.id,
         expectationsTr: expBi.tr,
         expectationsId: expBi.id,
-        profileTextWriteOnceUsedAtMs: nowMs,
         profileTextTranslatedAtMs: nowMs,
         profileTextTranslate: {
           about: {
@@ -270,8 +242,6 @@ export default async function handler(req, res) {
         expectationsId: expBi.id,
       },
       profileTextLang: sourceLang,
-      profileTextWriteOnceUsedAt: FieldValue.serverTimestamp(),
-      profileTextWriteOnceUsedAtMs: nowMs,
       profileTextsUpdatedAt: FieldValue.serverTimestamp(),
       profileTextsUpdatedAtMs: nowMs,
       updatedAt: FieldValue.serverTimestamp(),

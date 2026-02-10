@@ -8,6 +8,7 @@ import NewUsers48hTab from '../components/admin/NewUsers48hTab';
 import AllUsersTab from '../components/admin/AllUsersTab';
 import PaymentsTab from '../components/admin/PaymentsTab';
 import MatchmakingIdentityTab from '../components/admin/MatchmakingIdentityTab';
+import MatchmakingPhotoUpdatesTab from '../components/admin/MatchmakingPhotoUpdatesTab';
 import ModerationTab from '../components/admin/ModerationTab';
 import AuditLogsTab from '../components/admin/AuditLogsTab';
 import MatchActivityTab from '../components/admin/MatchActivityTab';
@@ -21,6 +22,7 @@ export default function AdminDashboardLite() {
       { id: 'allUsers', label: 'Tüm Kullanıcılar' },
       { id: 'payments', label: 'Ödemeler' },
       { id: 'identity', label: 'Kimlik Doğrulama' },
+      { id: 'photoUpdates', label: 'Fotoğraf Güncelleme' },
       { id: 'moderation', label: 'Şikayetler' },
       { id: 'clickLogs', label: 'Tıklamalar' },
       { id: 'matchActivity', label: 'Eşleşme Aktivitesi' },
@@ -76,6 +78,7 @@ export default function AdminDashboardLite() {
         {activeTab === 'allUsers' ? <AllUsersTab /> : null}
         {activeTab === 'payments' ? <PaymentsTab /> : null}
         {activeTab === 'identity' ? <MatchmakingIdentityTab /> : null}
+        {activeTab === 'photoUpdates' ? <MatchmakingPhotoUpdatesTab /> : null}
         {activeTab === 'moderation' ? <ModerationTab /> : null}
         {activeTab === 'clickLogs' ? <ClickLogsTab /> : null}
         {activeTab === 'matchActivity' ? <MatchActivityTab /> : null}

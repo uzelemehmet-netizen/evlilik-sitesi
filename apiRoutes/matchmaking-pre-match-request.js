@@ -1,5 +1,5 @@
 import { getAdmin, normalizeBody, requireIdToken } from './_firebaseAdmin.js';
-import { ensureEligibleOrThrow, ensureProfileCompleteOrThrow, normalizeGender } from './_matchmakingEligibility.js';
+import { ensureMembershipActiveOrThrow, ensureProfileCompleteOrThrow, normalizeGender } from './_matchmakingEligibility.js';
 
 function safeStr(v) {
   return typeof v === 'string' ? v.trim() : '';
@@ -253,7 +253,7 @@ export default async function handler(req, res) {
       const meUser = meUserSnap.exists ? (meUserSnap.data() || {}) : {};
 
       await ensureProfileCompleteOrThrow(db, uid);
-      ensureEligibleOrThrow(meUser, safeStr(myApp?.gender));
+      ensureMembershipActiveOrThrow(meUser);
     } catch (e2) {
       res.statusCode = e2?.statusCode || 402;
       res.setHeader('content-type', 'application/json');

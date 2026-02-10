@@ -8,6 +8,14 @@ function toNumberOrNull(value) {
   return Number.isFinite(n) ? n : null;
 }
 
+function isIndonesianNationality(raw) {
+  const s = String(raw || '').trim().toLowerCase();
+  if (!s) return false;
+  if (s === 'id') return true;
+  if (s === 'indonesia' || s === 'indonezya' || s === 'endonezya') return true;
+  return s.includes('indonesia') || s.includes('indonezya') || s.includes('endonezya');
+}
+
 export default function MatchmakingEditOnceFullForm({
   value,
   setValue,
@@ -19,15 +27,6 @@ export default function MatchmakingEditOnceFullForm({
   disableConsents = true,
 }) {
   const { t, i18n } = useTranslation();
-
-  const nationalityOptions = useMemo(
-    () => [
-      { id: 'tr', label: t('matchmakingPage.form.options.nationality.tr') },
-      { id: 'id', label: t('matchmakingPage.form.options.nationality.id') },
-      { id: 'other', label: t('matchmakingPage.form.options.nationality.other') },
-    ],
-    [t, i18n.language]
-  );
 
   const genderOptions = useMemo(
     () => [
@@ -576,17 +575,13 @@ export default function MatchmakingEditOnceFullForm({
         <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label className="block text-sm text-white/70">{t('matchmakingPage.form.labels.nationality')}</label>
-            <select
+            <input
               value={value?.nationality || ''}
               onChange={onChange('nationality')}
-              className="mt-1 w-full rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-sm text-white"
-            >
-              {nationalityOptions.map((opt) => (
-                <option key={opt.id} value={opt.id} className="text-slate-900">
-                  {opt.label}
-                </option>
-              ))}
-            </select>
+              maxLength={60}
+              placeholder={t('matchmakingPage.form.placeholders.country')}
+              className="mt-1 w-full rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-white/40"
+            />
           </div>
           <div>
             <label className="block text-sm text-white/70">{t('matchmakingPage.form.labels.gender')}</label>
@@ -610,17 +605,13 @@ export default function MatchmakingEditOnceFullForm({
         <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label className="block text-sm text-white/70">{t('matchmakingPage.form.labels.lookingForNationality')}</label>
-            <select
+            <input
               value={value?.lookingForNationality || ''}
               onChange={onChange('lookingForNationality')}
-              className="mt-1 w-full rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-sm text-white"
-            >
-              {nationalityOptions.map((opt) => (
-                <option key={opt.id} value={opt.id} className="text-slate-900">
-                  {opt.label}
-                </option>
-              ))}
-            </select>
+              maxLength={60}
+              placeholder={t('matchmakingPage.form.placeholders.country')}
+              className="mt-1 w-full rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-white/40"
+            />
           </div>
           <div>
             <label className="block text-sm text-white/70">{t('matchmakingPage.form.labels.lookingForGender')}</label>
@@ -1331,7 +1322,7 @@ export default function MatchmakingEditOnceFullForm({
         <div className="space-y-3">
           <label className="flex items-start gap-3 text-sm text-white/90">
             <input type="checkbox" checked={!!consents?.consent18Plus} disabled={disableConsents} onChange={() => {}} className="mt-1" />
-            <span>{t('matchmakingPage.form.consents.age', { minAge: (value?.nationality || '') === 'id' ? 21 : 18 })}</span>
+            <span>{t('matchmakingPage.form.consents.age', { minAge: isIndonesianNationality(value?.nationality) ? 21 : 18 })}</span>
           </label>
           <label className="flex items-start gap-3 text-sm text-white/90">
             <input type="checkbox" checked={!!consents?.consentPrivacy} disabled={disableConsents} onChange={() => {}} className="mt-1" />

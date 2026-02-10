@@ -140,8 +140,21 @@ export default async function handler(req, res) {
     res.setHeader('cache-control', 'no-store');
     res.end(JSON.stringify({ ok: true, counted, dayKey, eventKey, country }));
   } catch (e) {
-    res.statusCode = e?.statusCode || 500;
+    const msg = String(e?.message || 'server_error');
+    const code = e?.statusCode || 500;
+
+    // Non-critical analytics endpoint: if Firebase Admin isn't configured (common in local/dev),
+    // don't spam the console with 5xx and don't block the page lifecycle/keepalive calls.
+    if (code === 503 && msg.includes('firebase_admin_not_configured')) {
+      res.statusCode = 200;
+      res.setHeader('content-type', 'application/json');
+      res.setHeader('cache-control', 'no-store');
+      res.end(JSON.stringify({ ok: false, error: 'tracking_disabled' }));
+      return;
+    }
+
+    res.statusCode = code;
     res.setHeader('content-type', 'application/json');
-    res.end(JSON.stringify({ ok: false, error: String(e?.message || 'server_error') }));
+    res.end(JSON.stringify({ ok: false, error: msg }));
   }
 }

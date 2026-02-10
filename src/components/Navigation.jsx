@@ -292,7 +292,7 @@ export default function Navigation({ variant = 'default' } = {}) {
                     }}
                     className={[
                       "w-full px-4 py-3 rounded-xl text-sm font-semibold transition-colors",
-                      item.active ? "bg-emerald-600 text-white" : "bg-slate-50 text-slate-800 hover:bg-slate-100",
+                      item.active ? "bg-emerald-500 text-white" : "bg-slate-50 text-slate-800 hover:bg-slate-100",
                     ].join(" ")}
                     style={{ fontFamily: '"Poppins", sans-serif' }}
                   >

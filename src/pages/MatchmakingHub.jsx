@@ -220,6 +220,108 @@ export default function MatchmakingHub() {
           </div>
         </section>
 
+        {/* Panel preview (guest tutorial) */}
+        {!user ? (
+          <section className="relative max-w-7xl mx-auto px-4 pb-10 md:pb-12">
+            <div className="rounded-[26px] border border-slate-200 bg-white p-6 md:p-7">
+              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                <div className="min-w-0">
+                  <h2 className="text-lg md:text-xl font-semibold">{t('matchmakingHub.preview.title')}</h2>
+                  <p className="mt-2 text-sm text-slate-600 leading-relaxed">{t('matchmakingHub.preview.subtitle')}</p>
+                </div>
+                <div className="shrink-0">
+                  <Link
+                    to="/login?mode=signup"
+                    state={{
+                      from: '/evlilik/eslestirme-basvuru?w=1',
+                      fromState: {
+                        showMatchmakingIntro: true,
+                        matchmakingNext: '/evlilik/eslestirme-basvuru?w=1',
+                      },
+                    }}
+                    className="app-btn app-btn-primary-light h-10 px-5"
+                  >
+                    <Crown size={18} />
+                    {t('matchmakingHub.preview.cta')}
+                    <ArrowRight size={18} />
+                  </Link>
+                </div>
+              </div>
+
+              <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="rounded-[22px] border border-slate-200 bg-gradient-to-b from-white to-slate-50 p-5">
+                  <div className="flex items-center gap-2 text-sm font-semibold text-slate-900">
+                    <UserCheck size={18} className="text-emerald-700" />
+                    {t('matchmakingHub.preview.cards.matches.title')}
+                  </div>
+                  <div className="mt-2 text-sm text-slate-600 leading-relaxed">{t('matchmakingHub.preview.cards.matches.body')}</div>
+                  <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-4">
+                    <div className="text-xs font-semibold text-slate-700">{t('matchmakingHub.preview.cards.matches.mockTitle')}</div>
+                    <div className="mt-2 space-y-2">
+                      <div className="flex items-center justify-between gap-3 rounded-xl bg-slate-50 border border-slate-200 px-3 py-2">
+                        <div className="min-w-0">
+                          <div className="text-sm font-semibold text-slate-900 truncate">{t('matchmakingHub.preview.cards.matches.mockItem1')}</div>
+                          <div className="text-[11px] text-slate-500 truncate">{t('matchmakingHub.preview.cards.matches.mockItem1Sub')}</div>
+                        </div>
+                        <div className="shrink-0 text-[11px] font-semibold text-emerald-800">{t('matchmakingHub.preview.cards.matches.mockTag1')}</div>
+                      </div>
+                      <div className="flex items-center justify-between gap-3 rounded-xl bg-slate-50 border border-slate-200 px-3 py-2">
+                        <div className="min-w-0">
+                          <div className="text-sm font-semibold text-slate-900 truncate">{t('matchmakingHub.preview.cards.matches.mockItem2')}</div>
+                          <div className="text-[11px] text-slate-500 truncate">{t('matchmakingHub.preview.cards.matches.mockItem2Sub')}</div>
+                        </div>
+                        <div className="shrink-0 text-[11px] font-semibold text-slate-700">{t('matchmakingHub.preview.cards.matches.mockTag2')}</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="rounded-[22px] border border-slate-200 bg-gradient-to-b from-white to-slate-50 p-5">
+                  <div className="flex items-center gap-2 text-sm font-semibold text-slate-900">
+                    <Sparkles size={18} className="text-emerald-700" />
+                    {t('matchmakingHub.preview.cards.pool.title')}
+                  </div>
+                  <div className="mt-2 text-sm text-slate-600 leading-relaxed">{t('matchmakingHub.preview.cards.pool.body')}</div>
+                  <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-4">
+                    <div className="text-xs font-semibold text-slate-700">{t('matchmakingHub.preview.cards.pool.mockTitle')}</div>
+                    <div className="mt-2 space-y-2">
+                      <div className="rounded-xl bg-slate-50 border border-slate-200 px-3 py-2">
+                        <div className="text-sm font-semibold text-slate-900">{t('matchmakingHub.preview.cards.pool.mockItem1')}</div>
+                        <div className="mt-1 text-[11px] text-slate-500">{t('matchmakingHub.preview.cards.pool.mockItem1Sub')}</div>
+                        <div className="mt-2 inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-[11px] font-semibold text-emerald-900">
+                          <CheckCircle size={14} className="text-emerald-700" />
+                          {t('matchmakingHub.preview.cards.pool.mockCta')}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="rounded-[22px] border border-slate-200 bg-gradient-to-b from-white to-slate-50 p-5">
+                  <div className="flex items-center gap-2 text-sm font-semibold text-slate-900">
+                    <MessageCircle size={18} className="text-emerald-700" />
+                    {t('matchmakingHub.preview.cards.chat.title')}
+                  </div>
+                  <div className="mt-2 text-sm text-slate-600 leading-relaxed">{t('matchmakingHub.preview.cards.chat.body')}</div>
+                  <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-4">
+                    <div className="text-xs font-semibold text-slate-700">{t('matchmakingHub.preview.cards.chat.mockTitle')}</div>
+                    <div className="mt-2 space-y-2">
+                      <div className="rounded-xl bg-slate-50 border border-slate-200 px-3 py-2">
+                        <div className="text-[11px] text-slate-500">{t('matchmakingHub.preview.cards.chat.mockSystem')}</div>
+                        <div className="mt-1 text-sm font-semibold text-slate-900">{t('matchmakingHub.preview.cards.chat.mockMsg1')}</div>
+                        <div className="mt-1 text-sm text-slate-700">{t('matchmakingHub.preview.cards.chat.mockMsg2')}</div>
+                      </div>
+                      <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] text-amber-900">
+                        {t('matchmakingHub.preview.cards.chat.mockHint')}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+        ) : null}
+
         {/* How it works */}
         <section className="relative max-w-7xl mx-auto px-4 pb-12 md:pb-16">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">

@@ -15,7 +15,7 @@ export default function NotFound() {
           <p className="text-base md:text-lg text-gray-600 mb-6">{t('notFoundPage.title')}</p>
           <a
             href="/"
-            className="inline-block bg-emerald-600 text-white px-6 py-2.5 rounded-lg font-medium hover:bg-emerald-700 transition text-sm md:text-base"
+            className="inline-block bg-emerald-500 text-white px-6 py-2.5 rounded-lg font-medium hover:bg-emerald-600 transition text-sm md:text-base"
           >
             {t('notFoundPage.backHome')}
           </a>

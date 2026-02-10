@@ -4,8 +4,10 @@ import { collection, doc, getDocs, limit, onSnapshot, query, where } from 'fireb
 import { useTranslation } from 'react-i18next';
 import Navigation from '../../components/Navigation';
 import Footer from '../../components/Footer';
+import StudioBottomNav from '../../components/studio/StudioBottomNav';
 import { useAuth } from '../../auth/AuthProvider';
 import { db } from '../../config/firebase';
+import { getLocalizedProfileText } from '../../utils/profileText';
 
 function safeStr(v) {
   return typeof v === 'string' ? v.trim() : '';
@@ -45,6 +47,28 @@ function pickBestNonStubApplication(items) {
 
   const best = scored.find((x) => !x.isStub) || null;
   return best ? best.a : null;
+}
+
+function appCompletenessScore(app) {
+  if (!app || typeof app !== 'object') return 0;
+  let s = 0;
+  if (typeof app?.age === 'number' && Number.isFinite(app.age)) s += 3;
+  if (safeStr(app?.gender)) s += 3;
+  if (safeStr(app?.country)) s += 2;
+  if (safeStr(app?.city)) s += 1;
+  if (safeStr(app?.nationality)) s += 1;
+  const photos = Array.isArray(app?.photoUrls) ? app.photoUrls.filter(Boolean) : [];
+  if (photos.length) s += 1;
+  if (safeStr(app?.about) || safeStr(app?.details?.about)) s += 1;
+  if (safeStr(app?.expectations)) s += 1;
+  return s;
+}
+
+function pickMoreCompleteApp(a, b) {
+  const sa = appCompletenessScore(a);
+  const sb = appCompletenessScore(b);
+  if (sb > sa) return b;
+  return a || b || null;
 }
 
 function Field({ label, value }) {
@@ -146,7 +170,7 @@ export default function StudioMyInfo() {
     const membership = mmUser?.membership && typeof mmUser.membership === 'object' ? mmUser.membership : null;
     const identity = mmUser?.identityVerification && typeof mmUser.identityVerification === 'object' ? mmUser.identityVerification : null;
 
-    const bestApp = application || latestApp || null;
+    const bestApp = pickMoreCompleteApp(application, latestApp);
     const details = bestApp?.details && typeof bestApp.details === 'object' ? bestApp.details : {};
     const partner = bestApp?.partnerPreferences && typeof bestApp.partnerPreferences === 'object' ? bestApp.partnerPreferences : {};
     const languages = details?.languages && typeof details.languages === 'object' ? details.languages : {};
@@ -261,6 +285,20 @@ export default function StudioMyInfo() {
     };
     return map[v] ? t(map[v]) : v;
   }, [info.details?.religion, t]);
+
+  const religiousValuesLabel = useMemo(() => {
+    const localized = getLocalizedProfileText(info.details, 'religiousValues', i18n.language);
+    if (localized) return localized;
+
+    const v = safeStr(info.details?.religiousValues);
+    if (!v) return '';
+    const map = {
+      weak: 'matchmakingPage.form.options.religiousValues.weak',
+      medium: 'matchmakingPage.form.options.religiousValues.medium',
+      conservative: 'matchmakingPage.form.options.religiousValues.conservative',
+    };
+    return map[v] ? t(map[v]) : v;
+  }, [i18n.language, info.details, info.details?.religiousValues, t]);
 
   const partnerReligionLabel = useMemo(() => {
     const v = safeStr(info.partner?.religion);
@@ -426,7 +464,7 @@ export default function StudioMyInfo() {
   }, [info.nativeLang?.code, t]);
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900">
+    <div className="min-h-screen bg-slate-50 text-slate-900 pb-24 sm:pb-0">
       <Navigation />
 
       <main className="container mx-auto px-4 py-8">
@@ -489,28 +527,44 @@ export default function StudioMyInfo() {
                   <Field label={t('studio.myInfo.fields.weightKg')} value={info.details?.weightKg ?? ''} />
                   <Field label={t('studio.myInfo.fields.occupation')} value={occupationLabel} />
                   <Field label={t('studio.myInfo.fields.education')} value={educationLabel} />
-                  <Field label={t('studio.myInfo.fields.educationDepartment')} value={info.details?.educationDepartment || ''} />
+                  <Field
+                    label={t('studio.myInfo.fields.educationDepartment')}
+                    value={getLocalizedProfileText(info.details, 'educationDepartment', i18n.language) || info.details?.educationDepartment || ''}
+                  />
                   <Field label={t('studio.myInfo.fields.maritalStatus')} value={maritalStatusLabel} />
                   <Field label={t('studio.myInfo.fields.hasChildren')} value={hasChildrenLabel} />
                   <Field label={t('studio.myInfo.fields.childrenCount')} value={info.details?.childrenCount ?? ''} />
                   <Field label={t('studio.myInfo.fields.familyApprovalStatus')} value={info.details?.familyApprovalStatus || ''} />
                   <Field label={t('studio.myInfo.fields.religion')} value={religionLabel} />
-                  <Field label={t('studio.myInfo.fields.religiousValues')} value={info.details?.religiousValues || ''} />
+                  <Field label={t('studio.myInfo.fields.religiousValues')} value={religiousValuesLabel || info.details?.religiousValues || ''} />
                   <Field label={t('studio.myInfo.fields.incomeLevel')} value={incomeLabel} />
                   <Field label={t('studio.myInfo.fields.marriageTimeline')} value={timelineLabel} />
                   <Field label={t('studio.myInfo.fields.relocationWillingness')} value={info.details?.relocationWillingness || ''} />
                   <Field label={t('studio.myInfo.fields.preferredLivingCountry')} value={info.details?.preferredLivingCountry || ''} />
                   <Field label={t('studio.myInfo.fields.communicationLanguage')} value={commLanguageLabel} />
-                  <Field label={t('studio.myInfo.fields.communicationLanguageOther')} value={info.details?.communicationLanguageOther || ''} />
+                  <Field
+                    label={t('studio.myInfo.fields.communicationLanguageOther')}
+                    value={
+                      getLocalizedProfileText(info.details, 'communicationLanguageOther', i18n.language) ||
+                      info.details?.communicationLanguageOther ||
+                      ''
+                    }
+                  />
                   <Field label={t('studio.myInfo.fields.smoking')} value={info.details?.smoking || ''} />
                   <Field label={t('studio.myInfo.fields.alcohol')} value={info.details?.alcohol || ''} />
                   <Field label={t('studio.myInfo.fields.nativeLanguage')} value={nativeLangLabel} />
-                  <Field label={t('studio.myInfo.fields.nativeLanguageOther')} value={info.nativeLang?.other || ''} />
+                  <Field
+                    label={t('studio.myInfo.fields.nativeLanguageOther')}
+                    value={getLocalizedProfileText(info.details, 'nativeLanguageOther', i18n.language) || info.nativeLang?.other || ''}
+                  />
                   <Field
                     label={t('studio.myInfo.fields.foreignLanguages')}
                     value={Array.isArray(info.foreignLang?.codes) ? info.foreignLang.codes.filter(Boolean).join(', ') : ''}
                   />
-                  <Field label={t('studio.myInfo.fields.foreignLanguageOther')} value={info.foreignLang?.other || ''} />
+                  <Field
+                    label={t('studio.myInfo.fields.foreignLanguageOther')}
+                    value={getLocalizedProfileText(info.details, 'foreignLanguageOther', i18n.language) || info.foreignLang?.other || ''}
+                  />
                 </Section>
 
                 <Section title={t('studio.myInfo.sections.partner')}>
@@ -533,8 +587,11 @@ export default function StudioMyInfo() {
                 </Section>
 
                 <Section title={t('studio.myInfo.sections.about')}>
-                  <Field label={t('studio.myInfo.fields.about')} value={info.bestApp?.about || ''} />
-                  <Field label={t('studio.myInfo.fields.expectations')} value={info.bestApp?.expectations || ''} />
+                  <Field label={t('studio.myInfo.fields.about')} value={getLocalizedProfileText(info.bestApp, 'about', i18n.language) || ''} />
+                  <Field
+                    label={t('studio.myInfo.fields.expectations')}
+                    value={getLocalizedProfileText(info.bestApp, 'expectations', i18n.language) || ''}
+                  />
                 </Section>
 
                 <Section title={t('studio.myInfo.sections.membership')}>
@@ -567,6 +624,7 @@ export default function StudioMyInfo() {
         </div>
       </main>
 
+      <StudioBottomNav />
       <Footer />
     </div>
   );

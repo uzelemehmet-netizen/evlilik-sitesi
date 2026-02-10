@@ -124,15 +124,45 @@ export default async function handler(req, res) {
     const INACTIVE_TTL_MS = 24 * 60 * 60 * 1000;
     const inactiveCutoffMs = nowMs - INACTIVE_TTL_MS;
 
-    const appsSnap = await db
-      .collection('matchmakingApplications')
-      .orderBy('createdAt', 'desc')
-      .limit(Math.max(50, Math.min(2000, limitApps)))
-      .get();
+    // Some legacy/buggy application docs may be missing createdAt and thus get excluded
+    // from orderBy('createdAt') queries. Fetch by both createdAt and createdAtMs and merge.
+    const wantedLimit = Math.max(50, Math.min(2000, limitApps));
+    const appDocs = [];
+    const seenDocIds = new Set();
 
-    const apps = appsSnap.docs
+    try {
+      const snapByCreatedAt = await db
+        .collection('matchmakingApplications')
+        .orderBy('createdAt', 'desc')
+        .limit(wantedLimit)
+        .get();
+      for (const d of snapByCreatedAt.docs) {
+        if (seenDocIds.has(d.id)) continue;
+        seenDocIds.add(d.id);
+        appDocs.push(d);
+      }
+    } catch {
+      // best-effort
+    }
+
+    try {
+      const snapByCreatedAtMs = await db
+        .collection('matchmakingApplications')
+        .orderBy('createdAtMs', 'desc')
+        .limit(wantedLimit)
+        .get();
+      for (const d of snapByCreatedAtMs.docs) {
+        if (seenDocIds.has(d.id)) continue;
+        seenDocIds.add(d.id);
+        appDocs.push(d);
+      }
+    } catch {
+      // best-effort
+    }
+
+    const apps = appDocs
       .map((d) => ({ id: d.id, ...(d.data() || {}) }))
-      .filter((a) => a?.userId && (a?.gender === 'male' || a?.gender === 'female'));
+      .filter((a) => a?.userId);
 
     const lastRunSnap = await db.collection('matchmakingRuns').doc('last').get();
     const lastRunRaw = lastRunSnap.exists ? lastRunSnap.data() || {} : null;
