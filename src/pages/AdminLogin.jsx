@@ -5,7 +5,8 @@ import { useNavigate } from 'react-router-dom';
 import { Lock, Mail } from 'lucide-react';
 
 export default function AdminLogin() {
-  const DEFAULT_ADMIN_EMAIL = 'uzelemehmet@gmail.com';
+  const ADMIN_EMAIL = 'uzelemehmet@gmail.com';
+  const DEFAULT_ADMIN_EMAIL = ADMIN_EMAIL;
 
   const [email, setEmail] = useState(DEFAULT_ADMIN_EMAIL);
   const [password, setPassword] = useState('');
@@ -14,15 +15,17 @@ export default function AdminLogin() {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
-  const ruleAdmins = ["uzelemehmet@gmail.com", "articelikkapi@gmail.com"];
-  const ruleAdminSet = new Set(ruleAdmins);
+  // Güvenlik: Admin panel TEK kullanıcı ile çalışır.
+  // Başka email'lerle (custom claim olsa bile) girişe izin vermeyin.
 
-  const envAdmins = (import.meta.env.VITE_ADMIN_EMAILS || '')
-    .split(',')
-    .map((v) => v.trim().toLowerCase())
-    .filter(Boolean);
-
-  const effectiveAdmins = envAdmins.length > 0 ? envAdmins.filter((x) => ruleAdminSet.has(x)) : ruleAdmins;
+  const showDebug = (() => {
+    if (import.meta.env.DEV) return true;
+    try {
+      return new URLSearchParams(window.location.search).has('debug');
+    } catch {
+      return false;
+    }
+  })();
 
   const normalizeEmail = (v) => {
     try {
@@ -46,11 +49,9 @@ export default function AdminLogin() {
   const validateFirebaseProject = () => {
     const { projectId, authDomain, apiKey } = getActiveFirebaseInfo();
 
-    // Bu repoda firebase.js içinde fallback bir demo proje var.
-    // VITE_FIREBASE_* env'leri eksikse, uygulama yanlış projeye bağlanıp admin login'i her zaman başarısız olur.
-    const looksLikeFallback = projectId === 'web-sitem-new-firebase' || authDomain === 'web-sitem-new-firebase.firebaseapp.com';
-
-    if (!projectId || !authDomain || !apiKey || looksLikeFallback) {
+    // Eğer Vercel/CI ortamında VITE_FIREBASE_* eksik/yanlışsa, admin login doğru çalışmaz.
+    // Bu repo artık sessiz fallback kullanmıyor; yine de burada kullanıcıya net yönlendirme verelim.
+    if (!projectId || !authDomain || !apiKey) {
       const msg =
         'Firebase proje ayarları eksik/yanlış görünüyor. Bu yüzden doğru email/şifre ile bile giriş başarısız olur.\n\n' +
         'Çözüm: Firebase Console → Project settings → (Web app) SDK config değerlerini alıp .env.local / Vercel env içine yazın:\n' +
@@ -63,7 +64,22 @@ export default function AdminLogin() {
 
   const isAdminEmail = (v) => {
     const e = normalizeEmail(v);
-    return !!e && effectiveAdmins.includes(e);
+    return !!e && e === ADMIN_EMAIL;
+  };
+
+  const getIsAdminStrict = async (user) => {
+    if (!user) return false;
+    try {
+      const email = normalizeEmail(user.email);
+      const providers = Array.isArray(user?.providerData)
+        ? user.providerData.map((p) => String(p?.providerId || ''))
+        : [];
+      const hasPasswordProvider = providers.includes('password');
+      if (!hasPasswordProvider) return false;
+      return !!email && isAdminEmail(email);
+    } catch {
+      return false;
+    }
   };
 
   const handleLogin = async (e) => {
@@ -79,16 +95,11 @@ export default function AdminLogin() {
         return;
       }
 
-      if (!isAdminEmail(normalized)) {
-        setError('Bu email admin allowlist içinde değil. Doğru admin email ile giriş yapın.');
-        return;
-      }
-
       // En sık sebep: Frontend yanlış Firebase projesine bağlı.
       const fbCheck = validateFirebaseProject();
       if (!fbCheck.ok) {
         setError(fbCheck.msg);
-        if (import.meta.env.DEV) {
+        if (showDebug) {
           setDebug((p) =>
             (p ? `${p}\n` : '') + `firebaseProjectId=${fbCheck.info.projectId || '-'}; authDomain=${fbCheck.info.authDomain || '-'}`
           );
@@ -100,14 +111,14 @@ export default function AdminLogin() {
 
       // Login başarılı olsa bile admin yetkisi yoksa kullanıcı hemen /admin'e düşer.
       // Bu, kullanıcı tarafında "yanlış şifre" gibi algılanabiliyor. Netleştirelim.
-      const signedEmail = cred?.user?.email || normalized;
-      if (!isAdminEmail(signedEmail)) {
+      const adminOk = await getIsAdminStrict(cred?.user);
+      if (!adminOk) {
         try {
           await signOut(auth);
         } catch {
           // ignore
         }
-        setError('Bu hesap admin yetkili değil. Doğru admin email ile giriş yapın.');
+        setError('Bu hesap admin yetkili değil. Sadece uzelemehmet@gmail.com ile giriş yapılabilir.');
         return;
       }
 
@@ -116,7 +127,7 @@ export default function AdminLogin() {
       const code = String(err?.code || '').trim();
       const msg = String(err?.message || '').trim();
 
-      if (import.meta.env.DEV) {
+      if (showDebug) {
         setDebug(`firebaseAuthCode=${code || '-'}; message=${msg || '-'}`);
       }
 
@@ -144,7 +155,7 @@ export default function AdminLogin() {
         // Tanılama (DEV): Bu email bu Firebase projesinde hangi yöntemlerle var?
         // Not: Email Enumeration Protection açıksa methods boş dönebilir.
         const normalized = normalizeEmail(email);
-        if (import.meta.env.DEV && normalized) {
+        if (showDebug && normalized) {
           try {
             const methods = await fetchSignInMethodsForEmail(auth, normalized);
             const list = Array.isArray(methods) ? methods.filter(Boolean).join(', ') : '';
@@ -178,6 +189,7 @@ export default function AdminLogin() {
       return;
     }
 
+    // Şifre reseti kötüye kullanılmasın diye sadece allowlist'e izin veriyoruz.
     if (!isAdminEmail(normalized)) {
       setError('Bu email admin allowlist içinde değil.');
       return;
@@ -186,7 +198,7 @@ export default function AdminLogin() {
     const fbCheck = validateFirebaseProject();
     if (!fbCheck.ok) {
       setError(fbCheck.msg);
-      if (import.meta.env.DEV) {
+      if (showDebug) {
         setDebug((p) =>
           (p ? `${p}\n` : '') + `firebaseProjectId=${fbCheck.info.projectId || '-'}; authDomain=${fbCheck.info.authDomain || '-'}`
         );
@@ -201,7 +213,7 @@ export default function AdminLogin() {
       const code = String(e?.code || '').trim();
       const msg = String(e?.message || '').trim();
 
-      if (import.meta.env.DEV) {
+      if (showDebug) {
         setDebug((p) => (p ? `${p}\n` : '') + `resetCode=${code || '-'}; resetMsg=${msg || '-'}`);
       }
 
@@ -233,13 +245,13 @@ export default function AdminLogin() {
           </div>
         )}
 
-        {import.meta.env.DEV && debug ? (
+        {showDebug && debug ? (
           <div className="mb-4 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-[11px] text-slate-700 whitespace-pre-wrap">
             {debug}
           </div>
         ) : null}
 
-        {import.meta.env.DEV ? (
+        {showDebug ? (
           <div className="mb-4 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-[11px] text-slate-700">
             Firebase proje: <span className="font-mono">{String(import.meta.env.VITE_FIREBASE_PROJECT_ID || '') || '-'}</span>
             {' • '}

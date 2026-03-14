@@ -1,6 +1,6 @@
-# Firebase Storage CORS (endonezyakasifi.com / uniqah.com)
+# Firebase Storage CORS (uniqah.com)
 
-Bu proje Firebase Storage'a tarayıcıdan (web) fotoğraf yüklüyor. Kendi domain'iniz (örn. `https://www.endonezyakasifi.com`) üzerinden upload yaparken aşağıdaki hata görülürse:
+Bu proje Firebase Storage'a tarayıcıdan (web) fotoğraf yüklüyor. Kendi domain'iniz (örn. `https://www.uniqah.com`) üzerinden upload yaparken aşağıdaki hata görülürse:
 
 - `has been blocked by CORS policy` 
 - `Response to preflight request doesn't pass access control check`
@@ -19,8 +19,8 @@ Not: Bu dosyada `https://uniqah.com` ve `https://www.uniqah.com` originleri de t
 [
   {
     "origin": [
-      "https://endonezyakasifi.com",
-      "https://www.endonezyakasifi.com",
+      "https://uniqah.com",
+      "https://www.uniqah.com",
       "http://localhost:5173",
       "http://localhost:4173"
     ],
@@ -33,20 +33,24 @@ Not: Bu dosyada `https://uniqah.com` ve `https://www.uniqah.com` originleri de t
 
 ## 2) gsutil ile bucket'a uygula
 
-Bucket adı bu projede genelde:
+Bucket adı Firebase projenizin Storage bucket adıdır. Bu repoda bunu genelde env'den okuyoruz:
 
-- `gs://web-sitem-new-firebase.appspot.com`
+- `VITE_FIREBASE_STORAGE_BUCKET`
+
+Örnek:
+
+- `gs://<YOUR_FIREBASE_STORAGE_BUCKET>`
 
 Komut:
 
 ```bash
-gsutil cors set cors.firebase-storage.json gs://web-sitem-new-firebase.appspot.com
+gsutil cors set cors.firebase-storage.json gs://<YOUR_FIREBASE_STORAGE_BUCKET>
 ```
 
 Kontrol:
 
 ```bash
-gsutil cors get gs://web-sitem-new-firebase.appspot.com
+gsutil cors get gs://<YOUR_FIREBASE_STORAGE_BUCKET>
 ```
 
 ## 3) Windows notu

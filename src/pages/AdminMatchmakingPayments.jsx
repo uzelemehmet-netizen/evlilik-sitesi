@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { collection, limit, onSnapshot, orderBy, query, where } from 'firebase/firestore';
+import { useTranslation } from 'react-i18next';
 import { db } from '../config/firebase';
 import { authFetch } from '../utils/authFetch';
 
@@ -10,20 +11,29 @@ function fmtMoney(amount, currency) {
   return `${amount} ${cur}`.trim();
 }
 
-function methodLabel(method) {
+function methodLabel(t, method) {
   const m = typeof method === 'string' ? method : '';
-  if (m === 'eft_fast') return 'EFT / FAST';
-  if (m === 'swift_wise') return 'SWIFT / Wise';
-  if (m === 'qris') return 'QRIS';
-  if (m === 'card') return 'Kredi kartı';
-  if (m === 'other') return 'Diğer';
+  if (m === 'eft_fast') return t('admin.matchmakingPayments.methods.eft_fast');
+  if (m === 'swift_wise') return t('admin.matchmakingPayments.methods.swift_wise');
+  if (m === 'qris') return t('admin.matchmakingPayments.methods.qris');
+  if (m === 'card') return t('admin.matchmakingPayments.methods.card');
+  if (m === 'other') return t('admin.matchmakingPayments.methods.other');
   return m || '-';
 }
 
-function fmtDateTr(ms) {
+function langToLocale(lang) {
+  const l = typeof lang === 'string' ? lang.toLowerCase() : '';
+  if (l.startsWith('tr')) return 'tr-TR';
+  if (l.startsWith('id')) return 'id-ID';
+  return 'en-US';
+}
+
+function fmtDate(ms, lang) {
   if (!ms || typeof ms !== 'number') return '';
   try {
-    return new Intl.DateTimeFormat('tr-TR', { year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(ms));
+    return new Intl.DateTimeFormat(langToLocale(lang), { year: 'numeric', month: '2-digit', day: '2-digit' }).format(
+      new Date(ms)
+    );
   } catch {
     return '';
   }
@@ -59,6 +69,7 @@ async function copyText(text) {
 }
 
 export default function AdminMatchmakingPayments() {
+  const { t, i18n } = useTranslation();
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [acting, setActing] = useState(false);
@@ -75,10 +86,10 @@ export default function AdminMatchmakingPayments() {
   };
 
   const tierLabel = (tier) => {
-    const t = normalizeTier(tier);
-    if (t === 'eco') return 'Eko';
-    if (t === 'standard') return 'Standart';
-    return 'Pro';
+    const tierKey = normalizeTier(tier);
+    if (tierKey === 'eco') return t('admin.matchmakingPayments.tiers.eco');
+    if (tierKey === 'standard') return t('admin.matchmakingPayments.tiers.standard');
+    return t('admin.matchmakingPayments.tiers.pro');
   };
 
   const isIndexRequiredError = (e) => {
@@ -149,8 +160,8 @@ export default function AdminMatchmakingPayments() {
   const approve = async (paymentId, ok, tier) => {
     const appliedTier = normalizeTier(tier);
     const confirmText = ok
-      ? `Bu ödeme bildirimi ONAYLANACAK ve "${tierLabel(appliedTier)}" paketi aktif edilecek. Devam edilsin mi?`
-      : 'Bu ödeme bildirimi REDDEDİLECEK. Devam edilsin mi?';
+      ? t('admin.matchmakingPayments.confirms.approve', { tier: tierLabel(appliedTier) })
+      : t('admin.matchmakingPayments.confirms.reject');
 
     if (!window.confirm(confirmText)) return;
 
@@ -166,13 +177,17 @@ export default function AdminMatchmakingPayments() {
 
       if (ok) {
         const until = typeof data?.validUntilMs === 'number' ? data.validUntilMs : 0;
-        const untilText = fmtDateTr(until);
-        setMsg(untilText ? `Ödeme onaylandı; üyelik aktif edildi. Bitiş: ${untilText}` : 'Ödeme onaylandı; üyelik aktif edildi.');
+        const untilText = fmtDate(until, i18n.language);
+        setMsg(
+          untilText
+            ? t('admin.matchmakingPayments.messages.approvedWithUntil', { until: untilText })
+            : t('admin.matchmakingPayments.messages.approved')
+        );
       } else {
-        setMsg('Ödeme reddedildi.');
+        setMsg(t('admin.matchmakingPayments.messages.rejected'));
       }
     } catch (e) {
-      setErr(String(e?.message || 'İşlem başarısız.'));
+      setErr(String(e?.message || t('admin.matchmakingPayments.errors.actionFailed')));
     } finally {
       setActing(false);
     }
@@ -192,13 +207,13 @@ export default function AdminMatchmakingPayments() {
     <div className="min-h-screen bg-slate-50">
       <div className="mx-auto max-w-5xl px-4 py-6">
         <div className="flex items-center justify-between gap-3">
-          <h1 className="text-xl md:text-2xl font-bold text-slate-900">Ödeme Bildirimleri (Admin)</h1>
+          <h1 className="text-xl md:text-2xl font-bold text-slate-900">{t('admin.matchmakingPayments.titles.page')}</h1>
           <div className="flex items-center gap-3">
             <Link to="/admin/matchmaking-matches" className="text-sm font-semibold text-sky-700 hover:underline">
-              Eşleşmeler
+              {t('admin.matchmakingPayments.nav.matches')}
             </Link>
             <Link to="/admin/dashboard" className="text-sm font-semibold text-sky-700 hover:underline">
-              Admin panel
+              {t('admin.matchmakingPayments.nav.adminPanel')}
             </Link>
           </div>
         </div>
@@ -208,7 +223,7 @@ export default function AdminMatchmakingPayments() {
         ) : null}
         {usingIndexFallback ? (
           <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-amber-900 text-sm">
-            Not: Firestore index olmadığı için "fallback" listeleme kullanılıyor (biraz daha yavaş olabilir).
+            {t('admin.matchmakingPayments.notices.indexFallback')}
           </div>
         ) : null}
         {err ? (
@@ -230,7 +245,7 @@ export default function AdminMatchmakingPayments() {
                   : 'bg-white text-slate-800 border-slate-200 hover:bg-slate-50'
               }`}
             >
-              Bekleyen
+              {t('admin.matchmakingPayments.statuses.pending')}
             </button>
             <button
               type="button"
@@ -241,7 +256,7 @@ export default function AdminMatchmakingPayments() {
                   : 'bg-white text-slate-800 border-slate-200 hover:bg-slate-50'
               }`}
             >
-              Onaylanan
+              {t('admin.matchmakingPayments.statuses.approved')}
             </button>
             <button
               type="button"
@@ -252,22 +267,26 @@ export default function AdminMatchmakingPayments() {
                   : 'bg-white text-slate-800 border-slate-200 hover:bg-slate-50'
               }`}
             >
-              Reddedilen
+              {t('admin.matchmakingPayments.statuses.rejected')}
             </button>
           </div>
         </div>
 
         {loading ? (
-          <p className="mt-4 text-sm text-slate-600">Yükleniyor…</p>
+          <p className="mt-4 text-sm text-slate-600">{t('admin.matchmakingPayments.common.loading')}</p>
         ) : (
           <div className="mt-4 rounded-2xl bg-white border border-slate-200 p-4">
             <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-2">
               <div>
                 <p className="text-sm font-semibold text-slate-900">
-                  {status === 'pending' ? 'Bekleyen bildirimler' : status === 'approved' ? 'Onaylananlar' : 'Reddedilenler'}
+                  {status === 'pending'
+                    ? t('admin.matchmakingPayments.statusHeadings.pending')
+                    : status === 'approved'
+                      ? t('admin.matchmakingPayments.statusHeadings.approved')
+                      : t('admin.matchmakingPayments.statusHeadings.rejected')}
                 </p>
                 <p className="text-xs text-slate-600 mt-1">
-                  Toplam: <span className="font-semibold">{summary.total}</span>
+                  {t('admin.matchmakingPayments.labels.total')}: <span className="font-semibold">{summary.total}</span>
                   {Object.keys(summary.byCurrency).length > 0
                     ? ` ( ${Object.entries(summary.byCurrency)
                         .map(([k, v]) => `${k}:${v}`)
@@ -278,7 +297,7 @@ export default function AdminMatchmakingPayments() {
             </div>
 
             {items.length === 0 ? (
-              <p className="text-sm text-slate-600 mt-3">Bekleyen ödeme bildirimi yok.</p>
+              <p className="text-sm text-slate-600 mt-3">{t('admin.matchmakingPayments.common.empty')}</p>
             ) : (
               <div className="mt-3 space-y-3">
                 {items.map((p) => (
@@ -290,7 +309,7 @@ export default function AdminMatchmakingPayments() {
                           return (
                             <div className="mb-2 flex flex-wrap items-center gap-2 text-xs text-slate-600">
                               <span>
-                                Paket: <span className="font-semibold text-slate-900">{tierLabel(selectedTier)}</span>
+                                {t('admin.matchmakingPayments.labels.package')}: <span className="font-semibold text-slate-900">{tierLabel(selectedTier)}</span>
                               </span>
                               {status === 'pending' ? (
                                 <select
@@ -299,9 +318,9 @@ export default function AdminMatchmakingPayments() {
                                   className="rounded-md border border-slate-300 bg-white px-2 py-1 text-xs text-slate-800"
                                   disabled={acting}
                                 >
-                                  <option value="eco">Eko</option>
-                                  <option value="standard">Standart</option>
-                                  <option value="pro">Pro</option>
+                                  <option value="eco">{t('admin.matchmakingPayments.tiers.eco')}</option>
+                                  <option value="standard">{t('admin.matchmakingPayments.tiers.standard')}</option>
+                                  <option value="pro">{t('admin.matchmakingPayments.tiers.pro')}</option>
                                 </select>
                               ) : null}
                             </div>
@@ -309,81 +328,116 @@ export default function AdminMatchmakingPayments() {
                         })()}
 
                         <p className="text-sm font-semibold text-slate-900">{fmtMoney(p?.amount, p?.currency)}</p>
-                        <p className="text-xs text-slate-600 mt-1">Yöntem: <span className="font-semibold">{methodLabel(p?.method)}</span></p>
+                        <p className="text-xs text-slate-600 mt-1">
+                          {t('admin.matchmakingPayments.labels.method')}: <span className="font-semibold">{methodLabel(t, p?.method)}</span>
+                        </p>
                         <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-600">
                           <span>
-                            Kullanıcı: <span className="font-semibold">{p?.userDisplayName || '-'}</span>
+                            {t('admin.matchmakingPayments.labels.user')}: <span className="font-semibold">{p?.userDisplayName || '-'}</span>
                           </span>
                           <span className="text-slate-400">•</span>
-                          <span>User ID: <span className="font-semibold">{p?.userId || '-'}</span></span>
+                          <span>
+                            {t('admin.matchmakingPayments.labels.userId')}: <span className="font-semibold">{p?.userId || '-'}</span>
+                          </span>
                           {p?.userId ? (
                             <button
                               type="button"
                               className="px-2 py-1 rounded-md border border-slate-300 bg-white text-slate-800 text-[11px] font-semibold hover:bg-slate-50"
                               onClick={async () => {
                                 const ok = await copyText(p.userId);
-                                setCopiedMsg(ok ? 'User ID kopyalandı.' : 'Kopyalanamadı.');
+                                setCopiedMsg(
+                                  ok
+                                    ? t('admin.matchmakingPayments.copy.copied', {
+                                        what: t('admin.matchmakingPayments.copy.what.userId'),
+                                      })
+                                    : t('admin.matchmakingPayments.copy.failed')
+                                );
                                 setTimeout(() => setCopiedMsg(''), 1500);
                               }}
                             >
-                              Kopyala
+                              {t('admin.matchmakingPayments.actions.copy')}
                             </button>
                           ) : null}
                         </div>
 
                         <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-600">
-                          <span>Match: <span className="font-semibold">{p?.matchId || '-'}</span></span>
+                          <span>
+                            {t('admin.matchmakingPayments.labels.match')}: <span className="font-semibold">{p?.matchId || '-'}</span>
+                          </span>
                           {p?.matchId ? (
                             <button
                               type="button"
                               className="px-2 py-1 rounded-md border border-slate-300 bg-white text-slate-800 text-[11px] font-semibold hover:bg-slate-50"
                               onClick={async () => {
                                 const ok = await copyText(p.matchId);
-                                setCopiedMsg(ok ? 'Match ID kopyalandı.' : 'Kopyalanamadı.');
+                                setCopiedMsg(
+                                  ok
+                                    ? t('admin.matchmakingPayments.copy.copied', {
+                                        what: t('admin.matchmakingPayments.copy.what.matchId'),
+                                      })
+                                    : t('admin.matchmakingPayments.copy.failed')
+                                );
                                 setTimeout(() => setCopiedMsg(''), 1500);
                               }}
                             >
-                              Kopyala
+                              {t('admin.matchmakingPayments.actions.copy')}
                             </button>
                           ) : null}
                         </div>
 
                         {p?.amountMatches === false ? (
                           <div className="mt-2 rounded-lg border border-amber-200 bg-amber-50 p-2 text-amber-900 text-xs">
-                            Uyarı: Tutar beklenen fiyatla eşleşmiyor. Beklenen: <span className="font-semibold">{fmtMoney(p?.expectedAmount, p?.currency)}</span>
+                            {t('admin.matchmakingPayments.warnings.amountMismatch', {
+                              expected: fmtMoney(p?.expectedAmount, p?.currency),
+                            })}
                           </div>
                         ) : null}
 
                         {p?.reference ? (
                           <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-600">
-                            <span>Referans: <span className="font-semibold">{p.reference}</span></span>
+                            <span>
+                              {t('admin.matchmakingPayments.labels.reference')}: <span className="font-semibold">{p.reference}</span>
+                            </span>
                             <button
                               type="button"
                               className="px-2 py-1 rounded-md border border-slate-300 bg-white text-slate-800 text-[11px] font-semibold hover:bg-slate-50"
                               onClick={async () => {
                                 const ok = await copyText(p.reference);
-                                setCopiedMsg(ok ? 'Referans kopyalandı.' : 'Kopyalanamadı.');
+                                setCopiedMsg(
+                                  ok
+                                    ? t('admin.matchmakingPayments.copy.copied', {
+                                        what: t('admin.matchmakingPayments.copy.what.reference'),
+                                      })
+                                    : t('admin.matchmakingPayments.copy.failed')
+                                );
                                 setTimeout(() => setCopiedMsg(''), 1500);
                               }}
                             >
-                              Kopyala
+                              {t('admin.matchmakingPayments.actions.copy')}
                             </button>
                           </div>
                         ) : null}
 
                         {p?.receiptVia ? (
                           <p className="text-xs text-slate-600 mt-1">
-                            Dekont kanalı: <span className="font-semibold">{p.receiptVia === 'whatsapp' ? 'WhatsApp' : 'Yükleme'}</span>
+                            {t('admin.matchmakingPayments.labels.receiptChannel')}:{' '}
+                            <span className="font-semibold">
+                              {p.receiptVia === 'whatsapp'
+                                ? t('admin.matchmakingPayments.receiptChannels.whatsapp')
+                                : t('admin.matchmakingPayments.receiptChannels.upload')}
+                            </span>
                           </p>
                         ) : null}
                         {p?.note ? (
-                          <p className="text-xs text-slate-600 mt-1">Not: <span className="font-semibold">{p.note}</span></p>
+                          <p className="text-xs text-slate-600 mt-1">
+                            {t('admin.matchmakingPayments.labels.note')}: <span className="font-semibold">{p.note}</span>
+                          </p>
                         ) : null}
 
                         {p?.receiptUrl ? (
                           <div className="mt-3 rounded-xl border border-slate-200 bg-white p-3">
                             <div className="flex items-center justify-between gap-2">
-                              <p className="text-xs font-semibold text-slate-900">Dekont</p>
+                              <p className="text-xs font-semibold text-slate-900">{t('admin.matchmakingPayments.labels.receipt')}</p>
                               <div className="flex items-center gap-2">
                                 <a
                                   href={p.receiptUrl}
@@ -391,18 +445,24 @@ export default function AdminMatchmakingPayments() {
                                   rel="noopener noreferrer"
                                   className="text-xs font-semibold text-sky-700 hover:underline"
                                 >
-                                  Aç
+                                  {t('admin.matchmakingPayments.actions.open')}
                                 </a>
                                 <button
                                   type="button"
                                   className="px-2 py-1 rounded-md border border-slate-300 bg-white text-slate-800 text-[11px] font-semibold hover:bg-slate-50"
                                   onClick={async () => {
                                     const ok = await copyText(p.receiptUrl);
-                                    setCopiedMsg(ok ? 'Dekont linki kopyalandı.' : 'Kopyalanamadı.');
+                                    setCopiedMsg(
+                                      ok
+                                        ? t('admin.matchmakingPayments.copy.copied', {
+                                            what: t('admin.matchmakingPayments.copy.what.receiptLink'),
+                                          })
+                                        : t('admin.matchmakingPayments.copy.failed')
+                                    );
                                     setTimeout(() => setCopiedMsg(''), 1500);
                                   }}
                                 >
-                                  Kopyala
+                                  {t('admin.matchmakingPayments.actions.copy')}
                                 </button>
                               </div>
                             </div>
@@ -410,7 +470,7 @@ export default function AdminMatchmakingPayments() {
                               <a href={p.receiptUrl} target="_blank" rel="noopener noreferrer" className="block">
                                 <img
                                   src={p.receiptUrl}
-                                  alt="dekont"
+                                  alt={t('admin.matchmakingPayments.alts.receipt')}
                                   className="w-full max-w-md h-56 object-contain rounded-lg border border-slate-200 bg-white"
                                   loading="lazy"
                                 />
@@ -419,36 +479,48 @@ export default function AdminMatchmakingPayments() {
                           </div>
                         ) : p?.receiptVia === 'whatsapp' ? (
                           <div className="mt-2 rounded-lg border border-amber-200 bg-amber-50 p-2 text-amber-900 text-xs">
-                            Not: Kullanıcı dekontu WhatsApp ile göndereceğini işaretlemiş. (Panelden link yüklenmedi.)
+                            {t('admin.matchmakingPayments.notices.receiptViaWhatsApp')}
                           </div>
                         ) : null}
 
                         <div className="mt-3 rounded-xl border border-slate-200 bg-white p-3">
-                          <p className="text-xs font-semibold text-slate-900">Hazır mesaj</p>
+                          <p className="text-xs font-semibold text-slate-900">{t('admin.matchmakingPayments.labels.readyMessage')}</p>
                           <div className="mt-2 flex flex-col sm:flex-row gap-2">
                             <button
                               type="button"
                               className="px-4 py-2 rounded-full border border-slate-300 text-slate-800 text-sm font-semibold hover:bg-slate-50"
                               onClick={async () => {
-                                const t = `Merhaba, evlilik eşleştirme üyelik ödemeniz onaylandı. Panelinizden iletişim bilgilerini açabilirsiniz. Teşekkürler.`;
-                                const ok = await copyText(t);
-                                setCopiedMsg(ok ? 'Onay mesajı kopyalandı.' : 'Kopyalanamadı.');
+                                const text = t('admin.matchmakingPayments.templates.whatsapp.approved');
+                                const ok = await copyText(text);
+                                setCopiedMsg(
+                                  ok
+                                    ? t('admin.matchmakingPayments.copy.copied', {
+                                        what: t('admin.matchmakingPayments.copy.what.approvalMessage'),
+                                      })
+                                    : t('admin.matchmakingPayments.copy.failed')
+                                );
                                 setTimeout(() => setCopiedMsg(''), 1500);
                               }}
                             >
-                              Onay mesajını kopyala
+                              {t('admin.matchmakingPayments.actions.copyApprovalMessage')}
                             </button>
                             <button
                               type="button"
                               className="px-4 py-2 rounded-full border border-slate-300 text-slate-800 text-sm font-semibold hover:bg-slate-50"
                               onClick={async () => {
-                                const t = `Merhaba, ödeme bildiriminizi doğrulayamadık. Lütfen dekont/ref. bilgisini kontrol edip tekrar ödeme bildirimi gönderin.`;
-                                const ok = await copyText(t);
-                                setCopiedMsg(ok ? 'Red mesajı kopyalandı.' : 'Kopyalanamadı.');
+                                const text = t('admin.matchmakingPayments.templates.whatsapp.rejected');
+                                const ok = await copyText(text);
+                                setCopiedMsg(
+                                  ok
+                                    ? t('admin.matchmakingPayments.copy.copied', {
+                                        what: t('admin.matchmakingPayments.copy.what.rejectionMessage'),
+                                      })
+                                    : t('admin.matchmakingPayments.copy.failed')
+                                );
                                 setTimeout(() => setCopiedMsg(''), 1500);
                               }}
                             >
-                              Red mesajını kopyala
+                              {t('admin.matchmakingPayments.actions.copyRejectionMessage')}
                             </button>
                           </div>
                         </div>
@@ -462,9 +534,9 @@ export default function AdminMatchmakingPayments() {
                               const selectedTier = normalizeTier(tierByPaymentId?.[p.id] ?? p?.appliedTier ?? p?.tier ?? 'pro');
                               approve(p.id, true, selectedTier);
                             }}
-                            className="px-4 py-2 rounded-full bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700"
+                            className="px-4 py-2 rounded-full bg-emerald-500 text-white text-sm font-semibold hover:bg-emerald-600"
                           >
-                            Onayla
+                            {t('admin.matchmakingPayments.actions.approve')}
                           </button>
                           <button
                             type="button"
@@ -472,7 +544,7 @@ export default function AdminMatchmakingPayments() {
                             onClick={() => approve(p.id, false)}
                             className="px-4 py-2 rounded-full bg-rose-600 text-white text-sm font-semibold hover:bg-rose-700"
                           >
-                            Reddet
+                            {t('admin.matchmakingPayments.actions.reject')}
                           </button>
                         </div>
                       ) : null}

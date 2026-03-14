@@ -32,9 +32,27 @@ function isMembershipActiveUserDoc(userDoc) {
 
 function buildProfileSnapshot(app, userDoc) {
   const details = app?.details || {};
+  const about = typeof app?.about === 'string' ? app.about.trim() : '';
+  const expectations = typeof app?.expectations === 'string' ? app.expectations.trim() : '';
+  const aboutTr = typeof app?.aboutTr === 'string' ? app.aboutTr.trim() : '';
+  const aboutId = typeof app?.aboutId === 'string' ? app.aboutId.trim() : '';
+  const expectationsTr = typeof app?.expectationsTr === 'string' ? app.expectationsTr.trim() : '';
+  const expectationsId = typeof app?.expectationsId === 'string' ? app.expectationsId.trim() : '';
+  const clip = (s, maxLen) => {
+    const v = typeof s === 'string' ? s.trim() : '';
+    if (!v) return '';
+    return v.length > maxLen ? v.slice(0, maxLen) : v;
+  };
   return {
     identityVerified: !!(userDoc && isIdentityVerifiedUserDoc(userDoc)),
     proMember: !!(userDoc && isMembershipActiveUserDoc(userDoc)),
+    userCode: safeStr(userDoc?.userCode) || safeStr(userDoc?.publicProfile?.userCode),
+    userCodeNo:
+      typeof userDoc?.userCodeNo === 'number' && Number.isFinite(userDoc.userCodeNo)
+        ? userDoc.userCodeNo
+        : (typeof userDoc?.publicProfile?.userCodeNo === 'number' && Number.isFinite(userDoc.publicProfile.userCodeNo)
+            ? userDoc.publicProfile.userCodeNo
+            : null),
     profileNo: asNum(app?.profileNo),
     profileCode: safeStr(app?.profileCode) || (typeof app?.profileNo === 'number' ? `MK-${app.profileNo}` : ''),
     username: safeStr(app?.username),
@@ -45,8 +63,18 @@ function buildProfileSnapshot(app, userDoc) {
     photoUrls: Array.isArray(app?.photoUrls)
       ? app.photoUrls.filter((u) => typeof u === 'string' && u.trim())
       : [],
+    about: clip(about, 360),
+    aboutTr: clip(aboutTr, 360),
+    aboutId: clip(aboutId, 360),
+    expectations: clip(expectations, 360),
+    expectationsTr: clip(expectationsTr, 360),
+    expectationsId: clip(expectationsId, 360),
     details: {
       maritalStatus: safeStr(details?.maritalStatus),
+      occupation: safeStr(details?.occupation),
+      hasChildren: safeStr(details?.hasChildren),
+      childrenCount: asNum(details?.childrenCount),
+      childrenLivingSituation: safeStr(details?.childrenLivingSituation),
     },
   };
 }

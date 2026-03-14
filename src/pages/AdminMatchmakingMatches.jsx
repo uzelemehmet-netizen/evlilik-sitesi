@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { collection, limit, onSnapshot, orderBy, query, where } from 'firebase/firestore';
+import { useTranslation } from 'react-i18next';
 import { db } from '../config/firebase';
 import { authFetch } from '../utils/authFetch';
 
@@ -31,7 +32,31 @@ function appIdOf(m, side) {
   return v;
 }
 
+function safeStr(v) {
+  return typeof v === 'string' ? v.trim() : '';
+}
+
+function shortenId(id) {
+  const s = typeof id === 'string' ? id : '';
+  if (!s) return '';
+  if (s.length <= 18) return s;
+  return `${s.slice(0, 10)}…${s.slice(-6)}`;
+}
+
+function displayUserLabel(m, side) {
+  const p = m?.profiles?.[side] || null;
+  const username = safeStr(p?.username);
+  if (username) return `@${username}`;
+  const fullName = safeStr(p?.fullName);
+  if (fullName) return fullName;
+  const code = profileCodeOf(p);
+  if (code) return code;
+  const uid = safeStr(side === 'a' ? m?.aUserId : m?.bUserId);
+  return uid ? shortenId(uid) : side.toUpperCase();
+}
+
 export default function AdminMatchmakingMatches() {
+  const { t } = useTranslation();
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [acting, setActing] = useState(false);
@@ -79,7 +104,7 @@ export default function AdminMatchmakingMatches() {
             },
             (e2) => {
               console.error('matchmakingMatches fallback load failed:', e2);
-              setErr(String(e2?.message || 'Eşleşmeler yüklenemedi.'));
+              setErr(String(e2?.message || t('admin.matchmakingMatches.errors.loadFailed')));
               setLoading(false);
             }
           );
@@ -87,7 +112,7 @@ export default function AdminMatchmakingMatches() {
         }
 
         console.error('matchmakingMatches load failed:', e);
-        setErr(String(e?.message || 'Eşleşmeler yüklenemedi.'));
+        setErr(String(e?.message || t('admin.matchmakingMatches.errors.loadFailed')));
         setLoading(false);
       }
     );
@@ -99,7 +124,7 @@ export default function AdminMatchmakingMatches() {
   }, []);
 
   const cancel = async (matchId) => {
-    const ok = window.confirm('Bu eşleşme iptal edildi olarak işaretlenecek ve kilit kaldırılacak. Devam edilsin mi?');
+    const ok = window.confirm(t('admin.matchmakingMatches.confirms.cancelMatch'));
     if (!ok) return;
 
     setActing(true);
@@ -111,9 +136,9 @@ export default function AdminMatchmakingMatches() {
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ matchId, reason: 'cancelled_after_contact' }),
       });
-      setMsg('Eşleşme iptal edildi. Kilit kaldırıldı; yeni eşleşmeler gösterilebilir.');
+      setMsg(t('admin.matchmakingMatches.messages.cancelSuccess'));
     } catch (e) {
-      setErr(String(e?.message || 'İşlem başarısız.'));
+      setErr(String(e?.message || t('admin.matchmakingMatches.errors.actionFailed')));
     } finally {
       setActing(false);
     }
@@ -123,7 +148,7 @@ export default function AdminMatchmakingMatches() {
     const a = String(manualA || '').trim();
     const b = String(manualB || '').trim();
     if (!a || !b) {
-      setErr('Lütfen A ve B için Application ID veya Profil Kodu girin.');
+      setErr(t('admin.matchmakingMatches.errors.manualInputRequired'));
       return;
     }
 
@@ -143,10 +168,10 @@ export default function AdminMatchmakingMatches() {
         }),
       });
 
-      setMsg(`Manuel eşleşme hazır. Match ID: ${data?.matchId || '-'}`);
+      setMsg(t('admin.matchmakingMatches.messages.manualCreated', { matchId: data?.matchId || '-', extra: '' }));
     } catch (e) {
       const details = e?.details ? ` (${JSON.stringify(e.details)})` : '';
-      setErr(String(e?.message || 'İşlem başarısız.') + details);
+      setErr(String(e?.message || t('admin.matchmakingMatches.errors.actionFailed')) + details);
     } finally {
       setActing(false);
     }
@@ -166,16 +191,16 @@ export default function AdminMatchmakingMatches() {
     <div className="min-h-screen bg-slate-50">
       <div className="mx-auto max-w-5xl px-4 py-6">
         <div className="flex items-center justify-between gap-3">
-          <h1 className="text-xl md:text-2xl font-bold text-slate-900">Eşleşmeler (Admin)</h1>
+          <h1 className="text-xl md:text-2xl font-bold text-slate-900">{t('admin.matchmakingMatches.titles.page')}</h1>
           <div className="flex items-center gap-3">
             <Link to="/admin/identity-verifications" className="text-sm font-semibold text-sky-700 hover:underline">
-              Kimlik doğrulama
+              {t('admin.matchmakingMatches.nav.identityVerifications')}
             </Link>
             <Link to="/admin/matchmaking-payments" className="text-sm font-semibold text-sky-700 hover:underline">
-              Ödeme bildirimleri
+              {t('admin.matchmakingMatches.nav.paymentNotifications')}
             </Link>
             <Link to="/admin/dashboard" className="text-sm font-semibold text-sky-700 hover:underline">
-              Admin panel
+              {t('admin.matchmakingMatches.nav.adminPanel')}
             </Link>
           </div>
         </div>
@@ -184,49 +209,49 @@ export default function AdminMatchmakingMatches() {
         {err ? <div className="mt-4 rounded-xl border border-rose-200 bg-rose-50 p-3 text-rose-900 text-sm">{err}</div> : null}
 
         {loading ? (
-          <p className="mt-4 text-sm text-slate-600">Yükleniyor…</p>
+          <p className="mt-4 text-sm text-slate-600">{t('admin.matchmakingMatches.common.loading')}</p>
         ) : (
           <div className="mt-4 space-y-6">
             <section className="rounded-2xl bg-white border border-slate-200 p-4">
-              <p className="text-sm font-semibold text-slate-900">Manuel eşleştir (test için)</p>
+              <p className="text-sm font-semibold text-slate-900">{t('admin.matchmakingMatches.manual.titleTest')}</p>
               <p className="text-xs text-slate-600 mt-1">
-                A ve B için "Application ID" veya "Kullanıcı Adı" yazın. Bu işlem iki kullanıcı arasına
-                bir eşleşme dokümanı oluşturur (beğeni/ret/chat akışını test etmek için).
+                {t('admin.matchmakingMatches.manual.description')}
               </p>
               <p className="text-xs text-slate-500 mt-1">
-                Not: Bu sayfadaki listeler sadece <span className="font-semibold">mutual_accepted</span> ve{' '}
-                <span className="font-semibold">contact_unlocked</span> durumlarını gösterir.
+                {t('admin.matchmakingMatches.manual.notePrefix')}{' '}
+                <span className="font-semibold">mutual_accepted</span> {t('admin.matchmakingMatches.manual.noteAnd')}{' '}
+                <span className="font-semibold">contact_unlocked</span> {t('admin.matchmakingMatches.manual.noteSuffix')}
               </p>
 
               <div className="mt-3 grid grid-cols-1 md:grid-cols-3 gap-3">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700">A (Application ID / Profil Kodu)</label>
+                  <label className="block text-xs font-semibold text-slate-700">{t('admin.matchmakingMatches.manual.labels.a')}</label>
                   <input
                     value={manualA}
                     onChange={(e) => setManualA(e.target.value)}
-                    placeholder="Örn: moonstar_34 veya applicationId"
+                    placeholder={t('admin.matchmakingMatches.manual.placeholders.a')}
                     className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700">B (Application ID / Profil Kodu)</label>
+                  <label className="block text-xs font-semibold text-slate-700">{t('admin.matchmakingMatches.manual.labels.b')}</label>
                   <input
                     value={manualB}
                     onChange={(e) => setManualB(e.target.value)}
-                    placeholder="Örn: blueocean_21 veya applicationId"
+                    placeholder={t('admin.matchmakingMatches.manual.placeholders.b')}
                     className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700">Başlangıç durumu</label>
+                  <label className="block text-xs font-semibold text-slate-700">{t('admin.matchmakingMatches.manual.labels.startStatus')}</label>
                   <select
                     value={manualStatus}
                     onChange={(e) => setManualStatus(e.target.value)}
                     className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm"
                   >
-                    <option value="proposed">proposed (beğeni/ret test)</option>
-                    <option value="mutual_accepted">mutual_accepted (chat/contact seçimi test)</option>
-                    <option value="contact_unlocked">contact_unlocked (iletişim açılmış test)</option>
+                    <option value="proposed">{t('admin.matchmakingMatches.manual.statusOptions.proposed')}</option>
+                    <option value="mutual_accepted">{t('admin.matchmakingMatches.manual.statusOptions.mutualAccepted')}</option>
+                    <option value="contact_unlocked">{t('admin.matchmakingMatches.manual.statusOptions.contactUnlocked')}</option>
                   </select>
                 </div>
               </div>
@@ -234,7 +259,7 @@ export default function AdminMatchmakingMatches() {
               <div className="mt-3 flex flex-col sm:flex-row gap-3 sm:items-center">
                 <label className="inline-flex items-center gap-2 text-sm text-slate-700">
                   <input type="checkbox" checked={manualOverwrite} onChange={(e) => setManualOverwrite(e.target.checked)} />
-                  Aynı match varsa üzerine yaz
+                  {t('admin.matchmakingMatches.manual.labels.overwrite')}
                 </label>
                 <button
                   type="button"
@@ -242,21 +267,21 @@ export default function AdminMatchmakingMatches() {
                   onClick={createManualMatch}
                   className="px-4 py-2 rounded-full bg-slate-900 text-white text-sm font-semibold hover:bg-slate-800"
                 >
-                  Manuel eşleştir
+                  {t('admin.matchmakingMatches.manual.actions.create')}
                 </button>
               </div>
             </section>
 
             <section className="rounded-2xl bg-white border border-slate-200 p-4">
-              <p className="text-sm font-semibold text-slate-900">Karşılıklı onay (2. adım seçimi bekliyor)</p>
+              <p className="text-sm font-semibold text-slate-900">{t('admin.matchmakingMatches.sections.mutual')}</p>
               {grouped.mutual.length === 0 ? (
-                <p className="text-sm text-slate-600 mt-2">Kayıt yok.</p>
+                <p className="text-sm text-slate-600 mt-2">{t('admin.matchmakingMatches.common.empty')}</p>
               ) : (
                 <div className="mt-3 space-y-3">
                   {grouped.mutual.map((m) => (
                     <div key={m.id} className="rounded-xl border border-slate-200 bg-slate-50 p-4">
                       <p className="text-sm font-semibold text-slate-900">
-                        {m?.profiles?.a?.fullName || 'A'} ↔ {m?.profiles?.b?.fullName || 'B'}
+                        {displayUserLabel(m, 'a')} ↔ {displayUserLabel(m, 'b')}
                       </p>
                       {(() => {
                         const aCode = profileCodeOf(m?.profiles?.a);
@@ -265,7 +290,7 @@ export default function AdminMatchmakingMatches() {
                         const bAppId = appIdOf(m, 'b');
                         return aCode || bCode ? (
                           <p className="text-xs text-slate-700 mt-1">
-                            Eşleşme:{' '}
+                            {t('admin.matchmakingMatches.labels.match')}{' '}
                             <span className="font-semibold">
                               {aAppId && aCode ? (
                                 <Link to={`/admin/matchmaking/${aAppId}`} className="text-sky-700 hover:underline">
@@ -286,7 +311,11 @@ export default function AdminMatchmakingMatches() {
                           </p>
                         ) : null;
                       })()}
-                      <p className="text-xs text-slate-600 mt-1">Skor: {typeof m.score === 'number' ? `%${m.score}` : '-'}</p>
+                      <p className="text-xs text-slate-600 mt-1">
+                        {t('admin.matchmakingMatches.labels.score', {
+                          score: typeof m.score === 'number' ? `%${m.score}` : '-',
+                        })}
+                      </p>
                       <div className="mt-2 flex flex-col sm:flex-row gap-2">
                         <button
                           type="button"
@@ -294,7 +323,7 @@ export default function AdminMatchmakingMatches() {
                           onClick={() => cancel(m.id)}
                           className="px-4 py-2 rounded-full bg-rose-600 text-white text-sm font-semibold hover:bg-rose-700"
                         >
-                          Eşleşmeyi iptal et (kilidi kaldır)
+                          {t('admin.matchmakingMatches.actions.cancel')}
                         </button>
                       </div>
                     </div>
@@ -304,15 +333,15 @@ export default function AdminMatchmakingMatches() {
             </section>
 
             <section className="rounded-2xl bg-white border border-slate-200 p-4">
-              <p className="text-sm font-semibold text-slate-900">İletişim paylaşımı açılanlar (kilit aktif)</p>
+              <p className="text-sm font-semibold text-slate-900">{t('admin.matchmakingMatches.sections.contactUnlocked')}</p>
               {grouped.contactUnlocked.length === 0 ? (
-                <p className="text-sm text-slate-600 mt-2">Kayıt yok.</p>
+                <p className="text-sm text-slate-600 mt-2">{t('admin.matchmakingMatches.common.empty')}</p>
               ) : (
                 <div className="mt-3 space-y-3">
                   {grouped.contactUnlocked.map((m) => (
                     <div key={m.id} className="rounded-xl border border-slate-200 bg-slate-50 p-4">
                       <p className="text-sm font-semibold text-slate-900">
-                        {m?.profiles?.a?.fullName || 'A'} ↔ {m?.profiles?.b?.fullName || 'B'}
+                        {displayUserLabel(m, 'a')} ↔ {displayUserLabel(m, 'b')}
                       </p>
                       {(() => {
                         const aCode = profileCodeOf(m?.profiles?.a);
@@ -321,7 +350,7 @@ export default function AdminMatchmakingMatches() {
                         const bAppId = appIdOf(m, 'b');
                         return aCode || bCode ? (
                           <p className="text-xs text-slate-700 mt-1">
-                            Eşleşme:{' '}
+                            {t('admin.matchmakingMatches.labels.match')}{' '}
                             <span className="font-semibold">
                               {aAppId && aCode ? (
                                 <Link to={`/admin/matchmaking/${aAppId}`} className="text-sky-700 hover:underline">
@@ -342,7 +371,11 @@ export default function AdminMatchmakingMatches() {
                           </p>
                         ) : null;
                       })()}
-                      <p className="text-xs text-slate-600 mt-1">Skor: {typeof m.score === 'number' ? `%${m.score}` : '-'}</p>
+                      <p className="text-xs text-slate-600 mt-1">
+                        {t('admin.matchmakingMatches.labels.score', {
+                          score: typeof m.score === 'number' ? `%${m.score}` : '-',
+                        })}
+                      </p>
                       <div className="mt-2 flex flex-col sm:flex-row gap-2">
                         <button
                           type="button"
@@ -350,7 +383,7 @@ export default function AdminMatchmakingMatches() {
                           onClick={() => cancel(m.id)}
                           className="px-4 py-2 rounded-full bg-rose-600 text-white text-sm font-semibold hover:bg-rose-700"
                         >
-                          Eşleşmeyi iptal et (kilidi kaldır)
+                          {t('admin.matchmakingMatches.actions.cancel')}
                         </button>
                       </div>
                     </div>

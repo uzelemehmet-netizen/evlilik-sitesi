@@ -14,7 +14,14 @@ function spawnLogged(command, args, options = {}) {
 }
 
 const projectRoot = process.cwd();
-const apiPortFile = path.join(projectRoot, '.tmp-dev-api-port');
+function buildApiPortFilePath() {
+  // Aynı anda birden fazla `npm run dev` çalışırsa port dosyası çakışmasın.
+  // PID + timestamp ile süreç başına benzersiz dosya oluştur.
+  const stamp = `${process.pid}-${Date.now()}`;
+  return path.join(projectRoot, `.tmp-dev-api-port.${stamp}`);
+}
+
+const apiPortFile = buildApiPortFilePath();
 
 function safeUnlink(filePath) {
   try {
@@ -93,6 +100,8 @@ function shutdown(code = 0) {
     // ignore
   }
 
+  safeUnlink(apiPortFile);
+
   process.exit(code);
 }
 
@@ -113,7 +122,7 @@ process.on('SIGTERM', () => shutdown(0));
   safeUnlink(apiPortFile);
 
   apiChild = spawnLogged('npm', ['run', 'dev:api'], {
-    env: { ...process.env },
+    env: { ...process.env, DEV_API_PORT_FILE: apiPortFile },
   });
 
   apiChild.on('exit', (code) => {
@@ -124,8 +133,13 @@ process.on('SIGTERM', () => shutdown(0));
 
   const apiPort = await waitForPortFile({ timeoutMs: 60000, intervalMs: 150 });
 
+  // Port dosyası yazıldıktan sonra gerçekten dinlemeyi bekle (özellikle Windows/dual-stack).
+  await waitForTcp(apiPort, { timeoutMs: 15000, intervalMs: 200 });
+
   // Vite proxy target should follow the chosen API port.
-  const proxyTarget = `http://localhost:${apiPort}`;
+  // Windows + WSL ortamlarında `localhost` bazen ::1'e çözülüp WSL relay'e gidebiliyor.
+  // IPv4 loopback'e sabitleyerek /api proxy 503 sorunlarını azaltıyoruz.
+  const proxyTarget = `http://127.0.0.1:${apiPort}`;
   // eslint-disable-next-line no-console
   console.log(`[dev] Vite proxy: /api -> ${proxyTarget}`);
 

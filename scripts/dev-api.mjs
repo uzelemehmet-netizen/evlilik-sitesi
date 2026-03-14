@@ -114,7 +114,11 @@ console.log(
 );
 
 const preferredPort = Number(process.env.PORT || 3000);
-const portFilePath = path.join(projectRoot, '.tmp-dev-api-port');
+const portFilePath = (() => {
+  const raw = String(process.env.DEV_API_PORT_FILE || '').trim();
+  if (raw) return path.isAbsolute(raw) ? raw : path.join(projectRoot, raw);
+  return path.join(projectRoot, '.tmp-dev-api-port');
+})();
 const apiHandlerModulePath = path.join(projectRoot, 'api', '[...route].js');
 const { default: apiHandler } = await import(pathToFileURL(apiHandlerModulePath).href);
 
@@ -143,6 +147,11 @@ const server = http.createServer(async (req, res) => {
 
     await apiHandler(req, res);
   } catch (e) {
+    // eslint-disable-next-line no-console
+    console.error('[dev-api] Unhandled API error:', {
+      message: String(e?.message || 'server_error'),
+      stack: e?.stack ? String(e.stack) : null,
+    });
     if (!res.headersSent) {
       res.statusCode = 500;
       res.setHeader('content-type', 'application/json');
@@ -189,6 +198,12 @@ function safeUnlinkPortFile() {
 }
 
 safeUnlinkPortFile();
+
+process.on('exit', () => {
+  safeUnlinkPortFile();
+});
+process.on('SIGINT', () => process.exit(0));
+process.on('SIGTERM', () => process.exit(0));
 
 async function listenWithFallback(startPort, maxAttempts = 20) {
   // Önce hızlı bir tahmin yapalım (127.0.0.1 probe). Yine de listen sırasında

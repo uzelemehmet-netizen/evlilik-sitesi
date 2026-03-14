@@ -12,9 +12,27 @@ const REQUIRED_VARS = [
     mustHaveValue: true,
   },
   {
+    key: 'VITE_MATCHMAKING_REFERRAL_ENABLED',
+    value: '1',
+    comment: 'Referral / davet + WhatsApp paylaş UI (frontend). Kapatmak için: 0 / false / no / off',
+    mustHaveValue: false,
+  },
+  {
+    key: 'MATCHMAKING_REFERRAL_ENABLED',
+    value: '1',
+    comment: 'Referral accept/claim API (server-side /api). Kapatmak için: 0 / false / no / off',
+    mustHaveValue: false,
+  },
+  {
     key: 'MATCHMAKING_FREE_PROMO_ENABLED',
     value: '1',
     comment: "Matchmaking Eko promo ücretsiz aktivasyon (2026-02-10'a kadar) - localde varsayılan AÇIK. Kapatmak için: 0 / false / no / off / disabled",
+    mustHaveValue: false,
+  },
+  {
+    key: 'TRANSLATE_FALLBACK_PROVIDER',
+    value: 'deepl',
+    comment: 'Gemini rate-limit/arıza durumunda kullanılacak ikinci sağlayıcı (öneri: deepl). Boşsa TRANSLATE_PROVIDER kullanılır.',
     mustHaveValue: false,
   },
   {
@@ -55,7 +73,19 @@ const REQUIRED_VARS = [
   {
     key: 'TRANSLATE_PROVIDER',
     value: 'deepl',
-    comment: 'Çeviri sağlayıcısı: deepl | libretranslate (chat manuel çeviri için).',
+    comment: 'Fallback çeviri sağlayıcısı: deepl | libretranslate | google. Not: GEMINI_API_KEY varsa chat çeviride öncelik Gemini’dedir; bu değer ikinci seçenek olarak kullanılır.',
+    mustHaveValue: false,
+  },
+  {
+    key: 'GEMINI_API_KEY',
+    value: '',
+    comment: 'Gemini API key (server-side, gizli). VITE_ kullanmayın. Ayarlıysa chat çeviri öncelikle Gemini ile çalışır.',
+    mustHaveValue: false,
+  },
+  {
+    key: 'GEMINI_TRANSLATE_MODEL',
+    value: 'gemini-3-flash',
+    comment: 'Gemini model (opsiyonel). Boş bırakılırsa default: gemini-3-flash',
     mustHaveValue: false,
   },
   {

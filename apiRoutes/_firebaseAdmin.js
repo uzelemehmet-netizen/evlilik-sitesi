@@ -2,27 +2,55 @@ import { cert, getApps, initializeApp } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
 import { FieldValue, getFirestore } from 'firebase-admin/firestore';
 import fs from 'node:fs';
+import path from 'node:path';
 
 let cachedProjectId = '';
 
-function parseAdminEmails() {
-  const raw = process.env.ADMIN_EMAILS || process.env.VITE_ADMIN_EMAILS || '';
-  const envList = String(raw)
-    .split(',')
-    .map((s) => s.trim().toLowerCase())
-    .filter(Boolean);
+let envLocalLoaded = false;
 
-  const ruleAdmins = ['uzelemehmet@gmail.com', 'articelikkapi@gmail.com'];
-  const ruleAdminSet = new Set(ruleAdmins);
+function loadEnvLocalOnce() {
+  if (envLocalLoaded) return;
+  envLocalLoaded = true;
 
-  // Firestore rules ile birebir uyum: sadece kural listesi geçerli olsun.
-  // Env listesi varsa, sadece kural listesiyle kesişenleri al.
-  if (envList.length) {
-    const filtered = envList.filter((email) => ruleAdminSet.has(email));
-    return filtered.length ? filtered : ruleAdmins;
+  // Best-effort: local scripts/dev may rely on .env.local.
+  // In Vercel/production builds this file won't exist; ignore safely.
+  try {
+    const envPath = path.join(process.cwd(), '.env.local');
+    if (!fs.existsSync(envPath)) return;
+
+    const raw = fs.readFileSync(envPath, 'utf8');
+    const lines = raw.split(/\r?\n/);
+    for (const line of lines) {
+      const trimmed = String(line || '').trim();
+      if (!trimmed || trimmed.startsWith('#')) continue;
+      const eq = trimmed.indexOf('=');
+      if (eq <= 0) continue;
+
+      const key = trimmed.slice(0, eq).trim();
+      let value = trimmed.slice(eq + 1).trim();
+
+      if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
+        value = value.slice(1, -1);
+      }
+
+      // Do NOT override real env; only fill missing.
+      if (process.env[key] === undefined || String(process.env[key] || '').trim() === '') {
+        if (key.toUpperCase().includes('PRIVATE_KEY')) {
+          process.env[key] = value.replace(/\\n/g, '\n');
+        } else {
+          process.env[key] = value;
+        }
+      }
+    }
+  } catch {
+    // ignore
   }
+}
 
-  return ruleAdmins;
+function parseAdminEmails() {
+  // Güvenlik: Admin endpoint'leri TEK kullanıcı ile sınırlı.
+  // Env ile genişletmeyin; yanlışlıkla başka hesaplar admin olmasın.
+  return ['uzelemehmet@gmail.com'];
 }
 
 function normalizeBody(req) {
@@ -78,6 +106,7 @@ function getServiceAccount() {
 }
 
 export function getAdmin() {
+  loadEnvLocalOnce();
   if (!getApps().length) {
     const serviceAccount = getServiceAccount();
     if (!serviceAccount) {
@@ -88,9 +117,25 @@ export function getAdmin() {
       throw err;
     }
 
-    cachedProjectId = String(serviceAccount?.project_id || '').trim();
+    const projectId = String(serviceAccount?.project_id || '').trim();
+    const clientEmail = String(serviceAccount?.client_email || '').trim();
+    const privateKey = String(serviceAccount?.private_key || '').trim();
+    if (!projectId || !clientEmail || !privateKey) {
+      const err = new Error('firebase_admin_invalid_service_account_missing_project_id_client_email_or_private_key');
+      err.statusCode = 503;
+      throw err;
+    }
 
-    initializeApp({ credential: cert(serviceAccount) });
+    cachedProjectId = projectId;
+
+    try {
+      initializeApp({ credential: cert(serviceAccount) });
+    } catch (e) {
+      const err = new Error('firebase_admin_init_failed');
+      err.statusCode = 503;
+      err.cause = e;
+      throw err;
+    }
   }
 
   return {

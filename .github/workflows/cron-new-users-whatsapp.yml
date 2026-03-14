@@ -1,0 +1,33 @@
+name: Cron - New Users WhatsApp
+
+on:
+  workflow_dispatch: {}
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Call notify endpoint
+        env:
+          BASE_URL: ${{ secrets.CRON_BASE_URL }}
+          CRON_SECRET: ${{ secrets.MATCHMAKING_CRON_SECRET }}
+        run: |
+          if [ -z "$BASE_URL" ]; then
+            BASE_URL="https://uniqah.com"
+          fi
+          if [ -z "$CRON_SECRET" ]; then
+            echo "MATCHMAKING_CRON_SECRET GitHub secret eksik" >&2
+            exit 1
+          fi
+
+          URL="$BASE_URL/api/admin-new-users-whatsapp-notify"
+          echo "POST $URL"
+
+          curl -sS -X POST "$URL" \
+            -H "Content-Type: application/json" \
+            -H "X-Cron-Secret: $CRON_SECRET" \
+            --data '{}' \
+            --fail-with-body
+
+          echo ""

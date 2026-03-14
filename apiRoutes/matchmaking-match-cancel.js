@@ -69,8 +69,16 @@ export default async function handler(req, res) {
 
       if (status === 'cancelled') return;
 
-      // Sadece aktif süreçlerde iptale izin ver.
-      if (status !== 'mutual_accepted' && status !== 'proposed') {
+      // Yeni ürün kuralı:
+      // - Aktif eşleşme (mutual_accepted/contact_unlocked) iptali karşılıklı olmalı.
+      // - proposed / mutual_interest aşamasında tek taraflı iptal serbest.
+      if (status === 'mutual_accepted' || status === 'contact_unlocked') {
+        const err = new Error('use_active_cancel');
+        err.statusCode = 409;
+        throw err;
+      }
+
+      if (status !== 'proposed' && status !== 'mutual_interest') {
         const err = new Error('not_available');
         err.statusCode = 400;
         throw err;

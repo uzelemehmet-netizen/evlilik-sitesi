@@ -1,91 +1,169 @@
-import adminMatchmakingUserStats from '../apiRoutes/admin-matchmaking-user-stats.js';
-import clientIp from '../apiRoutes/client-ip.js';
-import cloudinarySignature from '../apiRoutes/cloudinary-signature.js';
-import identityKycWebhook from '../apiRoutes/identity-kyc-webhook.js';
-import matchmakingVerificationManualSubmit from '../apiRoutes/matchmaking-verification-manual-submit.js';
-import matchmakingAdminApprovePayment from '../apiRoutes/matchmaking-admin-approve-payment.js';
-import matchmakingAdminPhotoUpdateDecide from '../apiRoutes/matchmaking-admin-photo-update-decide.js';
-import matchmakingAdminCancel from '../apiRoutes/matchmaking-admin-cancel.js';
-import matchmakingAdminConfirm from '../apiRoutes/matchmaking-admin-confirm.js';
-import matchmakingConfirm from '../apiRoutes/matchmaking-confirm.js';
-import matchmakingAdminCreateMatch from '../apiRoutes/matchmaking-admin-create-match.js';
-import matchmakingAdminIdentityVerify from '../apiRoutes/matchmaking-admin-identity-verify.js';
-import matchmakingAllocateProfileNo from '../apiRoutes/matchmaking-allocate-profile-no.js';
-import matchmakingApplicationEditOnce from '../apiRoutes/matchmaking-application-edit-once.js';
-import matchmakingPhotoUpdateRequest from '../apiRoutes/matchmaking-photo-update-request.js';
-import matchmakingChatDecision from '../apiRoutes/matchmaking-chat-decision.js';
-import matchmakingChatMarkRead from '../apiRoutes/matchmaking-chat-mark-read.js';
-import matchmakingChatSend from '../apiRoutes/matchmaking-chat-send.js';
-import matchmakingChatReleaseHeld from '../apiRoutes/matchmaking-chat-release-held.js';
-import matchmakingChatTranslate from '../apiRoutes/matchmaking-chat-translate.js';
-import matchmakingChatTranslationRevoke from '../apiRoutes/matchmaking-chat-translation-revoke.js';
-import matchmakingMatchCancel from '../apiRoutes/matchmaking-match-cancel.js';
-import matchmakingContact from '../apiRoutes/matchmaking-contact.js';
-import matchmakingContactRequest from '../apiRoutes/matchmaking-contact-request.js';
-import matchmakingContactApprove from '../apiRoutes/matchmaking-contact-approve.js';
-import matchmakingDecision from '../apiRoutes/matchmaking-decision.js';
-import matchmakingDismiss from '../apiRoutes/matchmaking-dismiss.js';
-import matchmakingFreeMembershipApply from '../apiRoutes/matchmaking-free-membership-apply.js';
-import matchmakingHeartbeat from '../apiRoutes/matchmaking-heartbeat.js';
-import matchmakingInteractionChoice from '../apiRoutes/matchmaking-interaction-choice.js';
-import matchmakingMembershipActivateFree from '../apiRoutes/matchmaking-membership-activate-free.js';
-import matchmakingMembershipCancel from '../apiRoutes/matchmaking-membership-cancel.js';
-import matchmakingAccountDelete from '../apiRoutes/matchmaking-account-delete.js';
-import matchmakingProfile from '../apiRoutes/matchmaking-profile.js';
-import matchmakingRejectAll from '../apiRoutes/matchmaking-reject-all.js';
-import matchmakingRequestNew from '../apiRoutes/matchmaking-request-new.js';
-import matchmakingRun from '../apiRoutes/matchmaking-run.js';
-import matchmakingSubmitPayment from '../apiRoutes/matchmaking-submit-payment.js';
-import matchmakingVerificationSelect from '../apiRoutes/matchmaking-verification-select.js';
-import recaptchaAssess from '../apiRoutes/recaptcha-assess.js';
-import matchmakingQuickQuestions from '../apiRoutes/matchmaking-quick-questions.js';
+import { existsSync } from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
+// Trace-only imports: Vercel'in dependency tracing'i, file:// ile dinamik import edilen
+// modüllerin transitive deps'lerini (özellikle firebase-admin) pakete eklemeyebiliyor.
+// Burada import ederek firebase-admin'in function bundle'a kesin dahil olmasını sağlıyoruz.
+import 'firebase-admin/app';
+import 'firebase-admin/auth';
+import 'firebase-admin/firestore';
+import 'firebase-admin/messaging';
+
+function findApiRoutesRootDir() {
+  const selfFile = fileURLToPath(import.meta.url);
+  const selfDir = path.dirname(selfFile);
+
+  const candidates = [
+    // Local dev / Vercel runtimes usually have CWD at project/function root.
+    process.cwd(),
+    // Function bundle root often equals current module directory.
+    selfDir,
+    // Some builders keep the original folder structure.
+    path.resolve(selfDir, '..'),
+    path.resolve(selfDir, '../..'),
+    path.resolve(selfDir, '../../..'),
+  ];
+
+  for (const candidate of candidates) {
+    const dir = path.join(candidate, 'apiRoutes');
+    if (existsSync(dir)) return candidate;
+  }
+  return null;
+}
+
+const apiRoutesRootDir = findApiRoutesRootDir();
+
+function defaultLoader(fileName) {
+  return async () => {
+    if (!apiRoutesRootDir) {
+      throw new Error('api_routes_root_not_found');
+    }
+    const fullPath = path.join(apiRoutesRootDir, 'apiRoutes', fileName);
+    if (!existsSync(fullPath)) {
+      throw new Error(`api_route_file_missing:${fileName}`);
+    }
+    const mod = await import(pathToFileURL(fullPath).href);
+    return mod?.default;
+  };
+}
+
+// Lazy-load: cold start sırasında tüm route dosyalarını import etmeyelim.
+// Bu, Vercel'de FUNCTION_INVOCATION_FAILED (özellikle cold-start / timeout) riskini ciddi azaltır.
 const handlers = {
-  'admin-matchmaking-user-stats': adminMatchmakingUserStats,
-  'client-ip': clientIp,
-  'cloudinary-signature': cloudinarySignature,
-  'identity-kyc-webhook': identityKycWebhook,
-  'matchmaking-admin-approve-payment': matchmakingAdminApprovePayment,
-  'matchmaking-admin-photo-update-decide': matchmakingAdminPhotoUpdateDecide,
-  'matchmaking-admin-cancel': matchmakingAdminCancel,
-  'matchmaking-admin-confirm': matchmakingAdminConfirm,
-  'matchmaking-confirm': matchmakingConfirm,
-  'matchmaking-admin-create-match': matchmakingAdminCreateMatch,
-  'matchmaking-admin-identity-verify': matchmakingAdminIdentityVerify,
-  'matchmaking-allocate-profile-no': matchmakingAllocateProfileNo,
-  'matchmaking-application-edit-once': matchmakingApplicationEditOnce,
-  'matchmaking-photo-update-request': matchmakingPhotoUpdateRequest,
-  'matchmaking-chat-decision': matchmakingChatDecision,
-  'matchmaking-chat-mark-read': matchmakingChatMarkRead,
-  'matchmaking-chat-send': matchmakingChatSend,
-  'matchmaking-chat-release-held': matchmakingChatReleaseHeld,
-  'matchmaking-chat-translate': matchmakingChatTranslate,
-  'matchmaking-chat-translation-revoke': matchmakingChatTranslationRevoke,
-  'matchmaking-match-cancel': matchmakingMatchCancel,
-  'matchmaking-contact': matchmakingContact,
-  'matchmaking-contact-request': matchmakingContactRequest,
-  'matchmaking-contact-approve': matchmakingContactApprove,
-  'matchmaking-decision': matchmakingDecision,
-  'matchmaking-dismiss': matchmakingDismiss,
-  'matchmaking-free-membership-apply': matchmakingFreeMembershipApply,
-  'matchmaking-heartbeat': matchmakingHeartbeat,
-  'matchmaking-interaction-choice': matchmakingInteractionChoice,
-  'matchmaking-membership-activate-free': matchmakingMembershipActivateFree,
-  'matchmaking-membership-cancel': matchmakingMembershipCancel,
-  'matchmaking-account-delete': matchmakingAccountDelete,
-  'matchmaking-profile': matchmakingProfile,
-  'matchmaking-reject-all': matchmakingRejectAll,
-  'matchmaking-request-new': matchmakingRequestNew,
-  'matchmaking-run': matchmakingRun,
-  'matchmaking-submit-payment': matchmakingSubmitPayment,
-  'matchmaking-quick-questions': matchmakingQuickQuestions,
-  'matchmaking-verification-select': matchmakingVerificationSelect,
-  'matchmaking-verification-manual-submit': matchmakingVerificationManualSubmit,
-  'recaptcha-assess': recaptchaAssess,
+  'admin-invite-codes-list': defaultLoader('admin-invite-codes-list.js'),
+  'admin-user-action': defaultLoader('admin-user-action.js'),
+  'admin-users-list': defaultLoader('admin-users-list.js'),
+  'admin-user-application-get': defaultLoader('admin-user-application-get.js'),
+  'admin-users-mark-system': defaultLoader('admin-users-mark-system.js'),
+  'admin-payments-list': defaultLoader('admin-payments-list.js'),
+  'admin-audit-logs-list': defaultLoader('admin-audit-logs-list.js'),
+  'admin-click-stats': defaultLoader('admin-click-stats.js'),
+  'admin-click-trace-list': defaultLoader('admin-click-trace-list.js'),
+  'admin-signups-count': defaultLoader('admin-signups-count.js'),
+  'admin-match-activity-list': defaultLoader('admin-match-activity-list.js'),
+  'admin-user-matches-list': defaultLoader('admin-user-matches-list.js'),
+  'admin-matchmaking-user-stats': defaultLoader('admin-matchmaking-user-stats.js'),
+  'admin-matchmaking-pool': defaultLoader('admin-matchmaking-pool.js'),
+  'admin-matchmaking-run-now': defaultLoader('admin-matchmaking-run-now.js'),
+  'admin-matchmaking-rollback-last-run': defaultLoader('admin-matchmaking-rollback-last-run.js'),
+  'admin-new-users-whatsapp-notify': defaultLoader('admin-new-users-whatsapp-notify.js'),
+  'admin-new-signups-whatsapp-notify': defaultLoader('admin-new-signups-whatsapp-notify.js'),
+  'client-ip': defaultLoader('client-ip.js'),
+  'cloudinary-signature': defaultLoader('cloudinary-signature.js'),
+  'google-ads-lead-webhook': defaultLoader('google-ads-lead-webhook.js'),
+  'identity-kyc-webhook': defaultLoader('identity-kyc-webhook.js'),
+  'matchmaking-admin-approve-payment': defaultLoader('matchmaking-admin-approve-payment.js'),
+  'matchmaking-admin-photo-update-decide': defaultLoader('matchmaking-admin-photo-update-decide.js'),
+  'matchmaking-admin-cancel': defaultLoader('matchmaking-admin-cancel.js'),
+  'matchmaking-admin-confirm': defaultLoader('matchmaking-admin-confirm.js'),
+  'matchmaking-confirm': defaultLoader('matchmaking-confirm.js'),
+  'matchmaking-admin-create-match': defaultLoader('matchmaking-admin-create-match.js'),
+  'matchmaking-admin-identity-verify': defaultLoader('matchmaking-admin-identity-verify.js'),
+  'matchmaking-admin-debug-by-email': defaultLoader('matchmaking-admin-debug-by-email.js'),
+  'matchmaking-allocate-profile-no': defaultLoader('matchmaking-allocate-profile-no.js'),
+  'matchmaking-application-submit': defaultLoader('matchmaking-application-submit.js'),
+  'matchmaking-application-normalize': defaultLoader('matchmaking-application-normalize.js'),
+  'matchmaking-application-edit-once': defaultLoader('matchmaking-application-edit-once.js'),
+  'matchmaking-partner-preferences-update': defaultLoader('matchmaking-partner-preferences-update.js'),
+  'matchmaking-application-bootstrap': defaultLoader('matchmaking-application-bootstrap.js'),
+  'matchmaking-user-ensure': defaultLoader('matchmaking-user-ensure.js'),
+  'matchmaking-quick-profile-save': defaultLoader('matchmaking-quick-profile-save.js'),
+  'matchmaking-photo-update-request': defaultLoader('matchmaking-photo-update-request.js'),
+  'matchmaking-chat-decision': defaultLoader('matchmaking-chat-decision.js'),
+  'matchmaking-chat-mark-read': defaultLoader('matchmaking-chat-mark-read.js'),
+  'matchmaking-chat-send': defaultLoader('matchmaking-chat-send.js'),
+  'matchmaking-chat-release-held': defaultLoader('matchmaking-chat-release-held.js'),
+  'matchmaking-chat-translate': defaultLoader('matchmaking-chat-translate.js'),
+  'matchmaking-chat-translation-revoke': defaultLoader('matchmaking-chat-translation-revoke.js'),
+  'matchmaking-match-cancel': defaultLoader('matchmaking-match-cancel.js'),
+  'matchmaking-contact': defaultLoader('matchmaking-contact.js'),
+  'matchmaking-contact-request': defaultLoader('matchmaking-contact-request.js'),
+  'matchmaking-contact-approve': defaultLoader('matchmaking-contact-approve.js'),
+  'matchmaking-decision': defaultLoader('matchmaking-decision.js'),
+  'matchmaking-dismiss': defaultLoader('matchmaking-dismiss.js'),
+  'matchmaking-free-membership-apply': defaultLoader('matchmaking-free-membership-apply.js'),
+  'matchmaking-heartbeat': defaultLoader('matchmaking-heartbeat.js'),
+  'matchmaking-interaction-choice': defaultLoader('matchmaking-interaction-choice.js'),
+  'matchmaking-membership-activate-free': defaultLoader('matchmaking-membership-activate-free.js'),
+  'matchmaking-membership-cancel': defaultLoader('matchmaking-membership-cancel.js'),
+  'matchmaking-invite-code-generate': defaultLoader('matchmaking-invite-code-generate.js'),
+  'matchmaking-invite-code-redeem': defaultLoader('matchmaking-invite-code-redeem.js'),
+  'matchmaking-referral-code': defaultLoader('matchmaking-referral-code.js'),
+  'matchmaking-referral-accept': defaultLoader('matchmaking-referral-accept.js'),
+  'matchmaking-referral-claim': defaultLoader('matchmaking-referral-claim.js'),
+  'matchmaking-account-delete': defaultLoader('matchmaking-account-delete.js'),
+  'matchmaking-browse': defaultLoader('matchmaking-browse.js'),
+  'matchmaking-profile-access-request': defaultLoader('matchmaking-profile-access-request.js'),
+  'matchmaking-profile-access-respond': defaultLoader('matchmaking-profile-access-respond.js'),
+  'matchmaking-pre-match-request': defaultLoader('matchmaking-pre-match-request.js'),
+  'matchmaking-pre-match-respond': defaultLoader('matchmaking-pre-match-respond.js'),
+  'matchmaking-active-start': defaultLoader('matchmaking-active-start.js'),
+  'matchmaking-active-cancel': defaultLoader('matchmaking-active-cancel.js'),
+  'matchmaking-presence-batch': defaultLoader('matchmaking-presence-batch.js'),
+  'matchmaking-inbox-mark-read': defaultLoader('matchmaking-inbox-mark-read.js'),
+  'matchmaking-inbox-message-send': defaultLoader('matchmaking-inbox-message-send.js'),
+  'matchmaking-inbox-message-mark-read': defaultLoader('matchmaking-inbox-message-mark-read.js'),
+  'matchmaking-inbox-summary': defaultLoader('matchmaking-inbox-summary.js'),
+  'matchmaking-feedback-submit': defaultLoader('matchmaking-feedback-submit.js'),
+  'admin-feedback-list': defaultLoader('admin-feedback-list.js'),
+  'admin-feedback-update': defaultLoader('admin-feedback-update.js'),
+  'public-join-ping': defaultLoader('public-join-ping.js'),
+  'public-error-report': defaultLoader('public-error-report.js'),
+  'public-feedback-submit': defaultLoader('public-feedback-submit.js'),
+  'public-signal': defaultLoader('public-signal.js'),
+  'public-track-click': defaultLoader('public-track-click.js'),
+  'push-token-upsert': defaultLoader('push-token-upsert.js'),
+  'push-send-test': defaultLoader('push-send-test.js'),
+  'matchmaking-profile': defaultLoader('matchmaking-profile.js'),
+  'matchmaking-profile-text-update': defaultLoader('matchmaking-profile-text-update.js'),
+  'matchmaking-profile-view': defaultLoader('matchmaking-profile-view.js'),
+  'matchmaking-photo-blur-set': defaultLoader('matchmaking-photo-blur-set.js'),
+  'matchmaking-photo-access-set': defaultLoader('matchmaking-photo-access-set.js'),
+  'matchmaking-photo-access-request': defaultLoader('matchmaking-photo-access-request.js'),
+  'matchmaking-photo-access-respond': defaultLoader('matchmaking-photo-access-respond.js'),
+  'matchmaking-maintenance-run': defaultLoader('matchmaking-maintenance-run.js'),
+  'matchmaking-reject-all': defaultLoader('matchmaking-reject-all.js'),
+  'matchmaking-request-new': defaultLoader('matchmaking-request-new.js'),
+  'matchmaking-run': defaultLoader('matchmaking-run.js'),
+  'matchmaking-submit-payment': defaultLoader('matchmaking-submit-payment.js'),
+  'matchmaking-quick-questions': defaultLoader('matchmaking-quick-questions.js'),
+  'matchmaking-verification-select': defaultLoader('matchmaking-verification-select.js'),
+  'matchmaking-verification-manual-submit': defaultLoader('matchmaking-verification-manual-submit.js'),
 };
+
 
 function getRouteName(req) {
   const url = new URL(req.url || '', 'http://localhost');
+
+  // vercel.json rewrites /api/(.*) -> /api/[...route]?route=$1
+  // Vercel Node req çoğu zaman req.query sağlamaz; bu yüzden URL searchParams ile oku.
+  const viaQuery = String(url.searchParams.get('route') || '').trim();
+  if (viaQuery) {
+    const cleaned = viaQuery.replace(/^\//, '').split('/')[0] || '';
+    if (cleaned) return cleaned;
+  }
+
   const pathname = url.pathname || '';
   const rest = pathname.replace(/^\/api\/?/, '');
   const [first] = rest.split('/');
@@ -95,7 +173,35 @@ function getRouteName(req) {
 export default async function handler(req, res) {
   const route = getRouteName(req);
 
-  const fn = handlers[route];
+  const loader = handlers[route];
+  let fn = null;
+  try {
+    fn = typeof loader === 'function' ? await loader() : null;
+  } catch (e) {
+    // Import-time errors shouldn't crash the function; surface as JSON.
+    // eslint-disable-next-line no-console
+    console.error('[api] loader_failed', {
+      route,
+      message: String(e?.message || e),
+      hasApiRoutesRoot: Boolean(apiRoutesRootDir),
+    });
+    if (!res.headersSent) {
+      res.statusCode = 500;
+      res.setHeader('content-type', 'application/json');
+    }
+    const isProd = String(process.env.NODE_ENV || '').toLowerCase().trim() === 'production';
+    res.end(
+      JSON.stringify({
+        ok: false,
+        error: 'route_loader_failed',
+        route,
+        loaderMessage: String(e?.message || e || ''),
+        hasApiRoutesRoot: Boolean(apiRoutesRootDir),
+        ...(!isProd && e?.stack ? { stack: String(e.stack) } : {}),
+      })
+    );
+    return;
+  }
   if (!fn) {
     res.statusCode = 404;
     res.setHeader('content-type', 'application/json');
@@ -110,6 +216,13 @@ export default async function handler(req, res) {
       res.statusCode = e?.statusCode || 500;
       res.setHeader('content-type', 'application/json');
     }
-    res.end(JSON.stringify({ ok: false, error: String(e?.message || 'server_error') }));
+    const isProd = String(process.env.NODE_ENV || '').toLowerCase().trim() === 'production';
+    res.end(
+      JSON.stringify({
+        ok: false,
+        error: String(e?.message || 'server_error'),
+        ...(!isProd && e?.stack ? { stack: String(e.stack) } : {}),
+      })
+    );
   }
 }

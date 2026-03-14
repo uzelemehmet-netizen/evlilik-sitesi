@@ -1,6 +1,53 @@
 ﻿<!doctype html>
 <html lang="tr">
   <head>
+    <script>
+      // Defensive global stub: some injected/3p scripts (esp. in certain mobile in-app browsers)
+      // reference a global `swbrowser` identifier. If it's missing, it can throw a ReferenceError
+      // and break app initialization.
+      window.swbrowser = window.swbrowser || {};
+      // eslint-disable-next-line no-var
+      var swbrowser = window.swbrowser;
+
+      // Similar defensive stub for `xbrowser` (seen in some auto-fill/injected scripts).
+      // Use a Proxy when available so any method call becomes a no-op.
+      (function () {
+        try {
+          if (typeof window.xbrowser !== 'undefined') {
+            // eslint-disable-next-line no-var
+            var xbrowser = window.xbrowser;
+            return;
+          }
+
+          var noop = function () {};
+          var stub = {};
+
+          // Prefer Proxy to avoid "xbrowser.foo is not a function" crashes.
+          if (typeof Proxy === 'function') {
+            stub = new Proxy(
+              {},
+              {
+                get: function (_t, prop) {
+                  if (prop === '__isStub') return true;
+                  // Avoid Promise-like assimilation edge cases.
+                  if (prop === 'then') return undefined;
+                  return noop;
+                },
+              }
+            );
+          }
+
+          window.xbrowser = stub;
+          // eslint-disable-next-line no-var
+          var xbrowser = window.xbrowser;
+        } catch (e) {
+          // As a last resort, just define an object.
+          window.xbrowser = window.xbrowser || {};
+          // eslint-disable-next-line no-var
+          var xbrowser = window.xbrowser;
+        }
+      })();
+    </script>
     <!-- Google Analytics 4 -->
     <script>
       window.dataLayer = window.dataLayer || [];
@@ -10,100 +57,130 @@
         'ad_storage': 'granted'
       });
     </script>
-    <script async src="https://www.googletagmanager.com/gtag/js?id=G-GJPELR2CH6"></script>
     <script>
+      // GA4/Ads: load after first interaction or idle timeout (improves initial Load/Wall)
       window.dataLayer = window.dataLayer || [];
       function gtag(){dataLayer.push(arguments);}
+      // Queue config early; gtag.js will drain dataLayer once loaded.
       gtag('js', new Date());
-      gtag('config', 'G-GJPELR2CH6', { send_page_view: false });
+      gtag('config', 'G-N3SFCC5YZ3', { send_page_view: false });
       gtag('config', 'AW-17732388792');
+
+      (function(){
+        var loaded = false;
+        function load3p(){
+          if (loaded) return;
+          loaded = true;
+          try {
+            var s = document.createElement('script');
+            s.async = true;
+            s.crossOrigin = 'anonymous';
+            s.src = 'https://www.googletagmanager.com/gtag/js?id=G-N3SFCC5YZ3';
+            document.head.appendChild(s);
+          } catch (e) {
+            // ignore
+          }
+
+          // TikTok Pixel (delayed)
+          try {
+            var w = window, d = document, t = 'ttq';
+            w.TiktokAnalyticsObject = t;
+            var ttq = w[t] = w[t] || [];
+            ttq.methods = ["page","track","identify","instances","debug","on","off","once","ready","alias","group","enableCookie","disableCookie","holdConsent","revokeConsent","grantConsent"];
+            ttq.setAndDefer = function(tObj, eName){ tObj[eName] = function(){ tObj.push([eName].concat(Array.prototype.slice.call(arguments,0))); }; };
+            for (var i = 0; i < ttq.methods.length; i++) ttq.setAndDefer(ttq, ttq.methods[i]);
+            ttq.instance = function(e){
+              var n = ttq._i[e] || [];
+              for (var j = 0; j < ttq.methods.length; j++) ttq.setAndDefer(n, ttq.methods[j]);
+              return n;
+            };
+            ttq.load = function(e, n){
+              var r = 'https://analytics.tiktok.com/i18n/pixel/events.js';
+              ttq._i = ttq._i || {}; ttq._i[e] = []; ttq._i[e]._u = r; ttq._t = ttq._t || {}; ttq._t[e] = +new Date; ttq._o = ttq._o || {}; ttq._o[e] = n || {};
+              var s2 = d.createElement('script');
+              s2.type = 'text/javascript'; s2.async = true; s2.crossOrigin = 'anonymous';
+              s2.src = r + '?sdkid=' + e + '&lib=' + t;
+              var f = d.getElementsByTagName('script')[0];
+              f.parentNode.insertBefore(s2, f);
+            };
+            ttq.load('D665H0RC77UFHCQP2AA0');
+            ttq.page();
+          } catch (e) {
+            // ignore
+          }
+        }
+
+        function once(name, fn){
+          try { window.addEventListener(name, fn, { once: true, passive: true }); } catch { window.addEventListener(name, fn, true); }
+        }
+
+        once('pointerdown', load3p);
+        once('keydown', load3p);
+        once('touchstart', load3p);
+        once('scroll', load3p);
+
+        // If user never interacts, still load analytics — but only AFTER window load.
+        // This avoids 3p requests becoming the page's load blocker.
+        window.addEventListener('load', function(){
+          if (typeof requestIdleCallback === 'function') {
+            requestIdleCallback(load3p, { timeout: 6000 });
+          } else {
+            setTimeout(load3p, 6000);
+          }
+        }, { once: true });
+      })();
     </script>
     <!-- End Google Analytics 4 -->
     <!-- Google Ads Conversion Tracking -->
     <meta charset="UTF-8" />
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-    <!-- Favicon / App icons -->
-    <link rel="icon" type="image/png" href="/favicon%20evlilik.png" />
-    <link rel="shortcut icon" type="image/png" href="/favicon%20evlilik.png" />
-    <link rel="apple-touch-icon" href="/favicon%20evlilik.png" />
-    <link rel="manifest" href="/manifest.webmanifest" />
+    <!-- Favicon / App icons (PWA) -->
+    <link rel="icon" type="image/png" href="/favicon.png?v=20260310-1" />
+    <link rel="shortcut icon" type="image/png" href="/favicon.png?v=20260310-1" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon-180x180.png?v=20260310-1" />
+    <link rel="manifest" href="/manifest.webmanifest?v=20260310-1" />
     <meta name="theme-color" content="#0b1220" />
-    <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Endonezya Kaşifi | PT MoonStar Global Indonesia</title>
+    <title>Uniqah | Evlilik Eşleştirme</title>
     <meta
       name="description"
-      content="Endonezya Kaşifi (PT MoonStar Global Indonesia), Endonezya'da tur organizasyonu, balayı ve kişiye özel seyahat planlama ile evlilik rehberliği hizmeti sunar. Bali, Lombok, Komodo ve daha fazlası için planlı Endonezya tur paketleri hazırlıyoruz."
+      content="Uniqah, evlilik odaklı eşleştirme ve güvenli iletişim adımları sunan kapalı bir sistemdir."
     />
     <!-- Open Graph -->
     <meta property="og:type" content="website" />
     <meta property="og:locale" content="tr_TR" />
-    <meta property="og:title" content="Endonezya Kaşifi | PT MoonStar Global Indonesia" />
+    <meta property="og:title" content="Uniqah | Evlilik Eşleştirme" />
     <meta
       property="og:description"
-      content="Endonezya'da tur organizasyonu, balayı ve kişiye özel seyahat planlama ile evlilik rehberliği. Bali, Lombok, Komodo ve diğer adalarda planlı tur paketleri."
+      content="Evlilik odaklı eşleştirme ve güvenli iletişim adımları sunan kapalı sistem."
     />
-    <meta property="og:url" content="https://www.endonezyakasifi.com" />
-    <meta property="og:image" content="https://www.endonezyakasifi.com/ChatGPT%20Image%2017%20Kas%202025%2017_20_43.png" />
-    <meta property="og:site_name" content="Endonezya Kaşifi" />
+    <meta property="og:url" content="https://uniqah.com" />
+    <meta property="og:image" content="https://uniqah.com/ChatGPT%20Image%2017%20%C5%9Eub%202026%2014_37_55.png?v=20260217-1" />
+    <meta property="og:site_name" content="Uniqah" />
     <!-- Twitter Cards -->
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="Endonezya Kaşifi | PT MoonStar Global Indonesia" />
+    <meta name="twitter:title" content="Uniqah | Evlilik Eşleştirme" />
     <meta
       name="twitter:description"
-      content="Endonezya'da tur organizasyonu, balayı ve kişiye özel seyahat planlama ile evlilik rehberliği. Bali, Lombok, Komodo ve diğer adalarda planlı tur paketleri."
+      content="Evlilik odaklı eşleştirme ve güvenli iletişim adımları sunan kapalı sistem."
     />
-    <meta name="twitter:image" content="https://www.endonezyakasifi.com/ChatGPT%20Image%2017%20Kas%202025%2017_20_43.png" />
+    <meta name="twitter:image" content="https://uniqah.com/ChatGPT%20Image%2017%20%C5%9Eub%202026%2014_37_55.png?v=20260217-1" />
+    <meta name="robots" content="index,follow" />
+    <link rel="canonical" href="https://uniqah.com/" />
     <meta name="referrer" content="no-referrer-when-downgrade">
-      <meta
-        http-equiv="Content-Security-Policy"
-        content="
-          default-src 'self';
-          script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://googleads.g.doubleclick.net https://www.googleadservices.com https://www.google.com https://www.gstatic.com https://apis.google.com;
-          script-src-elem 'self' 'unsafe-inline' https://www.googletagmanager.com https://googleads.g.doubleclick.net https://www.googleadservices.com https://www.google.com https://www.gstatic.com https://apis.google.com;
-          style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
-          style-src-elem 'self' 'unsafe-inline' https://fonts.googleapis.com;
-          font-src 'self' https://fonts.gstatic.com;
-          connect-src 'self'
-            https://identitytoolkit.googleapis.com
-            https://securetoken.googleapis.com
-            https://www.googleapis.com
-            https://firebaseinstallations.googleapis.com
-            https://firestore.googleapis.com
-            https://storage.googleapis.com
-            https://firebasestorage.googleapis.com
-            https://*.firebasestorage.app
-            https://api.cloudinary.com
-            https://www.google-analytics.com
-            https://analytics.google.com
-            https://www.googletagmanager.com
-            https://googleads.g.doubleclick.net
-            https://stats.g.doubleclick.net
-            https://www.googleadservices.com
-            https://www.google.com
-            https://www.google.co.id
-            https://www.gstatic.com
-            https://api.emailjs.com;
-          img-src 'self' data: https: blob:;
-          frame-src 'self' https://www.googletagmanager.com https://www.youtube.com https://youtube.com https://www.youtube-nocookie.com https://consent.youtube.com https://www.google.com https://evlilik-14afc.firebaseapp.com https://*.firebaseapp.com https://*.web.app;
-        "
-      />
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Poppins:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <!-- Fonts are self-hosted via @fontsource (see src/main.jsx) -->
     <meta name="probely-verification" content="ffba07fc-80e6-4fdb-a364-8e2700305878" />
     <!-- Structured Data: Organization -->
     <script type="application/ld+json">
       {
         "@context": "https://schema.org",
         "@type": "Organization",
-        "name": "Endonezya Kaşifi",
+        "name": "Uniqah",
         "legalName": "PT MoonStar Global Indonesia",
-        "url": "https://www.endonezyakasifi.com",
-        "description": "Endonezya'da tur organizasyonu, balayı ve kişiye özel seyahat planlama ile evlilik rehberliği hizmeti sunar.",
-        "logo": "https://www.endonezyakasifi.com/ChatGPT%20Image%2017%20Kas%202025%2017_20_43.png",
-        "email": "endonezyakasifi@gmail.com",
+        "url": "https://uniqah.com",
+        "description": "Evlilik amacıyla eşleştirme, güvenli iletişim ve süreç rehberliği sunar.",
+        "logo": "https://uniqah.com/ChatGPT%20Image%2017%20%C5%9Eub%202026%2014_35_26.png",
+        "email": "info@uniqah.com",
         "telephone": [
           "+905550343852",
           "+6285888978383"
@@ -136,12 +213,11 @@
             "availableLanguage": ["tr", "en", "id"]
           }
         ],
-        "sameAs": [
-          "https://www.instagram.com/endonezyakasifi",
-          "https://www.youtube.com/@endonezyakasifi"
-        ]
+        "sameAs": []
       }
     </script>
+
+    <!-- TikTok Pixel Code moved into deferred loader above -->
   </head>
   <body style="font-family: 'Poppins', 'Inter', sans-serif;">
     <div id="root"></div>

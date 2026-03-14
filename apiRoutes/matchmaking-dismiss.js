@@ -74,9 +74,8 @@ export default async function handler(req, res) {
       }
 
       const now = nowMs();
-        const COOLDOWN_MS = 1 * 60 * 60 * 1000;
-      creditGranted = 1;
-      cooldownUntilMs = now + COOLDOWN_MS;
+      creditGranted = 0;
+      cooldownUntilMs = 0;
 
       const meRef = db.collection('matchmakingUsers').doc(uid);
       await tx.get(meRef);
@@ -95,8 +94,6 @@ export default async function handler(req, res) {
       tx.set(
         meRef,
         {
-          newMatchReplacementCredits: FieldValue.increment(1),
-          newMatchCooldownUntilMs: cooldownUntilMs,
           lastMatchRemovalAtMs: now,
           lastMatchRemovalReason: 'dismissed',
           updatedAt: FieldValue.serverTimestamp(),

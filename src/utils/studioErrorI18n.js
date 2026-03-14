@@ -1,0 +1,89 @@
+function safeStr(v) {
+  return typeof v === 'string' ? v.trim() : '';
+}
+
+function formatMinutesAsText(t, minutes) {
+  const m = Number.isFinite(minutes) ? Math.max(0, Math.floor(minutes)) : 0;
+  const hours = Math.floor(m / 60);
+  const mins = m % 60;
+
+  if (hours <= 0) return t('studio.matchProfile.time.minutes', { minutes: mins || 1 });
+  if (mins <= 0) return t('studio.matchProfile.time.hours', { hours });
+  return t('studio.matchProfile.time.hm', { hours, minutes: mins });
+}
+
+/**
+ * Translate known Studio/matchmaking API error codes into localized messages.
+ * Falls back to the raw string when unknown.
+ */
+export function translateStudioApiError(t, raw) {
+  const s = safeStr(raw);
+  if (!s) return '';
+
+  if (s === 'api_unreachable') return t('studio.errors.apiUnavailable');
+  if (s === 'firebase_admin_not_configured') return t('studio.errors.serverNotConfigured');
+
+  if (s === 'active_match_locked' || s === 'active_match_exists') return t('studio.errors.activeLocked');
+  if (s === 'other_user_active_match_exists') return t('studio.matchProfile.errors.otherUserActiveMatch');
+  if (s === 'short_message_limit' || s === 'short_message_daily_limit' || s === 'chat_limit_reached') return t('studio.errors.shortLimit');
+  if (s === 'short_message_too_long') return t('studio.errors.shortMessageTooLong');
+  if (s === 'filtered') return t('studio.errors.filtered');
+
+  if (s === 'not_in_their_age_range') return t('studio.errors.notInTheirAgeRange');
+  if (s === 'age_required') return t('studio.errors.ageRequired');
+
+  if (s === 'profile_incomplete' || s === 'application_required' || s === 'application_not_found') {
+    return t('studio.profileGate.body');
+  }
+
+  if (
+    s === 'membership_required' ||
+    s === 'membership_or_verification_required' ||
+    s === 'free_active_membership_required' ||
+    s === 'free_active_membership_blocked'
+  ) {
+    return t('studio.paywall.upgradeToInteract');
+  }
+
+  if (s === 'not_available') return t('studio.errors.notAvailable');
+  if (s === 'forbidden') return t('studio.errors.forbidden');
+
+  // Referral
+  if (s === 'referral_disabled') return t('studio.referral.errors.referralDisabled');
+  if (s === 'user_code_missing') return t('studio.referral.errors.userCodeMissing');
+  if (s === 'invalid_invite_code') return t('studio.referral.errors.invalidInviteCode');
+  if (s === 'invite_code_not_found') return t('studio.referral.errors.inviteCodeNotFound');
+  if (s === 'self_referral_not_allowed') return t('studio.referral.errors.selfReferralNotAllowed');
+  if (s === 'already_referred') return t('studio.referral.errors.alreadyReferred');
+  if (s === 'referral_not_found') return t('studio.referral.errors.referralNotFound');
+  if (s === 'referral_not_accepted') return t('studio.referral.errors.referralNotAccepted');
+  if (s === 'referral_mismatch') return t('studio.referral.errors.referralMismatch');
+  if (s === 'verification_required') return t('studio.referral.errors.verificationRequired');
+
+  // Chat translate
+  if (s === 'translate_too_long') return t('studio.matchProfile.translate.errors.tooLong');
+  if (s === 'only_incoming') return t('studio.matchProfile.translate.errors.onlyIncoming');
+  if (s === 'translate_not_configured') return t('studio.matchProfile.translate.errors.notConfigured');
+  if (s === 'translate_rate_limited') return t('studio.matchProfile.translate.errors.rateLimited');
+  if (s === 'pii_blocked') return t('studio.matchProfile.translate.errors.piiBlocked');
+  if (s === 'translate_failed') return t('studio.matchProfile.translate.errors.failed');
+
+  // Profile texts (About/Expectations)
+  if (s === 'profile_text_pii_blocked') return t('matchmakingPage.form.errors.profileTextPII');
+
+  const cooldown = /^cancel_cooldown_(\d+)m$/.exec(s);
+  if (cooldown) {
+    const minutes = Math.max(1, Number(cooldown[1] || 0));
+    const time = formatMinutesAsText(t, minutes);
+    return t('studio.errors.cancelCooldown', { time });
+  }
+
+  const photoPrivacyCooldown = /^photo_privacy_cooldown_(\d+)m$/.exec(s);
+  if (photoPrivacyCooldown) {
+    const minutes = Math.max(1, Number(photoPrivacyCooldown[1] || 0));
+    const time = formatMinutesAsText(t, minutes);
+    return t('studio.profile.photoPrivacy.cooldownError', { time });
+  }
+
+  return s;
+}

@@ -1,0 +1,29 @@
+# Files we do NOT want in the Vercel upload
+
+# Build outputs (Vercel builds in its own environment)
+dist/
+
+# Local Vercel folder
+.vercel/
+
+# Dependencies
+node_modules/
+
+# Env / secrets
+.env
+.env.*
+secrets/
+**/firebase-service-account*.json
+
+# Test / report outputs
+playwright-report/
+test-results/
+coverage/
+
+# Caches / logs / temp files
+.eslintcache
+*.log
+*.bak
+zip-log.txt
+.tmp-debug.txt
+.tmp-dev-api-port

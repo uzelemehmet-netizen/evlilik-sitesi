@@ -2,11 +2,16 @@ import Navigation from '../components/Navigation';
 import Footer from '../components/Footer';
 import HeroSocialButtons from '../components/HeroSocialButtons';
 import { useState, useEffect } from 'react';
-import { CheckCircle, AlertCircle, Mail, Phone, MapPin, MessageCircle, Instagram, Youtube } from 'lucide-react';
+import { CheckCircle, AlertCircle, Mail, Phone, MapPin, MessageCircle, Youtube } from 'lucide-react';
 import emailjs from '@emailjs/browser';
 import { buildWhatsAppUrl } from '../utils/whatsapp';
+import { useTranslation, Trans } from 'react-i18next';
+import { useLocation } from 'react-router-dom';
+import { formatSupportReportText } from '../utils/supportReport';
 
 export default function Contact() {
+  const { t, i18n } = useTranslation();
+  const location = useLocation();
   const [formData, setFormData] = useState({
     from_name: '',
     from_email: '',
@@ -18,6 +23,7 @@ export default function Contact() {
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState(null);
+  const [supportReportText, setSupportReportText] = useState('');
 
   // EmailJS'i başlatma
   useEffect(() => {
@@ -26,6 +32,37 @@ export default function Contact() {
       blockHeadless: false,
     });
   }, []);
+
+  // If redirected from a broken signup flow, prefill a support report.
+  useEffect(() => {
+    try {
+      const sp = new URLSearchParams(location.search || '');
+      const wantsReport = sp.get('report') === '1';
+      if (!wantsReport) return;
+
+      const raw = sessionStorage.getItem('uniqah_support_report_v1');
+      if (!raw) return;
+
+      let report = null;
+      try {
+        report = JSON.parse(raw);
+      } catch {
+        report = null;
+      }
+      if (!report || typeof report !== 'object') return;
+
+      const text = formatSupportReportText(report);
+      setSupportReportText(text);
+
+      setFormData((prev) => ({
+        ...prev,
+        subject: prev.subject || 'Kayıt hatası (otomatik rapor)',
+        message: prev.message || text,
+      }));
+    } catch {
+      // ignore
+    }
+  }, [location.search]);
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -39,7 +76,7 @@ export default function Contact() {
     e.preventDefault();
     
     if (!formData.privacy_consent) {
-      setError('Gizlilik politikasını okuduğunuzu ve kabul ettiğinizi onaylamalısınız.');
+      setError(t('contact.form.privacyError'));
       return;
     }
     
@@ -75,7 +112,7 @@ export default function Contact() {
         setTimeout(() => setSuccess(false), 5000);
       }
     } catch (err) {
-      setError('Mesaj gönderilirken hata oluştu. Lütfen tekrar deneyin.');
+      setError(t('contact.form.sendError'));
       console.error('EmailJS Error:', err);
     } finally {
       setLoading(false);
@@ -85,47 +122,46 @@ export default function Contact() {
   const contactInfo = [
     {
       icon: Phone,
-      title: 'Telefon',
+      title: t('contact.sidebar.phone'),
       value: '+90 555 034 3852',
       href: 'tel:+905550343852'
     },
     {
       icon: Mail,
-      title: 'Email',
-      value: 'uzelemehmet@gmail.com',
-      href: 'mailto:uzelemehmet@gmail.com'
+      title: t('contact.sidebar.email'),
+      value: 'info@uniqah.com',
+      href: 'mailto:info@uniqah.com'
     },
     {
       icon: MessageCircle,
-      title: 'WhatsApp',
-      value: 'Hemen Sor',
-      href: buildWhatsAppUrl('Merhaba, bir konu hakkında bilgi almak istiyorum')
+      title: t('contact.sidebar.whatsapp'),
+      value: t('contact.sidebar.askNow'),
+      href: buildWhatsAppUrl(t('floatingWhatsapp.messages.contact'), { lang: String(i18n?.language || 'tr') })
     },
     {
       icon: MapPin,
-      title: 'Konum',
-      value: 'Endonezya',
+      title: t('contact.sidebar.location'),
+      value: t('contact.sidebar.indonesia'),
       href: '#'
     }
   ];
 
   const socialLinks = [
     {
-      icon: Instagram,
-      name: 'Instagram',
-      href: 'https://www.instagram.com/endonezyakasifi'
-    },
-    {
       icon: Youtube,
       name: 'YouTube',
-      href: 'https://www.youtube.com/@endonezyakasifi'
+      href: '/youtube'
     },
     {
       icon: MessageCircle,
       name: 'WhatsApp',
-      href: buildWhatsAppUrl('Merhaba, bir konu hakkında bilgi almak istiyorum')
+      href: buildWhatsAppUrl(t('floatingWhatsapp.messages.contact'), { lang: String(i18n?.language || 'tr') })
     }
   ];
+
+  const supportWhatsAppHref = supportReportText
+    ? buildWhatsAppUrl(supportReportText, { lang: String(i18n?.language || 'tr') })
+    : '';
 
   return (
     <div className="min-h-screen bg-white">
@@ -141,13 +177,13 @@ export default function Contact() {
         <div className="absolute inset-0"></div>
         <div className="max-w-7xl mx-auto relative z-10 text-center flex flex-col justify-center items-center min-h-80">
           <h1 className="text-5xl md:text-6xl font-bold text-white mb-6" style={{ fontFamily: '"Poppins", sans-serif', textShadow: '0 4px 12px rgba(0,0,0,0.7)' }}>
-            İletişim
+            {t('contact.hero.title')}
           </h1>
           <p className="text-xl text-white mb-8" style={{ fontFamily: '"Poppins", sans-serif', textShadow: '0 2px 8px rgba(0,0,0,0.6)' }}>
-            Sorularınız, önerileriniz veya seyahat planınız için bize ulaşın. Size yardımcı olmaktan mutluluk duyarız.
+            {t('contact.hero.p1')}
           </p>
           <p className="text-lg text-white mb-8" style={{ fontFamily: '"Poppins", sans-serif', textShadow: '0 2px 8px rgba(0,0,0,0.6)' }}>
-            Aklınızdaki her soru için bizimle iletişime geçebilirsiniz. Ücretsiz danışmanlık sunuyoruz. Formu doldurarak ya da WhatsApp üzerinden hızlıca ulaşabilirsiniz.
+            {t('contact.hero.p2')}
           </p>
         </div>
         <HeroSocialButtons />
@@ -159,7 +195,7 @@ export default function Contact() {
           <div className="lg:col-span-1 space-y-8">
             <div>
               <h2 className="text-2xl font-bold text-gray-900 mb-6" style={{ fontFamily: '"Poppins", sans-serif' }}>
-                İletişim Bilgileri
+                {t('contact.sidebar.title')}
               </h2>
               <div className="space-y-4">
                 {contactInfo.map((info, index) => {
@@ -189,7 +225,7 @@ export default function Contact() {
 
             <div>
               <h3 className="text-xl font-bold text-gray-900 mb-4" style={{ fontFamily: '"Poppins", sans-serif' }}>
-                Sosyal Medya
+                {t('contact.sidebar.socialTitle')}
               </h3>
               <div className="space-y-3">
                 {socialLinks.map((social, index) => {
@@ -216,14 +252,33 @@ export default function Contact() {
           <div className="lg:col-span-2">
             <div className="bg-gray-50 p-8 rounded-2xl">
               <h2 className="text-2xl font-bold text-gray-900 mb-6" style={{ fontFamily: '"Poppins", sans-serif' }}>
-                Bize Mesaj Gönderin
+                {t('contact.form.title')}
               </h2>
+
+              {supportReportText ? (
+                <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-lg flex flex-col gap-3">
+                  <div className="text-amber-900 font-semibold" style={{ fontFamily: '"Poppins", sans-serif' }}>
+                    Hata raporu hazırlandı. İstersen WhatsApp’tan tek tıkla gönderebilirsin.
+                  </div>
+                  {supportWhatsAppHref ? (
+                    <a
+                      href={supportWhatsAppHref}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center justify-center gap-2 px-4 py-3 rounded-lg bg-emerald-600 text-white font-semibold hover:bg-emerald-700 transition"
+                      style={{ fontFamily: '"Poppins", sans-serif' }}
+                    >
+                      <MessageCircle size={18} /> WhatsApp ile hata raporu gönder
+                    </a>
+                  ) : null}
+                </div>
+              ) : null}
 
               {success && (
                 <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg flex gap-3">
                   <CheckCircle className="text-green-600 flex-shrink-0" size={20} />
                   <p className="text-green-700" style={{ fontFamily: '"Poppins", sans-serif' }}>
-                    formu doldurdugunuz icin tesekkur ederiz 24 saat icinde size geri donus yapacagiz
+                    {t('contact.form.success')}
                   </p>
                 </div>
               )}
@@ -238,7 +293,7 @@ export default function Contact() {
               <form onSubmit={handleSubmit} className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
-                    <label className="block text-gray-700 font-semibold mb-2" style={{ fontFamily: '"Poppins", sans-serif' }}>Ad Soyad *</label>
+                    <label className="block text-gray-700 font-semibold mb-2" style={{ fontFamily: '"Poppins", sans-serif' }}>{t('contact.form.labels.name')}</label>
                     <input
                       type="text"
                       name="from_name"
@@ -246,13 +301,13 @@ export default function Contact() {
                       onChange={handleChange}
                       required
                       className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition"
-                      placeholder="Ad Soyad"
+                      placeholder={t('contact.form.placeholders.name')}
                       style={{ fontFamily: '"Poppins", sans-serif' }}
                     />
                   </div>
 
                   <div>
-                    <label className="block text-gray-700 font-semibold mb-2" style={{ fontFamily: '"Poppins", sans-serif' }}>Email *</label>
+                    <label className="block text-gray-700 font-semibold mb-2" style={{ fontFamily: '"Poppins", sans-serif' }}>{t('contact.form.labels.email')}</label>
                     <input
                       type="email"
                       name="from_email"
@@ -260,27 +315,27 @@ export default function Contact() {
                       onChange={handleChange}
                       required
                       className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition"
-                      placeholder="email@example.com"
+                      placeholder={t('contact.form.placeholders.email')}
                       style={{ fontFamily: '"Poppins", sans-serif' }}
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-gray-700 font-semibold mb-2" style={{ fontFamily: '"Poppins", sans-serif' }}>Telefon</label>
+                  <label className="block text-gray-700 font-semibold mb-2" style={{ fontFamily: '"Poppins", sans-serif' }}>{t('contact.form.labels.phone')}</label>
                   <input
                     type="tel"
                     name="phone"
                     value={formData.phone}
                     onChange={handleChange}
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition"
-                    placeholder="+90 123 456 7890"
+                    placeholder={t('contact.form.placeholders.phone')}
                     style={{ fontFamily: '"Poppins", sans-serif' }}
                   />
                 </div>
 
                 <div>
-                  <label className="block text-gray-700 font-semibold mb-2" style={{ fontFamily: '"Poppins", sans-serif' }}>Konu</label>
+                  <label className="block text-gray-700 font-semibold mb-2" style={{ fontFamily: '"Poppins", sans-serif' }}>{t('contact.form.labels.subject')}</label>
                   <input
                     type="text"
                     name="subject"
@@ -288,13 +343,13 @@ export default function Contact() {
                     onChange={handleChange}
                     required
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition"
-                    placeholder="Mesaj Konusu"
+                    placeholder={t('contact.form.placeholders.subject')}
                     style={{ fontFamily: '"Poppins", sans-serif' }}
                   />
                 </div>
 
                 <div>
-                  <label className="block text-gray-700 font-semibold mb-2" style={{ fontFamily: '"Poppins", sans-serif' }}>Mesaj</label>
+                  <label className="block text-gray-700 font-semibold mb-2" style={{ fontFamily: '"Poppins", sans-serif' }}>{t('contact.form.labels.message')}</label>
                   <textarea
                     name="message"
                     value={formData.message}
@@ -302,7 +357,7 @@ export default function Contact() {
                     required
                     rows="6"
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition"
-                    placeholder="Mesajınız..."
+                    placeholder={t('contact.form.placeholders.message')}
                     style={{ fontFamily: '"Poppins", sans-serif' }}
                   />
                 </div>
@@ -318,10 +373,19 @@ export default function Contact() {
                       className="w-5 h-5 text-emerald-600 rounded focus:ring-2 focus:ring-emerald-500 cursor-pointer"
                     />
                     <span className="text-gray-700" style={{ fontFamily: '"Poppins", sans-serif' }}>
-                      <a href="/privacy" target="_blank" rel="noopener noreferrer" className="text-emerald-600 hover:underline font-semibold">
-                        Gizlilik Politikası
-                      </a>
-                      {' '}nı okudum ve kabulünü onaylıyorum *
+                      <Trans
+                        i18nKey="contact.form.consent"
+                        components={{
+                          privacyLink: (
+                            <a
+                              href="/privacy"
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-emerald-600 hover:underline font-semibold"
+                            />
+                          ),
+                        }}
+                      />
                     </span>
                   </label>
                 </div>
@@ -329,16 +393,16 @@ export default function Contact() {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full bg-emerald-600 text-white py-3 rounded-lg font-semibold hover:bg-emerald-700 transition disabled:opacity-50"
+                  className="w-full bg-emerald-500 text-white py-3 rounded-lg font-semibold hover:bg-emerald-600 transition disabled:opacity-50"
                   style={{ fontFamily: '"Poppins", sans-serif' }}
                 >
-                  {loading ? 'Gönderiliyor...' : 'Mesaj Gönder'}
+                  {loading ? t('contact.form.submitting') : t('contact.form.submit')}
                 </button>
               </form>
 
               <div className="mt-8 p-4 bg-blue-50 rounded-lg border border-blue-200">
                 <p className="text-sm text-gray-600" style={{ fontFamily: '"Poppins", sans-serif' }}>
-                  <strong>İpucu:</strong> Hızlı iletişim için WhatsApp kullanabilirsiniz. Yukarıdaki iletişim bilgileri bölümünde WhatsApp numarasını bulabilirsiniz.
+                  <strong>{t('common.learnMore')}:</strong> {t('common.privacySecurity.text')}
                 </p>
               </div>
             </div>

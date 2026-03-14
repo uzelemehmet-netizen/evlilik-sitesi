@@ -1,5 +1,4 @@
 import { initializeApp } from 'firebase/app';
-import { initializeAppCheck, ReCaptchaV3Provider } from 'firebase/app-check';
 import {
   browserLocalPersistence,
   browserSessionPersistence,
@@ -8,35 +7,24 @@ import {
   initializeAuth,
   inMemoryPersistence,
 } from 'firebase/auth';
-import { getFirestore } from 'firebase/firestore';
+import { getFirestore, initializeFirestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 
-const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || 'AIzaSyCGaMZx6AdSaQuK4hmP8WdyzzHjbZVBf2Q',
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || 'web-sitem-new-firebase.firebaseapp.com',
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || 'web-sitem-new-firebase',
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || 'web-sitem-new-firebase.appspot.com',
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || '734745221788',
-  appId: import.meta.env.VITE_FIREBASE_APP_ID || '1:734745221788:web:6a2dfcdd9ec923c4f6ab59',
-  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID || 'G-65D0SLE678',
-};
+import { firebaseConfig } from './firebasePublicConfig';
+
+function assertFirebaseConfig(cfg) {
+  const required = ['apiKey', 'authDomain', 'projectId', 'appId'];
+  const missing = required.filter((k) => !String(cfg?.[k] || '').trim());
+  if (missing.length) {
+    const err = new Error(`firebase_public_config_missing:${missing.join(',')}`);
+    err.code = 'firebase_public_config_missing';
+    throw err;
+  }
+}
 
 // Initialize Firebase
+assertFirebaseConfig(firebaseConfig);
 const app = initializeApp(firebaseConfig);
-
-// Optional: Firebase App Check (reCAPTCHA v3)
-// Enable by providing VITE_FIREBASE_APPCHECK_SITE_KEY in your env.
-try {
-  const siteKey = import.meta?.env?.VITE_FIREBASE_APPCHECK_SITE_KEY;
-  if (typeof window !== 'undefined' && siteKey) {
-    initializeAppCheck(app, {
-      provider: new ReCaptchaV3Provider(siteKey),
-      isTokenAutoRefreshEnabled: true,
-    });
-  }
-} catch (e) {
-  // ignore
-}
 
 // Initialize Firebase Authentication
 // Auth persistence
@@ -68,7 +56,23 @@ export const auth = (() => {
 })();
 
 // Initialize Cloud Firestore
-export const db = getFirestore(app);
+const firestoreForceLongPoll = String(import.meta?.env?.VITE_FIRESTORE_FORCE_LONGPOLL || '').trim() === '1';
+
+export const db = (() => {
+  try {
+    // Bazı ağlarda (VPN/kurumsal proxy/antivirüs) Firestore listen kanalı sık kopabilir.
+    // Long-polling seçenekleri bunu ciddi ölçüde azaltır.
+    return initializeFirestore(app, {
+      experimentalForceLongPolling: firestoreForceLongPoll,
+      experimentalAutoDetectLongPolling: !firestoreForceLongPoll,
+      // Fetch streams bazı ortamlarda sorun çıkarabiliyor; XHR daha uyumlu.
+      useFetchStreams: false,
+    });
+  } catch (e) {
+    // HMR / yeniden import durumunda aynı app için firestore zaten init edilmiş olabilir.
+    return getFirestore(app);
+  }
+})();
 
 // Initialize Cloud Storage
 export const storage = getStorage(app);

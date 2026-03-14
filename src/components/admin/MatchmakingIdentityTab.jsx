@@ -78,14 +78,16 @@ function chunkArray(arr, size) {
   return out;
 }
 
-function formatPersonSummary(app) {
-  const fullName = safeStr(app?.fullName);
-  const age = typeof app?.age === 'number' ? app.age : null;
-  const gender = safeStr(app?.gender);
-  const city = safeStr(app?.city);
-  const country = safeStr(app?.country);
-  const username = safeStr(app?.username);
-  const profileCode = safeStr(app?.profileCode);
+function formatPersonSummary(app, userDoc) {
+  const fullName = safeStr(app?.fullName) || safeStr(userDoc?.fullName) || safeStr(userDoc?.publicProfile?.fullName) || safeStr(userDoc?.details?.fullName);
+  const age =
+    (typeof app?.age === 'number' ? app.age : null) ??
+    (typeof userDoc?.age === 'number' ? userDoc.age : null);
+  const gender = safeStr(app?.gender) || safeStr(userDoc?.gender);
+  const city = safeStr(app?.city) || safeStr(userDoc?.city);
+  const country = safeStr(app?.country) || safeStr(userDoc?.country);
+  const username = safeStr(app?.username) || safeStr(userDoc?.username);
+  const profileCode = safeStr(app?.profileCode) || safeStr(userDoc?.profileCode) || safeStr(userDoc?.userCode);
 
   const bits = [];
   if (fullName) bits.push(fullName);
@@ -107,6 +109,12 @@ export default function MatchmakingIdentityTab() {
   const [appByUserId, setAppByUserId] = useState({});
   const [appsLoading, setAppsLoading] = useState(false);
   const [copiedMsg, setCopiedMsg] = useState('');
+
+  const [manualUserCode, setManualUserCode] = useState('');
+  const [manualNote, setManualNote] = useState('');
+  const [manualActing, setManualActing] = useState(false);
+  const [manualMsg, setManualMsg] = useState('');
+  const [manualErr, setManualErr] = useState('');
 
   useEffect(() => {
     const q = query(
@@ -209,13 +217,57 @@ export default function MatchmakingIdentityTab() {
     }
   };
 
+  const approveManual = async () => {
+    const userCode = safeStr(manualUserCode);
+    if (!userCode) return;
+
+    setManualActing(true);
+    setManualErr('');
+    setManualMsg('');
+
+    try {
+      const lookup = await authFetch('/api/admin-users-list', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ query: userCode, pageSize: 1 }),
+      });
+
+      const uid = safeStr(lookup?.users?.[0]?.uid);
+      if (!uid) {
+        setManualErr('Kullanıcı bulunamadı. (Kullanıcı kodu UC-... olmalı)');
+        return;
+      }
+
+      const ok = window.confirm(`Bu kullanıcı için kimlik doğrulamayı ONAYLA?\n\nUC: ${userCode}\nUID: ${uid}`);
+      if (!ok) return;
+
+      await authFetch('/api/admin-user-action', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          uid,
+          action: 'approveIdentity',
+          note: safeStr(manualNote) || null,
+        }),
+      });
+
+      setManualMsg('Kimlik doğrulama onaylandı (manuel).');
+      setManualNote('');
+    } catch (e) {
+      setManualErr(String(e?.message || 'İşlem başarısız.'));
+    } finally {
+      setManualActing(false);
+    }
+  };
+
   const grouped = useMemo(() => {
-    const byMethod = { whatsapp: [], kyc: [], manual: [], other: [] };
+    const byMethod = { whatsapp: [], kyc: [], manual: [], social: [], other: [] };
     for (const u of items) {
       const m = safeStr(u?.identityVerification?.method).toLowerCase();
       if (m === 'whatsapp') byMethod.whatsapp.push(u);
       else if (m === 'kyc') byMethod.kyc.push(u);
       else if (m === 'manual') byMethod.manual.push(u);
+      else if (m === 'social') byMethod.social.push(u);
       else byMethod.other.push(u);
     }
     return byMethod;
@@ -234,7 +286,7 @@ export default function MatchmakingIdentityTab() {
           const files = u?.identityVerification?.files || null;
           const hasFiles = !!(safeStr(files?.idFrontUrl) || safeStr(files?.idBackUrl) || safeStr(files?.selfieUrl));
           const app = appByUserId?.[userId] || null;
-          const person = formatPersonSummary(app);
+          const person = formatPersonSummary(app, u);
           const appId = safeStr(app?.id);
           const profileCode = formatProfileCode(app);
 
@@ -295,6 +347,19 @@ export default function MatchmakingIdentityTab() {
                   </p>
                   <p className="text-xs text-slate-600">Requested: {fmtTs(requestedAt)}</p>
 
+                  {(() => {
+                    const social = u?.identityVerification?.social && typeof u.identityVerification.social === 'object' ? u.identityVerification.social : null;
+                    const plat = safeStr(social?.platform);
+                    const uname = safeStr(social?.username);
+                    if (safeStr(method).toLowerCase() !== 'social') return null;
+                    if (!plat && !uname) return null;
+                    return (
+                      <div className="mt-2 text-xs text-slate-700">
+                        <span className="font-semibold">Sosyal</span>: {plat || '-'} {uname ? <span className="font-mono">@{uname}</span> : null}
+                      </div>
+                    );
+                  })()}
+
                   {hasFiles ? (
                     <div className="mt-2 flex flex-wrap gap-2">
                       {renderFileLink('Kimlik (Ön)', files?.idFrontUrl)}
@@ -316,7 +381,7 @@ export default function MatchmakingIdentityTab() {
                       type="button"
                       onClick={() => approve(userId, true)}
                       disabled={acting}
-                      className="px-4 py-2 rounded-full bg-emerald-700 text-white text-sm font-semibold hover:bg-emerald-800 disabled:opacity-60"
+                      className="px-4 py-2 rounded-full bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700 disabled:opacity-60"
                     >
                       Onayla
                     </button>
@@ -367,6 +432,43 @@ export default function MatchmakingIdentityTab() {
         ) : null}
       </div>
 
+      <div className="rounded-xl border border-slate-200 bg-white p-4">
+        <h3 className="text-sm font-semibold text-slate-900">Manuel kimlik onayı</h3>
+        <p className="mt-1 text-xs text-slate-600">Bekleyen kayıt olmasa bile, kullanıcı kodu (UC-...) ile kullanıcıya doğrulanmış rozetini verebilirsiniz.</p>
+
+        <div className="mt-3 flex flex-col sm:flex-row gap-2">
+          <input
+            value={manualUserCode}
+            onChange={(e) => setManualUserCode(e.target.value)}
+            placeholder="Kullanıcı Kodu (UC-...)"
+            className="w-full sm:flex-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
+            disabled={manualActing}
+          />
+          <input
+            value={manualNote}
+            onChange={(e) => setManualNote(e.target.value)}
+            placeholder="Not (opsiyonel)"
+            className="w-full sm:flex-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
+            disabled={manualActing}
+          />
+          <button
+            type="button"
+            onClick={approveManual}
+            disabled={manualActing || !safeStr(manualUserCode)}
+            className="px-4 py-2 rounded-lg bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-700 disabled:opacity-60"
+          >
+            Doğrula
+          </button>
+        </div>
+
+        {manualMsg ? (
+          <div className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-emerald-900 text-sm">{manualMsg}</div>
+        ) : null}
+        {manualErr ? (
+          <div className="mt-3 rounded-xl border border-rose-200 bg-rose-50 p-3 text-rose-900 text-sm">{manualErr}</div>
+        ) : null}
+      </div>
+
       {loading ? (
         <div className="rounded-xl border border-slate-200 bg-white p-4 text-sm text-slate-600">Yükleniyor…</div>
       ) : (
@@ -378,6 +480,10 @@ export default function MatchmakingIdentityTab() {
           <section className="rounded-2xl bg-white border border-slate-200 p-4">
             <p className="text-sm font-semibold text-slate-900">Otomatik KYC</p>
             {renderList(grouped.kyc)}
+          </section>
+          <section className="rounded-2xl bg-white border border-slate-200 p-4">
+            <p className="text-sm font-semibold text-slate-900">Sosyal medya</p>
+            {renderList(grouped.social)}
           </section>
           <section className="rounded-2xl bg-white border border-slate-200 p-4">
             <p className="text-sm font-semibold text-slate-900">Manuel</p>

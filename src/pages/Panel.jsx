@@ -4,14 +4,18 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { signOut } from "firebase/auth";
 import { collection, doc, limit, onSnapshot, orderBy, query, where } from "firebase/firestore";
+import { getDownloadURL, ref } from 'firebase/storage';
 import Navigation from "../components/Navigation";
 import Footer from "../components/Footer";
-import { auth, db } from "../config/firebase";
+import { auth, db, storage } from "../config/firebase";
 import { useAuth } from "../auth/AuthProvider";
-import { getWhatsAppNumber } from "../utils/whatsapp";
-import { normalizePhoneForWhatsApp } from "../utils/reservationStatus";
+import { buildWhatsAppUrl, getWhatsAppNumber } from "../utils/whatsapp";
+import { normalizePhoneForWhatsApp } from "../utils/phone";
 import { authFetch } from "../utils/authFetch";
 import { uploadImageToCloudinaryAuto } from '../utils/cloudinaryUpload';
+import ImageLightbox from '../components/ImageLightbox';
+import { getLocalizedProfileText } from '../utils/profileText';
+import { enablePushForCurrentUser, hasSavedPushToken } from '../utils/pushNotifications';
 
 export default function Panel() {
   const { t, i18n } = useTranslation();
@@ -37,18 +41,66 @@ export default function Panel() {
     return v && v !== key ? v : st;
   };
 
-  const promoCutoffMs = useMemo(() => new Date('2026-02-10T23:59:59.999+03:00').getTime(), []);
-  const membershipPromoActive = Date.now() <= promoCutoffMs;
+  const autoMatchRunMinutes = useMemo(() => {
+    const raw = Number(import.meta.env.VITE_MATCHMAKING_AUTO_RUN_MINUTES || import.meta.env.VITE_MATCHMAKING_CRON_MINUTES || 10);
+    return Number.isFinite(raw) && raw > 0 ? Math.round(raw) : 10;
+  }, []);
 
   const [dashboardTab, setDashboardTab] = useState('matches'); // profile | matches
+
+  const [photoLightbox, setPhotoLightbox] = useState({ open: false, images: [], index: 0, title: '' });
+
+  const studioUiEnabled = true;
 
   const identityVerificationCardRef = useRef(null);
   const identityInlinePanelRef = useRef(null);
   const identityInlineButtonRef = useRef(null);
   const [identityInlineOpen, setIdentityInlineOpen] = useState(false);
+  const [identityVerificationMode, setIdentityVerificationMode] = useState('selfie_video'); // selfie_video | social
+  const [socialVerification, setSocialVerification] = useState({ platform: 'instagram', username: '' });
+  const [socialVerificationAction, setSocialVerificationAction] = useState({ loading: false, error: '', success: '' });
 
   const [matchmaking, setMatchmaking] = useState(null);
   const [matchmakingLoading, setMatchmakingLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const m = matchmaking;
+    if (!m) return;
+
+    const directUrls = Array.isArray(m.photoUrls) ? m.photoUrls.map(String).map((s) => s.trim()).filter(Boolean) : [];
+    if (directUrls.length) return;
+
+    const paths = Array.isArray(m.photoPaths) ? m.photoPaths.map(String).map((s) => s.trim()).filter(Boolean) : [];
+    if (!paths.length) return;
+
+    (async () => {
+      const resolved = [];
+      for (const p of paths) {
+        if (!p) continue;
+        try {
+          resolved.push(await getDownloadURL(ref(storage, p)));
+        } catch {
+          // ignore
+        }
+      }
+
+      if (cancelled) return;
+      if (!resolved.length) return;
+
+      setMatchmaking((prev) => {
+        if (!prev || prev.id !== m.id) return prev;
+        const prevUrls = Array.isArray(prev.photoUrls) ? prev.photoUrls.filter(Boolean) : [];
+        if (prevUrls.length) return prev;
+        return { ...prev, photoUrls: resolved };
+      });
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [matchmaking?.id, matchmaking?.photoUrls?.length, matchmaking?.photoPaths?.length]);
 
   const [matchmakingUser, setMatchmakingUser] = useState(null);
   const [matchmakingUserLoading, setMatchmakingUserLoading] = useState(true);
@@ -76,6 +128,7 @@ export default function Panel() {
 
   const [matchmakingMatches, setMatchmakingMatches] = useState([]);
   const [matchmakingMatchesLoading, setMatchmakingMatchesLoading] = useState(true);
+  const [matchmakingMatchesError, setMatchmakingMatchesError] = useState('');
   const [matchmakingAction, setMatchmakingAction] = useState({ loading: false, error: '', success: '' });
 
   const [dismissAction, setDismissAction] = useState({ loading: false, error: '', matchId: '' });
@@ -99,10 +152,6 @@ export default function Panel() {
 
   const [chatLimitNoticeByMatchId, setChatLimitNoticeByMatchId] = useState({});
 
-  const [quickQuestionsActionByMatchId, setQuickQuestionsActionByMatchId] = useState({});
-
-  const [matchTestUiByMatchId, setMatchTestUiByMatchId] = useState({});
-
   const [chatInlineOpenMatchId, setChatInlineOpenMatchId] = useState('');
 
   const lastChatSeenMessageIdByMatchIdRef = useRef({});
@@ -110,7 +159,7 @@ export default function Panel() {
   const lastChatLenByMatchIdRef = useRef({});
   const chatMarkReadLastAtByMatchIdRef = useRef({});
 
-  const [rejectAllAction, setRejectAllAction] = useState({ loading: false, error: '', success: '' });
+  const [rejectReasonOpenByMatchId, setRejectReasonOpenByMatchId] = useState({});
 
   const [requestNewAction, setRequestNewAction] = useState({ loading: false, error: '', success: '' });
 
@@ -232,6 +281,20 @@ export default function Panel() {
   useEffect(() => {
     if (!identityInlineOpen) return;
 
+    try {
+      const st = String(matchmakingUser?.identityVerification?.status || '').toLowerCase().trim();
+      const m = String(matchmakingUser?.identityVerification?.method || '').toLowerCase().trim();
+      if (st === 'pending' && m === 'whatsapp') {
+        setIdentityVerificationMode('selfie_video');
+        return;
+      }
+      if (st === 'pending' && m === 'social') {
+        setIdentityVerificationMode('social');
+      }
+    } catch {
+      // ignore
+    }
+
     const onPointerDown = (e) => {
       const panel = identityInlinePanelRef.current;
       const btn = identityInlineButtonRef.current;
@@ -257,7 +320,7 @@ export default function Panel() {
       document.removeEventListener('touchstart', onPointerDown, true);
       window.removeEventListener('keydown', onKeyDown, true);
     };
-  }, [identityInlineOpen]);
+  }, [identityInlineOpen, matchmakingUser?.identityVerification?.status, matchmakingUser?.identityVerification?.method]);
 
   const scrollToIdentityVerification = () => {
     setDashboardTab('profile');
@@ -275,12 +338,20 @@ export default function Panel() {
   const [editOnceAction, setEditOnceAction] = useState({ loading: false, error: '', success: '' });
 
   const showMatchmakingIntro = !!location?.state?.showMatchmakingIntro;
-  const matchmakingNext = '/evlilik/eslestirme-basvuru';
+  const matchmakingNext = '/evlilik/eslestirme-basvuru?w=1';
 
   useEffect(() => {
     if (!location?.state?.openMembershipActivation) return;
 
     setDashboardTab('profile');
+
+    // Üyelik sayfası Panel içinde modal olarak açılıyor.
+    // Diğer sayfalardan gelen CTA'larda state ile modalı otomatik aç.
+    try {
+      openMembershipModal();
+    } catch {
+      // noop
+    }
 
     const nextState = { ...(location.state || {}) };
     delete nextState.openMembershipActivation;
@@ -370,22 +441,10 @@ export default function Panel() {
   const myMembership = useMemo(() => {
     const m = matchmakingUser?.membership || null;
     const plan = typeof m?.plan === 'string' ? String(m.plan).toLowerCase().trim() : '';
-    const rawValidUntilMs = typeof m?.validUntilMs === 'number' ? m.validUntilMs : 0;
-    const promoType = 'free_activation_until_2026_02_10';
-    const promoCutoff = promoCutoffMs;
-
-    const isPromo =
-      m?.lastPromo?.type === promoType ||
-      m?.lastPromo?.cutoffMs === promoCutoff ||
-      (plan === 'eco' && typeof m?.lastPromo?.activatedAtMs === 'number' && Number.isFinite(m.lastPromo.activatedAtMs) && m.lastPromo.activatedAtMs > 0) ||
-      matchmakingUser?.translationPack?.lastPromo?.type === promoType ||
-      matchmakingUser?.translationPack?.lastPromo?.cutoffMs === promoCutoff ||
-      (plan === 'eco' && typeof matchmakingUser?.translationPack?.lastPromo?.activatedAtMs === 'number' && Number.isFinite(matchmakingUser.translationPack.lastPromo.activatedAtMs) && matchmakingUser.translationPack.lastPromo.activatedAtMs > 0);
-
-    // Promo üyelikte bitiş mutlaka cutoff olmalı; eski kayıtlar 30 gün görünebilir.
-    const validUntilMs = isPromo && promoCutoff > 0 && rawValidUntilMs > promoCutoff ? promoCutoff : rawValidUntilMs;
-    const active = !!m?.active && validUntilMs > Date.now();
-    const msLeft = validUntilMs - Date.now();
+    const validUntilMs = typeof m?.validUntilMs === 'number' ? m.validUntilMs : 0;
+    const now = Date.now();
+    const active = (validUntilMs > 0 && validUntilMs > now) || (!!m?.active && (!validUntilMs || validUntilMs > now));
+    const msLeft = validUntilMs - now;
     const daysLeft = msLeft > 0 ? Math.ceil(msLeft / 86400000) : 0;
     const locale = i18n?.language === 'id' ? 'id-ID' : i18n?.language === 'en' ? 'en-US' : 'tr-TR';
     const untilText = validUntilMs
@@ -394,7 +453,7 @@ export default function Panel() {
         )
       : '';
     return { active, plan, validUntilMs, daysLeft, untilText };
-  }, [i18n?.language, matchmakingUser, promoCutoffMs]);
+  }, [i18n?.language, matchmakingUser]);
 
   const membershipMaxMatches = useMemo(() => {
     if (!myMembership.active) return 1;
@@ -463,8 +522,9 @@ export default function Panel() {
     return myMembership.active;
   }, [devBypassMembership, myGender, myIdentityVerified, myMembership.active, myFreeActive.eligible]);
 
-  // Free planda da “tam profil görüntüleme” açık.
-  const canSeeFullProfiles = true;
+  // Ücretsiz kullanıcılar sadece temel bilgileri görür (kullanıcı adı + yaş + medeni hal).
+  // Aktif üyelik: iletişim hariç tüm profil bilgilerini görür.
+  const canSeeFullProfiles = myMembership.active;
 
   const [matchCancelById, setMatchCancelById] = useState({});
 
@@ -473,9 +533,7 @@ export default function Panel() {
     if (!id) return;
     if (matchCancelById?.[id]?.loading) return;
 
-    const ok = typeof window !== 'undefined'
-      ? window.confirm('Bu eşleşmeyi iptal ederseniz bu kişi eşleşme listenizden çıkarılacak. Onaylıyor musunuz?')
-      : true;
+    const ok = typeof window !== 'undefined' ? window.confirm(t('matchmakingPanel.matches.cancelConfirm')) : true;
     if (!ok) return;
 
     setMatchCancelById((p) => ({ ...p, [id]: { loading: true, error: '' } }));
@@ -495,7 +553,14 @@ export default function Panel() {
   const membershipStatusText = useMemo(() => {
     if (myMembership.active) {
       let s = t('matchmakingPanel.membership.active');
-      const planLabel = myMembership.plan === 'pro' ? 'Pro' : myMembership.plan === 'standard' ? 'Standart' : myMembership.plan === 'eco' ? 'Eko' : '';
+      const planLabel =
+        myMembership.plan === 'pro'
+          ? t('matchmakingPanel.membership.planLabels.pro')
+          : myMembership.plan === 'standard'
+            ? t('matchmakingPanel.membership.planLabels.standard')
+            : myMembership.plan === 'eco'
+              ? t('matchmakingPanel.membership.planLabels.eco')
+              : '';
       if (planLabel) s += ` (${planLabel})`;
       if (typeof myMembership.daysLeft === 'number' && myMembership.daysLeft > 0) {
         s += ` ${t('matchmakingPanel.membership.daysLeft', { count: myMembership.daysLeft })}`;
@@ -576,12 +641,28 @@ export default function Panel() {
     }
 
     try {
-      const perm = await Notification.requestPermission();
-      if (perm === 'granted') {
-        setChatNotifyMsgByMatchId((p) => ({ ...p, [matchId]: t('matchmakingPanel.matches.chat.notificationsEnabled') }));
-      } else {
-        setChatNotifyMsgByMatchId((p) => ({ ...p, [matchId]: t('matchmakingPanel.matches.chat.notificationsDenied') }));
+      // If permission already granted and we already have a saved token, keep UX stable.
+      try {
+        if (Notification?.permission === 'granted' && hasSavedPushToken()) {
+          setChatNotifyMsgByMatchId((p) => ({ ...p, [matchId]: t('matchmakingPanel.matches.chat.notificationsEnabled') }));
+          return;
+        }
+      } catch {
+        // ignore
       }
+
+      const result = await enablePushForCurrentUser();
+      if (result?.ok) {
+        setChatNotifyMsgByMatchId((p) => ({ ...p, [matchId]: t('matchmakingPanel.matches.chat.notificationsEnabled') }));
+        return;
+      }
+
+      if (result?.code === 'not_supported' || result?.code === 'messaging_not_supported') {
+        setChatNotifyMsgByMatchId((p) => ({ ...p, [matchId]: t('matchmakingPanel.matches.chat.notificationsNotSupported') }));
+        return;
+      }
+
+      setChatNotifyMsgByMatchId((p) => ({ ...p, [matchId]: t('matchmakingPanel.matches.chat.notificationsDenied') }));
     } catch (e) {
       setChatNotifyMsgByMatchId((p) => ({ ...p, [matchId]: t('matchmakingPanel.matches.chat.notificationsDenied') }));
     }
@@ -589,6 +670,8 @@ export default function Panel() {
 
   useEffect(() => {
     if (!user?.uid) return;
+
+    setMatchmakingMatchesError('');
 
     const ref = doc(db, 'matchmakingUsers', user.uid);
     const unsub = onSnapshot(
@@ -664,12 +747,15 @@ export default function Panel() {
       visible.sort((a, b) => sortKeyMs(b) - sortKeyMs(a));
       setMatchmakingMatches(visible.slice(0, 25));
       setMatchmakingMatchesLoading(false);
+      setMatchmakingMatchesError('');
     };
 
+    // ÖNEMLİ: Karşı tarafın beğenisi/aksiyonu eski bir match'e gelmiş olsa bile listede görünmeli.
+    // Bu yüzden createdAt yerine updatedAt üzerinden sıralıyoruz.
     const qPrimary = query(
       collection(db, 'matchmakingMatches'),
       where('userIds', 'array-contains', user.uid),
-      orderBy('createdAt', 'desc'),
+      orderBy('updatedAt', 'desc'),
       limit(25)
     );
 
@@ -737,6 +823,7 @@ export default function Panel() {
 
           setMatchmakingMatches(visible);
           setMatchmakingMatchesLoading(false);
+          setMatchmakingMatchesError('');
         },
         (err) => {
           if (!usingFallback && isIndexError(err)) {
@@ -753,6 +840,7 @@ export default function Panel() {
 
           console.error('Eşleşmeler yüklenemedi:', err);
           setMatchmakingMatchesLoading(false);
+          setMatchmakingMatchesError(String(err?.code || err?.message || 'matchmaking_matches_load_failed'));
         }
       );
     };
@@ -764,39 +852,6 @@ export default function Panel() {
       } catch {
         // noop
       }
-    };
-  }, [user?.uid]);
-
-  useEffect(() => {
-    if (!user?.uid) return;
-
-    const ping = async () => {
-      try {
-        await authFetch('/api/matchmaking-heartbeat', {
-          method: 'POST',
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({}),
-        });
-      } catch {
-        // noop
-      }
-    };
-
-    const onFocus = () => ping();
-    const onVis = () => {
-      if (document.visibilityState === 'visible') ping();
-    };
-
-    ping();
-    // Mobil/arka plan throttle sebebiyle daha sık ping + focus/visibility ile tazele.
-    const id = window.setInterval(ping, 30000);
-    window.addEventListener('focus', onFocus);
-    document.addEventListener('visibilitychange', onVis);
-
-    return () => {
-      window.clearInterval(id);
-      window.removeEventListener('focus', onFocus);
-      document.removeEventListener('visibilitychange', onVis);
     };
   }, [user?.uid]);
 
@@ -882,17 +937,30 @@ export default function Panel() {
     return () => document.removeEventListener('pointerdown', onDocPointerDown, true);
   }, [anyProfileInfoOpen]);
 
-  const formatLanguagesSummary = (langs) => {
-    const l = langs && typeof langs === 'object' ? langs : {};
+  const formatLanguagesSummaryFromDetails = (details) => {
+    const d = details && typeof details === 'object' ? details : {};
+    const l = d?.languages && typeof d.languages === 'object' ? d.languages : {};
     const native = l?.native && typeof l.native === 'object' ? l.native : {};
     const foreign = l?.foreign && typeof l.foreign === 'object' ? l.foreign : {};
 
-    const nativeCode = String(native?.code || '').trim();
-    const nativeOther = String(native?.other || '').trim();
+    const nativeCode = String(native?.code || d?.nativeLanguage || '').trim();
+    const nativeOther =
+      String(native?.other || '').trim() ||
+      getLocalizedProfileText(d, 'nativeLanguageOther', i18n.language) ||
+      String(d?.nativeLanguageOther || '').trim();
     const nativeLabel = nativeCode === 'other' ? nativeOther : (nativeCode ? tOption('commLanguage', nativeCode) : '');
 
-    const foreignCodes = Array.isArray(foreign?.codes) ? foreign.codes.map((x) => String(x || '').trim()).filter(Boolean) : [];
-    const foreignOther = String(foreign?.other || '').trim();
+    const foreignCodes = Array.isArray(foreign?.codes)
+      ? foreign.codes.map((x) => String(x || '').trim()).filter(Boolean)
+      : Array.isArray(d?.foreignLanguages)
+        ? d.foreignLanguages.map((x) => String(x || '').trim()).filter(Boolean)
+        : [];
+
+    const foreignOther =
+      String(foreign?.other || '').trim() ||
+      getLocalizedProfileText(d, 'foreignLanguageOther', i18n.language) ||
+      String(d?.foreignLanguageOther || '').trim();
+
     const foreignLabels = foreignCodes
       .filter((c) => c !== nativeCode)
       .map((c) => (c === 'other' ? foreignOther : tOption('commLanguage', c)))
@@ -947,17 +1015,17 @@ export default function Panel() {
       const days = Math.floor(diff / 86400000);
 
       const timeText = (() => {
-        if (mins <= 1) return lang.startsWith('en') ? 'just now' : lang.startsWith('id') ? 'baru saja' : 'az önce';
-        if (mins < 60) return lang.startsWith('en') ? `${mins} min ago` : lang.startsWith('id') ? `${mins} mnt lalu` : `${mins} dk önce`;
-        if (hours < 24) return lang.startsWith('en') ? `${hours} h ago` : lang.startsWith('id') ? `${hours} jam lalu` : `${hours} sa önce`;
-
         const locale = lang.startsWith('id') ? 'id-ID' : lang.startsWith('en') ? 'en-US' : 'tr-TR';
         try {
+          const rtf = new Intl.RelativeTimeFormat(locale, { numeric: 'auto' });
+          if (mins <= 1) return rtf.format(0, 'minute');
+          if (mins < 60) return rtf.format(-mins, 'minute');
+          if (hours < 24) return rtf.format(-hours, 'hour');
+          if (days > 0 && days < 14) return rtf.format(-days, 'day');
+
           return new Intl.DateTimeFormat(locale, { year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(ms));
         } catch {
-          return days > 0
-            ? (lang.startsWith('en') ? `${days} d ago` : lang.startsWith('id') ? `${days} hari lalu` : `${days} gün önce`)
-            : (lang.startsWith('en') ? 'recently' : lang.startsWith('id') ? 'baru-baru ini' : 'yakın zamanda');
+          return new Date(ms).toLocaleDateString();
         }
       })();
 
@@ -996,23 +1064,49 @@ export default function Panel() {
       return !!by && by !== user.uid;
     };
 
+    const safeStr = (v) => (typeof v === 'string' ? v.trim() : '');
+
+    const getMySide = (m) => {
+      const uid = String(user?.uid || '').trim();
+      if (!uid) return '';
+      const a = String(m?.aUserId || '').trim();
+      const b = String(m?.bUserId || '').trim();
+      if (uid && a && uid === a) return 'a';
+      if (uid && b && uid === b) return 'b';
+      return '';
+    };
+
+    const isIncomingLike = (m) => {
+      const mySide = getMySide(m);
+      if (!mySide) return false;
+      const otherSide = mySide === 'a' ? 'b' : mySide === 'b' ? 'a' : '';
+      if (!otherSide) return false;
+
+      const decisions = m?.decisions && typeof m.decisions === 'object' ? m.decisions : {};
+      const myDecision = safeStr(decisions?.[mySide]);
+      const otherDecision = safeStr(decisions?.[otherSide]);
+      return otherDecision === 'accept' && myDecision !== 'accept';
+    };
+
     // Not: mutual_accepted artık otomatik kilit değil. Kilit sadece karşılıklı "iletişim paylaş" veya "site içi konuş" seçilince açılır.
 
     const items = all.filter((m) => {
       if (!m || !m?.id) return false;
       if (isDismissedByMe(m)) return false;
       const st = String(m?.status || '');
-      if (st === 'proposed' || st === 'mutual_accepted' || st === 'contact_unlocked') return true;
+      if (st === 'proposed' || st === 'mutual_interest' || st === 'mutual_accepted' || st === 'contact_unlocked') return true;
       if (isRejectedByOther(m)) return true;
       return false;
     });
 
     const priority = (m) => {
       const st = String(m?.status || '');
-      if (isRejectedByOther(m)) return 0;
-      if (st === 'contact_unlocked') return 1;
-      if (st === 'mutual_accepted') return 2;
-      if (st === 'proposed') return 3;
+      if (isIncomingLike(m)) return 0;
+      if (isRejectedByOther(m)) return 1;
+      if (st === 'contact_unlocked') return 2;
+      if (st === 'mutual_accepted') return 3;
+      if (st === 'mutual_interest') return 4;
+      if (st === 'proposed') return 5;
       return 9;
     };
 
@@ -1027,6 +1121,14 @@ export default function Panel() {
       const pa = priority(a);
       const pb = priority(b);
       if (pa !== pb) return pa - pb;
+
+      // Önerilen eşleşmelerde (proposed) en yüksek skor üstte.
+      if (String(a?.status || '') === 'proposed' && String(b?.status || '') === 'proposed') {
+        const sa = typeof a?.score === 'number' ? a.score : -1;
+        const sb = typeof b?.score === 'number' ? b.score : -1;
+        if (sa !== sb) return sb - sa;
+      }
+
       return toMs(b?.createdAt) - toMs(a?.createdAt);
     });
 
@@ -1077,51 +1179,110 @@ export default function Panel() {
     }
   }, [activeMatches, chatByMatchId]);
 
-  const newMatchQuotaInfo = useMemo(() => {
-    const q = matchmakingUser?.newMatchRequestQuota || null;
-    const qDayKey = typeof q?.dayKey === 'string' ? q.dayKey : '';
-    const qCount = typeof q?.count === 'number' ? q.count : 0;
-    const qLimit = typeof q?.limit === 'number' ? q.limit : 0;
+  // Kota kaldırıldı: UI'da sadece bilgilendirme için ∞ göster.
+  const newMatchQuotaInfo = useMemo(() => ({ limit: Number.POSITIVE_INFINITY, remaining: Number.POSITIVE_INFINITY, dayKey: '', count: 0 }), []);
 
-    const derivedLimit = 3;
-    const limit = qLimit > 0 ? qLimit : derivedLimit;
+  const freeSlotQuotaInfo = useMemo(() => ({ limit: Number.POSITIVE_INFINITY, remaining: Number.POSITIVE_INFINITY, dayKey: '', count: 0 }), []);
+
+  const newUserSlotInfo = useMemo(() => ({ active: false, sinceMs: 0, threshold: 0, filledMatchId: '' }), []);
+
+  const newMatchQuotaDisplay = useMemo(() => ({ inf: true, limit: '∞', remaining: '∞' }), []);
+
+  const autoRequestedNewMatchRef = useRef(false);
+
+  useEffect(() => {
+    if (!user?.uid) return;
+    if (autoRequestedNewMatchRef.current) return;
+
+    // Profil hazır olmadan veya veri yüklenmeden otomatik tetikleme yapma.
+    if (matchmakingLoading || !matchmaking) return;
+    if (matchmakingUserLoading) return;
+    if (matchmakingMatchesLoading) return;
+    if (lockInfo.active) return;
+
+    // Kullanıcı daha önce herhangi bir eşleşme görmüşse otomatik tetiklemeyelim.
+    const hasAnyMatches = Array.isArray(matchmakingMatches) && matchmakingMatches.length > 0;
+    if (hasAnyMatches) return;
+
+    // Kota kaldırıldı: otomatik tetiklemeyi engelleme.
+
+    const storageKey = `mk_auto_request_new_v2:${user.uid}`;
     const today = new Date().toISOString().slice(0, 10);
-    const count = qDayKey === today ? qCount : 0;
-    const remaining = Math.max(0, limit - count);
-    return { limit, remaining, dayKey: today, count };
-  }, [matchmakingUser, myMembership.active, myMembership.plan]);
+    const nowMs = Date.now();
+    const maxAttemptsPerDay = 3;
+    const minRetryMs = 60_000;
 
-  const freeSlotQuotaInfo = useMemo(() => {
-    const q = matchmakingUser?.freeSlotQuota || null;
-    const qDayKey = typeof q?.dayKey === 'string' ? q.dayKey : '';
-    const qCount = typeof q?.count === 'number' ? q.count : 0;
-    const qLimit = typeof q?.limit === 'number' ? q.limit : 0;
-
-    const derivedLimit = 1;
-    const limit = qLimit > 0 ? qLimit : derivedLimit;
-    const today = new Date().toISOString().slice(0, 10);
-    const count = qDayKey === today ? qCount : 0;
-    const remaining = Math.max(0, limit - count);
-    return { limit, remaining, dayKey: today, count };
-  }, [matchmakingUser]);
-
-  const newUserSlotInfo = useMemo(() => {
-    const slot = matchmakingUser?.newUserSlot || null;
-    const active = !!slot?.active;
-    const sinceMs = typeof slot?.sinceMs === 'number' ? slot.sinceMs : 0;
-    const threshold = typeof slot?.threshold === 'number' ? slot.threshold : 70;
-    const filledMatchId = typeof slot?.filledMatchId === 'string' ? slot.filledMatchId : '';
-    return { active, sinceMs, threshold, filledMatchId };
-  }, [matchmakingUser]);
-
-  const newMatchQuotaDisplay = useMemo(() => {
-    const inf = typeof newMatchQuotaInfo?.limit === 'number' && newMatchQuotaInfo.limit >= 999;
-    return {
-      inf,
-      limit: inf ? '∞' : newMatchQuotaInfo.limit,
-      remaining: inf ? '∞' : newMatchQuotaInfo.remaining,
+    const readState = () => {
+      try {
+        const raw = localStorage.getItem(storageKey);
+        if (!raw) return { dayKey: today, attempts: 0, lastAtMs: 0, success: false };
+        const parsed = JSON.parse(raw);
+        const dayKey = typeof parsed?.dayKey === 'string' ? parsed.dayKey : today;
+        const attempts = typeof parsed?.attempts === 'number' ? parsed.attempts : 0;
+        const lastAtMs = typeof parsed?.lastAtMs === 'number' ? parsed.lastAtMs : 0;
+        const success = !!parsed?.success;
+        return { dayKey, attempts, lastAtMs, success };
+      } catch {
+        return { dayKey: today, attempts: 0, lastAtMs: 0, success: false };
+      }
     };
-  }, [newMatchQuotaInfo.limit, newMatchQuotaInfo.remaining]);
+
+    const writeState = (st) => {
+      try {
+        localStorage.setItem(storageKey, JSON.stringify(st));
+      } catch {
+        // ignore
+      }
+    };
+
+    const prev = readState();
+    const state = prev?.dayKey === today ? prev : { dayKey: today, attempts: 0, lastAtMs: 0, success: false };
+
+    if (state.success) {
+      autoRequestedNewMatchRef.current = true;
+      return;
+    }
+    if (state.attempts >= maxAttemptsPerDay) {
+      autoRequestedNewMatchRef.current = true;
+      return;
+    }
+    if (state.lastAtMs > 0 && nowMs - state.lastAtMs < minRetryMs) {
+      autoRequestedNewMatchRef.current = true;
+      return;
+    }
+
+    // Aynı oturumda / yeniden render'da tekrar tetiklemeyi engelle.
+    autoRequestedNewMatchRef.current = true;
+    writeState({ ...state, lastAtMs: nowMs, attempts: Math.max(0, state.attempts) + 1 });
+
+    (async () => {
+      try {
+        const data = await authFetch('/api/matchmaking-request-new', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({}),
+        });
+
+        const created = typeof data?.created === 'number' ? data.created : 0;
+        if (created > 0) {
+          const cur = readState();
+          const curNorm = cur?.dayKey === today ? cur : { dayKey: today, attempts: 0, lastAtMs: 0, success: false };
+          writeState({ ...curNorm, success: true, lastAtMs: Date.now() });
+        }
+      } catch {
+        // Sessiz: otomatik tetikleme başarısız olursa kullanıcıya hata bastırma.
+      }
+    })();
+  }, [
+    lockInfo.active,
+    matchmaking,
+    matchmakingLoading,
+    matchmakingMatches,
+    matchmakingMatchesLoading,
+    matchmakingUserLoading,
+    newMatchQuotaInfo?.remaining,
+    user?.uid,
+  ]);
 
   const [interactionChoiceByMatchId, setInteractionChoiceByMatchId] = useState({});
 
@@ -1149,6 +1310,12 @@ export default function Panel() {
       try {
         // Chrome/Android install prompt'u kontrol etmek için yakala.
         e.preventDefault();
+        try {
+          // Başka route'a geçilse bile prompt kaybolmasın (PwaInstallCard / tutorial CTA kullanıyor).
+          window.__uniqahDeferredPrompt = e;
+        } catch {
+          // ignore
+        }
         setDeferredInstallPrompt(e);
       } catch {
         // noop
@@ -1158,6 +1325,11 @@ export default function Panel() {
     const onAppInstalled = () => {
       setDeferredInstallPrompt(null);
       detectStandalone();
+      try {
+        window.__uniqahDeferredPrompt = null;
+      } catch {
+        // ignore
+      }
     };
 
     window.addEventListener('beforeinstallprompt', onBeforeInstallPrompt);
@@ -1267,6 +1439,43 @@ export default function Panel() {
     }
   };
 
+  const startWhatsAppCallVerification = async () => {
+    if (verificationAction.loading) return;
+    if (!whatsappNumber) {
+      setVerificationAction({ loading: false, error: t('matchmakingPanel.verification.errors.whatsappNotConfigured'), result: null });
+      return;
+    }
+
+    setVerificationAction({ loading: true, error: '', result: null });
+    try {
+      const data = await authFetch('/api/matchmaking-verification-select', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ method: 'whatsapp', lang: String(i18n?.language || 'tr') }),
+      });
+
+      setVerificationAction({ loading: false, error: '', result: data || null });
+
+      const msg = String(data?.whatsappMessage || '').trim();
+      const urlFromServer = String(data?.whatsappUrl || '').trim();
+      const url = urlFromServer || (msg ? buildWhatsAppUrl(msg, { lang: String(i18n?.language || 'tr') }) : '');
+      if (url) {
+        try {
+          window.open(url, '_blank', 'noopener,noreferrer');
+        } catch {
+          window.location.href = url;
+        }
+      }
+    } catch (e) {
+      const code = String(e?.message || '').trim();
+      const mapped =
+        code === 'whatsapp_not_configured'
+          ? t('matchmakingPanel.verification.errors.whatsappNotConfigured')
+          : (code || t('matchmakingPanel.errors.actionFailed'));
+      setVerificationAction({ loading: false, error: mapped, result: null });
+    }
+  };
+
   const submitManualVerification = async () => {
     if (manualVerificationAction.loading) return;
 
@@ -1303,6 +1512,33 @@ export default function Panel() {
     } catch (e) {
       const msg = String(e?.message || '').trim();
       setManualVerificationAction({ loading: false, error: msg || t('matchmakingPanel.errors.actionFailed'), success: '' });
+    }
+  };
+
+  const submitSocialVerification = async () => {
+    if (socialVerificationAction.loading) return;
+
+    const platform = String(socialVerification?.platform || '').trim().toLowerCase();
+    const username = String(socialVerification?.username || '').trim().replace(/^@+/, '');
+    const allowed = new Set(['instagram', 'tiktok', 'youtube', 'facebook']);
+
+    if (!allowed.has(platform) || !username) {
+      setSocialVerificationAction({ loading: false, error: t('matchmakingPanel.verification.errors.missingSocial'), success: '' });
+      return;
+    }
+
+    setSocialVerificationAction({ loading: true, error: '', success: '' });
+    try {
+      await authFetch('/api/matchmaking-verification-social-submit', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ platform, username }),
+      });
+      setSocialVerificationAction({ loading: false, error: '', success: t('matchmakingPanel.verification.social.success') });
+      setSocialVerification((p) => ({ ...(p || {}), username: '' }));
+    } catch (e) {
+      const msg = String(e?.message || '').trim();
+      setSocialVerificationAction({ loading: false, error: msg || t('matchmakingPanel.errors.actionFailed'), success: '' });
     }
   };
 
@@ -1431,7 +1667,29 @@ export default function Panel() {
     }
   };
 
-  const isDeleteConfirmTextOk = (norm) => norm === 'hesabımı sil' || norm === 'hesabimi sil';
+  const deleteConfirmPhrase = String(t('matchmakingPanel.membershipModal.deletePhrase') || '').trim();
+  const isDeleteConfirmTextOk = (norm) => {
+    const candidates = [
+      deleteConfirmPhrase,
+      'hesabımı sil',
+      'hesabimi sil',
+      'delete my account',
+      'hapus akun saya',
+    ].map((x) => normalizeDeleteConfirmText(x));
+
+    return candidates.includes(norm);
+  };
+
+  const formatMinutesShort = (mins) => {
+    if (!mins || mins <= 0) return '';
+    return t('common.time.minutesShort', { minutes: mins });
+  };
+
+  const formatHoursMinutesShort = (hours, minutes) => {
+    const h = typeof hours === 'number' && Number.isFinite(hours) ? hours : 0;
+    const m = typeof minutes === 'number' && Number.isFinite(minutes) ? minutes : 0;
+    return t('common.time.hmShort', { h, m });
+  };
 
   const startDeleteAccountFlow = () => {
     if (membershipModalAction.loading) return;
@@ -1457,6 +1715,25 @@ export default function Panel() {
       });
 
       const validUntilMs = typeof data?.validUntilMs === 'number' ? data.validUntilMs : 0;
+
+      setMatchmakingUser((prev) => {
+        if (!prev || typeof prev !== 'object') return prev;
+        const prevMembership = prev?.membership && typeof prev.membership === 'object' ? prev.membership : {};
+        const nextValidUntilMs =
+          (typeof validUntilMs === 'number' && Number.isFinite(validUntilMs) ? validUntilMs : 0) ||
+          (typeof prevMembership?.validUntilMs === 'number' ? prevMembership.validUntilMs : 0) ||
+          0;
+        return {
+          ...prev,
+          membership: {
+            ...prevMembership,
+            active: true,
+            plan: String(prevMembership?.plan || 'eco').trim() || 'eco',
+            validUntilMs: nextValidUntilMs,
+          },
+        };
+      });
+
       const msLeft = validUntilMs - Date.now();
       const daysLeft = msLeft > 0 ? Math.ceil(msLeft / 86400000) : 0;
 
@@ -1464,23 +1741,12 @@ export default function Panel() {
       const untilText = validUntilMs
         ? new Intl.DateTimeFormat(locale, { year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(validUntilMs))
         : '';
-      const untilTextSlash = validUntilMs
-        ? new Intl.DateTimeFormat('en-GB', { year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(validUntilMs))
-        : '';
-
-      const promoSuccessText = untilText
-        ? t('matchmakingPanel.membershipModal.promoActivated', { date: untilText, count: daysLeft })
-        : t('matchmakingPanel.membershipModal.successActivated');
-
-      const promoInfo = untilTextSlash
-        ? t('matchmakingMembership.freeActivatedInfo', { date: untilTextSlash, translatedCount: 200, dailyLimit: 3 })
-        : '';
 
       setMembershipModalAction({
         loading: false,
         error: '',
-        success: membershipPromoActive
-          ? (promoInfo ? `${promoSuccessText}\n\n${promoInfo}` : promoSuccessText)
+        success: untilText
+          ? t('matchmakingPanel.membershipModal.successActivatedUntil', { date: untilText, count: daysLeft })
           : t('matchmakingPanel.membershipModal.successActivated'),
       });
     } catch (e) {
@@ -1489,20 +1755,11 @@ export default function Panel() {
         typeof window !== 'undefined' &&
         (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
 
-      const locale = i18n?.language === 'id' ? 'id-ID' : i18n?.language === 'en' ? 'en-US' : 'tr-TR';
-      const cutoffText = (() => {
-        try {
-          return new Intl.DateTimeFormat(locale, { year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(promoCutoffMs));
-        } catch {
-          return '';
-        }
-      })();
-
       const mapped =
-        msg === 'promo_expired'
-          ? t('matchmakingMembership.promoExpired', { date: cutoffText })
-          : msg === 'promo_disabled'
-            ? t('matchmakingMembership.activateFailed')
+        msg === 'free_membership_disabled'
+          ? t('matchmakingMembership.freeDisabled')
+          : msg === 'api_unreachable'
+            ? (isLocalhost ? t('matchmakingMembership.errors.apiUnavailableDev') : t('matchmakingMembership.activateFailed'))
             : msg === 'missing_auth' || msg === 'invalid_auth' || msg === 'not_authenticated'
               ? t('matchmakingMembership.errors.notAuthenticated')
               : msg === 'firebase_admin_not_configured'
@@ -1529,284 +1786,53 @@ export default function Panel() {
       setMembershipModalAction({ loading: false, error: '', success: t('matchmakingPanel.membershipModal.successCancelled') });
     } catch (e) {
       const msg = String(e?.message || '').trim();
-      const mapped = msg || t('matchmakingPanel.errors.actionFailed');
+      const isLocalhost =
+        typeof window !== 'undefined' &&
+        (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+
+      const mapped =
+        msg === 'api_unreachable'
+          ? (isLocalhost ? t('matchmakingMembership.errors.apiUnavailableDev') : t('matchmakingPanel.errors.actionFailed'))
+          : msg === 'missing_auth' || msg === 'invalid_auth' || msg === 'not_authenticated'
+            ? t('matchmakingMembership.errors.notAuthenticated')
+            : msg === 'firebase_admin_not_configured'
+              ? t('matchmakingMembership.errors.serverNotConfigured')
+              : (msg || t('matchmakingPanel.errors.actionFailed'));
+
       setMembershipModalAction({ loading: false, error: mapped, success: '' });
-    }
-  };
-
-  const deleteAccountNow = async () => {
-    if (membershipModalAction.loading) return;
-
-    const norm = normalizeDeleteConfirmText(membershipDeleteTyped);
-    if (!isDeleteConfirmTextOk(norm)) {
-      setMembershipModalAction({ loading: false, error: t('matchmakingPanel.membershipModal.deleteTypePrompt'), success: '' });
-      setMembershipDeleteStep('type');
-      return;
-    }
-
-    setMembershipModalAction({ loading: true, error: '', success: '' });
-    try {
-      await authFetch('/api/matchmaking-account-delete', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ confirmText: norm, confirmFinal: true }),
-      });
-
-      try {
-        await signOut(auth);
-      } catch {
-        // ignore
-      }
-      navigate('/', { replace: true });
-    } catch (e) {
-      const msg = String(e?.message || '').trim();
-      const mapped = msg || t('matchmakingPanel.errors.actionFailed');
-      setMembershipModalAction({ loading: false, error: mapped, success: '' });
-    }
-  };
-
-  const chooseInteraction = async (matchId, choice) => {
-    if (!matchId || !choice) return;
-    const cur = interactionChoiceByMatchId?.[matchId] || null;
-    if (cur?.loading) return;
-
-    setInteractionChoiceByMatchId((p) => ({ ...p, [matchId]: { loading: true, error: '' } }));
-    try {
-      await authFetch('/api/matchmaking-interaction-choice', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ matchId, choice }),
-      });
-      setInteractionChoiceByMatchId((p) => ({ ...p, [matchId]: { loading: false, error: '' } }));
-    } catch (e) {
-      const msg = String(e?.message || '').trim();
-      const mapped =
-        msg === 'membership_required'
-          ? t('matchmakingPanel.errors.membershipRequired')
-          : msg === 'free_active_membership_required'
-            ? t('matchmakingPanel.errors.freeActiveMembershipRequired')
-            : msg === 'free_active_membership_blocked'
-              ? t('matchmakingPanel.errors.freeActiveMembershipBlocked')
-          : msg === 'membership_or_verification_required'
-            ? t('matchmakingPanel.errors.membershipOrVerificationRequired')
-            : (msg || t('matchmakingPanel.errors.actionFailed'));
-      setInteractionChoiceByMatchId((p) => ({ ...p, [matchId]: { loading: false, error: mapped } }));
-    }
-  };
-
-  const matchHistory = useMemo(() => {
-    const all = Array.isArray(matchmakingMatches) ? matchmakingMatches : [];
-
-    const toMs = (ts) => {
-      if (!ts) return 0;
-      if (typeof ts?.toMillis === 'function') return ts.toMillis();
-      if (typeof ts?.seconds === 'number') return ts.seconds * 1000;
-      if (typeof ts === 'number') return ts;
-      return 0;
-    };
-
-    const isDismissedByMe = (m) => {
-      const d = m?.dismissals || null;
-      if (!d || !user?.uid) return false;
-      return !!d?.[user.uid];
-    };
-
-    const activeIds = new Set((Array.isArray(activeMatches) ? activeMatches : []).map((m) => String(m?.id || '')).filter(Boolean));
-
-    const items = all
-      .filter((m) => m && m?.id)
-      .filter((m) => !activeIds.has(String(m.id)))
-      .filter((m) => {
-        if (isDismissedByMe(m)) return true;
-        const st = String(m?.status || '').trim();
-        // "proposed/mutual_accepted/contact_unlocked" zaten activeMatches'te.
-        if (!st) return false;
-        return st !== 'proposed' && st !== 'mutual_accepted' && st !== 'contact_unlocked';
-      });
-
-    items.sort((a, b) => toMs(b?.createdAt) - toMs(a?.createdAt));
-    return items.slice(0, 20);
-  }, [activeMatches, matchmakingMatches, user?.uid]);
-
-  const loadCandidateDetails = async (matchId) => {
-    if (!matchId) return;
-    if (!canSeeFullProfiles) return;
-    if (candidateDetailsByMatchId?.[matchId]) return;
-    if (candidateDetailsLoadingByMatchId?.[matchId]) return;
-
-    setCandidateDetailsLoadingByMatchId((p) => ({ ...p, [matchId]: true }));
-    try {
-      const data = await authFetch('/api/matchmaking-profile', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ matchId }),
-      });
-
-      const profile = data?.profile || null;
-      if (profile) {
-        setCandidateDetailsByMatchId((p) => ({ ...p, [matchId]: profile }));
-      }
-    } catch {
-      // noop
-    } finally {
-      setCandidateDetailsLoadingByMatchId((p) => ({ ...p, [matchId]: false }));
-    }
-  };
-
-  useEffect(() => {
-    if (!canSeeFullProfiles) return;
-    if (!Array.isArray(activeMatches) || activeMatches.length === 0) return;
-
-    for (const m of activeMatches) {
-      if ((m?.status === 'proposed' || m?.status === 'mutual_accepted') && m?.id) {
-        loadCandidateDetails(m.id);
-      }
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [canSeeFullProfiles, activeMatches]);
-
-  const decideMatch = async (matchId, decision, reason = '') => {
-    setMatchmakingAction({ loading: true, error: '', success: '' });
-    try {
-      const reasonCode = String(reason || '').trim();
-      const data = await authFetch('/api/matchmaking-decision', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ matchId, decision, ...(reasonCode ? { reason: reasonCode } : {}) }),
-      });
-
-      // Mutual accepted olduysa chat'i öne al.
-      if (String(decision) === 'accept' && String(data?.status || '') === 'mutual_accepted') {
-        const id = String(matchId || '').trim();
-        if (id) {
-          setChatFocusMatchId(id);
-          setChatInlineOpenMatchId(id);
-        }
-      }
-
-      if (String(decision) === 'reject') {
-        const creditGranted = typeof data?.creditGranted === 'number' ? data.creditGranted : 0;
-        const cooldownUntilMs = typeof data?.cooldownUntilMs === 'number' ? data.cooldownUntilMs : 0;
-        if (creditGranted > 0) {
-          const remainingMs = cooldownUntilMs > Date.now() ? cooldownUntilMs - Date.now() : 0;
-          const mins = remainingMs > 0 ? Math.ceil(remainingMs / 60000) : 0;
-          const remaining = mins > 0 ? `${mins} dk` : '';
-          setMatchmakingAction({ loading: false, error: '', success: t('matchmakingPanel.actions.removedCreditNotice', { remaining }) });
-          return;
-        }
-      }
-    } catch (e) {
-      const msg = String(e?.message || '').trim();
-      const mapped =
-        msg === 'other_user_matched'
-          ? t('matchmakingPanel.errors.otherUserMatched')
-          : msg === 'pending_continue_exists'
-            ? t('matchmakingPanel.errors.pendingContinueExists')
-          : msg === 'membership_required'
-            ? t('matchmakingPanel.errors.membershipRequired')
-            : msg === 'free_active_membership_required'
-              ? t('matchmakingPanel.errors.freeActiveMembershipRequired')
-              : msg === 'free_active_membership_blocked'
-                ? t('matchmakingPanel.errors.freeActiveMembershipBlocked')
-            : msg === 'membership_or_verification_required'
-              ? t('matchmakingPanel.errors.membershipOrVerificationRequired')
-          : msg === 'user_locked'
-            ? t('matchmakingPanel.errors.userLocked')
-            : msg === 'already_matched'
-              ? t('matchmakingPanel.errors.alreadyMatched')
-            : msg || t('matchmakingPanel.errors.actionFailed');
-
-      setMatchmakingAction({ loading: false, error: mapped, success: '' });
-      return;
-    }
-    setMatchmakingAction({ loading: false, error: '', success: '' });
-  };
-
-  const dismissMatch = async (matchId) => {
-    if (!matchId) return;
-    if (dismissAction.loading) return;
-
-    setDismissAction({ loading: true, error: '', matchId });
-    try {
-      const data = await authFetch('/api/matchmaking-dismiss', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ matchId }),
-      });
-
-      const creditGranted = typeof data?.creditGranted === 'number' ? data.creditGranted : 0;
-      const cooldownUntilMs = typeof data?.cooldownUntilMs === 'number' ? data.cooldownUntilMs : 0;
-      if (creditGranted > 0) {
-        const remainingMs = cooldownUntilMs > Date.now() ? cooldownUntilMs - Date.now() : 0;
-        const mins = remainingMs > 0 ? Math.ceil(remainingMs / 60000) : 0;
-        const remaining = mins > 0 ? `${mins} dk` : '';
-        setDismissAction({ loading: false, error: '', matchId: '' });
-        setMatchmakingAction({ loading: false, error: '', success: t('matchmakingPanel.actions.removedCreditNotice', { remaining }) });
-        return;
-      }
-    } catch (e) {
-      const msg = String(e?.message || '').trim();
-      setDismissAction({ loading: false, error: msg || t('matchmakingPanel.errors.actionFailed'), matchId });
-      return;
-    }
-    setDismissAction({ loading: false, error: '', matchId: '' });
-  };
-
-  const rejectAllMatches = async () => {
-    if (rejectAllAction.loading) return;
-    if (!window.confirm(t('matchmakingPanel.actions.rejectAllConfirm'))) return;
-
-    setRejectAllAction({ loading: true, error: '', success: '' });
-    try {
-      const data = await authFetch('/api/matchmaking-reject-all', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({}),
-      });
-
-      const count = typeof data?.cancelledCount === 'number' ? data.cancelledCount : 0;
-      setRejectAllAction({ loading: false, error: '', success: t('matchmakingPanel.actions.rejectAllSuccess', { count }) });
-    } catch (e) {
-      const msg = String(e?.message || '').trim();
-      const mapped =
-        msg === 'user_locked'
-          ? t('matchmakingPanel.errors.userLocked')
-          : msg === 'already_matched'
-            ? t('matchmakingPanel.errors.alreadyMatched')
-            : msg || t('matchmakingPanel.errors.rejectAllFailed');
-
-      setRejectAllAction({ loading: false, error: mapped, success: '' });
     }
   };
 
   const requestNewMatch = async () => {
     if (requestNewAction.loading) return;
     setRequestNewAction({ loading: true, error: '', success: '' });
+
     try {
-      const data = await authFetch('/api/matchmaking-request-new', {
+      await authFetch('/api/matchmaking-request-new', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({}),
       });
 
-      const remaining = typeof data?.remaining === 'number' ? data.remaining : null;
-      setRequestNewAction({ loading: false, error: '', success: t('matchmakingPanel.actions.requestNewSuccess', { remaining }) });
+      setRequestNewAction({ loading: false, error: '', success: t('matchmakingPanel.actions.requestNewSuccess') });
     } catch (e) {
       const msg = String(e?.message || '').trim();
       const cooldownUntilMs = typeof e?.details?.cooldownUntilMs === 'number' ? e.details.cooldownUntilMs : 0;
       const remainingMs = cooldownUntilMs > Date.now() ? cooldownUntilMs - Date.now() : 0;
       const mins = remainingMs > 0 ? Math.ceil(remainingMs / 60000) : 0;
-      const remaining = mins > 0 ? `${mins} dk` : '';
+      const remaining = formatMinutesShort(mins);
+
       const mapped =
-        msg === 'quota_exhausted'
-          ? t('matchmakingPanel.errors.requestNewQuotaExhausted')
-          : msg === 'cooldown_active'
-            ? t('matchmakingPanel.errors.cooldownActive', { remaining })
-          : msg === 'rate_limited'
-            ? t('matchmakingPanel.errors.requestNewRateLimited')
-            : msg === 'free_active_membership_blocked'
-              ? t('matchmakingPanel.errors.requestNewFreeActiveBlocked')
-            : (msg || t('matchmakingPanel.errors.requestNewFailed'));
+        msg === 'application_required'
+          ? t('matchmakingPanel.errors.applicationRequired')
+          : msg === 'quota_exhausted'
+            ? t('matchmakingPanel.errors.requestNewQuotaExhausted')
+            : msg === 'cooldown_active'
+              ? t('matchmakingPanel.errors.cooldownActive', { remaining })
+              : msg === 'free_active_membership_blocked'
+                ? t('matchmakingPanel.errors.requestNewFreeActiveBlocked')
+                : (msg || t('matchmakingPanel.errors.requestNewFailed'));
+
       setRequestNewAction({ loading: false, error: mapped, success: '' });
     }
   };
@@ -1839,7 +1865,7 @@ export default function Panel() {
       const cooldownUntilMs = typeof data?.cooldownUntilMs === 'number' ? data.cooldownUntilMs : 0;
       const remainingMs = cooldownUntilMs > Date.now() ? cooldownUntilMs - Date.now() : 0;
       const mins = remainingMs > 0 ? Math.ceil(remainingMs / 60000) : 0;
-      const remaining = mins > 0 ? `${mins} dk` : '';
+      const remaining = formatMinutesShort(mins);
       setFreeSlotAction({
         loading: false,
         error: '',
@@ -1851,7 +1877,7 @@ export default function Panel() {
       const cooldownUntilMs = typeof e?.details?.cooldownUntilMs === 'number' ? e.details.cooldownUntilMs : 0;
       const remainingMs = cooldownUntilMs > Date.now() ? cooldownUntilMs - Date.now() : 0;
       const mins = remainingMs > 0 ? Math.ceil(remainingMs / 60000) : 0;
-      const remaining = mins > 0 ? `${mins} dk` : '';
+      const remaining = formatMinutesShort(mins);
       const mapped =
         msg === 'quota_exhausted'
           ? t('matchmakingPanel.errors.requestNewQuotaExhausted')
@@ -1911,7 +1937,7 @@ export default function Panel() {
       const msg = String(e?.message || '').trim();
       const mapped =
         msg === 'contact_locked'
-          ? '48 saat dolmadan iletişim isteği gönderemezsin.'
+          ? t('matchmakingPanel.matches.chat.confirm48h.errors.contactLocked')
           : msg === 'confirm_required'
             ? t('matchmakingPanel.matches.chat.confirm48h.errors.confirmRequired')
           : msg === 'membership_required'
@@ -1950,11 +1976,11 @@ export default function Panel() {
       const msg = String(e?.message || '').trim();
       const mapped =
         msg === 'contact_locked'
-          ? '48 saat dolmadan onay verilemez.'
+          ? t('matchmakingPanel.matches.chat.confirm48h.errors.approveLocked')
           : msg === 'confirm_required'
             ? t('matchmakingPanel.matches.chat.confirm48h.errors.confirmRequired')
           : msg === 'contact_not_pending'
-            ? 'Onaylanacak bir iletişim isteği yok.'
+            ? t('matchmakingPanel.matches.chat.confirm48h.errors.contactNotPending')
             : msg === 'membership_required'
               ? t('matchmakingPanel.errors.membershipRequired')
               : msg === 'free_active_membership_required'
@@ -2209,6 +2235,8 @@ export default function Panel() {
       (typeof focusedMatch?.chatEnabledAtMs === 'number' ? focusedMatch.chatEnabledAtMs : 0) ||
       tsToMsLocal(focusedMatch?.chatEnabledAt) ||
       tsToMsLocal(focusedMatch?.interactionChosenAt) ||
+      (typeof focusedMatch?.mutualInterestAtMs === 'number' ? focusedMatch.mutualInterestAtMs : 0) ||
+      tsToMsLocal(focusedMatch?.mutualInterestAt) ||
       (typeof focusedMatch?.mutualAcceptedAtMs === 'number' ? focusedMatch.mutualAcceptedAtMs : 0) ||
       tsToMsLocal(focusedMatch?.mutualAcceptedAt) ||
       0;
@@ -2237,7 +2265,7 @@ export default function Panel() {
     const matchProgress = (() => {
       const st = String(matchStatus || '').trim();
       const contactApproved = st === 'contact_unlocked' || contactStatus === 'approved';
-      const mutual = st === 'mutual_accepted' || st === 'contact_unlocked';
+      const mutual = st === 'mutual_interest' || st === 'mutual_accepted' || st === 'contact_unlocked';
 
       let currentStep = 1;
       if (contactApproved) currentStep = 4;
@@ -2281,136 +2309,17 @@ export default function Panel() {
       setChatTextByMatchId((p) => ({ ...p, [matchId]: next }));
     };
 
-    const qq = focusedMatch?.quickQuestions && typeof focusedMatch.quickQuestions === 'object' ? focusedMatch.quickQuestions : {};
-    const myQq = mySide ? (qq?.[mySide] && typeof qq[mySide] === 'object' ? qq[mySide] : {}) : {};
-    const otherQq = otherSide ? (qq?.[otherSide] && typeof qq[otherSide] === 'object' ? qq[otherSide] : {}) : {};
-    const myAnswers = myQq?.answers && typeof myQq.answers === 'object' ? myQq.answers : {};
-    const otherAnswers = otherQq?.answers && typeof otherQq.answers === 'object' ? otherQq.answers : {};
-
-    const qqAction = quickQuestionsActionByMatchId?.[matchId] || {};
-    const qqLoading = !!qqAction?.loading;
-    const qqError = String(qqAction?.error || '').trim();
-
-    const saveQuickAnswer = async (question, answer) => {
-      if (!matchId) return;
-      if (!question || !answer) return;
-      if (qqLoading) return;
-
-      const applyLocal = (nextValue) => {
-        if (!mySide) return;
-        const qKey = String(question || '').trim();
-        const v = String(nextValue || '').trim();
-        if (!qKey) return;
-
-        setMatchmakingMatches((prev) => {
-          const list = Array.isArray(prev) ? prev : [];
-          const nowMs = Date.now();
-          return list.map((m) => {
-            if (String(m?.id || '') !== String(matchId)) return m;
-
-            const existing = m?.quickQuestions && typeof m.quickQuestions === 'object' ? m.quickQuestions : {};
-            const mine = existing?.[mySide] && typeof existing[mySide] === 'object' ? existing[mySide] : {};
-            const existingAnswers = mine?.answers && typeof mine.answers === 'object' ? mine.answers : {};
-            const nextAnswers = { ...existingAnswers };
-
-            if (v) nextAnswers[qKey] = v;
-            else delete nextAnswers[qKey];
-
-            return {
-              ...m,
-              quickQuestions: {
-                ...existing,
-                [mySide]: {
-                  ...mine,
-                  answers: nextAnswers,
-                  updatedAtMs: nowMs,
-                },
-              },
-              updatedAtMs: nowMs,
-            };
-          });
-        });
-      };
-
-      const prevValue = String(myAnswers?.[String(question || '').trim()] || '');
-      applyLocal(answer);
-
-      setQuickQuestionsActionByMatchId((p) => ({ ...p, [matchId]: { loading: true, error: '' } }));
-      try {
-        await authFetch('/api/matchmaking-quick-questions', {
-          method: 'POST',
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ matchId, question, answer }),
-        });
-        setQuickQuestionsActionByMatchId((p) => ({ ...p, [matchId]: { loading: false, error: '' } }));
-      } catch (e) {
-        applyLocal(prevValue);
-        const msg = String(e?.message || '').trim();
-        setQuickQuestionsActionByMatchId((p) => ({ ...p, [matchId]: { loading: false, error: msg || 'save_failed' } }));
-      }
-    };
-
-    const matchTestUi =
-      mySide && matchTestUiByMatchId?.[matchId] && typeof matchTestUiByMatchId[matchId] === 'object' ? matchTestUiByMatchId[matchId] : {};
-    const matchTestOpen = !!matchTestUi.open;
-
-    const matchTestItems = [
-      { q: 'q1', titleKey: 'q1', options: ['slow', 'normal', 'fast'] },
-      { q: 'q2', titleKey: 'q2', options: ['family', 'balanced', 'independent'] },
-      { q: 'q3', titleKey: 'q3', options: ['local', 'open', 'flexible'] },
-    ];
-
-    const matchTestScore = (() => {
-      let bothAnswered = 0;
-      let same = 0;
-      for (const it of matchTestItems) {
-        const mine = String(myAnswers?.[it.q] || '');
-        const other = String(otherAnswers?.[it.q] || '');
-        if (mine && other) {
-          bothAnswered += 1;
-          if (mine === other) same += 1;
-        }
-      }
-      const pointsPer = 10;
-      return {
-        bothAnswered,
-        same,
-        points: same * pointsPer,
-        maxPoints: matchTestItems.length * pointsPer,
-      };
-    })();
-
-    const isMyMatchTestFinished = matchTestItems.every((it) => !!String(myAnswers?.[it.q] || ''));
-
-    const closeMatchTest = () => {
-      setMatchTestUiByMatchId((p) => ({
-        ...p,
-        [matchId]: { ...(p?.[matchId] || {}), open: false },
-      }));
-    };
-
     return (
       <div
         className="mt-3 flex flex-col min-h-0 flex-1 h-[70vh] max-h-[70vh]"
-        onPointerDownCapture={(e) => {
-          if (!matchTestOpen) return;
-          if (!isMyMatchTestFinished) return;
-          const target = e?.target;
-          if (!(target instanceof Element)) return;
-          if (target.closest('[data-mm-matchtest-panel="1"]')) return;
-          if (target.closest('[data-mm-matchtest-button="1"]')) return;
-          closeMatchTest();
-        }}
       >
         {loading ? <div className="text-xs text-white/60">{t('common.loading')}</div> : null}
 
         {lockedByActiveMatch ? (
           <div className="mt-3 rounded-xl border border-amber-300/30 bg-amber-500/10 p-3 text-amber-100 text-sm">
-            <p className="font-semibold">Bu sohbet kapatıldı</p>
+            <p className="font-semibold">{t('matchmakingPanel.matches.chat.lockedByActive.title')}</p>
             <p className="mt-1 text-white/80">
-              Bu mesaj aktif bir eşleşmeniz olduğu için kapatılmıştır. Her kullanıcının bir kişiyle konuşması evlilik amacı olan herkesin konuştuğu kişinin sadece
-              kendisiyle konuştuğunu bilmesi için gereklidir. Diğer kişilerle mesajlaşmaya devam edebilmek için aktif eşleşmenizi sohbet ekranından iptal etmeniz
-              gerekmektedir.
+              {t('matchmakingPanel.matches.chat.lockedByActive.body')}
             </p>
             {lockInfo.matchId ? (
               <div className="mt-3 flex flex-col sm:flex-row gap-2">
@@ -2420,7 +2329,9 @@ export default function Panel() {
                   disabled={!!matchCancelById?.[lockInfo.matchId]?.loading}
                   className="px-4 py-2 rounded-full bg-rose-600 text-white text-sm font-semibold hover:bg-rose-700 disabled:opacity-60"
                 >
-                  {matchCancelById?.[lockInfo.matchId]?.loading ? 'İptal ediliyor…' : 'Aktif eşleşmeyi iptal et'}
+                  {matchCancelById?.[lockInfo.matchId]?.loading
+                    ? t('matchmakingPanel.actions.canceling')
+                    : t('matchmakingPanel.matches.chat.lockedByActive.cancelCta')}
                 </button>
                 {matchCancelById?.[lockInfo.matchId]?.error ? (
                   <div className="rounded-lg border border-rose-300/30 bg-rose-500/10 p-2 text-rose-100 text-xs">
@@ -2500,7 +2411,7 @@ export default function Panel() {
                 type="button"
                 disabled={!canTakeActions || !!matchmakingAction?.loading}
                 onClick={() => decideMatch(matchId, 'accept')}
-                className="px-4 py-2 rounded-full bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700 disabled:opacity-60"
+                className="px-4 py-2 rounded-full bg-emerald-500 text-white text-sm font-semibold hover:bg-emerald-600 disabled:opacity-60"
               >
                 {t('matchmakingPanel.matches.chat.continue')}
               </button>
@@ -2566,14 +2477,16 @@ export default function Panel() {
                     if (!isSystem) return msg?.text || '';
 
                     if (systemType === 'contact_request') {
-                      return mine ? 'İletişim isteği gönderdin.' : 'Karşı taraf iletişim bilgilerini paylaşmak istiyor.';
+                      return mine
+                        ? t('matchmakingPanel.matches.chat.system.contactRequest.mine')
+                        : t('matchmakingPanel.matches.chat.system.contactRequest.other');
                     }
 
                     if (systemType === 'contact_shared') {
                       const c = msg?.contact && typeof msg.contact === 'object' ? msg.contact : {};
                       const aW = String(c?.aWhatsapp || '').trim() || '-';
                       const bW = String(c?.bWhatsapp || '').trim() || '-';
-                      return `İletişim bilgileri paylaşıldı:\n${aW}\n${bW}`;
+                      return t('matchmakingPanel.matches.chat.system.contactShared', { aWhatsapp: aW, bWhatsapp: bW });
                     }
 
                     return msg?.text || '';
@@ -2627,11 +2540,11 @@ export default function Panel() {
                             type="button"
                             disabled={blocked || approveLoading}
                             onClick={() => approveContactShare(matchId)}
-                            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-600 text-white text-xs font-semibold hover:bg-emerald-700 disabled:opacity-60"
+                            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500 text-white text-xs font-semibold hover:bg-emerald-600 disabled:opacity-60"
                           >
-                            {approveLoading ? 'Onaylanıyor…' : 'Onayla'}
+                            {approveLoading ? t('matchmakingPanel.chat.lock48h.approving') : t('matchmakingPanel.actions.accept')}
                           </button>
-                          <div className="mt-1 text-[11px] text-white/60">Onaylayınca telefon numaraları mesajlarda görünür.</div>
+                          <div className="mt-1 text-[11px] text-white/60">{t('matchmakingPanel.matches.chat.system.contactRequest.approveHint')}</div>
                         </div>
                       ) : null}
 
@@ -2645,9 +2558,9 @@ export default function Panel() {
                               {translateBillingMode ? (
                                 <div className="mt-1 text-[11px] text-white/60">
                                   {translateBillingMode === 'sponsored'
-                                    ? 'Sponsorlu çeviri (maliyet karşı tarafa yansıtıldı)'
+                                    ? t('matchmakingPanel.matches.chat.translate.billing.sponsored')
                                     : translateBillingMode === 'self'
-                                      ? 'Çeviri kotandan düştü'
+                                      ? t('matchmakingPanel.matches.chat.translate.billing.self')
                                       : ''}
                                 </div>
                               ) : null}
@@ -2658,9 +2571,9 @@ export default function Panel() {
                               onClick={() => translateIncomingMessageForMatch(matchId, msg.id)}
                               disabled={blocked || translating}
                               className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-white/15 bg-white/5 text-white/85 text-xs font-semibold hover:bg-white/[0.12] disabled:opacity-60"
-                              title="Mesajı çevir"
+                              title={t('matchmakingPanel.matches.chat.translate.title')}
                             >
-                              {translating ? 'Çevriliyor…' : 'Çevir'}
+                              {translating ? t('matchmakingPanel.matches.chat.translate.translating') : t('matchmakingPanel.matches.chat.translate.cta')}
                             </button>
                           )}
 
@@ -2668,22 +2581,28 @@ export default function Panel() {
                             <div className="mt-1 text-[11px] text-rose-200/90">
                               {(() => {
                                 if (translateErr === 'translate_quota_exceeded') {
-                                  if (translateUsagePercent !== null) return `Limitinin %${translateUsagePercent}'ini kullandın. Bu ay yenilenir veya Boost/plan yükselt.`;
-                                  return 'Çeviri limitin doldu. Bu ay yenilenir veya Boost/plan yükselt.';
+                                  if (translateUsagePercent !== null) {
+                                    return t('matchmakingPanel.matches.chat.translate.errors.quotaExceededWithUsage', { usagePercent: translateUsagePercent });
+                                  }
+                                  return t('matchmakingPanel.matches.chat.translate.errors.quotaExceeded');
                                 }
                                 if (translateErr === 'chat_limit_reached') return t('matchmakingPanel.matches.chat.errors.limitReached');
-                                if (translateErr === 'translate_too_long') return 'Bu mesaj çok uzun; çeviri için kısaltılmalı.';
-                                if (translateErr === 'only_incoming') return 'Sadece gelen mesajlar çevrilebilir.';
-                                if (translateErr === 'missing_auth' || translateErr === 'invalid_auth') return 'Oturum gerekli.';
-                                if (translateErr === 'translate_not_configured') return 'Çeviri servisi ayarlı değil.';
-                                return 'Çeviri başarısız.';
+                                if (translateErr === 'translate_too_long') return t('matchmakingPanel.matches.chat.translate.errors.tooLong');
+                                if (translateErr === 'only_incoming') return t('matchmakingPanel.matches.chat.translate.errors.onlyIncoming');
+                                if (translateErr === 'missing_auth' || translateErr === 'invalid_auth') return t('matchmakingPanel.matches.chat.translate.errors.authRequired');
+                                if (translateErr === 'translate_not_configured') return t('matchmakingPanel.matches.chat.translate.errors.notConfigured');
+                                if (translateErr === 'translate_rate_limited')
+                                  return t('matchmakingPanel.matches.chat.translate.errors.rateLimited');
+                                if (translateErr === 'pii_blocked')
+                                  return t('matchmakingPanel.matches.chat.translate.errors.piiBlocked');
+                                return t('matchmakingPanel.matches.chat.translate.errors.failed');
                               })()}
                             </div>
                           ) : null}
 
                           {!translateErr && translateUsagePercent !== null && translateUsagePercent >= 70 ? (
                             <div className="mt-1 text-[11px] text-white/70">
-                              {`Limitinin %${translateUsagePercent}'ini kullandın.`}
+                              {t('matchmakingPanel.matches.chat.translate.usageWarning', { usagePercent: translateUsagePercent })}
                             </div>
                           ) : null}
                         </div>
@@ -2759,11 +2678,9 @@ export default function Panel() {
               <input
                 value={chatTextByMatchId?.[matchId] || ''}
                 onChange={(e) => {
-                  if (matchTestOpen && isMyMatchTestFinished) closeMatchTest();
                   setChatTextByMatchId((p) => ({ ...p, [matchId]: e.target.value }));
                 }}
                 onFocus={() => {
-                  if (matchTestOpen && isMyMatchTestFinished) closeMatchTest();
                 }}
                 onKeyDown={(e) => {
                   if (sendBlocked) return;
@@ -2854,28 +2771,7 @@ export default function Panel() {
             ) : null}
 
             {focusedMatch && mySide ? (
-              <div className="flex flex-col items-start">
-                {!matchTestOpen && isMyMatchTestFinished ? (
-                  <div className="mb-1 text-[11px] text-white/60">
-                    {t('matchmakingPanel.matches.matchTest.score', { points: matchTestScore.points, max: matchTestScore.maxPoints })}
-                  </div>
-                ) : null}
-                <button
-                  type="button"
-                  onClick={() =>
-                    setMatchTestUiByMatchId((p) => {
-                      const cur = p?.[matchId] && typeof p[matchId] === 'object' ? p[matchId] : {};
-                      const open = !cur.open;
-                      const idx = typeof cur.idx === 'number' && Number.isFinite(cur.idx) ? cur.idx : 0;
-                      return { ...p, [matchId]: { ...cur, open, idx } };
-                    })
-                  }
-                  data-mm-matchtest-button="1"
-                  className="px-3 py-2 rounded-full border border-white/15 bg-white/[0.04] text-white/90 text-xs font-semibold hover:bg-white/[0.08]"
-                >
-                  {t('matchmakingPanel.matches.matchTest.button')}
-                </button>
-              </div>
+              null
             ) : null}
 
             {focusedMatch && String(focusedMatch?.status || '') !== 'cancelled' ? (
@@ -2885,165 +2781,14 @@ export default function Panel() {
                 disabled={!!matchCancelById?.[matchId]?.loading}
                 className="px-3 py-2 rounded-full bg-rose-600 text-white text-xs font-semibold hover:bg-rose-700 disabled:opacity-60"
               >
-                {matchCancelById?.[matchId]?.loading ? 'İptal ediliyor…' : 'Eşleşmeyi iptal et'}
+                {matchCancelById?.[matchId]?.loading
+                  ? t('matchmakingPanel.actions.canceling')
+                  : t('matchmakingPanel.matches.interaction.cancel')}
               </button>
             ) : null}
             </div>
 
-            {focusedMatch && mySide ? (
-              (() => {
-                const ui = matchTestUi;
-                const open = !!ui.open;
-                if (!open) return null;
-
-                const items = matchTestItems;
-
-                const idx = typeof ui.idx === 'number' && Number.isFinite(ui.idx) ? ui.idx : 0;
-                const safeIdx = Math.max(0, Math.min(items.length - 1, idx));
-                const curItem = items[safeIdx];
-
-                const scoreInfo = matchTestScore;
-
-                const mineCur = String(myAnswers?.[curItem.q] || '');
-                const otherCur = String(otherAnswers?.[curItem.q] || '');
-                const bothCur = !!mineCur && !!otherCur;
-                const sameCur = bothCur && mineCur === otherCur;
-
-                const pick = async (opt) => {
-                  await saveQuickAnswer(curItem.q, opt);
-                  setMatchTestUiByMatchId((p) => {
-                    const cur = p?.[matchId] && typeof p[matchId] === 'object' ? p[matchId] : {};
-                    return { ...p, [matchId]: { ...cur, open: true, idx: Math.min(items.length - 1, safeIdx + 1) } };
-                  });
-                };
-
-                return (
-                  <div
-                    data-mm-matchtest-panel="1"
-                    className="absolute left-0 right-0 top-full mt-2 z-20 max-h-[28vh] overflow-y-auto overscroll-contain rounded-xl border border-white/10 bg-[#0b1220]/95 backdrop-blur p-3 shadow-xl"
-                    data-testid="match-test"
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className="text-sm font-semibold text-white">{t('matchmakingPanel.matches.matchTest.title')}</p>
-                      <p className="mt-1 text-xs text-white/60">{t('matchmakingPanel.matches.matchTest.lead')}</p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      {qqLoading ? <div className="text-xs text-white/60">{t('matchmakingPanel.actions.sending')}</div> : null}
-                      <div className="text-[11px] text-white/60">
-                        {t('matchmakingPanel.matches.matchTest.score', { points: scoreInfo.points, max: scoreInfo.maxPoints })}
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => setMatchTestUiByMatchId((p) => ({ ...p, [matchId]: { ...(p?.[matchId] || {}), open: false } }))}
-                        className="px-3 py-1.5 rounded-full border border-white/15 bg-white/[0.04] text-white/80 text-[11px] font-semibold hover:bg-white/[0.08]"
-                      >
-                        {t('matchmakingPanel.matches.matchTest.close')}
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="mt-3 rounded-xl border border-white/10 bg-white/[0.04] p-3">
-                    <div className="flex items-start justify-between gap-3">
-                      <p className="text-xs font-semibold text-white">
-                        {t('matchmakingPanel.matches.matchTest.questionCounter', { cur: safeIdx + 1, total: items.length })}:{' '}
-                        {t(`matchmakingPanel.matches.quickQuestions.questions.${curItem.titleKey}.title`)}
-                      </p>
-                      {otherCur ? (
-                        <span className="text-[11px] text-white/60">{t('matchmakingPanel.matches.quickQuestions.otherAnswered')}</span>
-                      ) : (
-                        <span className="text-[11px] text-white/40">{t('matchmakingPanel.matches.quickQuestions.otherNotAnswered')}</span>
-                      )}
-                    </div>
-
-                    <div className="mt-2 flex flex-wrap gap-2">
-                      {curItem.options.map((opt) => {
-                        const selected = mineCur === opt;
-                        const cls = selected
-                          ? 'bg-sky-500/15 border-sky-300/40 text-sky-100'
-                          : 'bg-white/5 border-white/10 text-white/75 hover:bg-white/[0.08]';
-                        return (
-                          <button
-                            key={opt}
-                            type="button"
-                            disabled={qqLoading}
-                            onClick={() => pick(opt)}
-                            className={`px-3 py-1.5 rounded-full border text-[11px] font-semibold ${cls}`}
-                            title={t(`matchmakingPanel.matches.quickQuestions.questions.${curItem.titleKey}.options.${opt}`)}
-                          >
-                            {t(`matchmakingPanel.matches.quickQuestions.questions.${curItem.titleKey}.options.${opt}`)}
-                          </button>
-                        );
-                      })}
-                    </div>
-
-                    {mineCur ? (
-                      <div className="mt-2 text-[11px] text-white/60">
-                        {t('matchmakingPanel.matches.quickQuestions.yourAnswer')}:{' '}
-                        <span className="font-semibold text-white/75">
-                          {t(`matchmakingPanel.matches.quickQuestions.questions.${curItem.titleKey}.options.${mineCur}`)}
-                        </span>
-                        {otherCur ? (
-                          <>
-                            <span className="mx-2 text-white/30">•</span>
-                            {t('matchmakingPanel.matches.quickQuestions.otherAnswer')}:{' '}
-                            <span className="font-semibold text-white/75">
-                              {t(`matchmakingPanel.matches.quickQuestions.questions.${curItem.titleKey}.options.${otherCur}`)}
-                            </span>
-                          </>
-                        ) : null}
-                      </div>
-                    ) : (
-                      <div className="mt-2 text-[11px] text-white/50">{t('matchmakingPanel.matches.quickQuestions.pickOne')}</div>
-                    )}
-
-                    {bothCur ? (
-                      <div
-                        className={
-                          sameCur
-                            ? 'mt-2 rounded-lg border border-emerald-300/25 bg-emerald-500/10 p-2 text-[11px] text-emerald-100'
-                            : 'mt-2 rounded-lg border border-white/10 bg-white/[0.03] p-2 text-[11px] text-white/70'
-                        }
-                      >
-                        {sameCur ? t('matchmakingPanel.matches.matchTest.sameAnswer') : t('matchmakingPanel.matches.matchTest.differentAnswer')}
-                      </div>
-                    ) : null}
-
-                    <div className="mt-3 flex items-center justify-between gap-2">
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setMatchTestUiByMatchId((p) => ({
-                            ...p,
-                            [matchId]: { ...(p?.[matchId] || {}), open: true, idx: Math.max(0, safeIdx - 1) },
-                          }))
-                        }
-                        disabled={safeIdx <= 0}
-                        className="px-3 py-1.5 rounded-full border border-white/15 bg-white/[0.04] text-white/85 text-[11px] font-semibold hover:bg-white/[0.08] disabled:opacity-50"
-                      >
-                        {t('matchmakingPanel.matches.matchTest.prev')}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setMatchTestUiByMatchId((p) => ({
-                            ...p,
-                            [matchId]: { ...(p?.[matchId] || {}), open: true, idx: Math.min(items.length - 1, safeIdx + 1) },
-                          }))
-                        }
-                        disabled={safeIdx >= items.length - 1}
-                        className="px-3 py-1.5 rounded-full border border-white/15 bg-white/[0.04] text-white/85 text-[11px] font-semibold hover:bg-white/[0.08] disabled:opacity-50"
-                      >
-                        {t('matchmakingPanel.matches.matchTest.next')}
-                      </button>
-                    </div>
-
-                    {qqError ? <div className="mt-2 text-xs text-rose-200/90">{qqError}</div> : null}
-                  </div>
-                  </div>
-                );
-              })()
-            ) : null}
+            {focusedMatch && mySide ? null : null}
           </div>
 
           {focusedMatch ? (
@@ -3078,17 +2823,18 @@ export default function Panel() {
               ) : null}
 
               <div className="mt-2 rounded-xl border border-white/10 bg-white/[0.04] p-3 text-sm text-white/85">
-                <p className="font-semibold">İletişim paylaşımı</p>
+                <p className="font-semibold">{t('matchmakingPanel.matches.contactShare.title')}</p>
                 {contactStatus === 'approved' ? (
-                  <p className="mt-1 text-white/70">İletişim bilgileri karşılıklı onayla paylaşıldı.</p>
+                  <p className="mt-1 text-white/70">{t('matchmakingPanel.matches.contactShare.approved')}</p>
                 ) : contactStatus === 'pending' ? (
-                  <p className="mt-1 text-white/70">İletişim isteği gönderildi. Karşı tarafın onayı bekleniyor.</p>
+                  <p className="mt-1 text-white/70">{t('matchmakingPanel.matches.contactShare.pending')}</p>
                 ) : contactLocked ? (
                   <p className="mt-1 text-white/70">
                     {(() => {
                       const h = Math.floor(remainingMs / 3600000);
                       const m = Math.floor((remainingMs % 3600000) / 60000);
-                      return `Telefon numaralarını paylaşmak için 48 saat site içi iletişim gerekli. Kalan süre: ${h}s ${m}dk.`;
+                      const time = formatHoursMinutesShort(h, m);
+                      return t('matchmakingPanel.matches.contactShare.lock48h', { time });
                     })()}
                   </p>
                 ) : !isConfirmed ? (
@@ -3099,11 +2845,11 @@ export default function Panel() {
                       type="button"
                       disabled={blocked || requestLoading}
                       onClick={() => requestContactShare(matchId)}
-                      className="px-4 py-2 rounded-full bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700 disabled:opacity-60"
+                      className="px-4 py-2 rounded-full bg-emerald-500 text-white text-sm font-semibold hover:bg-emerald-600 disabled:opacity-60"
                     >
-                      {requestLoading ? 'Gönderiliyor…' : 'İletişim isteği gönder'}
+                      {requestLoading ? t('matchmakingPanel.actions.sending') : t('matchmakingPanel.matches.contactShare.requestCta')}
                     </button>
-                    <p className="text-xs text-white/60">Karşı taraf onaylarsa telefon numaraları görünür.</p>
+                    <p className="text-xs text-white/60">{t('matchmakingPanel.matches.contactShare.requestHint')}</p>
                   </div>
                 )}
 
@@ -3164,8 +2910,8 @@ export default function Panel() {
               ) : null}
 
               {confirm48hModalMatchId === matchId ? (
-                <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/70 p-4">
-                  <div className="w-full max-w-md rounded-2xl border border-white/10 bg-zinc-950 p-4">
+                <div className="fixed inset-0 z-[70] flex items-start justify-center bg-black/70 p-4 pt-6 overflow-y-auto">
+                  <div className="w-full max-w-md rounded-2xl border border-white/10 bg-zinc-950 p-4 max-h-[85vh] overflow-y-auto">
                     <p className="text-sm font-semibold text-white">{t('matchmakingPanel.matches.chat.confirm48h.title')}</p>
                     <p className="mt-2 text-sm text-white/80">{t('matchmakingPanel.matches.chat.confirm48h.body')}</p>
                     <p className="mt-2 text-xs text-white/60">{t('matchmakingPanel.matches.chat.confirm48h.note')}</p>
@@ -3479,44 +3225,49 @@ export default function Panel() {
   const requestPhotoUpdate = async () => {
     if (photoUpdateAction.loading) return;
 
-    const status = String(matchmaking?.photoUpdate?.status || '').trim();
-    if (status === 'pending') {
-      setPhotoUpdateAction({ loading: false, error: t('matchmakingPanel.photos.updateRequest.pending'), success: '' });
-      return;
-    }
-
     const f1 = photoUpdateFiles.photo1;
     const f2 = photoUpdateFiles.photo2;
     const f3 = photoUpdateFiles.photo3;
 
-    if (!f1 || !f2 || !f3) {
+    if (!f1 && !f2 && !f3) {
       setPhotoUpdateAction({ loading: false, error: t('matchmakingPanel.photos.updateRequest.errors.photosRequired'), success: '' });
       return;
     }
-    if (!isImageFile(f1) || !isImageFile(f2) || !isImageFile(f3)) {
+
+    const selected = [f1, f2, f3].filter(Boolean);
+    if (selected.some((f) => !isImageFile(f))) {
       setPhotoUpdateAction({ loading: false, error: t('matchmakingPanel.photos.updateRequest.errors.photoType'), success: '' });
       return;
     }
 
     setPhotoUpdateAction({ loading: true, error: '', success: '' });
     try {
-      const up1 = await uploadImageToCloudinaryAuto(f1, {
-        folder: `matchmaking/photo-update-requests/${user?.uid || 'unknown'}`,
-        tags: ['matchmaking', 'photo-update', 'photo1'],
-      });
-      const up2 = await uploadImageToCloudinaryAuto(f2, {
-        folder: `matchmaking/photo-update-requests/${user?.uid || 'unknown'}`,
-        tags: ['matchmaking', 'photo-update', 'photo2'],
-      });
-      const up3 = await uploadImageToCloudinaryAuto(f3, {
-        folder: `matchmaking/photo-update-requests/${user?.uid || 'unknown'}`,
-        tags: ['matchmaking', 'photo-update', 'photo3'],
-      });
+      const up1 = f1
+        ? await uploadImageToCloudinaryAuto(f1, {
+            folder: `matchmaking/photo-update-requests/${user?.uid || 'unknown'}`,
+            tags: ['matchmaking', 'photo-update', 'photo1'],
+          })
+        : null;
+      const up2 = f2
+        ? await uploadImageToCloudinaryAuto(f2, {
+            folder: `matchmaking/photo-update-requests/${user?.uid || 'unknown'}`,
+            tags: ['matchmaking', 'photo-update', 'photo2'],
+          })
+        : null;
+      const up3 = f3
+        ? await uploadImageToCloudinaryAuto(f3, {
+            folder: `matchmaking/photo-update-requests/${user?.uid || 'unknown'}`,
+            tags: ['matchmaking', 'photo-update', 'photo3'],
+          })
+        : null;
 
       await authFetch('/api/matchmaking-photo-update-request', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ photoUrls: [up1.secureUrl, up2.secureUrl, up3.secureUrl] }),
+        body: JSON.stringify({
+          applicationId: matchmaking?.id || '',
+          photoUrls: [up1?.secureUrl || '', up2?.secureUrl || '', up3?.secureUrl || ''],
+        }),
       });
 
       setPhotoUpdateFiles({ photo1: null, photo2: null, photo3: null });
@@ -3524,9 +3275,7 @@ export default function Panel() {
     } catch (e) {
       const msg = String(e?.message || '').trim();
       const mapped =
-        msg === 'pending_exists'
-          ? t('matchmakingPanel.photos.updateRequest.pending')
-          : msg === 'application_not_found'
+        msg === 'application_not_found'
             ? t('matchmakingPanel.photos.updateRequest.errors.applicationNotFound')
             : msg || t('matchmakingPanel.photos.updateRequest.errors.failed');
       setPhotoUpdateAction({ loading: false, error: mapped, success: '' });
@@ -3546,14 +3295,47 @@ export default function Panel() {
     const q = query(
       collection(db, "matchmakingApplications"),
       where("userId", "==", user.uid),
-      limit(1)
+      limit(5)
     );
+
+    const pickBestApplication = (items) => {
+      const list = Array.isArray(items) ? items : [];
+      if (!list.length) return null;
+
+      const score = (a) => {
+        let s = 0;
+        const source = String(a?.source || '').toLowerCase().trim();
+        if (source && source !== 'auto_stub') s += 100;
+        if (String(a?.username || '').trim()) s += 20;
+        if (typeof a?.profileNo === 'number' && Number.isFinite(a.profileNo)) s += 10;
+        if (a?.photoUrls && Array.isArray(a.photoUrls) && a.photoUrls.length) s += 5;
+        // createdAtMs / createdAt varsa, yeni olana küçük bonus
+        const ms =
+          (typeof a?.createdAtMs === 'number' && Number.isFinite(a.createdAtMs) ? a.createdAtMs : 0) ||
+          (typeof a?.createdAt?.toMillis === 'function' ? a.createdAt.toMillis() : 0);
+        if (ms > 0) s += Math.min(3, Math.floor(ms / 1e12));
+        return s;
+      };
+
+      let best = list[0];
+      let bestScore = score(best);
+      for (let i = 1; i < list.length; i += 1) {
+        const cand = list[i];
+        const candScore = score(cand);
+        if (candScore > bestScore) {
+          best = cand;
+          bestScore = candScore;
+        }
+      }
+      return best;
+    };
 
     const unsub = onSnapshot(
       q,
       (snap) => {
-        const first = snap.docs?.[0];
-        setMatchmaking(first ? { id: first.id, ...first.data() } : null);
+        const items = (snap.docs || []).map((d) => ({ id: d.id, ...(d.data() || {}) }));
+        const best = pickBestApplication(items);
+        setMatchmaking(best || null);
         setMatchmakingLoading(false);
       },
       (err) => {
@@ -3567,7 +3349,7 @@ export default function Panel() {
 
   const whatsappNumber = useMemo(() => {
     return getWhatsAppNumber();
-  }, []);
+  }, [i18n.language]);
 
   const nationalityOptions = useMemo(
     () => [
@@ -3643,16 +3425,6 @@ export default function Panel() {
       { id: 'hindu', label: t('matchmakingPage.form.options.religion.hindu') },
       { id: 'buddhist', label: t('matchmakingPage.form.options.religion.buddhist') },
       { id: 'other', label: t('matchmakingPage.form.options.religion.other') },
-    ],
-    [t, i18n.language]
-  );
-
-  const livingCountryOptions = useMemo(
-    () => [
-      { id: '', label: t('matchmakingPage.form.options.common.select') },
-      { id: 'tr', label: t('matchmakingPage.form.options.livingCountry.tr') },
-      { id: 'id', label: t('matchmakingPage.form.options.livingCountry.id') },
-      { id: 'doesnt_matter', label: t('matchmakingPage.form.options.common.doesntMatter') },
     ],
     [t, i18n.language]
   );
@@ -3783,7 +3555,8 @@ export default function Panel() {
   }, [matchmaking?.id, user?.displayName, user?.email]);
 
   const openWhatsApp = (text) => {
-    const url = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(text)}`;
+    const url = buildWhatsAppUrl(text, { lang: String(i18n?.language || 'tr') });
+    if (!url) return;
     window.open(url, "_blank", "noopener,noreferrer");
   };
 
@@ -3814,6 +3587,8 @@ export default function Panel() {
       const mapped =
         msg === 'edit_once_used'
           ? t('matchmakingPanel.profileForm.editOnceUsed')
+          : msg === 'profile_text_pii_blocked'
+            ? t('matchmakingPage.form.errors.profileTextPII')
           : msg === 'application_not_found'
             ? t('matchmakingPanel.profileForm.editOnceErrors.notFound')
             : msg === 'empty_update'
@@ -3827,6 +3602,22 @@ export default function Panel() {
   return (
     <div className="min-h-screen bg-[#050814] text-white relative" data-testid="matchmaking-panel">
       <Navigation />
+
+      {studioUiEnabled ? (
+        <div className="mx-auto max-w-7xl px-4 mt-4">
+          <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+            <div className="text-sm text-white/80">
+              {t('matchmakingPanel.studioBanner.text')}
+            </div>
+            <Link
+              to="/profilim"
+              className="inline-flex items-center justify-center rounded-full bg-emerald-500 px-4 py-2 text-sm font-semibold text-slate-950 hover:brightness-110 transition"
+            >
+              {t('matchmakingPanel.actions.goToStudio')}
+            </Link>
+          </div>
+        </div>
+      ) : null}
 
       {membershipModalOpen ? (
         <div className="fixed inset-0 z-50 flex items-start justify-center p-4 overflow-y-auto overscroll-contain">
@@ -3873,7 +3664,7 @@ export default function Panel() {
                       onChange={(e) => setMembershipDeleteTyped(e.target.value)}
                       disabled={membershipModalAction.loading}
                       className="mt-3 w-full px-4 py-2 rounded-xl border border-white/10 bg-white/5 text-white placeholder:text-white/40 outline-none focus:ring-2 focus:ring-white/20"
-                      placeholder="hesabımı sil"
+                      placeholder={deleteConfirmPhrase}
                     />
                     <div className="mt-3 grid grid-cols-2 gap-2">
                       <button
@@ -3922,276 +3713,10 @@ export default function Panel() {
               <div className="mt-4 grid grid-cols-1 gap-2">
                 {!myMembership.active ? (
                   <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-3">
-                    {!membershipPayment.open ? (
-                      <>
-                        <p className="text-sm font-semibold text-white">{t('matchmakingPanel.matches.payment.package')}</p>
-                        <p className="mt-1 text-xs text-white/65">{t('matchmakingPanel.matches.subtitle')}</p>
-
-                        <div className="mt-3 grid grid-cols-1 gap-2">
-                          {[
-                            {
-                              tier: 'eco',
-                              title: t('matchmakingPanel.matches.payment.packageEco'),
-                              monthlyTranslate: 200,
-                              maxCandidates: 3,
-                              badge: t('matchmakingPanel.matches.payment.badgeValue'),
-                              description: t('matchmakingPanel.matches.payment.descEco'),
-                              sponsoredText: t('matchmakingPanel.matches.payment.sponsoredIfOther'),
-                            },
-                            {
-                              tier: 'standard',
-                              title: t('matchmakingPanel.matches.payment.packageStandard'),
-                              monthlyTranslate: 400,
-                              maxCandidates: 5,
-                              badge: t('matchmakingPanel.matches.payment.badgePopular'),
-                              description: t('matchmakingPanel.matches.payment.descStandard'),
-                              sponsoredText: t('matchmakingPanel.matches.payment.sponsorsOthers'),
-                            },
-                            {
-                              tier: 'pro',
-                              title: t('matchmakingPanel.matches.payment.packagePro'),
-                              monthlyTranslate: 1000,
-                              maxCandidates: 10,
-                              badge: t('matchmakingPanel.matches.payment.badgePro'),
-                              description: t('matchmakingPanel.matches.payment.descPro'),
-                              sponsoredText: t('matchmakingPanel.matches.payment.sponsorsOthers'),
-                            },
-                          ].map((p) => {
-                            const est = translationCostEstimator?.estimateUsdForMonthlyMessages?.(p.monthlyTranslate);
-                            const isEcoPromo = membershipPromoActive && p.tier === 'eco';
-                            return (
-                              <button
-                                key={p.tier}
-                                type="button"
-                                onClick={() => (isEcoPromo ? activateFreeMembershipNow() : openMembershipPayment(p.tier))}
-                                disabled={membershipModalAction.loading}
-                                className="w-full text-left rounded-2xl border border-white/15 bg-white/5 hover:bg-white/[0.12] disabled:opacity-60 p-4"
-                              >
-                                <div className="flex items-start justify-between gap-3">
-                                  <div>
-                                    <div className="flex items-center gap-2">
-                                      <p className="text-sm font-bold text-white">{p.title}</p>
-                                      {p.badge ? (
-                                        <span className="text-[11px] px-2 py-0.5 rounded-full border border-white/10 bg-white/10 text-white/80">
-                                          {p.badge}
-                                        </span>
-                                      ) : null}
-                                    </div>
-                                    {p.description ? <p className="mt-1 text-xs text-white/65">{p.description}</p> : null}
-                                  </div>
-                                  <div className="text-right">
-                                    {isEcoPromo ? (
-                                      <>
-                                        <p className="text-sm font-bold text-emerald-200">Ücretsiz</p>
-                                        <p className="mt-0.5 text-[11px] text-white/55">10 Şubat'a kadar</p>
-                                      </>
-                                    ) : (
-                                      <>
-                                        <p className="text-sm font-bold text-white">{getTierPrice('USD', p.tier)} USD</p>
-                                        <p className="mt-0.5 text-[11px] text-white/55">{t('matchmakingPanel.matches.payment.perMonth')}</p>
-                                      </>
-                                    )}
-                                  </div>
-                                </div>
-
-                                <ul className="mt-3 space-y-1.5 text-xs text-white/75">
-                                  <li>• {t('matchmakingPanel.matches.payment.featureMaxCandidates', { count: p.maxCandidates })}</li>
-                                  <li>• {t('matchmakingPanel.matches.payment.featureTranslateMonthly', { count: p.monthlyTranslate })}</li>
-                                  <li>• {p.sponsoredText}</li>
-                                  <li>• {t('matchmakingPanel.matches.payment.feature48hLock')}</li>
-                                </ul>
-
-                                {typeof est === 'number' ? (
-                                  <p className="mt-3 text-[11px] text-white/55">
-                                    {t('matchmakingPanel.matches.payment.translationCostEstimate', { amount: est })}
-                                  </p>
-                                ) : null}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </>
-                    ) : (
-                      <>
-                        <div className="flex items-start justify-between gap-3">
-                          <div>
-                            <p className="text-sm font-semibold text-white">{t('matchmakingPanel.matches.payment.reportTitle')}</p>
-                            <p className="mt-1 text-xs text-white/65">Paket: <span className="font-semibold">{String(membershipPayment.tier || '').toUpperCase()}</span></p>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={closeMembershipPayment}
-                            disabled={membershipPayment.loading || membershipReceiptUpload.loading}
-                            className="shrink-0 px-3 py-2 rounded-full border border-white/10 bg-white/5 text-white/80 text-xs font-semibold hover:bg-white/[0.12] disabled:opacity-60"
-                          >
-                            {t('common.close')}
-                          </button>
-                        </div>
-
-                        <div className="mt-3 grid grid-cols-1 gap-3">
-                          <div>
-                            <label className="block text-xs font-semibold text-white/80">{t('matchmakingPanel.matches.payment.currency')}</label>
-                            <select
-                              value={membershipPaymentForm.currency}
-                              onChange={(e) => {
-                                const nextCurrency = e.target.value;
-                                setMembershipPaymentForm((p) => ({
-                                  ...p,
-                                  currency: nextCurrency,
-                                  method: normalizePaymentMethodForCurrency(nextCurrency, p.method),
-                                }));
-                              }}
-                              disabled={membershipPayment.loading}
-                              className="mt-1 w-full px-3 py-2 rounded-xl border border-white/10 bg-white text-slate-900 text-sm outline-none focus:ring-2 focus:ring-white/20"
-                            >
-                              <option value="USD">{t('matchmakingPanel.matches.payment.currencyUSD')}</option>
-                              <option value="TRY">{t('matchmakingPanel.matches.payment.currencyTRY')}</option>
-                              <option value="IDR">{t('matchmakingPanel.matches.payment.currencyIDR')}</option>
-                            </select>
-                          </div>
-
-                          <div>
-                            <label className="block text-xs font-semibold text-white/80">{t('matchmakingPanel.matches.payment.method')}</label>
-                            <select
-                              value={membershipPaymentForm.method}
-                              onChange={(e) => setMembershipPaymentForm((p) => ({ ...p, method: e.target.value }))}
-                              disabled={membershipPayment.loading}
-                              className="mt-1 w-full px-3 py-2 rounded-xl border border-white/10 bg-white text-slate-900 text-sm outline-none focus:ring-2 focus:ring-white/20"
-                            >
-                              {renderPaymentMethodOptions(membershipPaymentForm.currency)}
-                            </select>
-                          </div>
-
-                          <div>
-                            <label className="block text-xs font-semibold text-white/80">{t('matchmakingPanel.matches.payment.reference')}</label>
-                            <div className="mt-1 flex items-stretch gap-2">
-                              <input
-                                type="text"
-                                value={paymentReferenceText || '-'}
-                                readOnly
-                                className="w-full px-3 py-2 rounded-xl border border-white/10 bg-white text-slate-900 text-sm outline-none"
-                              />
-                              <button
-                                type="button"
-                                onClick={() => copyToClipboard(paymentReferenceText)}
-                                disabled={!paymentReferenceText || membershipPayment.loading}
-                                className="shrink-0 px-3 py-2 rounded-xl border border-white/10 bg-white/10 text-white/85 text-xs font-semibold hover:bg-white/[0.16] disabled:opacity-60"
-                              >
-                                Kopyala
-                              </button>
-                            </div>
-                            <p className="mt-2 text-[11px] text-white/60">
-                              Ödeme yaparken açıklama/ref. kısmına bu <span className="font-semibold">MK kullanıcı kodunu</span> aynen yazın.
-                            </p>
-                          </div>
-
-                          <div>
-                            <label className="block text-xs font-semibold text-white/80">{t('matchmakingPanel.matches.payment.note')}</label>
-                            <div className="mt-1 rounded-xl border border-amber-300/30 bg-amber-500/10 p-3 text-amber-100 text-xs">
-                              {(membershipPaymentForm.method === 'eft_fast' || membershipPaymentForm.method === 'swift_wise') ? (
-                                <div className="space-y-2">
-                                  <p>
-                                    EFT/Havale (veya Wise/SWIFT) gönderirken bankanın “Açıklama / Reference” alanına yukarıdaki <span className="font-semibold">MK kullanıcı kodunu</span>
-                                    <span className="font-semibold"> tam olarak</span> yazmanız gerekiyor.
-                                  </p>
-                                  {membershipPaymentForm.method === 'eft_fast' ? (
-                                    <p className="text-amber-100/90">
-                                      EFT/FAST seçeneği ile ödemeler şirketimiz adına yetkili kişinin Türkiye hesabına yapılmaktadır.
-                                    </p>
-                                  ) : null}
-                                </div>
-                              ) : (
-                                <p>
-                                  Ödeme yöntemine göre açıklama alanı gerekmeyebilir. Yine de yukarıdaki referans bilgisini saklayın.
-                                </p>
-                              )}
-                            </div>
-                          </div>
-
-                          <div>
-                            <label className="block text-xs font-semibold text-white/80">{t('matchmakingPanel.matches.payment.receipt')}</label>
-                            <div className="mt-2 flex flex-col gap-2">
-                              <label className="inline-flex items-center gap-2 text-xs text-white/80">
-                                <input
-                                  type="radio"
-                                  checked={membershipPaymentForm.receiptVia === 'upload'}
-                                  onChange={() => setMembershipPaymentForm((p) => ({ ...p, receiptVia: 'upload' }))}
-                                  disabled={membershipPayment.loading}
-                                />
-                                Dekont yükle
-                              </label>
-                              <label className="inline-flex items-center gap-2 text-xs text-white/80">
-                                <input
-                                  type="radio"
-                                  checked={membershipPaymentForm.receiptVia === 'whatsapp'}
-                                  onChange={() => setMembershipPaymentForm((p) => ({ ...p, receiptVia: 'whatsapp', receiptUrl: '' }))}
-                                  disabled={membershipPayment.loading}
-                                />
-                                Dekontu WhatsApp’tan göndereceğim
-                              </label>
-                            </div>
-
-                            {membershipPaymentForm.receiptVia === 'upload' ? (
-                              <div className="mt-2">
-                                <input
-                                  type="file"
-                                  accept="image/*"
-                                  className="block w-full text-xs text-white/80 file:mr-3 file:rounded-lg file:border-0 file:bg-white/10 file:px-3 file:py-2 file:text-xs file:font-semibold file:text-white/90 hover:file:bg-white/15"
-                                  onChange={(e) => uploadMembershipReceipt(e.target.files?.[0] || null)}
-                                  disabled={membershipPayment.loading || membershipReceiptUpload.loading}
-                                />
-                                {membershipPaymentForm.receiptUrl ? (
-                                  <a
-                                    href={membershipPaymentForm.receiptUrl}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="mt-2 inline-flex items-center text-xs text-emerald-200 underline"
-                                  >
-                                    {t('matchmakingPanel.matches.payment.viewReceipt')}
-                                  </a>
-                                ) : null}
-                              </div>
-                            ) : null}
-
-                            {membershipReceiptUpload.error ? (
-                              <div className="mt-2 rounded-lg border border-rose-300/30 bg-rose-500/10 p-2 text-rose-100 text-xs">
-                                {membershipReceiptUpload.error}
-                              </div>
-                            ) : null}
-                            {membershipReceiptUpload.loading ? (
-                              <div className="mt-2 rounded-lg border border-white/10 bg-white/[0.04] p-2 text-white/60 text-xs">
-                                {t('matchmakingPanel.matches.payment.uploadingReceipt')}
-                              </div>
-                            ) : null}
-
-                            {membershipPayment.error ? (
-                              <div className="mt-2 rounded-lg border border-rose-300/30 bg-rose-500/10 p-2 text-rose-100 text-xs">
-                                {membershipPayment.error}
-                              </div>
-                            ) : null}
-                            {membershipPayment.success ? (
-                              <div className="mt-2 rounded-lg border border-emerald-300/30 bg-emerald-500/10 p-2 text-emerald-100 text-xs">
-                                {membershipPayment.success}
-                                {membershipPayment.paymentId ? (
-                                  <div className="mt-1 text-[11px] text-emerald-100/90 break-words">paymentId: {membershipPayment.paymentId}</div>
-                                ) : null}
-                              </div>
-                            ) : null}
-                          </div>
-
-                          <button
-                            type="button"
-                            onClick={submitMembershipPayment}
-                            disabled={membershipPayment.loading || membershipReceiptUpload.loading}
-                            className="w-full px-4 py-2 rounded-full bg-emerald-700 text-white text-sm font-semibold hover:bg-emerald-800 disabled:opacity-60"
-                          >
-                            {membershipPayment.loading
-                              ? t('matchmakingPanel.actions.sending')
-                              : t('matchmakingPanel.matches.payment.sendPayment', { amount: getTierPrice(membershipPaymentForm.currency, membershipPayment.tier), currency: membershipPaymentForm.currency })}
-                          </button>
-                        </div>
-                      </>
-                    )}
+                    <div className="rounded-2xl border border-emerald-300/20 bg-emerald-500/10 p-4">
+                      <p className="text-sm font-semibold text-white">{t('matchmakingPanel.membershipModal.freeNowTitle')}</p>
+                      <p className="mt-1 text-xs text-white/70 whitespace-pre-line">{t('matchmakingPanel.membershipModal.freeNowBody')}</p>
+                    </div>
                   </div>
                 ) : null}
 
@@ -4253,7 +3778,7 @@ export default function Panel() {
               <button
                 type="button"
                 onClick={handleLogout}
-                className="w-full sm:w-48 h-8 inline-flex items-center justify-start text-left whitespace-nowrap px-3 rounded-full bg-gradient-to-r from-rose-600 to-rose-500 text-white text-xs font-extrabold tracking-wide shadow-[0_14px_45px_rgba(244,63,94,0.35)] ring-1 ring-rose-200/20 hover:from-rose-500 hover:to-rose-500 transition"
+                className="app-btn app-btn-logout w-full sm:w-48 justify-start"
               >
                 {t('matchmakingPanel.actions.logout')}
               </button>
@@ -4261,7 +3786,7 @@ export default function Panel() {
               {!matchmakingLoading ? (
                 !matchmaking ? (
                   <Link
-                    to="/evlilik/eslestirme-basvuru"
+                    to="/evlilik/eslestirme-basvuru?w=1"
                     className="w-full sm:w-56 h-9 inline-flex items-center justify-start text-left whitespace-nowrap px-3 rounded-full bg-gradient-to-r from-sky-500/20 to-indigo-500/10 text-sky-100 text-sm font-extrabold tracking-wide ring-1 ring-sky-300/25 shadow-[0_14px_45px_rgba(0,0,0,0.45)] hover:from-sky-500/28 hover:to-indigo-500/16 transition"
                   >
                     {t('matchmakingPanel.actions.profileForm')}
@@ -4429,18 +3954,28 @@ export default function Panel() {
                         const extraPersonalRows = filterEmptyRows([
                           { label: t('matchmakingPage.form.labels.height'), value: formatMaybeValue(d?.heightCm, ' cm') },
                           { label: t('matchmakingPage.form.labels.weight'), value: formatMaybeValue(d?.weightKg, ' kg') },
-                          { label: t('matchmakingPage.form.labels.educationDepartment'), value: formatMaybeValue(d?.educationDepartment) },
+                          {
+                            label: t('matchmakingPage.form.labels.educationDepartment'),
+                            value: formatMaybeValue(getLocalizedProfileText(d, 'educationDepartment', i18n.language) || d?.educationDepartment),
+                          },
                           { label: t('matchmakingPage.form.labels.hasChildren'), value: formatMaybeValue(tYesNoCommon(d?.hasChildren) || d?.hasChildren) },
                           { label: t('matchmakingPage.form.labels.childrenCount'), value: formatMaybeValue(d?.childrenCount) },
                           { label: t('matchmakingPage.form.labels.incomeLevel'), value: formatMaybeValue(tOption('income', d?.incomeLevel) || d?.incomeLevel) },
                           { label: t('matchmakingPage.form.labels.religion'), value: formatMaybeValue(tOption('religion', d?.religion) || d?.religion) },
-                          { label: t('matchmakingPage.form.labels.religiousValues'), value: formatMaybeValue(d?.religiousValues) },
+                          {
+                            label: t('matchmakingPage.form.labels.religiousValues'),
+                            value: formatMaybeValue(
+                              getLocalizedProfileText(d, 'religiousValues', i18n.language) ||
+                                tOption('religiousValues', d?.religiousValues) ||
+                                d?.religiousValues
+                            ),
+                          },
                           { label: t('matchmakingPage.form.labels.familyApprovalStatus'), value: formatMaybeValue(tOption('familyApproval', d?.familyApprovalStatus) || d?.familyApprovalStatus) },
                           { label: t('matchmakingPage.form.labels.marriageTimeline'), value: formatMaybeValue(tOption('timeline', d?.marriageTimeline) || d?.marriageTimeline) },
                           { label: t('matchmakingPage.form.labels.relocationWillingness'), value: formatMaybeValue(tYesNoCommon(d?.relocationWillingness) || d?.relocationWillingness) },
                           { label: t('matchmakingPage.form.labels.preferredLivingCountry'), value: formatMaybeValue(tOption('livingCountry', d?.preferredLivingCountry) || d?.preferredLivingCountry) },
                           { label: t('matchmakingPage.form.labels.communicationLanguages'), value: formatMaybeValue(tOption('commLanguage', d?.communicationLanguage) || d?.communicationLanguage) },
-                          { label: t('matchmakingPage.form.labels.foreignLanguages'), value: formatMaybeValue(formatLanguagesSummary(d?.languages)) },
+                          { label: t('matchmakingPage.form.labels.foreignLanguages'), value: formatMaybeValue(formatLanguagesSummaryFromDetails(d)) },
                           { label: t('matchmakingPage.form.labels.smoking'), value: formatMaybeValue(tYesNoCommon(d?.smoking) || d?.smoking) },
                           { label: t('matchmakingPage.form.labels.alcohol'), value: formatMaybeValue(tYesNoCommon(d?.alcohol) || d?.alcohol) },
                         ]);
@@ -4499,17 +4034,23 @@ export default function Panel() {
                       <div className="grid grid-cols-1 gap-3">
                         <div>
                           <p className="text-xs text-white/60">{t('matchmakingPage.form.labels.about')}</p>
-                          <p className="text-sm text-white/80 whitespace-pre-wrap">{matchmaking?.about || '-'}</p>
+                          <p className="text-sm text-white/80 whitespace-pre-wrap">{getLocalizedProfileText(matchmaking, 'about', i18n.language) || '-'}</p>
                         </div>
                         <div>
                           <p className="text-xs text-white/60">{t('matchmakingPage.form.labels.expectations')}</p>
-                          <p className="text-sm text-white/80 whitespace-pre-wrap">{matchmaking?.expectations || '-'}</p>
+                          <p className="text-sm text-white/80 whitespace-pre-wrap">{getLocalizedProfileText(matchmaking, 'expectations', i18n.language) || '-'}</p>
                         </div>
                       </div>
 
                       <div className="pt-3 border-t border-white/10">
                         <p className="text-xs font-semibold text-white">{t('matchmakingPanel.profileForm.editOnceTitle')}</p>
                         <p className="mt-1 text-xs text-white/60">{t('matchmakingPanel.profileForm.editOnceLead')}</p>
+
+                        {!matchmaking?.userEditOnceUsedAt ? (
+                          <div className="mt-2 rounded-lg border border-amber-300/30 bg-amber-500/10 p-2 text-amber-100 text-xs">
+                            {t('matchmakingPanel.profileForm.editOnceWarning')}
+                          </div>
+                        ) : null}
 
                         {matchmaking?.userEditOnceUsedAt ? (
                           <div className="mt-2 rounded-lg border border-amber-300/30 bg-amber-500/10 p-2 text-amber-100 text-xs">
@@ -4866,7 +4407,7 @@ export default function Panel() {
 
                             <label className="text-xs text-white/70">
                               {t('matchmakingPage.form.labels.partnerLivingCountry')}
-                              <select
+                              <input
                                 value={editOnceForm?.partnerPreferences?.livingCountry || ''}
                                 onChange={(e) =>
                                   setEditOnceForm((p) => ({
@@ -4875,13 +4416,8 @@ export default function Panel() {
                                   }))
                                 }
                                 className="mt-1 w-full rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-sm text-white"
-                              >
-                                {livingCountryOptions.map((o) => (
-                                  <option key={o.id} value={o.id}>
-                                    {o.label}
-                                  </option>
-                                ))}
-                              </select>
+                                placeholder={t('matchmakingPage.form.placeholders.country')}
+                              />
                             </label>
 
                             <label className="text-xs text-white/70">
@@ -5086,6 +4622,12 @@ export default function Panel() {
                   ) : null}
                 </button>
 
+                {!matchmakingMatchesLoading && matchmakingMatchesError ? (
+                  <div className="w-full sm:w-56 rounded-2xl border border-rose-500/25 bg-rose-500/10 px-3 py-2 text-[11px] font-semibold text-rose-100">
+                    {t('studio.errors.generic')}: {matchmakingMatchesError}
+                  </div>
+                ) : null}
+
                 {!myIdentityVerified ? (
                   <button
                     type="button"
@@ -5120,6 +4662,7 @@ export default function Panel() {
 
                     {(() => {
                       const st = String(matchmakingUser?.identityVerification?.status || '').toLowerCase().trim();
+                      const method = String(matchmakingUser?.identityVerification?.method || '').toLowerCase().trim();
                       const ref = String(matchmakingUser?.identityVerification?.referenceCode || '').trim();
                       const files = matchmakingUser?.identityVerification?.files || null;
                       const hasFiles = !!(
@@ -5127,13 +4670,62 @@ export default function Panel() {
                         String(files?.idBackUrl || '').trim() ||
                         String(files?.selfieUrl || '').trim()
                       );
+                      const pendingAny = st === 'pending';
                       const pendingWithFiles = st === 'pending' && hasFiles;
+                      const pendingHint =
+                        pendingAny && method === 'whatsapp'
+                          ? t('matchmakingPanel.verification.selfieVideo.pendingHint')
+                          : pendingAny && method === 'social'
+                            ? t('matchmakingPanel.verification.social.pendingHint')
+                            : t('matchmakingPanel.verification.pendingHint');
 
                       return (
                         <div className="mt-3">
+                          <div className="rounded-xl border border-white/10 bg-white/[0.03] p-2">
+                            <div className="grid grid-cols-2 gap-2">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setSocialVerificationAction({ loading: false, error: '', success: '' });
+                                  setIdentityVerificationMode('selfie_video');
+                                }}
+                                disabled={pendingAny || socialVerificationAction.loading || verificationAction.loading}
+                                className={
+                                  "px-3 py-2 rounded-xl text-xs font-semibold border transition " +
+                                  (identityVerificationMode === 'selfie_video'
+                                    ? 'bg-white/15 border-white/15 text-white'
+                                    : 'bg-transparent border-white/10 text-white/75 hover:bg-white/10')
+                                }
+                              >
+                                {t('matchmakingPanel.verification.tabs.selfieVideo')}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setSocialVerificationAction({ loading: false, error: '', success: '' });
+                                  setIdentityVerificationMode('social');
+                                }}
+                                disabled={pendingAny || socialVerificationAction.loading || verificationAction.loading}
+                                className={
+                                  "px-3 py-2 rounded-xl text-xs font-semibold border transition " +
+                                  (identityVerificationMode === 'social'
+                                    ? 'bg-white/15 border-white/15 text-white'
+                                    : 'bg-transparent border-white/10 text-white/75 hover:bg-white/10')
+                                }
+                              >
+                                {t('matchmakingPanel.verification.tabs.social')}
+                              </button>
+                            </div>
+                            {pendingAny ? (
+                              <p className="mt-2 text-[11px] text-white/60">
+                                Başvurunuz inceleniyor. Yöntem: <span className="font-semibold text-white/80">{method || '-'}</span>
+                              </p>
+                            ) : null}
+                          </div>
+
                           {st === 'pending' ? (
                             <div className="rounded-xl border border-amber-300/30 bg-amber-500/10 p-3">
-                              <p className="text-xs font-semibold text-amber-100">{t('matchmakingPanel.verification.manualUpload.pendingHint')}</p>
+                              <p className="text-xs font-semibold text-amber-100">{pendingHint}</p>
                               {ref ? (
                                 <p className="mt-1 text-xs text-white/70">
                                   {t('matchmakingPanel.verification.referenceCode')}: <span className="font-mono">{ref}</span>
@@ -5142,80 +4734,92 @@ export default function Panel() {
                             </div>
                           ) : null}
 
-                          <p className="mt-3 text-xs font-semibold text-white/90">{t('matchmakingPanel.verification.manualUpload.title')}</p>
-                          <p className="mt-1 text-xs text-white/60">{t('matchmakingPanel.verification.manualUpload.lead')}</p>
+                          {identityVerificationMode === 'selfie_video' ? (
+                            <div className="mt-3">
+                              <p className="text-xs font-semibold text-white/90">{t('matchmakingPanel.verification.selfieVideo.title')}</p>
+                              <p className="mt-1 text-xs text-white/60">{t('matchmakingPanel.verification.selfieVideo.lead')}</p>
 
-                          <div className="mt-3 space-y-3">
-                            <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
-                              <p className="text-xs font-semibold text-white/80">{t('matchmakingPanel.verification.manualUpload.idFrontLabel')}</p>
-                              <input
-                                type="file"
-                                accept="image/*"
-                                className="mt-2 block w-full text-xs text-white/80 file:mr-3 file:rounded-lg file:border-0 file:bg-white/10 file:px-3 file:py-2 file:text-xs file:font-semibold file:text-white/90 hover:file:bg-white/15"
-                                onChange={(e) => setManualVerificationFiles((p) => ({ ...p, idFront: e.target.files?.[0] || null }))}
-                                disabled={pendingWithFiles || manualVerificationAction.loading}
-                              />
-                              <p className="mt-2 text-[11px] text-white/60 break-words">
-                                {manualVerificationFiles?.idFront?.name || t('matchmakingPage.form.photo.noFileChosen')}
-                              </p>
+                              {verificationAction.error ? (
+                                <div className="mt-3 rounded-lg border border-rose-300/30 bg-rose-500/10 p-2 text-rose-100 text-xs">
+                                  {verificationAction.error}
+                                </div>
+                              ) : null}
+
+                              <button
+                                type="button"
+                                onClick={startWhatsAppCallVerification}
+                                disabled={verificationAction.loading || pendingAny || !whatsappNumber}
+                                className="mt-3 inline-flex items-center justify-center w-full px-3 py-2 rounded-full bg-emerald-300 text-slate-950 text-sm font-semibold hover:bg-emerald-200 disabled:opacity-60"
+                              >
+                                {verificationAction.loading ? 'Hazırlanıyor…' : (pendingAny ? 'Beklemede' : 'WhatsApp\'ı aç')}
+                              </button>
+
+                              {!whatsappNumber ? (
+                                <p className="mt-2 text-[11px] text-white/60">WhatsApp hattı şu an yapılandırılmamış görünüyor.</p>
+                              ) : null}
+
+                              {verificationAction?.result?.referenceCode ? (
+                                <p className="mt-2 text-[11px] text-white/65">
+                                  Referans kodu: <span className="font-mono">{String(verificationAction.result.referenceCode || '')}</span>
+                                </p>
+                              ) : null}
                             </div>
+                          ) : (
+                            <>
+                              <div className="mt-3">
+                                <p className="text-xs font-semibold text-white/90">{t('matchmakingPanel.verification.social.title')}</p>
+                                <p className="mt-1 text-xs text-white/60">{t('matchmakingPanel.verification.social.lead')}</p>
 
-                            <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
-                              <p className="text-xs font-semibold text-white/80">{t('matchmakingPanel.verification.manualUpload.idBackLabel')}</p>
-                              <input
-                                type="file"
-                                accept="image/*"
-                                className="mt-2 block w-full text-xs text-white/80 file:mr-3 file:rounded-lg file:border-0 file:bg-white/10 file:px-3 file:py-2 file:text-xs file:font-semibold file:text-white/90 hover:file:bg-white/15"
-                                onChange={(e) => setManualVerificationFiles((p) => ({ ...p, idBack: e.target.files?.[0] || null }))}
-                                disabled={pendingWithFiles || manualVerificationAction.loading}
-                              />
-                              <p className="mt-2 text-[11px] text-white/60 break-words">
-                                {manualVerificationFiles?.idBack?.name || t('matchmakingPage.form.photo.noFileChosen')}
-                              </p>
-                            </div>
+                                <div className="mt-3 space-y-2">
+                                  <label className="block text-[11px] text-white/70">
+                                    {t('matchmakingPanel.verification.social.platformLabel')}
+                                    <select
+                                      value={socialVerification.platform}
+                                      onChange={(e) => setSocialVerification((p) => ({ ...(p || {}), platform: e.target.value }))}
+                                      disabled={pendingAny || socialVerificationAction.loading}
+                                      className="mt-1 w-full rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-sm text-white"
+                                    >
+                                      <option value="instagram">Instagram</option>
+                                      <option value="tiktok">TikTok</option>
+                                      <option value="youtube">YouTube</option>
+                                      <option value="facebook">Facebook</option>
+                                    </select>
+                                  </label>
 
-                            <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
-                              <p className="text-xs font-semibold text-white/80">{t('matchmakingPanel.verification.manualUpload.selfieLabel')}</p>
-                              <input
-                                type="file"
-                                accept="image/*"
-                                className="mt-2 block w-full text-xs text-white/80 file:mr-3 file:rounded-lg file:border-0 file:bg-white/10 file:px-3 file:py-2 file:text-xs file:font-semibold file:text-white/90 hover:file:bg-white/15"
-                                onChange={(e) => setManualVerificationFiles((p) => ({ ...p, selfie: e.target.files?.[0] || null }))}
-                                disabled={pendingWithFiles || manualVerificationAction.loading}
-                              />
-                              <p className="mt-2 text-[11px] text-white/60 break-words">
-                                {manualVerificationFiles?.selfie?.name || t('matchmakingPage.form.photo.noFileChosen')}
-                              </p>
-                            </div>
-                          </div>
+                                  <label className="block text-[11px] text-white/70">
+                                    {t('matchmakingPanel.verification.social.usernameLabel')}
+                                    <input
+                                      value={socialVerification.username}
+                                      onChange={(e) => setSocialVerification((p) => ({ ...(p || {}), username: e.target.value }))}
+                                      disabled={pendingAny || socialVerificationAction.loading}
+                                      className="mt-1 w-full rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-white/40"
+                                      placeholder="ornek_kullanici"
+                                    />
+                                  </label>
+                                </div>
 
-                          {manualVerificationAction.error ? (
-                            <div className="mt-3 rounded-lg border border-rose-300/30 bg-rose-500/10 p-2 text-rose-100 text-xs">
-                              {manualVerificationAction.error}
-                            </div>
-                          ) : null}
-                          {manualVerificationAction.success ? (
-                            <div className="mt-3 rounded-lg border border-emerald-300/30 bg-emerald-500/10 p-2 text-emerald-100 text-xs">
-                              {manualVerificationAction.success}
-                            </div>
-                          ) : null}
+                                {socialVerificationAction.error ? (
+                                  <div className="mt-3 rounded-lg border border-rose-300/30 bg-rose-500/10 p-2 text-rose-100 text-xs">
+                                    {socialVerificationAction.error}
+                                  </div>
+                                ) : null}
+                                {socialVerificationAction.success ? (
+                                  <div className="mt-3 rounded-lg border border-emerald-300/30 bg-emerald-500/10 p-2 text-emerald-100 text-xs">
+                                    {socialVerificationAction.success}
+                                  </div>
+                                ) : null}
 
-                          {(pendingWithFiles || !!manualVerificationAction.success) ? (
-                            <p className="mt-2 text-[11px] text-white/65">
-                              {t('matchmakingPanel.verification.manualUpload.reviewNote')}
-                            </p>
-                          ) : null}
-
-                          <button
-                            type="button"
-                            onClick={submitManualVerification}
-                            disabled={pendingWithFiles || manualVerificationAction.loading}
-                            className="mt-3 inline-flex items-center justify-center w-full px-3 py-2 rounded-full bg-white/10 border border-white/10 text-white/90 text-sm font-semibold hover:bg-white/[0.16] disabled:opacity-60"
-                          >
-                            {manualVerificationAction.loading
-                              ? t('matchmakingPanel.verification.manualUpload.uploading')
-                              : t('matchmakingPanel.verification.manualUpload.submit')}
-                          </button>
+                                <button
+                                  type="button"
+                                  onClick={submitSocialVerification}
+                                  disabled={pendingAny || socialVerificationAction.loading}
+                                  className="mt-3 inline-flex items-center justify-center w-full px-3 py-2 rounded-full bg-white/10 border border-white/10 text-white/90 text-sm font-semibold hover:bg-white/[0.16] disabled:opacity-60"
+                                >
+                                  {socialVerificationAction.loading ? t('matchmakingPanel.actions.sending') : t('matchmakingPanel.verification.social.submit')}
+                                </button>
+                              </div>
+                            </>
+                          )}
                         </div>
                       );
                     })()}
@@ -5226,10 +4830,6 @@ export default function Panel() {
                 <button
                   type="button"
                   onClick={() => {
-                    if (!myMembership.active && membershipPromoActive) {
-                      activateFreeMembershipNow();
-                      return;
-                    }
                     openMembershipModal();
                   }}
                   disabled={membershipModalAction.loading}
@@ -5242,25 +4842,8 @@ export default function Panel() {
                 >
                   {myMembership.active
                     ? t('matchmakingPanel.membershipModal.open')
-                    : (membershipPromoActive && membershipModalAction.loading
-                        ? t('matchmakingPanel.membershipModal.loading')
-                        : t('matchmakingPanel.membershipModal.openFree'))}
+                    : t('matchmakingPanel.membershipModal.openFree')}
                 </button>
-
-                {!myMembership.active && membershipPromoActive ? (
-                  <div className="mt-2">
-                    {membershipModalAction.error ? (
-                      <div className="rounded-xl border border-rose-300/30 bg-rose-500/10 p-2 text-rose-100 text-xs whitespace-pre-line">
-                        {membershipModalAction.error}
-                      </div>
-                    ) : null}
-                    {membershipModalAction.success ? (
-                      <div className="rounded-xl border border-emerald-300/30 bg-emerald-500/10 p-2 text-emerald-100 text-xs whitespace-pre-line">
-                        {membershipModalAction.success}
-                      </div>
-                    ) : null}
-                  </div>
-                ) : null}
                 <p className="text-[11px] text-white/55 text-right">{membershipStatusText}</p>
               </div>
             </div>
@@ -5323,7 +4906,7 @@ export default function Panel() {
 
           {!matchmakingLoading && !matchmaking ? (
             <p className="mt-6 text-xs text-white/60">
-              Eşleşme profilini oluşturmadın. Önce formu doldurup profilini oluştur.
+              {t('matchmakingPanel.application.profileNotCreatedHint')}
             </p>
           ) : null}
 
@@ -5376,7 +4959,7 @@ export default function Panel() {
                     {t('matchmakingPanel.onboarding.startForm')}
                   </button>
 
-                  <Link to="/uniqah" className="text-sm font-semibold text-sky-200 hover:underline">
+                  <Link to="/eslestirme" className="text-sm font-semibold text-sky-200 hover:underline">
                     {t('matchmakingPanel.onboarding.howWorks')}
                   </Link>
                 </div>
@@ -5392,7 +4975,7 @@ export default function Panel() {
                     <div className="hidden lg:flex rounded-2xl border border-amber-300/20 bg-white/[0.06] p-4 lg:sticky lg:top-24 self-start shadow-[0_25px_80px_rgba(245,158,11,0.10)] flex-col h-[calc(100vh-9rem)] min-h-[28rem]">
                       <div className="flex items-start justify-between gap-3">
                         <div>
-                          <p className="text-sm font-semibold text-white">Sohbet</p>
+                          <p className="text-sm font-semibold text-white">{t('matchmakingPanel.chat.sidebarTitle')}</p>
                         </div>
                       </div>
 
@@ -5400,7 +4983,7 @@ export default function Panel() {
                         {focusedChatMatchId ? (
                           renderFocusedChat(focusedChatMatchId)
                         ) : (
-                          <p className="mt-3 text-sm text-white/60">Şu an sohbet aktif değil.</p>
+                          <p className="mt-3 text-sm text-white/60">{t('matchmakingPanel.chat.noActiveChat')}</p>
                         )}
                       </div>
                     </div>
@@ -5728,7 +5311,7 @@ export default function Panel() {
                                     disabled={!paymentReferenceText || receiptUpload.loading}
                                     className="shrink-0 px-3 py-2 rounded-lg border border-white/15 bg-white/10 text-white/85 text-xs font-semibold hover:bg-white/[0.16] disabled:opacity-60"
                                   >
-                                    Kopyala
+                                    {t('matchmakingPanel.actions.copy')}
                                   </button>
                                 </div>
                               </label>
@@ -5738,20 +5321,13 @@ export default function Panel() {
                                 <div className="mt-1 rounded-lg border border-amber-300/30 bg-amber-500/10 p-3 text-amber-100 text-xs">
                                   {(paymentForm.method === 'eft_fast' || paymentForm.method === 'swift_wise') ? (
                                     <div className="space-y-2">
-                                      <p>
-                                        EFT/Havale (veya Wise/SWIFT) yaparken bankanın “Açıklama / Reference” alanına yukarıdaki <span className="font-semibold">MK kullanıcı kodunu</span>
-                                        <span className="font-semibold">aynen</span> yazın.
-                                      </p>
+                                      <p>{t('matchmakingPanel.matches.payment.noteHelpEftFastWise')}</p>
                                       {paymentForm.method === 'eft_fast' ? (
-                                        <p className="text-amber-100/90">
-                                          EFT/FAST seçeneği ile ödemeler şirketimiz adına yetkili kişinin Türkiye hesabına yapılmaktadır.
-                                        </p>
+                                        <p className="text-amber-100/90">{t('matchmakingPanel.matches.payment.noteHelpEftFastExtra')}</p>
                                       ) : null}
                                     </div>
                                   ) : (
-                                    <p>
-                                      Ödeme yöntemine göre açıklama alanı gerekmeyebilir. Referans bilgisini saklayın.
-                                    </p>
+                                    <p>{t('matchmakingPanel.matches.payment.noteHelpOther')}</p>
                                   )}
                                 </div>
                               </label>
@@ -5835,7 +5411,7 @@ export default function Panel() {
                                 (!matchmakingPaymentsLoading && latestPaymentByMatchId?.[paymentMatchId]?.status === 'pending')
                               }
                               onClick={() => submitPayment(paymentMatchId)}
-                              className="mt-3 px-4 py-2 rounded-full bg-emerald-700 text-white text-sm font-semibold hover:bg-emerald-800 disabled:opacity-60"
+                              className="mt-3 px-4 py-2 rounded-full bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700 disabled:opacity-60"
                             >
                               {paymentAction.loading && paymentAction.matchId === paymentMatchId
                                 ? t('matchmakingPanel.actions.sending')
@@ -5852,7 +5428,7 @@ export default function Panel() {
                                 const msg = t('matchmakingPanel.matches.payment.supportWhatsappMessage', { matchId: matchId || '-', matchCode });
                                 openWhatsApp(msg);
                               }}
-                              className="mt-3 px-4 py-2 rounded-full border border-emerald-300 text-emerald-900 text-sm font-semibold hover:bg-emerald-50"
+                              className="app-btn app-btn-primary mt-3 w-full sm:w-auto ring-offset-slate-950"
                               disabled={!whatsappNumber}
                             >
                               {t('matchmakingPanel.matches.payment.supportWhatsapp')}
@@ -6000,6 +5576,7 @@ export default function Panel() {
                         <>
                           <p className="text-sm font-semibold text-white">{t('matchmakingPanel.matches.title')}</p>
                           <p className="text-xs text-white/60 mt-1">{t('matchmakingPanel.matches.subtitle')}</p>
+                          <p className="text-xs text-white/45 mt-2">{t('matchmakingPanel.matches.autoRunNotice', { minutes: autoMatchRunMinutes })}</p>
 
                           <div className="mt-3 rounded-xl border border-white/10 bg-white/[0.04] p-3 text-white/80 text-xs">
                             <p className="font-semibold text-white">{t('matchmakingPanel.matches.inactivityNotice.title')}</p>
@@ -6028,16 +5605,6 @@ export default function Panel() {
                           {requestNewAction.loading
                             ? t('matchmakingPanel.actions.requestingNew')
                             : t('matchmakingPanel.actions.requestNewWithRemaining', { remaining: newMatchQuotaDisplay.remaining, limit: newMatchQuotaDisplay.limit })}
-                        </button>
-                      ) : null}
-                      {!matchmakingMatchesLoading && !lockInfo.active && proposedMatchesCount > 0 ? (
-                        <button
-                          type="button"
-                          onClick={rejectAllMatches}
-                          disabled={rejectAllAction.loading}
-                          className="px-3 py-2 rounded-full border border-rose-300/30 text-rose-100 text-xs font-semibold hover:bg-rose-500/10 disabled:opacity-60"
-                        >
-                          {rejectAllAction.loading ? t('matchmakingPanel.actions.sending') : t('matchmakingPanel.actions.rejectAll')}
                         </button>
                       ) : null}
                       {matchmakingMatchesLoading ? (
@@ -6098,18 +5665,6 @@ export default function Panel() {
                     </div>
                   ) : null}
 
-                  {rejectAllAction.error ? (
-                    <div className="mt-3 rounded-xl border border-rose-300/30 bg-rose-500/10 p-3 text-rose-100 text-sm">
-                      {rejectAllAction.error}
-                    </div>
-                  ) : null}
-
-                  {rejectAllAction.success ? (
-                    <div className="mt-3 rounded-xl border border-emerald-300/30 bg-emerald-500/10 p-3 text-emerald-100 text-sm">
-                      {rejectAllAction.success}
-                    </div>
-                  ) : null}
-
                   {!matchmakingMatchesLoading && activeMatches.length === 0 ? (
                     <div className="mt-3">
                       <p className="text-sm text-white/60">{t('matchmakingPanel.matches.empty')}</p>
@@ -6135,11 +5690,12 @@ export default function Panel() {
 
                         const profileInfoOpen = !!profileInfoOpenByMatchId?.[m.id];
 
-                        const displayName = other?.username || other?.fullName || t('matchmakingPanel.matches.candidate.fallbackName');
+                        const displayName = other?.username || t('matchmakingPanel.matches.candidate.fallbackName');
                         const maritalCode = other?.details?.maritalStatus || '';
                         const maritalLabel = maritalCode ? (t(`matchmakingPage.form.options.maritalStatus.${maritalCode}`) || maritalCode) : '-';
 
                         const showHeart = otherDecision === 'accept' && myDecision !== 'accept';
+                        const showLikeSent = myDecision === 'accept' && otherDecision !== 'accept';
                         const unreadCount =
                           user?.uid && typeof m?.chatUnreadByUid?.[user.uid] === 'number' ? m.chatUnreadByUid[user.uid] : 0;
 
@@ -6172,7 +5728,7 @@ export default function Panel() {
 
                         const isConfirmed = confirmedAtMs > 0;
                         const contactStatus = String(m?.contactShare?.status || '').trim();
-                        const isMutual = st === 'mutual_accepted' || st === 'contact_unlocked';
+                        const isMutual = st === 'mutual_interest' || st === 'mutual_accepted' || st === 'contact_unlocked';
                         const isContactUnlocked = st === 'contact_unlocked' || contactStatus === 'approved';
                         const isContactPending = contactStatus === 'pending';
 
@@ -6312,9 +5868,9 @@ export default function Panel() {
                                           ? 'bg-gradient-to-r from-amber-400/25 to-amber-200/10 text-amber-100 ring-amber-300/25 hover:from-amber-400/35 hover:to-amber-200/15'
                                           : 'bg-gradient-to-r from-sky-400/25 to-indigo-400/10 text-sky-100 ring-sky-300/25 hover:from-sky-400/35 hover:to-indigo-400/15')
                                       }
-                                      title="Direkt mesaj"
+                                      title={t('matchmakingPanel.matches.chat.directMessage')}
                                     >
-                                      Direkt mesaj
+                                      {t('matchmakingPanel.matches.chat.directMessage')}
                                       {unreadCount > 0 ? (
                                         <span className="ml-2 inline-flex items-center rounded-full bg-rose-500/15 border border-rose-300/30 px-2 py-0.5 text-[10px] font-extrabold text-rose-100">
                                           {unreadCount}
@@ -6345,15 +5901,20 @@ export default function Panel() {
                                   <p className="text-xs text-white/60 mt-1">
                                     {t('matchmakingPanel.matches.candidate.score')}: <span className="font-semibold">{typeof m.score === 'number' ? `%${m.score}` : '-'}</span>
                                     {showHeart ? <span className="ml-2 text-rose-200 font-semibold">{t('matchmakingPanel.matches.candidate.likeBadge')}</span> : null}
+                                    {showLikeSent ? <span className="ml-2 text-sky-200 font-semibold">{t('matchmakingPanel.matches.candidate.likeSentBadge')}</span> : null}
                                   </p>
                                 ) : (
                                   <p className="text-xs text-white/60 mt-1">
                                     {t('matchmakingPanel.matches.candidate.maritalStatus')}: <span className="font-semibold">{maritalLabel}</span>
+                                    {showHeart ? <span className="ml-2 text-rose-200 font-semibold">{t('matchmakingPanel.matches.candidate.likeBadge')}</span> : null}
+                                    {showLikeSent ? <span className="ml-2 text-sky-200 font-semibold">{t('matchmakingPanel.matches.candidate.likeSentBadge')}</span> : null}
                                   </p>
                                 )}
-                                <p className="text-xs text-white/60">
-                                  {other.city ? `${other.city}${other.country ? ` / ${other.country}` : ''}` : (other.country || '-')}
-                                </p>
+                                {canSeeFullProfiles ? (
+                                  <p className="text-xs text-white/60">
+                                    {other.city ? `${other.city}${other.country ? ` / ${other.country}` : ''}` : (other.country || '-')}
+                                  </p>
+                                ) : null}
 
                                 {(() => {
                                   const label = formatPresenceLabel(lastSeenAtMs);
@@ -6387,15 +5948,23 @@ export default function Panel() {
 
                             {Array.isArray(other.photoUrls) && other.photoUrls.length > 0 ? (
                               <div className="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-2">
-                                {other.photoUrls.filter(Boolean).slice(0, canSeeFullProfiles ? 3 : 1).map((u) => (
-                                  <a key={u} href={u} target="_blank" rel="noopener noreferrer" className="block">
-                                    <img
-                                      src={u}
-                                      alt={t('matchmakingPanel.matches.candidate.photoAlt')}
-                                      className="w-full h-40 object-cover rounded-xl border border-white/10"
-                                      loading="lazy"
-                                    />
-                                  </a>
+                                {other.photoUrls.filter(Boolean).slice(0, canSeeFullProfiles ? 3 : 1).map((u, idx, arr) => (
+                                  <div key={u} className="relative aspect-square w-full overflow-hidden rounded-xl border border-white/10 bg-white/5">
+                                    <button
+                                      type="button"
+                                      onClick={() => setPhotoLightbox({ open: true, images: arr, index: idx, title: other?.username || '' })}
+                                      className="block h-full w-full cursor-zoom-in"
+                                      aria-label={t('matchmakingPanel.matches.candidate.photoAlt')}
+                                      title={t('common.enlarge')}
+                                    >
+                                      <img
+                                        src={u}
+                                        alt={t('matchmakingPanel.matches.candidate.photoAlt')}
+                                        className="h-full w-full object-cover"
+                                        loading="lazy"
+                                      />
+                                    </button>
+                                  </div>
                                 ))}
                               </div>
                             ) : null}
@@ -6414,7 +5983,6 @@ export default function Panel() {
                                   const meRows = filterEmptyRows(
                                     [
                                       { label: t('matchmakingPage.form.labels.username'), value: formatMaybeValue(other?.username) },
-                                      { label: t('matchmakingPage.form.labels.fullName'), value: formatMaybeValue(other?.fullName) },
                                       { label: t('matchmakingPage.form.labels.age'), value: typeof other?.age === 'number' ? String(other.age) : '-' },
                                       { label: t('matchmakingPage.form.labels.city'), value: formatMaybeValue(other?.city) },
                                       { label: t('matchmakingPage.form.labels.country'), value: formatMaybeValue(other?.country) },
@@ -6435,14 +6003,24 @@ export default function Panel() {
                                       { label: t('matchmakingPage.form.labels.height'), value: formatMaybeValue(d?.heightCm, ' cm') },
                                       { label: t('matchmakingPage.form.labels.weight'), value: formatMaybeValue(d?.weightKg, ' kg') },
                                       { label: t('matchmakingPage.form.labels.education'), value: formatMaybeValue(tOption('education', d?.education) || d?.education) },
-                                      { label: t('matchmakingPage.form.labels.educationDepartment'), value: formatMaybeValue(d?.educationDepartment) },
+                                      {
+                                        label: t('matchmakingPage.form.labels.educationDepartment'),
+                                        value: formatMaybeValue(getLocalizedProfileText(d, 'educationDepartment', i18n.language) || d?.educationDepartment),
+                                      },
                                       { label: t('matchmakingPage.form.labels.occupation'), value: formatMaybeValue(tOption('occupation', d?.occupation) || d?.occupation) },
                                       { label: t('matchmakingPage.form.labels.maritalStatus'), value: formatMaybeValue(tOption('maritalStatus', d?.maritalStatus) || d?.maritalStatus) },
                                       { label: t('matchmakingPage.form.labels.hasChildren'), value: formatMaybeValue(tYesNoCommon(d?.hasChildren) || d?.hasChildren) },
                                       { label: t('matchmakingPage.form.labels.childrenCount'), value: formatMaybeValue(d?.childrenCount) },
                                       { label: t('matchmakingPage.form.labels.incomeLevel'), value: formatMaybeValue(tOption('income', d?.incomeLevel) || d?.incomeLevel) },
                                       { label: t('matchmakingPage.form.labels.religion'), value: formatMaybeValue(tOption('religion', d?.religion) || d?.religion) },
-                                      { label: t('matchmakingPage.form.labels.religiousValues'), value: formatMaybeValue(d?.religiousValues) },
+                                      {
+                                        label: t('matchmakingPage.form.labels.religiousValues'),
+                                        value: formatMaybeValue(
+                                          getLocalizedProfileText(d, 'religiousValues', i18n.language) ||
+                                            tOption('religiousValues', d?.religiousValues) ||
+                                            d?.religiousValues
+                                        ),
+                                      },
                                       { label: t('matchmakingPage.form.labels.familyApprovalStatus'), value: formatMaybeValue(tOption('familyApproval', d?.familyApprovalStatus) || d?.familyApprovalStatus) },
                                       { label: t('matchmakingPage.form.labels.marriageTimeline'), value: formatMaybeValue(tOption('timeline', d?.marriageTimeline) || d?.marriageTimeline) },
                                       { label: t('matchmakingPage.form.labels.relocationWillingness'), value: formatMaybeValue(tYesNoCommon(d?.relocationWillingness) || d?.relocationWillingness) },
@@ -6450,7 +6028,7 @@ export default function Panel() {
                                       { label: t('matchmakingPage.form.labels.communicationLanguages'), value: formatMaybeValue(tOption('commLanguage', d?.communicationLanguage) || d?.communicationLanguage) },
                                       { label: t('matchmakingPage.form.labels.smoking'), value: formatMaybeValue(tYesNoCommon(d?.smoking) || d?.smoking) },
                                       { label: t('matchmakingPage.form.labels.alcohol'), value: formatMaybeValue(tYesNoCommon(d?.alcohol) || d?.alcohol) },
-                                      { label: t('matchmakingPage.form.labels.foreignLanguages'), value: formatMaybeValue(formatLanguagesSummary(d?.languages)) },
+                                      { label: t('matchmakingPage.form.labels.foreignLanguages'), value: formatMaybeValue(formatLanguagesSummaryFromDetails(d)) },
                                       {
                                         label: t('matchmakingPage.form.options.commLanguage.translationApp'),
                                         value: formatMaybeValue(
@@ -6519,11 +6097,11 @@ export default function Panel() {
                                 <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm text-white/80">
                                   <div>
                                     <p className="text-xs text-white/60">{t('matchmakingPanel.matches.candidate.aboutLabel')}</p>
-                                    <p className="whitespace-pre-wrap">{other.about || '-'}</p>
+                                    <p className="whitespace-pre-wrap">{getLocalizedProfileText(other, 'about', i18n.language) || '-'}</p>
                                   </div>
                                   <div>
                                     <p className="text-xs text-white/60">{t('matchmakingPanel.matches.candidate.expectationsLabel')}</p>
-                                    <p className="whitespace-pre-wrap">{other.expectations || '-'}</p>
+                                    <p className="whitespace-pre-wrap">{getLocalizedProfileText(other, 'expectations', i18n.language) || '-'}</p>
                                   </div>
                                 </div>
 
@@ -6621,7 +6199,9 @@ export default function Panel() {
                                                 },
                                                 {
                                                   label: t('matchmakingPage.form.labels.partnerCommunicationLanguageOther'),
-                                                  value: formatMaybeValue(p?.communicationLanguageOther),
+                                                  value: formatMaybeValue(
+                                                    getLocalizedProfileText(p, 'communicationLanguageOther', i18n.language) || p?.communicationLanguageOther
+                                                  ),
                                                 },
                                                 {
                                                   label: t('matchmakingPage.form.labels.partnerTranslationApp'),
@@ -6798,7 +6378,7 @@ export default function Panel() {
                                           if (!num) return;
                                           window.open(`https://wa.me/${num}`, '_blank', 'noopener,noreferrer');
                                         }}
-                                        className="mt-3 px-4 py-2 rounded-full bg-emerald-700 text-white text-sm font-semibold hover:bg-emerald-800"
+                                          className="mt-3 px-4 py-2 rounded-full bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700"
                                       >
                                         {t('matchmakingPanel.actions.whatsapp')}
                                       </button>
@@ -6816,7 +6396,7 @@ export default function Panel() {
                                           type="button"
                                           disabled={(contactAction.loading && contactAction.matchId === m.id) || !canTakeActions}
                                           onClick={() => openContact(m.id)}
-                                          className="mt-3 px-4 py-2 rounded-full bg-emerald-700 text-white text-sm font-semibold hover:bg-emerald-800 disabled:opacity-60"
+                                          className="mt-3 px-4 py-2 rounded-full bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700 disabled:opacity-60"
                                         >
                                           {contactAction.loading && contactAction.matchId === m.id ? t('matchmakingPanel.matches.contactUnlock.opening') : t('matchmakingPanel.matches.contactUnlock.open')}
                                         </button>
@@ -6928,7 +6508,7 @@ export default function Panel() {
                                                   disabled={!paymentReferenceText || receiptUpload.loading}
                                                   className="shrink-0 px-3 py-2 rounded-lg border border-white/15 bg-white/10 text-white/85 text-xs font-semibold hover:bg-white/[0.16] disabled:opacity-60"
                                                 >
-                                                  Kopyala
+                                                  {t('matchmakingPanel.actions.copy')}
                                                 </button>
                                               </div>
                                             </label>
@@ -6937,20 +6517,13 @@ export default function Panel() {
                                               <div className="mt-1 rounded-lg border border-amber-300/30 bg-amber-500/10 p-3 text-amber-100 text-xs">
                                                 {(paymentForm.method === 'eft_fast' || paymentForm.method === 'swift_wise') ? (
                                                   <div className="space-y-2">
-                                                    <p>
-                                                      EFT/Havale (veya Wise/SWIFT) yaparken bankanın “Açıklama / Reference” alanına yukarıdaki <span className="font-semibold">MK kullanıcı kodunu</span>
-                                                      <span className="font-semibold">aynen</span> yazın.
-                                                    </p>
+                                                    <p>{t('matchmakingPanel.matches.payment.noteHelpEftFastWise')}</p>
                                                     {paymentForm.method === 'eft_fast' ? (
-                                                      <p className="text-amber-100/90">
-                                                        EFT/FAST seçeneği ile ödemeler şirketimiz adına yetkili kişinin Türkiye hesabına yapılmaktadır.
-                                                      </p>
+                                                      <p className="text-amber-100/90">{t('matchmakingPanel.matches.payment.noteHelpEftFastExtra')}</p>
                                                     ) : null}
                                                   </div>
                                                 ) : (
-                                                  <p>
-                                                    Ödeme yöntemine göre açıklama alanı gerekmeyebilir. Referans bilgisini saklayın.
-                                                  </p>
+                                                  <p>{t('matchmakingPanel.matches.payment.noteHelpOther')}</p>
                                                 )}
                                               </div>
                                             </label>
@@ -7032,7 +6605,7 @@ export default function Panel() {
                                               (!matchmakingPaymentsLoading && latestPaymentByMatchId?.[m.id]?.status === 'pending')
                                             }
                                             onClick={() => submitPayment(m.id)}
-                                            className="mt-3 px-4 py-2 rounded-full bg-emerald-700 text-white text-sm font-semibold hover:bg-emerald-800 disabled:opacity-60"
+                                            className="mt-3 px-4 py-2 rounded-full bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700 disabled:opacity-60"
                                           >
                                             {paymentAction.loading && paymentAction.matchId === m.id
                                               ? t('matchmakingPanel.actions.sending')
@@ -7050,7 +6623,7 @@ export default function Panel() {
                                                 const msg = t('matchmakingPanel.matches.payment.supportWhatsappMessage', { matchId: matchId || '-', matchCode });
                                             openWhatsApp(msg);
                                           }}
-                                          className="mt-3 px-4 py-2 rounded-full border border-emerald-300 text-emerald-900 text-sm font-semibold hover:bg-emerald-50"
+                                          className="app-btn app-btn-primary mt-3 w-full sm:w-auto ring-offset-slate-950"
                                           disabled={!whatsappNumber}
                                         >
                                           {t('matchmakingPanel.matches.payment.supportWhatsapp')}
@@ -7065,7 +6638,15 @@ export default function Panel() {
                             {m.status === 'proposed' && isProposedInlineOpen ? (
                               <div className="mt-3">
                                 <div className="mt-3 rounded-xl border border-white/10 bg-white/[0.03] p-3">
-                                  <p className="text-xs font-semibold text-white">Direkt mesaj</p>
+                                  <p className="text-xs font-semibold text-white">{t('matchmakingPanel.matches.proposedChat.title')}</p>
+
+                                  <div className="mt-2 rounded-lg border border-amber-300/30 bg-amber-500/10 p-3 text-amber-100 text-xs">
+                                    <p className="font-semibold">{t('matchmakingPanel.matches.proposedChat.noticeTitle')}</p>
+                                    <p className="mt-1 text-white/80">
+                                      {t('matchmakingPanel.matches.proposedChat.noticeBody')}
+                                    </p>
+                                  </div>
+
                                   {(() => {
                                     const reachedAt = typeof m?.proposedChatLimitReachedAtMs === 'number' ? m.proposedChatLimitReachedAtMs : 0;
                                     const reached = reachedAt > 0;
@@ -7080,7 +6661,7 @@ export default function Panel() {
                                             type="button"
                                             disabled={!canTakeActions || !!matchmakingAction?.loading}
                                             onClick={() => decideMatch(m.id, 'accept')}
-                                            className="px-4 py-2 rounded-full bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700 disabled:opacity-60"
+                                            className="px-4 py-2 rounded-full bg-emerald-500 text-white text-sm font-semibold hover:bg-emerald-600 disabled:opacity-60"
                                           >
                                             {t('matchmakingPanel.matches.chat.proposedLimit.startActive')}
                                           </button>
@@ -7115,7 +6696,7 @@ export default function Panel() {
                                             type="button"
                                             disabled={!canTakeActions || !!matchmakingAction?.loading}
                                             onClick={() => decideMatch(m.id, 'accept')}
-                                            className="mt-2 px-4 py-2 rounded-full bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700 disabled:opacity-60"
+                                            className="mt-2 px-4 py-2 rounded-full bg-emerald-500 text-white text-sm font-semibold hover:bg-emerald-600 disabled:opacity-60"
                                           >
                                             {t('matchmakingPanel.matches.chat.proposedLimit.startActive')}
                                           </button>
@@ -7134,7 +6715,7 @@ export default function Panel() {
                                     <>
                                       {lockInfo.active && lockInfo.matchId && lockInfo.matchId !== m.id ? (
                                         <div className="mt-2 rounded-lg border border-amber-300/30 bg-amber-500/10 p-2 text-amber-100 text-xs">
-                                          Aktif eşleşmeniz sonlanmadan başka eşleşmeye mesaj gönderemezsiniz.
+                                          {t('matchmakingPanel.matches.errors.activeLocked')}
                                         </div>
                                       ) : null}
 
@@ -7143,7 +6724,7 @@ export default function Panel() {
                                         onChange={(e) => setChatTextByMatchId((p) => ({ ...p, [m.id]: e.target.value }))}
                                         rows={3}
                                         className="mt-2 w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-white/40 outline-none focus:ring-2 focus:ring-white/20"
-                                        placeholder="Kısa bir mesaj yaz..."
+                                        placeholder={t('matchmakingPanel.chat.inputPlaceholderShort')}
                                         disabled={
                                           (lockInfo.active && lockInfo.matchId && lockInfo.matchId !== m.id) ||
                                           (typeof m?.proposedChatLimitReachedAtMs === 'number' && m.proposedChatLimitReachedAtMs > 0)
@@ -7160,19 +6741,19 @@ export default function Panel() {
                                           }
                                           className="px-4 py-2 rounded-full bg-sky-700 text-white text-sm font-semibold hover:bg-sky-800 disabled:opacity-60"
                                         >
-                                          {chatSendByMatchId?.[m.id]?.loading ? t('matchmakingPanel.actions.sending') : 'Gönder'}
+                                          {chatSendByMatchId?.[m.id]?.loading ? t('matchmakingPanel.actions.sending') : t('matchmakingPanel.matches.chat.send')}
                                         </button>
                                         {chatSendByMatchId?.[m.id]?.error ? (
                                           <p className="text-xs text-rose-200/90">
                                             {(() => {
                                               const code = String(chatSendByMatchId?.[m.id]?.error || '').trim();
-                                              if (code === 'user_locked') return 'Aktif eşleşmeniz sonlanmadan başka eşleşmeye mesaj gönderemezsiniz.';
-                                              if (code === 'membership_required') return 'Ücretli üyelik olmadan mesaj gönderemezsiniz.';
+                                              if (code === 'user_locked') return t('matchmakingPanel.matches.errors.activeLocked');
+                                              if (code === 'membership_required') return t('matchmakingPanel.matches.chat.errors.membershipRequired');
                                               if (code === 'chat_limit_reached') return t('matchmakingPanel.matches.chat.errors.limitReached');
-                                              if (code === 'chat_not_enabled') return 'Bu eşleşmede sohbet henüz aktif değil.';
+                                              if (code === 'chat_not_enabled') return t('matchmakingPanel.matches.chat.errors.notEnabled');
                                               if (code === 'filtered') return t('matchmakingPanel.matches.chat.errors.filtered');
                                               if (code === 'message_too_long') return t('matchmakingPanel.matches.chat.errors.messageTooLong');
-                                              return 'Mesaj gönderilemedi.';
+                                              return t('matchmakingPanel.matches.chat.errors.sendFailed');
                                             })()}
                                           </p>
                                         ) : null}
@@ -7198,7 +6779,7 @@ export default function Panel() {
                                         const last = items.slice(-5);
                                         return (
                                           <div className="mt-3 rounded-xl border border-white/10 bg-black/20 p-3">
-                                            <p className="text-[11px] font-semibold text-white/70">Son mesajlar</p>
+                                            <p className="text-[11px] font-semibold text-white/70">{t('matchmakingPanel.matches.chat.lastMessages')}</p>
                                             <div className="mt-2 max-h-40 overflow-y-auto overscroll-contain pr-1 space-y-2">
                                               {last.map((msg, idx) => {
                                                 const mine = String(msg?.userId || '') === String(user?.uid || '');
@@ -7235,7 +6816,7 @@ export default function Panel() {
                                                   <div key={msg?.id || `idx-${idx}`} className="text-xs">
                                                     <div className="leading-relaxed">
                                                       <span className={mine ? 'text-sky-200 font-semibold' : 'text-emerald-200 font-semibold'}>
-                                                        {mine ? 'Sen' : 'O'}:
+                                                        {mine ? t('common.you') : t('common.them')}:
                                                       </span>{' '}
                                                       <span className="text-white/85 break-words whitespace-pre-wrap">{text}</span>
                                                     </div>
@@ -7248,9 +6829,9 @@ export default function Panel() {
                                                             {translateBillingMode ? (
                                                               <div className="mt-0.5 text-[11px] text-white/55">
                                                                 {translateBillingMode === 'sponsored'
-                                                                  ? 'Sponsorlu çeviri'
+                                                                  ? t('matchmakingPanel.matches.chat.translate.billing.sponsored')
                                                                   : translateBillingMode === 'self'
-                                                                    ? 'Çeviri kotandan düştü'
+                                                                    ? t('matchmakingPanel.matches.chat.translate.billing.self')
                                                                     : ''}
                                                               </div>
                                                             ) : null}
@@ -7261,9 +6842,11 @@ export default function Panel() {
                                                             onClick={() => translateIncomingMessageForMatch(m.id, msg?.id)}
                                                             disabled={!canTakeActions || translating || !msg?.id}
                                                             className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full border border-white/15 bg-white/5 text-white/85 text-[11px] font-semibold hover:bg-white/[0.12] disabled:opacity-60"
-                                                            title="Mesajı çevir"
+                                                            title={t('matchmakingPanel.matches.chat.translate.title')}
                                                           >
-                                                            {translating ? 'Çevriliyor…' : 'Çevir'}
+                                                            {translating
+                                                              ? t('matchmakingPanel.matches.chat.translate.translating')
+                                                              : t('matchmakingPanel.matches.chat.translate.cta')}
                                                           </button>
                                                         )}
 
@@ -7272,21 +6855,31 @@ export default function Panel() {
                                                             {(() => {
                                                               if (translateErr === 'translate_quota_exceeded') {
                                                                 if (translateUsagePercent !== null)
-                                                                  return `Çeviri limitinin %${translateUsagePercent}'ini kullandın.`;
-                                                                return 'Çeviri limitin doldu.';
+                                                                  return t('matchmakingPanel.matches.chat.translate.errors.quotaExceededWithUsage', {
+                                                                    usagePercent: translateUsagePercent,
+                                                                  });
+                                                                return t('matchmakingPanel.matches.chat.translate.errors.quotaExceeded');
                                                               }
                                                               if (translateErr === 'chat_limit_reached') return t('matchmakingPanel.matches.chat.errors.limitReached');
-                                                              if (translateErr === 'translate_too_long') return 'Bu mesaj çok uzun; çeviri için kısaltılmalı.';
-                                                              if (translateErr === 'only_incoming') return 'Sadece gelen mesajlar çevrilebilir.';
-                                                              if (translateErr === 'missing_auth' || translateErr === 'invalid_auth') return 'Oturum gerekli.';
-                                                              if (translateErr === 'translate_not_configured') return 'Çeviri servisi ayarlı değil.';
-                                                              return 'Çeviri başarısız.';
+                                                              if (translateErr === 'translate_too_long') return t('matchmakingPanel.matches.chat.translate.errors.tooLong');
+                                                              if (translateErr === 'only_incoming') return t('matchmakingPanel.matches.chat.translate.errors.onlyIncoming');
+                                                              if (translateErr === 'missing_auth' || translateErr === 'invalid_auth')
+                                                                return t('matchmakingPanel.matches.chat.translate.errors.authRequired');
+                                                              if (translateErr === 'translate_not_configured')
+                                                                return t('matchmakingPanel.matches.chat.translate.errors.notConfigured');
+                                                              if (translateErr === 'translate_rate_limited')
+                                                                return t('matchmakingPanel.matches.chat.translate.errors.rateLimited');
+                                                              if (translateErr === 'pii_blocked')
+                                                                return t('matchmakingPanel.matches.chat.translate.errors.piiBlocked');
+                                                              return t('matchmakingPanel.matches.chat.translate.errors.failed');
                                                             })()}
                                                           </div>
                                                         ) : null}
 
                                                         {!translateErr && translateUsagePercent !== null && translateUsagePercent >= 70 ? (
-                                                          <div className="mt-1 text-[11px] text-white/65">{`Limitinin %${translateUsagePercent}'ini kullandın.`}</div>
+                                                          <div className="mt-1 text-[11px] text-white/65">
+                                                            {t('matchmakingPanel.matches.chat.translate.usageWarning', { usagePercent: translateUsagePercent })}
+                                                          </div>
                                                         ) : null}
                                                       </div>
                                                     ) : null}
@@ -7304,6 +6897,37 @@ export default function Panel() {
                                 {true ? (
                                   <div className="mt-3">
                                     <div className="flex flex-col sm:flex-row gap-2">
+                                      {st === 'proposed' ? (
+                                        <>
+                                          <button
+                                            type="button"
+                                            disabled={!canTakeActions || !!matchmakingAction?.loading}
+                                            onClick={() => decideMatch(m.id, 'accept')}
+                                            className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-white/15 bg-white/[0.04] text-white/90 text-sm font-semibold hover:bg-white/[0.08] disabled:opacity-60"
+                                            title={t('matchmakingPanel.matches.proposedActions.interested')}
+                                          >
+                                            <span aria-hidden="true" className="text-base leading-none">👍</span>
+                                            <span>{t('matchmakingPanel.matches.proposedActions.interested')}</span>
+                                          </button>
+
+                                          <button
+                                            type="button"
+                                            disabled={!canTakeActions || !!matchmakingAction?.loading}
+                                            onClick={() =>
+                                              setRejectReasonOpenByMatchId((p) => ({
+                                                ...p,
+                                                [m.id]: !p?.[m.id],
+                                              }))
+                                            }
+                                            className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-white/15 bg-white/[0.04] text-white/90 text-sm font-semibold hover:bg-white/[0.08] disabled:opacity-60"
+                                            title={t('matchmakingPanel.matches.proposedActions.notSuitable')}
+                                          >
+                                            <span aria-hidden="true" className="text-base leading-none">👎</span>
+                                            <span>{t('matchmakingPanel.matches.proposedActions.notSuitable')}</span>
+                                          </button>
+                                        </>
+                                      ) : null}
+
                                       <button
                                         type="button"
                                         disabled={dismissAction.loading && dismissAction.matchId === m.id}
@@ -7338,10 +6962,56 @@ export default function Panel() {
                                           : t('matchmakingPanel.actions.freeSlot')}
                                       </button>
                                     </div>
+
+                                    {st === 'proposed' && !!rejectReasonOpenByMatchId?.[m.id] ? (
+                                      <div className="mt-3 rounded-xl border border-white/10 bg-white/[0.03] p-3">
+                                        <p className="text-[11px] font-semibold text-white/70">{t('matchmakingPanel.matches.rejectReason.title')}</p>
+                                        <div className="mt-2 flex flex-wrap gap-2">
+                                          {[
+                                            { code: 'not_feeling', key: 'notFeeling' },
+                                            { code: 'values', key: 'values' },
+                                            { code: 'distance', key: 'distance' },
+                                            { code: 'communication', key: 'communication' },
+                                            { code: 'not_ready', key: 'notReady' },
+                                            { code: 'other', key: 'other' },
+                                          ].map((r) => (
+                                            <button
+                                              key={r.code}
+                                              type="button"
+                                              disabled={!canTakeActions || !!matchmakingAction?.loading}
+                                              onClick={() => {
+                                                setRejectReasonOpenByMatchId((p) => ({ ...p, [m.id]: false }));
+                                                decideMatch(m.id, 'reject', r.code);
+                                              }}
+                                              className="px-3 py-1.5 rounded-full border border-white/15 bg-white/[0.03] text-white/85 text-[11px] font-semibold hover:bg-white/[0.08] disabled:opacity-60"
+                                              title={t(`matchmakingPanel.matches.chat.rejectReasons.${r.key}`)}
+                                            >
+                                              {t(`matchmakingPanel.matches.chat.rejectReasons.${r.key}`)}
+                                            </button>
+                                          ))}
+                                        </div>
+                                        <button
+                                          type="button"
+                                          onClick={() => setRejectReasonOpenByMatchId((p) => ({ ...p, [m.id]: false }))}
+                                          className="mt-3 inline-flex items-center rounded-full border border-white/15 bg-white/[0.04] px-3 py-1.5 text-[11px] font-semibold text-white/80 hover:bg-white/[0.08]"
+                                        >
+                                          {t('studio.common.cancel')}
+                                        </button>
+                                      </div>
+                                    ) : null}
+
                                     <div className="mt-2 text-xs text-white/60">
                                       {t('matchmakingPanel.actions.requestNewQuotaHint', { remaining: newMatchQuotaDisplay.remaining, limit: newMatchQuotaDisplay.limit })}
                                       <span className="ml-2">{t('matchmakingPanel.actions.freeSlotHint')}</span>
                                     </div>
+
+                                    {st === 'proposed' && !canTakeActions ? (
+                                      <div className="mt-2 rounded-lg border border-amber-300/30 bg-amber-500/10 p-2 text-amber-100 text-xs">
+                                        {myGender === 'female'
+                                          ? t('matchmakingPanel.errors.membershipOrVerificationRequired')
+                                          : t('matchmakingPanel.errors.membershipRequired')}
+                                      </div>
+                                    ) : null}
 
                                     {freeSlotAction.error && freeSlotAction.matchId === m.id ? (
                                       <div className="mt-2 rounded-lg border border-rose-300/30 bg-rose-500/10 p-2 text-rose-100 text-xs">
@@ -7362,6 +7032,27 @@ export default function Panel() {
                               <div className="mt-3 rounded-xl border border-amber-300/30 bg-amber-500/10 p-3 text-amber-100 text-sm">
                                 <p className="font-semibold">{t('matchmakingPanel.matches.rejectedByOther.title')}</p>
                                 <p className="mt-1 text-amber-100/90">{t('matchmakingPanel.matches.rejectedByOther.body')}</p>
+
+                                {(() => {
+                                  const code = String(m?.rejectionFeedback?.code || '').trim();
+                                  if (!code) return null;
+                                  const keyByCode = {
+                                    not_feeling: 'notFeeling',
+                                    values: 'values',
+                                    distance: 'distance',
+                                    communication: 'communication',
+                                    not_ready: 'notReady',
+                                    other: 'other',
+                                  };
+                                  const k = keyByCode?.[code] || '';
+                                  if (!k) return null;
+                                  return (
+                                    <div className="mt-2 rounded-lg border border-white/10 bg-black/10 p-2 text-[12px] text-amber-50/90">
+                                      <span className="font-semibold">Sebep:</span> {t(`matchmakingPanel.matches.chat.rejectReasons.${k}`)}
+                                    </div>
+                                  );
+                                })()}
+
                                 <div className="mt-3 flex flex-col sm:flex-row gap-2">
                                   <button
                                     type="button"
@@ -7473,6 +7164,14 @@ export default function Panel() {
 
         </div>
       </section>
+
+      {photoLightbox.open ? (
+        <ImageLightbox
+          images={photoLightbox.images}
+          currentIndex={photoLightbox.index}
+          onClose={() => setPhotoLightbox({ open: false, images: [], index: 0, title: '' })}
+        />
+      ) : null}
 
       <Footer />
     </div>

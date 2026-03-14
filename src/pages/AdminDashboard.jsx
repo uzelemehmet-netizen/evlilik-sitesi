@@ -4,8 +4,6 @@ import { signOut } from 'firebase/auth';
 import { useNavigate } from 'react-router-dom';
 import { LogOut, Edit2, Upload } from 'lucide-react';
 import { collection, getDocs, doc, setDoc, getDoc, limit, onSnapshot, orderBy, query, where } from 'firebase/firestore';
-import { TOURS_CONFIG } from './Tours';
-import ReservationsTab from '../components/admin/ReservationsTab';
 import MatchmakingTab from '../components/admin/MatchmakingTab';
 import WeddingMediaTab from '../components/admin/WeddingMediaTab';
 import MatchmakingIdentityTab from '../components/admin/MatchmakingIdentityTab';
@@ -13,7 +11,14 @@ import MatchmakingPaymentsTab from '../components/admin/MatchmakingPaymentsTab';
 import MatchmakingMatchesTab from '../components/admin/MatchmakingMatchesTab';
 import MatchmakingUserToolsTab from '../components/admin/MatchmakingUserToolsTab';
 import MatchmakingPhotoUpdatesTab from '../components/admin/MatchmakingPhotoUpdatesTab';
+import MatchmakingPoolTab from '../components/admin/MatchmakingPoolTab';
+import SystemAlertsTab from '../components/admin/SystemAlertsTab';
+import NewUsersTab from '../components/admin/NewUsersTab';
+import AllUsersTab from '../components/admin/AllUsersTab';
 import { isFeatureEnabled } from '../config/siteVariant';
+
+// Travel/Tours modülü kaldırıldığı için admin panelde tur konfigi boş.
+const TOURS_CONFIG = [];
 
 // Tüm ada ve destinasyonlar
 const ISLANDS_DATA = {
@@ -116,8 +121,8 @@ const STATIC_PUBLIC_IMAGES = [
 ];
 
 export default function AdminDashboard() {
-  const weddingOnly = isFeatureEnabled('wedding') && !isFeatureEnabled('travel');
-  const [activeTab, setActiveTab] = useState(() => (weddingOnly ? 'matchmaking' : 'islands'));
+  const weddingOnly = isFeatureEnabled('wedding');
+  const [activeTab, setActiveTab] = useState(() => (weddingOnly ? 'matches' : 'islands'));
   const [selectedIsland, setSelectedIsland] = useState('bali');
   const [editingId, setEditingId] = useState(null);
   const [imageUrls, setImageUrls] = useState({});
@@ -138,6 +143,8 @@ export default function AdminDashboard() {
   const [authDebug, setAuthDebug] = useState({ loading: true, admin: null, email: '', uid: '', projectId: '' });
   const [matchmakingItems, setMatchmakingItems] = useState([]);
   const [matchmakingNewCount, setMatchmakingNewCount] = useState(0);
+  const [geminiAlertItems, setGeminiAlertItems] = useState([]);
+  const [geminiAlertNewCount, setGeminiAlertNewCount] = useState(0);
   const [identityPendingCount, setIdentityPendingCount] = useState(0);
   const [paymentsPendingCount, setPaymentsPendingCount] = useState(0);
   const [photoUpdatesPendingCount, setPhotoUpdatesPendingCount] = useState(0);
@@ -378,6 +385,31 @@ export default function AdminDashboard() {
       (error) => {
         if (blockFirestoreIfNeeded(error)) return;
         console.error('Firestore matchmakingApplications dinleme hatası:', error);
+      }
+    );
+
+    return () => unsub();
+  }, [firestoreBlocked]);
+
+  // Sistem uyarıları: Gemini çeviri RPM limit aşımları (admin-only read)
+  useEffect(() => {
+    if (firestoreBlocked) return;
+
+    const q = query(collection(db, 'matchmakingSystemAlerts'), orderBy('createdAtMs', 'desc'), limit(50));
+
+    const unsub = onSnapshot(
+      q,
+      (snap) => {
+        const all = snap.docs.map((d) => ({ id: d.id, ...(d.data() || {}) }));
+        const gemini = all
+          .filter((x) => String(x.type || '') === 'gemini_translate_rpm_exceeded')
+          .filter((x) => String(x.status || 'new') === 'new');
+        setGeminiAlertItems(gemini);
+        setGeminiAlertNewCount(gemini.length);
+      },
+      (error) => {
+        if (blockFirestoreIfNeeded(error)) return;
+        console.error('Firestore matchmakingSystemAlerts dinleme hatası:', error);
       }
     );
 
@@ -889,7 +921,7 @@ export default function AdminDashboard() {
           const formData = new FormData();
           formData.append('file', uploadFile);
           formData.append('upload_preset', cloudinaryUploadPreset);
-          formData.append('folder', `endonezya-kasifi/${imageId}`);
+          formData.append('folder', `uniqah/${imageId}`);
           xhr.send(formData);
         });
 
@@ -1046,6 +1078,14 @@ export default function AdminDashboard() {
         );
       }
 
+      if (activeTab === 'newUsers') {
+        return <NewUsersTab />;
+      }
+
+      if (activeTab === 'allUsers') {
+        return <AllUsersTab />;
+      }
+
       if (activeTab === 'identity') {
         return <MatchmakingIdentityTab />;
       }
@@ -1064,6 +1104,10 @@ export default function AdminDashboard() {
 
       if (activeTab === 'userTools') {
         return <MatchmakingUserToolsTab />;
+      }
+
+      if (activeTab === 'pool') {
+        return <MatchmakingPoolTab />;
       }
 
       if (activeTab === 'weddingMedia') {
@@ -1087,8 +1131,8 @@ export default function AdminDashboard() {
       );
     }
 
-    if (activeTab === 'reservations') {
-      return <ReservationsTab />;
+    if (activeTab === 'systemAlerts') {
+      return <SystemAlertsTab geminiAlerts={geminiAlertItems} />;
     }
 
     if (activeTab === 'islands') {
@@ -1572,7 +1616,7 @@ export default function AdminDashboard() {
           <h1 className="text-2xl font-bold text-gray-800">Admin Panel — Evlilik & Eşleştirme</h1>
           <button
             onClick={handleLogout}
-            className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg transition"
+            className="app-btn app-btn-logout"
           >
             <LogOut className="w-4 h-4" />
             Çıkış Yap
@@ -1604,70 +1648,6 @@ export default function AdminDashboard() {
           {weddingOnly && (
             <>
               <button
-                onClick={() => setActiveTab('matchmaking')}
-                className={`px-6 py-3 font-semibold transition whitespace-nowrap ${
-                  activeTab === 'matchmaking'
-                    ? 'text-indigo-600 border-b-2 border-indigo-600'
-                    : 'text-gray-600 hover:text-gray-800'
-                }`}
-              >
-                Evlilik Başvuruları
-                {matchmakingNewCount > 0 && (
-                  <span className="ml-2 inline-flex items-center justify-center min-w-6 h-6 px-2 rounded-full bg-rose-600 text-white text-xs">
-                    {matchmakingNewCount}
-                  </span>
-                )}
-              </button>
-
-              <button
-                onClick={() => setActiveTab('identity')}
-                className={`px-6 py-3 font-semibold transition whitespace-nowrap ${
-                  activeTab === 'identity'
-                    ? 'text-indigo-600 border-b-2 border-indigo-600'
-                    : 'text-gray-600 hover:text-gray-800'
-                }`}
-              >
-                Kimlik Doğrulama
-                {identityPendingCount > 0 && (
-                  <span className="ml-2 inline-flex items-center justify-center min-w-6 h-6 px-2 rounded-full bg-amber-600 text-white text-xs">
-                    {identityPendingCount}
-                  </span>
-                )}
-              </button>
-
-              <button
-                onClick={() => setActiveTab('payments')}
-                className={`px-6 py-3 font-semibold transition whitespace-nowrap ${
-                  activeTab === 'payments'
-                    ? 'text-indigo-600 border-b-2 border-indigo-600'
-                    : 'text-gray-600 hover:text-gray-800'
-                }`}
-              >
-                Ödemeler
-                {paymentsPendingCount > 0 && (
-                  <span className="ml-2 inline-flex items-center justify-center min-w-6 h-6 px-2 rounded-full bg-rose-600 text-white text-xs">
-                    {paymentsPendingCount}
-                  </span>
-                )}
-              </button>
-
-              <button
-                onClick={() => setActiveTab('photoUpdates')}
-                className={`px-6 py-3 font-semibold transition whitespace-nowrap ${
-                  activeTab === 'photoUpdates'
-                    ? 'text-indigo-600 border-b-2 border-indigo-600'
-                    : 'text-gray-600 hover:text-gray-800'
-                }`}
-              >
-                Fotoğraf İstekleri
-                {photoUpdatesPendingCount > 0 && (
-                  <span className="ml-2 inline-flex items-center justify-center min-w-6 h-6 px-2 rounded-full bg-rose-600 text-white text-xs">
-                    {photoUpdatesPendingCount}
-                  </span>
-                )}
-              </button>
-
-              <button
                 onClick={() => setActiveTab('matches')}
                 className={`px-6 py-3 font-semibold transition whitespace-nowrap ${
                   activeTab === 'matches'
@@ -1692,6 +1672,28 @@ export default function AdminDashboard() {
                 }`}
               >
                 Kullanıcı Yönetimi
+              </button>
+
+              <button
+                onClick={() => setActiveTab('allUsers')}
+                className={`px-6 py-3 font-semibold transition whitespace-nowrap ${
+                  activeTab === 'allUsers'
+                    ? 'text-indigo-600 border-b-2 border-indigo-600'
+                    : 'text-gray-600 hover:text-gray-800'
+                }`}
+              >
+                Tüm Kullanıcılar
+              </button>
+
+              <button
+                onClick={() => setActiveTab('pool')}
+                className={`px-6 py-3 font-semibold transition whitespace-nowrap ${
+                  activeTab === 'pool'
+                    ? 'text-indigo-600 border-b-2 border-indigo-600'
+                    : 'text-gray-600 hover:text-gray-800'
+                }`}
+              >
+                Eşleştirme Havuzu
               </button>
 
               <button
@@ -1835,15 +1837,26 @@ export default function AdminDashboard() {
               </span>
             )}
           </button>
+	  <button
+	    onClick={() => navigate('/admin/feedback')}
+	    className="px-6 py-3 font-semibold transition whitespace-nowrap text-gray-600 hover:text-gray-800"
+	  >
+	    Bildirimler
+	  </button>
     <button
-      onClick={() => setActiveTab('reservations')}
+      onClick={() => setActiveTab('systemAlerts')}
       className={`px-6 py-3 font-semibold transition whitespace-nowrap ${
-        activeTab === 'reservations'
+        activeTab === 'systemAlerts'
           ? 'text-indigo-600 border-b-2 border-indigo-600'
           : 'text-gray-600 hover:text-gray-800'
       }`}
     >
-      Rezervasyonlar
+      Sistem Uyarıları
+      {geminiAlertNewCount > 0 && (
+        <span className="ml-2 inline-flex items-center justify-center min-w-6 h-6 px-2 rounded-full bg-amber-600 text-white text-xs">
+          {geminiAlertNewCount}
+        </span>
+      )}
     </button>
 	  <button
 	    onClick={() => setActiveTab('shorts')}

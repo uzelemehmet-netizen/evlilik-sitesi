@@ -73,7 +73,8 @@ export function getMonthlyTranslateLimitForPlan(plan) {
   // Öncelik: aylık env varsa onu kullan; yoksa güvenli varsayılanları uygula.
   if (p === 'pro') return parseIntOr(process.env.TRANSLATE_MONTHLY_LIMIT_PRO, 1000);
   if (p === 'standard') return parseIntOr(process.env.TRANSLATE_MONTHLY_LIMIT_STANDARD, 400);
-  if (p === 'eco') return parseIntOr(process.env.TRANSLATE_MONTHLY_LIMIT_ECO, 200);
+  // Ücretli sistem gelene kadar: ücretsiz aktif üyelik (eco) için 100 çeviri/ay.
+  if (p === 'eco') return parseIntOr(process.env.TRANSLATE_MONTHLY_LIMIT_ECO, 100);
   if (p === 'free') return parseIntOr(process.env.TRANSLATE_MONTHLY_LIMIT_FREE, 50);
 
   return parseIntOr(process.env.TRANSLATE_MONTHLY_LIMIT_FREE, 50);

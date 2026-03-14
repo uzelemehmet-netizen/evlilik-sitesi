@@ -1,5 +1,6 @@
 import { getAdmin, normalizeBody, requireIdToken } from './_firebaseAdmin.js';
 import { normalizeChatLang, translateText } from './_translate.js';
+import { checkAndRecordGeminiTranslateRpm } from './_geminiTranslateRpm.js';
 import {
   computeTranslationBilling,
   getUsageForMonth,
@@ -15,6 +16,112 @@ function nowMs() {
   return Date.now();
 }
 
+function normalizeReadyPhrase(v) {
+  const foldLatin = (input) => {
+    let out = String(input || '');
+    out = out.replaceAll('ı', 'i').replaceAll('İ', 'i');
+    try {
+      out = out.normalize('NFKD').replace(/[\u0300-\u036f]/g, '');
+    } catch {
+      // ignore
+    }
+    return out;
+  };
+
+  let s = foldLatin(safeStr(v)).toLowerCase();
+  if (!s) return '';
+  // Strip common prefixes (legacy UI may have sent both lines).
+  s = s.replace(/^\s*(tr|id)\s*:\s*/i, '');
+  s = s.replace(/[\s\t]+/g, ' ').trim();
+  // Remove trailing punctuation that often varies in chat.
+  s = s.replace(/[.!?…]+$/g, '').trim();
+  return s;
+}
+
+function splitReadyCandidates(text) {
+  const raw = String(text || '').split(/\r?\n/).map((x) => String(x || '').trim()).filter(Boolean);
+  if (!raw.length) return [];
+  const out = [];
+  for (const line of raw) {
+    const n = normalizeReadyPhrase(line);
+    if (n) out.push(n);
+  }
+  // Also try the full text as a single candidate
+  const full = normalizeReadyPhrase(String(text || ''));
+  if (full) out.push(full);
+  return Array.from(new Set(out));
+}
+
+function safeProvider(v) {
+  return typeof v === 'string' ? v.trim().toLowerCase() : '';
+}
+
+function isProviderAvailable(provider) {
+  const p = safeProvider(provider);
+  if (!p) return false;
+  if (p === 'gemini') return !!safeStr(process.env.GEMINI_API_KEY || process.env.GOOGLE_GEMINI_API_KEY);
+  if (p === 'deepl') return !!safeStr(process.env.DEEPL_API_KEY);
+  if (p === 'google') return !!safeStr(process.env.GOOGLE_TRANSLATE_API_KEY);
+  if (p === 'libretranslate') return !!safeStr(process.env.LIBRETRANSLATE_URL);
+  return false;
+}
+
+function pickFirstAvailable(candidates, { exclude = [] } = {}) {
+  const ex = new Set((Array.isArray(exclude) ? exclude : []).map((x) => safeProvider(x)).filter(Boolean));
+  for (const c of Array.isArray(candidates) ? candidates : []) {
+    const p = safeProvider(c);
+    if (!p) continue;
+    if (ex.has(p)) continue;
+    if (isProviderAvailable(p)) return p;
+  }
+  return '';
+}
+
+let READY_Q_MAP = null;
+
+async function getReadyQuestionMap() {
+  if (READY_Q_MAP) return READY_Q_MAP;
+  const map = new Map();
+
+  try {
+    // Best-effort: deploy paketinde src yoksa endpoint çökmesin.
+    const mod = await import('../src/data/geminiReadyContent.js');
+    const list = Array.isArray(mod?.COMMON_QUESTIONS_TR_ID) ? mod.COMMON_QUESTIONS_TR_ID : [];
+    for (const q of list) {
+      const tr = safeStr(q?.tr);
+      const id = safeStr(q?.id);
+      if (!tr || !id) continue;
+      const trKey = normalizeReadyPhrase(tr);
+      const idKey = normalizeReadyPhrase(id);
+      if (trKey) map.set(`tr:${trKey}`, { tr, id });
+      if (idKey) map.set(`id:${idKey}`, { tr, id });
+    }
+  } catch {
+    // ignore (fallback: empty map)
+  }
+
+  READY_Q_MAP = map;
+  return map;
+}
+
+async function tryTranslateFromReadyLibrary({ text, targetLang }) {
+  const candidates = splitReadyCandidates(text);
+  if (!candidates.length) return '';
+
+  // Only handle TR <-> ID for now.
+  if (targetLang !== 'tr' && targetLang !== 'id') return '';
+
+  const map = await getReadyQuestionMap();
+  if (!map || map.size === 0) return '';
+
+  for (const c of candidates) {
+    const hit = map.get(`tr:${c}`) || map.get(`id:${c}`);
+    if (!hit) continue;
+    return targetLang === 'tr' ? hit.tr : hit.id;
+  }
+  return '';
+}
+
 function toUsagePercent(usedCount, limit) {
   if (limit === Infinity) return null;
   const used = typeof usedCount === 'number' && Number.isFinite(usedCount) ? usedCount : 0;
@@ -23,6 +130,14 @@ function toUsagePercent(usedCount, limit) {
   const pct = Math.floor((used / lim) * 100);
   return Math.max(0, Math.min(100, pct));
 }
+
+function parseIntOr(raw, fallback) {
+  const n = Number.parseInt(String(raw || ''), 10);
+  return Number.isFinite(n) && n > 0 ? n : fallback;
+}
+
+// Safety default. Can be overridden via env for self-hosted deployments.
+const MAX_TRANSLATE_TEXT_LEN = parseIntOr(process.env.CHAT_TRANSLATE_MAX_LEN, 150);
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -61,6 +176,8 @@ export default async function handler(req, res) {
     let billing = null;
     let sponsorUid = '';
 
+    let providerUsed = '';
+
     let usageUsedCount = null;
     let usageMonthlyLimit = null;
     let usagePercent = null;
@@ -82,7 +199,7 @@ export default async function handler(req, res) {
 
       const match = matchSnap.data() || {};
       const status = String(match.status || '');
-      if (!['mutual_accepted', 'proposed'].includes(status)) {
+      if (!['mutual_accepted', 'proposed', 'mutual_interest', 'contact_unlocked'].includes(status)) {
         const err = new Error('chat_not_available');
         err.statusCode = 400;
         throw err;
@@ -192,6 +309,12 @@ export default async function handler(req, res) {
         throw err;
       }
 
+      if (text.length > MAX_TRANSLATE_TEXT_LEN) {
+        const err = new Error('translate_too_long');
+        err.statusCode = 413;
+        throw err;
+      }
+
       // Not: Mesaj başına ayrı limit yok; kullanım hesap geneli aylık havuzdan düşer.
 
       const existing = msg?.translations && typeof msg.translations === 'object' ? safeStr(msg.translations[targetLang]) : '';
@@ -234,7 +357,125 @@ export default async function handler(req, res) {
         return;
       }
 
-      translated = await translateText({ text, targetLang });
+      if (text.length > MAX_TRANSLATE_TEXT_LEN) {
+        res.statusCode = 413;
+        res.setHeader('content-type', 'application/json');
+        res.end(JSON.stringify({ ok: false, error: 'translate_too_long' }));
+        return;
+      }
+
+      // Kütüphane çevirisi (hazır/sık sorulan sorular): Gemini/harici çeviri çağırma.
+      // Not: Bu akış kota tüketmez; sadece mesaj dokümanına çeviri snapshot'ı yazar.
+      const readyTranslated = await tryTranslateFromReadyLibrary({ text, targetLang });
+      if (readyTranslated) {
+        translated = readyTranslated;
+        try {
+          await msgRef.set(
+            {
+              translations: {
+                ...(msg?.translations && typeof msg.translations === 'object' ? msg.translations : {}),
+                [targetLang]: translated,
+              },
+              translationsUpdatedAtMs: ts,
+              updatedAt: FieldValue.serverTimestamp(),
+            },
+            { merge: true }
+          );
+        } catch {
+          // best-effort; translation can still be returned to client
+        }
+      }
+
+      if (translated) {
+        // Kütüphane çevirisi ile tamamlandı.
+        providerUsed = 'library';
+        res.statusCode = 200;
+        res.setHeader('content-type', 'application/json');
+        res.end(
+          JSON.stringify({
+            ok: true,
+            targetLang,
+            text: translated,
+            providerUsed,
+            usage: {
+              usedCount: usageUsedCount,
+              monthlyLimit: usageMonthlyLimit,
+              dailyLimit: usageMonthlyLimit,
+              usagePercent,
+              billingMode: usageBillingMode,
+            },
+          })
+        );
+        return;
+      }
+
+      const hasGeminiKey = !!String(process.env.GEMINI_API_KEY || process.env.GOOGLE_GEMINI_API_KEY || '').trim();
+      const configuredProvider = safeProvider(process.env.TRANSLATE_PROVIDER);
+      const configuredFallbackProvider = safeProvider(process.env.TRANSLATE_FALLBACK_PROVIDER);
+
+      const defaultNonGeminiOrder = ['deepl', 'google', 'libretranslate'];
+
+      const primaryProvider = hasGeminiKey
+        ? 'gemini'
+        : (isProviderAvailable(configuredProvider) ? configuredProvider : pickFirstAvailable(defaultNonGeminiOrder));
+
+      const fallbackProvider = isProviderAvailable(configuredFallbackProvider)
+        ? configuredFallbackProvider
+        : (isProviderAvailable(configuredProvider) ? configuredProvider : pickFirstAvailable(defaultNonGeminiOrder, { exclude: [primaryProvider] }));
+
+      // Gemini free-tier RPM guard + admin alert (best-effort).
+      // If RPM is exceeded, we transparently fall back to configured provider (e.g., DeepL).
+      if (primaryProvider === 'gemini') {
+        const rpmLimitRaw = String(process.env.GEMINI_TRANSLATE_RPM_LIMIT || '').trim();
+        const rpmLimitParsed = rpmLimitRaw ? Number.parseInt(rpmLimitRaw, 10) : NaN;
+        const rpmLimit = Number.isFinite(rpmLimitParsed) ? rpmLimitParsed : 15;
+
+        if (rpmLimit > 0) {
+          try {
+            await checkAndRecordGeminiTranslateRpm({
+              limitPerMinute: rpmLimit,
+              context: {
+                route: 'matchmaking-chat-translate',
+                uid,
+                matchId,
+                messageId,
+                targetLang,
+              },
+            });
+          } catch (e) {
+            if (String(e?.message || '') !== 'translate_rate_limited') throw e;
+
+            // Fallback to DeepL/LibreTranslate/Google if configured.
+            if (fallbackProvider && fallbackProvider !== 'gemini') {
+              translated = await translateText({ text, targetLang, provider: fallbackProvider });
+              providerUsed = fallbackProvider || '';
+            } else {
+              throw e;
+            }
+          }
+        }
+      }
+
+      if (!translated) {
+        try {
+          translated = await translateText({ text, targetLang, provider: primaryProvider });
+          providerUsed = primaryProvider || '';
+        } catch (e) {
+          const code = String(e?.message || '');
+          // Optional resiliency: if Gemini fails for transient reasons, try fallback provider.
+          if (
+            primaryProvider === 'gemini' &&
+            fallbackProvider &&
+            fallbackProvider !== 'gemini' &&
+            (code === 'translate_failed' || code === 'translate_rate_limited' || code === 'translate_quota_exhausted' || code === 'translate_not_configured')
+          ) {
+            translated = await translateText({ text, targetLang, provider: fallbackProvider });
+            providerUsed = fallbackProvider || '';
+          } else {
+            throw e;
+          }
+        }
+      }
 
       await db.runTransaction(async (tx) => {
         const sponsorRef = sponsorUid ? db.collection('matchmakingUsers').doc(sponsorUid) : null;
@@ -284,6 +525,7 @@ export default async function handler(req, res) {
         const existing = cur?.translations && typeof cur.translations === 'object' ? safeStr(cur.translations[targetLang]) : '';
         if (existing) {
           translated = existing;
+          providerUsed = 'cache';
           return;
         }
 
@@ -361,6 +603,7 @@ export default async function handler(req, res) {
         ok: true,
         targetLang,
         text: translated,
+        providerUsed,
         usage: {
           usedCount: usageUsedCount,
           monthlyLimit: usageMonthlyLimit,

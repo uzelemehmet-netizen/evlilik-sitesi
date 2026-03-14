@@ -1,327 +1,135 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
-    <loc>https://www.endonezyakasifi.com/</loc>
-    <lastmod>2026-01-20</lastmod>
+    <loc>https://uniqah.com/</loc>
+    <lastmod>2026-02-03</lastmod>
     <changefreq>weekly</changefreq>
     <priority>1.0</priority>
   </url>
   <url>
-    <loc>https://www.endonezyakasifi.com/about</loc>
-    <lastmod>2026-01-20</lastmod>
+    <loc>https://uniqah.com/about</loc>
+    <lastmod>2026-02-03</lastmod>
     <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
+    <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://www.endonezyakasifi.com/travel</loc>
-    <lastmod>2026-01-20</lastmod>
+    <loc>https://uniqah.com/kurumsal</loc>
+    <lastmod>2026-02-03</lastmod>
     <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
+    <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://www.endonezyakasifi.com/tours</loc>
-    <lastmod>2026-01-20</lastmod>
+    <loc>https://uniqah.com/contact</loc>
+    <lastmod>2026-02-03</lastmod>
     <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
+    <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://www.endonezyakasifi.com/tours/groups</loc>
-    <lastmod>2026-01-20</lastmod>
+    <loc>https://uniqah.com/youtube</loc>
+    <lastmod>2026-02-03</lastmod>
     <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
+    <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://www.endonezyakasifi.com/gallery</loc>
-    <lastmod>2026-01-20</lastmod>
+    <loc>https://uniqah.com/privacy</loc>
+    <lastmod>2026-02-03</lastmod>
     <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
+    <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://www.endonezyakasifi.com/kesfet</loc>
-    <lastmod>2026-01-20</lastmod>
+    <loc>https://uniqah.com/wedding</loc>
+    <lastmod>2026-02-03</lastmod>
     <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
+    <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://www.endonezyakasifi.com/wedding</loc>
-    <lastmod>2026-01-20</lastmod>
+    <loc>https://uniqah.com/evlilik</loc>
+    <lastmod>2026-02-03</lastmod>
     <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
+    <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://www.endonezyakasifi.com/youtube</loc>
-    <lastmod>2026-01-20</lastmod>
+    <loc>https://uniqah.com/eslestirme</loc>
+    <lastmod>2026-02-03</lastmod>
     <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
+    <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://www.endonezyakasifi.com/contact</loc>
-    <lastmod>2026-01-20</lastmod>
+    <loc>https://uniqah.com/evlilik/eslestirme</loc>
+    <lastmod>2026-02-03</lastmod>
     <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
+    <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://www.endonezyakasifi.com/privacy</loc>
-    <lastmod>2026-01-20</lastmod>
+    <loc>https://uniqah.com/docs/cancellation-refund-policy-en.html</loc>
+    <lastmod>2026-02-03</lastmod>
     <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
+    <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://www.endonezyakasifi.com/tours/bali</loc>
-    <lastmod>2026-01-20</lastmod>
+    <loc>https://uniqah.com/docs/distance-sales-agreement-en.html</loc>
+    <lastmod>2026-02-03</lastmod>
     <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
+    <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://www.endonezyakasifi.com/tours/lombok</loc>
-    <lastmod>2026-01-20</lastmod>
+    <loc>https://uniqah.com/docs/eft-fast-odeme-talimatlari.html</loc>
+    <lastmod>2026-02-03</lastmod>
     <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
+    <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://www.endonezyakasifi.com/tours/sumatra</loc>
-    <lastmod>2026-01-20</lastmod>
+    <loc>https://uniqah.com/docs/iptal-iade-politikasi.html</loc>
+    <lastmod>2026-02-03</lastmod>
     <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
+    <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://www.endonezyakasifi.com/tours/java</loc>
-    <lastmod>2026-01-20</lastmod>
+    <loc>https://uniqah.com/docs/kvkk-aydinlatma-metni.html</loc>
+    <lastmod>2026-02-03</lastmod>
     <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
+    <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://www.endonezyakasifi.com/tours/komodo</loc>
-    <lastmod>2026-01-20</lastmod>
+    <loc>https://uniqah.com/docs/kvkk-information-notice-en.html</loc>
+    <lastmod>2026-02-03</lastmod>
     <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
+    <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://www.endonezyakasifi.com/tours/sulawesi</loc>
-    <lastmod>2026-01-20</lastmod>
+    <loc>https://uniqah.com/docs/matchmaking-kullanim-sozlesmesi.html</loc>
+    <lastmod>2026-02-03</lastmod>
     <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
+    <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://www.endonezyakasifi.com/kesfet/bali</loc>
-    <lastmod>2026-01-20</lastmod>
+    <loc>https://uniqah.com/docs/mesafeli-satis-sozlesmesi.html</loc>
+    <lastmod>2026-02-03</lastmod>
     <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
+    <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://www.endonezyakasifi.com/kesfet/java</loc>
-    <lastmod>2026-01-20</lastmod>
+    <loc>https://uniqah.com/docs/odeme-yontemleri.html</loc>
+    <lastmod>2026-02-03</lastmod>
     <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
+    <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://www.endonezyakasifi.com/kesfet/lombok</loc>
-    <lastmod>2026-01-20</lastmod>
+    <loc>https://uniqah.com/docs/site-kurallari.html</loc>
+    <lastmod>2026-02-03</lastmod>
     <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
+    <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://www.endonezyakasifi.com/kesfet/komodo</loc>
-    <lastmod>2026-01-20</lastmod>
+    <loc>https://uniqah.com/docs/swift-odeme-talimatlari.html</loc>
+    <lastmod>2026-02-03</lastmod>
     <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
+    <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://www.endonezyakasifi.com/kesfet/sulawesi</loc>
-    <lastmod>2026-01-20</lastmod>
+    <loc>https://uniqah.com/docs/wise-odeme-talimatlari.html</loc>
+    <lastmod>2026-02-03</lastmod>
     <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://www.endonezyakasifi.com/kesfet/sumatra</loc>
-    <lastmod>2026-01-20</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://www.endonezyakasifi.com/kesfet/bali/ubud</loc>
-    <lastmod>2026-01-20</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://www.endonezyakasifi.com/kesfet/bali/kuta</loc>
-    <lastmod>2026-01-20</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://www.endonezyakasifi.com/kesfet/bali/seminyak</loc>
-    <lastmod>2026-01-20</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://www.endonezyakasifi.com/kesfet/bali/uluwatu</loc>
-    <lastmod>2026-01-20</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://www.endonezyakasifi.com/kesfet/bali/nusa-dua</loc>
-    <lastmod>2026-01-20</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://www.endonezyakasifi.com/kesfet/bali/canggu</loc>
-    <lastmod>2026-01-20</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://www.endonezyakasifi.com/kesfet/bali/sanur</loc>
-    <lastmod>2026-01-20</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://www.endonezyakasifi.com/kesfet/bali/munduk</loc>
-    <lastmod>2026-01-20</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://www.endonezyakasifi.com/kesfet/bali/amed</loc>
-    <lastmod>2026-01-20</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://www.endonezyakasifi.com/kesfet/java/yogyakarta</loc>
-    <lastmod>2026-01-20</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://www.endonezyakasifi.com/kesfet/java/pangandaran</loc>
-    <lastmod>2026-01-20</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://www.endonezyakasifi.com/kesfet/java/bandung</loc>
-    <lastmod>2026-01-20</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://www.endonezyakasifi.com/kesfet/java/banyuwangi</loc>
-    <lastmod>2026-01-20</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://www.endonezyakasifi.com/kesfet/java/malang</loc>
-    <lastmod>2026-01-20</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://www.endonezyakasifi.com/kesfet/lombok/gili-trawangan</loc>
-    <lastmod>2026-01-20</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://www.endonezyakasifi.com/kesfet/lombok/mount-rinjani</loc>
-    <lastmod>2026-01-20</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://www.endonezyakasifi.com/kesfet/lombok/senggigi</loc>
-    <lastmod>2026-01-20</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://www.endonezyakasifi.com/kesfet/lombok/kuta-lombok</loc>
-    <lastmod>2026-01-20</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://www.endonezyakasifi.com/kesfet/lombok/benang-stokel</loc>
-    <lastmod>2026-01-20</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://www.endonezyakasifi.com/kesfet/komodo/komodo-island</loc>
-    <lastmod>2026-01-20</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://www.endonezyakasifi.com/kesfet/komodo/labuan-bajo</loc>
-    <lastmod>2026-01-20</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://www.endonezyakasifi.com/kesfet/sulawesi/bunaken</loc>
-    <lastmod>2026-01-20</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://www.endonezyakasifi.com/kesfet/sulawesi/makassar</loc>
-    <lastmod>2026-01-20</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://www.endonezyakasifi.com/kesfet/sulawesi/wakatobi</loc>
-    <lastmod>2026-01-20</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://www.endonezyakasifi.com/kesfet/sulawesi/togean</loc>
-    <lastmod>2026-01-20</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://www.endonezyakasifi.com/kesfet/sumatra/lake-toba</loc>
-    <lastmod>2026-01-20</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://www.endonezyakasifi.com/kesfet/sumatra/bukit-lawang</loc>
-    <lastmod>2026-01-20</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://www.endonezyakasifi.com/kesfet/sumatra/mentawai</loc>
-    <lastmod>2026-01-20</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://www.endonezyakasifi.com/kesfet/sumatra/bukittinggi</loc>
-    <lastmod>2026-01-20</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://www.endonezyakasifi.com/kesfet/sumatra/kerinci</loc>
-    <lastmod>2026-01-20</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://www.endonezyakasifi.com/kesfet/sumatra/nias</loc>
-    <lastmod>2026-01-20</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
+    <priority>0.7</priority>
   </url>
 </urlset>

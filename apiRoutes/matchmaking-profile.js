@@ -1,8 +1,14 @@
 import { getAdmin, normalizeBody, requireIdToken } from './_firebaseAdmin.js';
-import { ensureEligibleOrThrow } from './_matchmakingEligibility.js';
 
 function safeStr(v) {
   return typeof v === 'string' ? v.trim() : '';
+}
+
+function safeEnum(v) {
+  if (typeof v === 'string') return v.trim();
+  if (v === true) return 'yes';
+  if (v === false) return 'no';
+  return '';
 }
 
 function asNum(v) {
@@ -12,6 +18,37 @@ function asNum(v) {
 
 function asObj(v) {
   return v && typeof v === 'object' ? v : {};
+}
+
+function getAge(application) {
+  const app = asObj(application);
+  const rootAge = asNum(app?.age);
+  if (rootAge !== null) return rootAge;
+
+  const details = asObj(app?.details);
+  const detailsAge = asNum(details?.age);
+  if (detailsAge !== null) return detailsAge;
+
+  const birthYear = asNum(details?.birthYear);
+  if (birthYear !== null) {
+    const year = new Date().getFullYear();
+    const computed = year - birthYear;
+    return Number.isFinite(computed) && computed > 0 && computed < 120 ? computed : null;
+  }
+
+  const birthDateMs = tsToMs(details?.birthDate);
+  if (birthDateMs > 0) {
+    const now = new Date();
+    const dob = new Date(birthDateMs);
+    if (Number.isFinite(dob.getTime())) {
+      let age = now.getFullYear() - dob.getFullYear();
+      const m = now.getMonth() - dob.getMonth();
+      if (m < 0 || (m === 0 && now.getDate() < dob.getDate())) age -= 1;
+      return Number.isFinite(age) && age > 0 && age < 120 ? age : null;
+    }
+  }
+
+  return null;
 }
 
 function tsToMs(v) {
@@ -94,29 +131,26 @@ export default async function handler(req, res) {
     const aAppId = safeStr(match.aApplicationId);
     const bAppId = safeStr(match.bApplicationId);
 
-    // Viewer'ın cinsiyetini kendi application doc'undan al
-    const myAppId = uid === aUserId ? aAppId : bAppId;
-    let myGender = '';
-    if (myAppId) {
-      const myAppSnap = await db.collection('matchmakingApplications').doc(myAppId).get();
-      myGender = myAppSnap.exists ? safeStr((myAppSnap.data() || {})?.gender) : '';
-    }
+    const otherUserId = userIds.find((x) => x !== uid) || '';
+    const otherAppId = otherUserId === aUserId ? aAppId : bAppId;
 
-    // Eşleşmiş çiftlerde, iki tarafın da birbirinin profil detaylarını görebilmesi gerekir.
-    // Bu yüzden mutual_accepted/contact_unlocked durumlarında üyelik/eligibility kapısını bypass ediyoruz.
+    // Ön aşama (proposed/pre_match vb.) için: detay profil, karşı tarafın verdiği profileAccessGranted iznine bağlı.
+    // Eşleşmiş çiftlerde (mutual_accepted/contact_unlocked) iki taraf da birbirini görür.
     if (!isMatchedCouple) {
-      try {
-        ensureEligibleOrThrow(me, myGender);
-      } catch (e) {
-        res.statusCode = e?.statusCode || 402;
+      const grantSnap = await db
+        .collection('matchmakingUsers')
+        .doc(otherUserId)
+        .collection('profileAccessGranted')
+        .doc(uid)
+        .get();
+
+      if (!grantSnap.exists) {
+        res.statusCode = 403;
         res.setHeader('content-type', 'application/json');
-        res.end(JSON.stringify({ ok: false, error: String(e?.message || 'membership_required') }));
+        res.end(JSON.stringify({ ok: false, error: 'no_access' }));
         return;
       }
     }
-
-    const otherUserId = userIds.find((x) => x !== uid) || '';
-    const otherAppId = otherUserId === aUserId ? aAppId : bAppId;
 
     if (!otherUserId || !otherAppId) {
       res.statusCode = 500;
@@ -156,7 +190,7 @@ export default async function handler(req, res) {
           profileCode: safeStr(app?.profileCode),
           username: safeStr(app?.username),
           fullName: safeStr(app?.fullName),
-          age: asNum(app?.age),
+          age: getAge(app),
           city: safeStr(app?.city),
           country: safeStr(app?.country),
           nationality: safeStr(app?.nationality),
@@ -164,40 +198,67 @@ export default async function handler(req, res) {
           lookingForNationality: safeStr(app?.lookingForNationality),
           lookingForGender: safeStr(app?.lookingForGender),
           about: safeStr(app?.about),
+          aboutTr: safeStr(app?.aboutTr),
+          aboutId: safeStr(app?.aboutId),
           expectations: safeStr(app?.expectations),
+          expectationsTr: safeStr(app?.expectationsTr),
+          expectationsId: safeStr(app?.expectationsId),
           photoUrls: Array.isArray(app?.photoUrls) ? app.photoUrls.filter((u) => typeof u === 'string' && u.trim()) : [],
           details: {
             heightCm: asNum(details?.heightCm),
             weightKg: asNum(details?.weightKg),
             occupation: safeStr(details?.occupation),
+            occupationTr: safeStr(details?.occupationTr),
+            occupationId: safeStr(details?.occupationId),
             education: safeStr(details?.education),
             educationDepartment: safeStr(details?.educationDepartment),
+            educationDepartmentTr: safeStr(details?.educationDepartmentTr),
+            educationDepartmentId: safeStr(details?.educationDepartmentId),
             maritalStatus: safeStr(details?.maritalStatus),
-            hasChildren: safeStr(details?.hasChildren),
+            hasChildren: safeEnum(details?.hasChildren),
             childrenCount: asNum(details?.childrenCount),
+            childrenLivingSituation: safeStr(details?.childrenLivingSituation),
             incomeLevel: safeStr(details?.incomeLevel),
             religion: safeStr(details?.religion),
             religiousValues: safeStr(details?.religiousValues),
-            familyApprovalStatus: safeStr(details?.familyApprovalStatus),
+            religiousValuesTr: safeStr(details?.religiousValuesTr),
+            religiousValuesId: safeStr(details?.religiousValuesId),
+            familyObstacle: safeEnum(details?.familyObstacle),
+            familyObstacleDetails: safeStr(details?.familyObstacleDetails),
+            familyApprovalStatus: safeEnum(details?.familyApprovalStatus) || safeStr(details?.familyApprovalStatus),
             marriageTimeline: safeStr(details?.marriageTimeline),
-            relocationWillingness: safeStr(details?.relocationWillingness),
+            relocationWillingness: safeEnum(details?.relocationWillingness) || safeStr(details?.relocationWillingness),
             preferredLivingCountry: safeStr(details?.preferredLivingCountry),
-            smoking: safeStr(details?.smoking),
-            alcohol: safeStr(details?.alcohol),
+            smoking: safeEnum(details?.smoking),
+            alcohol: safeEnum(details?.alcohol),
             languages: {
               native: {
-                code: safeStr(nativeLang?.code),
-                other: safeStr(nativeLang?.other),
+                code: safeStr(nativeLang?.code) || safeStr(details?.nativeLanguage),
+                other: safeStr(details?.nativeLanguageOtherTr) || safeStr(nativeLang?.other) || safeStr(details?.nativeLanguageOther),
               },
               foreign: {
-                codes: Array.isArray(foreignLang?.codes) ? foreignLang.codes.map(safeStr).filter(Boolean) : [],
-                other: safeStr(foreignLang?.other),
+                codes: Array.isArray(foreignLang?.codes)
+                  ? foreignLang.codes.map(safeStr).filter(Boolean)
+                  : (Array.isArray(details?.foreignLanguages) ? details.foreignLanguages.map(safeStr).filter(Boolean) : []),
+                other: safeStr(details?.foreignLanguageOtherTr) || safeStr(foreignLang?.other) || safeStr(details?.foreignLanguageOther),
               },
             },
             communicationLanguage: safeStr(details?.communicationLanguage),
-            communicationLanguageOther: safeStr(details?.communicationLanguageOther),
+            communicationLanguageOther: safeStr(details?.communicationLanguageOtherTr) || safeStr(details?.communicationLanguageOther),
+            communicationLanguageOtherTr: safeStr(details?.communicationLanguageOtherTr),
+            communicationLanguageOtherId: safeStr(details?.communicationLanguageOtherId),
             communicationMethod: safeStr(details?.communicationMethod),
             canCommunicateWithTranslationApp: !!details?.canCommunicateWithTranslationApp,
+
+            // Geriye dönük uyumluluk / bazı ekranların kullandığı düz alanlar
+            nativeLanguage: safeStr(details?.nativeLanguage) || safeStr(nativeLang?.code),
+            nativeLanguageOther: safeStr(details?.nativeLanguageOther),
+            nativeLanguageOtherTr: safeStr(details?.nativeLanguageOtherTr),
+            nativeLanguageOtherId: safeStr(details?.nativeLanguageOtherId),
+            foreignLanguages: Array.isArray(details?.foreignLanguages) ? details.foreignLanguages.map(safeStr).filter(Boolean) : [],
+            foreignLanguageOther: safeStr(details?.foreignLanguageOther),
+            foreignLanguageOtherTr: safeStr(details?.foreignLanguageOtherTr),
+            foreignLanguageOtherId: safeStr(details?.foreignLanguageOtherId),
           },
 
           // Not: İletişim (whatsapp/email/instagram) ayrı endpoint ile açılıyor.

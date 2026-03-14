@@ -1,15 +1,21 @@
-﻿import { Instagram, Youtube, Mail, Phone, MessageCircle, MapPin } from "lucide-react";
+﻿import { Youtube, Mail, Phone, MessageCircle, MapPin } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { COMPANY } from "../config/company";
 import { isFeatureEnabled } from "../config/siteVariant";
 import { buildWhatsAppUrl } from "../utils/whatsapp";
+import { useTranslation } from 'react-i18next';
+import { staticAssetUrl } from '../utils/staticAssetUrl';
 
 export default function Footer() {
   const currentYear = new Date().getFullYear();
   const location = useLocation();
+  const { t, i18n } = useTranslation();
+
+  const FOOTER_IMAGE_SRC = staticAssetUrl('/ChatGPT%20Image%2017%20%C5%9Eub%202026%2014_33_00.png');
+  const FOOTER_PARTNER_IMAGE_SRC = staticAssetUrl('/ChatGPT%20Image%20Jan%2014,%202026,%2001_53_44%20PM.png');
 
   const getWhatsappLink = () => {
-    let message = "Merhaba, web sitenizden yazıyorum. Genel bilgi almak istiyorum.";
+    let message = t('footer.whatsappMessages.general');
 
     const path = String(location.pathname || '');
     const isWeddingPath =
@@ -20,33 +26,26 @@ export default function Footer() {
       path.startsWith('/profilim');
 
     if (isWeddingPath && isFeatureEnabled('wedding')) {
-      message = "Endonezya'da evlilik hakkında bilgi almak istiyorum";
-    } else if (path.startsWith("/travel")) {
-      message = "Endonezya seyahati hakkında bilgi almak istiyorum";
-    } else if (path.startsWith("/kesfet")) {
-      message = "Endonezya'nın tatil destinasyonları hakkında bilgi almak istiyorum";
+      message = t('footer.whatsappMessages.wedding');
     } else if (path.startsWith("/youtube")) {
-      message = "Merhaba, YouTube sayfanızı ziyaret ettim ve size bir şey sormak istiyorum";
+      message = t('footer.whatsappMessages.youtube');
     } else if (path.startsWith("/contact")) {
-      message = "Merhaba, bir konu hakkında bilgi almak istiyorum";
+      message = t('footer.whatsappMessages.contact');
     } else if (path === "/") {
-      message = "Merhaba, size genel anlamda bir şey sormak istiyorum";
+      message = t('footer.whatsappMessages.home');
     }
 
-    return buildWhatsAppUrl(message);
+    return buildWhatsAppUrl(message, { lang: String(i18n?.language || 'tr'), context: 'footer' });
   };
 
   const whatsappLink = getWhatsappLink();
-  const instagramLink = "https://www.instagram.com/endonezyakasifi";
-  const youtubeLink = "https://www.youtube.com/@endonezyakasifi";
   const email = COMPANY.email;
   const phone = COMPANY.phoneTr;
   const indonesiaPhoneTel = COMPANY.phoneIdTel;
   const indonesiaPhoneDisplay = COMPANY.phoneIdDisplay;
 
-  const showTravel = isFeatureEnabled('travel');
   const showWedding = isFeatureEnabled('wedding');
-  const isWeddingOnly = showWedding && !showTravel;
+  const isWeddingOnly = showWedding;
 
   return (
     <footer className="bg-gray-900 text-white py-16">
@@ -54,20 +53,29 @@ export default function Footer() {
         <div className="grid grid-cols-1 md:grid-cols-5 gap-8 mb-8">
           <div>
             <div className="mb-4">
-              <img
-                src="/logos/moonstar-mark-light.png"
-                alt="MoonStar Global Indonesia"
-                className="h-12 w-auto"
-                loading="lazy"
-                decoding="async"
-              />
+              <div className="flex items-center gap-3">
+                <img
+                  src={FOOTER_IMAGE_SRC}
+                  alt="Uniqah"
+                  className="h-12 w-auto"
+                  loading="lazy"
+                  decoding="async"
+                />
+                <img
+                  src={FOOTER_PARTNER_IMAGE_SRC}
+                  alt=""
+                  className="h-12 w-auto object-contain"
+                  loading="lazy"
+                  decoding="async"
+                />
+              </div>
             </div>
             <p className="text-gray-400" style={{ fontFamily: '"Poppins", sans-serif' }}>
-              Endonezya Kaşifi, Endonezya’da kayıtlı <span className="font-semibold">PT MoonStar Global Indonesia</span> şirketinin markasıdır.
+              {t('footer.brandBlurb', { company: 'PT MoonStar Global Indonesia' })}
             </p>
             <div className="mt-4 text-gray-400 text-sm" style={{ fontFamily: '"Poppins", sans-serif' }}>
-              <p className="text-xs uppercase tracking-wide text-gray-500 mb-1">Markalar</p>
-              <p>Endonezya Kaşifi</p>
+              <p className="text-xs uppercase tracking-wide text-gray-500 mb-1">{t('footer.brandsTitle')}</p>
+              <p>Uniqah</p>
               <p>
                 <a
                   href="https://www.dameturk.com"
@@ -77,233 +85,141 @@ export default function Footer() {
                 >
                   DaMeTurk
                 </a>{' '}
-                <span className="text-gray-500">(alt marka • dameturk.com)</span>
+                <span className="text-gray-500">{t('footer.brandNoteDameturk')}</span>
               </p>
             </div>
           </div>
 
           <div>
             <h4 className="font-semibold mb-4" style={{ fontFamily: '"Poppins", sans-serif' }}>
-              Hızlı Linkler
+              {t('footer.sections.quickLinks')}
             </h4>
             <ul className="space-y-2 text-gray-400">
               <li>
                 <Link to="/" className="hover:text-white transition">
-                  Ana Sayfa
+                  {t('navigation.home')}
                 </Link>
               </li>
               {showWedding && (
                 <li>
                   <Link to="/evlilik" className="hover:text-white transition">
-                    Evlilik
+                    {t('navigation.wedding')}
                   </Link>
                 </li>
               )}
               {showWedding && (
                 <li>
-                  <Link to="/evlilik/uniqah" className="hover:text-white transition">
-                    Uniqah
+                  <Link to="/eslestirme" className="hover:text-white transition">
+                    {t('navigation.matchmaking')}
                   </Link>
                 </li>
               )}
               {showWedding && (
                 <li>
                   <Link to="/profilim" className="hover:text-white transition">
-                    Profilim
+                    {t('navigation.panel')}
                   </Link>
                 </li>
               )}
               {showWedding && (
                 <li>
                   <Link to="/evlilik/uyelik" className="hover:text-white transition">
-                    Üyelik
+                    {t('footer.links.membership')}
                   </Link>
                 </li>
               )}
               <li>
                 <Link to="/about" className="hover:text-white transition">
-                  Hakkımızda
+                  {t('navigation.about')}
                 </Link>
               </li>
-              <li>
-                <Link to="/kurumsal" className="hover:text-white transition">
-                  Kurumsal
-                </Link>
-              </li>
-              {showTravel && (
-                <li>
-                  <Link to="/kesfet" className="hover:text-white transition">
-                    Keşfet
-                  </Link>
-                </li>
-              )}
-              {showTravel && (
-                <li>
-                  <Link to="/travel" className="hover:text-white transition">
-                    Seyahat
-                  </Link>
-                </li>
-              )}
               <li>
                 <Link to="/contact" className="hover:text-white transition">
-                  İletişim
+                  {t('navigation.contact')}
                 </Link>
               </li>
-              {showTravel && (
-                <li>
-                  <Link to="/youtube" className="hover:text-white transition">
-                    YouTube
-                  </Link>
-                </li>
-              )}
+              <li>
+                <Link to="/youtube" className="hover:text-white transition">
+                  {t('navigation.youtube')}
+                </Link>
+              </li>
+              <li>
+                <Link to="/privacy" className="hover:text-white transition">
+                  {t('footer.legal.privacyPolicy')}
+                </Link>
+              </li>
             </ul>
           </div>
 
           <div>
             <h4 className="font-semibold mb-4" style={{ fontFamily: '"Poppins", sans-serif' }}>
-              Yasal
+              {t('footer.sections.legal')}
             </h4>
             <ul className="space-y-2 text-gray-400">
-              {isWeddingOnly ? (
-                <>
-                  <li>
-                    <a
-                      href="/docs/matchmaking-kullanim-sozlesmesi.html"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="hover:text-white transition"
-                    >
-                      Kullanıcı / Üyelik Sözleşmesi
-                    </a>
-                  </li>
-                  <li>
-                    <a
-                      href="/docs/site-kurallari.html"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="hover:text-white transition"
-                    >
-                      Site Kuralları
-                    </a>
-                  </li>
-                  <li>
-                    <a
-                      href="/docs/iptal-iade-politikasi.html"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="hover:text-white transition"
-                    >
-                      İptal / İade Politikası
-                    </a>
-                  </li>
-                  <li>
-                    <Link to="/privacy" className="hover:text-white transition">
-                      Gizlilik Politikası
-                    </Link>
-                  </li>
-                </>
-              ) : (
-                <>
-                  <li className="text-xs uppercase tracking-wide text-gray-500" style={{ fontFamily: '"Poppins", sans-serif' }}>
-                    Doküman Merkezi
-                  </li>
-                  <li>
-                    <Link to="/dokumanlar" className="hover:text-white transition">
-                      Dokümanlar (TR)
-                    </Link>
-                  </li>
-                  <li>
-                    <Link to="/dokumanlar?lang=en" className="hover:text-white transition">
-                      Documents (EN)
-                    </Link>
-                  </li>
-                  <li className="pt-2 text-xs uppercase tracking-wide text-gray-500" style={{ fontFamily: '"Poppins", sans-serif' }}>
-                    TR
-                  </li>
-                  <li>
-                    <Link to="/dokumanlar?doc=paket-tur-sozlesmesi" className="hover:text-white transition">
-                      Paket Tur Sözleşmesi (TR)
-                    </Link>
-                  </li>
-                  <li>
-                    <Link to="/dokumanlar?doc=mesafeli-satis-sozlesmesi" className="hover:text-white transition">
-                      Mesafeli Satış Sözleşmesi (TR)
-                    </Link>
-                  </li>
-                  <li>
-                    <Link to="/dokumanlar?doc=on-bilgilendirme-formu" className="hover:text-white transition">
-                      Ön Bilgilendirme Formu (TR)
-                    </Link>
-                  </li>
-                  <li>
-                    <Link to="/dokumanlar?doc=iptal-iade-politikasi" className="hover:text-white transition">
-                      İptal / İade Politikası (TR)
-                    </Link>
-                  </li>
-                  <li>
-                    <Link to="/dokumanlar?doc=kvkk-aydinlatma-metni" className="hover:text-white transition">
-                      KVKK Aydınlatma Metni
-                    </Link>
-                  </li>
-                  <li>
-                    <Link to="/dokumanlar?doc=odeme-yontemleri" className="hover:text-white transition">
-                      Ödeme Yöntemleri
-                    </Link>
-                  </li>
-                  <li>
-                    <Link to="/privacy" className="hover:text-white transition">
-                      Gizlilik Politikası
-                    </Link>
-                  </li>
-                  <li className="pt-2 text-xs text-gray-500" style={{ fontFamily: '"Poppins", sans-serif' }}>
-                    English
-                  </li>
-                  <li>
-                    <a href="/docs/package-tour-agreement-en.html" target="_blank" rel="noopener noreferrer" className="hover:text-white transition">
-                      Package Tour Agreement (EN)
-                    </a>
-                  </li>
-                  <li>
-                    <a href="/docs/distance-sales-agreement-en.html" target="_blank" rel="noopener noreferrer" className="hover:text-white transition">
-                      Distance Sales Agreement (EN)
-                    </a>
-                  </li>
-                  <li>
-                    <a href="/docs/pre-information-form-en.html" target="_blank" rel="noopener noreferrer" className="hover:text-white transition">
-                      Pre-Information Form (EN)
-                    </a>
-                  </li>
-                  <li>
-                    <a href="/docs/kvkk-information-notice-en.html" target="_blank" rel="noopener noreferrer" className="hover:text-white transition">
-                      KVKK Information Notice (EN)
-                    </a>
-                  </li>
-                  <li>
-                    <a
-                      href="/docs/cancellation-refund-policy-en.html"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="hover:text-white transition"
-                    >
-                      Cancellation & Refund Policy (EN)
-                    </a>
-                  </li>
-                </>
-              )}
+              <li>
+                <Link to="/documents" className="hover:text-white transition">
+                  {t('footer.legal.documents')}
+                </Link>
+              </li>
+              <li>
+                <a
+                  href="/docs/matchmaking-kullanim-sozlesmesi.html"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="hover:text-white transition"
+                >
+                  {t('footer.legal.userAgreement')}
+                </a>
+              </li>
+              <li>
+                <a
+                  href="/docs/kvkk-aydinlatma-metni.html"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="hover:text-white transition"
+                >
+                  {t('footer.legal.kvkkNotice')}
+                </a>
+              </li>
+              <li>
+                <a
+                  href="/docs/site-kurallari.html"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="hover:text-white transition"
+                >
+                  {t('footer.legal.siteRules')}
+                </a>
+              </li>
+              <li>
+                <a
+                  href="/docs/iptal-iade-politikasi.html"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="hover:text-white transition"
+                >
+                  {t('footer.legal.refundPolicy')}
+                </a>
+              </li>
+              <li>
+                <Link to="/privacy" className="hover:text-white transition">
+                  {t('footer.legal.privacyPolicy')}
+                </Link>
+              </li>
             </ul>
           </div>
 
           <div>
             <h4 className="font-semibold mb-4" style={{ fontFamily: '"Poppins", sans-serif' }}>
-              İletişim
+              {t('footer.sections.contact')}
             </h4>
             <div className="space-y-3 text-gray-400">
               <div className="text-sm" style={{ fontFamily: '"Poppins", sans-serif' }}>
-                <p className="text-xs uppercase tracking-wide text-gray-500 mb-1">Firma Bilgileri</p>
-                <p><span className="text-gray-300">Ünvan:</span> {COMPANY.legalName}</p>
-                <p><span className="text-gray-300">Adres:</span> {COMPANY.address}</p>
-                <p><span className="text-gray-300">Vergi:</span> {COMPANY.tax}</p>
-                <p><span className="text-gray-300">NIB:</span> {COMPANY.nib}</p>
+                <p className="text-xs uppercase tracking-wide text-gray-500 mb-1">{t('footer.companyInfo.title')}</p>
+                <p><span className="text-gray-300">{t('footer.companyInfo.labels.legalName')}:</span> {COMPANY.legalName}</p>
+                <p><span className="text-gray-300">{t('footer.companyInfo.labels.address')}:</span> {COMPANY.address}</p>
+                <p><span className="text-gray-300">{t('footer.companyInfo.labels.tax')}:</span> {COMPANY.tax}</p>
+                <p><span className="text-gray-300">{t('footer.companyInfo.labels.nib')}:</span> {COMPANY.nib}</p>
               </div>
               <div className="flex items-center gap-2">
                 <Mail size={16} />
@@ -326,7 +242,7 @@ export default function Footer() {
                     {phone}
                   </a>
                   <span className="text-xs text-gray-500" style={{ fontFamily: '"Poppins", sans-serif' }}>
-                    Türkiye hattı (WhatsApp destekli)
+                    {t('footer.phoneNotes.trLine')}
                   </span>
                 </div>
               </div>
@@ -341,7 +257,7 @@ export default function Footer() {
                     {indonesiaPhoneDisplay}
                   </a>
                   <span className="text-xs text-gray-500" style={{ fontFamily: '"Poppins", sans-serif' }}>
-                    Endonezya hattı
+                    {t('footer.phoneNotes.idLine')}
                   </span>
                 </div>
               </div>
@@ -354,7 +270,7 @@ export default function Footer() {
                   className="hover:text-white transition"
                   style={{ fontFamily: '"Poppins", sans-serif' }}
                 >
-                  WhatsApp
+                  {t('footer.links.whatsapp')}
                 </a>
               </div>
             </div>
@@ -362,33 +278,22 @@ export default function Footer() {
 
           <div>
             <h4 className="font-semibold mb-4" style={{ fontFamily: '"Poppins", sans-serif' }}>
-              Sosyal Ağlar
+              {t('footer.sections.social')}
             </h4>
             <div className="flex gap-4 items-center">
-              <a
-                href={instagramLink}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-white hover:opacity-90 transition bg-gradient-to-tr from-yellow-400 via-pink-500 to-purple-600 p-2 rounded-full flex items-center justify-center"
-                title="Instagram"
-              >
-                <Instagram size={18} />
-              </a>
-              <a
-                href={youtubeLink}
-                target="_blank"
-                rel="noopener noreferrer"
+              <Link
+                to="/youtube"
                 className="text-white hover:opacity-90 transition bg-red-600 p-2 rounded-full flex items-center justify-center"
-                title="YouTube"
+                title={t('footer.social.youtube')}
               >
                 <Youtube size={18} />
-              </a>
+              </Link>
               <a
                 href={whatsappLink}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-emerald-50 hover:opacity-90 transition bg-emerald-500 p-2 rounded-full flex items-center justify-center"
-                title="WhatsApp"
+                title={t('footer.social.whatsapp')}
               >
                 <MessageCircle size={18} />
               </a>
@@ -398,7 +303,7 @@ export default function Footer() {
 
         <div className="border-t border-gray-800 pt-8 text-center text-gray-400">
           <p style={{ fontFamily: '"Poppins", sans-serif' }}>
-            &copy; {currentYear} Endonezya Kaşifi — PT MoonStar Global Indonesia. Tüm hakları saklıdır.
+            {t('footer.copyright', { year: currentYear, company: 'PT MoonStar Global Indonesia' })}
           </p>
         </div>
       </div>

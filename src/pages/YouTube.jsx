@@ -4,7 +4,60 @@ import HeroSocialButtons from "../components/HeroSocialButtons";
 import { Play, Youtube } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { getYouTubeVideosForLang } from "../data/youtube";
+import React from "react";
+import { staticAssetUrl } from "../utils/staticAssetUrl";
 
+const FALLBACK_THUMB_DATA_URL =
+  'data:image/svg+xml;charset=utf-8,' +
+  encodeURIComponent(
+    `<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720">
+      <rect width="1280" height="720" fill="#000"/>
+      <g opacity="0.9">
+        <circle cx="640" cy="360" r="84" fill="#fff" opacity="0.18"/>
+        <path d="M 615 318 L 615 402 L 695 360 Z" fill="#fff"/>
+      </g>
+      <text x="50%" y="92%" text-anchor="middle" fill="#fff" font-size="28" font-family="Arial, sans-serif" opacity="0.9">Önizleme yüklenemedi</text>
+    </svg>`
+  );
+
+function getYouTubeThumbnailCandidates(videoId) {
+  const id = String(videoId || '').trim();
+  if (!id) return [];
+
+  // Some videos don't have max resolution thumbnails (404). Fall back gracefully.
+  return [
+    // Prefer self-hosted thumbs (works even when YouTube domains are blocked)
+    staticAssetUrl(`/youtube-thumbs/${id}.jpg`),
+    `https://img.youtube.com/vi/${id}/maxresdefault.jpg`,
+    `https://img.youtube.com/vi/${id}/hqdefault.jpg`,
+    `https://img.youtube.com/vi/${id}/mqdefault.jpg`,
+    `https://img.youtube.com/vi/${id}/default.jpg`,
+    // Secondary host (some networks treat these differently)
+    `https://i.ytimg.com/vi/${id}/hqdefault.jpg`,
+    `https://i.ytimg.com/vi/${id}/mqdefault.jpg`,
+    // Last resort: inline placeholder (avoids broken-image icon when thumbnails are blocked)
+    FALLBACK_THUMB_DATA_URL,
+  ];
+}
+
+function YouTubeThumb({ videoId, title }) {
+  const candidates = getYouTubeThumbnailCandidates(videoId);
+  const [index, setIndex] = React.useState(0);
+  const src = candidates[index] || '';
+
+  return (
+    <img
+      src={src}
+      alt={title}
+      className="w-full h-full object-cover group-hover:scale-105 transition duration-300"
+      loading="lazy"
+      decoding="async"
+      onError={() => {
+        setIndex((prev) => (prev + 1 < candidates.length ? prev + 1 : prev));
+      }}
+    />
+  );
+}
 export default function YouTube() {
   const { t, i18n } = useTranslation();
   const videos = getYouTubeVideosForLang(i18n.language);
@@ -15,7 +68,7 @@ export default function YouTube() {
 
       {/* Hero Section */}
       <section className="pt-24 pb-44 px-4 relative overflow-hidden min-h-96" style={{
-		backgroundImage: 'url(https://res.cloudinary.com/dj1xg1c56/image/upload/v1767351850/ENDONEZYA_KA%C5%9E%C4%B0F%C4%B0_youtube_banner_wjmvvc.png)',
+  		backgroundImage: 'linear-gradient(180deg, rgba(15,23,42,0.45), rgba(15,23,42,0.75)), url(/ernests-vaga-mzJFI9o5_zc-unsplash.jpg)',
         backgroundSize: 'cover',
         backgroundPosition: 'center 112%',
         backgroundRepeat: 'no-repeat',
@@ -30,18 +83,6 @@ export default function YouTube() {
               {t("youtubePage.hero.title")}
             </h1>
           </div>
-        </div>
-        <div className="absolute left-4 bottom-4 z-20 flex flex-col items-start gap-3">
-          <a
-            href="https://www.youtube.com/@endonezyakasifi"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 bg-gradient-to-r from-red-600 via-red-500 to-rose-500 text-white px-6 py-2.5 md:px-7 md:py-3 rounded-full font-medium shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all duration-200 text-sm md:text-base"
-          >
-            <Youtube size={24} />
-            {t("youtubePage.hero.subscribe")}
-          </a>
-          <HeroSocialButtons inline showYoutube={false} />
         </div>
       </section>
 
@@ -58,7 +99,7 @@ export default function YouTube() {
       </section>
 
       {/* Videos Grid */}
-      <section className="py-12 px-4">
+      <section className="py-12 px-4" id="videos">
         <div className="max-w-6xl mx-auto">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {videos.map((video) => (
@@ -68,15 +109,7 @@ export default function YouTube() {
               >
                 {/* Thumbnail - Küçültülmüş */}
                 <div className="relative w-full bg-gray-900 overflow-hidden aspect-video">
-                  <img
-                    src={video.thumbnail}
-                    alt={video.title}
-                    className="w-full h-full object-cover group-hover:scale-105 transition duration-300"
-                    onError={(e) => {
-                      e.target.src =
-                        "https://images.unsplash.com/photo-1607082348824-0a96f2a4b9da?w=600&h=400&fit=crop";
-                    }}
-                  />
+                  <YouTubeThumb videoId={video.videoId} title={video.title} />
                   <div className="absolute inset-0 bg-black/40 group-hover:bg-black/60 transition flex items-center justify-center">
                     <a
                       href={`https://www.youtube.com/watch?v=${video.videoId}`}
@@ -130,9 +163,7 @@ export default function YouTube() {
                   {t("youtubePage.cta.text")}
                 </p>
                 <a
-                  href="https://www.youtube.com/@endonezyakasifi"
-                  target="_blank"
-                  rel="noopener noreferrer"
+                  href="#videos"
                   className="inline-flex items-center gap-2 bg-red-600 text-white px-6 py-2.5 rounded-lg font-medium hover:bg-red-700 transition text-sm md:text-base"
                 >
                   <Youtube size={20} />

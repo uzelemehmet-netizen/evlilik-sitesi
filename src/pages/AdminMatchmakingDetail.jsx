@@ -24,6 +24,7 @@ function labelForLanguageCode(v, other = '') {
   if (v === 'en') return 'İngilizce';
   if (v === 'ar') return 'Arapça';
   if (v === 'none') return 'Yabancı dil bilmiyor';
+  if (v === 'translation_app' || v === 'translationApp') return 'Çeviri uygulaması';
   if (v === 'other') return other ? `Diğer: ${other}` : 'Diğer';
   return v || '-';
 }
@@ -61,6 +62,7 @@ function labelForMaritalStatus(v) {
 function labelForEducation(v) {
   if (v === 'doesnt_matter' || v === 'doesntMatter') return 'Farketmez';
   if (v === 'secondary') return 'Ortaöğretim';
+  if (v === 'high_school' || v === 'highSchool') return 'Lise';
   if (v === 'university') return 'Üniversite';
   if (v === 'masters') return 'Yüksek lisans';
   if (v === 'phd') return 'Doktora';
@@ -70,10 +72,10 @@ function labelForEducation(v) {
 
 function labelForOccupation(v) {
   if (v === 'doesnt_matter' || v === 'doesntMatter') return 'Farketmez';
-  if (v === 'civilServant') return 'Memur';
+  if (v === 'civilServant' || v === 'civil_servant') return 'Memur';
   if (v === 'employee') return 'Çalışan';
   if (v === 'retired') return 'Emekli';
-  if (v === 'businessOwner') return 'İşletme sahibi';
+  if (v === 'businessOwner' || v === 'business_owner') return 'İşletme sahibi';
   if (v === 'other') return 'Diğer';
   return v || '-';
 }
@@ -82,8 +84,8 @@ function labelForIncome(v) {
   if (v === 'low') return 'Düşük';
   if (v === 'medium') return 'Orta';
   if (v === 'good') return 'İyi';
-  if (v === 'veryGood') return 'Çok iyi';
-  if (v === 'preferNot') return 'Belirtmek istemiyorum';
+  if (v === 'veryGood' || v === 'very_good') return 'Çok iyi';
+  if (v === 'preferNot' || v === 'prefer_not_to_say') return 'Belirtmek istemiyorum';
   return v || '-';
 }
 
@@ -105,17 +107,29 @@ function labelForTimeline(v) {
 }
 
 function labelForFamilyApproval(v) {
+  // Yeni form şeması: yes/no/unsure
+  if (v === 'yes' || v === true) return 'Onaylı';
+  if (v === 'no' || v === false) return 'Onaylamıyor';
+  if (v === 'unsure') return 'Emin değilim';
+
+  // Eski/alternatif şema
   if (v === 'approved') return 'Onaylı';
-  if (v === 'inProgress') return 'Görüşülüyor';
+  if (v === 'inProgress' || v === 'in_progress') return 'Görüşülüyor';
   if (v === 'problem') return 'Sorun/engel var';
   return v || '-';
 }
 
 function labelForPartnerChildrenPreference(v) {
   if (v === 'doesnt_matter' || v === 'doesntMatter') return 'Farketmez';
-  if (v === 'wantChildren') return 'Çocuk istesin';
-  if (v === 'noChildren') return 'Çocuk istemesin';
+  if (v === 'wantChildren' || v === 'want_children') return 'Çocuk istesin';
+  if (v === 'noChildren' || v === 'no_children') return 'Çocuk istemesin';
   return v || '-';
+}
+
+function hasMeaningfulValue(v) {
+  if (v === null || v === undefined) return false;
+  if (typeof v === 'string') return v.trim().length > 0;
+  return true; // number/boolean/object (UI uses specific cases)
 }
 
 function formatValue(v) {
@@ -315,17 +329,35 @@ export default function AdminMatchmakingDetail() {
   const nativeLang = languages?.native || {};
   const foreignLang = languages?.foreign || {};
 
+  const nativeLangCode =
+    (typeof nativeLang?.code === 'string' && nativeLang.code.trim()) ||
+    (typeof details?.nativeLanguage === 'string' && details.nativeLanguage.trim()) ||
+    '';
+
+  const nativeOtherText =
+    (typeof details?.nativeLanguageOtherTr === 'string' && details.nativeLanguageOtherTr.trim()) ||
+    (typeof nativeLang?.other === 'string' && nativeLang.other.trim()) ||
+    (typeof details?.nativeLanguageOther === 'string' && details.nativeLanguageOther.trim()) ||
+    '';
+
+  const foreignOtherText =
+    (typeof details?.foreignLanguageOtherTr === 'string' && details.foreignLanguageOtherTr.trim()) ||
+    (typeof foreignLang?.other === 'string' && foreignLang.other.trim()) ||
+    (typeof details?.foreignLanguageOther === 'string' && details.foreignLanguageOther.trim()) ||
+    '';
+
   const foreignLangLabel = useMemo(() => {
-    const codes = Array.isArray(foreignLang?.codes) ? foreignLang.codes : [];
+    const codes = Array.isArray(foreignLang?.codes)
+      ? foreignLang.codes
+      : (Array.isArray(details?.foreignLanguages) ? details.foreignLanguages : []);
     if (codes.includes('none')) return 'Yabancı dil bilmiyor';
     const filtered = codes.filter((c) => c && c !== 'other');
     const base = filtered.map((c) => labelForLanguageCode(c)).filter(Boolean);
-    const otherText = typeof foreignLang?.other === 'string' ? foreignLang.other.trim() : '';
     if (codes.includes('other')) {
-      base.push(otherText ? `Diğer: ${otherText}` : 'Diğer');
+      base.push(foreignOtherText ? `Diğer: ${foreignOtherText}` : 'Diğer');
     }
     return base.length ? base.join(', ') : '-';
-  }, [foreignLang]);
+  }, [foreignLang, details, foreignOtherText]);
 
   const partnerAgeSummary = useMemo(() => {
     const min = typeof partner?.ageMin === 'number' ? partner.ageMin : null;
@@ -442,7 +474,6 @@ export default function AdminMatchmakingDetail() {
                 <p><span className="font-semibold">Yaş:</span> {typeof item.age === 'number' ? item.age : '-'}</p>
                 <p><span className="font-semibold">WhatsApp:</span> {item.whatsapp || '-'}</p>
                 <p><span className="font-semibold">E-posta:</span> {item.email || '-'}</p>
-                <p><span className="font-semibold">Instagram:</span> {item.instagram || '-'}</p>
                 <p><span className="font-semibold">Şehir/Ülke:</span> {item.city ? `${item.city}${item.country ? ` / ${item.country}` : ''}` : (item.country || '-')}</p>
                 <p><span className="font-semibold">Cinsiyet:</span> {labelForGender(item.gender)}</p>
                 <p><span className="font-semibold">Uyruk:</span> {labelForNationality(item.nationality)}</p>
@@ -454,9 +485,15 @@ export default function AdminMatchmakingDetail() {
               <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
                 <p>
                   <span className="font-semibold">Kendi dili:</span>{' '}
-                  {labelForLanguageCode(nativeLang?.code, nativeLang?.other)}
+                  {labelForLanguageCode(nativeLangCode, nativeOtherText)}
                 </p>
                 <p><span className="font-semibold">Yabancı diller:</span> {foreignLangLabel}</p>
+                <p>
+                  <span className="font-semibold">İletişim dili:</span>{' '}
+                  {details?.communicationLanguage
+                    ? labelForLanguageCode(details.communicationLanguage, details?.communicationLanguageOther)
+                    : '-'}
+                </p>
                 <p>
                   <span className="font-semibold">Çeviri uygulaması ile konuşabilir:</span>{' '}
                   {labelForYesNo(details?.canCommunicateWithTranslationApp)}
@@ -484,19 +521,20 @@ export default function AdminMatchmakingDetail() {
                 <p><span className="font-semibold">Meslek:</span> {labelForOccupation(details?.occupation)}</p>
                 <p><span className="font-semibold">Eğitim:</span> {labelForEducation(details?.education)}</p>
                 <p><span className="font-semibold">Medeni durum:</span> {labelForMaritalStatus(details?.maritalStatus)}</p>
-                <p><span className="font-semibold">Çocuk:</span> {details?.hasChildren ? labelForYesNo(details.hasChildren) : '-'}</p>
+                <p><span className="font-semibold">Çocuk:</span> {hasMeaningfulValue(details?.hasChildren) ? labelForYesNo(details.hasChildren) : '-'}</p>
                 <p><span className="font-semibold">Çocuk sayısı:</span> {typeof details?.childrenCount === 'number' ? details.childrenCount : '-'}</p>
+                <p><span className="font-semibold">Çocuklarıyla yaşıyor mu?:</span> {hasMeaningfulValue(details?.childrenLivingSituation) ? (details.childrenLivingSituation === 'with_children' ? 'Evet' : (details.childrenLivingSituation === 'separate' ? 'Hayır' : details.childrenLivingSituation)) : '-'}</p>
                 <p><span className="font-semibold">Gelir:</span> {labelForIncome(details?.incomeLevel)}</p>
                 <p><span className="font-semibold">Din:</span> {labelForReligion(details?.religion)}</p>
-                <p className="md:col-span-2"><span className="font-semibold">Dinî değerler:</span> {details?.religiousValues || '-'}</p>
-                <p className="md:col-span-2"><span className="font-semibold">Aile engeli:</span> {details?.familyObstacle ? labelForYesNo(details.familyObstacle) : '-'}</p>
+                <p className="md:col-span-2"><span className="font-semibold">Dinî değerler:</span> {details?.religiousValuesTr || details?.religiousValues || '-'}</p>
+                <p className="md:col-span-2"><span className="font-semibold">Aile engeli:</span> {hasMeaningfulValue(details?.familyObstacle) ? labelForYesNo(details.familyObstacle) : '-'}</p>
                 <p className="md:col-span-2"><span className="font-semibold">Aile engeli (detay):</span> {details?.familyObstacleDetails || '-'}</p>
-                <p><span className="font-semibold">Aile onayı:</span> {details?.familyApprovalStatus ? labelForFamilyApproval(details.familyApprovalStatus) : '-'}</p>
+                <p><span className="font-semibold">Aile onayı:</span> {hasMeaningfulValue(details?.familyApprovalStatus) ? labelForFamilyApproval(details.familyApprovalStatus) : '-'}</p>
                 <p><span className="font-semibold">Evlilik zamanı:</span> {details?.marriageTimeline ? labelForTimeline(details.marriageTimeline) : '-'}</p>
                 <p><span className="font-semibold">Taşınma:</span> {details?.relocationWillingness ? labelForYesNo(details.relocationWillingness) : '-'}</p>
-                <p><span className="font-semibold">Yaşamak istediği ülke:</span> {details?.preferredLivingCountry ? labelForLivingCountry(details.preferredLivingCountry) : '-'}</p>
-                <p><span className="font-semibold">Sigara:</span> {details?.smoking ? labelForYesNo(details.smoking) : '-'}</p>
-                <p><span className="font-semibold">Alkol:</span> {details?.alcohol ? labelForYesNo(details.alcohol) : '-'}</p>
+                <p><span className="font-semibold">Yaşamak istediği ülke:</span> {details?.preferredLivingCountry ? (labelForLivingCountry(details.preferredLivingCountry) || details.preferredLivingCountry) : '-'}</p>
+                <p><span className="font-semibold">Sigara:</span> {hasMeaningfulValue(details?.smoking) ? labelForYesNo(details.smoking) : '-'}</p>
+                <p><span className="font-semibold">Alkol:</span> {hasMeaningfulValue(details?.alcohol) ? labelForYesNo(details.alcohol) : '-'}</p>
               </div>
             </div>
 
@@ -517,7 +555,7 @@ export default function AdminMatchmakingDetail() {
                   <span className="font-semibold">Çeviri uygulaması ile konuşabilir:</span>{' '}
                   {labelForYesNo(partner?.canCommunicateWithTranslationApp)}
                 </p>
-                <p><span className="font-semibold">Yaşanacak ülke:</span> {partner?.livingCountry ? labelForLivingCountry(partner.livingCountry) : '-'}</p>
+                <p><span className="font-semibold">Yaşanacak ülke:</span> {partner?.livingCountry ? (labelForLivingCountry(partner.livingCountry) || partner.livingCountry) : '-'}</p>
                 <p><span className="font-semibold">Sigara:</span> {partner?.smokingPreference ? labelForDoesntMatter(partner.smokingPreference) : '-'}</p>
                 <p><span className="font-semibold">Alkol:</span> {partner?.alcoholPreference ? labelForDoesntMatter(partner.alcoholPreference) : '-'}</p>
                 <p><span className="font-semibold">Çocuk tercihi:</span> {partner?.childrenPreference ? labelForPartnerChildrenPreference(partner.childrenPreference) : '-'}</p>

@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { collection, limit, onSnapshot, orderBy, query, where } from 'firebase/firestore';
+import { useTranslation } from 'react-i18next';
 import { db } from '../../config/firebase';
 import { authFetch } from '../../utils/authFetch';
 
@@ -40,6 +41,22 @@ function shortenId(id) {
   return `${s.slice(0, 10)}…${s.slice(-6)}`;
 }
 
+function safeStr(v) {
+  return typeof v === 'string' ? v.trim() : '';
+}
+
+function displayUserLabel(m, side) {
+  const p = m?.profiles?.[side] || null;
+  const username = safeStr(p?.username);
+  if (username) return `@${username}`;
+  const fullName = safeStr(p?.fullName);
+  if (fullName) return fullName;
+  const code = profileCodeOf(p);
+  if (code) return code;
+  const uid = safeStr(side === 'a' ? m?.aUserId : m?.bUserId);
+  return uid ? shortenId(uid) : side.toUpperCase();
+}
+
 async function copyText(text) {
   const s = String(text || '');
   if (!s) return false;
@@ -52,6 +69,7 @@ async function copyText(text) {
 }
 
 export default function MatchmakingMatchesTab() {
+  const { t } = useTranslation();
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [acting, setActing] = useState(false);
@@ -141,7 +159,7 @@ export default function MatchmakingMatchesTab() {
             },
             (e2) => {
               console.error('matchmakingMatches fallback load failed:', e2);
-              setErr(String(e2?.message || 'Eşleşmeler yüklenemedi.'));
+              setErr(String(e2?.message || t('admin.matchmakingMatches.errors.loadFailed')));
               setLoading(false);
             }
           );
@@ -149,7 +167,7 @@ export default function MatchmakingMatchesTab() {
         }
 
         console.error('matchmakingMatches load failed:', e);
-        setErr(String(e?.message || 'Eşleşmeler yüklenemedi.'));
+        setErr(String(e?.message || t('admin.matchmakingMatches.errors.loadFailed')));
         setLoading(false);
       }
     );
@@ -161,7 +179,7 @@ export default function MatchmakingMatchesTab() {
   }, []);
 
   const cancel = async (matchId) => {
-    const ok = window.confirm('Bu eşleşme iptal edildi olarak işaretlenecek ve kilit kaldırılacak. Devam edilsin mi?');
+    const ok = window.confirm(t('admin.matchmakingMatches.confirms.cancelMatch'));
     if (!ok) return;
 
     setActing(true);
@@ -173,9 +191,9 @@ export default function MatchmakingMatchesTab() {
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ matchId, reason: 'cancelled_after_contact' }),
       });
-      setMsg('Eşleşme iptal edildi. Kilit kaldırıldı; yeni eşleşmeler gösterilebilir.');
+      setMsg(t('admin.matchmakingMatches.messages.cancelSuccess'));
     } catch (e) {
-      setErr(String(e?.message || 'İşlem başarısız.'));
+      setErr(String(e?.message || t('admin.matchmakingMatches.errors.actionFailed')));
     } finally {
       setActing(false);
     }
@@ -185,7 +203,7 @@ export default function MatchmakingMatchesTab() {
     const a = String(manualA || '').trim();
     const b = String(manualB || '').trim();
     if (!a || !b) {
-      setErr('Lütfen A ve B için Application ID veya Profil Kodu girin.');
+      setErr(t('admin.matchmakingMatches.errors.manualInputRequired'));
       return;
     }
 
@@ -206,14 +224,14 @@ export default function MatchmakingMatchesTab() {
       });
 
       const extra = data?.existed
-        ? ' (Zaten vardı: güncellendi)'
+        ? t('admin.matchmakingMatches.messages.manualExtraUpdated')
         : data?.skippedBecauseExists
-          ? ' (Zaten vardı: atlandı)'
+          ? t('admin.matchmakingMatches.messages.manualExtraSkipped')
           : '';
-      setMsg(`Manuel eşleşme hazır. Match ID: ${data?.matchId || '-'}${extra}`);
+      setMsg(t('admin.matchmakingMatches.messages.manualCreated', { matchId: data?.matchId || '-', extra }));
     } catch (e) {
       const details = e?.details ? ` (${JSON.stringify(e.details)})` : '';
-      setErr(String(e?.message || 'İşlem başarısız.') + details);
+      setErr(String(e?.message || t('admin.matchmakingMatches.errors.actionFailed')) + details);
     } finally {
       setActing(false);
     }
@@ -234,10 +252,12 @@ export default function MatchmakingMatchesTab() {
       <div className="rounded-xl border border-slate-200 bg-white p-4">
         <div className="flex items-start justify-between gap-3">
           <div>
-            <h2 className="text-lg font-bold text-slate-900">Eşleşmeler</h2>
-            <p className="text-sm text-slate-600">Karşılıklı onay ve iletişim açılmış eşleşmeler.</p>
+            <h2 className="text-lg font-bold text-slate-900">{t('admin.matchmakingMatches.titles.tab')}</h2>
+            <p className="text-sm text-slate-600">{t('admin.matchmakingMatches.titles.tabSubtitle')}</p>
           </div>
-          <div className="text-xs text-slate-600">Toplam: <span className="font-semibold text-slate-900">{items.length}</span></div>
+          <div className="text-xs text-slate-600">
+            {t('admin.matchmakingMatches.labels.total')}: <span className="font-semibold text-slate-900">{items.length}</span>
+          </div>
         </div>
 
         {msg ? (
@@ -249,45 +269,44 @@ export default function MatchmakingMatchesTab() {
       </div>
 
       {loading ? (
-        <div className="rounded-xl border border-slate-200 bg-white p-4 text-sm text-slate-600">Yükleniyor…</div>
+        <div className="rounded-xl border border-slate-200 bg-white p-4 text-sm text-slate-600">{t('admin.matchmakingMatches.common.loading')}</div>
       ) : (
         <div className="space-y-4">
           <section className="rounded-2xl bg-white border border-slate-200 p-4">
-            <p className="text-sm font-semibold text-slate-900">Manuel eşleştir</p>
+            <p className="text-sm font-semibold text-slate-900">{t('admin.matchmakingMatches.manual.title')}</p>
             <p className="text-xs text-slate-600 mt-1">
-              A ve B için “Application ID” veya “Kullanıcı Adı” girin. Bu işlem iki kullanıcı arasında bir
-              eşleşme dokümanı oluşturur.
+              {t('admin.matchmakingMatches.manual.descriptionShort')}
             </p>
 
             <div className="mt-3 grid grid-cols-1 md:grid-cols-3 gap-3">
               <div>
-                <label className="block text-xs font-semibold text-slate-700">A (Application ID / Profil Kodu)</label>
+                <label className="block text-xs font-semibold text-slate-700">{t('admin.matchmakingMatches.manual.labels.a')}</label>
                 <input
                   value={manualA}
                   onChange={(e) => setManualA(e.target.value)}
-                  placeholder="Örn: moonstar_34 veya applicationId"
+                  placeholder={t('admin.matchmakingMatches.manual.placeholders.a')}
                   className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm"
                 />
               </div>
               <div>
-                <label className="block text-xs font-semibold text-slate-700">B (Application ID / Profil Kodu)</label>
+                <label className="block text-xs font-semibold text-slate-700">{t('admin.matchmakingMatches.manual.labels.b')}</label>
                 <input
                   value={manualB}
                   onChange={(e) => setManualB(e.target.value)}
-                  placeholder="Örn: blueocean_21 veya applicationId"
+                  placeholder={t('admin.matchmakingMatches.manual.placeholders.b')}
                   className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm"
                 />
               </div>
               <div>
-                <label className="block text-xs font-semibold text-slate-700">Başlangıç durumu</label>
+                <label className="block text-xs font-semibold text-slate-700">{t('admin.matchmakingMatches.manual.labels.startStatus')}</label>
                 <select
                   value={manualStatus}
                   onChange={(e) => setManualStatus(e.target.value)}
                   className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm"
                 >
-                  <option value="proposed">proposed (beğeni/ret test)</option>
-                  <option value="mutual_accepted">mutual_accepted (chat/contact seçimi test)</option>
-                  <option value="contact_unlocked">contact_unlocked (iletişim açılmış test)</option>
+                  <option value="proposed">{t('admin.matchmakingMatches.manual.statusOptions.proposed')}</option>
+                  <option value="mutual_accepted">{t('admin.matchmakingMatches.manual.statusOptions.mutualAccepted')}</option>
+                  <option value="contact_unlocked">{t('admin.matchmakingMatches.manual.statusOptions.contactUnlocked')}</option>
                 </select>
               </div>
             </div>
@@ -299,7 +318,7 @@ export default function MatchmakingMatchesTab() {
                   checked={manualOverwrite}
                   onChange={(e) => setManualOverwrite(e.target.checked)}
                 />
-                Aynı match varsa üzerine yaz
+                {t('admin.matchmakingMatches.manual.labels.overwrite')}
               </label>
 
               <button
@@ -308,7 +327,7 @@ export default function MatchmakingMatchesTab() {
                 onClick={createManualMatch}
                 className="px-4 py-2 rounded-full bg-sky-600 text-white text-sm font-semibold hover:bg-sky-700 disabled:opacity-60"
               >
-                Manuel eşleştir
+                {t('admin.matchmakingMatches.manual.actions.create')}
               </button>
 
               <button
@@ -317,28 +336,28 @@ export default function MatchmakingMatchesTab() {
                 onClick={clearManualDraft}
                 className="px-4 py-2 rounded-full bg-slate-100 text-slate-800 text-sm font-semibold hover:bg-slate-200 disabled:opacity-60"
               >
-                Alanları temizle
+                {t('admin.matchmakingMatches.manual.actions.clear')}
               </button>
 
               <Link
                 to="/admin/matchmaking-matches"
                 className="text-sm font-semibold text-sky-700 hover:underline"
               >
-                Detaylı eşleşme sayfasını aç
+                {t('admin.matchmakingMatches.nav.openDetailedPage')}
               </Link>
             </div>
           </section>
 
           <section className="rounded-2xl bg-white border border-slate-200 p-4">
-            <p className="text-sm font-semibold text-slate-900">Karşılıklı onay (2. adım seçimi bekliyor)</p>
+            <p className="text-sm font-semibold text-slate-900">{t('admin.matchmakingMatches.sections.mutual')}</p>
             {grouped.mutual.length === 0 ? (
-              <p className="text-sm text-slate-600 mt-2">Kayıt yok.</p>
+              <p className="text-sm text-slate-600 mt-2">{t('admin.matchmakingMatches.common.empty')}</p>
             ) : (
               <div className="mt-3 space-y-3">
                 {grouped.mutual.map((m) => (
                   <div key={m.id} className="rounded-xl border border-slate-200 bg-slate-50 p-4">
                     <p className="text-sm font-semibold text-slate-900">
-                      {m?.profiles?.a?.fullName || 'A'} ↔ {m?.profiles?.b?.fullName || 'B'}
+                      {displayUserLabel(m, 'a')} ↔ {displayUserLabel(m, 'b')}
                     </p>
                     {(() => {
                       const aCode = profileCodeOf(m?.profiles?.a);
@@ -347,7 +366,7 @@ export default function MatchmakingMatchesTab() {
                       const bAppId = appIdOf(m, 'b');
                       return aCode || bCode ? (
                         <p className="text-xs text-slate-700 mt-1">
-                          Eşleşme:{' '}
+                          {t('admin.matchmakingMatches.labels.match')}{' '}
                           <span className="font-semibold">
                             {aAppId && aCode ? (
                               <Link to={`/admin/matchmaking/${aAppId}`} className="text-sky-700 hover:underline">
@@ -368,19 +387,25 @@ export default function MatchmakingMatchesTab() {
                         </p>
                       ) : null;
                     })()}
-                    <p className="text-xs text-slate-600 mt-1">Skor: {typeof m.score === 'number' ? `%${m.score}` : '-'}</p>
+                    <p className="text-xs text-slate-600 mt-1">
+                      {t('admin.matchmakingMatches.labels.score', {
+                        score: typeof m.score === 'number' ? `%${m.score}` : '-',
+                      })}
+                    </p>
                     <div className="mt-1 flex items-center gap-2 text-xs text-slate-600">
-                      <span>Kayıt ID: <span className="font-mono">{shortenId(m.id)}</span></span>
+                      <span>
+                        {t('admin.matchmakingMatches.labels.recordId')} <span className="font-mono">{shortenId(m.id)}</span>
+                      </span>
                       <button
                         type="button"
                         className="text-sky-700 hover:underline"
                         onClick={async () => {
                           const ok = await copyText(m.id);
-                          setMsg(ok ? 'Kayıt ID kopyalandı.' : 'Kopyalanamadı.');
+                          setMsg(ok ? t('admin.matchmakingMatches.messages.copySuccess') : t('admin.matchmakingMatches.messages.copyFailed'));
                           setTimeout(() => setMsg(''), 1200);
                         }}
                       >
-                        kopyala
+                        {t('admin.matchmakingMatches.actions.copy')}
                       </button>
                     </div>
                     <div className="mt-2 flex flex-col sm:flex-row gap-2">
@@ -390,7 +415,7 @@ export default function MatchmakingMatchesTab() {
                         onClick={() => cancel(m.id)}
                         className="px-4 py-2 rounded-full bg-rose-600 text-white text-sm font-semibold hover:bg-rose-700 disabled:opacity-60"
                       >
-                        Eşleşmeyi iptal et (kilidi kaldır)
+                        {t('admin.matchmakingMatches.actions.cancel')}
                       </button>
                     </div>
                   </div>
@@ -400,15 +425,15 @@ export default function MatchmakingMatchesTab() {
           </section>
 
           <section className="rounded-2xl bg-white border border-slate-200 p-4">
-            <p className="text-sm font-semibold text-slate-900">İletişim paylaşımı açılanlar (kilit aktif)</p>
+            <p className="text-sm font-semibold text-slate-900">{t('admin.matchmakingMatches.sections.contactUnlocked')}</p>
             {grouped.contactUnlocked.length === 0 ? (
-              <p className="text-sm text-slate-600 mt-2">Kayıt yok.</p>
+              <p className="text-sm text-slate-600 mt-2">{t('admin.matchmakingMatches.common.empty')}</p>
             ) : (
               <div className="mt-3 space-y-3">
                 {grouped.contactUnlocked.map((m) => (
                   <div key={m.id} className="rounded-xl border border-slate-200 bg-slate-50 p-4">
                     <p className="text-sm font-semibold text-slate-900">
-                      {m?.profiles?.a?.fullName || 'A'} ↔ {m?.profiles?.b?.fullName || 'B'}
+                      {displayUserLabel(m, 'a')} ↔ {displayUserLabel(m, 'b')}
                     </p>
                     {(() => {
                       const aCode = profileCodeOf(m?.profiles?.a);
@@ -417,7 +442,7 @@ export default function MatchmakingMatchesTab() {
                       const bAppId = appIdOf(m, 'b');
                       return aCode || bCode ? (
                         <p className="text-xs text-slate-700 mt-1">
-                          Eşleşme:{' '}
+                          {t('admin.matchmakingMatches.labels.match')}{' '}
                           <span className="font-semibold">
                             {aAppId && aCode ? (
                               <Link to={`/admin/matchmaking/${aAppId}`} className="text-sky-700 hover:underline">
@@ -438,19 +463,25 @@ export default function MatchmakingMatchesTab() {
                         </p>
                       ) : null;
                     })()}
-                    <p className="text-xs text-slate-600 mt-1">Skor: {typeof m.score === 'number' ? `%${m.score}` : '-'}</p>
+                    <p className="text-xs text-slate-600 mt-1">
+                      {t('admin.matchmakingMatches.labels.score', {
+                        score: typeof m.score === 'number' ? `%${m.score}` : '-',
+                      })}
+                    </p>
                     <div className="mt-1 flex items-center gap-2 text-xs text-slate-600">
-                      <span>Kayıt ID: <span className="font-mono">{shortenId(m.id)}</span></span>
+                      <span>
+                        {t('admin.matchmakingMatches.labels.recordId')} <span className="font-mono">{shortenId(m.id)}</span>
+                      </span>
                       <button
                         type="button"
                         className="text-sky-700 hover:underline"
                         onClick={async () => {
                           const ok = await copyText(m.id);
-                          setMsg(ok ? 'Kayıt ID kopyalandı.' : 'Kopyalanamadı.');
+                          setMsg(ok ? t('admin.matchmakingMatches.messages.copySuccess') : t('admin.matchmakingMatches.messages.copyFailed'));
                           setTimeout(() => setMsg(''), 1200);
                         }}
                       >
-                        kopyala
+                        {t('admin.matchmakingMatches.actions.copy')}
                       </button>
                     </div>
                     <div className="mt-2 flex flex-col sm:flex-row gap-2">
@@ -460,7 +491,7 @@ export default function MatchmakingMatchesTab() {
                         onClick={() => cancel(m.id)}
                         className="px-4 py-2 rounded-full bg-rose-600 text-white text-sm font-semibold hover:bg-rose-700 disabled:opacity-60"
                       >
-                        Eşleşmeyi iptal et (kilidi kaldır)
+                        {t('admin.matchmakingMatches.actions.cancel')}
                       </button>
                     </div>
                   </div>

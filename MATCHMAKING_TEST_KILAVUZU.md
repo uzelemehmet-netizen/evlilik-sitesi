@@ -121,6 +121,26 @@ Aşağıdaki checklist’i 2 kullanıcıyla (A ve B) tek bir match üzerinde uyg
 
 ## 3.5) Eşleşme havuzu (pool) – madde madde kontrol listesi
 
+## 3.6) Önemli: Otomatik eşleşme neden “kendiliğinden” çalışmaz?
+
+Bu projede yeni eşleşme üretimi **istemci (web) tarafından otomatik yapılmaz**.
+Eşleşmeleri üreten iş, sunucu tarafındaki `POST /api/matchmaking-run` endpoint’idir ve bu endpoint **cron/job** ile tetiklenmek üzere tasarlanmıştır.
+
+### Prod’da otomatik çalışması için
+
+- Vercel kullanıyorsanız: [vercel.json](vercel.json) içine cron tanımı eklendi (default: 10 dakikada bir).
+- Güvenlik için `matchmaking-run` endpoint’i bir “cron auth” kontrolü yapar.
+
+Vercel Cron Jobs, isteğe `x-vercel-cron` header’ı ekler; bunu kabul etmek için prod env’e şunu ekleyin:
+
+- `MATCHMAKING_ALLOW_VERCEL_CRON=1`
+
+Alternatif olarak (GitHub Actions / başka scheduler):
+
+- `MATCHMAKING_CRON_SECRET=...` set edin ve isteklerde `x-cron-secret: <secret>` header gönderin.
+
+> Not: Scheduler header gönderemiyorsa `?cronSecret=...` query fallback’ı da desteklenir; ama query string log’a düşebileceği için header tercih edilir.
+
 Bu sistemin “ana iskeleti” iki koleksiyon üzerinden ilerliyor:
 
 - `matchmakingApplications`: Kullanıcının başvurusu (eşleşme üretiminde "seeker" olarak alınır)

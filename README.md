@@ -86,6 +86,40 @@ Notlar:
 
 Vercel deploy için aynı değişkenleri Vercel → Project → Settings → **Environment Variables** bölümüne ekleyip yeniden deploy edin.
 
+## Sohbet Manuel Çeviri (Gemini)
+
+Gemini entegrasyonu **server-side** çalışır (API key tarayıcıya gitmez). Çeviri butonuna basınca `/api/matchmaking-chat-translate` Gemini'ye istek atar ve sonucu mesaj dokümanına cache'ler.
+
+Gerekli env:
+
+```dotenv
+# Gemini'yi aktif etmek için:
+GEMINI_API_KEY=YOUR_GEMINI_KEY
+
+# Opsiyonel: model seçimi (uyumsuzsa farklı model deneyin)
+GEMINI_TRANSLATE_MODEL=gemini-3-flash
+
+# Opsiyonel: yalnızca GEMINI_TRANSLATE_MODEL kullan (fallback model deneme kapalı)
+# GEMINI_STRICT_MODEL=1
+
+# Opsiyonel: model uyumluluğu için v1beta/models ile discovery yap (ek bir HTTP çağrısı)
+# GEMINI_ENABLE_MODEL_DISCOVERY=1
+
+# Opsiyonel: server-side RPM guard (global). Varsayılan 15.
+# Billing/plan varsa yükseltin veya 0 yapıp kapatın.
+# GEMINI_TRANSLATE_RPM_LIMIT=60
+
+# Opsiyonel: Gemini rate-limit / arıza olursa fallback sağlayıcı
+TRANSLATE_FALLBACK_PROVIDER=deepl
+DEEPL_API_KEY=YOUR_DEEPL_KEY
+```
+
+Notlar:
+- "Hazır kütüphane" (TR↔ID sık sorular) yalnızca bazı kalıpları çevirir; her cümlenin çevrilebilmesi için **harici sağlayıcı** (Gemini/DeepL/Google/LibreTranslate) env ile ayarlı olmalıdır.
+- Çeviri bazı mesajlarda özellikle **telefon/e‑posta/URL** gibi kişisel bilgi (PII) algılanırsa güvenlik nedeniyle `pii_blocked` ile bilinçli olarak engellenir.
+- Gemini için dakikada istek limiti (RPM) uygulanır (`GEMINI_TRANSLATE_RPM_LIMIT`); aşılırsa `translate_rate_limited` dönebilir ve fallback sağlayıcı ayarlıysa otomatik düşer.
+- `429 RESOURCE_EXHAUSTED` görüyorsanız bu Gemini tarafında quota/rate limit'e takıldığınız anlamına gelir. Kullanımı/limitleri kontrol edin: https://ai.dev/rate-limit
+
 ## Admin Panel Firestore İzinleri
 
 Admin panel, bazı ayarları Firestore'a okur/yazar:

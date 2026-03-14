@@ -181,12 +181,4 @@ Notlar:
 - Bu yaklaşım email allowlist ile hızlı güvenlik sağlar.
 - Daha sağlam model için admin kullanıcılarına Firebase Custom Claims (ör. `admin: true`) vermek daha iyidir.
 
-## App Check (bot/spam azaltma) (önerilir)
 
-Matchmaking formu gibi herkese açık formlarda bot/spam riskini azaltmak için **Firebase App Check** etkinleştirebilirsiniz.
-
-- Firebase Console → App Check bölümünden **Firestore** ve **Storage** için App Check’i etkinleştirin.
-- Web için provider olarak **reCAPTCHA v3** seçin ve site key’i alın.
-- Bu projede istemci tarafında App Check opsiyonel olarak hazır: `VITE_FIREBASE_APPCHECK_SITE_KEY` env değişkenini set ederseniz otomatik devreye girer.
-
-Not: App Check’i Console tarafında “Enforce” ettiğinizde, geçerli App Check token’ı olmayan istekler servis tarafından reddedilir (kurallardan bağımsız).

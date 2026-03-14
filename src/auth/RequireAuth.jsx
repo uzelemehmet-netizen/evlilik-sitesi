@@ -6,8 +6,39 @@ export default function RequireAuth({ children }) {
   const { user, loading } = useAuth();
   const location = useLocation();
 
+  const normalizePath = (pathname) => {
+    const rawPath = String(pathname || '/');
+    return rawPath.replace(/\/+$/, '') || '/';
+  };
+
+  const getAuthModeForPath = (pathname) => {
+    const path = normalizePath(pathname);
+    // Bu sayfalar “kayıt ol -> form doldur” akışının bir parçası.
+    // Direkt login yerine signup ekranını açmak daha doğru.
+    if (
+      path === '/wedding/apply' ||
+      path === '/evlilik/eslestirme-basvuru' ||
+      path === '/evlilik/eslestirme-basvurusu' ||
+      path === '/evlilik/uyelik'
+    ) {
+      return 'signup';
+    }
+    return 'login';
+  };
+
   const isPublicPath = (pathname) => {
-    const path = String(pathname || '/');
+    const path = normalizePath(pathname);
+
+    // Explicit protected pages that live under otherwise-public prefixes.
+    // These must require a real (non-anonymous) authenticated user.
+    if (
+      path === '/wedding/apply' ||
+      path === '/evlilik/eslestirme-basvuru' ||
+      path === '/evlilik/eslestirme-basvurusu' ||
+      path === '/evlilik/uyelik'
+    ) {
+      return false;
+    }
 
     // Exact public pages
     if (
@@ -16,6 +47,7 @@ export default function RequireAuth({ children }) {
       path === '/kurumsal' ||
       path === '/contact' ||
       path === '/login' ||
+      path === '/documents' ||
       path === '/privacy'
     ) {
       return true;
@@ -27,12 +59,7 @@ export default function RequireAuth({ children }) {
       path.startsWith('/evlilik') ||
       path.startsWith('/uniqah') ||
       path.startsWith('/eslestirme') ||
-      path.startsWith('/travel') ||
-      path.startsWith('/tours') ||
-      path.startsWith('/kesfet') ||
       path.startsWith('/youtube') ||
-      path.startsWith('/gallery') ||
-      path.startsWith('/dokumanlar') ||
       path.startsWith('/docs/')
     );
   };
@@ -46,12 +73,14 @@ export default function RequireAuth({ children }) {
 
   if (!user || user.isAnonymous) {
     if (isPublicPath(location.pathname)) return children;
+
+    const mode = getAuthModeForPath(location.pathname);
     return (
       <Navigate
-        to="/login"
+        to={`/login?mode=${mode}`}
         replace
         state={{
-          from: location.pathname,
+          from: `${location.pathname || ''}${location.search || ''}`,
           fromState: location.state || null,
         }}
       />

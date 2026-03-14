@@ -1,17 +1,15 @@
 import Navigation from '../components/Navigation';
 import Footer from '../components/Footer';
 import HeroSocialButtons from '../components/HeroSocialButtons';
+import StickyWhatsApp from '../components/StickyWhatsApp';
 import { Link } from 'react-router-dom';
-import { useState } from 'react';
 import { Trans, useTranslation } from 'react-i18next';
 import { isFeatureEnabled } from '../config/siteVariant';
 
 export default function About() {
   const { t } = useTranslation();
-  const storySteps = t('about.story.steps', { returnObjects: true });
   const whyUsItems = t('about.whyUs.items', { returnObjects: true });
-
-  const [selectedPreviewImage, setSelectedPreviewImage] = useState(null);
+  const showWedding = isFeatureEnabled('wedding');
 
   return (
     <div className="min-h-screen bg-white">
@@ -51,16 +49,8 @@ export default function About() {
             <p className="text-sm text-gray-700 mt-3" style={{ fontFamily: '"Poppins", sans-serif' }}>
               {t('about.brand.p2')}
             </p>
-            <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
-              <Link to="/tours" className="p-4 rounded-2xl bg-white border border-emerald-100 shadow-sm hover:shadow-md transition block">
-                <p className="text-xs uppercase tracking-wide text-emerald-700 mb-1" style={{ fontFamily: '"Poppins", sans-serif' }}>
-                  {t('about.brand.cards.toursTitle')}
-                </p>
-                <p className="text-sm text-gray-700" style={{ fontFamily: '"Poppins", sans-serif' }}>
-                  {t('about.brand.cards.toursDesc')}
-                </p>
-              </Link>
-              {isFeatureEnabled('wedding') && (
+            <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+              {showWedding && (
                 <Link to="/wedding" className="p-4 rounded-2xl bg-white border border-emerald-100 shadow-sm hover:shadow-md transition block">
                   <p className="text-xs uppercase tracking-wide text-emerald-700 mb-1" style={{ fontFamily: '"Poppins", sans-serif' }}>
                     {t('about.brand.cards.weddingTitle')}
@@ -70,7 +60,10 @@ export default function About() {
                   </p>
                 </Link>
               )}
-              <Link to="/contact" className="p-4 rounded-2xl bg-white border border-emerald-100 shadow-sm hover:shadow-md transition block">
+              <Link
+                to={showWedding ? '/evlilik' : '/contact'}
+                className="p-4 rounded-2xl bg-white border border-emerald-100 shadow-sm hover:shadow-md transition block"
+              >
                 <p className="text-xs uppercase tracking-wide text-emerald-700 mb-1" style={{ fontFamily: '"Poppins", sans-serif' }}>
                   {t('about.brand.cards.dameturkTitle')}
                 </p>
@@ -142,36 +135,14 @@ export default function About() {
                 i18nKey="about.philosophy.outro"
                 components={[
                   <span key="0" />,
-                  <Link key="1" to="/kesfet" className="text-emerald-700 font-semibold hover:underline" />,
+                  <span key="1" className="text-emerald-700 font-semibold" />,
                   <span key="2" />,
-                  <Link key="3" to="/tours" className="text-emerald-700 font-semibold hover:underline" />,
+                  <span key="3" className="text-emerald-700 font-semibold" />,
                   <span key="4" />,
-                  <Link key="5" to="/tours/groups" className="text-emerald-700 font-semibold hover:underline" />,
+                  <span key="5" className="text-emerald-700 font-semibold" />,
                 ]}
               />
             </p>
-          </div>
-
-          {/* Mini Zaman Çizelgesi */}
-          <div className="mt-10">
-            <h3
-              className="text-xl md:text-2xl font-semibold text-gray-900 mb-4"
-              style={{ fontFamily: '"Poppins", sans-serif' }}
-            >
-              {t('about.story.title')}
-            </h3>
-            <div className="space-y-3 border-l border-emerald-200 pl-4">
-              {Array.isArray(storySteps) &&
-                storySteps.map((text, idx) => (
-                  <div key={idx} className="relative">
-                    <div className="absolute -left-2 top-1 w-3 h-3 rounded-full bg-emerald-500" />
-                    <p className="text-xs uppercase tracking-wide text-emerald-700 mb-0.5" style={{ fontFamily: '"Poppins", sans-serif' }}>
-                      {idx + 1}. {t('about.story.stepLabel')}
-                    </p>
-                    <p className="text-sm text-gray-700">{text}</p>
-                  </div>
-                ))}
-            </div>
           </div>
 
           {/* Hizmet Kapsamı - Kısa Liste */}
@@ -183,11 +154,7 @@ export default function About() {
               {t('about.support.title')}
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* 1. Kart: Toplu turlara bireysel / aile katılım */}
-              <Link
-                to="/tours"
-                className="p-4 rounded-2xl bg-sky-50 border border-sky-100 shadow-sm hover:shadow-md transition block"
-              >
+              <div className="p-4 rounded-2xl bg-purple-50 border border-purple-100 shadow-sm">
                 <h4
                   className="text-base font-semibold text-gray-900 mb-1"
                   style={{ fontFamily: '"Poppins", sans-serif' }}
@@ -197,8 +164,7 @@ export default function About() {
                 <p className="text-sm text-gray-700">
                   {t('about.support.items.joinScheduled.description')}
                 </p>
-              </Link>
-
+              </div>
               {/* 2. Kart: Çeviri ve iletişim desteği */}
               <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-100 shadow-sm">
                 <h4
@@ -211,12 +177,7 @@ export default function About() {
                   {t('about.support.items.translation.description')}
                 </p>
               </div>
-
-              {/* 3. Kart: Bireysel seyahat ve balayı planlama */}
-              <Link
-                to="/travel"
-                className="p-4 rounded-2xl bg-teal-50 border border-teal-100 shadow-sm hover:shadow-md transition block"
-              >
+              <div className="p-4 rounded-2xl bg-rose-50 border border-rose-100 shadow-sm">
                 <h4
                   className="text-base font-semibold text-gray-900 mb-1"
                   style={{ fontFamily: '"Poppins", sans-serif' }}
@@ -226,13 +187,8 @@ export default function About() {
                 <p className="text-sm text-gray-700">
                   {t('about.support.items.privatePlan.description')}
                 </p>
-              </Link>
-
-              {/* 4. Kart: Kurumsal ve arkadaş grupları için özel turlar */}
-              <Link
-                to="/tours/groups"
-                className="p-4 rounded-2xl bg-violet-50 border border-violet-100 shadow-sm hover:shadow-md transition block"
-              >
+              </div>
+              <div className="p-4 rounded-2xl bg-indigo-50 border border-indigo-100 shadow-sm">
                 <h4
                   className="text-base font-semibold text-gray-900 mb-1"
                   style={{ fontFamily: '"Poppins", sans-serif' }}
@@ -242,7 +198,7 @@ export default function About() {
                 <p className="text-sm text-gray-700">
                   {t('about.support.items.privateGroups.description')}
                 </p>
-              </Link>
+              </div>
               {/* 5. Kart: Konaklama ve ulaşım planlama */}
               <div className="p-4 rounded-2xl bg-amber-50 border border-amber-100 shadow-sm">
                 <h4
@@ -271,89 +227,6 @@ export default function About() {
             </div>
           </div>
 
-          {/* Galeriye Yönlendiren Hafif Blok */}
-          <div className="mt-12 p-6 md:p-8 rounded-2xl bg-gradient-to-r from-sky-50 via-emerald-50 to-sky-50 border border-emerald-100 shadow-sm flex flex-col gap-5">
-            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-              <div>
-                <h3
-                  className="text-lg md:text-xl font-semibold text-gray-900 mb-2"
-                  style={{ fontFamily: '"Poppins", sans-serif' }}
-                >
-                  {t('about.galleryTeaser.title')}
-                </h3>
-                <p
-                  className="text-sm md:text-base text-gray-700 max-w-2xl"
-                  style={{ fontFamily: '"Poppins", sans-serif' }}
-                >
-                  {t('about.galleryTeaser.description')}
-                </p>
-              </div>
-
-              <div className="flex-shrink-0">
-                <Link
-                  to="/gallery"
-                  className="inline-flex items-center justify-center px-5 py-3 rounded-full text-sm font-semibold bg-emerald-500 text-white shadow-md hover:shadow-lg hover:bg-emerald-600 transition-all text-center"
-                  style={{ fontFamily: '"Poppins", sans-serif' }}
-                >
-                  {t('about.galleryTeaser.cta')}
-                </Link>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-3 gap-3">
-              <button
-                type="button"
-                className="relative h-24 md:h-28 rounded-xl overflow-hidden shadow-sm bg-gray-100 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                onClick={() =>
-                  setSelectedPreviewImage({
-                    src: 'https://cvcou9szpd.ucarecd.net/57cf76e1-808a-46bf-b364-6db89ac043d8/IMG20250107WA0010.jpg',
-                    alt: t('about.galleryTeaser.previewAlt1'),
-                  })
-                }
-              >
-                <img
-                  src="https://cvcou9szpd.ucarecd.net/57cf76e1-808a-46bf-b364-6db89ac043d8/IMG20250107WA0010.jpg"
-                  alt={t('about.galleryTeaser.previewAlt1')}
-                  className="w-full h-full object-cover"
-                  loading="lazy"
-                />
-              </button>
-              <button
-                type="button"
-                className="relative h-24 md:h-28 rounded-xl overflow-hidden shadow-sm bg-gray-100 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                onClick={() =>
-                  setSelectedPreviewImage({
-                    src: 'https://cvcou9szpd.ucarecd.net/3a3fd1ff-3eb2-4072-a4d5-cdf1ad1d3637/IMG_3394.JPG',
-                    alt: t('about.galleryTeaser.previewAlt2'),
-                  })
-                }
-              >
-                <img
-                  src="https://cvcou9szpd.ucarecd.net/3a3fd1ff-3eb2-4072-a4d5-cdf1ad1d3637/IMG_3394.JPG"
-                  alt={t('about.galleryTeaser.previewAlt2')}
-                  className="w-full h-full object-cover"
-                  loading="lazy"
-                />
-              </button>
-              <button
-                type="button"
-                className="relative h-24 md:h-28 rounded-xl overflow-hidden shadow-sm bg-gray-100 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                onClick={() =>
-                  setSelectedPreviewImage({
-                    src: 'https://cvcou9szpd.ucarecd.net/7d53cbed-292f-4bbc-994c-bc55755f8648/IMG_3404.JPG',
-                    alt: t('about.galleryTeaser.previewAlt3'),
-                  })
-                }
-              >
-                <img
-                  src="https://cvcou9szpd.ucarecd.net/7d53cbed-292f-4bbc-994c-bc55755f8648/IMG_3404.JPG"
-                  alt={t('about.galleryTeaser.previewAlt3')}
-                  className="w-full h-full object-cover"
-                  loading="lazy"
-                />
-              </button>
-            </div>
-          </div>
 
           {/* YouTube'dan Öne Çıkan Videolar */}
           <div className="mt-12">
@@ -450,32 +323,7 @@ export default function About() {
         </div>
       </section>
 
-      {selectedPreviewImage && (
-        <div
-          className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center px-4"
-          onClick={() => setSelectedPreviewImage(null)}
-        >
-          <div
-            className="relative max-w-4xl w-full max-h-[85vh] flex items-center justify-center"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <button
-              type="button"
-              onClick={() => setSelectedPreviewImage(null)}
-              className="absolute -top-10 right-0 text-white text-sm md:text-base bg-black/60 hover:bg-black/80 px-3 py-1 rounded-full"
-              style={{ fontFamily: '"Poppins", sans-serif' }}
-            >
-              {t('about.modal.close')}
-            </button>
-            <img
-              src={selectedPreviewImage.src}
-              alt={selectedPreviewImage.alt}
-              className="w-full h-full object-contain rounded-2xl shadow-2xl"
-            />
-          </div>
-        </div>
-      )}
-
+      <StickyWhatsApp />
       <Footer />
     </div>
   );

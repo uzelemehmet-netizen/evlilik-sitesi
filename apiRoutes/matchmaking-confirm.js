@@ -1,5 +1,5 @@
 import { getAdmin, normalizeBody, requireIdToken } from './_firebaseAdmin.js';
-import { ensureEligibleOrThrow } from './_matchmakingEligibility.js';
+import { ensureEligibleOrThrow, ensureProfileCompleteOrThrow } from './_matchmakingEligibility.js';
 
 function safeStr(v) {
   return typeof v === 'string' ? v.trim() : '';
@@ -46,6 +46,8 @@ export default async function handler(req, res) {
     }
 
     const { db, FieldValue } = getAdmin();
+
+    await ensureProfileCompleteOrThrow(db, uid);
     const matchRef = db.collection('matchmakingMatches').doc(matchId);
 
     const nowMs = Date.now();
@@ -146,43 +148,6 @@ export default async function handler(req, res) {
 
       result = { confirmed: !alreadyConfirmed && both, confirmations: { a: confirmations.a, b: confirmations.b } };
     });
-
-    // İki taraf da onayladıysa: her iki kullanıcı için diğer proposed match'leri iptal et.
-    if (result.confirmed && userIds.length === 2) {
-      for (const uid2 of userIds) {
-        try {
-          const snap = await db
-            .collection('matchmakingMatches')
-            .where('status', '==', 'proposed')
-            .where('userIds', 'array-contains', uid2)
-            .limit(60)
-            .get();
-
-          if (snap.empty) continue;
-
-          const batch = db.batch();
-          snap.docs.forEach((d) => {
-            if (d.id === matchId) return;
-            batch.set(
-              d.ref,
-              {
-                status: 'cancelled',
-                cancelledAt: FieldValue.serverTimestamp(),
-                cancelledAtMs: Date.now(),
-                cancelledByUserId: 'system',
-                cancelledReason: 'confirmed_elsewhere',
-                confirmedMatchId: matchId,
-                updatedAt: FieldValue.serverTimestamp(),
-              },
-              { merge: true }
-            );
-          });
-          await batch.commit();
-        } catch {
-          // best-effort
-        }
-      }
-    }
 
     res.statusCode = 200;
     res.setHeader('content-type', 'application/json');

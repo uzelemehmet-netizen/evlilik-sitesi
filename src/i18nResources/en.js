@@ -1,6 +1,123 @@
 export default {
+    previewGate: {
+      title: 'You need to sign up first',
+      body: 'To do this, you must sign up and complete the matchmaking form first.',
+      signup: 'Sign up',
+      dismiss: 'Skip',
+    },
+  appErrorBoundary: {
+    title: 'Something went wrong',
+    body: 'The page could not be loaded. Please try refreshing.',
+    tryAgain: 'Try again',
+    reload: 'Reload page',
+    report: {
+      button: 'Report error',
+      sending: 'Reporting…',
+      sent: 'Reported. Thank you.',
+      failed: 'Could not send the report. Please try again.',
+    },
+  },
+    pwa: {
+      install: {
+        title: 'Install the app',
+        lead:
+          'Add to your home screen for faster access. Enable notifications to get instant alerts for messages, likes, and match requests.',
+        installButton: 'Install app',
+        installed: 'Installed',
+      preview: {
+        matches: {
+          title: 'My Profile: Matches',
+          body: 'Matches, requests and chats are managed from the My Profile screen.',
+        },
+        pool: {
+          title: 'Pool: Candidates',
+          body: 'You can browse candidates and send requests or likes.',
+        },
+        request: {
+          title: 'Send a match request',
+          body: 'These buttons are a preview. To perform real actions, you must sign up and complete the application form first.',
+        },
+      },
+        installedHint: 'The app is on your home screen. You can also enable notifications.',
+        installAvailableHint: 'Your browser supports installation. Click to install.',
+        installNotAvailableHint:
+          'If you don’t see an install button: use your browser menu and choose “Add to Home Screen / Install app” (on some devices it appears after the first visit over HTTPS). If you opened the link inside an in-app browser (WhatsApp/Instagram), use the menu to “Open in Safari/Chrome”, then try again.',
+        ios: {
+          title: 'For iPhone/iPad (Safari)',
+          step1: 'Open the site in Safari.',
+          matchmakingHub: 'Find a match',
+          matchmakingHint: "Don't have a match yet? Join our matchmaking system and find match candidates here.",
+          step3: 'Choose “Add to Home Screen” and confirm.',
+        },
+        notifications: {
+          title: 'Notifications',
+          lead: 'If you enable notifications (when supported), we can notify you about:',
+          button: 'Enable notifications',
+          testButton: 'Send test notification',
+          testHint: 'Enable notifications first (push token registration).',
+          testTitle: 'Test notification',
+          testBody: 'This is a test notification.',
+          testSent: 'Test notification sent (it may take a few seconds).',
+          testFailed: 'Could not send test notification (no token or missing setup).',
+          testNoTokens: 'No push token found. Click "Enable notifications" first, then try again.',
+          alreadyEnabled: 'Notification permission is already enabled.',
+          enabled: 'Notifications enabled.',
+          enabledButNotSaved:
+            'Notifications are enabled, but we could not save your push token to the server. Please log in and try again (or refresh).',
+          denied: 'Notification permission was not granted. You can allow it in your browser settings.',
+          notSupported: 'Notifications are not supported on this browser/device.',
+          notSecureContext: 'Notifications require HTTPS. Please open the site over https.',
+          serviceWorkerNotReady: 'Notification system is not ready yet. Refresh and try again.',
+          missingSetup: 'Push setup missing: VAPID key is not configured.',
+          invalidVapidKey: 'Push setup is invalid: VAPID key is not valid. Copy the correct Public key from Firebase Console.',
+          notLoggedIn: 'You need to be logged in to enable notifications.',
+          error: 'Could not enable notifications. Please try again.',
+          note:
+            'Note: On some devices you must add the app to the home screen first. Background push notifications may require additional setup.',
+          items: {
+            newMessage: 'New message in the active match',
+            newLike: 'Like / interaction',
+            profileAccess: 'Profile view request / approval',
+            shortMessage: 'Short message / first message',
+            activeMatch: 'Active match request / approval',
+            poolCandidates: 'New candidates in the pool',
+          },
+          photos: {
+            showMine: 'Show my photos',
+            hideMine: 'Hide my photos',
+            reciprocityHint: 'Note: If you hide your photos, you also cannot see their photos (reciprocity).',
+            reciprocityConfirm:
+              "If you hide your photos, you also cannot see this person’s photos (reciprocity). Continue?",
+            reciprocityBlocked: 'Photos are locked because you hid your photos.',
+          },
+          photoAccess: {
+            needOtherPermission: "To view photos, you need the other person’s permission.",
+            request: 'Request photo access',
+            status: {
+              pending: 'Request sent (pending)',
+              approved: 'Request approved',
+              granted: 'Access already granted',
+              unknown: 'Status: {{status}}',
+            },
+            actions: {
+              requested: 'Request sent',
+              granted: 'Access granted',
+            },
+          },
+        },
+      },
+    },
+
+    panel: {
+      membership: {
+        title: 'Membership terms',
+        lead: 'Membership terms:',
+        freeActiveTermsTitle: 'Free activation terms',
+      },
+    },
+
   navigation: {
-    siteTitle: "Indonesia Explorer",
+    siteTitle: "Uniqah",
     siteSubtitle: "PT MoonStar Global Indonesia",
      taglineTravelOrg: "Travel organization",
      taglineWeddingGuidance: "Wedding guidance",
@@ -8,22 +125,1334 @@ export default {
     about: "About",
     corporate: "Corporate",
     travel: "Travel",
-    wedding: "Wedding Guidance",
-    matchmaking: "Uniqah",
+    explore: "Explore",
+    tours: "Tours",
+    wedding: "TR–ID Wedding Guidance",
+    matchmaking: "Matchmaking",
     panel: "My profile",
     documents: "Documents",
     youtube: "YouTube",
     contact: "Contact",
     language: "Language",
+    menu: "Menu",
+    openMenu: "Open menu",
+    closeMenu: "Close menu",
+    close: "Close",
+  },
+
+  matchmakingPreview: {
+    badge: 'My Profile preview',
+    title: 'Preview the My Profile screen (tutorial)',
+    subtitle:
+      'The sections below are a preview. To send requests, like, or message, you must sign up first and complete the application form.',
+    actions: {
+      signup: 'Sign up',
+      goProfile: 'Go to My Profile',
+      goApply: 'Fill the form',
+    },
+    gate: {
+      title: 'You must sign up first',
+      body: 'To like, message, or send a match request, you must sign up and complete the form first.',
+      ctaSignup: 'Sign up and fill the form',
+      ctaApply: 'Go to the form',
+    },
+    cards: {
+      matches: {
+        title: 'Matches',
+        body: 'Track requests, likes, and matches here.',
+        cta: 'View matches',
+      },
+      pool: {
+        title: 'Pool',
+        body: 'Browse candidates and send requests or likes.',
+        cta: 'Go to pool',
+        request: 'Send match request',
+        like: 'Like',
+      },
+      chat: {
+        title: 'Chat',
+        body: 'If you match, you can chat here.',
+        mockTitle: 'Sample chat',
+        mockSystem: 'System',
+        mockMsg1: 'Hi, how are you?',
+        mockMsg2: 'I’m good, thanks. How about you?',
+        inputPlaceholder: 'Type a message…',
+        send: 'Send',
+        gateHint: 'Sign up first to chat.',
+      },
+    },
+    note: 'Note: This is a preview; real data appears on your profile page.',
+  },
+
+  footer: {
+    brandBlurb:
+      'A brand of {{company}}. We focus on Turkey–Indonesia wedding guidance: communication, documents, official steps, translation and on-the-ground coordination. Matchmaking is a secondary helper flow.',
+    brandsTitle: 'Brands',
+    brandNoteDameturk: '',
+    sections: {
+      quickLinks: 'Quick Links',
+      legal: 'Legal',
+      contact: 'Contact',
+      social: 'Social',
+      showEmailFallback: 'Having trouble? Continue with email',
+    },
+    links: {
+      membership: 'Membership',
+      whatsapp: 'WhatsApp',
+    },
+    legal: {
+      documents: 'Documents',
+      userAgreement: 'Matchmaking User Agreement',
+      kvkkNotice: 'Personal Data Notice (KVKK)',
+      siteRules: 'Site Rules',
+      refundPolicy: 'Cancellation & Refund Policy',
+        confirmError: 'Confirmation failed: {{error}}',
+        contactRequestError: 'Contact request failed: {{error}}',
+        contactApproveError: 'Contact approval failed: {{error}}',
+      title: 'Company Information',
+      labels: {
+        legalName: 'Legal name',
+        address: 'Address',
+        tax: 'Tax',
+        nib: 'NIB',
+      },
+    },
+    phoneNotes: {
+      trLine: 'WhatsApp line',
+      idLine: 'Alternative WhatsApp line',
+    },
+    whatsappMessages: {
+      general: 'Hello, I’d like to get information.',
+      wedding: 'Hello, I’d like to get information about wedding guidance and the Uniqah process.',
+      youtube: 'Hello, I have a question about your YouTube content.',
+      contact: 'Hello, I want to contact you.',
+      home: 'Hello, I’m visiting your site and would like more information.',
+    },
+    social: {
+      instagram: 'Instagram',
+      youtube: 'YouTube',
+      whatsapp: 'WhatsApp',
+    },
+    copyright: '© {{year}} {{company}}. All rights reserved.',
+  },
+
+  tour: {
+    common: {
+      skip: 'Skip',
+      next: 'Next',
+      done: 'Done',
+      missingHint: 'This step is not visible right now. You can continue.',
+    },
+    publicGuidance: {
+      step1: {
+        title: 'Payment & trust (1/2)',
+        body: 'To remove trust concerns, we don’t charge any guidance fee until you arrive in Indonesia. You can pay when you get here. You can benefit from our guidance service at the best price, and complete your marriage in the easiest way without dealing with complicated procedures beyond collecting your own documents.',
+      },
+      step2: {
+        title: 'Guidance process (2/2)',
+        body: 'We run our guidance service on the ground in Indonesia as a Turkish team living here. We support friends coming to Indonesia for marriage at every step—from airport pickup to taking you and your spouse to the airport on your return.',
+      },
+    },
+    onboarding: {
+      matches: {
+        title: 'Matches',
+        body: 'Manage likes, requests, and matches on this screen.',
+      },
+      pool: {
+        title: 'Pool',
+        body: 'Browse candidates and send a match request.',
+      },
+      request: {
+        title: 'Match request',
+        body: 'Send a match request. If the other user approves, a match is created.',
+      },
+    },
+    like: {
+      title: 'Like',
+      body: 'Use Like to show interest. You can undo it later.',
+    },
+    activeStart: {
+      title: 'Active match',
+      body: 'After mutual like, start the active match to open chat.',
+    },
+    chat: {
+      input: {
+        title: 'Message',
+        body: 'Type your message here.',
+      },
+      send: {
+        title: 'Send',
+        body: 'Use this button to send your message.',
+      },
+    },
+    profileDetails: {
+      title: 'Profile details',
+      body: 'Request permission to view profile details.',
+    },
+
+    pwaNudge: {
+      title: 'Install the app and enable notifications',
+      body: 'Install the app and enable notifications so you don’t miss messages, requests, and approvals.',
+      primary: 'One click: Install + Enable',
+      later: 'Later',
+    },
+  },
+
+  ui: {
+    lightbox: {
+      close: 'Close',
+      prev: 'Previous',
+      next: 'Next',
+      imageAlt: 'Image {{index}}',
+    },
+  },
+
+  studio: {
+    common: {
+      back: 'Back',
+      open: 'Open',
+      actionMenu: 'Actions',
+      close: 'Close',
+      cancel: 'Cancel',
+      send: 'Send',
+      loading: 'Loading…',
+      processing: 'Processing…',
+      readMore: 'Read more',
+      readLess: 'Show less',
+      match: 'Match',
+      profile: 'Profile',
+      verified: 'Trusted user',
+      unknown: 'Unknown',
+      zoom: 'Enlarge',
+      enlargePhotoAria: 'Enlarge photo of {{name}}',
+    },
+
+    presence: {
+      online: 'Online',
+      lastSeenMinutes_one: 'Last active: {{count}} min ago',
+      lastSeenMinutes_other: 'Last active: {{count}} min ago',
+      lastSeenHours_one: 'Last active: {{count}} hour ago',
+      lastSeenHours_other: 'Last active: {{count}} hours ago',
+      lastSeenDays_one: 'Last active: {{count}} day ago',
+      lastSeenDays_other: 'Last active: {{count}} days ago',
+    },
+
+    errors: {
+      generic: 'Error',
+    },
+
+    referral: {
+      title: 'Invite a Friend',
+      description: 'Invite a friend. Once both of you complete identity verification, you both get free membership.',
+      myCodeLabel: 'Your invite code',
+      shareButton: 'Share on WhatsApp',
+      shareMessage:
+        'https://uniqah.com/login\n\nMarriage-focused dating app invite code: {{code}}. Add this code to the signup form to get 1 month of free membership.',
+      copy: 'Copy',
+      copied: 'Copied.',
+      enterCodeLabel: 'Invite code',
+      enterCodePlaceholder: 'UC-1001',
+      acceptButton: 'Confirm code',
+      invitedByLabel: 'Invited by',
+      claimButton: 'Claim free membership',
+      statusAccepted: 'Invite code saved.',
+      statusAlreadyAccepted: 'This invite code is already saved.',
+      statusClaimed: 'Reward applied. Your membership has been updated.',
+      statusAlreadyClaimed: 'Reward already claimed.',
+      errors: {
+        referralDisabled: 'Referral system is currently disabled.',
+        userCodeMissing: 'Your invite code is not ready yet. Please try again later.',
+        invalidInviteCode: 'Invalid invite code.',
+        inviteCodeNotFound: 'Invite code not found.',
+        selfReferralNotAllowed: 'You cannot use your own code.',
+        alreadyReferred: 'You have already used an invite code.',
+        referralNotFound: 'Referral record not found.',
+        referralNotAccepted: 'Referral is not accepted yet.',
+        referralMismatch: 'Referral data mismatch.',
+        verificationRequired: 'Both users must be identity-verified to claim the reward.',
+      },
+    },
+
+    feedback: {
+      nav: 'Support / Request',
+      backToProfile: 'Back to my profile',
+      title: 'Support • Feedback • Report an issue',
+      subtitle: 'Send suggestions/comments or report steps that are not working.',
+      urgentNote: 'For urgent complaints that require evidence, fastest path:',
+      whatsappCta: 'WhatsApp support',
+      kindLabel: 'Category',
+      kinds: {
+        bug: 'Bug / Not working',
+        suggestion: 'Suggestion / Feedback',
+        complaint: 'Complaint (short)',
+        other: 'Other',
+      },
+      matchIdLabel: 'Match ID (optional)',
+      matchIdPlaceholder: 'If you have a matchId',
+      stepLabel: 'Step (optional)',
+      stepPlaceholder: 'e.g. “Send chat message”',
+      messageLabel: 'Message',
+      messagePlaceholder:
+        'What happened, what did you expect, on which screen? If possible add date/time and brief details. (Do not share contact info.)',
+      privacyNote: 'Privacy: Do not share contact information.',
+      submit: 'Submit',
+      success: 'We received your report. Thank you!',
+      ticketId: 'Ticket',
+      error: 'Error',
+      footerNote: 'Note: This form is sent to support. Response time may vary based on workload.',
+
+      screenshotLabel: 'Screenshot (optional)',
+      screenshotDisabled: 'Screenshot upload is disabled in this environment (Cloudinary not configured).',
+      selectedFile: 'Selected file',
+      uploading: 'Uploading screenshot…',
+      uploadFailed: 'Upload failed',
+
+      sendToWhatsApp: 'WhatsApp support with ticket',
+      sendToWhatsAppHint: 'Ticket and matchId are included automatically.',
+    },
+
+    inbox: {
+      likesTitle: 'Incoming likes ({{count}})',
+      likeReceived: 'Sent you a like',
+      viewProfile: 'View profile',
+      accept: 'Like back',
+      reject: 'Reject',
+      titleShort: 'Requests',
+      modalTitleMessages: 'Messages',
+      modalTitleRequests: 'Requests',
+    },
+
+    accessInbox: {
+      title: 'Profile access requests ({{count}})',
+      requested: 'Requests access to view your profile',
+      approve: 'Allow',
+      reject: 'Reject',
+      openButton: 'Incoming requests',
+      openButtonWithCount: 'Incoming requests ({{count}})',
+    },
+
+    inboxModal: {
+      emptyMessages: 'No new messages right now.',
+      emptyRequests: 'No new requests right now.',
+      new: 'New',
+      markRead: 'Mark read',
+      read: 'Read',
+      reviewProfile: 'Review profile',
+      hideProfile: 'Hide profile',
+      approve: 'Approve',
+      allow: 'Allow',
+      prev: 'Prev',
+      next: 'Next',
+      photoAlt: 'Photo',
+      wantChildren: 'Wants children',
+      requestText: {
+        preMatch: 'Sent a pre-match request.',
+        photoAccess: 'Requests permission to view your photos.',
+        profileAccess: 'Requests permission to view your profile.',
+      },
+    },
+
+    pool: {
+      title: 'Explore',
+      backToMatches: '← Back to matches',
+      refresh: 'Refresh',
+      lastUpdated: 'Auto-refreshes (20s).',
+      countHint: 'Total: {{total}} • Shown: {{shown}}',
+      filtersHint: 'Age range: {{min}} – {{max}}',
+      trust: {
+        title: 'Trust & verification',
+        body:
+          'This system is marriage-focused and follows a controlled flow. Identity verification is optional; it is a trust badge for users who choose to do it.\n\nInformation submitted for verification is used only for verification purposes and is not kept permanently after verification is completed. You can delete your account at any time; after deletion, your profile and match data are removed from the system.',
+        sortNote: 'Note: Verified profiles are shown at the top of Explore.',
+      },
+      empty: 'No profiles to show right now.',
+      requestProfileNow: 'Send match request',
+      requesting: 'Requesting…',
+      requestSent: 'Request sent',
+      openProfile: 'Open profile',
+      goToMatchCard: 'Go to match card',
+      profileModalTitle: 'Profile',
+      actionsSoon: 'Coming soon: short message',
+      notInTheirRange: 'To interact, you must be within their age range.',
+      notInTheirRangeShort: 'Age range mismatch',
+    },
+
+    waitingNote: {
+      title: 'We are looking for a suitable match',
+      body:
+        'We are searching for matches that fit your profile information and criteria. Suitable profiles will appear in the <explore>Explore</explore> tab. Install the app and enable notifications to get instant updates.',
+    },
+
+    paywall: {
+      upgradeTitle: 'Membership activation required',
+      upgradeToInteract: 'Activate membership to continue. Free for now.',
+      upgradeToReply: 'Activate membership to reply. Free for now.',
+      upgradeCta: 'Activate membership (Free)',
+    },
+
+    profileGate: {
+      important: 'IMPORTANT',
+      title: 'Complete your profile',
+      body: 'Because this system brings together people who intend to marry, you need to fill out the profile form to interact with other users.',
+      cta: 'Fill the profile form',
+      badge: 'Unknown user',
+    },
+
+    profileIncompleteExploreWarning: {
+      title: 'Please fill out the profile form',
+      body: 'Because your profile information is missing, the Explore page may show people of your own gender instead of the opposite gender. Please fill out the profile form.',
+    },
+
+    membershipModal: {
+      deletePhrase: 'delete my account',
+      deleteTypePrompt: 'If you really want to delete the account: type "{{phrase}}".',
+    },
+    myInfo: {
+      title: 'My info',
+      subtitle: 'A summary of the information you provided in your application.',
+      noProfile: 'Profile record not found.',
+      appMissing: 'Application details not found. (Application record or user profile data may be missing.)',
+      sections: {
+        basic: 'Basic info',
+        contact: 'Contact',
+        details: 'Details',
+        partner: 'Partner preferences',
+        about: 'About you',
+        membership: 'Membership & verification',
+      },
+
+      contactPrivacyNotice:
+        'Your contact details (WhatsApp/email/Instagram) are private. They are not shown publicly while you fill the form or in the app UI. They may only be shared with the person you are definitively matched with after the 48-hour active match period, and only with your approval.',
+      fields: {
+        username: 'Username',
+        fullName: 'Full name',
+        age: 'Age',
+        gender: 'Gender',
+        city: 'City',
+        country: 'Country',
+        nationality: 'Nationality',
+        whatsapp: 'WhatsApp',
+        email: 'Email',
+        instagram: 'Instagram',
+        heightCm: 'Height (cm)',
+        weightKg: 'Weight (kg)',
+        occupation: 'Occupation',
+        education: 'Education',
+        educationDepartment: 'Department',
+        maritalStatus: 'Marital status',
+        hasChildren: 'Has children?',
+        childrenCount: 'Children count',
+        childrenLivingSituation: 'Lives with children?',
+        familyObstacle: 'Family obstacle?',
+        familyObstacleDetails: 'Family obstacle (details)',
+        familyApprovalStatus: 'Family approval',
+        religion: 'Religion',
+        religiousValues: 'Religious values',
+        incomeLevel: 'Income',
+        marriageTimeline: 'Marriage timeline',
+        relocationWillingness: 'Relocation',
+        preferredLivingCountry: 'Preferred living country',
+        communicationLanguage: 'Communication language',
+        communicationLanguageOther: 'Communication language (other)',
+        canCommunicateWithTranslationApp: 'Can communicate with translation app',
+        smoking: 'Smoking',
+        alcohol: 'Alcohol',
+        nativeLanguage: 'Native language',
+        nativeLanguageOther: 'Native language (other)',
+        foreignLanguages: 'Foreign languages',
+        foreignLanguageOther: 'Foreign language (other)',
+        lookingForGender: 'Looking for (gender)',
+        lookingForNationality: 'Looking for (nationality)',
+        partnerAgeMin: 'Age (min)',
+        partnerAgeMax: 'Age (max)',
+        partnerHeightMinCm: 'Height (min cm)',
+        partnerHeightMaxCm: 'Height (max cm)',
+        partnerMaritalStatus: 'Marital status',
+        partnerReligion: 'Religion',
+        partnerCommunicationMethods: 'Communication methods',
+        partnerLivingCountry: 'Living country',
+        partnerSmokingPreference: 'Smoking',
+        partnerAlcoholPreference: 'Alcohol',
+        partnerChildrenPreference: 'Children',
+        partnerEducationPreference: 'Education',
+        partnerOccupationPreference: 'Occupation',
+        partnerFamilyValuesPreference: 'Family values',
+        about: 'About',
+        expectations: 'Expectations',
+        membershipPlan: 'Membership plan',
+        membershipActive: 'Membership active',
+        membershipValidUntil: 'Membership ends',
+        identityVerified: 'Identity verified',
+        identityStatus: 'Identity status',
+        identityMethod: 'Verification method',
+        identityRef: 'Reference',
+      },
+      developerView: 'Developer view (JSON)',
+      developerHint: 'You can share this with admin if needed.',
+    },
+    match: {
+      tier: {
+        pre_match: 'Pre-match',
+      },
+      status: {
+        proposed: 'Intro',
+        mutual_interest: 'Mutual like',
+        mutual_accepted: 'Active',
+        contact_unlocked: 'Contact unlocked',
+        cancelled: 'Cancelled',
+      },
+      avatarAlt: "{{name}}'s profile photo",
+      actions: {
+        like: 'Like',
+        liked: 'Liked',
+        unlike: 'Undo like',
+        message: 'Short message',
+        messageLong: 'Message',
+        profileDetails: 'Profile details',
+      },
+      photos: {
+        showMine: 'Show my photos',
+        hideMine: 'Hide my photos',
+        reciprocityHint: "Note: If you hide your photos from someone, you won't be able to view their photos either (reciprocity).",
+        reciprocityConfirm:
+          "If you hide your photos, you won't be able to view this person's photos either (reciprocity). Continue?",
+        reciprocityBlocked: 'Photos locked: because you hid yours.',
+      },
+      photoAccess: {
+        needOtherPermission: 'To view photos, you must get permission from the other side.',
+        request: 'Request photo access',
+        status: {
+          pending: 'Request sent (pending)',
+          approved: 'Request approved',
+          granted: 'Access already granted',
+          unknown: 'Status: {{status}}',
+        },
+        actions: {
+          requested: 'Request sent',
+          granted: 'Access granted',
+        },
+      },
+      banners: {
+        locked: 'You have an active match — others are locked',
+        newMessage: 'New message',
+        incomingLikeNote: 'This person sent you a like',
+        activeChatStarted: 'Your active match has started. Tap the Message button to begin unlimited messaging.',
+      },
+    },
+    matches: {
+      title: 'My matches',
+      showingCount: 'Showing {{count}} matches.',
+      emptyHint: 'Your matches will appear here.',
+      backToProfile: '← Back to profile',
+      findNew: 'Find new match',
+      finding: 'Searching…',
+      howTitle: 'How it works',
+      howReadMore: 'Read more',
+      howReadLess: 'Show less',
+      howItems: [
+        'Suitable profiles are reviewed in Explore.',
+        'A pre-match request is sent to the profiles that are desired in the match list.',
+        'The request appears on the other person’s approval screen; if approved, both sides see each other in the match list.',
+        'At this stage, match cards become interactive: likes, short messages, and detailed profile review.',
+        'If a like is mutual, the system starts the active match step.',
+        'When the active match starts, messaging begins with translation support.',
+        'After this step begins, interactions with other profiles are disabled for both sides.',
+        'Until the active match is mutually cancelled, matching/likes/short messages and other profile detail review are disabled.',
+        'To prevent abuse, the active match cannot be cancelled during the first 2 hours after it starts; and another active match cannot be started while one is active.',
+        'After the 48-hour active match period, both sides gain the right to share contact details.',
+        'Contact details become visible in profile details only to each other.',
+        'After that, conversation can continue either inside the site or via personal contact channels.',
+        'After 48 hours, an interpreter-assisted video call can be requested via support.',
+        'Background checks / detailed research can also be requested via support.',
+      ],
+      activeLockTitle: 'You have an active match',
+      activeLockBody: 'Interactions with other profiles are locked. Go to the <link>active match page</link> to manage it.',
+      requestFailed: 'Request failed: {{error}}',
+      requestOk: 'Request sent. It may appear in your list within seconds.',
+      loading: 'Loading…',
+      loadFailed: 'Matches could not be loaded: {{error}}',
+      noneTitle: 'No matches yet.',
+      noneBody:
+        'If you have just created a new profile, you can interact in your match list by sending requests from the Explore page to suitable profiles, or by approving incoming requests to add them to your match list. Once you match, you can use likes, short messages, and detailed profile viewing. If you couldn’t find a suitable match, install the app on your phone and enable notifications so you can be informed instantly about updates. If your goal is marriage, finding the right person can take time; we recommend being patient.',
+      shortModal: {
+        subtitle: 'Short message (limit 5) • for quick, profile-external info',
+        remaining: 'Remaining: {{remaining}} / {{limit}}',
+        noMessages: 'No messages yet.',
+        translateError: 'Translation failed: {{error}}',
+        translating: 'Translating…',
+        translate: 'Translate',
+        placeholder: 'Write a short question…',
+      },
+      inboxSync: {
+        title: 'Inbox issue',
+        refresh: 'Refresh from server',
+        refreshing: 'Refreshing…',
+        note: 'Note: Fetches the same data from the server if Firestore listeners are broken.',
+        permissionDenied: 'No Firestore read permission (permission-denied). Firebase project: {{projectId}} (try refreshing from server)',
+        listenFailed: 'Firestore inbox ({{kind}}) failed: {{error}} (try refreshing from server)',
+        kinds: {
+          likes: 'likes',
+          requests: 'requests',
+          profileAccess: 'profile access',
+          messages: 'messages',
+        },
+      },
+      errors: {
+          goToMatchCard: 'Go to match card',
+        activeLocked: 'You cannot message other profiles while you have an active match. End your active match first.',
+        shortLimit: 'You used all short messages (5). To continue, start the active match.',
+      },
+    },
+    chat: {
+      backToMatches: '← Back to matches',
+      translateTargetLabel: 'Translate to',
+      chatTitle: 'Chat',
+      emoji: 'Emoji',
+      emojiHint: 'You can add emojis',
+      matchTestOnlyActive: 'Match test can only be opened in an active match.',
+      shortAreaTitle: 'Short message area',
+      shortAreaDesc: 'For quick questions (topics not in the profile).',
+      shortAreaLimit: 'Limit: {{limit}} • Left: {{remaining}}',
+      otherActiveLock: 'Your active match is with someone else. Long chat is closed here.',
+      noMessages: 'No messages yet. Send the first message.',
+      matchLoading: 'Loading match…',
+      matchNotFound: 'Match not found.',
+      messagesLoading: 'Loading messages…',
+      sendFailed: 'Message could not be sent. {{error}}',
+      inputPlaceholderLong: 'Write a message…',
+      inputPlaceholderShort: 'Write a short question/message…',
+      notAvailable: 'Messaging is currently unavailable.',
+      lockedTitle: 'Other matches are temporarily locked',
+      lockedBody: 'While you have an active match, messaging in other matches is disabled.',
+      notAllowed: 'You are not allowed to view this chat.',
+      notOpenTitle: 'Messaging is not open yet',
+      notOpenBody: 'Messaging opens when the match becomes active.',
+      you: 'You',
+      remainingTime: '{{hours}}h {{minutes}}m',
+      lock48h: {
+        title: '48-hour private chat + contact sharing',
+        subtitle: 'Contact unlocks after confirmation + time.',
+        lockedRemaining: 'Locked. Left: {{time}}',
+        confirming: 'Confirming…',
+        confirmed: 'Confirmed',
+        confirm: 'Confirm 48 hours',
+        requesting: 'Sending request…',
+        requestContact: 'Request contact sharing',
+        approving: 'Approving…',
+        approveContact: 'Approve contact sharing',
+        confirmStatusLabel: 'Confirmation status:',
+        confirmStatus: {
+          both: 'Mutually confirmed',
+          you: 'You confirmed (waiting for the other side)',
+          other: 'Other side confirmed (waiting for you)',
+          none: 'No confirmations yet',
+        },
+        contactStatusLabel: 'Contact sharing:',
+        contactStatus: {
+          approved: 'Shared',
+          pendingMine: 'Request sent (waiting for approval)',
+          pendingOther: 'Other side requested (you can approve)',
+          closed: 'Closed',
+        },
+        confirmError: 'Confirmation failed: {{error}}',
+        contactRequestError: 'Contact request failed: {{error}}',
+        contactApproveError: 'Contact approval failed: {{error}}',
+        whatsappTitle: 'WhatsApp',
+        openInWhatsApp: 'Open in WhatsApp',
+      },
+    },
+
+    matchProfile: {
+      askShort: 'Ask a short question',
+      viewProfile: 'View profile',
+      hideProfile: 'Hide profile',
+      prevPhoto: 'Previous photo',
+      nextPhoto: 'Next photo',
+      tabs: {
+        preview: 'Preview',
+        details: 'Profile details',
+      },
+      detailsAccess: {
+        needsPermission: 'To view the detailed profile, this user must grant permission.',
+        grantedHint: 'You can now view the profile details.',
+        status: {
+          pending: 'Request sent (pending)',
+          approved: 'Request approved',
+          granted: 'Access already granted',
+          unknown: 'Status: {{status}}',
+        },
+        actions: {
+          request: 'Send request',
+          requested: 'Request sent',
+          granted: 'Access granted',
+        },
+        retry: 'Try again',
+        refresh: 'Refresh',
+        viewPersonProfile: 'View person profile',
+        mayRequireApproval: 'Details may require the other side’s approval.',
+      },
+      photos: {
+        onlyAllowed: 'Only allowed users can view',
+        reciprocityBlocked: 'Photos locked: because you hid yours.',
+      },
+      profileTitle: 'Profile info',
+      contactHidden:
+        'Contact details are hidden. They are not shown while filling the form or in the app UI. They may only be shared after the 48-hour active match period if a definitive match is achieved, and only with your approval.',
+      rulesTitle: 'Rules (quick)',
+      rules: {
+        generic: 'Error',
+        likeFirst: 'If the like is mutual, “Mutual like” is created.',
+        startActive: 'Long chat opens after both sides confirm “Start active match”.',
+        onlyOneActive: 'Only 1 active match can exist; while active, likes/messaging with other profiles are locked.',
+        unlockAfterCancel: 'Other profiles re-open only after the active match is mutually cancelled.',
+      },
+      activeStart: {
+        starting: 'Starting…',
+        waiting: 'Waiting for confirmation',
+        start: 'Start active match',
+        activatedNotice: 'Active match started — long chat is now open.',
+        waitingNotice: 'Your confirmation was sent. Long chat will open once the other person confirms.',
+        confirmPrompt:
+          'You are about to start the active match.\n\n- You can have only 1 active match (other profiles will be locked).\n- After activation, you cannot cancel for the first 2 hours.\n\nDo you confirm?',
+      },
+      cancel: {
+        title: 'End active match',
+        desc: 'Ending is mutual. After you end it, the other side must also end it.',
+        cooldown: 'To prevent abuse, cancellation is disabled for the first 2 hours after activation. Remaining: {{time}}',
+        request: 'End active match',
+        requestSent: 'End request sent',
+        waitingOther: 'Waiting for the other side to end it.',
+        confirmPrompt:
+          'You are about to end the active match.\n\n- Ending is mutual: the match closes only after both sides end it.\n- After ending, the interaction lock with other profiles is removed.\n\nDo you confirm?',
+      },
+      mutualLike: {
+        title: 'You have a mutual like',
+        body: 'Long chat opens only after both sides confirm “Start active match”.',
+      },
+      longChatClosedTitle: 'Long chat is closed',
+      longChatClosedBody: 'Long chat is available only after starting the active match. At this stage you can only use short messages.',
+      shortModal: {
+        title: 'Short message',
+      },
+      translate: {
+        errors: {
+          tooLong: 'This message is too long; shorten it to translate.',
+          onlyIncoming: 'Only incoming messages can be translated.',
+          notConfigured: 'Translation service is not configured.',
+          rateLimited:
+            'Translation is busy (Gemini has a 15/min rate limit). Try again in 1 minute or upgrade your plan.',
+          piiBlocked: 'Automatic translation was blocked due to personal/contact info. Please remove it.',
+          failed: 'Translation failed.',
+        },
+      },
+      time: {
+        minutes: '{{minutes}} min',
+        hours: '{{hours}} h',
+        hm: '{{hours}} h {{minutes}} min',
+      },
+      errors: {
+        activeMatchLocked: 'While you have an active match, you cannot interact with another profile. First, mutually cancel your active match.',
+        otherUserActiveMatch: 'The other side currently has an active match. This match cannot be activated.',
+        cancelCooldown: 'To prevent abuse, cancellation is disabled for the first 2 hours after activation. Remaining: {{time}}',
+        notAvailable: 'This action is not available at this stage.',
+        forbidden: 'You are not allowed to perform this action.',
+        activeStartLocked: 'You cannot start a new active match while you already have an active match.',
+      },
+    },
+    profile: {
+      membershipLabel: 'Membership',
+      membershipActive: 'Active',
+      membershipPassive: 'Inactive',
+      endsAt: 'Ends',
+      editProfile: 'Edit profile',
+      myMatches: 'My matches',
+      logout: 'Logout',
+      bannerAlt: 'Profile banner',
+      aboutTitle: 'About',
+      noBio: 'No description yet.',
+      textsTitle: 'Profile texts',
+      aboutLabel: 'Tell us briefly about yourself',
+      expectationsLabel: 'Describe who you are looking for',
+      aboutPlaceholder: 'Write a short intro about yourself…',
+      expectationsPlaceholder: 'Write what you are looking for…',
+      saveTexts: 'Save',
+      textsSaved: 'Saved.',
+
+      partnerPrefsTitle: 'Partner preferences',
+      partnerPrefsCta: 'Edit',
+      partnerPrefsSave: 'Save',
+      partnerPrefsSaving: 'Saving…',
+      partnerPrefsSaved: 'Saved.',
+      partnerPrefsErrors: {
+        failed: 'Could not save. Please try again.',
+      },
+
+      subscriptionTitle: 'Subscription',
+      subscriptionActiveDesc: 'Your membership is active. You can access all features.',
+      subscriptionPassiveDesc: 'Your membership is inactive. Some actions may be restricted without membership.',
+      buySoon: 'Buy membership (soon)',
+      activateMembership: 'Activate account for free',
+      cancelMembership: 'Cancel membership',
+      membershipActivated: 'Account activated.',
+      membershipCancelled: 'Membership cancelled.',
+      confirmCancelMembership: 'Do you want to cancel your membership?',
+      myInfo: 'My info',
+      identityTitle: 'Identity verification',
+      identityVerified: 'Your identity appears verified.',
+      identityStatus: 'Status',
+      verifyNow: 'Verify my identity',
+      identityHelp: 'By verifying your identity, you can increase trust and remove membership/feature restrictions.',
+      identityIntro: {
+        title: 'What is identity verification?',
+        body:
+          'This step is not mandatory.\n\nIdentity verification is for people who want to increase their trust score, earn a trust badge on their profile, and be shown higher in Explore.\n\nInformation submitted for verification is used only for verification purposes and is not kept permanently after the process is completed.',
+        cta: 'I read it, continue',
+      },
+      actionIntro: {
+        explore: {
+          title: 'Explore',
+          body: 'Explore shows profiles selected for you. Verified profiles may appear higher in the list.',
+          cta: 'I read it, open',
+        },
+        editProfile: {
+          title: 'Profile',
+          body: 'Here you can update your application/profile information. Changes may affect matching.',
+          cta: 'I read it, continue',
+        },
+        matches: {
+          title: 'My matches',
+          body: 'Manage your matches here: likes, approve/decline, and chat steps happen here.',
+          cta: 'I read it, open',
+        },
+        partnerPrefs: {
+          title: 'Partner preferences',
+          body: 'Updating your criteria helps you see more relevant matches.',
+          cta: 'I read it, edit',
+        },
+        membership: {
+          title: 'Membership',
+          body: 'View your membership status and manage membership-related features here.',
+          cta: 'I read it, open',
+        },
+        photo: {
+          title: 'Photos',
+          body: 'Manage your photos and optionally enable photo privacy (blur).',
+          cta: 'I read it, open',
+        },
+        guidance: {
+          title: 'Wedding guidance',
+          body: 'See guidance information for the marriage process and quick contact options.',
+          cta: 'I read it, open',
+        },
+        feedback: {
+          title: 'Feedback / Report',
+          body: 'Use this to request support or report inappropriate behavior.',
+          cta: 'I read it, continue',
+        },
+        identity: {
+          title: 'Identity verification',
+          body: 'This opens identity verification options. Verification is optional and improves your trust badge.',
+          cta: 'I read it, open',
+        },
+        referral: {
+          title: 'Invite',
+          body: 'Invite friends with a code/link and track any referral benefits here.',
+          cta: 'I read it, open',
+        },
+        logout: {
+          title: 'Logout',
+          body: 'You will be signed out safely. You can sign in again anytime and continue where you left off.',
+          cta: 'I read it, logout',
+        },
+      },
+      identityTrust: {
+        title: 'What is this for?',
+        points: {
+          optional: 'It is not mandatory; it is an optional trust badge.',
+          privacy: 'Verification details are not shared outside verification purposes.',
+          destroy: 'After verification is completed, submitted verification files/data are not kept permanently.',
+          deleteAccount: 'You can delete your account anytime to remove your profile and match data.',
+          sorting: 'Verified profiles are shown at the top in Explore.',
+        },
+      },
+
+      emailVerify: {
+        title: 'Email verification (optional)',
+        body: 'Your email: {{email}}. If you want, we can send you a verification email.',
+        cta: 'Send verification email',
+        sent: 'Verification email sent. Please check your inbox.',
+        failed: 'Could not send verification email. Please try again.',
+      },
+      accountTitle: 'Account',
+      accountDeleteDesc: 'You can permanently delete your account and related data.',
+      deleteAccount: 'Delete account',
+      deleting: 'Deleting…',
+      oldPanel: 'Old panel (temporary)',
+      verifyModalTitle: 'Identity verification',
+      verifyModalInfo:
+        'Identity verification is optional.\n\nChoose a method and follow the steps. After review, your badge will appear on your profile.',
+      verifyMethodUpload: 'Upload ID photos',
+      verifyMethodWhatsApp: 'WhatsApp video call',
+      verifyWhatsAppTitle: 'Verify via WhatsApp video call',
+      verifyWhatsAppBody: 'Verification is done via a WhatsApp video call. You can create a request and open WhatsApp.',
+      verifyWhatsAppCta: 'Open WhatsApp',
+      verifyMethodSelfieVideo: 'Selfie video verification',
+      verifyMethodSocial: 'Social media verification',
+      verifySelfieVideoTitle: 'Selfie video (WhatsApp) verification',
+      verifySelfieVideoBody: 'You will be asked to send a 5-second selfie video on WhatsApp. You can create a request and open WhatsApp.',
+      verifySelfieVideoCta: 'Open WhatsApp',
+      verifySocialTitle: 'Social media verification',
+      verifySocialBody: 'Choose your Instagram / TikTok / YouTube / Facebook account and submit your username. Our team will review and assign your badge.',
+      verifySocialPlatform: 'Platform',
+      verifySocialUsername: 'Username',
+      verifySocialMissing: 'Please choose a platform and enter your username.',
+      verifySocialSubmitted: 'Submitted. Pending review.',
+      idType: 'ID type',
+      idTypeTrId: 'National ID',
+      idTypePassport: 'Passport',
+      idTypeDriver: 'Driver license',
+      verifyPhotosHint: 'Photos are used only for verification.',
+      verifyPrivacyNote: 'You do not need to show the full ID; your name/surname and date of birth are enough.',
+      idFront: 'ID front',
+      idBack: 'ID back',
+      selfie: 'Selfie',
+      verifyMissingFiles: 'Please upload the front/back of your ID and a selfie.',
+      verifySubmitted: 'Your verification request has been received. It is under review.',
+      submitVerification: 'Submit',
+      confirmDelete: 'Do you want to permanently delete your account? This cannot be undone.',
+
+      photoPrivacy: {
+        title: 'Photos',
+        body:
+          'When you blur your photos, they appear blurred in match cards and only people you explicitly allow can see them clearly.',
+        toggleLabel: 'Blur my photos',
+        stateOn: 'On',
+        stateOff: 'Off',
+        hintOn: 'In your match list, you can allow per person using the “Show my photos” button on each card.',
+        hintOff: 'When blur is off, the extra photo permission button is not shown on match cards.',
+        fairnessWarning:
+          'Fair use: After you blur your photos, photos in match cards can only be viewed for people you explicitly allow.',
+        rules: {
+          firstBlurLock48h: 'After you blur your photos for the first time, you cannot make them visible again for 48 hours.',
+          unblurLock48h: 'After you make your photos visible, you cannot blur them again for 48 hours.',
+          onlyAllowed:
+            'When visibility is off, only people you allow can view your photos; and you can only view photos of people you allowed.',
+        },
+        cooldownError: 'There is a waiting period for this action. Remaining: {{time}}',
+      },
+
+      userCode: {
+        label: 'User Code',
+      },
+
+      guidance: {
+        button: 'Wedding Guidance',
+        modalTitle: 'Wedding Guidance',
+        subtitle: 'Our system is not only matchmaking',
+        intro:
+          'Our system is not only a matchmaking platform. After you decide to get married, we guide Turkish and Indonesian citizens throughout the entire journey—before marriage, during the marriage process, and after marriage—so you can complete all steps smoothly.',
+        learnMore: 'Learn more (Wedding page)',
+        whatsappCta: 'Message on WhatsApp',
+        whatsappMessage: 'Hello, I would like to get information about wedding guidance.',
+        sections: {
+          gettingToKnow: {
+            title: '1) Getting to know each other',
+            items: [
+              'Research/background checks about the prospective spouse',
+              'Meeting with families',
+              'Mediation and interpreting for video calls between prospective spouses',
+              'Mediation and interpreting for communication between families',
+            ],
+          },
+          preparations: {
+            title: '2) Marriage preparations',
+            panel: {
+              membership: {
+                title: 'Membership terms',
+                lead: 'Membership terms:',
+                freeActiveTermsTitle: 'Free activation terms',
+              },
+            },
+            items: [
+              'Preparing the required documents',
+              'Starting legal procedures',
+              'Setting the wedding date',
+              'Calculating the total marriage costs',
+            ],
+          },
+          marriageStage: {
+            title: '3) Marriage stage',
+            items: [
+              'Flight tickets to Indonesia',
+              'Hotel accommodation in Indonesia',
+              'Planning domestic transportation in Indonesia (private car, plane, train, or ship)',
+              'Completing legal procedures in Indonesia',
+              'Wedding/nikah preparations',
+              'Interpreting and guidance during your stay in Indonesia',
+            ],
+          },
+          afterMarriage: {
+            title: '4) After marriage',
+            items: [
+              'Registering the marriage with Turkish and Indonesian authorities',
+              'Planning post-marriage administrative steps based on your country of residence',
+            ],
+          },
+        },
+      },
+
+      applySuccess: {
+        title: 'Application received',
+        subtitle: 'Next steps: review the pool from your panel and follow your match suggestions.',
+        steps: [
+          'In the pool, compatible profiles are listed (limited preview).',
+          'When likes are mutual, a 48-hour in-site chat opens.',
+          'After 48 hours, you can request contact sharing; if approved, phone numbers become visible.',
+        ],
+        applicationIdLabel: 'Application ID',
+        ctas: {
+          pool: 'Go to pool',
+          matches: 'My matches',
+          learn: 'How it works',
+        },
+      },
+    },
+    errors: {
+      generic: 'Error',
+      profileNotFound: 'Profile record not found.',
+      apiUnavailable: 'API is not reachable. In local dev, run `npm run dev` (api+web).',
+      serverNotConfigured: 'Server configuration is missing. Please contact support.',
+      activeLocked: 'While you have an active match, you cannot interact with another profile. First, mutually cancel your active match.',
+      shortLimit: 'You have used all your short messages (5). To continue, after mutual like you must start the active match.',
+      shortMessageTooLong: 'Message is too long. Max 240 characters.',
+      filtered: 'Do not share contact info (links, phone, social media).',
+      notInTheirAgeRange: 'Your age range is not compatible for this person.',
+      ageRequired: 'Your age information is missing. Please complete your profile and try again.',
+      notAvailable: 'This action is not available at this stage.',
+      forbidden: 'You are not allowed to perform this action.',
+      cancelCooldown: 'To prevent abuse, cancellation is temporarily disabled. Remaining: {{time}}',
+    },
+  },
+
+  admin: {
+    userTools: {
+      prompts: {
+        blockReason: 'Block reason (optional):',
+        noteOptional: 'Note (optional):',
+      },
+      defaults: {
+        whatsappVerificationNote: 'WhatsApp verification',
+      },
+      confirms: {
+        grantMembershipDays: 'Grant {{days}} days of membership to this user?',
+        revokeMembership: 'Deactivate this user\'s paid membership?',
+        grantTranslationPackDays: 'Grant {{days}} days of translation pack to this user?',
+        revokeTranslationPack: 'Deactivate this user\'s translation pack?',
+        resetFreeActiveMembership:
+          'Reset free active membership (freeActiveMembership)? (blocked=false, active=false, counters=0)',
+      },
+      messages: {
+        userBlocked: 'User blocked.',
+        userUnblocked: 'User unblocked.',
+        whatsappVerified: 'User verified via WhatsApp verification.',
+        membershipGranted: 'Membership activated. Ends: {{until}}',
+        membershipRevoked: 'Membership deactivated.',
+        translationPackGranted: 'Translation pack activated. Ends: {{until}}',
+        translationPackRevoked: 'Translation pack deactivated.',
+        freeActiveReset: 'Free active membership state was reset.',
+      },
+      errors: {
+        userIdRequired: 'Enter a user ID.',
+        applicationNotFoundForMk: 'No application found for this MK code.',
+        applicationMissingUserId: 'Application found but userId is missing.',
+        userReadFailed: 'Could not load the user.',
+        actionFailed: 'Action failed.',
+        daysRange: 'Days must be between 1 and 365.',
+        translationTierInvalid: 'Tier must be standard or pro.',
+      },
+    },
+
+    matchmakingMatches: {
+      titles: {
+        page: 'Matches (Admin)',
+        tab: 'Matches',
+        tabSubtitle: 'Mutual approval and contact-unlocked matches.',
+      },
+      nav: {
+        identityVerifications: 'Identity verification',
+        paymentNotifications: 'Payment notifications',
+        adminPanel: 'Admin panel',
+        openDetailedPage: 'Open detailed matches page',
+      },
+      common: {
+        loading: 'Loading…',
+        empty: 'No records.',
+      },
+      labels: {
+        total: 'Total',
+        match: 'Match:',
+        score: 'Score: {{score}}',
+        recordId: 'Record ID:',
+      },
+      actions: {
+        cancel: 'Cancel match (unlock)',
+        copy: 'copy',
+      },
+      sections: {
+        mutual: 'Mutual accepted (waiting for step-2 choice)',
+        contactUnlocked: 'Contact unlocked (lock active)',
+      },
+      manual: {
+        title: 'Manual match',
+        titleTest: 'Manual match (for testing)',
+        description:
+          'Enter an “Application ID” or “Username” for A and B. This creates a match document between two users (to test like/reject/chat flows).',
+        descriptionShort:
+          'Enter an “Application ID” or “Username” for A and B. This creates a match document between two users.',
+        notePrefix: 'Note: The lists on this page show only',
+        noteAnd: 'and',
+        noteSuffix: 'statuses.',
+        labels: {
+          a: 'A (Application ID / Profile code)',
+          b: 'B (Application ID / Profile code)',
+          startStatus: 'Initial status',
+          overwrite: 'Overwrite if match exists',
+        },
+        placeholders: {
+          a: 'e.g. moonstar_34 or applicationId',
+          b: 'e.g. blueocean_21 or applicationId',
+        },
+        statusOptions: {
+          proposed: 'proposed (like/reject test)',
+          mutualAccepted: 'mutual_accepted (chat/contact choice test)',
+          contactUnlocked: 'contact_unlocked (contact unlocked test)',
+        },
+        actions: {
+          create: 'Create match',
+          clear: 'Clear fields',
+        },
+      },
+      confirms: {
+        cancelMatch: 'This match will be marked as cancelled and the lock will be removed. Continue?',
+      },
+      messages: {
+        cancelSuccess: 'Match cancelled. Lock removed; new matches can be shown.',
+        manualCreated: 'Manual match created. Match ID: {{matchId}}{{extra}}',
+        manualExtraUpdated: ' (Already existed: updated)',
+        manualExtraSkipped: ' (Already existed: skipped)',
+        copySuccess: 'Record ID copied.',
+        copyFailed: 'Copy failed.',
+      },
+      errors: {
+        loadFailed: 'Failed to load matches.',
+        actionFailed: 'Action failed.',
+        manualInputRequired: 'Please enter an Application ID or Profile Code for both A and B.',
+      },
+    },
+
+    matchmakingPayments: {
+      titles: {
+        page: 'Payment Notifications (Admin)',
+        tab: 'Payment Notifications',
+        tabSubtitle: 'Manage pending/approved/rejected payment notifications.',
+      },
+      nav: {
+        matches: 'Matches',
+        adminPanel: 'Admin panel',
+      },
+      notices: {
+        indexFallback: 'Note: Using fallback listing because a Firestore index is missing (may be a bit slower).',
+        receiptViaWhatsApp: 'Note: The user marked that they will send the receipt via WhatsApp. (No link was uploaded from the panel.)',
+      },
+      common: {
+        loading: 'Loading…',
+        empty: 'No records.',
+      },
+      statuses: {
+        pending: 'Pending',
+        approved: 'Approved',
+        rejected: 'Rejected',
+      },
+      statusHeadings: {
+        pending: 'Pending notifications',
+        approved: 'Approved',
+        rejected: 'Rejected',
+      },
+      labels: {
+        shown: 'Shown',
+        total: 'Total',
+        package: 'Plan',
+        method: 'Method',
+        user: 'User',
+        userId: 'User ID',
+        match: 'Match',
+        reference: 'Reference',
+        receiptChannel: 'Receipt channel',
+        note: 'Note',
+        receipt: 'Receipt',
+        readyMessage: 'Quick message',
+      },
+      receiptChannels: {
+        whatsapp: 'WhatsApp',
+        upload: 'Upload',
+      },
+      tiers: {
+        eco: 'Eco',
+        standard: 'Standard',
+        pro: 'Pro',
+      },
+      methods: {
+        eft_fast: 'EFT / FAST',
+        swift_wise: 'SWIFT / Wise',
+        qris: 'QRIS',
+        card: 'Credit card',
+        other: 'Other',
+      },
+      actions: {
+        copy: 'Copy',
+        open: 'Open',
+        approve: 'Approve',
+        reject: 'Reject',
+        copyApprovalMessage: 'Copy approval message',
+        copyRejectionMessage: 'Copy rejection message',
+      },
+      copy: {
+        copied: '{{what}} copied.',
+        failed: 'Copy failed.',
+        what: {
+          userId: 'User ID',
+          translateTargetLabel: 'Translate to',
+          matchId: 'Match ID',
+          reference: 'Reference',
+          receiptLink: 'Receipt link',
+          approvalMessage: 'Approval message',
+          rejectionMessage: 'Rejection message',
+        },
+      },
+      warnings: {
+        amountMismatch: 'Warning: Amount does not match expected price. Expected: {{expected}}',
+      },
+      confirms: {
+        approve: 'This payment will be APPROVED and the "{{tier}}" plan will be activated. Continue?',
+        reject: 'This payment will be REJECTED. Continue?',
+      },
+      messages: {
+        approvedWithUntil: 'Payment approved; membership activated. Ends: {{until}}',
+        approved: 'Payment approved; membership activated.',
+        rejected: 'Payment rejected.',
+      },
+      errors: {
+        actionFailed: 'Action failed.',
+      },
+      templates: {
+        whatsapp: {
+          approved:
+            'Hello, your matchmaking membership payment has been approved. You can unlock contact details from your panel. Thank you.',
+          rejected:
+            'Hello, we could not verify your payment notification. Please check the receipt/reference and submit a new payment notification.',
+        },
+      },
+      alts: {
+        receipt: 'receipt',
+      },
+    },
+
+    photoUpdates: {
+      titles: {
+        tab: 'Photo Update Requests',
+        tabSubtitle: 'Review and approve/reject the new photos uploaded by the user.',
+      },
+      common: {
+        loading: 'Loading…',
+        empty: 'No records.',
+        noPhoto: 'No photo.',
+      },
+      statuses: {
+        pending: 'Pending',
+        approved: 'Approved',
+        rejected: 'Rejected',
+      },
+      labels: {
+        shown: 'Shown',
+        requestId: 'Request',
+        userId: 'User ID',
+        applicationId: 'Application',
+      },
+      actions: {
+        copy: 'Copy',
+        approve: 'Approve',
+        reject: 'Reject',
+      },
+      copy: {
+        copied: '{{what}} copied.',
+        failed: 'Copy failed.',
+        what: {
+          userId: 'User ID',
+          applicationId: 'Application ID',
+        },
+      },
+      confirms: {
+        approve: 'This photo update request will be APPROVED and the application photos will be updated. Continue?',
+        reject: 'This photo update request will be REJECTED. Continue?',
+      },
+      messages: {
+        approved: 'Photo update approved.',
+        rejected: 'Photo update rejected.',
+      },
+      errors: {
+        actionFailed: 'Action failed.',
+      },
+      alts: {
+        photo: 'Photo',
+      },
+    },
   },
 
   matchmakingHub: {
-    metaTitle: 'Uniqah',
+    metaTitle: 'Matchmaking',
     badge: 'Private & moderated process',
     title: 'Marriage matchmaking system',
+    liveJoinToast: 'New participant joined',
     description:
-      'A closed matchmaking system that brings together people who are serious about marriage—on equal and safe terms. Profiles are not public; the system shows the most compatible candidates in your panel and helps you find the right person faster.',
+      'The system is new—please be patient. Matches usually arrive within 1–3 days. Install the app and enable notifications so you don’t miss updates.',
+    preview: {
+      title: "What will you see in 'My Profile' after signing up?",
+      subtitle:
+        'These sample cards are not real user data; they are only a quick walkthrough of how the system works after registration.',
+      cta: 'Sign up free',
+      cards: {
+        matches: {
+          title: 'Matches & statuses',
+          body: 'Mutual interest, activation, and communication steps progress here—each step is controlled.',
+          mockTitle: 'Example',
+          mockItem1: 'Suggested match',
+          mockItem1Sub: 'Status: mutual interest (example)',
+          mockTag1: 'Review',
+          mockItem2: 'Active match',
+          mockItem2Sub: 'Status: chat open (example)',
+          mockTag2: 'Message',
+        },
+        pool: {
+          title: 'Pool (candidates)',
+          body: 'Browse eligible candidates, send a request, or skip. If the other side approves, a match card opens.',
+          mockTitle: 'Example',
+          mockItem1: 'Candidate profile card (example)',
+          mockItem1Sub: 'Age • City • Short summary (example)',
+          mockCta: 'Send request',
+        },
+        chat: {
+          title: 'Safer messaging',
+          body: 'Messages are filtered; early-stage phone/email/link sharing is blocked.',
+          mockTitle: 'Example',
+          mockSystem: 'System: Safer communication enabled',
+          mockMsg1: 'Hi, how are you? (example)',
+          mockMsg2: 'Chat first, then approval steps (example)',
+          mockHint: 'Note: Contact sharing unlocks after 48 hours + mutual approval.',
+        },
+      },
+    },
     actions: {
+      loginExisting: 'Log in if you already have a profile',
         package: 'Package',
         packageEco: 'Eco',
         packageStandard: 'Standard',
@@ -44,6 +1473,7 @@ export default {
         packageHelp: 'Price and permissions are applied based on the selected package.',
       apply: 'Apply for matchmaking',
       goPanel: 'My profile',
+      tour: 'Show panel tour',
       backWedding: 'Back to wedding page',
       supportWhatsApp: 'WhatsApp support',
     },
@@ -56,6 +1486,10 @@ export default {
       review: {
         title: 'System evaluation',
         desc: 'When a suitable match is found, the process continues safely in your panel.',
+      },
+      panel: {
+        title: 'Panel-based flow',
+        desc: 'You manage matching, preview and next steps from your panel.',
       },
         showEmptyFields: 'Show empty fields',
         hideEmptyFields: 'Hide empty fields',
@@ -78,6 +1512,31 @@ export default {
         { title: '48-hour in-site chat', desc: 'After mutual acceptance, the first 48 hours are in-site chat only, to get to know each other safely.' },
         { title: 'Request contact sharing', desc: 'After 48 hours, you can send a contact request; if the other person approves, phone numbers become visible.' },
       ],
+    },
+
+    how: {
+      title: 'How does it work?',
+      subtitle: 'A controlled flow: Explore → pre-match request → active match → contact sharing.',
+      steps: [
+        { title: 'Review profiles in Explore', desc: 'In the panel’s Explore tab, profiles that fit the criteria are shown (limited preview).' },
+        { title: 'Send a pre-match request', desc: 'A pre-match request is sent to the profiles you want to add to your match list.' },
+        { title: 'They review and approve', desc: 'If approved, both sides can see each other in “My Matches”.' },
+        { title: 'Interact on the match card', desc: 'Likes, short messages and detailed profile review become available at this stage.' },
+        { title: 'Active match (48 hours)', desc: 'When likes are mutual, an active match starts: translation-assisted chat opens and other profiles are locked.' },
+        { title: 'Contact sharing & support', desc: 'After 48 hours, contact sharing can be approved; you can request interpreter video call or background checks via support.' },
+      ],
+    },
+
+    matching: {
+      title: 'How do we match?',
+      subtitle: 'The goal is not “random”; it is criteria compatibility and safe progression. Your profile is not public.',
+      badge: 'Criteria • Mutual consent • Controlled contact',
+      points: [
+        'The system generates suggestions from the candidate pool based on your age range, core preferences, and application details.',
+        'Interaction progresses with mutual consent—there is no forced contact flow.',
+        'Contact info is not shared immediately: first 48 hours in-site chat, then contact-request approval.',
+      ],
+      note: 'Note: This section is for transparency. Moderation and reporting mechanisms apply for safety.',
     },
     safety: {
       title: 'Safety and quality',
@@ -115,14 +1574,63 @@ export default {
       title: 'Step-by-step process',
       badge: 'Uniqah flow',
     },
+
+    faq: {
+      title: 'Frequently asked questions',
+      subtitle: 'Quick answers to the most common questions about the application and the process.',
+      sideNote: 'WhatsApp support is always available.',
+      items: [
+        {
+          q: 'Is my profile public?',
+          a: 'No. Profiles are not publicly listed; the process progresses in a controlled way through your panel.',
+        },
+        {
+          q: 'When is contact information shared?',
+          a: 'After mutual acceptance, the first 48 hours are in-site chat only. After 48 hours, you can request contact sharing; if approved, phone numbers become visible.',
+        },
+        {
+          q: 'Who can see my photos?',
+          a: 'Photos are used within the process and for safety. They are shown in a controlled way through the panel during matching.',
+        },
+        {
+          q: 'What if I face inappropriate behavior?',
+          a: 'Report it to WhatsApp support with evidence (screenshots). After review, the account may be removed from the system.',
+        },
+      ],
+    },
+
+    trust: {
+      title: 'Designed for trust',
+      subtitle: 'The system progresses with privacy, moderation, and controlled communication steps.',
+      badge: 'Privacy • Moderation • Controlled communication',
+      cards: {
+        privacy: {
+          title: 'Privacy',
+          desc: 'Your profile is not publicly published; it is shown only in-process via your panel.',
+        },
+        review: {
+          title: 'Control & moderation',
+          desc: 'Reporting and review flows help prevent and stop bad actors quickly.',
+        },
+        support: {
+          title: 'Support',
+          desc: 'If you get stuck, you can reach us via WhatsApp.',
+        },
+      },
+    },
+
+    cta: {
+      title: 'Ready to start?',
+      subtitle: 'Complete the application in 1–3 minutes and see matches in your panel.',
+    },
   },
 
   meta: {
-    baseTitle: "Indonesia Explorer | PT MoonStar Global Indonesia",
+    baseTitle: 'Uniqah | Turkey–Indonesia Wedding Guidance',
     baseDescription:
-      "Indonesia Explorer (PT MoonStar Global Indonesia) provides tour organization in Indonesia, honeymoon and bespoke travel planning, plus wedding guidance services.",
+      'Uniqah provides step-by-step Turkey–Indonesia wedding guidance: document checks, official timeline planning, translation/communication and on-the-ground coordination.',
     pages: {
-      home: { title: "Indonesia Explorer | PT MoonStar Global Indonesia" },
+      home: { title: 'Uniqah | Turkey–Indonesia Wedding Guidance' },
       about: { title: "About" },
       corporate: { title: "Corporate" },
       contact: { title: "Contact" },
@@ -133,7 +1641,7 @@ export default {
           "Planned Indonesia tour packages and group tours: on-the-ground programs for Bali, Lombok, Komodo and more.",
       },
       wedding: {
-        title: "Wedding Guidance",
+        title: "Turkey–Indonesia Wedding Guidance",
         description:
           "Guidance for your wedding process in Indonesia: end-to-end support for hotels, transport, interpretation and official paperwork.",
       },
@@ -146,14 +1654,20 @@ export default {
   },
 
   weddingPage: {
+    publicNote: {
+      p1: 'Note: This page is designed to help couples who are planning to get married with the marriage procedures. If you don’t have a match candidate yet, please visit our',
+      link: 'Match candidate page',
+      p2: '.',
+    },
     hero: {
-      badge: "Guidance for Turkish–Indonesian couples",
-      title: "We’re with you for your wedding preparation in Indonesia",
+      badge: 'Guidance for the marriage process',
+      title: 'Turkey–Indonesia Wedding Guidance',
       description:
-        "We plan the paperwork, official procedures, family-to-family communication, and the full organization process in Indonesia together—turning it into a reassuring journey away from uncertainty.",
+        'For Turkish and Indonesian couples, we clarify documents, official steps, family communication, translation and on-the-ground coordination—so the process feels clear and reassuring.',
       actions: {
         openForm: "Open the Wedding Plan Form",
         matchmakingHub: "Matchmaking",
+        matchmakingApply: 'Apply for matchmaking',
         quickChat: "Quick chat on WhatsApp",
         enableNotifications: 'Enable notifications',
         notificationsEnabled: 'Notifications are enabled.',
@@ -164,7 +1678,11 @@ export default {
       },
     },
     whatsapp: {
-      quickChatMessage: "Hello, I'd like to get information about getting married in Indonesia.",
+      quickChatMessage: "Hello, I'd like to get information about wedding preparation and guidance.",
+    },
+    stickyBackToProfile: {
+      label: 'Back to my profile',
+      aria: 'Go back to profile page',
     },
     intro: {
       servicesTitle: "Our services",
@@ -194,11 +1712,11 @@ export default {
           ],
         },
         {
-          title: "Ongoing guidance & visas",
+          title: "Ongoing guidance",
           items: [
             "Continuous guidance until the marriage is completed",
-            "Visa and residence permit guidance for living in Indonesia",
-            "Spouse visa and residence process guidance for living in Turkey",
+            "General guidance on official steps (via official authorities)",
+            "A high-level post-marriage administrative roadmap",
           ],
         },
       ],
@@ -208,32 +1726,127 @@ export default {
       flexibleP2:
         "You can get to know the process, us, and how we work better by watching the videos on our YouTube channel.",
       flexibleNote:
-        'You can fill out the "Wedding Plan" form below, or review the required documents in detail from the "Marriage Documents in Indonesia" tab.',
+        'You can fill out the "Wedding Plan" form below, or review the required documents in detail from the "Marriage Documents" tab.',
+    },
+    process: {
+      title: 'How does the process work?',
+      subtitle: 'These steps are a general roadmap; details can vary by case and official authorities.',
     },
     steps: [
       {
-        title: "We understand you and your situation",
+        title: 'First step: planning form',
         description:
-          "You fill out the form; with the information you provide, we clarify your needs.",
+          'To get to know you and plan the process in the best way, you need to fill out the 15-question form in the Planning section and send it to us. This step is completely free and takes only a few minutes.',
       },
       {
-        title: "We plan it together with you",
+        title: 'We plan together',
         description:
-          "We shape the documents, dates, and steps together based on your budget and expectations.",
+          'After reviewing the form you sent, we get back to you and prepare a clear plan for the process together.',
       },
       {
-        title: "We manage the process step by step",
+        title: 'Agreement & guidance contract',
         description:
-          "From your arrival in Indonesia until the marriage is completed, we’re with you at every step.",
+          'After you confirm that you want our guidance service, you pay 40% of the calculated total budget. For mutual trust, we receive the remaining 60% after you arrive in Indonesia.',
+      },
+      {
+        title: 'Marriage paperwork process',
+        description:
+          'We prepare the required documents together and start the marriage procedures. We handle the full follow-up and tracking of the process.',
+      },
+      {
+        title: 'Indonesia phase',
+        description:
+          'We plan flights, hotel reservations, and local transport. Throughout the marriage procedures, we stay with you, interpret for communication with your partner and their family, and support you until the marriage is completed.',
+      },
+      {
+        title: 'Post-marriage procedures',
+        description:
+          'After the marriage, we ensure it is approved/registered by the official authorities. If you will live in Turkey, we handle visa procedures for your spouse; if you will live in Indonesia, we handle residence/permit procedures. If requested, we also organize your honeymoon in Indonesia.',
+      },
+      {
+        title: 'Completion of the guidance service',
+        description:
+          'Once we make sure all procedures are completed properly, we close the process—helping you marry in the easiest and best way, and start your marriage with peace and happiness.',
       },
     ],
     images: {
-      prepAlt: "Wedding preparation details in Indonesia",
-      ceremonyAlt: "Wedding ceremony in Indonesia",
+      prepAlt: 'Wedding preparation details',
+      ceremonyAlt: 'Wedding ceremony',
     },
     tabs: {
       plan: "Wedding Plan",
-      documents: "Marriage Documents in Indonesia",
+      documents: 'Marriage Documents',
+    },
+    mobileTabs: {
+      documents: 'Documents',
+      process: 'Process',
+      guidance: 'Guidance',
+      planning: 'Planning',
+    },
+    mobileDocuments: {
+      question: {
+        title: 'Where will the marriage take place?',
+        hint: 'Required documents vary by the country where the marriage is registered.',
+        options: {
+          indonesia: 'In Indonesia',
+          turkiye: 'In Turkey',
+        },
+      },
+      trPlaceholder: {
+        title: 'Documents for marrying in Turkey',
+        note:
+          'Official document lists can vary depending on the city, the consulate/governorate practice, and current regulations. Let’s clarify this together using verified official sources.',
+        action: 'Ask for the document list on WhatsApp',
+        whatsappMessage:
+          'Hello, can you share the latest required documents and official source links for marrying in Turkey (TR citizen + Indonesian citizen)?',
+      },
+      trRequirements: {
+        title: 'Documents required for an official marriage in Turkey',
+        note:
+          'Note: Requirements can vary by city, authority, and current regulations. We can confirm the latest checklist together for your specific municipality.',
+        steps: [
+          {
+            title: '🇮🇩 1️⃣ Indonesian Embassy in Ankara: marriage permission (CNI)',
+            intro: '(Certificate of no impediment / proof of single status)',
+            items: [
+              '👩 Documents for the Indonesian woman',
+              'Passport (original + copy)',
+              'KTP (Indonesian ID) copy',
+              'Family card (Kartu Keluarga)',
+              'Birth certificate',
+              'Proof of being single',
+              'Letter of eligibility to marry from local authority in Indonesia (N1/N4 equivalent)',
+              '2–4 photos',
+              'If applicable: divorce decree or spouse death certificate',
+              '👨 Documents for the Turkish citizen man',
+              'National ID card copy',
+              'Population registry extract',
+              'Residence certificate',
+              'Proof of being single',
+              '2 photos',
+            ],
+            notes: [
+              '📌 After these checks, the embassy issues a Certificate of No Impediment / marriage permission letter.',
+              '📌 In some cases, a permission letter from the woman’s family in Indonesia may be requested.',
+            ],
+          },
+          {
+            title: '🇹🇷 2️⃣ Turkish authorities: starting the marriage procedures',
+            intro:
+              'The exact checklist can vary by municipality/marriage office. We prepare based on the latest checklist of the specific office where you will apply.',
+            items: [
+              'Application documents (forms/declarations required by the municipality)',
+              'Copies of IDs/passports and required translations/notarization',
+              'Current address/residence info (as required by the authority)',
+              'Photos (in the size and count requested)',
+              'Health report (if required by the authority)',
+            ],
+          },
+        ],
+        action: 'Ask the latest checklist on WhatsApp',
+        whatsappMessage:
+          'Hello, could you share the latest document checklist and application steps for an official marriage in Turkey (Turkish citizen + Indonesian citizen)? Municipality/district: …',
+      },
     },
     plan: {
       title: "Share your wedding plan with us",
@@ -242,6 +1855,190 @@ export default {
       successTitle: "Your request has been sent successfully!",
       successText:
         "Thank you for filling out the form. We will get back to you within 24 hours.",
+      why: {
+        title: 'Why planning matters',
+        text:
+          'In cross‑country marriages, the biggest problem is not managing the process correctly. Even a small typo can lead to major losses—both financially and in time. That’s why planning your process correctly from the very beginning is the #1 requirement. Our guidance service helps you plan in the easiest and most accurate way and complete the marriage process smoothly. For us to plan the entire process correctly for you, we need the information you provide. That’s why completing our 15‑question form in just a few minutes will benefit you in every way.',
+      },
+      quiz: {
+        introTitle: 'Step-by-step Wedding Plan Quiz',
+        introText: 'Complete it in 2–3 minutes, then send your answers to us on WhatsApp.',
+        start: 'Start planning',
+        back: 'Back',
+        next: 'Next',
+        submit: 'Send via WhatsApp',
+        progress: 'Question {{current}} / {{total}}',
+        errors: {
+          required: 'Please answer this question.',
+        },
+        options: {
+          yes: 'Yes',
+          no: 'No',
+          later: "I'll decide later",
+          turkiye: 'Turkey',
+          indonesia: 'Indonesia',
+          other: 'Other',
+          employment: {
+            worker: 'Private sector',
+            civilServant: 'Civil servant',
+            retired: 'Retired',
+            publicEmployee: 'Public employee',
+            businessOwner: 'Business owner',
+            other: 'Other',
+          },
+          marital: {
+            single: 'Single',
+            widowed: 'Widowed',
+            divorced: 'Divorced',
+            divorceInProgress: 'Divorce in progress',
+          },
+          partnerMarital: {
+            single: 'Single',
+            widowed: 'Widowed',
+            divorced: 'Divorced',
+          },
+        },
+        fields: {
+          employmentStatus: 'Your employment status',
+          profession: 'Your profession',
+          maritalStatus: 'Your marital status',
+          hasChildren: 'Do you have children?',
+          legalWhere: 'In which country will the official marriage take place?',
+          plannedLiveWhere: 'Where do you plan to live after marriage?',
+          nationality: 'Your nationality',
+          nationalityOther: 'Nationality (Other)',
+          livingCountry: 'Which country do you live in?',
+          livingCountryOther: 'Living country (Other)',
+          budget: 'Budget you set aside for marriage',
+          indonesiaDuration: 'Estimated duration in Indonesia',
+          weddingDate: 'Planned wedding date',
+          partnerAge: "Partner’s age",
+          partnerCity: "Partner’s city",
+          partnerMaritalStatus: "Partner’s marital status",
+          partnerHasChildren: 'Does your partner have children?',
+          partnerChildrenCount: 'How many children?',
+          partnerChildrenLiveWithUs: 'Will the child(ren) live with you?',
+        },
+        placeholders: {
+          profession: 'e.g., engineer, teacher, shop owner…',
+          budget: 'e.g., 150,000 TRY',
+          indonesiaDuration: 'e.g., 5 days / 15 days / 1 month',
+          weddingDate: 'e.g., 2026-06-15',
+          partnerAge: 'e.g., 28',
+          partnerCity: 'e.g., Jakarta / Istanbul',
+          partnerChildrenCount: 'e.g., 1',
+          nationalityOther: 'e.g., German, Dutch…',
+          livingCountryOther: 'e.g., Germany, Netherlands…',
+        },
+        steps: {
+          personal: {
+            title: 'Let’s get to know you',
+            desc: 'We’ll start with a few basics.',
+          },
+          nationality: {
+            title: 'Nationality',
+            desc: 'Select your nationality.',
+          },
+          livingCountry: {
+            title: 'Living country',
+            desc: 'Which country do you currently live in?',
+          },
+          employment: {
+            title: 'Employment',
+            desc: 'Select your employment status.',
+          },
+          profession: {
+            title: 'Profession',
+            desc: 'Write your profession.',
+          },
+          marital: {
+            title: 'Marital status',
+            desc: 'Select your marital status.',
+          },
+          children: {
+            title: 'Children',
+            desc: 'Do you have children?',
+          },
+          legalWhere: {
+            title: 'Official process',
+            desc: 'In which country will the official marriage take place?',
+          },
+          plannedLiveWhere: {
+            title: 'Life plan',
+            desc: 'Select where you plan to live after marriage.',
+          },
+          budget: {
+            title: 'Budget',
+            desc: 'Enter your budget so we can plan appropriately.',
+          },
+          indonesiaDuration: {
+            title: 'Indonesia duration',
+            desc: 'How long do you plan to stay in Indonesia?',
+          },
+          weddingDate: {
+            title: 'Wedding date',
+            desc: 'Enter an approximate date if you’re not sure yet.',
+          },
+          partnerAge: {
+            title: "Partner’s age",
+            desc: "Enter your partner’s age.",
+          },
+          partnerCity: {
+            title: "Partner’s city",
+            desc: "Enter your partner’s city.",
+          },
+          partnerMarital: {
+            title: "Partner’s marital status",
+            desc: "Select your partner’s marital status.",
+          },
+          partnerChildren: {
+            title: 'Partner children',
+            desc: 'This can affect paperwork and planning in some cases.',
+          },
+          services: {
+            title: 'Services',
+            desc: 'Choose the services you need (you can select multiple).',
+          },
+          honeymoon: {
+            title: 'Honeymoon',
+            desc: 'Would you consider a honeymoon trip after the marriage?',
+          },
+        },
+        whatsapp: {
+          intro: 'Hello, I’m sending my wedding plan quiz answers:',
+          summaryTemplate:
+            'Nationality: {{nationality}} | Living: {{livingCountry}} | Official marriage: {{legalWhere}} | Life plan: {{plannedLiveWhere}} | Budget: {{budget}}',
+          none: 'No selection',
+          labels: {
+            summary: 'Summary',
+            name: 'Full name',
+            age: 'Age',
+            city: 'City',
+            phone: 'Phone',
+            nationality: 'Nationality',
+            livingCountry: 'Living country',
+            employment: 'Employment',
+            profession: 'Profession',
+            maritalStatus: 'Marital status',
+            hasChildren: 'Children',
+            legalWhere: 'Official marriage country',
+            plannedLiveWhere: 'Life plan',
+            marriageMunicipality: 'Marriage city/district',
+            budget: 'Budget',
+            indonesiaDuration: 'Indonesia duration',
+            weddingDate: 'Wedding date',
+            partnerAge: "Partner’s age",
+            partnerCity: "Partner’s city",
+            partnerMaritalStatus: "Partner’s marital status",
+            partnerHasChildren: "Partner has children",
+            partnerChildrenCount: 'Children count',
+            partnerChildrenLiveWithUs: 'Will they live with you',
+            services: 'Requested services',
+            honeymoon: 'Honeymoon',
+            extraNote: 'Extra note / question',
+          },
+        },
+      },
       form: {
         sections: {
           basicInfo: {
@@ -251,28 +2048,37 @@ export default {
               phone: "Contact number",
               city: "City",
               age: "Age",
+              budget: 'Budget you have set aside for marriage',
             },
             placeholders: {
               name: "Your full name",
               phone: "+90 555 034 3852",
               city: "Your city",
               age: "Your age",
+              budget: 'e.g., 150,000 TRY',
+            },
+            hints: {
+              budget:
+                'The budget you enter here helps us determine what kind of wedding plan we should prepare.',
             },
           },
+          privacyNote:
+            'Privacy note: Your application details are processed for matchmaking and safety; your profile is not listed publicly. If rules are violated, you can contact support with evidence (e.g., screenshots).',
         },
         services: {
           title: "2. Services you need",
           hint:
             "You can select multiple options. If you're not sure, you can leave them blank.",
           options: {
-            consulting: "Consulting",
-            paperworkTracking: "Paperwork tracking",
-            familyCommunication: "Family-to-family communication",
-            transport: "Transport",
-            interpretation: "Interpretation",
-            ongoingGuidance: "Ongoing guidance throughout the process",
             accommodation: "Accommodation",
-            honeymoon: "Honeymoon",
+            communicationInterpretation: 'Communication interpretation (partner and/or family)',
+            research: 'Research',
+            documentCollection: 'Document collection',
+            legalFollowUp: 'Legal follow-up',
+            flightTicket: 'Flight tickets',
+            localTransport: 'Local transport in Indonesia',
+            postMarriage: 'Post-marriage procedures',
+            visaResidence: 'Visa / residence',
           },
         },
         schedule: {
@@ -295,33 +2101,39 @@ export default {
       },
     },
     documents: {
-      title: "Required documents for foreign–Indonesian marriage in Indonesia",
+      title: 'Required documents for marriage (general checklist)',
       subtitle:
         "The headings below are for general information. We check the exact and up-to-date list for your situation together.",
+      disclaimer:
+        'Note: This content is for general information. Requirements can vary by city/authority and may change over time; please confirm with the relevant office before applying.',
       foreignSpouse: {
-        title: "Documents for the foreign spouse",
-        intro: "In general, these are the core documents requested from the foreign spouse:",
+        title: 'Documents for the Turkish citizen (foreign spouse)',
+        intro: 'For a marriage in Indonesia, the Turkish-citizen spouse may be asked for:',
         items: [
-          "Valid passport (with at least 6 months validity)",
-          "Indonesian entry visa or ITAS/ITAP",
-          "Certificate of no impediment to marriage (from the Turkish Embassy in Indonesia)",
-          "Birth certificate (multilingual)",
-          "Single status certificate (translated into Indonesian and apostilled)",
-          "If applicable, divorce decree or death certificate (translated and notarized)",
-          "Proof of residence",
-          "Passport photo taken within the last 6 months",
+          'Turkish national ID card',
+          'Passport (at least 6 months validity as of the return date to Turkey)',
+          'Birth certificate',
+          'Single status certificate',
+          'Proof of residence (requested by some KUA offices)',
+          'Criminal record certificate (requested by some KUA offices)',
+          'Medical report (requested by some KUA offices)',
+          'If previously married: divorce decree or previous spouse’s death certificate',
+          'Passport photo taken within the last 6 months',
+          'Marriage permit / approval letter to be obtained from the embassy/consulate',
         ],
       },
       indonesianSpouse: {
-        title: "Documents for the Indonesian spouse",
-        intro: "For the Indonesian citizen spouse, the following documents are commonly required:",
+        title: 'Documents for the Indonesian citizen',
+        intro: 'For a marriage in Indonesia, the Indonesian-citizen spouse may be asked for:',
         items: [
-          "KTP (identity card)",
-          "Akte Lahir (birth certificate)",
-          "Kartu Keluarga (family card)",
-          "Marital status letter (single / divorced / widowed)",
-          "Forms N1–N10 and RW/RT approvals",
-          "Passport photo taken within the last 6 months",
+          'KTP',
+          'Family card (KK)',
+          'Parents’ information',
+          'Birth certificate',
+          'Forms N1, N2, N4',
+          'RT/RW letter',
+          'Form N3',
+          'Passport photo taken within the last 6 months',
         ],
       },
       extras: {
@@ -338,9 +2150,10 @@ export default {
       importantNotes: {
         title: "📌 Important notes",
         items: [
-          "For many documents, apostille and Indonesian translation are mandatory. (Check with the KUA your partner is affiliated with)",
-          "A single typo, a missing document, or an incorrect processing order can negatively affect the whole application.",
-          "The required documents and workflow may vary by city, institution, and officer.",
+          '* Which documents must be translated for the foreign spouse can vary by the KUA office.',
+          '** Documents that require an apostille must be apostilled.',
+          '*** Requirements can change over time due to changing regulations; always check the latest list.',
+          '**** Missing documents or even spelling mismatches can lead to rejection and force you to restart the process; for time/cost protection, we recommend getting guidance support.',
         ],
       },
       personalDifferences: {
@@ -357,17 +2170,21 @@ export default {
           "Message us; based on your city, citizenship, and situation, let’s clarify the most up-to-date document list together.",
         action: "Ask my document list on WhatsApp",
         message:
-          "Hello, I'd like to get information about the marriage process and required documents in Indonesia.",
+          "Hello, I'd like to get information about the marriage process and required documents.",
       },
     },
     faq: {
       items: [
         {
-          q: "How long does the marriage process take on average in Indonesia?",
+          q: 'How long does the marriage process take on average?',
           a: "Depending on your document readiness, the city you apply in, and institutional workload, the planning and official procedures typically take from a few weeks to a few months.",
         },
         {
-          q: "What should be my first step for getting married in Indonesia?",
+          q: 'How much do marriage costs usually add up to?',
+          a: "It depends entirely on your budget. We don’t push anyone beyond their means; we build a plan together based on your needs and budget.",
+        },
+        {
+          q: 'What should be my first step for getting married?',
           a: "First, you should clarify which documents are required for your case. After reviewing the list, you can contact us on WhatsApp so we can build an up-to-date checklist based on your city and situation.",
         },
         {
@@ -382,8 +2199,8 @@ export default {
     },
     bottomCta: {
       title: "Let’s plan your wedding together",
-      description: "Fill out the form below or contact us on WhatsApp right away.",
-      action: "Ask now on WhatsApp",
+      description: 'Open the planning form and complete it in a few minutes; we’ll get back to you and create a clear plan together.',
+      action: 'Open Planning Form',
       message: "Hello, I'd like to get information about the wedding package.",
       note:
         "We reply in Turkish; if needed, we also help you communicate with your partner’s family in Indonesian.",
@@ -392,10 +2209,18 @@ export default {
 
   common: {
     open: "Open",
+    close: 'Close',
     loading: 'Loading…',
     downloadPdf: "Download PDF",
     learnMore: "Learn more",
     back: "Go back",
+    you: 'You',
+    them: 'Them',
+    enlarge: 'Enlarge',
+    time: {
+      minutesShort: '{{minutes}} min',
+      hmShort: '{{h}}h {{m}}m',
+    },
     privacySecurity: {
       title: "Privacy & Security",
       text: "This page is tracked with Google Analytics. Your data is protected with SSL/TLS encryption.",
@@ -403,110 +2228,26 @@ export default {
     },
   },
 
-  kesfet: {
-    analyticsTitle: "Explore - Discover the Islands",
-    heroTitle: "Explore Indonesia",
-    heroSubtitle:
-      "Paradise islands, exotic cultures, and unforgettable memories await. Discover the perfect destination for your honeymoon or holiday.",
-    stats: {
-      islands: "{{count}} islands",
-      destinations: "{{count}}+ destinations",
-      suggestions: "Honeymoon & vacation ideas",
-    },
-    sectionTitle: "Discover the Islands",
-    sectionSubtitle: "Each island offers unique experiences and unforgettable memories",
-    filters: {
-      hepsi: "All",
-      balayi: "Honeymoon",
-      aile: "Family",
-      macera: "Adventure",
-      sakin: "Calm",
-    },
-    tagLabels: {
-      balayi: "Great for honeymoon",
-      aile: "Family-friendly",
-      macera: "Adventure & exploration",
-      sakin: "Quiet escape",
-    },
-    card: {
-      overlayExplore: "Explore {{name}} in depth",
-      categoryLabel: "Indonesian Islands",
-      destinations: "{{count}} destinations",
-      viewDetails: "View details",
-    },
-    videoNotFound: "Video link not found",
-  },
-
-  kesfetIsland: {
-    analyticsTitle: "Explore - {{island}}",
-    heroAlt: "{{name}} island",
-    backToIslands: "Back to islands",
-    stats: {
-      destinations: "{{count}} destinations",
-      recommendedStay: "Recommended stay: {{stay}}",
-      averageBudget: "Average budget: {{budget}}",
-    },
-    sectionTitle: "Popular Destinations",
-    sectionSubtitle: "{{count}} destinations are waiting for you",
-    card: {
-      details: "Details →",
+  apply: {
+    form: {
+      options: {
+        common: {
+          yes: 'Yes',
+          no: 'No',
+        },
+      },
     },
   },
 
-  kesfetSidebar: {
-    closeMenu: "Close menu",
-    title: "Explore",
-    back: "Go back",
-    planTravel: "Plan your trip",
-    whatsapp: "WhatsApp",
-    youtube: "YouTube channel",
-    whatsappMessage: "I'd like to get information about Indonesia's holiday destinations",
-  },
-
-  kesfetDestination: {
-    breadcrumb: {
-      indonesia: "Indonesia",
-    },
-    backToIsland: "Back to {{island}}",
-    weather: {
-      today: "Today's average: Air {{air}} · Sea {{sea}} (est.)",
-    },
-    tabs: {
-      places: "Places to Visit",
-      activities: "Activities",
-      food: "Food & Drinks",
-      stay: "Stay",
-      shopping: "Shopping",
-    },
-    places: {
-      title: "Where should you see first in {{destination}}?",
-      subtitle: "From scenery to history, we've gathered stops that help you truly feel {{destination}}.",
-      tip: "If it's your first time in {{destination}}, planning at most 2–3 spots per day and leaving room for breaks helps you enjoy both the weather and the rhythm.",
-    },
-    activities: {
-      title: "What shouldn't you leave {{destination}} without doing?",
-      subtitle: "Whether you want a calm day or to chase adrenaline depends on what you choose below.",
-      tip: "Mixing high-energy and relaxed activities on the same day makes your time in {{destination}} more balanced and memorable.",
-    },
-    food: {
-      title: "What should you taste in {{destination}}?",
-      subtitle: "From street food to relaxed dinners, we've curated flavors you should try without regret.",
-    },
-    stay: {
-      title: "What kind of place would feel right to stay in {{destination}}?",
-      subtitle: "You can compare options side by side based on your budget, comfort expectations, and your ideal view.",
-      recommendedDuration: "Recommended Duration",
-      totalBudget: "Total Average Budget ({{duration}})",
-      foodTip: "Choosing a light street bite before you get too hungry, and a calmer restaurant for the evening, helps balance your day in {{destination}}.",
-      locationTip: "When choosing where to stay in {{destination}}, booking the first night in a central area and the following days in a quieter area can make adapting easier.",
-    },
-    shopping: {
-      title: "What can you find in {{destination}} for both needs and gifts?",
-      subtitle: "Ideas for essentials, activity gear, and small items that will remind you of this place.",
-      tip: "Don't leave souvenir shopping to the last day; buying what you like when you see it in {{destination}} makes bargaining and choosing easier.",
-    },
-    gallery: {
-      alt: "{{destination}} - {{tab}} view {{index}}",
+  myInfo: {
+    fields: {
+      about: 'About me',
+      city: 'City',
+      education: 'Education',
+      gender: 'Gender',
+      hasChildren: 'Has children',
+      maritalStatus: 'Marital status',
+      occupation: 'Occupation',
     },
   },
 
@@ -541,34 +2282,123 @@ export default {
     },
   },
 
+  galleryPage: {
+    hero: {
+      title: "Photo Gallery",
+      description:
+        "Short snapshots from our wedding journey in Indonesia, our travels, and our daily life.",
+    },
+    content: {
+      title: "Snapshots from Indonesia",
+      description:
+        "In our photo gallery you can find moments from our wedding, our explorations in Indonesia, and daily life. We will keep updating this page with our latest photos over time.",
+      backToAbout: "Back to About",
+      footerNote:
+        "We’ll update the visuals on this page over time with real photos from our own archive.",
+    },
+    modal: {
+      close: "Close",
+    },
+    images: {
+      "1": { alt: "A snapshot from Siti Gunung Waterfall, Sukabumi" },
+      "2": { alt: "A memory from our temple visit" },
+      "3": { alt: "A moment from the temples of Yogyakarta" },
+      "4": { alt: "A moment from the tea gardens of Ciwidey" },
+      "5": { alt: "A snapshot from a walk in Indonesia’s nature" },
+      "6": { alt: "A snapshot from the view of Situ Patenggan Lake" },
+      "7": { alt: "A moment from Salih and Tini’s wedding" },
+      "8": { alt: "A memory from our Yogyakarta temple tour" },
+      "9": { alt: "A snapshot from Salih and Tini’s wedding day" },
+      "10": { alt: "A snapshot from an ATV tour on Pangandaran beach" },
+      "11": { alt: "A memory from our resort stay in Pangandaran" },
+      "12": { alt: "Views from the Sukabumi waterfalls" },
+      "13": { alt: "A snapshot from the Citumang body rafting area" },
+    },
+  },
+
+  privacyPage: {
+    title: "Privacy Policy",
+    sections: {
+      intro: {
+        title: "1. Introduction",
+        text:
+          "Uniqah respects customer privacy and data protection rights. This privacy policy explains how your personal data is collected, used, and protected.",
+      },
+      dataCollected: {
+        title: "2. Data Collected",
+        text: "Through our website, we may collect the following data:",
+        items: [
+          "Full name",
+          "Email address",
+          "Phone number",
+          "Application/profile information",
+          "Browser and device information",
+        ],
+      },
+      dataUsage: {
+        title: "3. Use of Data",
+        text: "Collected data is used for the following purposes:",
+        items: [
+          "Provide matchmaking and guidance services",
+          "Provide communication and customer support",
+          "Improve the website",
+          "Send marketing and promotional messages (with consent)",
+        ],
+      },
+      security: {
+        title: "4. Data Security",
+        text:
+          "Your personal data is protected using industry-standard encryption and security measures. However, no transmission over the internet is 100% secure.",
+      },
+      rights: {
+        title: "5. Your Rights",
+        text:
+          "You may request information about your personal data, request correction, or request deletion by contacting us in writing.",
+      },
+      contact: {
+        title: "6. Contact",
+        text:
+          "If you have questions about this privacy policy, you can reach us at <emailLink>{{email}}</emailLink>."
+      },
+    },
+    lastUpdated: "Last updated: {{date}}",
+  },
+
+  notFoundPage: {
+    title: "Page Not Found",
+    backHome: "Back to Home",
+  },
+
   floatingWhatsapp: {
     label: "WhatsApp",
     ariaLabel: "Chat on WhatsApp",
     messages: {
       default: "Hi, I'd like to get more information.",
-      home: "Hi, I'd like to get information about Endonezya Kaşifi.",
-      explore: "Hi, I'd like to get information about Indonesia's destinations.",
-      travel: "Hi, I'd like to get information about planning an Indonesia holiday.",
-      wedding: "Hi, I'd like to get information about getting married in Indonesia.",
+      home: "Hi, I'd like to get information about Uniqah.",
+      explore: "Hi, I'd like to get more information.",
+      travel: "Hi, I'd like to get more information.",
+      wedding: "Hi, I'd like to get information about the marriage process.",
       youtube: "Hi, I'd like to get information about your YouTube videos.",
       contact: "Hi, I'd like to get information about contacting you.",
-      tours: "Hi, I'd like to get information about your tour packages.",
+      tours: "Hi, I'd like to get more information.",
       documents: "Hi, I'd like to get information about your documents.",
     },
   },
 
   home: {
     hero: {
-      badgeCompany: "Registered in Indonesia: PT MoonStar Global Indonesia",
-      badgeSocial: "endonezyakasifi social accounts",
-      title: "Indonesia Explorer",
-      subtitle: "Tour organization • Wedding guidance • On-the-ground support",
+      badgeCompany: 'PT MoonStar Global Indonesia',
+      badgeSocial: "Uniqah social channels",
+      title: "Uniqah",
+      subtitle: 'Turkey–Indonesia • Wedding guidance • Process support',
       description:
-        "We design boutique tour packages and tailor-made travel plans in Indonesia focused on honeymoon, exploration and relaxation. We also guide couples coming to Indonesia for marriage—step by step—through hotel, transport, interpretation and official paperwork.",
-      note: "A Indonesia-based setup founded by a Turkish entrepreneur living in Indonesia.",
-      ctaTours: "Browse tour packages",
-      ctaBrochures: "Download brochures (PDF)",
+        'Uniqah is primarily a wedding guidance hub for Turkey–Indonesia couples. We clarify steps around documents, official processes, translation/communication and practical coordination so the journey feels calmer and more predictable.',
+      note: 'A marriage-oriented setup with privacy and safety as priorities.',
+      freeNote: 'Using the app is completely free.',
+      ctaTours: "Start application",
+      ctaBrochures: "View documents",
       ctaTrust: "Trust & Legal",
+      ctaHow: "How it works",
     },
     trust: {
       items: [
@@ -577,12 +2407,12 @@ export default {
           description: "Pre-registration → written offer → contract/payment steps are straightforward.",
         },
         {
-          title: "Turkish support",
-          description: "WhatsApp support via Türkiye line; operations in Indonesia.",
+          title: 'Fast support',
+          description: 'WhatsApp-based support; multi-language help when needed.',
         },
         {
           title: "Legal structure",
-          description: "Indonesia Explorer is a brand registered under PT MoonStar Global Indonesia in Indonesia.",
+          description: "Uniqah is a brand operated under PT MoonStar Global Indonesia.",
         },
       ],
     },
@@ -590,35 +2420,43 @@ export default {
       title: "What do we do for you?",
       cards: {
         joinTours: {
-          title: "Join scheduled group tours",
-          description:
-            "You can join our planned tour packages to Bali, Lombok, Komodo and other Indonesian islands—solo, with family or with friends.",
+          title: 'Application & profile support',
+          description: 'Step-by-step support for application, profile creation, and process management.',
         },
         groupTours: {
-          title: "Corporate group tours",
-          description:
-            "For companies, schools, associations and friend groups we plan custom Indonesia group tours based on your dates, group size and budget—plus meetings, events and team programs.",
+          title: 'Family/community coordination',
+          description: 'Guidance for family communication and coordination when needed.',
         },
         privateTravel: {
-          title: "Private / family travel",
+          title: 'Practical guidance',
+          description: 'Practical on-the-ground guidance when needed.',
+        },
+        matchmaking: {
+          title: "Uniqah matchmaking",
           description:
-            "We prepare tailor-made Indonesia holiday plans including flights, accommodation and routes—so you can explore Bali and beyond at your own pace.",
+            "A structured matchmaking experience for serious-intent users: application, eligibility, profile flow, chat and mutual decision steps.",
+        },
+        communityContent: {
+          title: "Community content",
+          aria: "Community content",
+          description:
+            "We share guides and helpful content focused on relationships, communication and a respectful process for the Uniqah community.",
         },
         wedding: {
-          title: "Wedding consulting",
+          title: "Wedding guidance in Indonesia",
           description:
-            "We support you throughout the marriage process—documents, legal procedures, guidance, interpretation, transport and accommodation—so you can complete your wedding in Indonesia smoothly.",
+            "Step-by-step guidance for paperwork, local procedures, translation, transport and accommodation—so your process is calmer and more manageable.",
         },
         youtube: {
           title: "YouTube videos",
           description:
-            "Watch selected videos from our travels and wedding journey here; discover more on our YouTube channel and get to know Indonesia and our support better.",
+            "Get to know our approach through videos about Indonesia life, culture, travel and the wedding journey.",
         },
         dameturk: {
           title: "DaMeTurk (sub-brand)",
           aria: "DaMeTurk - Authentic Turkish ice cream",
           description:
-            "Under PT MoonStar Global Indonesia, we run the DaMeTurk brand for authentic Turkish ice cream in Indonesia. Visit dameturk.com for details and updates.",
+            "Under PT MoonStar Global Indonesia, we run DaMeTurk for authentic Turkish ice cream production and sales in Indonesia. Visit dameturk.com for details.",
         },
       },
     },
@@ -627,19 +2465,19 @@ export default {
       title: "How do we proceed?",
       steps: [
         {
-          title: "1) Pre-registration",
-          description: "Free and non-binding. We clarify your needs.",
+          title: "1) Your goal & situation",
+          description: "We clarify your Turkey–Indonesia wedding plan and current situation.",
         },
         {
-          title: "2) Written package",
-          description: "Program + inclusions/exclusions + important notes are shared in writing.",
+          title: "2) Documents & official steps",
+          description: "We review required documents and plan the official timeline step by step.",
         },
         {
-          title: "3) Approval & payment",
-          description: "Review contract → payment → reservation is confirmed.",
+          title: "3) Coordination & completion",
+          description: "We support translation and on-the-ground coordination to complete the process smoothly.",
         },
       ],
-      ctaTours: "See tour packages",
+      ctaTours: "Go to Uniqah",
       ctaDocuments: "Documents",
     },
 
@@ -647,28 +2485,51 @@ export default {
       title: "Why is it easier with us?",
       items: [
         {
-          title: "Guidance from real experience",
+          title: "Safety and process discipline",
           description:
-            "We use our on-the-ground experience of living in Indonesia and organizing tours for route selection, accommodation and daily flow.",
+            "Our goal is not random matching—it's a safe and respectful environment with clear, step-by-step flow.",
         },
         {
-          title: "Simple, transparent communication",
+          title: "Clear communication",
           description:
-            "With Indonesian, Turkish and English support, we explain everything clearly and remove question marks from the start.",
+            "With Turkish and Indonesian support, we help both sides express themselves correctly and reduce misunderstandings.",
         },
         {
-          title: "Planning that fits your budget",
+          title: "Real on-the-ground support",
           description:
-            "By considering travel, accommodation and daily expenses together, we build a plan that minimizes surprises.",
+            "When needed, we provide practical support for matchmaking and wedding guidance on the ground.",
+        },
+      ],
+    },
+
+    faq: {
+      title: 'Short FAQs',
+      items: [
+        {
+          q: 'Is the application free?',
+          a: 'Starting the application and entering basic details is free. As the process progresses (verification/membership/special support), pricing and details are shared step-by-step.',
+        },
+        {
+          q: 'How do you keep it safe?',
+          a: "We don’t aim for random introductions. We use rules, basic eligibility checks and a step-by-step flow to build a more respectful and safer environment.",
+        },
+        {
+          q: 'How long does it take?',
+          a: 'It varies by person. Depending on profile clarity, verification and mutual decision speed, it can take from a few days to a few weeks.',
         },
       ],
     },
 
     cta: {
+      open: 'Message',
       eyebrow: "Ask anything freely",
-      title: "Let’s clarify everything about Indonesia together",
+      title: "Let’s clarify everything about Uniqah and the Indonesia process",
       description:
-        "Whether it’s our tour packages or your personal Indonesia travel plan… you can ask in Turkish and we’ll make the process simple and clear together.",
+        "Matchmaking flow or wedding guidance… ask anything on your mind and we’ll make it simple and clear together.",
+      ctaTryFree: "Try for free",
+      ctaWeddingGuidance: 'Open wedding guidance',
+      ctaMatchmaking: 'Find a match',
+      matchmakingHint: "Don’t have a spouse candidate yet? Join our matchmaking system and track your matches from your Profile page.",
       ctaContact: "Open the contact form",
       ctaWhatsapp: "Ask via WhatsApp",
     },
@@ -678,89 +2539,94 @@ export default {
     hero: {
       title: "About",
       subtitle:
-        "We make your travel and tour experience in Indonesia easier step by step with our on-the-ground structure and experience.",
+        "Uniqah is our Indonesia-focused matchmaking and wedding journey support system. Our goal is to bring the right people together through a safe, respectful and transparent process—while providing real on-the-ground help when needed (translation, logistics, official steps).",
     },
     brand: {
       title: "Our brand structure",
       p1:
-        "This website is the showcase and contact point for the services we operate under PT MoonStar Global Indonesia. Our public-facing brand communication is carried out under the name Indonesia Explorer.",
+        "This website is the showcase and contact point for the Uniqah service we operate under PT MoonStar Global Indonesia.",
       p2:
-        "MoonStar Global Indonesia was created by a Turkish entrepreneur living in Indonesia to build an on-the-ground setup that understands and solves Turkish guests’ expectations locally. Tour packages and sales communication are carried out under the Indonesia Explorer brand for a clearer experience.",
+        "MoonStar Global Indonesia was founded by a Turkish entrepreneur living in Indonesia to build a reliable bridge between two cultures, manage wedding processes correctly, and produce practical solutions on the ground for people traveling to Indonesia.",
       cards: {
-        toursTitle: "Tour organization",
-        toursDesc: "Planned tours and bespoke travel plans for Bali, Lombok, Komodo and more.",
-        weddingTitle: "Wedding guidance",
-        weddingDesc: "End-to-end follow-up including hotels, transport, interpretation and official paperwork.",
-        dameturkTitle: "DaMeTurk",
+        communityContentTitle: "Community content",
+        communityContentDesc:
+          "Guides and helpful content focused on relationships, communication and process clarity.",
+        toursTitle: "Wedding guidance",
+        toursDesc: "Guidance on official steps, translation and coordination.",
+        weddingTitle: "Uniqah – Matchmaking",
+        weddingDesc:
+          "Serious-intent matchmaking with safety steps, profile management, chat flow and a clear decision process.",
+        dameturkTitle: "Turkey–Indonesia wedding guidance",
         dameturkDesc:
-          "Our authentic Turkish ice cream brand under PT MoonStar Global Indonesia. Visit dameturk.com for details.",
+          "For Turkish and Indonesian couples, we provide step-by-step guidance on required documents, official process steps, translation/communication support, and on-the-ground coordination.",
       },
       socialNote:
-        "Our YouTube and Instagram handles remain endonezyakasifi and support this brand through content production.",
+        "We support the Uniqah community through guides and content.",
     },
     philosophy: {
-      title: "How we see travel",
+      title: "How we see matchmaking",
       intro:
-        "We don’t see travel as simply going to a destination. For us, travel—when planned right—is an experience that doesn’t exhaust you, truly refreshes you, sparks a sense of discovery, and makes you say ‘I’m glad I came’. We built our entire organization around this idea.",
+        "For us, marriage is not just meeting someone—it’s a journey built on mutual respect, compatibility and trust. We built Uniqah with that mindset: a system that clarifies the process, prioritizes safety, and enables healthy communication between two cultures.",
       sections: {
         direct: {
-          title: "Direct organization, local planning",
+          title: "System + on-the-ground responsibility",
           p1:
-            "All our tour programs are planned and executed directly by our on-the-ground team in Indonesia. We don’t offer desk-made packages copied from catalogs and passed through multiple intermediaries. The key difference: your budget goes to the experience itself, not to intermediary costs.",
+            "Uniqah is not a public listing board. Profiles, photos and the overall flow are designed to reduce misuse. When needed, we step in with manual review and support and take responsibility for the process.",
           p2:
-            "This means richer content, better activities and clearer, more transparent inclusions for the same budget.",
+            "Our goal is a respectful environment where serious-intent users feel safe and can meet the right person.",
         },
         planning: {
-          title: "We plan deliberately, measure and balance",
+          title: "Step-by-step, compatibility-first",
           p1:
-            "Each tour is designed with route logic, daily pace, the balance between free time and guided days, physical fatigue factors, and different participant profiles in mind. Our goal is not to ‘look packed’ but to be smooth, balanced and genuinely enjoyable.",
+            "We don’t leave it to chance. We treat application, eligibility, profile creation, matching and chat as a staged flow. This keeps expectations clear and decisions healthier.",
           bullets: [
-            "On guided days we include key activities to experience together.",
-            "On free days we give guests space and flexibility.",
-            "Optional experiences are clarified from the start.",
+            "Application and eligibility checks (age/rules).",
+            "Profile creation and photo verification.",
+            "Matching, chat and mutual decision.",
+            "Translation and cultural communication guidance when needed.",
           ],
-          p2: "So no one is left wondering what’s included and what’s extra.",
+          p2: "This keeps the process human—yet measurable and consistent.",
         },
         transparency: {
-          title: "Transparency is a standard, not an option",
+          title: "Transparency and privacy",
           p1:
-            "What a tour includes and doesn’t include is clear from the beginning. Vague wording, surprise costs and last-minute extra payments are not part of how we work. Activities on guided days are included; during free time choices belong to guests—and this is stated clearly.",
+            "Process steps, rules and expectations should be clear from the start. At the same time, privacy is fundamental: personal data and communication are handled in a controlled way, with support and reporting channels when needed.",
         },
         comfort: {
-          title: "A pleasant and peaceful holiday for everyone",
+          title: "Respectful communication and boundaries",
           p1:
-            "Our tours are organized so each participant can equally enjoy their holiday. Group harmony, mutual respect and courtesy are as important to us as the itinerary.",
+            "Mutual respect, courtesy and boundaries are non-negotiable for us. The Uniqah community follows rules and safety mechanisms that aim to protect communication quality.",
           p2:
-            "Our aim is a calm, safe and balanced environment where no one spoils someone else’s holiday—and everyone returns home happy.",
+            "With reporting, blocking and support flows, we aim to prevent negative experiences from repeating.",
         },
         guidance: {
-          title: "Not just tours—real guidance",
+          title: 'A bridge across languages and cultures',
           p1:
-            "Our service goes far beyond a tour package. We work with a team that is on the ground, knows the region well, and can solve issues quickly when needed. Feeling safe during the journey is a core part of the organization.",
+            'When cross-language communication and cultural differences are not managed well, processes become harder. We help both sides express themselves through translation, communication support and guidance.',
         },
         wedding: {
-          title: "Wedding guidance in Indonesia",
+          title: 'Wedding guidance',
           p1:
-            "In addition to travel organization, we also provide guidance for special and sensitive processes such as getting married in Indonesia. We treat it as a separate service because we understand its responsibility.",
+            'Alongside matchmaking, we guide couples planning their wedding process on timing, local practices and overall coordination.',
           p2:
-            "Wedding guidance requires mastery of official procedures, local practices, timing and coordination. Our guidance is a natural result of our field experience and local knowledge.",
+            "From paperwork and appointments to translation, accommodation/transport and ceremony planning, we take responsibility as an on-the-ground team.",
         },
         expectation: {
-          title: "Those who travel with us know what to expect",
+          title: "Clear expectations, realistic timing",
           p1:
-            "People who travel with us know what they are getting and what they are paying for—and can focus on their holiday while leaving the logistics to us.",
+            "In Uniqah, process steps, rules and likely timelines are discussed openly—so users know what to expect and move forward without rushing decisions.",
         },
       },
       outro:
-        "For Indonesian culture, island-by-island route suggestions and detailed articles, you can check the content we prepared in <1>Explore</1>. For planned tour packages, visit <3>Tours</3>. For custom organizations for company or school groups, visit <5>Group Tours</5>.",
+        'For more information about the <1>Uniqah</1> matchmaking system and <3>Wedding</3> guidance, you can explore these pages. For official texts and policies, use the <5>Documents</5> section.',
     },
     story: {
       title: "Our short story",
       steps: [
         "We moved to Indonesia and built our life and routine here.",
-        "We traveled across different islands, got to know the country closely, and settled into its rhythm.",
-        "We started sharing our life in Indonesia and travel experiences by launching our YouTube channel.",
-        "Today, we guide travelers planning trips and tours to Indonesia—and couples going through the wedding process—using this experience.",
+        "We built an on-the-ground network and a community that strengthens communication between two cultures.",
+        "We started producing content and guides to make the overall process easier to understand.",
+        "Today, we run Uniqah matchmaking together with wedding guidance and complementary services under the MoonStar Global Indonesia umbrella.",
       ],
       stepLabel: "Step",
     },
@@ -769,42 +2635,42 @@ export default {
       title: "How we can support you",
       items: {
         joinScheduled: {
-          title: "Join scheduled tours as an individual / family",
+          title: "Application & profile support",
           description:
-            "You can join our planned Indonesia tour packages on your own, with your spouse or with your family. You can choose a tour with clearly stated dates, capacity and scope and make a direct reservation via the Tours page.",
+            "Step-by-step support for your application, profile setup and process management.",
         },
         translation: {
           title: "Translation & communication support",
           description:
-            "A Turkish-speaking interpreter can accompany you on guided days, during free time, and even for individual shopping—helping remove the language barrier and making you feel safer in Indonesia.",
+            'We can support cross-language communication with interpreters for matchmaking chats and official meetings—reducing the language barrier and increasing confidence.',
         },
         privatePlan: {
-          title: "Private travel & honeymoon planning",
+          title: "Process planning",
           description:
-            "If you prefer not to join a group tour and want to plan your own Indonesia trip or honeymoon, we design flights, accommodation, daily routes and experience suggestions together and create a plan tailored to you.",
+            "A clear, step-by-step plan for official steps and coordination.",
         },
         privateGroups: {
-          title: "Custom tours for corporate & friend groups",
+          title: "Family/community coordination",
           description:
-            "For companies, schools, associations or friend groups, we design fully custom tour programs based on your dates, budget and expectations. You can submit a request via the Group Tours page.",
+            "Guidance for family communication and coordination when needed.",
         },
         logistics: {
-          title: "Accommodation & transport planning",
+          title: "Practical guidance",
           description:
-            "Even without buying a full tour package, you can benefit from extra services such as hotel booking, flight ticketing or car rental. We choose reliable alternatives that fit your budget and comfort.",
+            "Practical guidance on the ground when needed.",
         },
         wedding: {
-          title: "Guidance for getting married in Indonesia",
+          title: 'Wedding guidance',
           description:
-            "For couples planning to marry in Indonesia, we provide guidance on timing, local practices and overall coordination. We cover the details as a separate topic on the wedding guidance page.",
+            'For couples planning to marry, we provide guidance on timing, local practices, translation and overall coordination.',
         },
       },
     },
 
     galleryTeaser: {
-      title: "A few examples from our travels",
+      title: "A few moments from our life and work",
       description:
-        "Below you can see a few selected moments from our travels and on-the-ground experiences in Indonesia. For more, you can visit our gallery.",
+        "Below you can see a few selected moments from our life in Indonesia, our on-the-ground work and our trips. For more, you can visit our gallery.",
       cta: "Visit our gallery to see all photos",
       previewAlt1: "A moment from our life in Indonesia",
       previewAlt2: "A moment from a day we spent together in Indonesia",
@@ -814,7 +2680,7 @@ export default {
     youtubeHighlights: {
       title: "Videos that describe us best",
       description:
-        "On our YouTube channel, you can find videos about our life in Indonesia, our travels and discoveries. The two videos below summarize us and the support we provide best.",
+        "On our YouTube channel, we share life in Indonesia, culture, travel and our on-the-ground experience. The two videos below summarize our approach and the support we provide best.",
       v1Title: "A couple’s story we supported during their wedding process in Indonesia",
       v1Desc:
         "You can see a couple’s experience going through the Indonesia wedding process with us and how we supported them.",
@@ -828,19 +2694,19 @@ export default {
       title: "Why us?",
       items: [
         {
-          title: "Work directly with the organizer",
+          title: "System + on-the-ground experience",
           description:
-            "Instead of intermediaries, you work with the team that plans and runs the tour on the ground—decisions and answers come from the source.",
+            "We combine a structured system with on-the-ground experience—taking responsibility in matchmaking, communication and process guidance.",
         },
         {
-          title: "Transparent, clear costs",
+          title: "Safety and privacy-first",
           description:
-            "We clarify what’s included and excluded from the start and offer a predictable, open cost picture instead of hidden fees.",
+            "Rules, steps and privacy principles are clear. We operate with safety mechanisms designed to reduce misuse.",
         },
         {
-          title: "A team that takes responsibility on the ground",
+          title: "Healthy communication across cultures",
           description:
-            "We’re not only there when selling the tour—we stay with you on the ground, follow the flow, and produce solutions when needed.",
+            'With translation and communication guidance across languages, we reduce misunderstandings and support a healthier process.',
         },
       ],
     },
@@ -850,1275 +2716,6 @@ export default {
     },
   },
 
-  tours: {
-    whatsapp: {
-      preRegRequestTitle: "Group tour pre-registration request (list page)",
-      missingNumberWarn: "VITE_WHATSAPP_NUMBER is not set.",
-      quickInfoGreeting: "Hi, I would like to get information about Indonesia tour packages.",
-      quickInfoQuestion: "Could you share suitable dates and current pricing for individual / family participation?",
-      labels: {
-        tour: "Tour",
-        fullName: "Full name",
-        email: "Email",
-        phone: "Phone",
-        participationType: "Participation type",
-        requestedTour: "Requested tour",
-        peopleCount: "Number of people",
-        notes: "Notes",
-      },
-    },
-
-    ui: {
-      heroTitle: "Indonesia Scheduled Tour Packages",
-      click: "Tap",
-      personalToursCta: "Tours for Individuals / Families",
-      groupToursCta: "Tour Organization for Groups",
-      heroDescription:
-        "These tours are our scheduled Indonesia group tours, planned for specific periods with limited capacity. You can leave a non-binding pre-registration and ask us to send the detailed program and current pricing via WhatsApp or email.",
-
-      trust: {
-        transparentTitle: "Transparent process",
-        transparentDesc: "After pre-registration, we share the program, scope and current pricing in writing.",
-        confirmTitle: "Confirmation step",
-        confirmDesc: "Registration is confirmed after contract approval and the payment process are completed.",
-        fastContactTitle: "Fast contact",
-        fastContactDesc: "You can quickly ask your questions via WhatsApp.",
-      },
-
-      steps: {
-        1: { title: "1) Choose a tour", desc: "Pick the tour that fits you and leave a pre-registration." },
-        2: { title: "2) Information", desc: "We share program + scope + pricing in writing." },
-        3: { title: "3) Confirmation", desc: "Contract approval and payment step are completed." },
-        4: { title: "4) Preparation", desc: "Pre-trip info for flights/hotels and the journey." },
-      },
-
-      flightNoteShort: "flight ticket included up to {{limit}} per person",
-      flightNoteReason:
-        "Because flight prices vary a lot, the cap is fixed; any difference above the cap is charged separately.",
-
-      perks: {
-        hotel: "4–5 star hotel accommodation",
-        breakfastTransfers: "Breakfast + transfers",
-        support: "24/7 Turkish support",
-        supportShort: "Support",
-        sharedRoom: "Shared double room (couple or friends)",
-        breakfastHotels: "Hotel breakfast every day",
-        airportHotelTransfers: "Transfers between airport–hotel–activities",
-        supportFull: "24/7 reachable Turkish support and local team",
-        roadTripNature: "Road trip concept (nature & adventure)",
-        breakfastRouteTransfers: "Breakfast + route transfers",
-        roadTripTrains: "Road trip + train segments",
-        guidedAndFreeTime: "Guided days + free time",
-        boatFocus: "Boat-focused island exploration",
-        opsSafety: "Operations & safety coordination",
-        flightHeavy: "Flight-heavy route (no long road days)",
-        stayBreakfast: "Stay + breakfast",
-        transfersCoord: "Transfers/coordination",
-
-        roadTripFewStops: "Road trip concept: fewer stays, different atmospheres",
-        hotel34Boutique: "3–4 star hotels and regional boutique stays",
-        medanRouteTransfers: "Medan ↔ Bukit Lawang ↔ Samosir route transfers",
-        trainRoad: "Train + road segments (incl. Bandung)",
-        guidedBalance: "Balance of guided days + free time",
-        opsCoordination: "In-route transfers and operations coordination",
-        boatMaxSeaDays: "Boat-focused island exploration: fewer stays, maximum sea days",
-        guidedBoatBalance: "Guided boat days + free time balance",
-        parkOpsSafety: "National park entries, boat operations and safety coordination",
-        flightFlowNoLongRoad: "Flight-heavy flow: no long road days; fast yet comfortable",
-        domesticFlights: "Makassar → Manado → Jakarta domestic flights (may include connections)",
-        guidedBalanceLocations: "Guided days + free time balance (Bunaken/Tangkoko/Tomohon)",
-        hotel34: "3–4 star hotels",
-        privateBusTours: "Private bus tours",
-        localGuide247: "24/7 local guide service",
-      },
-
-      promoLabel: "Campaign",
-      promoDontMiss: "Don’t miss this offer",
-
-      price: {
-        discountedSpecial: "Special discounted price per person for the first 5 confirmed reservations: {{percent}}% off",
-        currentPerPerson: "Current price per person",
-        premium: "Premium",
-        total: "Total",
-        discounted: "Discounted price",
-        premiumPackagePrice: "Premium package price",
-        startingFrom: "Starting from",
-        comingSoon: "Pricing coming soon",
-      },
-
-      notes: {
-        company:
-          "Indonesia Explorer is a brand of PT MoonStar Global Indonesia registered in Indonesia; a tour operation legally run in Indonesia by a Turkish entrepreneur.",
-        paymentFlow:
-          "Payment flow: After contract/approval, a deposit is collected; once the tour reaches sufficient participation and operations are confirmed, the remaining balance payment is opened. Reservation is confirmed once payment is completed.",
-      },
-
-      plannedDatesLabel: "Planned tour dates",
-
-      includes: {
-        someIncluded: "Some services included in the package:",
-        moreItems: "+ {{count}} more items",
-      },
-
-      cta: {
-        preReg: "Leave a pre-registration for this tour",
-        viewDetails: "View details",
-      },
-
-      shorts: {
-        title: "Short videos (YouTube Shorts)",
-        description:
-          "The videos below give a quick idea of the route and vibe. If you want, you can request program details via WhatsApp.",
-        closeAria: "Close video",
-        close: "Close",
-        playAria: "Play YouTube Short {{index}}",
-        thumbnailAlt: "YouTube Short {{index}} thumbnail",
-        noPreview: "No preview available",
-        tapToPlay: "Tap to play",
-        missingUrl: "Video link not found",
-      },
-
-      legal: {
-        title: "Transparency & official documents",
-        description:
-          "You can access texts about the post pre-registration process, contract approval and personal data usage here.",
-        whatsappCta: "Get info on WhatsApp",
-        cards: {
-          preRegInfoPack: {
-            title: "Pre-registration info pack",
-            desc: "Package shared via WhatsApp (PDF)",
-          },
-          brochures: {
-            title: "Tour brochures",
-            desc: "Bali, Lombok, Java, Sumatra, Komodo, Sulawesi",
-          },
-          kvkk: {
-            title: "Personal Data Notice",
-            desc: "Processing and storage of personal data",
-          },
-          preInfo: {
-            title: "Pre-information form",
-            desc: "General information before purchase",
-          },
-          packageAgreement: {
-            title: "Package Tour Agreement",
-            desc: "Confirmation and participation terms",
-          },
-          privacy: {
-            title: "Privacy policy",
-            desc: "Forms and communication consents",
-          },
-        },
-      },
-
-      preRegNote:
-        "Note: Pre-registration is an information request step; confirmed registration happens after the contract and payment process is completed.",
-
-      faq: {
-        title: "Frequently asked questions",
-        q1: {
-          question: "Is pre-registration paid?",
-          answer:
-            "Pre-registration is a contact form step for availability and information sharing. Confirmed registration happens after contract and payment are completed.",
-        },
-        q2: {
-          question: "What’s included in the price?",
-          answer:
-            "Included services are summarized on each card. You can see the exact scope on the tour detail page and in the program document we send you.",
-        },
-        q3: {
-          question: "How is the flight ticket included?",
-          answerPrefix: "The flight ticket is included up to ",
-          answerSuffix:
-            " per person. Since flight prices vary a lot, this cap is fixed for all tours; any difference above the cap is charged separately.",
-        },
-        q4: {
-          question: "I have questions—who can I talk to right now?",
-          answer: "You can message us on WhatsApp; we’ll get back to you as soon as we can.",
-          whatsappCta: "Ask on WhatsApp",
-        },
-      },
-
-      warnings: {
-        title: "Important notes & warnings",
-        description:
-          "A short summary of general information and participation rules valid for all tours on this page. The detailed version is available on the tour detail pages.",
-        items: {
-          1: "Latest registration deadline is {{days}} days before the tour start date.",
-          2: "After pre-registration, confirmed registration requires contract approval and full completion of payment.",
-          3: "Routes and activities may be updated by us due to operational reasons or weather conditions.",
-          4: "The flight ticket is included up to ${{limit}} per person. Since flight prices vary, the cap is fixed; any difference above the cap is charged separately.",
-          5: "Travel health insurance is mandatory before entering Indonesia.",
-          6: "If you have a serious health condition, please mention it in the “Additional notes” field on the form.",
-          7: "Guests who complete confirmed registration are expected to follow tour rules and avoid acting independently.",
-          8: "Make sure your passport is valid for at least {{months}} months after your return date.",
-          9: "Indonesia has removed visa requirements for Turkish citizens; your passport, hotel reservation and flight ticket are sufficient for entry.",
-          10: "Visa and entry rules may change over time based on official authorities.",
-          11: "During your trip, you can communicate all requests/complaints through the guide assigned to your group until we see you off at the airport.",
-          12: "Your comfort, safety and satisfaction during the trip are extremely important to us.",
-          13: "Guests who sign the participation agreement and complete registration are deemed to have read and accepted these notes and warnings.",
-        },
-      },
-
-      groupCta: {
-        title: "Planning a private Indonesia tour for your own group?",
-        description:
-          "If you want a private tour for your company, school, association or friend group where you set the group size and dates, you can fill in the detailed quotation form on the Group Tours page.",
-        button: "Go to Group Tours",
-      },
-
-      common: {
-        close: "Close",
-      },
-
-      preRegModal: {
-        title: "{{tourName}} group tour — individual/family pre-registration",
-        description:
-          "Leave your basic details for contact and capacity availability; we’ll get back to you via WhatsApp or email.",
-        warningsIntro:
-          "The points below summarize general information and participation rules for all our Indonesia tour packages. You can also find the detailed version on tour detail pages.",
-      },
-
-      form: {
-        fullName: "Full name",
-        fullNamePlaceholder: "Your full name",
-        email: "Email",
-        emailPlaceholder: "name@example.com",
-        phone: "Phone",
-        phonePlaceholder: "+90 5xx xxx xx xx",
-        participationType: "Participation type",
-        participationOptions: {
-          individual: "Individual",
-          family: "Family",
-          couple: "Couple",
-          friends: "Friend group",
-          other: "Other",
-        },
-        requestedTour: "Requested tour",
-        peopleCount: "Number of people",
-        peopleCountPlaceholder: "How many people?",
-        notes: "Additional notes",
-        notesPlaceholder: "Special requests, children count, etc.",
-        privacyConsentText:
-          "I have read and accept the privacy policy, and I consent to my shared information being used only for tour pre-registration and information purposes.",
-        privacyPolicyLink: "Privacy Policy",
-        submit: "Send pre-registration request",
-      },
-
-      sticky: {
-        whatsapp: "WhatsApp",
-        preReg: "Pre-reg",
-        tours: "Tours",
-      },
-
-      tourPicker: {
-        title: "Select a tour for pre-registration",
-      },
-    },
-
-    data: {
-      bali: {
-        name: "Bali Island",
-        description:
-          "Tropical paradise Bali will enchant you with its stunning beaches, mystical temples, green rice terraces, and warm people. This route is designed as a premium holiday package that includes carefully selected experiences such as body rafting and a full-day boat trip—minimizing surprise costs.",
-        duration: "6 Nights 7 Days",
-        concept:
-          "Flight ticket is included up to $750 per person. Because flight prices vary a lot, this cap is fixed; any difference above the cap is paid by the participant.",
-        suitableFor: [
-          "Honeymoon",
-          "Luxury & Relaxation",
-          "Sea & Beach",
-          "Yoga & Wellness",
-          "Adrenaline",
-          "Adventure",
-          "Nature",
-        ],
-        includes: [
-          "Round-trip flight ticket from Istanbul",
-          "6 nights accommodation in Ubud and the beach area",
-          "Hotel breakfast every day",
-          "Selected guided days and transfers in the program",
-        ],
-        dateRange: "28 March - 3 April (7 days / 6 nights)",
-        includesNote:
-          "Hotel stays within the program and daily breakfast are included; on the 2nd and 4th day, lunch is included as a group meal on guided days. Other meals and any food & beverage expenses outside the hotel are not included.",
-      },
-      lombok: {
-        name: "Lombok Island",
-        description:
-          "Lombok—Bali’s calm sister—awaits adventure lovers with untouched beaches and the Mount Rinjani volcano.",
-        duration: "6 Nights 7 Days",
-        concept: "Nature & Beach",
-        suitableFor: ["Nature & Adventure", "Sea & Beach", "Surf", "Adrenaline", "Water sports", "Luxury & Relaxation"],
-        includes: [
-          "Round-trip flight ticket from Istanbul",
-          "6 nights accommodation in Gili and the coastal area",
-          "Hotel breakfast every day",
-          "Selected guided days and transfers in the program",
-        ],
-        dateRange: "Seasonal periods",
-        includesNote:
-          "On the Lombok route, accommodation is planned in Gili and coastal areas; breakfasts are included, and regional transfers plus selected nature tours are part of the program. Some water sports activities and certain guided experiences may not be included and can be offered as optional add-ons.",
-      },
-      java: {
-        name: "Java Island",
-        description:
-          "Experience Java not as a classic city tour, but as a comfortable road trip starting in Jakarta and stretching to the highlands of Bandung, the river & nature routes of Pangandaran, and the UNESCO temples of Yogyakarta.",
-        duration: "10 Nights 11 Days",
-        concept: "Road Trip & Cities (Premium)",
-        suitableFor: ["Road trip", "Cultural discovery", "Nature & Adventure", "Photography", "City trip"],
-        includes: [
-          "Accommodation in Jakarta, Bandung, Pangandaran and Yogyakarta",
-          "In-route transfers (train/vehicle) and operations coordination",
-          "Guided days and transfers in the program",
-          "Written briefing before planning and booking",
-        ],
-        dateRange: "Limited capacity in selected periods",
-        includesNote:
-          "The Java tour is a road-trip concept and is planned only as a Premium package. In-route transfers and the guided day flow are organized within the package; the flight ticket is included up to {{flightLimit}} per person (the cap is fixed because flight prices vary).",
-      },
-      sumatra: {
-        name: "Sumatra Island",
-        description:
-          "Wild Sumatra offers a unique nature experience with rainforests, orangutans, and the impressive Lake Toba.",
-        duration: "8 Nights 9 Days",
-        concept: "Nature & Adventure",
-        suitableFor: ["Nature & Adventure", "Cultural discovery", "Wildlife"],
-        includes: [
-          "Accommodation in Medan, Bukit Lawang and Samosir (Lake Toba)",
-          "In-route private vehicle transfers + ferry crossings",
-          "Hotel breakfast every day",
-          "Guided days and selected activities in the program",
-        ],
-        dateRange: "Limited capacity in selected periods",
-        includesNote:
-          "The Sumatra tour focuses on nature & adventure and is planned with a road-trip approach. Transfers and the guided day flow on the Medan → Bukit Lawang → Samosir (Lake Toba) route are organized within the package. The flight ticket is included up to {{flightLimit}} per person (the cap is fixed because flight prices vary).",
-      },
-      komodo: {
-        name: "Komodo Island",
-        description:
-          "UNESCO World Heritage Komodo National Park combines Komodo dragons, pink beaches and turquoise bays—bringing together wild nature and a boat tour experience.",
-        duration: "6 Nights 7 Days",
-        concept: "Nature & Beach",
-        suitableFor: ["Boat tour", "Nature & Adventure", "Snorkeling", "Photography", "Sea & Beach", "Adrenaline"],
-        includes: [
-          "Round-trip flight ticket from Istanbul",
-          "Labuan Bajo accommodation + hotel breakfast every day",
-          "Boat days and guided trekking routes in the program (depending on package)",
-          "In-route transfers (airport/hotel/harbor) and operations coordination",
-        ],
-        dateRange: "Selected seasons, with limited boat capacity",
-        includesNote:
-          "The Komodo tour is a boat-focused island exploration concept. Boat days, national park operations, and the guided trekking flow are organized within the package. The flight ticket is included up to {{flightLimit}} per person (the cap is fixed because flight prices vary).",
-      },
-      sulawesi: {
-        name: "Sulawesi Island",
-        description:
-          "A flight-heavy exploration route that starts with Makassar’s tropical coast, continues to Manado and Bunaken’s underwater world, strengthens with the Tangkoko rainforest and Tomohon’s volcanic landscapes, and finishes with a metropolitan touch in Jakarta.",
-        duration: "8 Nights 9 Days",
-        concept: "Sea • Nature • Diving • Tropical City",
-        suitableFor: [
-          "Sea & snorkeling",
-          "Diving (optional)",
-          "Nature & wildlife",
-          "Photography",
-          "City & cafe culture",
-          "Adventure",
-        ],
-        includes: [
-          "8 nights total: Makassar (2) + Manado (5) + Jakarta (1)",
-          "Domestic flights Makassar → Manado and Manado → Jakarta (included)",
-          "Airport transfers + in-route operations coordination",
-          "24/7 Turkish support and local team (guided days depending on package)",
-        ],
-        dateRange: "Planned according to special dates and public holidays",
-        includesNote:
-          "The Sulawesi tour follows a flight-heavy flow; long and tiring road days are not planned. Domestic flights and the guided day flow are organized within the package. The flight ticket is included up to {{flightLimit}} per person (the cap is fixed because flight prices vary).",
-      },
-    },
-  },
-
-  tourDetail: {
-    nav: {
-      backAria: "Go back to the previous page",
-      backText: "Go back to the previous page",
-    },
-    notFound: {
-      title: "Tour not found",
-      description: "The tour package you want to view may not be available or may have been removed.",
-    },
-    promo: {
-      label: "Campaign",
-      earlyBird: "Don't miss the early-bird discount",
-    },
-    tags: {
-      experienceGroupHoliday: "Experience-focused group holiday",
-    },
-    brochure: {
-      open: "Open {{tourName}} brochure",
-      pdfHint: "For PDF: on the opened page follow \"Print > Save as PDF\".",
-    },
-    flight: {
-      shortNote: "(flight ticket included up to ${{flightLimit}} per person)",
-      longNote:
-        "Flight ticket is included in the package up to ${{flightLimit}} per person. Because flight prices vary a lot, this cap is fixed; any difference above the cap is charged separately.",
-    },
-    durationConcept: {
-      title: "Duration & Concept",
-      plannedDatesLabel: "Planned tour dates",
-      bullets: [
-        "This is not a checklist-style sightseeing tour; it's an experience-focused group holiday.",
-        "The focus is not a palace/temple list; it's real activities plus sea & nature experiences.",
-        "The program includes both guided full days and flexible free time you can use as you like.",
-        "Selected hotel stays and 24/7 Turkish support are provided throughout the trip.",
-        "Instead of surprise fees, what you pay for each day/experience is written upfront.",
-      ],
-      note:
-        "Note: Round-trip flights, accommodation and breakfast are fixed in all packages; stays are planned in shared double rooms (couples or friends who want to share are placed together); included activities and guided days vary by package level.",
-    },
-    packages: {
-      intro: "Compare packages and choose the best fit.",
-      title: "Tour package options",
-      javaOnly:
-        "This Java holiday tour is planned only as a Premium package. Basic and Standard package prices are shown as 0; these packages are not on sale.",
-      variants:
-        "We prepared three levels for the same route: a budget-friendly Basic package, a balanced Plus option, and a Premium package referencing the detailed program on this page. You can choose what fits your budget and expectations; the day-by-day program shown is for Premium, while Basic and Plus are simplified versions. Hotels, room type, meal coverage and included activities vary by package level.",
-      toggle: {
-        show: "Show all package details",
-        hide: "Hide package details",
-      },
-      premiumDifferences: "Differences vs Premium package",
-      premiumDifferencesByTour: {
-        bali: {
-          temel: [
-            "The Ayung River rafting experience is not included in this package (can be added optionally).",
-            "The full-day boat tour and some extra activities are not included in this price.",
-            "Hotel comfort and the number of included meals are kept simpler compared to Premium; the focus is on protecting the budget.",
-          ],
-          plus: [
-            "The full-day boat tour is not included in this package (you can add it as an optional extra).",
-            "Meals and extra activities are more limited compared to the Premium package.",
-          ],
-        },
-        lombok: {
-          temel: [
-            "The Gili Islands boat tour is not included in this package (can be added optionally).",
-            "The South beaches & surf experience is not included in this package (can be added optionally).",
-            "The Senaru waterfalls & Mount Rinjani viewpoint tour is not included in this package.",
-          ],
-          plus: [
-            "The Senaru waterfalls & Mount Rinjani viewpoint tour is not included in this package (you can add it as an optional extra).",
-            "Additional experiences such as the Pink Beach boat tour are not included in this package.",
-          ],
-        },
-        sumatra: {
-          temel: [
-            "The orangutan trekking & tubing experience is not included in this package (can be added optionally).",
-            "The Batak culture & island tour is not included in this package (can be added optionally).",
-            "Additional tours such as the Tele Observation Tower / panorama tour are not included in this price.",
-          ],
-          plus: [
-            "The Batak culture & island tour is not included in this package (you can add it as an optional extra).",
-            "Additional tours such as the Tele Observation Tower / panorama tour are not included in this package.",
-          ],
-        },
-      },
-      highlights: {
-        duration: "Duration: {{duration}}",
-        concept: "Concept: {{concept}}",
-        route: "Route: {{route}}",
-      },
-      fallback: {
-        basic: {
-          name: "Basic package",
-          badge: "Starter",
-          headline: "A starter package that keeps the flow but stays more flexible.",
-          notes:
-            "Included/excluded scope may vary depending on the selected package level. Exact scope and operational details are shared in writing before booking.",
-        },
-        standard: {
-          name: "Plus package",
-          badge: "Balanced",
-          headline: "A balanced option for those who want more clarity and a fuller plan.",
-          notes:
-            "The Plus package follows the main program flow and clarifies the scope. Operational details (times/routes) are shared in writing after booking.",
-        },
-        premium: {
-          name: "Premium package",
-          badge: "Most comprehensive",
-          headline: "Top-tier package for higher comfort and more comprehensive planning.",
-          notes:
-            "The Premium package targets more comprehensive planning. Operational details (times/routes) are shared in writing after booking.",
-        },
-      },
-    },
-
-    ctaTop: {
-      images: {
-        leftAlt: {
-          bali: "Bali - diving and coral reef",
-          lombok: "Lombok - water sports",
-          java: "Java - tour image",
-          sumatra: "Sumatra - rainforest",
-          komodo: "Komodo - beach walk",
-          sulawesi: "Sulawesi - tour image",
-        },
-        rightAlt: {
-          bali: "Bali - yacht celebration and friends",
-          lombok: "Lombok - yacht celebration and friends",
-          java: "Java - tour image",
-          sumatra: "Sumatra - Lake Toba",
-          komodo: "Labuan Bajo - boat view",
-          sulawesi: "Sulawesi - flight-heavy route",
-        },
-      },
-      title: "Get a quick quote for {{tourName}}",
-      description: "Request info in 1 minute for dates, packages and payment options.",
-      steps: {
-        1: { title: "FILL THE FORM", desc: "Write your preference and notes briefly." },
-        2: { title: "SEND THE REQUEST", desc: "Get a quick reply via WhatsApp or email." },
-        3: { title: "GET THE QUOTE", desc: "We'll share a written quote and scope details." },
-      },
-      pdfs: {
-        preRegPack: "Pre-registration info pack",
-        brochure: "Tour brochure",
-        open: "Open",
-      },
-      actions: {
-        wantInfo: "Request info / Pre-register",
-        groupOffer: "Request group quote",
-        paymentOptions: "Payment / Deposit",
-      },
-    },
-
-    forms: {
-      planned: {
-        title: "Pre-register for {{tourName}}",
-        description: "Fill the short form and we’ll reach out via WhatsApp/email.",
-        fields: {
-          fullName: { label: "Full name *", placeholder: "Your full name" },
-          email: { label: "Email *", placeholder: "example@email.com" },
-          phone: { label: "Phone *", placeholder: "+90 5xx xxx xx xx" },
-          participation: {
-            label: "Participation type *",
-            options: {
-              individual: "Individual",
-              family: "Family",
-              couple: "Couple",
-              friends: "Friends",
-              other: "Other",
-            },
-          },
-          requestedTour: {
-            label: "Requested tour *",
-            placeholderExample: "E.g. Bali - 7 days / 6 nights",
-          },
-          peopleCount: { label: "People count *", placeholder: "How many people?" },
-          notes: { label: "Notes", placeholder: "Departure city, special requests, etc." },
-        },
-        privacy: {
-          text: "I have read and accept the privacy policy.",
-          link: "Privacy policy",
-        },
-        submit: "Send",
-      },
-      group: {
-        title: "Request a group quote for {{tourName}}",
-        description: "Request a custom offer for 5+ people and we’ll contact you quickly.",
-        fields: {
-          fullName: { label: "Full name *", placeholder: "Your full name" },
-          email: { label: "Email *", placeholder: "example@email.com" },
-          phone: { label: "Phone *", placeholder: "+90 5xx xxx xx xx" },
-          organization: { label: "Organization / Group name", placeholder: "e.g. ABC Company" },
-          groupType: {
-            label: "Group type *",
-            placeholder: "Select",
-            options: {
-              company: "Company",
-              school: "School",
-              association: "Association / Club",
-              friends: "Friends group",
-              other: "Other",
-            },
-          },
-          peopleCount: { label: "People count *", placeholder: "At least 5" },
-          dates: { label: "Planned dates *", placeholder: "e.g. July 2026" },
-          routes: { label: "Interested regions / routes", placeholder: "e.g. Bali, Lombok" },
-          budget: {
-            label: "Budget per person",
-            placeholder: "Select",
-            options: {
-              "5000plus": "$5000+",
-              other: "Other",
-            },
-          },
-          budgetOther: { label: "Other budget", placeholder: "e.g. $6000" },
-          notes: { label: "Notes", placeholder: "Hotel expectations, special requests, etc." },
-        },
-        privacy: { text: "I have read and accept the privacy policy." },
-        submit: "Request quote",
-      },
-    },
-    pricing: {
-      startingPrice: {
-        default: "Starting price",
-        basic: "Starting price – Basic package",
-        javaPremium: "Starting price – Premium package",
-      },
-      discountFallback:
-        "Per person, a special price with {{discountPercent}}% discount for the first 5 people who complete the reservation.",
-      perPersonStartEconomy: "Per person, the starting price for the most economical package.",
-      perPersonCurrent: "Per person, the current package price.",
-      sulawesiDomesticFlightsIncluded:
-        "Domestic flights within the itinerary in Indonesia are included in the package.",
-      priceInfoSoon: "Price info will be updated soon.",
-      programNoteJava:
-        "The day-by-day program and scope on this page are for the Premium package. This Java tour is planned only as Premium.",
-      programNoteDefault:
-        "The day-by-day program and scope on this page are for the Premium package. Basic and Plus packages are simplified versions of this program.",
-      whyThisPrice:
-        "Why this price? Because we don't sell an empty tour shell—we sell a real holiday experience. It's not a classic 'stop and take photos' route; we include boat tours, water activities, nature walks and comfortable stays from the start. If you are coming to actually holiday (not just to take photos city to city), you're in the right place—and the price reflects this fullness and transparency.",
-    },
-    email: {
-      participation: {
-        full: "direct-confirmed-reservation",
-        deposit: "deposit-pre-reservation",
-      },
-      summaryPrefix: {
-        full: "Direct confirmed reservation summary:\n\n",
-        deposit: "Deposit pre-reservation summary:\n\n",
-      },
-    },
-    whatsapp: {
-      missingNumberWarn: "VITE_WHATSAPP_NUMBER is not set.",
-      planned: {
-        title: "Group trip pre-registration request",
-      },
-      group: {
-        title: "Group trip quotation request",
-      },
-      labels: {
-        tour: "Tour",
-        referenceRoute: "Reference route / trip",
-        fullName: "Full name",
-        email: "Email",
-        phone: "Phone",
-        participationType: "Participation type",
-        requestedTour: "Requested tour",
-        peopleCount: "People count",
-        notes: "Notes",
-        organization: "Organization / Group name",
-        groupType: "Group type",
-        dates: "Planned dates",
-        routes: "Interested regions / routes",
-        budget: "Budget per person",
-      },
-      deposit: {
-        noExtras: "No optional extra activity selected.",
-        type: {
-          full: "direct confirmed reservation",
-          deposit: "deposit pre-reservation",
-        },
-        title: "Request for {{type}} for Indonesia tour",
-        labels: {
-          packageTotal: "Estimated package total",
-          extrasSelected: "Selected optional activities:",
-          grandTotal: "Grand total (estimated)",
-          depositToPayNow: "Deposit to pay now (estimated)",
-        },
-      },
-    },
-    deposit: {
-      intro: {
-        title: "Payment / Deposit Pre-Reservation",
-        p1: "Choose your package; submit your request as a <b>deposit pre-reservation</b> or a <b>direct confirmed booking</b>.",
-        p2: "After you submit the form, we’ll send written confirmation and payment steps via WhatsApp.",
-      },
-      ui: {
-        packageSelectionLabel: "Package selection *",
-        perPersonPrice: "per person: ${{price}}",
-        reservationTypeLabel: "Select Reservation Type *",
-        reservationType: {
-          full: "Confirm booking (full amount)",
-          deposit: "Deposit pre-reservation (partial payment)",
-        },
-        flightPolicyLabel: "Flight ticket policy:",
-        optionalExtras: {
-          title: "Optional Extra Activities",
-          description:
-            "The activities below are not included in the package price ✕; you will be charged extra only for the ones you join. Prices are average per-person estimates.",
-          priceToday: "(today-only: {{price}} USD per person)",
-          priceEstimatedPremiumDiscount: "(estimated: {{price}} USD per person, ~25% discounted for Premium)",
-          priceEstimated: "(estimated: {{price}} USD per person)",
-          priceContactUs: "(please contact us for an estimated price)",
-        },
-        summary: {
-          title: "Estimated Total Summary",
-          packageTotal: "Package total (all participants)",
-          extrasTotal: "Selected optional activities (total)",
-          grandTotal: "Grand total",
-          depositPercent: "Deposit rate",
-          depositToPayNow: "Deposit due now (estimated)",
-          totalToPay: "Total tour package amount due",
-          note: "Note: Per-person amounts shown for optional activities are average estimates.",
-        },
-        submit: "Complete reservation",
-      },
-      form: {
-        fullNameLabel: "Full Name *",
-        fullNamePlaceholder: "Your full name",
-        emailLabel: "Email *",
-        emailPlaceholder: "example@email.com",
-        phoneLabel: "Phone *",
-        phonePlaceholder: "+90 5xx xxx xx xx",
-        peopleCountLabel: "Number of Participants *",
-        peopleCountPlaceholder: "How many people?",
-        notesLabel: "Additional Notes",
-        notesPlaceholder: "Departure city, special requests, etc.",
-      },
-      terms: {
-        contract: {
-          title: "1) Agreement and rules",
-          text:
-            "I have read and accept the <agreementLink>package tour agreement</agreementLink> and the <rulesLink>tour rules</rulesLink>, including cancellation/refund conditions.",
-        },
-        distanceSales: {
-          title: "2) Distance sales agreement",
-          text: "I have read and accept the <link>Distance Sales Agreement</link>.",
-        },
-        pricingScope: {
-          title: "3) What's included/excluded & flight ticket limit",
-          linkText: "What's included / not included",
-          text: {
-            part1: "I have read the",
-            part2:
-              "information. Flight tickets are included up to ${{flightLimit}} per person; I understand that the airline's current price at the time of ticketing will be used and that I will cover",
-            overLabel: "any difference above this limit",
-            part3: ". I have read and agree.",
-          },
-        },
-        kvkk: {
-          title: "4) Privacy notice",
-          text:
-            "I have read the <link>privacy notice</link>; I consent to processing for communication and quotation purposes.",
-        },
-        depositApproval: {
-          title: "Deposit payment approval",
-          text:
-            "I have read, understood and accept the deposit payment terms and the cancellation/refund conditions stated in the agreement.",
-        },
-        englishDocs: {
-          title: "English legal documents",
-          description:
-            "For payment-provider review purposes. Turkish documents and the written official offer/annexes prevail.",
-          links: {
-            hub: "Documents (EN) hub",
-            packageTour: "Package Tour (EN)",
-            distanceSales: "Distance Sales (EN)",
-            preInformation: "Pre-Information (EN)",
-            cancellationRefund: "Cancellation/Refund (EN)",
-            kvkkNotice: "KVKK Notice (EN)",
-          },
-        },
-      },
-      validation: {
-        alertPrefix: "Please fill/confirm the following before continuing:",
-        missing: {
-          package: "Package selection",
-          peopleCount: "People count",
-          fullName: "Full name",
-          email: "Email",
-          phone: "Phone",
-          acceptTerms: "Package tour agreement and tour rules confirmation",
-          acceptDistanceSales: "Distance sales agreement confirmation",
-          acceptPricingScope: "Included/excluded scope and flight cap confirmation",
-          acceptKvkk: "Privacy notice confirmation",
-          acceptDepositTerms: "Deposit payment terms confirmation",
-        },
-      },
-    },
-
-    itinerary: {
-      title: "Day-by-day itinerary",
-      missing: "The detailed day-by-day itinerary has not been added for this tour yet.",
-      dayNumber: "Day {{dayNumber}}",
-      dayImageAlt: "Image for: {{dayTitle}}",
-      optionalExtra: {
-        badge: "Optional Extra Activity (Paid)",
-        hint: {
-          open: "Click the card to see details.",
-          close: "Click again to hide details.",
-        },
-      },
-    },
-
-    scope: {
-      title: "Tour Scope & Service Approach",
-      premiumBadge: "This tour is an experience-focused premium package",
-      premiumDescription:
-        "The Premium package targets a fuller program, higher comfort and a clearer scope. Some details may be simplified depending on the package you choose.",
-      approachFallback:
-        "The content on this page represents a tour flow that can be adapted by package level. Exact scope and operational details are shared in writing before booking.",
-      includedTitle: "What's Included",
-      notIncludedTitle: "What's Not Included",
-      fallbackIncluded: [
-        "Tour flow and operational planning",
-        "Main route and basic coordination described in the program",
-        "Service scope clarified in writing during the reservation process",
-      ],
-      fallbackNotIncluded: [
-        "Personal expenses and individual preferences",
-        "Optional experiences that may appear in the program",
-        "Official taxes/fees (if any) and international departure tax",
-      ],
-      freeTimeTitle: "Our Free Time Approach",
-      freeTimeFallback:
-        "Free time blocks are intentionally flexible so participants can move at their own pace. Optional activities can be added to these times if desired.",
-      disciplineTitle: "Group Discipline & Harmony",
-      disciplineFallback:
-        "To keep the program running smoothly, punctuality and respect for the group plan are essential. Participants are expected to follow safety briefings and guide instructions.",
-    },
-
-    importantNotes: {
-      title: "Important Notes & Warnings",
-      subtitle: {
-        open: "You can see all important notes below.",
-        closed:
-          "Click to see a summary of the general information and participation rules valid for all our tour packages.",
-      },
-      lead:
-        "The items below summarize the general information and participation rules for all our Indonesia tour packages.",
-      plannedBoxDescription: "Key points to know before booking:",
-      items: {
-        registrationDeadline:
-          "<strong>Pre-registration</strong> is not a binding booking; it’s important for operational planning.",
-        preInfoAndContract:
-          "Before payment, <b>pre-information</b> and the <b>package tour agreement</b> are shared in writing.",
-        plansMayChange:
-          "Details like flights/hotels/activities may slightly change due to season, weather and operational conditions.",
-        travelInsurance:
-          "Travel health insurance is recommended; we can guide you if requested.",
-        healthIssue:
-          "Please mention chronic conditions/medications in your notes.",
-        followRules:
-          "Following guide instructions and safety rules is expected.",
-        passportValidity:
-          "Please make sure your <strong>passport</strong> is valid for at least 6 months after the trip ends.",
-        visaRemovedForTurkishCitizens:
-          "Visa exemption may apply for Turkish citizens; current official sources prevail.",
-        entryRulesMayChange:
-          "Entry rules may change; official requirements (passport/health/taxes) are the participant’s responsibility.",
-        contactThroughGuide:
-          "During the tour, the main contact channel is the guide/operations team; 24/7 support is available for emergencies.",
-        comfortPriority:
-          "Comfort and safety are our priority; group logistics are planned accordingly.",
-        allNotesAccepted:
-          "By submitting the form, you confirm that you have read the information above.",
-      },
-      flightPolicy:
-        "Flight tickets are included up to ${{flightLimit}} per person. Because flight prices vary significantly, this limit is fixed; any amount above the limit is paid by the participant.",
-    },
-
-    trust: {
-      title: "Why you can trust us",
-      bullets: [
-        "A local operations team based in Indonesia who knows the region closely",
-        "Transparent included/excluded scope instead of surprise costs",
-        "Experience-focused full days plus intentionally planned free time",
-        "Small-group/boutique approach for a calmer, more personal holiday",
-      ],
-      testimonials: {
-        1: {
-          text: "Everything was clear and written. We got quick replies on WhatsApp; the program exceeded expectations.",
-
-      matchmakingPage: {
-        title: 'Marriage Matchmaking Application',
-        intro:
-          'This page is an application form for marriage-focused matchmaking. Profiles are not published publicly; applications are reviewed only by our team. Matching profiles will appear on your Profile page.',
-        privacyNote:
-          'Important: This is not a public “browse/search profiles” area. Your information is used only for evaluation and communication purposes. Please make sure the information you provide is accurate; you are responsible for the information you enter in this form, and your matches are made based on it. Users who intentionally provide false information will be blocked; if they have an active membership, it will be cancelled and no refund will be issued.',
-        authGate: {
-          message: 'To submit a matchmaking application, please log in or create an account.',
-          login: 'Log in',
-          signup: 'Sign up',
-          note: 'After logging in, you will be redirected back to this page automatically.',
-        },
-        form: {
-          applicationIdLabel: 'Application ID',
-          editOnce: {
-            usernameLocked: 'In edit mode, the username cannot be changed (one-time fix).',
-            photosLocked: 'In edit mode, photo updates are disabled. You can only fix the form fields.',
-          },
-          photo: {
-            choose: 'Choose file',
-            noFileChosen: 'No file chosen',
-          },
-          sections: {
-            me: 'Me',
-            lookingFor: 'Looking for',
-            moreDetails: 'Additional details',
-            partnerPreferences: 'Preferences for my future spouse',
-          },
-          labels: {
-            username: 'Username',
-            fullName: 'Full name',
-            age: 'Age',
-            city: 'City',
-            country: 'Country of residence',
-            whatsapp: 'WhatsApp number',
-            email: 'Email',
-            instagram: 'Instagram (optional)',
-            nationality: 'Citizenship (nationality)',
-            gender: 'Gender',
-            lookingForNationality: 'Nationality',
-            lookingForGender: 'Gender',
-            height: 'Height (cm)',
-            weight: 'Weight (kg)',
-            occupation: 'Occupation',
-            education: 'Education',
-            educationDepartment: 'Department / Major',
-            maritalStatus: 'Marital status',
-            hasChildren: 'Do you have children?',
-            childrenCount: 'If yes, how many?',
-            incomeLevel: 'Income level',
-            religion: 'Religion',
-            religiousValues: 'Religious values (briefly)',
-            familyObstacle: 'Is there a family-related obstacle for a Turkish–Indonesian marriage?',
-            familyApprovalStatus: 'Would your family approve your marriage to a foreigner?',
-            marriageTimeline: 'When do you want to get married?',
-            relocationWillingness: 'Would you consider living outside your own country?',
-            preferredLivingCountry: 'Where would you prefer to live?',
-            partnerHeightMin: 'Preferred height (min)',
-            partnerHeightMax: 'Preferred height (max)',
-            partnerAgeRange: 'Preferred age range (based on your age)',
-            partnerAgeMaxOlderYears: 'How many years older than me can they be (max)?',
-            partnerAgeMaxYoungerYears: 'How many years younger than me can they be (max)?',
-            partnerMaritalStatus: 'Partner marital status',
-            partnerReligion: 'Partner religion',
-            partnerChildrenPreference: 'Children preference',
-            partnerEducationPreference: 'Education preference',
-            partnerOccupationPreference: 'Occupation preference',
-            partnerFamilyValuesPreference: 'Family values preference',
-            nativeLanguage: 'Your native language',
-            nativeLanguageOther: 'Your native language (please specify)',
-            foreignLanguages: 'Foreign languages',
-            foreignLanguageOther: 'Other foreign language (please specify)',
-            languageLevelTr: 'Turkish level',
-            languageLevelId: 'Indonesian (Bahasa) level',
-            languageLevelEn: 'English level',
-            communicationLanguages: 'How do you plan to communicate with your partner?',
-            communicationLanguageOther: 'Other language (please specify)',
-            translationApp: 'I can communicate using a translation app',
-            smoking: 'Do you smoke?',
-            alcohol: 'Do you drink alcohol?',
-            partnerCommunicationLanguages: 'Partner communication language',
-            partnerCommunicationMethods: 'Partner communication methods',
-            partnerCommunicationLanguageOther: 'Other language for partner (please specify)',
-            partnerTranslationApp: 'Would you prefer to use a translation app with your partner?',
-            partnerLivingCountry: 'Preferred country to live in',
-            partnerSmokingPreference: 'Partner smoking',
-            partnerAlcoholPreference: 'Partner alcohol',
-            photo: 'Photo',
-            photos: 'Photos (3)',
-            photo1: 'Photo 1',
-            photo2: 'Photo 2',
-            photo3: 'Photo 3',
-            about: 'Short introduction',
-            expectations: 'Qualities you are looking for',
-          },
-          placeholders: {
-            username: 'e.g., moonstar_34',
-            fullName: 'e.g., Mehmet Yilmaz',
-            age: 'e.g., 29',
-            city: 'e.g., Istanbul',
-            country: 'e.g., Turkey',
-            whatsapp: 'e.g., +90 5xx xxx xx xx',
-            email: 'e.g., example@mail.com',
-            instagram: 'e.g., @username',
-            height: 'e.g., 175',
-            weight: 'e.g., 72',
-            educationDepartment: 'e.g., Computer Engineering',
-            childrenCount: 'e.g., 1',
-            religiousValues: 'e.g., Religious / balanced / flexible…',
-            familyObstacleDetails: 'Briefly explain…',
-            nativeLanguageOther: 'e.g., French',
-            foreignLanguageOther: 'e.g., French',
-            communicationLanguageOther: 'e.g., Arabic',
-            partnerCommunicationLanguageOther: 'e.g., Arabic',
-            about: 'Briefly introduce yourself (lifestyle, language, work, family plans, etc.)',
-            expectations: 'e.g., communication style, lifestyle, height/age preference, family values…',
-          },
-          options: {
-            common: {
-              select: 'Select',
-              yes: 'Yes',
-              no: 'No',
-              unsure: 'Not sure',
-              doesntMatter: "Doesn't matter",
-            },
-            nationality: {
-              tr: 'Turkish',
-              id: 'Indonesian',
-              other: 'Other',
-            },
-            gender: {
-              male: 'Male',
-              female: 'Female',
-            },
-            maritalStatus: {
-              single: 'Single',
-              widowed: 'Widowed (spouse passed away)',
-              divorced: 'Divorced',
-              other: 'Other',
-              doesnt_matter: "Doesn't matter",
-            },
-            religiousValues: {
-              weak: 'Low',
-              medium: 'Moderate',
-              conservative: 'Conservative',
-            },
-            partnerCommunicationMethods: {
-              ownLanguage: 'My language',
-              foreignLanguage: 'Foreign language',
-              translationApp: 'Via translation app',
-            },
-            education: {
-              secondary: 'Secondary',
-              highSchool: 'High school',
-              university: 'University',
-              masters: "Master's",
-              phd: 'PhD',
-              other: 'Other',
-            },
-            occupation: {
-              civilServant: 'Civil servant',
-              employee: 'Employee',
-              retired: 'Retired',
-              businessOwner: 'Business owner',
-              other: 'Other',
-            },
-            familyValues: {
-              religious: 'Religious',
-              liberal: 'Liberal',
-            },
-            partnerChildren: {
-              wantChildren: 'Should have children',
-              noChildren: 'Should not have children',
-            },
-            income: {
-              low: 'Low',
-              medium: 'Medium',
-              good: 'Good',
-              veryGood: 'Very good',
-              preferNot: 'Prefer not to say',
-            },
-            ageRange: {
-              plusMinus2: '±2 years',
-              plusMinus5: '±5 years',
-              plusMinus10: '±10 years',
-            },
-            ageDiff: {
-              none: '0 (none)',
-              years: '{{count}} years',
-            },
-            religion: {
-              islam: 'Islam',
-              christian: 'Christian',
-              hindu: 'Hindu',
-              buddhist: 'Buddhist',
-              other: 'Other',
-            },
-            languageLevel: {
-              none: 'None',
-              basic: 'Basic',
-              intermediate: 'Intermediate',
-              advanced: 'Advanced',
-              native: 'Native',
-            },
-            commLanguage: {
-              tr: 'Turkish',
-              id: 'Indonesian',
-              en: 'English',
-              translationApp: 'Via translation app',
-              other: 'Other (specify)',
-            },
-            foreignLanguages: {
-              none: "I don't speak a foreign language",
-            },
-            livingCountry: {
-              tr: 'Turkey',
-              id: 'Indonesia',
-            },
-            timeline: {
-              '0_3': 'Within 0–3 months',
-              '3_6': 'Within 3–6 months',
-              '6_12': 'Within 6–12 months',
-              '1_plus': '1 year or later',
-            },
-            familyApproval: {
-              approved: 'Approved',
-              inProgress: 'In discussion',
-              problem: 'There is a concern/problem',
-            },
-          },
-          hints: {
-            partnerAgeComputed: 'Approx. range: {{min}}–{{max}}',
-            partnerAgeNeedsYourAge: 'Note: Enter your age to compute the range.',
-            multiSelect: 'You can select multiple options.',
-            foreignLanguages:
-              "Note: After selecting your native language, it will not appear below. If you don't speak any, select “I don't speak a foreign language”.",
-          },
-          photoHint:
-            'Upload an image file only. The system will automatically compress and upload it (recommended: clear, recent, face-visible photo).',
-          consents: {
-            age: 'I confirm that I am {{minAge}}+.',
-            privacy:
-              'I have read the <privacyLink>Privacy Policy</privacyLink> and consent to processing my data for evaluation/communication purposes.',
-            terms: 'I have read and accept the <termsLink>Terms of Use</termsLink>.',
-            photo: 'I consent to my photo being viewed by the admin team for evaluation (it will not be published publicly).',
-          },
-          submit: 'Submit Application',
-          submitting: 'Submitting…',
-          success: 'We received your application. Matching profiles will appear on your Profile page.',
-          errors: {
-            mustLogin: 'You must be logged in to submit the application.',
-            blocked: 'Your account is blocked from submitting this form.',
-            consentsRequired: 'To submit, you must accept the consent checkboxes ({{minAge}}+, Privacy Policy, Terms of Use, photo consent).',
-            permissionDenied: 'Could not submit (permission error). Please log in with the correct account or check Firestore rules.',
-            honeypotTriggered: 'Could not submit. Browser autofill may have filled a hidden field. Refresh the page and try again with autofill disabled.',
-            photoUploadFailed: 'Photo upload failed. This project uses Cloudinary SIGNED uploads by default. This usually means `/api/cloudinary-signature` is not running or server env is missing. Fix: run `npm run dev` (starts API + web) and ensure `.env.local` includes `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET`. (Unsigned preset uploads are only used if explicitly enabled.)',
-            username: 'Please choose a username.',
-            usernameTaken: 'This username is already taken. Please choose another one.',
-            fullName: 'Please enter your full name.',
-            age: 'Please enter your age.',
-            ageRange: 'Age must be between {{minAge}} and 99.',
-            email: 'Please enter your email.',
-            instagram: 'Please enter your Instagram username.',
-            nationality: 'Please select your nationality.',
-            gender: 'Please select your gender.',
-            lookingForNationality: 'Please select the preferred nationality.',
-            lookingForGender: 'Please select the preferred gender.',
-            heightRequired: 'Please enter your height.',
-            weightRequired: 'Please enter your weight.',
-            occupation: 'Please select an occupation.',
-            education: 'Please select education.',
-            educationDepartment: 'Please enter your department/major.',
-            maritalStatus: 'Please select marital status.',
-            hasChildren: 'Please answer whether you have children.',
-            incomeLevel: 'Please select income level.',
-            religion: 'Please select your religion.',
-            nativeLanguage: 'Please select your native language.',
-            nativeLanguageOther: 'Please specify your native language.',
-            foreignLanguages: 'Please select at least one foreign language.',
-            foreignLanguageOther: 'Please specify the other foreign language.',
-            religiousValues: 'Please briefly describe your religious values.',
-            familyObstacle: 'Please answer the family obstacle question.',
-            familyObstacleDetails: 'Please briefly explain the family obstacle.',
-            familyApprovalStatus: 'Please answer the family approval status question.',
-            marriageTimeline: 'Please select your marriage timeline.',
-            relocationWillingness: 'Please answer the question about living outside your country.',
-            preferredLivingCountry: 'Please select your preferred living country.',
-            partnerHeightMin: 'Please select preferred min height.',
-            partnerHeightMax: 'Please select preferred max height.',
-            partnerAgeRange: 'Please select preferred age range.',
-            partnerAgeMaxOlderYears: 'Please select the maximum age difference (older).',
-            partnerAgeMaxYoungerYears: 'Please select the maximum age difference (younger).',
-            partnerMaritalStatus: 'Please select partner marital status.',
-            partnerReligion: 'Please select partner religion.',
-            expectations: 'Please describe what you are looking for in a spouse.',
-            languageLevelTr: 'Please select your Turkish level.',
-            languageLevelId: 'Please select your Indonesian level.',
-            languageLevelEn: 'Please select your English level.',
-            communicationLanguage: 'Please select a communication language.',
-            communicationLanguageOther: 'Please specify the other language.',
-            translationApp: 'Please answer the translation app question.',
-            smoking: 'Please answer the smoking question.',
-            alcohol: 'Please answer the alcohol question.',
-            partnerCommunicationLanguage: 'Please select a partner communication language.',
-            partnerCommunicationLanguageOther: 'Please specify the other language for partner.',
-            partnerTranslationApp: 'Please select your translation app preference.',
-            partnerLivingCountry: 'Please select the preferred living country.',
-            partnerSmokingPreference: 'Please select partner smoking preference.',
-            partnerAlcoholPreference: 'Please select partner alcohol preference.',
-            partnerChildrenPreference: 'Please select children preference.',
-            partnerEducationPreference: 'Please select education preference.',
-            partnerOccupationPreference: 'Please select occupation preference.',
-            partnerFamilyValuesPreference: 'Please select family values preference.',
-            photo1Required: 'Please upload Photo 1.',
-            photo2Required: 'Please upload Photo 2.',
-            photo3Required: 'Please upload Photo 3.',
-            heightRange: 'Height must be between 120–230 cm (or leave empty).',
-            weightRange: 'Weight must be between 35–250 kg (or leave empty).',
-            partnerHeightRange: 'Preferred min height cannot be greater than max height.',
-            childrenCount: 'Children count must be between 1 and 20.',
-            city: 'Please enter your city.',
-            country: 'Please enter your country.',
-            whatsapp: 'Please enter your WhatsApp number.',
-            about: 'Please write a short introduction.',
-            photoRequired: 'Please upload a photo.',
-            photoType: 'Please select a valid image file.',
-            consent18Plus: '{{minAge}}+ confirmation is required to continue.',
-            consentPrivacy: 'Privacy consent is required to continue.',
-            consentPhotoShare: 'Photo consent is required to continue.',
-            submitFailed: 'Could not submit the application. Please try again.',
-            tooFast: 'The form was submitted too quickly. Please fill it in and try again.',
-            rateLimited: 'Too many attempts in a short time. Please try again in 1 minute.',
-            recaptchaFailed: 'Spam verification failed. Please refresh the page and try again.',
-            recaptchaRejected: 'Your submission was blocked by spam protection. Please try again later.',
-          },
-        },
-        bottomNote:
-          'Note: This is a marriage-focused application; profiles are not listed publicly inside the site.',
-      },
-          person: "Ece K.",
-          meta: "Bali • Premium",
-        },
-        2: {
-          text: "Coordination was great throughout. Free time was perfectly balanced; we’d do it again.",
-          person: "Mert A.",
-          meta: "Lombok • Plus",
-        },
-      },
-            matchmakingApply: 'Matchmaking Application',
-    },
-
-    about: {
-      title: "About the island",
-      nature: "Nature",
-      culture: "Culture",
-      lifestyle: "Lifestyle",
-    },
-
-    routes: {
-      title: "Routes & points of interest",
-      missing: "Route details for this tour will be added soon.",
-    },
-
-    gallery: {
-      title: "Gallery",
-    },
-
-    priceSummary: {
-      title: "Price summary",
-      description: "A quick view including starting price and the flight cap.",
-      perPersonLabel: "Per person",
-    },
-
-    ctaBottom: {
-      title: "Ready to go?",
-      description: "Fill the pre-registration form or ask us on WhatsApp.",
-      actions: {
-        preRegister: "Pre-register",
-        whatsappMessage: "Hi, I’d like to get info about the {{tourName}} tour.",
-        askWhatsapp: "Ask on WhatsApp",
-      },
-    },
-
-    footerNav: {
-      back: "Back",
-      allTours: "See all tours",
-    },
-  },
 
   contact: {
     hero: {
@@ -2156,11 +2753,93 @@ export default {
         subject: "Short subject",
         message: "Write your message",
       },
-      consentPrefix: "I have read and accept the privacy policy.",
+      consent: "I have read and accept the <privacyLink>Privacy Policy</privacyLink>.",
       privacyLink: "Privacy Policy",
       submit: "Send",
       submitting: "Sending…",
     },
+  },
+
+  corporatePage: {
+    hero: {
+      badge: 'Trust & Legal',
+      description:
+        'This page is a corporate information hub that answers clearly: “Who owns this site?”, “Who collects payments?”, and “Which legal entity is the contract party?”.',
+    },
+    summary: {
+      brandLine:
+        'It is the brand of the Indonesia-registered company {{company}}. The contract party and collection/payment processes are handled through this legal entity.',
+      documents: 'Documents & Contracts',
+      brochures: 'Documents (PDF)',
+    },
+    brandInfo: {
+      title: 'Brand and company information',
+      labels: {
+        brand: 'Brand',
+        legalName: 'Legal name',
+        tax: 'NPWP',
+        nib: 'NIB',
+      },
+      socialNote:
+        'We support the Uniqah community through guides and content.',
+    },
+    contact: {
+      title: 'Contact and address',
+      trLabel: 'TR / WhatsApp',
+      idLabel: 'ID',
+    },
+    parentCompany: {
+      badge: 'Parent company',
+      caption: 'The legal umbrella of {{brand}} operations',
+    },
+    billing: {
+      title: 'Payments, collections and contracts',
+      items: {
+        collection: {
+          title: 'Collections',
+          body: 'Payments may appear in banking records under the name {{company}}.',
+        },
+        contract: {
+          title: 'Contract party',
+          body: 'In service / distance sales contracts, the legal entity listed is {{company}}.',
+        },
+      },
+    },
+    documents: {
+      title: 'Document center',
+      body: 'All up-to-date documents, contracts and policies are here.',
+      cta: 'Open documents',
+      brochureNote: 'Additional documents:',
+      brochureLink: 'Documents',
+    },
+    otherBrand: {
+      title: 'Our other brand',
+      aria: 'Open DaMeTurk website',
+      body: 'Our original Turkish ice-cream brand under {{company}}.',
+    },
+    faq: {
+      title: 'Short FAQs',
+      items: {
+        siteCompany: {
+          q: 'Which company is this site affiliated with?',
+          a: '{{brand}} is a brand of the Indonesia-registered company {{company}}. Contract and collection processes are handled through this legal entity.',
+        },
+        paymentCompany: {
+          q: 'What if I see a different company name on the payment screen?',
+          a: 'That can be normal: since collections and contracts are handled through {{company}}, that legal name may appear in payment channels.',
+        },
+        dameturk: {
+          q: 'Is DaMeTurk yours?',
+          a: 'Yes. DaMeTurk is one of our brands operating under {{company}} and serves via its own website.',
+        },
+      },
+      editOnce: {
+        usernameLocked: 'In edit mode, the username cannot be changed (one-time fix).',
+        photosLocked: 'In edit mode, photo updates are disabled. You can only fix form fields.',
+      },
+    },
+    partnerAgeMin: 'Min age',
+    partnerAgeMax: 'Max age',
   },
 
   authPage: {
@@ -2173,21 +2852,98 @@ export default {
     forceInfo: 'A fresh sign-in was requested for this action. Please sign in again.',
     googleCta: 'Continue with Google',
     googleSignupCta: 'Sign up with Google',
-    redirecting: 'Redirecting to Google sign-in…',
-    signupGuide: 'To sign up, select gender and nationality, then confirm the age requirement.',
+    appleCta: 'Continue with Apple',
+    appleSignupCta: 'Sign up with Apple',
+    redirecting: 'Redirecting to sign-in…',
+    redirectScreen: {
+      title: 'Redirecting…',
+      body: 'Opening your profile. If this takes too long, you can continue using the button below.',
+      goProfile: 'Go to my profile',
+      refresh: 'Refresh',
+    },
+    signupGuide: 'To sign up, continue with Google, then complete your short profile.',
+    signupExistingAccountHint: 'If you already have an account, sign in with Google.',
+    quickProfile: {
+      title: 'Quick Profile',
+      lead: 'Complete your short profile, then continue.',
+      labels: {
+        fullName: 'Name',
+        age: 'Age',
+        gender: 'Gender',
+        city: 'City',
+        country: 'Country',
+        maritalStatus: 'Marital status',
+        hasChildren: 'Do you have children?',
+        childrenCount: 'How many?',
+        occupation: 'Occupation',
+        photo: 'Profile photo (1)',
+      },
+      placeholders: {
+        fullName: 'Your name',
+        age: 'e.g., 28',
+        city: 'City',
+        childrenCount: 'e.g., 1',
+        occupation: 'Occupation',
+      },
+      options: {
+        select: 'Select',
+        countryTr: 'Turkey',
+        countryId: 'Indonesia',
+        countryOther: 'Other',
+        maritalSingle: 'Single',
+        maritalMarried: 'Married',
+        maritalDivorced: 'Divorced',
+        maritalWidowed: 'Widowed',
+        hasChildrenNo: 'No',
+        hasChildrenYes: 'Yes',
+      },
+      statuses: {
+        photoUploading: 'Uploading photo…',
+        photoUploaded: 'Photo uploaded.',
+      },
+      actions: {
+        createProfile: 'Create my profile',
+      },
+      steps: {
+        step2Google: 'Step 2: Sign up with Google',
+      },
+      infos: {
+        ready: 'Your profile is ready. You can continue now.',
+      },
+      errors: {
+        fillFirst: 'Please fill out the quick profile form first.',
+        nameRequired: 'Name is required.',
+        ageInvalid: 'Age must be between 18 and 99.',
+        genderRequired: 'Gender is required.',
+        cityRequired: 'City is required.',
+        countryRequired: 'Country is required.',
+        maritalRequired: 'Marital status is required.',
+        occupationRequired: 'Occupation is required.',
+        hasChildrenRequired: 'Children status is required.',
+        childrenCountRequired: 'Children count (1-20) is required.',
+        photoRequired: 'Profile photo is required.',
+        photoNotImage: 'Please select an image file.',
+        photoUploadFailed: 'Photo upload failed.',
+        saveFailed: 'Could not save your profile. Please try again.',
+      },
+    },
     or: 'or',
     labels: {
       email: 'Email',
       password: 'Password',
+      confirmPassword: 'Confirm password',
       gender: 'Gender',
       nationality: 'Nationality',
       nationalityOther: 'Other nationality (specify)',
+      age: 'Age',
     },
     placeholders: {
       email: 'example@email.com',
       password: 'Your password',
+      confirmPassword: 'Repeat your password',
       nationality: 'Select nationality',
       nationalityOther: 'e.g., Germany',
+      age: 'e.g., 27',
     },
     actions: {
       login: 'Sign in',
@@ -2202,12 +2958,35 @@ export default {
       nationalityTr: 'Turkey',
       nationalityId: 'Indonesia',
       nationalityOther: 'Other',
-      ageConfirm: 'I confirm that I am at least {{minAge}} years old. (Open the agreement for details)',
-      ageConfirmLink: 'Agreement',
+      ageHint: 'You must be at least {{minAge}} years old.',
     },
     forgotHint: {
       prefix: 'If you forgot your password, click',
       suffix: 'to receive a reset link by email.',
+    },
+    passwordToggle: {
+      show: 'Show',
+      hide: 'Hide',
+    },
+    feedback: {
+      title: 'Complaint / Feedback',
+      lead: 'If you are having an issue during sign-up, please report the problem together with your contact number or email. We will check it right away and get back to you.',
+      contactLabel: 'Contact (phone or email)',
+      contactPlaceholder: 'e.g., +62 812… or name@site.com',
+      placeholder: 'Contact (phone or email) + your issue…',
+      note: 'Note: Include your contact details so we can reach you.',
+      reportCta: 'Report this error',
+      prefillHeader: 'Please fill in the details below:',
+      prefillContact: 'Contact (phone or email):',
+      prefillProblem: 'Problem (what were you trying to do / what happened?):',
+      prefillUiError: 'On-screen error',
+      prefillDebugCode: 'Error code',
+      prefillDebugMessage: 'Technical message',
+      send: 'Send',
+      sending: 'Sending…',
+      sent: 'Sent. Thank you.',
+      tooShort: 'Please write at least {{min}} characters.',
+      failed: 'Could not send. Please try again.',
     },
     legal: {
       prefix: 'By continuing, you agree to the',
@@ -2216,16 +2995,42 @@ export default {
       privacy: 'Privacy Policy',
     },
     resetSent: 'A password reset link has been sent to your email.',
+    infos: {
+      accountExistsTryLogin: 'You already have an account. Please try signing in with your email and password.',
+      inAppBrowserGoogleRedirect:
+        'Google sign-in may not work inside TikTok’s in-app browser. We’re opening Google sign-in using redirect…',
+    },
     errors: {
+      noAccountFoundSignupRequired:
+        "We couldn't find an account for this Google login. You need to sign up first. We've switched you to sign-up—please choose gender/nationality, enter your age, and try again.",
+      accountExistsWithDifferentCredential:
+        'An account already exists with this email using a different sign-in method. Please sign in with email/password first; then we can link Google sign-in.',
+      domainNotFound: '(domain not found)',
+      googleFailedDev:
+        'Google sign-in failed ({{code}}).\n\nIn Firebase Console → Authentication → Settings → Authorized domains, add: {{host}}\nAlso verify VITE_FIREBASE_AUTH_DOMAIN in your env.',
+      googleUnauthorizedDomain:
+        'Google sign-in failed (unauthorized-domain).\n\nIn Firebase Console → Authentication → Settings → Authorized domains, add: {{host}}',
+      googleOperationNotAllowed:
+        'Google sign-in is disabled. Enable the Google provider in Firebase Console → Authentication → Sign-in method.',
+      appleOperationNotAllowed:
+        'Apple sign-in is disabled. Enable the Apple provider in Firebase Console → Authentication → Sign-in method.',
+      firebaseAuthInvalidConfig:
+        'Firebase Auth configuration is invalid. Check `VITE_FIREBASE_*` values in `.env.local` (and Vercel env).',
       googleFailed: 'Google sign-in failed.',
+      appleFailed: 'Apple sign-in failed.',
       invalidCredential: 'Invalid email or password (or the account was not found). If you forgot your password, use “Forgot password”.',
       invalidEmail: 'That email address looks invalid. Please check it and try again.',
       emailAlreadyInUse: 'An account already exists with this email. Please sign in or use “Forgot password”.',
       weakPassword: 'Password is too weak. Please choose a stronger password (e.g., at least 6 characters).',
+      rateLimited: 'Too many attempts in a short time. Please wait about a minute and try again.',
+      networkFailed: 'Network error. Please check your connection and try again.',
+      passwordsDoNotMatch: 'Passwords do not match. Please type the same password again.',
       emailPasswordRequired: 'Email and password are required.',
       genderRequired: 'Please select your gender to sign up.',
       nationalityRequired: 'Please select your nationality to sign up.',
       nationalityOtherRequired: 'Please specify your nationality.',
+      ageRequired: 'Please enter your age to sign up.',
+      ageMin: 'To sign up, you must be at least {{minAge}} years old.',
       ageConfirmRequired: 'To sign up, you must confirm that you are at least {{minAge}} years old.',
       loginFailed: 'Sign-in failed.',
       resetEmailRequired: 'Enter your email to reset your password.',
@@ -2235,6 +3040,19 @@ export default {
       emailVerificationSend: 'Resend verification email',
       emailVerificationFailed: 'Verification email could not be sent. Please try again.',
     },
+  },
+
+  newsletter: {
+    title: 'Uniqah Newsletter',
+    subtitle: 'Leave your email to receive Uniqah updates, new features, and important announcements.',
+    placeholderEmail: 'Your email address',
+    cta: {
+      subscribe: 'Subscribe',
+      sending: 'Sending…',
+    },
+    success: 'Saved successfully! Thank you.',
+    error: 'This email is already subscribed or an error occurred.',
+    privacy: 'We respect your privacy. You can unsubscribe anytime.',
   },
 
   matchmakingPanel: {
@@ -2248,6 +3066,13 @@ export default {
         },
     title: 'My Profile',
     subtitle: 'Your matchmaking, membership and contact steps will appear here.',
+    studioBanner: {
+      text: 'The new Studio UI is available. Switch for a cleaner profile + matches view.',
+    },
+    membershipPromo: {
+      freeLabel: 'Free',
+      until: 'Until {{date}}',
+    },
     tabs: {
       info: 'Info / Rules',
       matches: 'My matches',
@@ -2258,13 +3083,13 @@ export default {
       empty: 'No photos uploaded yet.',
       updateRequest: {
         title: 'Photo update request',
-        lead: 'Upload 3 new photos. They will be updated after admin approval.',
+        lead: 'Upload 1–3 new photos. They will be updated after admin approval.',
         pending: 'Under review',
         cta: 'Send request',
         uploading: 'Uploading…',
         success: 'Request received. Your photos will be updated after review.',
         errors: {
-          photosRequired: 'Please choose 3 photos.',
+          photosRequired: 'Please choose at least 1 photo.',
           photoType: 'Please select image files only (jpg/png/webp).',
           applicationNotFound: 'Application not found. Please fill the form first.',
           failed: 'Could not send request. Please try again.',
@@ -2301,13 +3126,53 @@ export default {
         'Anyone who creates an account is deemed to have read and accepted these rules.',
       ],
     },
+
+    agreement: {
+      title: 'Usage agreement & safety',
+      intro:
+        'This matchmaking system is moderated. Keep communication respectful and follow the safety rules. If you face suspicious behavior, report it with evidence.',
+      safety: {
+        title: 'Safety rules',
+        s1: 'Do not share contact info (phone, social media, links, IBAN, etc.) before contact sharing is unlocked.',
+        s2: 'Harassment, insults, sexual content, and financial exploitation are strictly not tolerated.',
+        s3: 'If you see suspicious behavior, report it to support with screenshots/evidence.',
+      },
+      complaint: {
+        title: 'Complaints / reports',
+        body:
+          'Complaints are reviewed based on evidence. If a violation is confirmed, the account can be removed from the system.',
+        c1Title: 'Evidence required',
+        c1Body: 'Provide screenshots, dates/times and a short description of what happened.',
+        c2Title: 'Fast response',
+        c2Body: 'Serious complaints with clear evidence are prioritized for faster review.',
+        c3Title: 'Privacy',
+        c3Body: 'Do not share other users’ private information publicly; send evidence only to support.',
+        extraMale: 'Male users: membership-related payments are non-refundable if a rule violation is confirmed.',
+        extraFemale: 'Female users: contact sharing is always optional and requires mutual approval; report any pressure immediately.',
+      },
+      enforcement: {
+        title: 'Sanctions & refund policy',
+        e1a: 'Users who violate the rules (if proven with screenshots/evidence) will be',
+        e1b: 'permanently blocked',
+        e1c: 'and their matches will be cancelled.',
+        e2a: 'If the violator has',
+        e2b: 'an active membership, it will still be cancelled.',
+        e3a: 'Even if the membership is cancelled,',
+        e3b: 'no refunds are issued.',
+        e4a: 'All users of this platform are deemed to have',
+        e4b: 'read and accepted these rules.',
+      },
+    },
     actions: {
       logout: 'Sign out',
       profileForm: 'Profile form',
+      goToStudio: 'Go to Studio',
       whatsapp: 'Message on WhatsApp',
       remove: 'Remove',
+      copy: 'Copy',
       sending: 'Sending…',
       pending: 'Pending…',
+      canceling: 'Cancelling…',
       accept: 'Accept',
       accepted: 'Accepted',
       reject: 'Reject',
@@ -2330,6 +3195,14 @@ export default {
       freeSlotSuccess: 'Slot freed. {{creditGranted}} credit granted. The slot will stay empty until a new sign-up ({{threshold}}+) matches you. Cooldown: {{remaining}}',
       removedCreditNotice: 'This match was removed from your list. 1 credit was granted for requesting a new match. Cooldown: {{remaining}}',
     },
+    chat: {
+      sidebarTitle: 'Chat',
+      noActiveChat: 'No active chat right now.',
+      inputPlaceholderShort: 'Write a short message…',
+      lock48h: {
+        approving: 'Approving…',
+      },
+    },
     profileForm: {
       loading: 'Loading form…',
       empty: 'No matchmaking application form found yet. Please fill the form first.',
@@ -2348,7 +3221,8 @@ export default {
       editOnceCta: 'Save changes (one-time)',
       editOnceSaving: 'Saving…',
       editOnceSuccess: 'Update received. Your form has been updated.',
-      editOnceUsed: 'This one-time edit has already been used. The form cannot be edited again.',
+      editOnceUsed: 'Profile information can be updated only once. Your request failed because you have no edits left.',
+      editOnceWarning: 'Warning: this is a one-time edit. Please make sure your information is correct before submitting.',
       editOnceErrors: {
         failed: 'Update failed. Please try again.',
         empty: 'You cannot submit an empty update. Please fill at least one field.',
@@ -2360,9 +3234,9 @@ export default {
       lead: 'You can follow membership/action-unlock steps here. If your membership is not active, make the payment and send a “payment report” with your receipt/reference (membership is activated after admin approval).',
       freePaidMembershipCta: 'Activate my membership for free',
       paidMembershipCta: 'Activate membership',
-      freeActiveTitle: 'Women: free active membership',
-      freeActiveBody: 'If you are identity-verified, you can apply for free active membership. This can unlock actions without a paid membership (48/24h inactivity rules apply).',
-      freeActiveNeedsVerification: 'Identity verification is required for free active membership.',
+      freeActiveTitle: 'Free activation',
+      freeActiveBody: 'If you are identity-verified, you can activate your account for free. (48/24h inactivity rules apply.)',
+      freeActiveNeedsVerification: 'Identity verification is required for free activation.',
       paymentTitle: 'Paid membership (monthly) / payment',
       paymentBody: 'To activate membership, pay with one of the methods below, then submit a payment report with your receipt/reference details.',
       selectMatchTitle: 'Select a match for the payment report',
@@ -2372,6 +3246,16 @@ export default {
       selectMatchRequired: 'You must select a match to send a payment report.',
     },
     payment: {
+      title: 'Payments',
+      empty: 'No payment records found.',
+      status: 'Status',
+      amount: 'Amount',
+      date: 'Date',
+      invoice: 'Invoice / reference',
+      actions: {
+        pay: 'Pay',
+        view: 'View',
+      },
       success: 'Your payment report has been received. Your membership will be activated after admin approval.',
       errors: {
         sendFailed: 'Payment report could not be sent.',
@@ -2380,6 +3264,7 @@ export default {
       },
     },
     receipt: {
+      view: 'View receipt',
       errors: {
         uploadFailed:
           'Receipt upload failed. In local dev, make sure `npm run dev` (API+Web) is running and Cloudinary server env vars are configured.',
@@ -2394,21 +3279,27 @@ export default {
       rejectAllFailed: 'Reject all failed.',
       membershipRequired: 'An active membership is required to accept/reject.',
       verificationRequired: 'Identity verification is required to perform this action.',
-      membershipOrVerificationRequired: 'This action requires a paid membership or (for women) identity verification + free active membership.',
-      freeActiveMembershipRequired: 'This action requires your free active membership to be active. If you are verified, you can apply from the panel.',
-      freeActiveMembershipBlocked: 'Your free active membership privilege is disabled. You need a paid membership for this action.',
+      membershipOrVerificationRequired: 'This action requires an active membership.',
+      freeActiveMembershipRequired: 'This action requires an active account.',
+      freeActiveMembershipBlocked: 'Your activation privilege is disabled. Please contact support.',
       otherUserMatched: 'This person is already matched with someone else.',
       alreadyMatched: 'You already have a match.',
       userLocked: 'Your match process is locked. This action is not allowed.',
       pendingContinueExists: 'You already selected someone to continue with. Decide on that match first.',
+      applicationRequired: 'You must complete your matchmaking application first.',
+      noCandidatesNow: 'No suitable candidates available right now.',
+      noMatchGeneratedNow: 'A new match could not be generated right now.',
       requestNewFailed: 'Could not request a new match.',
       requestNewRateLimited: 'You are requesting too often. Please try again later.',
       requestNewQuotaExhausted: 'You have used up today’s new match quota (3/3). Please try again tomorrow.',
-      requestNewFreeActiveBlocked: 'You cannot request a new match because your free active membership privilege was cancelled. You need a paid membership to reactivate.',
+      requestNewFreeActiveBlocked: 'You cannot request a new match because your activation privilege was cancelled. Please contact support.',
       freeSlotFailed: 'Free slot action failed.',
       freeSlotQuotaExhausted: 'You have used today\'s free slot quota (1/1). Please try again tomorrow.',
       cooldownActive: 'Please wait a bit before doing this again. Remaining: {{remaining}}',
       newUserSlotAlreadyActive: 'Your new-user slot is already active. Please wait for a suitable new sign-up, or use the normal refresh.',
+    },
+    hints: {
+      creditNotSpentSuffix: ' (credit not spent)',
     },
     afterSubmit: {
       title: 'Application received.',
@@ -2422,6 +3313,7 @@ export default {
     application: {
       title: 'Matchmaking Application',
       empty: 'You do not have a matchmaking application yet.',
+      profileNotCreatedHint: 'Your profile is not created yet. Please fill the application form first.',
       goToForm: 'Go to the application form',
       fallbackName: 'Application',
       profileNo: 'Application Code',
@@ -2436,6 +3328,13 @@ export default {
       email: 'Email',
       instagram: 'Instagram',
       cityCountry: 'City/Country',
+      readOnly: 'This field is currently read-only.',
+    },
+    contact: {
+      errors: {
+        fetchFailed: 'Contact details could not be fetched. Please try again.',
+        notConfirmed: 'Contact details are not available before the match is confirmed.',
+      },
     },
     statuses: {
       proposed: 'Proposed',
@@ -2471,18 +3370,36 @@ export default {
     membership: {
       title: 'Membership terms',
       active: 'Your membership is active.',
+      planLabels: {
+        eco: 'Eco',
+        standard: 'Standard',
+        pro: 'Pro',
+      },
       lead: 'Membership terms:',
+      inactive: 'Membership is not active. Until it is active, some actions may be restricted.',
       inactiveMale: 'Membership is not active. For men, membership is required to use matching actions (accept/reject, chat/contact).',
-      inactiveFemale: 'Membership is not active. Matching and preview are available without membership. To take actions, you need free active membership (with verification) or a paid membership.',
-      activeViaVerification: 'You are identity-verified. To take actions, you can apply for free active membership or buy a paid membership.',
-      freeActiveActive: 'Your free active membership is active (via identity verification).',
-      freeActiveTermsTitle: 'Free active membership terms',
-      freeActiveTermsBody: 'If you get free active membership via identity verification and you are inactive for 48 hours, the free active membership is cancelled. On re-application, the window drops to 24 hours. If you are inactive again, you cannot get free active membership until you purchase a paid membership, and you cannot request a new match.',
+      inactiveFemale: 'Membership is not active. Matching and preview are available without membership. To take actions, you need an active account.',
+      activeViaVerification: 'You are identity-verified. You can activate your account.',
+      freeActiveActive: 'Your account is active.',
+      freeActiveTermsTitle: 'Free activation terms',
+      freeActiveTermsBody:
+        'If you activate your account for free and you are inactive for 48 hours, activation may be cancelled. On re-activation, the window drops to 24 hours. If you are inactive again, activation may be cancelled again and new match requests may be restricted.',
+      freeActiveApply: 'Activate account for free',
       freeActiveApplying: 'Applying…',
-      freeActiveApplied: 'Free active membership enabled. Window: {{hours}} hours.',
+      freeActiveApplied: 'Free activation enabled. Window: {{hours}} hours.',
       daysLeft_one: 'Time left: {{count}} day.',
       daysLeft_other: 'Time left: {{count}} days.',
       until: 'Ends: {{date}}.',
+    },
+
+    membershipInfo: {
+      title: 'Membership info',
+      subtitle: 'Your membership type and dates.',
+      details: {
+        type: 'Type',
+        start: 'Start',
+        end: 'End',
+      },
     },
     membershipNotice: {
       title: 'Like / details / contact notice',
@@ -2490,15 +3407,14 @@ export default {
         lead: 'Flow for male users:',
         points: [
           'Matching and limited previews are free.',
-          'Viewing full details, like/reject and contacting require a paid membership.',
+          'Viewing full details, like/reject and contacting require an active membership (free for now).',
         ],
       },
       female: {
-        lead: 'Flow for female users:',
+        lead: 'Feature access:',
         points: [
           'Matching and limited previews are free.',
-          'Viewing full details, like/reject and contacting require identity verification + free active membership or a paid membership.',
-          'Free active membership has inactivity rules (see the terms section in the panel).',
+          'Viewing full details, like/reject and contacting require an active account.',
         ],
       },
     },
@@ -2514,11 +3430,11 @@ export default {
           },
           {
             q: 'What is required for likes / details / contacting?',
-            a: 'For male users, a paid membership is required. For female users, identity verification + free active membership or a paid membership is required.',
+            a: 'Likes / full details / contacting require an active account.',
           },
           {
             q: 'What is identity verification for?',
-            a: 'It is a trust badge. It strengthens complaint handling with evidence and (for female users) can unlock the free active membership flow.',
+            a: 'It is a trust badge. It strengthens complaint handling with evidence and can unlock some flows.',
           },
           {
             q: 'What if I encounter suspicious behavior or scams?',
@@ -2530,13 +3446,32 @@ export default {
     verification: {
       title: 'Identity verification',
       cta: 'Verify identity',
-      verifiedBadge: 'Identity verified',
+      verifiedBadge: 'Trusted user',
       requiredTitle: 'Identity verification (badge)',
       requiredBody: 'Identity verification is not mandatory; it is a trust badge. If there is a rule violation, you can file a complaint with screenshots/evidence.',
       unverifiedTitle: 'Not verified (badge)',
       unverifiedBodyMale: 'Identity verification is optional. Note: actions for men require an active membership.',
-      unverifiedBodyFemale: 'Identity verification is optional. Note: women can use actions with membership or identity verification.',
+      unverifiedBodyFemale: 'Identity verification is optional. Note: identity verification can unlock some flows.',
       referenceCode: 'Verification code',
+      pendingHint: 'Status: pending review',
+      tabs: {
+        selfieVideo: 'Selfie video',
+        social: 'Social media',
+      },
+      selfieVideo: {
+        title: 'Verify with selfie video (WhatsApp)',
+        lead: 'Send a 5-second selfie video on WhatsApp. You can create a request and open WhatsApp.',
+        pendingHint: 'Your selfie video verification request was created. Please complete the video submission on WhatsApp.',
+      },
+      social: {
+        title: 'Verify with social media',
+        lead: 'Choose a platform and submit your username. After review, the badge will be assigned.',
+        platformLabel: 'Social media',
+        usernameLabel: 'Username',
+        submit: 'Submit',
+        success: 'Submitted. Pending review.',
+        pendingHint: 'Your social media verification request was created. Pending review.',
+      },
       manualUpload: {
         title: 'Verify on the site (manual)',
         lead: 'Not mandatory. Upload the front/back of your ID and a selfie. After review, a badge will be assigned to your account.',
@@ -2556,9 +3491,10 @@ export default {
         openWhatsapp: 'Send verification message on WhatsApp',
       },
       errors: {
-        kycNotConfigured: 'Automatic KYC is not configured yet. Please use WhatsApp or manual verification.',
-        whatsappNotConfigured: 'WhatsApp number is not configured. Please use manual verification.',
+        kycNotConfigured: 'Automatic KYC is not configured yet. Please use WhatsApp or social media verification.',
+        whatsappNotConfigured: 'WhatsApp number is not configured. Please use social media verification.',
         missingFiles: 'Please choose ID (front/back) and a selfie.',
+        missingSocial: 'Please choose a platform and enter your username.',
       },
     },
 
@@ -2568,10 +3504,12 @@ export default {
       title: 'Membership actions',
       statusLabel: 'Membership',
       activate: 'Activate my membership',
+      freeActivateCta: 'Activate membership for free',
       cancel: 'Cancel my membership',
       cancelDisabledHint: 'You cannot cancel until membership is active.',
       deleteAccount: 'Delete account',
-      deleteTypePrompt: 'If you really want to delete the account: type "hesabımı sil".',
+      deletePhrase: 'delete my account',
+      deleteTypePrompt: 'If you really want to delete the account: type "{{phrase}}".',
       deleteFinalConfirm: 'Your account will be permanently deleted from the system. Are you sure?',
       deleteCancel: 'Cancel',
       deleteContinue: 'Continue',
@@ -2580,7 +3518,10 @@ export default {
       loading: 'Working…',
       alreadyActive: 'Your membership is already active',
       successActivated: 'Your membership was activated.',
+      successActivatedUntil: 'Your membership was activated. Valid until: {{date}} ({{count}} days left).',
       promoActivated: 'Your Eco plan was activated for free. Ends on {{date}} ({{count}} days left).',
+      freeNowTitle: 'Membership is free for now',
+      freeNowBody: 'Membership is currently free and can be activated instantly.\nOnce we reach enough members, we may add a payment step and switch to a paid model.',
       successCancelled: 'Your membership was cancelled.',
     },
     membershipGate: {
@@ -2597,6 +3538,32 @@ export default {
       matchId: 'Match Code',
     },
     matches: {
+      autoRunNotice: 'Our automatic matching runs approximately every {{minutes}} minutes. You can also request a new match manually here.',
+      pendingContinueExists: 'You already selected someone to continue with. Decide on that match first.',
+      cancelConfirm: 'Are you sure you want to cancel this match?',
+      errors: {
+        activeLocked: 'Your match process is locked. This action is not allowed.',
+      },
+      proposedActions: {
+        interested: 'Interested',
+        notSuitable: 'Not a fit',
+      },
+      proposedChat: {
+        title: 'Direct message',
+        noticeTitle: 'Notice',
+        noticeBody: 'This is a limited direct-message channel. Keep it short and respectful.',
+      },
+      rejectReason: {
+        title: 'Choose a reason…',
+      },
+      contactShare: {
+        title: 'Contact sharing',
+        approved: 'Contact details were shared with mutual approval.',
+        pending: 'Contact request sent. Waiting for the other person to approve.',
+        lock48h: 'To share phone numbers, 48 hours of in-site chat is required. Time left: {{time}}.',
+        requestCta: 'Request contact sharing',
+        requestHint: 'If the other person approves, phone numbers will become visible.',
+      },
       presence: {
         online: 'Online',
         lastSeen: 'Last active: {{time}}',
@@ -2715,6 +3682,7 @@ export default {
       },
       chat: {
         open: 'Messages',
+        directMessage: 'Direct message',
         title: 'In-site Chat',
         lead: 'You can chat here before deciding. Sharing contact/IG/FB/links is blocked.',
         enableNotifications: 'Enable notifications',
@@ -2728,8 +3696,46 @@ export default {
         rulesTitle: 'Rules',
         rulesBody: 'Phone/WhatsApp, Instagram/Facebook and links are not allowed at this stage.',
         empty: 'No messages yet. You can send the first one.',
+        lastMessages: 'Last messages',
         placeholder: 'Write a message…',
         send: 'Send',
+        lockedByActive: {
+          title: 'This chat is closed',
+          body:
+            'This chat is closed because you currently have an active match. To keep messaging other matches, you need to cancel your active match from the chat screen.',
+          cancelCta: 'Cancel active match',
+        },
+        system: {
+          contactRequest: {
+            mine: 'You requested contact sharing.',
+            other: 'The other person wants to share contact details.',
+            approveHint: 'Once you approve, phone numbers will appear in messages.',
+          },
+          contactShared: 'Contact details shared:\n{{aWhatsapp}}\n{{bWhatsapp}}',
+        },
+        translate: {
+          title: 'Translate message',
+          cta: 'Translate',
+          translating: 'Translating…',
+          billing: {
+            sponsored: 'Sponsored translation (charged to the other side)',
+            self: 'Used from your translation quota',
+          },
+          usageWarning: 'You used %{{usagePercent}} of your limit.',
+          errors: {
+            quotaExceededWithUsage:
+              'You used %{{usagePercent}} of your limit. It renews monthly, or upgrade your plan / Boost.',
+            quotaExceeded: 'Your translation limit is reached. It renews monthly, or upgrade your plan / Boost.',
+            tooLong: 'This message is too long; shorten it to translate.',
+            onlyIncoming: 'Only incoming messages can be translated.',
+            authRequired: 'Login required.',
+            notConfigured: 'Translation service is not configured.',
+            rateLimited:
+              'Translation is busy (Gemini has a 15/min rate limit). Try again in 1 minute or upgrade your plan.',
+            piiBlocked: 'Automatic translation was blocked due to personal/contact info. Please remove it.',
+            failed: 'Translation failed.',
+          },
+        },
         continue: 'Continue (Approve)',
         reject: 'Not a fit (Reject)',
         proposedLimit: {
@@ -2780,6 +3786,7 @@ export default {
           verificationRequired: 'Identity verification is required to chat.',
           limitReached: 'Message limit reached. You need to decide.',
           chatPaused: 'This chat is temporarily on hold.',
+          messageTooLong: 'Message is too long. Max 240 characters.',
           serverNotConfigured: 'Firebase Admin is not configured in local dev. Add FIREBASE_SERVICE_ACCOUNT_JSON_FILE to .env.local and restart the dev process.',
           authRequired: 'You must be logged in to send messages (anonymous users are not supported).',
           sendFailed: 'Message could not be sent.',
@@ -2799,12 +3806,15 @@ export default {
           errors: {
             locked: 'You cannot confirm before 48 hours pass.',
             confirmRequired: 'Contact sharing requires match confirmation first.',
+            contactLocked: 'You cannot request contact sharing before 48 hours pass.',
+            approveLocked: 'You cannot approve before 48 hours pass.',
+            contactNotPending: 'There is no pending contact request to approve.',
           },
         },
       },
       candidate: {
         fallbackName: 'Candidate',
-        verifiedBadge: 'Identity verified',
+        verifiedBadge: 'Trusted user',
         proBadge: 'PRO',
         standardBadge: 'STANDARD',
         badges: {
@@ -2817,6 +3827,7 @@ export default {
         matchedProfile: 'Match profile',
         score: 'Match score',
         likeBadge: '♥ You received a like',
+        likeSentBadge: '✓ Like sent',
         profileInfo: 'Show profile info',
         hideProfileInfo: 'Hide',
         profileInfoTitle: 'Profile info (excluding contact)',
@@ -2826,6 +3837,8 @@ export default {
         aboutLabel: 'About',
         expectationsLabel: 'Expectations',
         heightLabel: 'Height',
+        partnerAgeMin: 'Min age',
+        partnerAgeMax: 'Max age',
         educationLabel: 'Education',
         occupationLabel: 'Occupation',
         religionLabel: 'Religion',
@@ -2896,14 +3909,22 @@ export default {
         methodQris: 'QRIS',
         methodOther: 'Other',
         reference: 'Reference / description (optional)',
+        referenceHint: 'When paying, write this in the reference/description field: {{code}}',
         referencePlaceholder: 'Receipt no, description, sender name…',
         note: 'Note (optional)',
         notePlaceholder: 'Add extra details if you want',
+        noteHelpEftFastWise:
+          'When sending EFT/transfer (or Wise/SWIFT), you must write the MK user code above exactly in the bank “Reference / Description” field.',
+        noteHelpEftFastExtra:
+          'With EFT/FAST, payments go to the authorized person’s Turkey bank account on behalf of our company.',
+        noteHelpOther: 'Depending on the payment method, the reference field may not be required. Still, keep the reference info above.',
         receipt: 'Receipt (optional)',
         receiptHelp: 'You can upload a photo or paste a receipt link below.',
         receiptLink: 'Receipt link (optional)',
         viewReceipt: 'View receipt',
         uploadingReceipt: 'Uploading receipt…',
+        receiptViaUpload: 'Upload receipt',
+        receiptViaWhatsapp: 'I will send the receipt via WhatsApp',
         sendPayment: 'Send payment notice ({{amount}} {{currency}})',
         supportWhatsapp: 'WhatsApp support',
         supportWhatsappMessage: 'I need help with membership/payment in my matchmaking process. Match Code: {{matchCode}}',
@@ -2911,20 +3932,23 @@ export default {
     },
     intro: {
       title: 'How matchmaking works',
-      body: 'Our goal is to help people with serious marriage intent meet safely. The points below describe how the system actually works.',
+      body: 'We offer a controlled flow that starts in Explore and continues with pre-match → active match → contact sharing. The points below summarize how the system works.',
       cta: 'Fill the matchmaking form',
       eligibilityPointMale: 'Matching and previewing the matched profile inside the site do not require membership. To view full profile details, accept/reject, or contact the matched person, you must purchase an active membership.',
-      eligibilityPointFemale: 'Matching and viewing limited profile info inside the site do not require membership. To accept/reject and contact the matched person, you must either apply for free active membership with identity verification or purchase a paid membership.',
+      eligibilityPointFemale: 'Matching and viewing limited profile info inside the site do not require membership. To accept/reject and contact the matched person, you need an active account.',
       points: [
-        'Profiles are not public. Only matched users can view each other’s details.',
-        'Up to 3 / 5 / 10 candidates are shown depending on your plan. Marking/liking a candidate does not delete the others; you can choose to show only your marked candidate if you want.',
-        'Step 1: Review the candidate → Accept or Reject. If one side rejects, the match is canceled.',
-        'Step 2 (second approval): If both sides accept, choose the next step in the panel (in-site chat or contact sharing). The step activates only when both sides choose the same option.',
-        'Lock: When step 2 is agreed, the process is locked and you cannot request a new match until it is resolved/canceled.',
-        'In-site chat blocks phone/WhatsApp, social media and links. If contact sharing is unlocked, responsibility belongs to the individuals.',
+        'Profiles are not public. Only users with a match/request relationship can view each other.',
+        'In Explore, up to 3 / 5 / 10 profiles are shown depending on your plan (limited preview).',
+        'A pre-match request is sent to the profiles you want to add to your match list.',
+        'The other person reviews the request. If they approve, both sides can see each other in “My Matches”.',
+        'At this stage, match cards become interactive: likes, short messages, and detailed profile review.',
+        'When a like is mutual, the system starts the “active match” step and translation-assisted chat opens.',
+        'After an active match starts, interactions with other profiles are disabled until the active match is mutually cancelled (no new matching/likes/short messages/details).',
+        'An active match lasts 48 hours. After the timer completes, both sides can share contact details; contact info becomes visible in profile details only to each other (with mutual approval).',
+        'After 48 hours, you can continue either inside the site or through your own contact channels. You can also request interpreter-assisted video call or background checks via support.',
         'New match requests: If you were rejected, you can remove that match from your panel and request a new one (daily quota: 3).',
         '{{eligibilityPoint}}',
-        'Safety: If rules are violated (false info, insults/harassment, sexual abuse, financial exploitation, dating/entertainment intent) and proven with screenshots/evidence, the user is permanently banned and cannot request refunds.',
+        'Safety: If rules are violated (false info, insults/harassment, sexual abuse, financial exploitation, non-marriage intent) and proven with screenshots/evidence, the user is permanently banned and cannot request refunds.',
       ],
 
       quickQuestions: {
@@ -2985,6 +4009,7 @@ export default {
         p1Title: 'Marriage-focused system',
         p1Body: 'The goal is not dating or games. It is a controlled process for meeting with serious marriage intent.',
         p2Title: 'Privacy',
+        freeUsageNotice: 'Using the app is completely free.',
         p2Body: 'Profiles are not public. Your details are shown only to the person you are matched with.',
         p3Title: 'Decision mechanism',
         p3Body: 'Matches progress with accept/reject decisions. Without mutual acceptance, nothing continues; a single rejection ends the match.',
@@ -3046,23 +4071,427 @@ export default {
     },
   },
 
+  matchmakingPage: {
+    title: 'Matchmaking Application',
+    intro:
+      'This page is the matchmaking application form for finding a suitable spouse candidate. Profiles are not publicly listed; applications are viewed only by our team. The system will show matched people on your “My Profile” page.',
+    privacyNote:
+      'Important: This is not a public “browse/search profiles” area. The information you share is used only for evaluation and communication. Please ensure your information is accurate; you are responsible for what you submit, and matches are made based on it. Intentionally false information leads to a permanent ban; any active membership is cancelled and no refund is provided.',
+    authGate: {
+      message: 'To submit a matchmaking application, please sign in or create an account.',
+      login: 'Sign in',
+      signup: 'Sign up',
+      note: 'After signing in, you will be redirected back to this page automatically.',
+    },
+    bottomNote:
+      'Note: This form is a marriage-focused matchmaking application; profiles are not publicly listed on the site.',
+    form: {
+      previewProfile: {
+        title: 'Preview the My Profile screen (tutorial)',
+        body: 'Before submitting, quickly see how the My Profile screen works. The preview opens in a new tab.',
+        open: 'Open profile preview',
+      },
+      preSubmitTour: {
+        title: 'Before sending, let’s preview the My Profile screen',
+        body:
+          'After you send your application, you will manage your matches from the “My Profile” screen. Before the final submission, let’s show a quick tutorial. (It opens in a new tab; this form stays open.)',
+        open: 'Open My Profile (new tab)',
+        continue: 'Continue and send application',
+        later: 'Not now',
+      },
+      applicationIdLabel: 'Application ID',
+      deferCta: 'Fill later',
+      deferError: 'Could not redirect right now. Please try again.',
+      wizard: {
+        badge: 'Quick Application',
+        step: 'Step {{current}} / {{total}}',
+        back: 'Back',
+        next: 'Next',
+        steps: {
+          basic: {
+            title: 'Contact & basics',
+            desc: 'Let’s start with your core info and contact details.',
+          },
+          details: {
+            title: 'Details',
+            desc: 'Let’s clarify lifestyle and communication preferences.',
+          },
+          identity: {
+            title: 'Me & who I’m looking for',
+            desc: 'Select your nationality, gender and preferences.',
+          },
+          photos: {
+            title: 'Photos & intro',
+            desc: 'Upload 3 photos and introduce yourself briefly.',
+          },
+          preferences: {
+            title: 'Partner preferences & consents',
+            desc: 'Choose preferences and complete your application.',
+          },
+        },
+      },
+      editOnce: {
+        usernameLocked: 'In edit mode, the username cannot be changed (one-time fix).',
+        photosLocked: 'In edit mode, photo updates are disabled. You can only fix form fields.',
+      },
+      photo: {
+        choose: 'Choose file',
+        noFileChosen: 'No file chosen',
+        uploaded: 'Uploaded',
+      },
+      sections: {
+        me: 'Me',
+        lookingFor: 'Looking for',
+        details: 'Details',
+        moreDetails: 'Additional info',
+        partnerPreferences: 'Partner preferences',
+      },
+      contactPrivacyNotice:
+        'Your contact details (WhatsApp/email) are private. They are not shown publicly while filling the form or in the app UI.',
+      contactNumberNote: 'Your contact number is not shared with anyone; it is only required for system verification.',
+      inviteCodeHelp:
+        'If a friend invited you, you can enter the invite code here to benefit from free membership. If you do not have an invite code, you can leave this field empty.',
+      confirmGender: {
+        title: 'Confirm gender',
+        text: 'You selected your gender as "{{gender}}". Do you confirm?',
+        cancel: 'Cancel',
+        confirm: 'Confirm',
+      },
+      labels: {
+        username: 'Username',
+        fullName: 'Full name',
+        inviteCode: 'Invite code (optional)',
+        age: 'Age',
+        city: 'City',
+        country: 'Country',
+        whatsapp: 'Contact number',
+        email: 'Email',
+        instagram: 'Instagram',
+        nationality: 'Nationality',
+        gender: 'Gender',
+        lookingForNationality: 'Looking for: nationality',
+        lookingForGender: 'Looking for: gender',
+        height: 'Height (cm)',
+        weight: 'Weight (kg)',
+        occupation: 'Occupation',
+        education: 'Education',
+        educationDepartment: 'Department',
+        maritalStatus: 'Marital status',
+        hasChildren: 'Has children?',
+        childrenLivingSituation: 'Do you live with your children?',
+        childrenCount: 'Children count',
+        incomeLevel: 'Income level',
+        religion: 'Religion',
+        religiousValues: 'Religious values',
+        familyApprovalStatus: 'Family approval',
+        familyObstacle: 'Is there a family obstacle for an international marriage?',
+        marriageTimeline: 'Marriage timeline',
+        relocationWillingness: 'Relocation willingness',
+        preferredLivingCountry: 'Preferred living country',
+        nativeLanguage: 'Native language',
+        nativeLanguageOther: 'Native language (other)',
+        foreignLanguages: 'Foreign languages',
+        foreignLanguageOther: 'Foreign language (other)',
+        communicationLanguages: 'Communication languages',
+        communicationLanguageOther: 'Communication language (other)',
+        smoking: 'Smoking',
+        alcohol: 'Alcohol',
+        partnerHeightMin: 'Partner height (min)',
+        partnerHeightMax: 'Partner height (max)',
+        partnerAgeMaxOlderYears: 'Partner can be older by (max years)',
+        partnerAgeMaxYoungerYears: 'Partner can be younger by (max years)',
+        partnerMaritalStatus: 'Partner marital status',
+        partnerReligion: 'Partner religion',
+        partnerChildrenPreference: 'Partner children preference',
+        partnerEducationPreference: 'Partner education preference',
+        partnerOccupationPreference: 'Partner occupation preference',
+        partnerFamilyValuesPreference: 'Partner family values preference',
+        partnerCommunicationLanguages: 'Partner communication languages',
+        partnerCommunicationLanguageOther: 'Partner communication language (other)',
+        partnerCommunicationMethods: 'Partner communication methods',
+        partnerTranslationApp: 'Use translation app with partner?',
+        partnerLivingCountry: 'Partner living country preference',
+        partnerSmokingPreference: 'Partner smoking preference',
+        partnerAlcoholPreference: 'Partner alcohol preference',
+        photo: 'Photo',
+        photos: 'Photos (3)',
+        photo1: 'Photo 1',
+        photo2: 'Photo 2',
+        photo3: 'Photo 3',
+        about: 'About',
+        expectations: 'Expectations',
+      },
+      placeholders: {
+        username: 'e.g., moonstar_34',
+        fullName: 'e.g., John Doe',
+        inviteCode: 'e.g., 1234',
+        age: 'e.g., 29',
+        city: 'e.g., Istanbul',
+        country: 'e.g., Turkey',
+        whatsapp: 'e.g., +90 5xx xxx xx xx',
+        email: 'e.g., example@mail.com',
+        instagram: 'e.g., @username',
+        height: 'e.g., 175',
+        weight: 'e.g., 72',
+        educationDepartment: 'e.g., Computer Engineering',
+        childrenCount: 'e.g., 1',
+        foreignLanguageOther: 'e.g., French',
+        nativeLanguageOther: 'e.g., French',
+        communicationLanguageOther: 'e.g., Arabic',
+        partnerCommunicationLanguageOther: 'e.g., Arabic',
+        occupation: 'e.g., Teacher / Doctor / Engineer',
+        religiousValues: 'Briefly describe your religious values…',
+        familyObstacleDetails: 'Briefly explain the obstacle (if any)…',
+        about: 'Introduce yourself briefly (lifestyle, language, work, family plans, etc.)',
+        expectations: 'e.g., Communication, lifestyle, age/height preferences, family values…',
+      },
+      options: {
+        common: {
+          select: 'Select',
+          yes: 'Yes',
+          no: 'No',
+          unsure: 'Not sure',
+          doesntMatter: "Doesn't matter",
+        },
+        childrenLivingSituation: {
+          withChildren: 'I live with my children',
+          separate: 'I live separately from my children',
+        },
+        nationality: {
+          tr: 'Turkish',
+          id: 'Indonesian',
+          other: 'Other',
+        },
+        gender: {
+          male: 'Male',
+          female: 'Female',
+        },
+        maritalStatus: {
+          single: 'Single',
+          widowed: 'Widowed',
+          divorced: 'Divorced',
+          other: 'Other',
+          doesnt_matter: "Doesn't matter",
+        },
+        education: {
+          secondary: 'Secondary',
+          highSchool: 'High school',
+          university: 'University',
+          masters: "Master's",
+          phd: 'PhD',
+          other: 'Other',
+        },
+        occupation: {
+          civilServant: 'Civil servant',
+          employee: 'Employee',
+          retired: 'Retired',
+          businessOwner: 'Business owner',
+          other: 'Other',
+        },
+        familyValues: {
+          religious: 'Religious',
+          liberal: 'Liberal',
+        },
+        partnerChildren: {
+          wantChildren: 'Wants/has children',
+          noChildren: 'No children',
+        },
+        income: {
+          low: 'Low',
+          medium: 'Medium',
+          good: 'Good',
+          veryGood: 'Very good',
+          preferNot: 'Prefer not to say',
+        },
+        ageDiff: {
+          none: '0 (no preference)',
+          years: '{{count}} years',
+          years_one: '{{count}} year',
+          years_other: '{{count}} years',
+        },
+        familyApproval: {
+          approved: 'Approved',
+          inProgress: 'In progress / not sure',
+          problem: 'Not approved / there is an issue',
+        },
+        religion: {
+          islam: 'Islam',
+          christian: 'Christianity',
+          hindu: 'Hinduism',
+          buddhist: 'Buddhism',
+          other: 'Other',
+        },
+        religiousValues: {
+          weak: 'Low',
+          medium: 'Medium',
+          conservative: 'Conservative',
+        },
+        languageLevel: {
+          none: "None / I don't know",
+          basic: 'Basic',
+          intermediate: 'Intermediate',
+          advanced: 'Advanced',
+          native: 'Native',
+        },
+        commLanguage: {
+          tr: 'Turkish',
+          id: 'Indonesian',
+          en: 'English',
+          translationApp: 'Via a translation app',
+          other: 'Other (specify)',
+        },
+        foreignLanguages: {
+          none: "I don't speak any foreign languages",
+        },
+        livingCountry: {
+          tr: 'Turkey',
+          id: 'Indonesia',
+        },
+        partnerCommunicationMethods: {
+          ownLanguage: 'My own language',
+          foreignLanguage: 'My foreign language skills',
+          translationApp: 'Translation app',
+        },
+        timeline: {
+          '0_3': '0–3 months',
+          '3_6': '3–6 months',
+          '6_12': '6–12 months',
+          '1_plus': '1 year or more',
+        },
+      },
+      hints: {
+        lookingForGenderAuto: 'The gender you are looking for is set automatically based on your gender.',
+        partnerAgeComputed: 'Estimated range: {{min}}–{{max}}',
+        partnerAgeNeedsYourAge: 'Note: Please enter your correct age to compute the range.',
+        multiSelect: 'You can select more than one option.',
+        foreignLanguages:
+          'Note: After selecting your native language, it may not appear below. If you don’t know any, choose “I don’t speak any foreign languages”.',
+      },
+      photoHint:
+        'Upload image files only. The system compresses and uploads automatically (tip: clear, recent and showing your face).',
+      consents: {
+        age: 'I confirm that I am older than {{minAge}}.',
+        privacy:
+          'I have read the <privacyLink>Privacy Policy</privacyLink> and the <kvkkLink>Personal Data Notice (KVKK)</kvkkLink> and agree to my data being processed for evaluation/communication purposes.',
+        terms: 'I have read and accept the <termsLink>User Agreement</termsLink>.',
+        photo: 'I agree that the admin team can view my photo(s) for evaluation purposes (profile is not public).',
+      },
+      submit: 'Submit application',
+      submitting: 'Submitting…',
+      success: 'Your application was received. Matches will appear on your panel.',
+      errors: {
+        blocked: 'This account is blocked from submitting matchmaking applications. Please contact support if you think this is a mistake.',
+        mustLogin: 'You must be signed in to submit the application.',
+        alreadySubmitted: 'You already have a matchmaking application. You can update your info from your Profile page.',
+        profileTextWriteOnceUsed: 'Your “About” and “Expectations” texts can only be written once. They cannot be edited afterwards.',
+        profileTextPII: 'Do not share contact info (phone, email, link, Instagram, IBAN, etc.) in “About” or “Expectations”.',
+        consentsRequired:
+          'To submit, you must check the consent boxes ({{minAge}}+, Privacy Policy, User Agreement, Photo consent).',
+        consent18Plus: 'To continue, you must confirm that you are {{minAge}}+.',
+        consentPrivacy: 'To continue, you must accept the privacy policy.',
+        consentPhotoShare: 'To continue, you must accept the photo consent.',
+        permissionDenied:
+          'Could not submit the application (permission error). Please sign in with the correct account or check Firestore rules.',
+        honeypotTriggered:
+          'Form could not be submitted. Browser autofill may have filled a hidden field. Refresh the page, disable autofill, and try again.',
+        photoUploadFailed:
+          'Photo upload failed. In local dev, ensure `npm run dev` (api+web) is running and Cloudinary env vars are configured.',
+        submitFailed: 'Application could not be submitted. Please try again.',
+        tooFast: 'Form was submitted too quickly. Please fill it and try again.',
+        rateLimited: 'Too many attempts in a short time. Please try again in 1 minute.',
+
+        username: 'Please choose a username.',
+        usernameTaken: 'This username is already taken. Please choose another.',
+        fullName: 'Please enter your full name.',
+        inviteCodeInvalid: 'Invite code must be 4 digits (e.g., 1234).',
+        age: 'Please enter your age.',
+        ageRange: 'Age must be between {{minAge}} and 99.',
+        email: 'Please enter your email address.',
+        city: 'Please enter your city.',
+        country: 'Please enter your country.',
+        whatsapp: 'Please enter your WhatsApp number.',
+        gender: 'Please select your gender.',
+        nationality: 'Please select your nationality.',
+        lookingForGender: 'Please select the gender you are looking for.',
+        lookingForNationality: 'Please select the nationality you are looking for.',
+        heightRequired: 'Please enter your height.',
+        weightRequired: 'Please enter your weight.',
+        heightRange: 'Height must be between 120–230 cm (you can also leave it empty).',
+        weightRange: 'Weight must be between 35–250 kg (you can also leave it empty).',
+        occupation: 'Please enter your occupation.',
+        education: 'Please select your education level.',
+        educationDepartment: 'Please enter your department.',
+        maritalStatus: 'Please select your marital status.',
+        hasChildren: 'Please select whether you have children.',
+        childrenLivingSituation: 'Please select your living situation with your children.',
+        childrenCount: 'Children count must be between 1 and 20.',
+        incomeLevel: 'Please select your income level.',
+        religion: 'Please select your religion.',
+        religiousValues: 'Please enter your religious values briefly.',
+        nativeLanguage: 'Please select your native language.',
+        nativeLanguageOther: 'Please specify your native language.',
+        foreignLanguages: 'Please select your foreign languages.',
+        foreignLanguageOther: 'Please specify the other foreign language.',
+        communicationLanguage: 'Please select a communication language.',
+        communicationLanguageOther: 'Please specify the other language.',
+        smoking: 'Please answer the smoking question.',
+        alcohol: 'Please answer the alcohol question.',
+        instagram: 'Please enter a valid Instagram username or leave it empty.',
+        familyObstacle: 'Please answer the family obstacle question.',
+        familyObstacleDetails: 'Please briefly explain the family obstacle.',
+        familyApprovalStatus: 'Please answer the family approval question.',
+        marriageTimeline: 'Please select your marriage timeline.',
+        relocationWillingness: 'Please answer the relocation question.',
+        preferredLivingCountry: 'Please select your preferred living country.',
+
+        translationApp: 'Please select your translation app preference.',
+        partnerTranslationApp: 'Please select whether you can use a translation app with your partner.',
+        partnerAgeRange: 'Min age cannot be greater than max age.',
+        languageLevelTr: 'Please select your Turkish level.',
+        languageLevelEn: 'Please select your English level.',
+        languageLevelId: 'Please select your Indonesian level.',
+
+        partnerAgeMaxOlderYears: 'Please select how many years older your partner can be.',
+        partnerAgeMaxYoungerYears: 'Please select how many years younger your partner can be.',
+        partnerHeightMin: 'Please select the minimum partner height.',
+        partnerHeightMax: 'Please select the maximum partner height.',
+        partnerHeightRange: 'Minimum partner height cannot be greater than maximum.',
+        partnerMaritalStatus: 'Please select preferred marital status.',
+        partnerReligion: 'Please select preferred religion.',
+        partnerLivingCountry: 'Please select preferred living country.',
+        partnerSmokingPreference: 'Please select partner smoking preference.',
+        partnerAlcoholPreference: 'Please select partner alcohol preference.',
+        partnerChildrenPreference: 'Please select children preference.',
+        partnerEducationPreference: 'Please select education preference.',
+        partnerOccupationPreference: 'Please select occupation preference.',
+        partnerFamilyValuesPreference: 'Please select family values preference.',
+        partnerCommunicationLanguage: 'Please select partner communication language.',
+        partnerCommunicationLanguageOther: 'Please specify other partner communication language.',
+
+        about: 'Please write a short introduction.',
+        expectations: 'Please describe what you are looking for in a spouse.',
+
+        photo1Required: 'Please upload photo 1.',
+        photo2Required: 'Please upload photo 2.',
+        photo3Required: 'Please upload photo 3.',
+        photoRequired: 'Please upload at least one photo.',
+        photoType: 'Please select a valid image file.',
+      },
+    },
+  },
+
   matchmakingMembership: {
-    title: 'Membership activation',
-    lead: 'You can activate your membership here.',
-    planTitle: 'Monthly membership',
-    monthlyPrice: 'Price: ${{amount}} / month',
-    promoTitle: 'Promo: Free activation',
-    promoBody: 'Membership activation is free until {{date}}.',
-    promoEndedTitle: 'Promo ended',
-    promoEndedBody: 'After {{date}}, membership activation is paid and becomes active after payment.',
+    title: 'Membership',
+    lead: 'Membership is automatically active. Using the app is completely free.',
+    freeNowTitle: 'Completely free',
+    freeNowBody: 'All features in the app are free; there is no extra payment or activation step.',
     freeActivateCta: 'Activate my membership for free',
-    paidActivationCta: 'Continue to payment',
     activating: 'Activating…',
     activated: 'Membership activated.',
     activatedUntil: 'Membership activated. Valid until: {{date}}',
     freeActivatedInfo:
       'Your free membership is assigned until {{date}}.\nWith this membership, you can like/reject match profiles and use {{translatedCount}} translated messages.\nYour daily match-change limit is {{dailyLimit}}.',
-    promoExpired: 'Promo expired. After {{date}}, activations are paid and become active after payment.',
+    freeDisabled: 'Free membership activation is currently disabled. Please try again later.',
     activateFailed: 'Could not activate membership. Please try again.',
     errors: {
       notAuthenticated: 'Session could not be verified. Please log out and log in again.',
@@ -3070,7 +4499,21 @@ export default {
       apiUnavailableDev: 'API is not reachable. In local dev, run `npm run dev` (api+web).',
     },
     backToPanel: 'Back to panel',
-    paymentMethodsSoon: 'Note: Membership activation is free until {{date}}.',
-    paidAdminApprovalNote: 'Note: After {{date}}, activation is paid and becomes active after payment.',
+    freeNowFootnote: 'Note: The app is completely free.',
+  },
+
+  memberFeed: {
+    badge: {
+      newUser: 'New',
+    },
+    toast: {
+      title: 'Live',
+      closeAria: 'Close',
+      generic: 'A new activity happened.',
+      signupAnonymous: 'Someone just joined the system.',
+      signupKnown: '{{label}} just joined the system.',
+      profileCompletedAnonymous: 'A new user completed their profile.',
+      profileCompletedKnown: '{{label}} completed their profile.',
+    },
   },
 };

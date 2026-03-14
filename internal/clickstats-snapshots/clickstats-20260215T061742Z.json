@@ -1,0 +1,331 @@
+{
+  "ok": true,
+  "projectId": "evlilik-14afc",
+  "days": 7,
+  "dayKeys": [
+    "2026-02-15",
+    "2026-02-14",
+    "2026-02-13",
+    "2026-02-12",
+    "2026-02-11",
+    "2026-02-10",
+    "2026-02-09"
+  ],
+  "authSignupsByDay": {
+    "2026-02-15": 0,
+    "2026-02-14": 1,
+    "2026-02-13": 1,
+    "2026-02-12": 0,
+    "2026-02-11": 1,
+    "2026-02-10": 1,
+    "2026-02-09": 3
+  },
+  "scannedAuthUsers": 18,
+  "pagesScanned": 1,
+  "authPartial": false,
+  "summary": [
+    {
+      "dayKey": "2026-02-15",
+      "totalUnique": 39,
+      "topEvents": [
+        {
+          "eventKey": "session_start",
+          "total": 19
+        },
+        {
+          "eventKey": "landing_clickid:tiktok",
+          "total": 13
+        },
+        {
+          "eventKey": "landing_login_login",
+          "total": 2
+        },
+        {
+          "eventKey": "landing_login_signup",
+          "total": 1
+        },
+        {
+          "eventKey": "signup_start:google",
+          "total": 1
+        },
+        {
+          "eventKey": "arrival:/app/matches",
+          "total": 1
+        },
+        {
+          "eventKey": "arrival:/app/pool",
+          "total": 1
+        },
+        {
+          "eventKey": "cta_wedding_guidance_home_hero",
+          "total": 1
+        }
+      ],
+      "topCountries": [
+        {
+          "country": "TR",
+          "total": 26
+        },
+        {
+          "country": "ID",
+          "total": 8
+        },
+        {
+          "country": "US",
+          "total": 4
+        },
+        {
+          "country": "UN",
+          "total": 1
+        }
+      ],
+      "funnel": {
+        "session_start": 19,
+        "landing_login_signup": 1,
+        "landing_login_login": 2,
+        "signup_start_google": 1,
+        "signup_start_email": 0,
+        "signup_success": 0,
+        "signup_error": 0,
+        "landing_clickid": 13,
+        "landing_ref": 0
+      },
+      "signupErrorsTop": [],
+      "hasDoc": true
+    },
+    {
+      "dayKey": "2026-02-14",
+      "totalUnique": 37,
+      "topEvents": [
+        {
+          "eventKey": "session_start",
+          "total": 19
+        },
+        {
+          "eventKey": "landing_clickid:tiktok",
+          "total": 15
+        },
+        {
+          "eventKey": "cta_signup_home_sticky",
+          "total": 2
+        },
+        {
+          "eventKey": "cta_wedding_guidance_home_hero",
+          "total": 1
+        }
+      ],
+      "topCountries": [
+        {
+          "country": "TR",
+          "total": 29
+        },
+        {
+          "country": "US",
+          "total": 4
+        },
+        {
+          "country": "ID",
+          "total": 4
+        }
+      ],
+      "funnel": {
+        "session_start": 19,
+        "landing_login_signup": 0,
+        "landing_login_login": 0,
+        "signup_start_google": 0,
+        "signup_start_email": 0,
+        "signup_success": 0,
+        "signup_error": 0,
+        "landing_clickid": 15,
+        "landing_ref": 0
+      },
+      "signupErrorsTop": [],
+      "hasDoc": true
+    },
+    {
+      "dayKey": "2026-02-13",
+      "totalUnique": 2,
+      "topEvents": [
+        {
+          "eventKey": "cta_signup_home_hero",
+          "total": 2
+        }
+      ],
+      "topCountries": [
+        {
+          "country": "ID",
+          "total": 2
+        }
+      ],
+      "funnel": {
+        "session_start": 0,
+        "landing_login_signup": 0,
+        "landing_login_login": 0,
+        "signup_start_google": 0,
+        "signup_start_email": 0,
+        "signup_success": 0,
+        "signup_error": 0,
+        "landing_clickid": 0,
+        "landing_ref": 0
+      },
+      "signupErrorsTop": [],
+      "hasDoc": true
+    },
+    {
+      "dayKey": "2026-02-12",
+      "totalUnique": 10,
+      "topEvents": [
+        {
+          "eventKey": "cta_signup_home_sticky",
+          "total": 4
+        },
+        {
+          "eventKey": "cta_signup_home_hero",
+          "total": 3
+        },
+        {
+          "eventKey": "cta_whatsapp_home_sticky",
+          "total": 2
+        },
+        {
+          "eventKey": "cta_documents_home_services_card",
+          "total": 1
+        }
+      ],
+      "topCountries": [
+        {
+          "country": "ID",
+          "total": 10
+        }
+      ],
+      "funnel": {
+        "session_start": 0,
+        "landing_login_signup": 0,
+        "landing_login_login": 0,
+        "signup_start_google": 0,
+        "signup_start_email": 0,
+        "signup_success": 0,
+        "signup_error": 0,
+        "landing_clickid": 0,
+        "landing_ref": 0
+      },
+      "signupErrorsTop": [],
+      "hasDoc": true
+    },
+    {
+      "dayKey": "2026-02-11",
+      "totalUnique": 5,
+      "topEvents": [
+        {
+          "eventKey": "cta_signup_home_hero",
+          "total": 5
+        }
+      ],
+      "topCountries": [
+        {
+          "country": "ID",
+          "total": 2
+        },
+        {
+          "country": "US",
+          "total": 1
+        },
+        {
+          "country": "PL",
+          "total": 1
+        },
+        {
+          "country": "UN",
+          "total": 1
+        }
+      ],
+      "funnel": {
+        "session_start": 0,
+        "landing_login_signup": 0,
+        "landing_login_login": 0,
+        "signup_start_google": 0,
+        "signup_start_email": 0,
+        "signup_success": 0,
+        "signup_error": 0,
+        "landing_clickid": 0,
+        "landing_ref": 0
+      },
+      "signupErrorsTop": [],
+      "hasDoc": true
+    },
+    {
+      "dayKey": "2026-02-10",
+      "totalUnique": 3,
+      "topEvents": [
+        {
+          "eventKey": "cta_signup_home_hero",
+          "total": 2
+        },
+        {
+          "eventKey": "cta_documents_home_services_card",
+          "total": 1
+        }
+      ],
+      "topCountries": [
+        {
+          "country": "BE",
+          "total": 2
+        },
+        {
+          "country": "ID",
+          "total": 1
+        }
+      ],
+      "funnel": {
+        "session_start": 0,
+        "landing_login_signup": 0,
+        "landing_login_login": 0,
+        "signup_start_google": 0,
+        "signup_start_email": 0,
+        "signup_success": 0,
+        "signup_error": 0,
+        "landing_clickid": 0,
+        "landing_ref": 0
+      },
+      "signupErrorsTop": [],
+      "hasDoc": true
+    },
+    {
+      "dayKey": "2026-02-09",
+      "totalUnique": 4,
+      "topEvents": [
+        {
+          "eventKey": "cta_signup_home_hero",
+          "total": 3
+        },
+        {
+          "eventKey": "cta_signup_home_sticky",
+          "total": 1
+        }
+      ],
+      "topCountries": [
+        {
+          "country": "ID",
+          "total": 3
+        },
+        {
+          "country": "TR",
+          "total": 1
+        }
+      ],
+      "funnel": {
+        "session_start": 0,
+        "landing_login_signup": 0,
+        "landing_login_login": 0,
+        "signup_start_google": 0,
+        "signup_start_email": 0,
+        "signup_success": 0,
+        "signup_error": 0,
+        "landing_clickid": 0,
+        "landing_ref": 0
+      },
+      "signupErrorsTop": [],
+      "hasDoc": true
+    }
+  ]
+}

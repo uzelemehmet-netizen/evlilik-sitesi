@@ -47,7 +47,7 @@
 - **Risk:** DÜŞÜK - Güvenilir medya sunucusu
 
 **YouTube:**
-- `https://www.youtube.com/@endonezyakasifi` - Kanal linki
+- `https://www.youtube.com/@uniqah` - Kanal linki
 - `https://www.youtube.com/watch?v=` - Video linkleri
 - **Durum:** ✅ SERTIFIKA: SSL/TLS, GÜVENLI KAYNAK
 - **Risk:** DÜŞÜK - Resmi YouTube domain
@@ -59,7 +59,7 @@
 - **Risk:** DÜŞÜK - Resmi WhatsApp domain
 
 **Mail Link:**
-- `mailto:info@endonezya.com` - E-posta
+- `mailto:info@uniqah.com` - E-posta
 - **Durum:** ✅ SERTIFIKA: Protokol güvenli
 - **Risk:** DÜŞÜK - Standart mailto protokolü
 

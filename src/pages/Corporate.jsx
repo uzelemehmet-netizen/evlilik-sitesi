@@ -4,13 +4,14 @@ import { Building2, BadgeCheck, Globe, Phone, Mail, MapPin, ExternalLink } from 
 import { Link } from 'react-router-dom';
 import { COMPANY } from '../config/company';
 import { useTranslation } from 'react-i18next';
+import { staticAssetUrl } from '../utils/staticAssetUrl';
 
 export default function Corporate() {
-  const { t } = useTranslation();
-  const brand = 'Endonezya Kaşifi';
-  const instagram = 'https://www.instagram.com/endonezyakasifi';
-  const youtube = 'https://www.youtube.com/@endonezyakasifi';
+  const { t, i18n } = useTranslation();
+  const brand = 'Uniqah';
   const dameTurk = 'https://www.dameturk.com';
+
+  const PARTNER_LOGO_SRC = staticAssetUrl('/ChatGPT%20Image%20Jan%2014,%202026,%2001_53_44%20PM.png');
 
   return (
     <div className="min-h-screen bg-white">
@@ -43,6 +44,16 @@ export default function Corporate() {
           >
             {t('corporatePage.hero.description')}
           </p>
+
+          <div className="mt-6 flex items-center justify-center">
+            <img
+              src="/brand-logo.webp"
+              alt="Uniqah"
+              className="h-14 md:h-16 w-auto object-contain"
+              loading="lazy"
+              decoding="async"
+            />
+          </div>
         </div>
       </section>
 
@@ -53,21 +64,14 @@ export default function Corporate() {
               <span className="font-semibold">{brand}</span> {t('corporatePage.summary.brandLine', { company: COMPANY.legalName })}
             </p>
             <div className="mt-3 flex flex-wrap gap-2">
-              <Link
-                to="/dokumanlar"
+              <a
+                href="/docs/matchmaking-kullanim-sozlesmesi.html"
+                target="_blank"
+                rel="noopener noreferrer"
                 className="inline-flex items-center gap-2 rounded-full bg-white border border-emerald-200 px-4 py-2 text-sm hover:shadow-sm transition"
               >
                 <BadgeCheck size={16} className="text-emerald-700" />
                 {t('corporatePage.summary.documents')}
-              </Link>
-              <a
-                href="/docs/tur-brosurleri.html"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 rounded-full bg-white border border-slate-200 px-4 py-2 text-sm hover:shadow-sm transition"
-              >
-                <BadgeCheck size={16} className="text-slate-700" />
-                {t('corporatePage.summary.brochures')}
               </a>
             </div>
           </div>
@@ -126,22 +130,12 @@ export default function Corporate() {
                   <span className="text-gray-500">({t('corporatePage.contact.idLabel')})</span>
                 </div>
                 <div className="flex flex-wrap gap-3 pt-2">
-                  <a
-                    href={instagram}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-2 rounded-full bg-white border border-slate-200 px-4 py-2 text-sm hover:shadow-sm transition"
-                  >
-                    <Globe size={16} /> Instagram
-                  </a>
-                  <a
-                    href={youtube}
-                    target="_blank"
-                    rel="noopener noreferrer"
+                  <Link
+                    to="/youtube"
                     className="inline-flex items-center gap-2 rounded-full bg-white border border-slate-200 px-4 py-2 text-sm hover:shadow-sm transition"
                   >
                     <Globe size={16} /> YouTube
-                  </a>
+                  </Link>
                 </div>
               </div>
             </div>
@@ -149,10 +143,17 @@ export default function Corporate() {
 
           <div className="mt-6 p-6 rounded-2xl border border-slate-200 bg-white flex flex-col md:flex-row gap-6 items-center">
             <img
-              src="/logos/moonstar-lockup-horizontal.png"
-              alt="MoonStar"
+              src="/brand-logo.webp"
+              alt="Uniqah"
               className="w-full max-w-[520px] md:max-w-[420px] rounded-2xl border border-slate-200 bg-white object-contain p-3"
               loading="lazy"
+            />
+            <img
+              src={PARTNER_LOGO_SRC}
+              alt=""
+              className="h-16 w-auto object-contain"
+              loading="lazy"
+              decoding="async"
             />
             <div className="flex-1">
               <p className="text-xs uppercase tracking-wide text-slate-600 mb-2" style={{ fontFamily: '"Poppins", sans-serif' }}>
@@ -160,8 +161,8 @@ export default function Corporate() {
               </p>
               <div className="flex items-center gap-3">
                 <img
-                  src="/logos/moonstar-mark-square.png"
-                  alt="PT MoonStar Global Indonesia"
+                  src="/brand-logo.webp"
+                  alt="Uniqah"
                   className="h-10 w-10 rounded-xl border border-slate-200 bg-white object-contain"
                   loading="lazy"
                 />
@@ -206,22 +207,19 @@ export default function Corporate() {
                   {t('corporatePage.documents.body')}
                 </p>
                 <div className="mt-3">
-                  <Link to="/dokumanlar" className="inline-flex items-center gap-2 rounded-full bg-white border border-emerald-200 px-4 py-2 text-sm hover:shadow-sm transition">
+                  <a
+                    href="/docs/matchmaking-kullanim-sozlesmesi.html"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 rounded-full bg-white border border-emerald-200 px-4 py-2 text-sm hover:shadow-sm transition"
+                  >
                     <BadgeCheck size={16} className="text-emerald-700" />
                     {t('corporatePage.documents.cta')}
-                  </Link>
+                  </a>
                 </div>
               </div>
             </div>
 
-            <div className="mt-4 p-4 rounded-2xl bg-white border border-slate-200">
-              <p className="text-sm text-gray-700" style={{ fontFamily: '"Poppins", sans-serif' }}>
-                {t('corporatePage.documents.brochureNote')}{' '}
-                <a className="text-emerald-700 font-semibold hover:underline" href="/docs/tur-brosurleri.html" target="_blank" rel="noopener noreferrer">
-                  {t('corporatePage.documents.brochureLink')}
-                </a>
-              </p>
-            </div>
           </div>
 
           <div className="mt-10 p-6 rounded-2xl border border-slate-200 bg-white">

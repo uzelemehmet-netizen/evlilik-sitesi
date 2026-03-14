@@ -6,19 +6,7 @@ export default function PrivateRoute({ children }) {
   const [isAuthenticated, setIsAuthenticated] = useState(null);
   const [isAdmin, setIsAdmin] = useState(null);
 
-  const ruleAdmins = ["uzelemehmet@gmail.com", "articelikkapi@gmail.com"];
-  const ruleAdminSet = new Set(ruleAdmins);
-
-  const envAdmins = (import.meta.env.VITE_ADMIN_EMAILS || "")
-    .split(",")
-    .map((v) => v.trim().toLowerCase())
-    .filter(Boolean);
-
-  // Firestore rules ile birebir uyum: sadece kural listesinde olanlar admin sayılır.
-  // Eğer env listesi verilmişse, kural listesiyle kesişim alınır.
-  const effectiveAdmins = envAdmins.length > 0
-    ? envAdmins.filter((email) => ruleAdminSet.has(email))
-    : ruleAdmins;
+  const ADMIN_EMAIL = 'uzelemehmet@gmail.com';
 
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged((user) => {
@@ -30,11 +18,12 @@ export default function PrivateRoute({ children }) {
       }
 
       const email = String(user.email || "").toLowerCase();
-      // Admin panel: sadece allowlist + email/şifre (password provider) ile giriş.
+      // Admin panel: sadece email/şifre (password provider) ile giriş.
       // Böylece Google login açık olsa bile admin panelde kullanılmaz.
       const providers = Array.isArray(user?.providerData) ? user.providerData.map((p) => String(p?.providerId || '')) : [];
       const hasPasswordProvider = providers.includes('password');
-      setIsAdmin(effectiveAdmins.includes(email) && hasPasswordProvider);
+
+      setIsAdmin(!!hasPasswordProvider && !!email && email === ADMIN_EMAIL);
     });
 
     return unsubscribe;

@@ -5,7 +5,7 @@ export const COMPANY = {
   tax: "NPWP 59.422.0162-405.000",
   nib: "3275056712830021",
 
-  email: "endonezyakasifi@gmail.com",
+  email: "info@uniqah.com",
 
   phoneTr: "+905550343852",
   phoneIdTel: "+6285888978383",

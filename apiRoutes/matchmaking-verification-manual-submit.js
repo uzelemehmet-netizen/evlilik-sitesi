@@ -9,6 +9,15 @@ function makeReferenceCode() {
   return crypto.randomBytes(4).toString('hex').toUpperCase();
 }
 
+function normalizeIdType(v) {
+  const s = safeStr(v).toLowerCase();
+  if (!s) return '';
+  if (s === 'tc' || s === 'tckn' || s === 'kimlik' || s === 'id') return 'tc_id';
+  if (s === 'passport' || s === 'pasaport') return 'passport';
+  if (s === 'driver' || s === 'drivers' || s === 'ehliyet' || s === 'driver_license') return 'driver_license';
+  return '';
+}
+
 function isLikelyCloudinaryUrl(url) {
   const s = safeStr(url);
   if (!s) return false;
@@ -34,6 +43,7 @@ export default async function handler(req, res) {
     const idFrontUrl = safeStr(body?.idFrontUrl);
     const idBackUrl = safeStr(body?.idBackUrl);
     const selfieUrl = safeStr(body?.selfieUrl);
+    const idType = normalizeIdType(body?.idType);
 
     if (!isLikelyCloudinaryUrl(idFrontUrl) || !isLikelyCloudinaryUrl(idBackUrl) || !isLikelyCloudinaryUrl(selfieUrl)) {
       res.statusCode = 400;
@@ -72,6 +82,7 @@ export default async function handler(req, res) {
             status: 'pending',
             method: 'manual',
             referenceCode,
+            ...(idType ? { idType } : {}),
             requestedAt: data?.identityVerification?.requestedAt || now,
             submittedAt: now,
             updatedAt: now,

@@ -4,6 +4,26 @@ function safeStr(v) {
   return typeof v === 'string' ? v.trim() : '';
 }
 
+function toLowerSafe(v) {
+  const s = safeStr(v);
+  if (!s) return '';
+  try {
+    return s.toLowerCase();
+  } catch {
+    return String(s).toLowerCase();
+  }
+}
+
+function toLowerTrSafe(v) {
+  const s = safeStr(v);
+  if (!s) return '';
+  try {
+    return s.toLocaleLowerCase('tr-TR');
+  } catch {
+    return toLowerSafe(s);
+  }
+}
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     res.statusCode = 405;
@@ -20,14 +40,12 @@ export default async function handler(req, res) {
     const confirmText = safeStr(body?.confirmText);
     const confirmFinal = body?.confirmFinal === true;
 
-    // UI'da Türkçe yönlendirme var. API seviyesinde de ekstra koruma ekliyoruz.
-    // Hem yanlışlıkla çağrıyı hem de basit CSRF benzeri otomasyonları azaltır.
-    if (
-      confirmText !== 'hesabımı sil' &&
-      confirmText !== 'Hesabımı sil' &&
-      confirmText !== 'hesabimi sil' &&
-      confirmText !== 'Hesabimi sil'
-    ) {
+    // API seviyesinde ekstra koruma: yanlışlıkla çağrıları ve basit otomasyonları azaltır.
+    // TR/EN/ID dillerinde UI onay cümleleri desteklenir.
+    const allowed = new Set(['hesabımı sil', 'hesabimi sil', 'delete my account', 'hapus akun saya']);
+    const norm = toLowerSafe(confirmText);
+    const normTr = toLowerTrSafe(confirmText);
+    if (!allowed.has(norm) && !allowed.has(normTr)) {
       res.statusCode = 400;
       res.setHeader('content-type', 'application/json');
       res.end(JSON.stringify({ ok: false, error: 'confirm_text_required' }));

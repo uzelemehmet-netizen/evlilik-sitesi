@@ -1,5 +1,5 @@
 import { getAdmin, requireIdToken } from './_firebaseAdmin.js';
-import { ensureEligibleOrThrow } from './_matchmakingEligibility.js';
+import { ensureEligibleOrThrow, ensureProfileCompleteOrThrow } from './_matchmakingEligibility.js';
 
 function safeStr(v) {
   return typeof v === 'string' ? v.trim() : '';
@@ -48,6 +48,8 @@ export default async function handler(req, res) {
     }
 
     const { db } = getAdmin();
+
+    await ensureProfileCompleteOrThrow(db, uid);
     const matchRef = db.collection('matchmakingMatches').doc(matchId);
     const matchSnap = await matchRef.get();
 

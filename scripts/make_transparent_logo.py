@@ -93,7 +93,7 @@ def main() -> None:
     repo_root = Path(__file__).resolve().parents[1]
 
     inp = repo_root / "public" / "ChatGPT Image 14 Oca 2026 17_26_03.png"
-    out = repo_root / "public" / "logos" / "endonezya-kasifi-logo.png"
+    out = repo_root / "public" / "logos" / "uniqah-logo.png"
 
     if not inp.exists():
         raise SystemExit(f"Girdi bulunamadı: {inp}")

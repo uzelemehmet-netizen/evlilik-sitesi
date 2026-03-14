@@ -10,15 +10,8 @@ service cloud.firestore {
     }
 
     function isAdmin() {
-      return isNonAnonymous() && (
-        // Önerilen: Firebase Auth custom claim ile admin
-        // (scripts/admin-user.mjs ile admin=true set edilebilir)
-        request.auth.token.admin == true
-        || request.auth.token.email.lower() in [
-          'uzelemehmet@gmail.com',
-          'articelikkapi@gmail.com'
-        ]
-      );
+      // Güvenlik: Admin yetkisi tek kullanıcıyla sınırlı.
+      return isNonAnonymous() && request.auth.token.email.lower() == 'uzelemehmet@gmail.com';
     }
 
     // Varsayılan yaklaşım: sadece aşağıdaki matchmaking koleksiyonlarına izin ver.
@@ -26,12 +19,9 @@ service cloud.firestore {
     // Matchmaking Applications (signed-in create, admin-only read)
     // Not: Profil listesi herkese açık değildir; admin panel üzerinden incelenir.
     match /matchmakingApplications/{applicationId} {
-      allow create: if isNonAnonymous()
-        && request.resource.data.userId == request.auth.uid
-        && request.resource.data.consent18Plus == true
-        && request.resource.data.consentPrivacy == true
-        && request.resource.data.consentTerms == true
-        && request.resource.data.consentPhotoShare == true;
+      // Başvuru kaydı artık sadece server-side API (Admin SDK) üzerinden oluşturulur.
+      // Böylece: write-once metin kilidi, PII engeli ve TR<->ID tek-sefer çeviri güvenli şekilde enforce edilir.
+      allow create: if false;
 
       // Kullanıcı kendi başvurusunu panelde görebilmelidir.
       allow read: if isAdmin() || (isNonAnonymous() && resource.data.userId == request.auth.uid);
@@ -47,11 +37,18 @@ service cloud.firestore {
       }
 
       function isValidGenderWrite() {
-        return request.resource.data.gender in ['male', 'female'];
+        return !('gender' in request.resource.data)
+          || request.resource.data.gender in ['male', 'female'];
       }
 
       function isValidNationalityWrite() {
-        return request.resource.data.nationality in ['tr', 'id', 'other'];
+        return !('nationality' in request.resource.data)
+          || request.resource.data.nationality in ['tr', 'id', 'other'];
+      }
+
+      function isValidAgeWrite() {
+        return !('age' in request.resource.data)
+          || (request.resource.data.age is int && request.resource.data.age >= 18 && request.resource.data.age <= 99);
       }
 
       // Kullanıcı kendi dokümanını okuyabilir.
@@ -59,25 +56,84 @@ service cloud.firestore {
 
       // Kullanıcı kayıtta temel profil alanlarını (+ timestamp) set edebilir.
       allow create: if isSelf()
-        && request.resource.data.keys().hasOnly(['gender', 'nationality', 'nationalityOther', 'createdAt', 'updatedAt'])
+        && request.resource.data.keys().hasOnly(['gender', 'nationality', 'nationalityOther', 'age', 'createdAt', 'updatedAt'])
         && isValidGenderWrite()
         && isValidNationalityWrite()
-        && request.resource.data.createdAt == request.time
-        && request.resource.data.updatedAt == request.time;
+        && isValidAgeWrite()
+        // Not: client tarafında serverTimestamp() kullanıldığı için eşitlik kontrolü
+        // bazı konfigürasyonlarda signup'ı tamamen kırabiliyor. Timestamp olmasını yeterli gör.
+        && ('createdAt' in request.resource.data)
+        && ('updatedAt' in request.resource.data)
+        && ((request.resource.data.createdAt == request.time) || (request.resource.data.createdAt is timestamp))
+        && ((request.resource.data.updatedAt == request.time) || (request.resource.data.updatedAt is timestamp));
 
-      // Sonradan değişim kapalı: sadece ilk set (boş/null ise).
+      // Yeni iskelet uyumu: kullanıcı kendi temel profil alanlarını gerektiğinde güncelleyebilsin.
+      // Güvenlik: sadece whitelist alanlar değişebilsin; kritik alanlar (blocked/lock vb.) client'tan set edilemesin.
       allow update: if isAdmin() || (isSelf()
-        && request.resource.data.diff(resource.data).changedKeys().hasOnly(['gender', 'nationality', 'nationalityOther', 'updatedAt'])
-        && (!request.resource.data.diff(resource.data).changedKeys().hasAny(['gender'])
-            || ((resource.data.gender == null || resource.data.gender == '') && isValidGenderWrite()))
-        && (!request.resource.data.diff(resource.data).changedKeys().hasAny(['nationality'])
-            || ((resource.data.nationality == null || resource.data.nationality == '') && isValidNationalityWrite()))
-        && (!request.resource.data.diff(resource.data).changedKeys().hasAny(['nationalityOther'])
-            || (resource.data.nationalityOther == null || resource.data.nationalityOther == ''))
-        && request.resource.data.updatedAt == request.time
+        && request.resource.data.diff(resource.data).changedKeys().hasOnly(['gender', 'nationality', 'nationalityOther', 'age', 'updatedAt'])
+        && (!request.resource.data.diff(resource.data).changedKeys().hasAny(['gender']) || isValidGenderWrite())
+        && (!request.resource.data.diff(resource.data).changedKeys().hasAny(['nationality']) || isValidNationalityWrite())
+        && (!request.resource.data.diff(resource.data).changedKeys().hasAny(['age']) || isValidAgeWrite())
+        && ((request.resource.data.updatedAt == request.time) || (request.resource.data.updatedAt is timestamp))
       );
 
       allow delete: if isAdmin();
+
+      // Kullanıcı gelen beğenilerini (inbox) okuyabilsin.
+      // Not: Yazma sadece server/Admin SDK tarafından yapılır.
+      match /inboxLikes/{likeId} {
+        allow read: if isAdmin() || (isNonAnonymous() && request.auth.uid == userId);
+        allow create, update, delete: if isAdmin();
+      }
+
+      // Profil görme izni istekleri (gelen kutusu)
+      // Not: Yazma sadece server/Admin SDK tarafından yapılır.
+      match /inboxAccessRequests/{requestId} {
+        allow read: if isAdmin() || (isNonAnonymous() && request.auth.uid == userId);
+        allow create, update, delete: if isAdmin();
+      }
+
+      // Ön eşleşme istekleri (gelen kutusu)
+      // Not: Yazma sadece server/Admin SDK tarafından yapılır.
+      match /inboxPreMatchRequests/{requestId} {
+        allow read: if isAdmin() || (isNonAnonymous() && request.auth.uid == userId);
+        allow create, update, delete: if isAdmin();
+      }
+
+      // Profil görme izni istekleri (giden kutusu)
+      // Not: Yazma sadece server/Admin SDK tarafından yapılır.
+      match /outboxAccessRequests/{requestId} {
+        allow read: if isAdmin() || (isNonAnonymous() && request.auth.uid == userId);
+        allow create, update, delete: if isAdmin();
+      }
+
+      // Ön eşleşme istekleri (giden kutusu)
+      // Not: Yazma sadece server/Admin SDK tarafından yapılır.
+      match /outboxPreMatchRequests/{requestId} {
+        allow read: if isAdmin() || (isNonAnonymous() && request.auth.uid == userId);
+        allow create, update, delete: if isAdmin();
+      }
+
+      // Profil görme izni verilmiş kullanıcılar
+      // Not: Yazma sadece server/Admin SDK tarafından yapılır.
+      match /profileAccessGranted/{otherUid} {
+        allow read: if isAdmin() || (isNonAnonymous() && request.auth.uid == userId);
+        allow create, update, delete: if isAdmin();
+      }
+
+      // Direkt mesaj bildirimleri (inbox)
+      // Not: Yazma sadece server/Admin SDK tarafından yapılır.
+      match /inboxMessages/{messageId} {
+        allow read: if isAdmin() || (isNonAnonymous() && request.auth.uid == userId);
+        allow create, update, delete: if isAdmin();
+      }
+
+      // Direkt mesajların giden kutusu (outbox)
+      // Not: Yazma sadece server/Admin SDK tarafından yapılır.
+      match /outboxMessages/{messageId} {
+        allow read: if isAdmin() || (isNonAnonymous() && request.auth.uid == userId);
+        allow create, update, delete: if isAdmin();
+      }
     }
 
     // Matchmaking Matches (kullanıcıya özel eşleşme kartları)
@@ -113,6 +169,20 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // Matchmaking Automation (cron/heartbeat lock gibi kontrol dokümanları)
+    // Not: Bu koleksiyonlar sadece server-side (Admin SDK) tarafından yazılmalıdır.
+    match /matchmakingAutomation/{docId} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+
+    // Matchmaking Runs (son çalıştırma raporları / telemetri)
+    // Not: Debug için admin panel/script okuyabilir; client yazımı kapalı.
+    match /matchmakingRuns/{runId} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+
     // Counters (profil numarası sayaçları)
     // Not: Bu sayaçlar yalnızca server-side transaction ile güncellenmeli.
     match /counters/{id} {
@@ -138,12 +208,50 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // Tours (tur içerikleri)
+    // Not: Tur listesi public sayfalarda okunur; sadece admin yazabilmelidir.
+    match /tours/{tourId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
     // Reservations (kullanıcı kendi rezervasyonunu oluşturur; admin hepsini görür/yönetir)
     match /reservations/{reservationId} {
       allow create: if isNonAnonymous()
         && request.resource.data.userId == request.auth.uid;
       allow read: if isAdmin() || (isNonAnonymous() && resource.data.userId == request.auth.uid);
       allow update, delete: if isAdmin();
+    }
+
+    // Public join events (anonimized): used only for realtime "new members joined" perception.
+    // Writes are done server-side (Admin SDK) via /api/public-join-ping (rules can stay closed).
+    match /publicJoinEvents/{eventId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    // Member feed events (authenticated): used for realtime "new user joined" toasts in the app.
+    // Contains non-sensitive, app-level identifiers (e.g. username / userCode). Not public.
+    // Writes are done server-side (Admin SDK) from API routes.
+    match /memberFeedEvents/{eventId} {
+      allow read: if isNonAnonymous();
+      allow write: if false;
+    }
+
+    // Internal dedup for member feed (contains uid) - never readable from client.
+    match /memberFeedUsers/{userId} {
+      allow read, write: if false;
+    }
+
+    // Internal dedup/telemetry for join pings (contains uid) - never readable from client.
+    match /publicJoinUsers/{userId} {
+      allow read, write: if false;
+    }
+
+    // System alerts (Gemini RPM exceeded, etc.) - admin panel only.
+    match /matchmakingSystemAlerts/{alertId} {
+      allow read: if isAdmin();
+      allow write: if false;
     }
 
     // Her şeyin sonu: açıkça kapat (kaza ile yeni koleksiyon açılmasın)
