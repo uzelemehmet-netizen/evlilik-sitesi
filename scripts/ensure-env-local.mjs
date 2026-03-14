@@ -12,6 +12,18 @@ const REQUIRED_VARS = [
     mustHaveValue: true,
   },
   {
+    key: 'VITE_MATCHMAKING_REFERRAL_ENABLED',
+    value: '1',
+    comment: 'Referral / davet + WhatsApp paylaş UI (frontend). Kapatmak için: 0 / false / no / off',
+    mustHaveValue: false,
+  },
+  {
+    key: 'MATCHMAKING_REFERRAL_ENABLED',
+    value: '1',
+    comment: 'Referral accept/claim API (server-side /api). Kapatmak için: 0 / false / no / off',
+    mustHaveValue: false,
+  },
+  {
     key: 'MATCHMAKING_FREE_PROMO_ENABLED',
     value: '1',
     comment: "Matchmaking Eko promo ücretsiz aktivasyon (2026-02-10'a kadar) - localde varsayılan AÇIK. Kapatmak için: 0 / false / no / off / disabled",

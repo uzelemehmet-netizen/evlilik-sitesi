@@ -1,4 +1,5 @@
 import { getAdmin, normalizeBody, requireIdToken } from './_firebaseAdmin.js';
+import { sendPushToUid } from './_push.js';
 
 function safeStr(v) {
   return typeof v === 'string' ? v.trim() : String(v ?? '').trim();
@@ -79,6 +80,21 @@ export default async function handler(req, res) {
     },
     { merge: true }
   );
+
+  // allow=true => karşı tarafa bilgilendirme (best-effort)
+  if (allow === true) {
+    const otherUid = uid === aId ? bId : uid === bId ? aId : '';
+    if (otherUid) {
+      await sendPushToUid({
+        uid: otherUid,
+        title: 'Fotoğraflar açıldı',
+        body: 'Karşı taraf fotoğraflarını sizin için açtı.',
+        url: matchId ? `/app/match/${matchId}` : '/app/matches',
+        type: 'photo_access_granted',
+        data: { matchId, fromUid: uid },
+      }).catch(() => null);
+    }
+  }
 
   res.statusCode = 200;
   res.setHeader('content-type', 'application/json');

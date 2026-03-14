@@ -9,6 +9,63 @@ function safeStr(v) {
   return typeof v === 'string' ? v.trim() : '';
 }
 
+function toNumOrNull(v, { min = -Infinity, max = Infinity } = {}) {
+  if (v === null || v === undefined) return null;
+  const s = String(v).trim();
+  if (!s) return null;
+  const n = Number(s);
+  if (!Number.isFinite(n)) return null;
+  if (n < min || n > max) return null;
+  return n;
+}
+
+function normalizeMaritalStatus(v) {
+  return safeStr(v).toLowerCase();
+}
+
+function isMinimumMatchmakingProfileCompleteFromApp(app) {
+  const a = app && typeof app === 'object' ? app : {};
+  const details = a?.details && typeof a.details === 'object' ? a.details : {};
+
+  const fullName = safeStr(a?.fullName);
+  const age = toNumOrNull(a?.age, { min: 18, max: 99 });
+  const gender = normalizeGender(a?.gender);
+  const city = safeStr(a?.city);
+  const country = safeStr(a?.country);
+  const nationality = safeStr(a?.nationality);
+
+  const occupation = safeStr(details?.occupation) || safeStr(a?.occupation);
+  const maritalStatus = normalizeMaritalStatus(details?.maritalStatus || a?.maritalStatus);
+
+  if (!fullName) return false;
+  if (age === null) return false;
+  if (!gender) return false;
+  if (!city) return false;
+  if (!country) return false;
+  if (!nationality) return false;
+  if (!occupation) return false;
+  if (!maritalStatus) return false;
+
+  // Ürün kararı (2026-03): Çocuk sorusu sadece dul/boşanmış için zorunlu.
+  if (maritalStatus === 'widowed' || maritalStatus === 'divorced') {
+    const hasChildren = safeStr(details?.hasChildren || a?.hasChildren).toLowerCase();
+    if (!hasChildren) return false;
+    if (hasChildren === 'yes') {
+      const cnt = toNumOrNull(details?.childrenCount, { min: 1, max: 20 });
+      if (cnt === null) return false;
+    }
+  }
+
+  return true;
+}
+
+function isStubApplication(a) {
+  const source = safeStr(a?.source).toLowerCase();
+  if (source === 'auto_stub') return true;
+  if (a?.details?.autoBootstrap === true) return true;
+  return false;
+}
+
 function isMembershipActive(userDoc, now = Date.now()) {
   const m = userDoc?.membership || null;
   if (!m || !m.active) return false;
@@ -93,6 +150,29 @@ async function ensureProfileCompleteOrThrow(db, uid) {
     throw err;
   }
 
+  // Fast path: matchmakingUsers cache (bazı akışlarda uygulama dokümanı eksik olabilir).
+  try {
+    const uSnap = await db.collection('matchmakingUsers').doc(userId).get();
+    const u = uSnap && uSnap.exists ? (uSnap.data() || {}) : {};
+
+    const appFromUser = u?.application && typeof u.application === 'object' ? u.application : null;
+    const publicProfile = u?.publicProfile && typeof u.publicProfile === 'object' ? u.publicProfile : null;
+    const merged = {
+      ...(publicProfile || {}),
+      ...(appFromUser || {}),
+      ...(u || {}),
+      details: {
+        ...((publicProfile && typeof publicProfile.details === 'object' ? publicProfile.details : {}) || {}),
+        ...((appFromUser && typeof appFromUser.details === 'object' ? appFromUser.details : {}) || {}),
+        ...((u?.details && typeof u.details === 'object' ? u.details : {}) || {}),
+      },
+    };
+
+    if (isMinimumMatchmakingProfileCompleteFromApp(merged)) return;
+  } catch {
+    // ignore and fall back to applications
+  }
+
   const snap = await db.collection('matchmakingApplications').where('userId', '==', userId).limit(10).get();
   if (snap.empty) {
     const err = new Error('profile_incomplete');
@@ -103,9 +183,8 @@ async function ensureProfileCompleteOrThrow(db, uid) {
   let ok = false;
   for (const d of snap.docs) {
     const a = d.data() || {};
-    const source = safeStr(a?.source).toLowerCase();
-    const isStub = source === 'auto_stub' || a?.details?.autoBootstrap === true;
-    if (!isStub) {
+    if (isStubApplication(a)) continue;
+    if (isMinimumMatchmakingProfileCompleteFromApp(a)) {
       ok = true;
       break;
     }

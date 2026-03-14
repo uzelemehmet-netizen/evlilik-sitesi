@@ -1,10 +1,11 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Compass, HelpCircle, MessageCircle, User, Users } from 'lucide-react';
-import { collection, doc, limit, onSnapshot, orderBy, query } from 'firebase/firestore';
+import { Compass, HelpCircle, LogOut, MessageCircle, User, Users } from 'lucide-react';
+import { signOut } from 'firebase/auth';
+import { collection, limit, onSnapshot, orderBy, query } from 'firebase/firestore';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../auth/AuthProvider';
-import { db } from '../../config/firebase';
+import { auth, db } from '../../config/firebase';
 
 function safeStr(v) {
   return typeof v === 'string' ? v.trim() : '';
@@ -19,38 +20,8 @@ export default function StudioBottomNav({ className = '' } = {}) {
   const uid = safeStr(user?.uid);
   const isAuthed = !!uid && !user?.isAnonymous;
 
-  const [myLock, setMyLock] = useState({ active: false, matchId: '' });
   const [pendingRequestsCount, setPendingRequestsCount] = useState(0);
   const [unreadInboxMessagesCount, setUnreadInboxMessagesCount] = useState(0);
-  const [activeChatUnreadCount, setActiveChatUnreadCount] = useState(0);
-
-  useEffect(() => {
-    if (!isAuthed) {
-      setMyLock({ active: false, matchId: '' });
-      return;
-    }
-
-    const ref = doc(db, 'matchmakingUsers', uid);
-    const unsub = onSnapshot(
-      ref,
-      (snap) => {
-        const d = snap.exists() ? snap.data() || {} : {};
-        const lock = d?.matchmakingLock && typeof d.matchmakingLock === 'object' ? d.matchmakingLock : null;
-        const active = !!lock?.active;
-        const matchId = safeStr(lock?.matchId);
-        setMyLock({ active, matchId });
-      },
-      () => setMyLock({ active: false, matchId: '' })
-    );
-
-    return () => {
-      try {
-        unsub();
-      } catch {
-        // noop
-      }
-    };
-  }, [isAuthed, uid]);
 
   useEffect(() => {
     if (!isAuthed) {
@@ -143,41 +114,21 @@ export default function StudioBottomNav({ className = '' } = {}) {
     };
   }, [isAuthed, uid]);
 
-  useEffect(() => {
-    const mid = myLock?.active ? safeStr(myLock.matchId) : '';
-    if (!isAuthed || !mid) {
-      setActiveChatUnreadCount(0);
-      return;
-    }
-
-    const ref = doc(db, 'matchmakingMatches', mid);
-    const unsub = onSnapshot(
-      ref,
-      (snap) => {
-        const d = snap.exists() ? snap.data() || {} : {};
-        const m = d?.chatUnreadByUid && typeof d.chatUnreadByUid === 'object' ? d.chatUnreadByUid : {};
-        const n = typeof m?.[uid] === 'number' && Number.isFinite(m[uid]) ? m[uid] : 0;
-        setActiveChatUnreadCount(Math.max(0, n));
-      },
-      () => setActiveChatUnreadCount(0)
-    );
-
-    return () => {
-      try {
-        unsub();
-      } catch {
-        // noop
-      }
-    };
-  }, [isAuthed, myLock?.active, myLock?.matchId, uid]);
-
   const pathname = String(location.pathname || '');
   const isActive = (prefix) => (prefix ? pathname.startsWith(prefix) : false);
 
-  const activeMatchId = myLock?.active ? safeStr(myLock.matchId) : '';
-  const activeChatTo = activeMatchId ? `/app/chat/${activeMatchId}` : '/app/matches';
-
-  const notificationBadge = pendingRequestsCount + unreadInboxMessagesCount;
+  const logoutNow = useCallback(async () => {
+    if (!isAuthed) {
+      navigate('/login');
+      return;
+    }
+    try {
+      await signOut(auth);
+    } catch {
+      // best-effort
+    }
+    navigate('/login');
+  }, [isAuthed, navigate]);
 
   const items = useMemo(
     () => [
@@ -198,24 +149,27 @@ export default function StudioBottomNav({ className = '' } = {}) {
         badge: 0,
       },
       {
-        key: 'active',
-        to: activeChatTo,
-        label: t('studio.chat.chatTitle'),
+        key: 'chat',
+        to: '/app/matches',
+        label: t('studio.inbox.modalTitleMessages'),
         icon: MessageCircle,
         active: isActive('/app/chat'),
-        badge: activeChatUnreadCount,
+        badge: unreadInboxMessagesCount,
+        onClick: (e) => {
+          e.preventDefault();
+          navigate('/app/matches', { state: { openInbox: 'messages' } });
+        },
       },
       {
         key: 'inbox',
         to: '/app/matches',
-        label: t('studio.inbox.titleShort') || t('studio.inbox.modalTitleRequests'),
+        label: t('studio.inbox.titleShort', { defaultValue: '' }) || t('studio.inbox.modalTitleRequests'),
         icon: HelpCircle,
         active: false,
-        badge: notificationBadge,
+        badge: pendingRequestsCount,
         onClick: (e) => {
           e.preventDefault();
-          const next = unreadInboxMessagesCount > 0 ? 'messages' : 'requests';
-          navigate('/app/matches', { state: { openInbox: next } });
+          navigate('/app/matches', { state: { openInbox: 'requests' } });
         },
       },
       {
@@ -226,12 +180,23 @@ export default function StudioBottomNav({ className = '' } = {}) {
         active: isActive('/profilim'),
         badge: 0,
       },
+      {
+        key: 'logout',
+        to: '/login',
+        label: t('studio.profile.logout') || 'Çıkış',
+        icon: LogOut,
+        active: false,
+        badge: 0,
+        onClick: (e) => {
+          e.preventDefault();
+          logoutNow();
+        },
+      },
     ],
     [
-      activeChatTo,
-      activeChatUnreadCount,
       navigate,
-      notificationBadge,
+      pendingRequestsCount,
+      logoutNow,
       pathname,
       t,
       unreadInboxMessagesCount,
@@ -248,7 +213,7 @@ export default function StudioBottomNav({ className = '' } = {}) {
       aria-label={t('studio.common.navigation') || 'Studio navigation'}
     >
       <div className="mx-auto max-w-4xl px-2 py-2">
-        <div className="grid grid-cols-5 gap-1">
+        <div className="grid grid-cols-6 gap-1">
           {items.map((it) => {
             const Icon = it.icon;
             const active = !!it.active;

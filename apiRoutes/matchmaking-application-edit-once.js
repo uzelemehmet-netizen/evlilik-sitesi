@@ -340,18 +340,14 @@ export default async function handler(req, res) {
   // About/Expectations can be edited (edit-once mode still limits overall usage via userEditOnceUsedAt).
 
   // If texts are currently empty and user is trying to set them now, enforce rules + translation.
-  const writingTextsNow = (!curAbout && !!updates?.about) || (!curExpectations && !!updates?.expectations);
-  if (writingTextsNow) {
-    if (!updates?.about || !updates?.expectations) {
-      res.statusCode = 400;
-      res.setHeader('content-type', 'application/json');
-      res.end(JSON.stringify({ ok: false, error: 'bad_request' }));
-      return;
-    }
-
+  // Not all text fields are required: user may fill only one of them.
+  const writingAboutNow = !curAbout && !!updates?.about;
+  const writingExpectationsNow = !curExpectations && !!updates?.expectations;
+  const writingAnyTextNow = writingAboutNow || writingExpectationsNow;
+  if (writingAnyTextNow) {
     for (const [field, value] of [
-      ['about', updates.about],
-      ['expectations', updates.expectations],
+      ...(writingAboutNow ? [['about', updates.about]] : []),
+      ...(writingExpectationsNow ? [['expectations', updates.expectations]] : []),
     ]) {
       const pii = detectForbiddenContactPII(value);
       if (pii.hasForbidden) {
@@ -364,56 +360,78 @@ export default async function handler(req, res) {
 
     const sourceLang = normalizeProfileLang(payload?.lang) || 'tr';
     const [aboutBi, expBi] = await Promise.all([
-      buildBilingualText(updates.about, sourceLang),
-      buildBilingualText(updates.expectations, sourceLang),
+      writingAboutNow ? buildBilingualText(updates.about, sourceLang) : Promise.resolve(null),
+      writingExpectationsNow ? buildBilingualText(updates.expectations, sourceLang) : Promise.resolve(null),
     ]);
 
     updates.profileTextLang = sourceLang;
-    updates.aboutTr = aboutBi.tr;
-    updates.aboutId = aboutBi.id;
-    updates.expectationsTr = expBi.tr;
-    updates.expectationsId = expBi.id;
     updates.profileTextTranslatedAtMs = Date.now();
+
+    if (aboutBi) {
+      updates.aboutTr = aboutBi.tr;
+      updates.aboutId = aboutBi.id;
+    }
+    if (expBi) {
+      updates.expectationsTr = expBi.tr;
+      updates.expectationsId = expBi.id;
+    }
+
     updates.profileTextTranslate = {
-      about: {
-        sourceLang: aboutBi.sourceLang,
-        targetLang: aboutBi.targetLang,
-        translated: aboutBi.translated,
-        skipped: aboutBi.skipped,
-        truncated: aboutBi.truncated,
-        translateConfigured: aboutBi.translateConfigured,
-      },
-      expectations: {
-        sourceLang: expBi.sourceLang,
-        targetLang: expBi.targetLang,
-        translated: expBi.translated,
-        skipped: expBi.skipped,
-        truncated: expBi.truncated,
-        translateConfigured: expBi.translateConfigured,
-      },
+      ...(updates.profileTextTranslate && typeof updates.profileTextTranslate === 'object' ? updates.profileTextTranslate : {}),
+      ...(aboutBi
+        ? {
+            about: {
+              sourceLang: aboutBi.sourceLang,
+              targetLang: aboutBi.targetLang,
+              translated: aboutBi.translated,
+              skipped: aboutBi.skipped,
+              truncated: aboutBi.truncated,
+              translateConfigured: aboutBi.translateConfigured,
+            },
+          }
+        : {}),
+      ...(expBi
+        ? {
+            expectations: {
+              sourceLang: expBi.sourceLang,
+              targetLang: expBi.targetLang,
+              translated: expBi.translated,
+              skipped: expBi.skipped,
+              truncated: expBi.truncated,
+              translateConfigured: expBi.translateConfigured,
+            },
+          }
+        : {}),
     };
 
-    // Also persist lock + translations in matchmakingUsers cache.
-    const nowMs = Date.now();
+    // Also persist translations in matchmakingUsers cache.
+    const detailsPatch = {
+      ...(writingAboutNow
+        ? {
+            about: updates.about,
+            bio: updates.about,
+            ...(aboutBi ? { aboutTr: aboutBi.tr, aboutId: aboutBi.id } : {}),
+          }
+        : {}),
+      ...(writingExpectationsNow
+        ? {
+            expectations: updates.expectations,
+            ...(expBi ? { expectationsTr: expBi.tr, expectationsId: expBi.id } : {}),
+          }
+        : {}),
+    };
+
+    const publicPatch = {
+      ...(writingAboutNow ? { about: updates.about, ...(aboutBi ? { aboutTr: aboutBi.tr, aboutId: aboutBi.id } : {}) } : {}),
+      ...(writingExpectationsNow
+        ? { expectations: updates.expectations, ...(expBi ? { expectationsTr: expBi.tr, expectationsId: expBi.id } : {}) }
+        : {}),
+    };
+
     await db.collection('matchmakingUsers').doc(uid).set(
       {
-        details: {
-          about: updates.about,
-          bio: updates.about,
-          expectations: updates.expectations,
-          aboutTr: aboutBi.tr,
-          aboutId: aboutBi.id,
-          expectationsTr: expBi.tr,
-          expectationsId: expBi.id,
-        },
-        publicProfile: {
-          about: updates.about,
-          expectations: updates.expectations,
-          aboutTr: aboutBi.tr,
-          aboutId: aboutBi.id,
-          expectationsTr: expBi.tr,
-          expectationsId: expBi.id,
-        },
+        ...(Object.keys(detailsPatch).length ? { details: detailsPatch } : {}),
+        ...(Object.keys(publicPatch).length ? { publicProfile: publicPatch } : {}),
         profileTextLang: sourceLang,
         updatedAt: FieldValue.serverTimestamp(),
       },

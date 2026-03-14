@@ -162,6 +162,7 @@ export default function AdminFeedback() {
             <div className="space-y-3">
               {state.items.map((x) => {
                 const createdAt = fmtTs(x?.createdAt) || fmtTs(x?.createdAtMs);
+                const updatedAt = fmtTs(x?.updatedAt) || fmtTs(x?.updatedAtMs);
                 const attachments = Array.isArray(x?.attachments) ? x.attachments : [];
 
                 return (
@@ -170,7 +171,14 @@ export default function AdminFeedback() {
                       <div className="text-sm font-semibold text-slate-900">
                         {safeStr(x?.kind) || 'other'} • {safeStr(x?.status) || '-'}
                       </div>
-                      <div className="text-xs text-slate-500">{createdAt}</div>
+                      <div className="text-xs text-slate-500">
+                        <span className="font-semibold">Gönderim:</span> {createdAt || '-'}
+                        {updatedAt && updatedAt !== createdAt ? (
+                          <span className="ml-2">
+                            <span className="font-semibold">Güncelleme:</span> {updatedAt}
+                          </span>
+                        ) : null}
+                      </div>
                     </div>
 
                     <div className="mt-2 text-xs text-slate-600">
@@ -178,6 +186,9 @@ export default function AdminFeedback() {
                       {x?.matchId ? <div>matchId: {x.matchId}</div> : null}
                       {x?.step ? <div>step: {x.step}</div> : null}
                       {x?.userEmail ? <div>user: {x.userEmail}</div> : x?.userId ? <div>userId: {x.userId}</div> : null}
+                      {safeStr(x?.contact) || safeStr(x?.context?.contact) ? (
+                        <div>contact: {safeStr(x?.contact) || safeStr(x?.context?.contact)}</div>
+                      ) : null}
                     </div>
 
                     <div className="mt-3 whitespace-pre-wrap rounded-lg bg-slate-50 p-3 text-sm text-slate-800">

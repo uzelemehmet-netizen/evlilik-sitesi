@@ -2,8 +2,50 @@ import { cert, getApps, initializeApp } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
 import { FieldValue, getFirestore } from 'firebase-admin/firestore';
 import fs from 'node:fs';
+import path from 'node:path';
 
 let cachedProjectId = '';
+
+let envLocalLoaded = false;
+
+function loadEnvLocalOnce() {
+  if (envLocalLoaded) return;
+  envLocalLoaded = true;
+
+  // Best-effort: local scripts/dev may rely on .env.local.
+  // In Vercel/production builds this file won't exist; ignore safely.
+  try {
+    const envPath = path.join(process.cwd(), '.env.local');
+    if (!fs.existsSync(envPath)) return;
+
+    const raw = fs.readFileSync(envPath, 'utf8');
+    const lines = raw.split(/\r?\n/);
+    for (const line of lines) {
+      const trimmed = String(line || '').trim();
+      if (!trimmed || trimmed.startsWith('#')) continue;
+      const eq = trimmed.indexOf('=');
+      if (eq <= 0) continue;
+
+      const key = trimmed.slice(0, eq).trim();
+      let value = trimmed.slice(eq + 1).trim();
+
+      if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
+        value = value.slice(1, -1);
+      }
+
+      // Do NOT override real env; only fill missing.
+      if (process.env[key] === undefined || String(process.env[key] || '').trim() === '') {
+        if (key.toUpperCase().includes('PRIVATE_KEY')) {
+          process.env[key] = value.replace(/\\n/g, '\n');
+        } else {
+          process.env[key] = value;
+        }
+      }
+    }
+  } catch {
+    // ignore
+  }
+}
 
 function parseAdminEmails() {
   // Güvenlik: Admin endpoint'leri TEK kullanıcı ile sınırlı.
@@ -64,6 +106,7 @@ function getServiceAccount() {
 }
 
 export function getAdmin() {
+  loadEnvLocalOnce();
   if (!getApps().length) {
     const serviceAccount = getServiceAccount();
     if (!serviceAccount) {

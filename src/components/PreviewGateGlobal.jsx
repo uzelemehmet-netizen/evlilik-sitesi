@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { onPreviewGate } from '../utils/previewGate';
+import { tiktokTrack } from '../utils/tiktokPixel';
 
 function safeStr(v) {
   return typeof v === 'string' ? v.trim() : '';
@@ -30,9 +31,9 @@ export default function PreviewGateGlobal() {
   if (!modal.open) return null;
 
   return (
-    <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/50 p-4">
-      <div className="w-full max-w-md overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-        <div className="p-5">
+    <div className="fixed inset-0 z-[80] flex items-start justify-center bg-black/50 p-4 pt-6 overflow-y-auto">
+      <div className="w-full max-w-md overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm max-h-[85vh] flex flex-col">
+        <div className="p-5 overflow-y-auto flex-1">
           <div className="text-base font-bold text-slate-900">{t('previewGate.title')}</div>
           <div className="mt-2 text-sm text-slate-700">{t('previewGate.body')}</div>
           {modal.reason ? <div className="mt-2 text-xs text-slate-500">{modal.reason}</div> : null}
@@ -49,7 +50,12 @@ export default function PreviewGateGlobal() {
               type="button"
               onClick={() => {
                 setModal({ open: false, reason: '' });
-                navigate('/login', {
+                tiktokTrack('SignupRedirect', {
+                  source: 'preview_gate',
+                  from: fromPath || '/',
+                  to: '/login?mode=signup',
+                });
+                navigate('/login?mode=signup', {
                   state: {
                     // Kullanıcının hedefi: kayıt ol + form doldur
                     from: '/evlilik/eslestirme-basvuru?w=1',

@@ -1,5 +1,6 @@
 import { COMPANY } from "../config/company";
 import { normalizePhoneForWhatsApp } from "./phone";
+import { getSupportCountrySync } from './supportLine';
 
 function normalizeLangBase(lang) {
   const raw = String(lang || "").trim().toLowerCase();
@@ -48,15 +49,55 @@ function shouldUseIndonesiaLine(langBase) {
   return false;
 }
 
-export function getWhatsAppNumber(opts = {}) {
-  const fromEnv = import.meta.env.VITE_WHATSAPP_NUMBER;
-  if (fromEnv) return normalizePhoneForWhatsApp(fromEnv);
+function normalizeCountry2(raw) {
+  const s = String(raw || '').trim().toUpperCase();
+  return s && /^[A-Z]{2}$/.test(s) ? s : '';
+}
 
-  const base = normalizeLangBase(opts?.lang) || guessLangBase();
-  const useId = opts?.prefer === "id" ? true : opts?.prefer === "tr" ? false : shouldUseIndonesiaLine(base);
+function decideUseIndonesiaLine(opts = {}) {
+  try {
+    const context = String(opts?.context || '').trim().toLowerCase();
+
+    if (opts?.prefer === 'id') return true;
+    if (opts?.prefer === 'tr') return false;
+
+    // Footer intentionally stays simple: do NOT use cached/explicit country.
+    if (context === 'footer') {
+      const base = normalizeLangBase(opts?.lang) || guessLangBase();
+      return shouldUseIndonesiaLine(base);
+    }
+
+    const countryFromOpts = normalizeCountry2(opts?.country);
+    if (countryFromOpts === 'ID') return true;
+    if (countryFromOpts) return false;
+
+    // Best-effort cached country (populated by /api/client-ip).
+    const cachedCountry = normalizeCountry2(getSupportCountrySync({ lang: opts?.lang }));
+    if (cachedCountry === 'ID') return true;
+    if (cachedCountry) return false;
+
+    const base = normalizeLangBase(opts?.lang) || guessLangBase();
+    return shouldUseIndonesiaLine(base);
+  } catch {
+    const base = normalizeLangBase(opts?.lang) || guessLangBase();
+    return shouldUseIndonesiaLine(base);
+  }
+}
+
+export function getWhatsAppNumber(opts = {}) {
+  const useId = decideUseIndonesiaLine(opts);
 
   const fromEnvTr = import.meta.env.VITE_WHATSAPP_NUMBER_TR;
   const fromEnvId = import.meta.env.VITE_WHATSAPP_NUMBER_ID;
+
+  // Prefer language/region-specific lines when available.
+  // If VITE_WHATSAPP_NUMBER is configured (generic), it should act as a fallback
+  // and must NOT override the explicit TR/ID lines.
+  if (useId && fromEnvId) return normalizePhoneForWhatsApp(fromEnvId);
+  if (!useId && fromEnvTr) return normalizePhoneForWhatsApp(fromEnvTr);
+
+  const fromEnv = import.meta.env.VITE_WHATSAPP_NUMBER;
+  if (fromEnv) return normalizePhoneForWhatsApp(fromEnv);
 
   const fallback = useId ? (fromEnvId || COMPANY.phoneIdTel) : (fromEnvTr || COMPANY.phoneTr);
   return normalizePhoneForWhatsApp(fallback);

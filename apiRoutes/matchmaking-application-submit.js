@@ -1,6 +1,7 @@
 import { getAdmin, normalizeBody, requireIdToken } from './_firebaseAdmin.js';
 import { detectPII } from './_pii.js';
 import { isTranslateConfigured, translateTextProfile } from './_translate.js';
+import { activateFreeMembershipForUid, isFreeMembershipDisabledByEnv } from './_membershipFree.js';
 
 const MAX_TEXT_LEN = 1800;
 const TRANSLATE_CHARS = 400;
@@ -175,18 +176,12 @@ export default async function handler(req, res) {
   const about = safeStr(payload?.about, MAX_TEXT_LEN);
   const expectations = safeStr(payload?.expectations, MAX_TEXT_LEN);
 
-  if (!about) {
-    res.statusCode = 400;
-    res.setHeader('content-type', 'application/json');
-    res.end(JSON.stringify({ ok: false, error: 'bad_request' }));
-    return;
-  }
-
   // PII: contact/banking/identity info completely forbidden.
   for (const [field, value] of [
     ['about', about],
     ['expectations', expectations],
   ]) {
+    if (!value) continue;
     const pii = detectForbiddenContactPII(value);
     if (pii.hasForbidden) {
       res.statusCode = 422;
@@ -328,10 +323,10 @@ export default async function handler(req, res) {
   const coreDetails = detailsWithTranslations;
   const corePartnerPreferences = asObj(payload?.partnerPreferences);
   const corePhotoUrls = Array.isArray(payload?.photoUrls)
-    ? payload.photoUrls.filter((u) => typeof u === 'string' && u.trim()).slice(0, 3)
+    ? payload.photoUrls.filter((u) => typeof u === 'string' && u.trim()).slice(0, 5)
     : [];
   const corePhotoPaths = Array.isArray(payload?.photoPaths)
-    ? payload.photoPaths.filter((p) => typeof p === 'string' && p.trim()).slice(0, 3)
+    ? payload.photoPaths.filter((p) => typeof p === 'string' && p.trim()).slice(0, 5)
     : [];
 
   const appData = {
@@ -486,6 +481,23 @@ export default async function handler(req, res) {
 
   await batch.commit();
 
+  // Yeni ürün kararı: Başvuru gönderilince üyelik otomatik aktif olsun.
+  // Best-effort: başvuru zaten yazıldı; üyelik aktivasyonu başarısız olursa submit'i bozmayız.
+  let membershipAutoActivated = false;
+  let membershipStatus = null;
+  let membershipValidUntilMs = null;
+  try {
+    if (!isFreeMembershipDisabledByEnv()) {
+      const result = await activateFreeMembershipForUid({ db, FieldValue }, uid, Date.now());
+      membershipAutoActivated = true;
+      membershipStatus = result.status;
+      membershipValidUntilMs = result.validUntilMs;
+    }
+  } catch {
+    membershipAutoActivated = false;
+    membershipStatus = 'error';
+  }
+
   res.statusCode = 200;
   res.setHeader('content-type', 'application/json');
   res.end(
@@ -493,6 +505,9 @@ export default async function handler(req, res) {
       ok: true,
       applicationId: targetAppId,
       updatedExisting: isUpdate,
+      membershipAutoActivated,
+      membershipStatus,
+      membershipValidUntilMs,
       translated: {
         about: aboutBi.translated,
         expectations: expBi.translated,

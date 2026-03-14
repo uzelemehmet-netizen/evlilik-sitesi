@@ -1,4 +1,5 @@
 import { getAdmin, normalizeBody, requireIdToken } from './_firebaseAdmin.js';
+import { sendPushToUid } from './_push.js';
 
 function safeStr(v) {
   return typeof v === 'string' ? v.trim() : '';
@@ -71,7 +72,8 @@ export default async function handler(req, res) {
       return;
     }
 
-    const { db } = getAdmin();
+    const { db, admin } = getAdmin();
+    const { FieldValue } = admin.firestore;
 
     const grantSnap = await db
       .collection('matchmakingUsers')
@@ -142,6 +144,51 @@ export default async function handler(req, res) {
         heightCm: asNum(details?.heightCm),
       },
     };
+
+    // Profile view notify (best-effort, throttled per viewer->target).
+    let shouldNotify = false;
+    try {
+      const viewRef = db.collection('matchmakingUsers').doc(targetUid).collection('profileViews').doc(uid);
+      const nowMs = Date.now();
+      const minGapMs = 6 * 60 * 60 * 1000; // 6h
+      await db.runTransaction(async (tx) => {
+        const snap = await tx.get(viewRef);
+        const cur = snap.exists ? snap.data() || {} : {};
+        const lastNotifiedAtMs = typeof cur.lastNotifiedAtMs === 'number' && Number.isFinite(cur.lastNotifiedAtMs) ? cur.lastNotifiedAtMs : 0;
+        const allow = !lastNotifiedAtMs || nowMs - lastNotifiedAtMs >= minGapMs;
+        shouldNotify = allow;
+        tx.set(
+          viewRef,
+          {
+            viewerUid: uid,
+            targetUid,
+            lastViewedAt: FieldValue.serverTimestamp(),
+            lastViewedAtMs: nowMs,
+            ...(allow ? { lastNotifiedAt: FieldValue.serverTimestamp(), lastNotifiedAtMs: nowMs } : {}),
+          },
+          { merge: true }
+        );
+      });
+    } catch {
+      // ignore
+    }
+
+    if (shouldNotify) {
+      try {
+        await sendPushToUid({
+          uid: targetUid,
+          title: 'Profil görüntülendi',
+          body: 'Profilinizi görüntüleyen biri var.',
+          url: '/profilim',
+          type: 'profile_view',
+          data: {
+            fromUid: uid,
+          },
+        });
+      } catch {
+        // ignore
+      }
+    }
 
     res.statusCode = 200;
     res.setHeader('content-type', 'application/json');

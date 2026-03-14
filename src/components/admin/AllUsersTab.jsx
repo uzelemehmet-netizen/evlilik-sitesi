@@ -61,6 +61,7 @@ function pill(color) {
 export default function AllUsersTab() {
   const [query, setQuery] = useState('');
   const [users, setUsers] = useState([]);
+  const [sortMode, setSortMode] = useState('created_desc');
   const [nextPageToken, setNextPageToken] = useState(null);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState('');
@@ -93,6 +94,20 @@ export default function AllUsersTab() {
   const [deleteFinal, setDeleteFinal] = useState(false);
 
   const trimmedQuery = useMemo(() => String(query || '').trim(), [query]);
+
+  const visibleUsers = useMemo(() => {
+    const list = Array.isArray(users) ? [...users] : [];
+    const dir = sortMode === 'created_asc' ? 1 : -1;
+    list.sort((a, b) => {
+      const am = typeof a?.createdAtMs === 'number' && Number.isFinite(a.createdAtMs) ? a.createdAtMs : 0;
+      const bm = typeof b?.createdAtMs === 'number' && Number.isFinite(b.createdAtMs) ? b.createdAtMs : 0;
+      if (am !== bm) return (am - bm) * dir;
+      const au = String(a?.uid || '');
+      const bu = String(b?.uid || '');
+      return au.localeCompare(bu);
+    });
+    return list;
+  }, [users, sortMode]);
 
   const load = async ({ mode }) => {
     setLoading(true);
@@ -276,8 +291,12 @@ export default function AllUsersTab() {
       weight: 'Kilo',
       education: 'Eğitim',
       job: 'Meslek',
+      occupation: 'Meslek',
+      occupationTr: 'Meslek (TR)',
+      occupationId: 'Meslek (ID)',
       religion: 'Din',
       maritalStatus: 'Medeni Durum',
+      childrenCount: 'Çocuk Sayısı',
       smoking: 'Sigara',
       alcohol: 'Alkol',
       hobbies: 'Hobiler',
@@ -389,6 +408,16 @@ export default function AllUsersTab() {
       if (low === 'male') return 'Erkek';
     }
 
+    if (hint.includes('maritalstatus') || hint.includes('medeni')) {
+      const map = {
+        single: 'Bekar',
+        married: 'Evli',
+        widowed: 'Dul',
+        divorced: 'Boşanmış',
+      };
+      if (map[low]) return map[low];
+    }
+
     if (hint.includes('dil') || hint.includes('lang')) {
       if (low === 'tr') return 'Türkçe';
       if (low === 'id') return 'Endonezce';
@@ -458,22 +487,23 @@ export default function AllUsersTab() {
     return String(value);
   }
 
-  const openFormModal = async () => {
-    if (!selectedUid) return;
+  const openFormModal = async (uidOverride) => {
+    const uidToLoad = String(uidOverride ?? selectedUid ?? '').trim();
+    if (!uidToLoad) return;
     setShowRawJson(false);
     setFormLightbox({ open: false, urls: [], index: 0, title: '' });
     setFormPhotoState({ loading: false, urls: [], error: '' });
-    setFormModal({ open: true, uid: selectedUid, loading: true, error: '', application: null, user: null, count: 0 });
+    setFormModal({ open: true, uid: uidToLoad, loading: true, error: '', application: null, user: null, count: 0 });
     try {
       const data = await authFetch('/api/admin-user-application-get', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ uid: selectedUid }),
+        body: JSON.stringify({ uid: uidToLoad }),
       });
 
       setFormModal({
         open: true,
-        uid: selectedUid,
+        uid: uidToLoad,
         loading: false,
         error: '',
         application: data?.application || null,
@@ -483,7 +513,7 @@ export default function AllUsersTab() {
     } catch (e) {
       setFormModal({
         open: true,
-        uid: selectedUid,
+        uid: uidToLoad,
         loading: false,
         error: String(e?.message || 'form_yuklenemedi'),
         application: null,
@@ -727,13 +757,24 @@ export default function AllUsersTab() {
 
       <div className="mt-4 space-y-4">
         <div>
-          <div className="flex gap-2">
+          <div className="flex flex-col md:flex-row gap-2">
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Ara: UC-..., email veya uid"
               className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-indigo-600"
             />
+
+            <select
+              value={sortMode}
+              onChange={(e) => setSortMode(e.target.value)}
+              className="w-full md:w-64 px-3 py-2 border border-gray-300 rounded text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-600"
+              aria-label="Kayıt tarihine göre sırala"
+            >
+              <option value="created_desc">Kayıt: En yeni → En eski</option>
+              <option value="created_asc">Kayıt: En eski → En yeni</option>
+            </select>
+
             <button
               type="button"
               onClick={loadFirst}
@@ -766,7 +807,7 @@ export default function AllUsersTab() {
                   </tr>
                 </thead>
                 <tbody>
-                  {users.map((u) => {
+                  {visibleUsers.map((u) => {
                     const isSelected = selected?.uid && u?.uid === selected.uid;
                     const status = [
                       u?.disabled ? 'DISABLED' : null,
@@ -802,7 +843,12 @@ export default function AllUsersTab() {
                           'border-t cursor-pointer ' +
                           (isSelected ? 'bg-indigo-50' : 'hover:bg-gray-50')
                         }
-                        onClick={() => selectUser(u)}
+                        onClick={() => {
+                          selectUser(u);
+                          // İstenen UX: Kullanıcıya tıklayınca (fotoğrafı varsa) fotoğrafları görebilmeliyiz.
+                          // Form modalı zaten fotoğrafları çözüp gösteriyor; tıklamada otomatik açıyoruz.
+                          openFormModal(u?.uid);
+                        }}
                       >
                         <td className="px-3 py-2 font-mono">{u?.userCode || '-'}</td>
                         <td className="px-3 py-2">{u?.fullName || '-'}</td>
@@ -908,9 +954,9 @@ export default function AllUsersTab() {
                   onClick={openFormModal}
                   disabled={!selectedUid}
                   className="px-3 py-2 rounded-lg bg-white border text-sm hover:bg-gray-100 disabled:opacity-60"
-                  title="Seçili kullanıcının doldurduğu form/başvuru detaylarını göster"
+                  title="Seçili kullanıcının form/başvuru detaylarını ve fotoğraflarını göster"
                 >
-                  Form Bilgileri
+                  Form & Fotoğraflar
                 </button>
 
                 <div className="text-xs text-gray-700 space-y-1">
@@ -918,6 +964,12 @@ export default function AllUsersTab() {
                   <div><span className="font-semibold">İsim:</span> {selected.fullName || '-'}</div>
                   <div><span className="font-semibold">Yaş:</span> {typeof selected.age === 'number' ? selected.age : '-'}</div>
                   <div><span className="font-semibold">Cinsiyet:</span> {genderLabel(selected.gender)}</div>
+                  <div><span className="font-semibold">Meslek:</span> {formatPrimitive(selected.occupation, 'occupation')}</div>
+                  <div><span className="font-semibold">Medeni Durum:</span> {formatPrimitive(selected.maritalStatus, 'maritalStatus')}</div>
+                  <div><span className="font-semibold">Çocuğu Var mı:</span> {formatPrimitive(selected.hasChildren, 'hasChildren')}</div>
+                  {typeof selected.childrenCount === 'number' ? (
+                    <div><span className="font-semibold">Çocuk Sayısı:</span> {formatPrimitive(selected.childrenCount, 'childrenCount')}</div>
+                  ) : null}
                   <div><span className="font-semibold">Email:</span> {selected.email || '-'}</div>
                   <div><span className="font-semibold">UID:</span> <span className="font-mono">{selected.uid}</span></div>
                   <div><span className="font-semibold">Üyelik bitiş:</span> {selected.membershipValidUntilMs ? fmtDate(selected.membershipValidUntilMs) : '-'}</div>
@@ -1112,7 +1164,7 @@ export default function AllUsersTab() {
 
       {formModal.open ? (
         <div
-          className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 p-4 pt-6"
+          className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 p-4 pt-6 overflow-y-auto"
           role="dialog"
           aria-modal="true"
           onClick={closeFormModal}
@@ -1162,11 +1214,6 @@ export default function AllUsersTab() {
 
               {formModal.loading ? (
                 <p className="text-sm text-slate-700">Yükleniyor…</p>
-              ) : !formModal.application ? (
-                <div className="text-sm text-slate-700">
-                  <p className="font-semibold">Başvuru/Form bulunamadı.</p>
-                  <p className="mt-1 text-slate-600">Kullanıcı henüz form doldurmamış olabilir veya kayıt farklı koleksiyonda olabilir.</p>
-                </div>
               ) : (
                 <>
                   <section className="rounded-xl border border-slate-200 bg-slate-50 p-4">
@@ -1198,6 +1245,13 @@ export default function AllUsersTab() {
                     ) : null}
                   </section>
 
+                  {!formModal.application ? (
+                    <div className="mt-4 text-sm text-slate-700">
+                      <p className="font-semibold">Başvuru/Form bulunamadı.</p>
+                      <p className="mt-1 text-slate-600">Kullanıcı henüz form doldurmamış olabilir veya kayıt farklı koleksiyonda olabilir.</p>
+                    </div>
+                  ) : null}
+
                   <section className="mt-4 rounded-xl border border-slate-200 bg-white p-4">
                     <h4 className="text-sm font-bold text-slate-900">Özet</h4>
                     <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1225,13 +1279,55 @@ export default function AllUsersTab() {
                     </div>
                   </section>
 
-                  <section className="mt-4 rounded-xl border border-slate-200 bg-white p-4">
-                    <h4 className="text-sm font-bold text-slate-900">Doldurulan Alanlar</h4>
-                    <p className="mt-1 text-xs text-slate-600">Alanlar otomatik olarak gruplandırılır; nesneler açılabilir.</p>
-                    <div className="mt-3">
-                      <RenderAny data={formModal.application} hintKey="application" />
-                    </div>
-                  </section>
+                  {formModal.application ? (
+                    <section className="mt-4 rounded-xl border border-slate-200 bg-white p-4">
+                      <h4 className="text-sm font-bold text-slate-900">Aradığı Kişi (Tercihler)</h4>
+                      <p className="mt-1 text-xs text-slate-600">Eşleşme kriterleri: aradığı cinsiyet/uyruk ve partnerPreferences.</p>
+
+                    {(() => {
+                      const app = formModal.application && typeof formModal.application === 'object' ? formModal.application : {};
+                      const partner = app?.partnerPreferences && typeof app.partnerPreferences === 'object' ? app.partnerPreferences : {};
+                      const commMethods = Array.isArray(partner?.communicationMethods)
+                        ? partner.communicationMethods.map((x) => String(x || '').trim()).filter(Boolean).join(', ')
+                        : partner?.communicationMethods;
+
+                      return (
+                        <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-x-6">
+                          <div>
+                            <FieldRow label={labelizeKey('lookingForGender')} value={app?.lookingForGender} hintKey="lookingForGender" />
+                            <FieldRow label={labelizeKey('lookingForNationality')} value={app?.lookingForNationality} hintKey="lookingForNationality" />
+                            <FieldRow label={labelizeKey('ageMin')} value={partner?.ageMin} hintKey="partnerPreferences.ageMin" />
+                            <FieldRow label={labelizeKey('ageMax')} value={partner?.ageMax} hintKey="partnerPreferences.ageMax" />
+                            <FieldRow label={labelizeKey('heightMinCm')} value={partner?.heightMinCm} hintKey="partnerPreferences.heightMinCm" />
+                            <FieldRow label={labelizeKey('heightMaxCm')} value={partner?.heightMaxCm} hintKey="partnerPreferences.heightMaxCm" />
+                            <FieldRow label={labelizeKey('maritalStatus')} value={partner?.maritalStatus} hintKey="partnerPreferences.maritalStatus" />
+                            <FieldRow label={labelizeKey('religion')} value={partner?.religion} hintKey="partnerPreferences.religion" />
+                          </div>
+                          <div>
+                            <FieldRow label={labelizeKey('livingCountry')} value={partner?.livingCountry} hintKey="partnerPreferences.livingCountry" />
+                            <FieldRow label={labelizeKey('communicationMethods')} value={commMethods} hintKey="partnerPreferences.communicationMethods" />
+                            <FieldRow label={labelizeKey('smokingPreference')} value={partner?.smokingPreference} hintKey="partnerPreferences.smokingPreference" />
+                            <FieldRow label={labelizeKey('alcoholPreference')} value={partner?.alcoholPreference} hintKey="partnerPreferences.alcoholPreference" />
+                            <FieldRow label={labelizeKey('childrenPreference')} value={partner?.childrenPreference} hintKey="partnerPreferences.childrenPreference" />
+                            <FieldRow label={labelizeKey('educationPreference')} value={partner?.educationPreference} hintKey="partnerPreferences.educationPreference" />
+                            <FieldRow label={labelizeKey('occupationPreference')} value={partner?.occupationPreference} hintKey="partnerPreferences.occupationPreference" />
+                            <FieldRow label={labelizeKey('familyValuesPreference')} value={partner?.familyValuesPreference} hintKey="partnerPreferences.familyValuesPreference" />
+                          </div>
+                        </div>
+                      );
+                    })()}
+                    </section>
+                  ) : null}
+
+                  {formModal.application ? (
+                    <section className="mt-4 rounded-xl border border-slate-200 bg-white p-4">
+                      <h4 className="text-sm font-bold text-slate-900">Doldurulan Alanlar</h4>
+                      <p className="mt-1 text-xs text-slate-600">Alanlar otomatik olarak gruplandırılır; nesneler açılabilir.</p>
+                      <div className="mt-3">
+                        <RenderAny data={formModal.application} hintKey="application" />
+                      </div>
+                    </section>
+                  ) : null}
 
                   {showRawJson ? (
                     <section className="mt-4 rounded-xl border border-slate-200 bg-white p-4">

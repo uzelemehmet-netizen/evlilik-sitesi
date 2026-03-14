@@ -1,5 +1,6 @@
 import { getAdmin, normalizeBody, requireIdToken } from './_firebaseAdmin.js';
 import { ensureEligibleOrThrow, ensureProfileCompleteOrThrow } from './_matchmakingEligibility.js';
+import { sendPushToUid } from './_push.js';
 
 function safeStr(v) {
   return typeof v === 'string' ? v.trim() : '';
@@ -54,6 +55,7 @@ export default async function handler(req, res) {
     let status = decision === 'approve' ? 'approved' : 'rejected';
     let matchId = '';
     let shouldNotifyReject = false;
+    let shouldNotifyPush = false;
 
     await db.runTransaction(async (tx) => {
       const inboxSnap = await tx.get(inboxRef);
@@ -83,6 +85,8 @@ export default async function handler(req, res) {
         status = 'rejected';
         return;
       }
+
+      shouldNotifyPush = true;
 
       if (decision === 'reject' && curStatus !== 'rejected') {
         shouldNotifyReject = true;
@@ -160,6 +164,19 @@ export default async function handler(req, res) {
         updatedAtMs: now,
       };
       await msgRef.set(msg, { merge: true });
+    }
+
+    if (shouldNotifyPush) {
+      const isApproved = decision === 'approve';
+      const url = matchId ? `/app/match/${matchId}` : '/app/matches';
+      await sendPushToUid({
+        uid: fromUid,
+        title: isApproved ? 'Fotoğraf izni' : 'Fotoğraf isteği',
+        body: isApproved ? 'İsteğiniz onaylandı. Fotoğraflar açıldı.' : 'İsteğiniz reddedildi.',
+        url,
+        type: isApproved ? 'photo_access_approved' : 'photo_access_rejected',
+        data: { requestId, matchId },
+      }).catch(() => null);
     }
 
     res.statusCode = 200;

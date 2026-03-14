@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Bell, Download, Info } from 'lucide-react';
 import { enablePushForCurrentUser, hasSavedPushToken } from '../utils/pushNotifications';
 import { firebaseWebPushVapidKey } from '../config/firebasePublicConfig';
+import { detectInstalledRelatedAppsAndMark, isPwaInstalled, markPwaInstalled } from '../utils/pwaInstalled';
 
 function isIos() {
   if (typeof navigator === 'undefined') return false;
@@ -10,27 +11,13 @@ function isIos() {
   return /iphone|ipad|ipod/.test(ua);
 }
 
-function isInstalled() {
-  if (typeof window === 'undefined') return false;
-  try {
-    if (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) return true;
-  } catch {
-    // ignore
-  }
-  try {
-    // iOS Safari
-    if (typeof navigator !== 'undefined' && navigator.standalone) return true;
-  } catch {
-    // ignore
-  }
-  return false;
-}
-
 export default function PwaInstallCard({ variant = 'light', flat = false }) {
   const { t } = useTranslation();
 
   const [deferredPrompt, setDeferredPrompt] = useState(null);
-  const [installed, setInstalled] = useState(() => isInstalled());
+  const [installed, setInstalled] = useState(() => isPwaInstalled());
+  const [installStatus, setInstallStatus] = useState('');
+  const iosHelpRef = useRef(null);
   const [notifyStatus, setNotifyStatus] = useState('');
   const [notifyBusy, setNotifyBusy] = useState(false);
   const [pushEnabled, setPushEnabled] = useState(false);
@@ -66,18 +53,51 @@ export default function PwaInstallCard({ variant = 'light', flat = false }) {
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
+    // Best-effort: if the browser can tell us an app is installed, persist it.
+    // (Helps avoid re-showing install nudges when user later opens in the browser.)
+    detectInstalledRelatedAppsAndMark()
+      .then((marked) => {
+        if (marked) setInstalled(true);
+      })
+      .catch(() => null);
+
+    // Eğer prompt başka bir sayfada yakalandıysa (örn. /panel), burada tekrar kullan.
+    try {
+      if (!deferredPrompt && window.__uniqahDeferredPrompt) {
+        setDeferredPrompt(window.__uniqahDeferredPrompt);
+      }
+    } catch {
+      // ignore
+    }
+
     const onBeforeInstallPrompt = (e) => {
       try {
         e.preventDefault();
       } catch {
         // ignore
       }
+
+      // Expose for tutorial CTA (best-effort)
+      try {
+        window.__uniqahDeferredPrompt = e;
+      } catch {
+        // ignore
+      }
       setDeferredPrompt(e);
+      setInstallStatus('');
     };
 
     const onAppInstalled = () => {
+      markPwaInstalled();
       setInstalled(true);
       setDeferredPrompt(null);
+      setInstallStatus('');
+
+      try {
+        window.__uniqahDeferredPrompt = null;
+      } catch {
+        // ignore
+      }
     };
 
     window.addEventListener('beforeinstallprompt', onBeforeInstallPrompt);
@@ -108,19 +128,47 @@ export default function PwaInstallCard({ variant = 'light', flat = false }) {
   const installAvailable = !installed && !!deferredPrompt;
 
   const onInstall = async () => {
-    if (!deferredPrompt) return;
+    if (installed) return;
+
+    const dp = deferredPrompt;
+    if (!dp || typeof dp.prompt !== 'function') {
+      if (isIosDevice) {
+        setInstallStatus(
+          `${t('pwa.install.ios.title')}\n1) ${t('pwa.install.ios.step1')}\n2) ${t('pwa.install.ios.step2')}\n3) ${t('pwa.install.ios.step3')}`
+        );
+
+        // iOS talimatları zaten kartta görünüyor; butona basınca otomatik olarak oraya kaydır.
+        setTimeout(() => {
+          try {
+            iosHelpRef.current?.scrollIntoView?.({ behavior: 'smooth', block: 'start' });
+          } catch {
+            // ignore
+          }
+        }, 0);
+      } else {
+        setInstallStatus(t('pwa.install.installNotAvailableHint'));
+      }
+      return;
+    }
 
     try {
-      await deferredPrompt.prompt();
-      const choice = await deferredPrompt.userChoice;
+      setInstallStatus('');
+      await dp.prompt();
+      const choice = await dp.userChoice;
       // accepted/dismissed
       if (choice && choice.outcome === 'accepted') {
+        markPwaInstalled();
         setInstalled(true);
       }
     } catch {
       // noop
     } finally {
       setDeferredPrompt(null);
+      try {
+        if (typeof window !== 'undefined') window.__uniqahDeferredPrompt = null;
+      } catch {
+        // ignore
+      }
     }
   };
 
@@ -217,7 +265,7 @@ export default function PwaInstallCard({ variant = 'light', flat = false }) {
   }, [notificationPermission]);
 
   return (
-    <section className={cardClass}>
+    <section className={cardClass} data-tutorial-id="pwa-install-card">
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
           <h2 className={`text-base font-semibold ${titleClass}`}>{t('pwa.install.title')}</h2>
@@ -232,7 +280,7 @@ export default function PwaInstallCard({ variant = 'light', flat = false }) {
         <button
           type="button"
           onClick={onInstall}
-          disabled={!installAvailable}
+          disabled={installed}
           className={installBtnClass}
           title={installAvailable ? '' : t('pwa.install.installNotAvailableHint')}
         >
@@ -245,6 +293,10 @@ export default function PwaInstallCard({ variant = 'light', flat = false }) {
           {notifyBusy ? t('studio.common.processing') : t('pwa.install.notifications.button')}
         </button>
       </div>
+
+      {installStatus ? (
+        <p className={`mt-3 text-xs whitespace-pre-line ${subtleClass}`}>{installStatus}</p>
+      ) : null}
 
       {notifyStatus ? (
         <p className={`mt-3 text-xs ${subtleClass}`}>{notifyStatus}</p>
@@ -263,7 +315,7 @@ export default function PwaInstallCard({ variant = 'light', flat = false }) {
       ) : installAvailable ? (
         <p className={`mt-3 text-xs ${subtleClass}`}>{t('pwa.install.installAvailableHint')}</p>
       ) : isIosDevice ? (
-        <div className={`mt-3 text-xs ${subtleClass}`}>
+        <div ref={iosHelpRef} className={`mt-3 text-xs ${subtleClass}`}>
           <p className="font-semibold">{t('pwa.install.ios.title')}</p>
           <ol className="mt-1 list-decimal pl-5 space-y-1">
             <li>{t('pwa.install.ios.step1')}</li>

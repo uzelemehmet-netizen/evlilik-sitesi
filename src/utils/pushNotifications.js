@@ -2,6 +2,9 @@ import app from '../config/firebase';
 import { authFetch } from './authFetch';
 import { firebaseWebPushVapidKey } from '../config/firebasePublicConfig';
 
+const DEFAULT_PUSH_ICON = '/pwa-192x192.png?v=20260224-1';
+const DEFAULT_PUSH_BADGE = '/pwa-64x64.png?v=20260224-1';
+
 function canUseNotifications() {
   return typeof window !== 'undefined' && 'Notification' in window && 'serviceWorker' in navigator;
 }
@@ -172,5 +175,93 @@ export async function sendTestPushToMe({ title, body, url } = {}) {
     }
 
     throw e;
+  }
+}
+
+let foregroundUnsubscribe = null;
+
+export async function startForegroundPushListener() {
+  if (foregroundUnsubscribe) return { ok: true, already: true };
+
+  if (typeof window === 'undefined') return { ok: false, code: 'not_browser' };
+  if (!('Notification' in window) || !('serviceWorker' in navigator)) return { ok: false, code: 'not_supported' };
+
+  let permission = 'default';
+  try {
+    permission = String(Notification.permission || 'default');
+  } catch {
+    permission = 'default';
+  }
+  if (permission !== 'granted') return { ok: false, code: 'permission_not_granted' };
+
+  const { isSupported, getMessaging, onMessage } = await import('firebase/messaging');
+  const supported = await isSupported().catch(() => false);
+  if (!supported) return { ok: false, code: 'messaging_not_supported' };
+
+  const messaging = getMessaging(app);
+
+  const show = async ({ title, body, url } = {}) => {
+    const cleanTitle = String(title || 'Bildirim').trim() || 'Bildirim';
+    const cleanBody = String(body || '').trim();
+    const clickUrl = String(url || '/profilim').trim() || '/profilim';
+
+    const options = {
+      body: cleanBody,
+      icon: DEFAULT_PUSH_ICON,
+      badge: DEFAULT_PUSH_BADGE,
+      data: { url: clickUrl },
+    };
+
+    // Prefer SW notifications so click behavior is consistent.
+    try {
+      const reg = await navigator.serviceWorker.ready.catch(() => null);
+      if (reg?.showNotification) {
+        await reg.showNotification(cleanTitle, options);
+        return;
+      }
+    } catch {
+      // fallback below
+    }
+
+    try {
+      const n = new Notification(cleanTitle, options);
+      n.onclick = () => {
+        try {
+          window.focus();
+        } catch {
+          // ignore
+        }
+        try {
+          window.location.assign(clickUrl);
+        } catch {
+          // ignore
+        }
+      };
+    } catch {
+      // ignore
+    }
+  };
+
+  foregroundUnsubscribe = onMessage(messaging, (payload) => {
+    try {
+      const title = String(payload?.notification?.title || payload?.data?.title || 'Bildirim');
+      const body = String(payload?.notification?.body || payload?.data?.body || '');
+      const url = String(payload?.fcmOptions?.link || payload?.data?.url || '/profilim');
+      show({ title, body, url });
+    } catch {
+      // ignore
+    }
+  });
+
+  return { ok: true };
+}
+
+export function stopForegroundPushListener() {
+  try {
+    if (typeof foregroundUnsubscribe === 'function') foregroundUnsubscribe();
+  } catch {
+    // ignore
+  } finally {
+    foregroundUnsubscribe = null;
   }
 }

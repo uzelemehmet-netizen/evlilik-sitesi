@@ -1,5 +1,6 @@
 import { getAdmin, normalizeBody, requireIdToken } from './_firebaseAdmin.js';
 import { ensureEligibleOrThrow, ensureProfileCompleteOrThrow } from './_matchmakingEligibility.js';
+import { sendPushToUid } from './_push.js';
 
 function safeStr(v) {
   return typeof v === 'string' ? v.trim() : '';
@@ -56,6 +57,7 @@ export default async function handler(req, res) {
 
     let status = decision === 'approve' ? 'approved' : 'rejected';
     let shouldNotifyReject = false;
+    let shouldNotifyPush = false;
 
     await db.runTransaction(async (tx) => {
       const inboxSnap = await tx.get(inboxRef);
@@ -77,6 +79,8 @@ export default async function handler(req, res) {
         status = 'rejected';
         return;
       }
+
+      shouldNotifyPush = true;
 
       if (decision === 'reject' && curStatus !== 'rejected') {
         shouldNotifyReject = true;
@@ -148,6 +152,18 @@ export default async function handler(req, res) {
         updatedAtMs: now,
       };
       await msgRef.set(msg, { merge: true });
+    }
+
+    if (shouldNotifyPush) {
+      const isApproved = decision === 'approve';
+      await sendPushToUid({
+        uid: fromUid,
+        title: isApproved ? 'Profil inceleme izni' : 'Profil inceleme isteği',
+        body: isApproved ? 'İsteğiniz onaylandı. Profili inceleyebilirsiniz.' : 'İsteğiniz reddedildi.',
+        url: '/app/matches',
+        type: isApproved ? 'profile_access_approved' : 'profile_access_rejected',
+        data: { requestId },
+      }).catch(() => null);
     }
 
     res.statusCode = 200;

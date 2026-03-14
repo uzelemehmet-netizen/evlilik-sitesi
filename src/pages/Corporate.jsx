@@ -4,11 +4,14 @@ import { Building2, BadgeCheck, Globe, Phone, Mail, MapPin, ExternalLink } from 
 import { Link } from 'react-router-dom';
 import { COMPANY } from '../config/company';
 import { useTranslation } from 'react-i18next';
+import { staticAssetUrl } from '../utils/staticAssetUrl';
 
 export default function Corporate() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const brand = 'Uniqah';
   const dameTurk = 'https://www.dameturk.com';
+
+  const PARTNER_LOGO_SRC = staticAssetUrl('/ChatGPT%20Image%20Jan%2014,%202026,%2001_53_44%20PM.png');
 
   return (
     <div className="min-h-screen bg-white">
@@ -41,6 +44,16 @@ export default function Corporate() {
           >
             {t('corporatePage.hero.description')}
           </p>
+
+          <div className="mt-6 flex items-center justify-center">
+            <img
+              src="/brand-logo.webp"
+              alt="Uniqah"
+              className="h-14 md:h-16 w-auto object-contain"
+              loading="lazy"
+              decoding="async"
+            />
+          </div>
         </div>
       </section>
 
@@ -130,10 +143,17 @@ export default function Corporate() {
 
           <div className="mt-6 p-6 rounded-2xl border border-slate-200 bg-white flex flex-col md:flex-row gap-6 items-center">
             <img
-              src="/logos/moonstar-lockup-horizontal.png"
-              alt="MoonStar"
+              src="/brand-logo.webp"
+              alt="Uniqah"
               className="w-full max-w-[520px] md:max-w-[420px] rounded-2xl border border-slate-200 bg-white object-contain p-3"
               loading="lazy"
+            />
+            <img
+              src={PARTNER_LOGO_SRC}
+              alt=""
+              className="h-16 w-auto object-contain"
+              loading="lazy"
+              decoding="async"
             />
             <div className="flex-1">
               <p className="text-xs uppercase tracking-wide text-slate-600 mb-2" style={{ fontFamily: '"Poppins", sans-serif' }}>
@@ -141,8 +161,8 @@ export default function Corporate() {
               </p>
               <div className="flex items-center gap-3">
                 <img
-                  src="/logos/moonstar-mark-square.png"
-                  alt="PT MoonStar Global Indonesia"
+                  src="/brand-logo.webp"
+                  alt="Uniqah"
                   className="h-10 w-10 rounded-xl border border-slate-200 bg-white object-contain"
                   loading="lazy"
                 />

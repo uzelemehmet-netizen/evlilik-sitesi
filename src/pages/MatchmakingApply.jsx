@@ -6,15 +6,11 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { auth, db, storage } from '../config/firebase';
 import { collection, doc, getDoc, getDocs, limit, query, serverTimestamp, setDoc, where } from 'firebase/firestore';
 import { getDownloadURL, ref, uploadBytes } from 'firebase/storage';
-import {
-  getRecaptchaEnterpriseToken,
-  isRecaptchaEnterpriseEnabled,
-  verifyRecaptchaEnterpriseToken,
-} from '../utils/recaptchaEnterprise';
 import { useAuth } from '../auth/AuthProvider';
 import { uploadImageToCloudinaryAuto } from '../utils/cloudinaryUpload';
 import { authFetch } from '../utils/authFetch';
 import { staticAssetUrl } from '../utils/staticAssetUrl';
+import { tiktokTrack } from '../utils/tiktokPixel';
 
 function toNumberOrNull(value) {
   if (value === null || value === undefined) return null;
@@ -142,6 +138,15 @@ export default function MatchmakingApply() {
   const location = useLocation();
   const navigate = useNavigate();
 
+  const isEmbedded = useMemo(() => {
+    try {
+      const params = new URLSearchParams(location.search || '');
+      return params.get('embed') === '1' || params.get('embedded') === '1';
+    } catch {
+      return false;
+    }
+  }, [location.search]);
+
   const [deferState, setDeferState] = useState({ loading: false, error: '' });
 
   const isEditOnceMode = useMemo(() => {
@@ -151,6 +156,26 @@ export default function MatchmakingApply() {
       return false;
     }
   }, [location.search]);
+
+  const navigateToProfile = (state) => {
+    const nextState = state && typeof state === 'object' ? state : undefined;
+    if (isEmbedded) {
+      try {
+        if (typeof window !== 'undefined' && window.top && window.top !== window.self) {
+          try {
+            sessionStorage.setItem('mk_profile_skip_apply_inline_once', '1');
+          } catch {
+            // ignore
+          }
+          window.top.location.assign('/profilim');
+          return;
+        }
+      } catch {
+        // ignore
+      }
+    }
+    navigate('/profilim', { replace: true, state: nextState });
+  };
 
   const deferApply = async () => {
     const uid = String(user?.uid || '').trim();
@@ -168,7 +193,7 @@ export default function MatchmakingApply() {
         },
         { merge: true }
       );
-      navigate('/profilim', { replace: true, state: { from: 'applyDeferred' } });
+      navigateToProfile({ from: 'applyDeferred' });
     } catch {
       setDeferState({ loading: false, error: t('matchmakingPage.form.deferError') });
       return;
@@ -178,17 +203,36 @@ export default function MatchmakingApply() {
 
   const isWizardMode = useMemo(() => {
     try {
+      // Embedded view should default to wizard to avoid a very long single-page form.
+      if (isEmbedded) return true;
       const params = new URLSearchParams(location.search || '');
-      return params.get('w') === '1' || params.get('wizard') === '1';
-    } catch {
-      return false;
-    }
-  }, [location.search]);
 
-  const WIZARD_TOTAL_STEPS = 4;
+      // Default: wizard ON (ürün kararı: form adım adım doldurulsun).
+      // Explicit escape hatch (internal/debug): w=0 / wizard=0 / single=1.
+      const single = params.get('single');
+      const w = params.get('w');
+      const wiz = params.get('wizard');
+      if (single === '1') return false;
+      if (w === '0' || wiz === '0') return false;
+      if (w === '1' || wiz === '1') return true;
+      return true;
+    } catch {
+      return !!isEmbedded;
+    }
+  }, [isEmbedded, location.search]);
+
+  const WIZARD_TOTAL_STEPS = isEditOnceMode ? 3 : 1;
   const [wizardStep, setWizardStep] = useState(0);
 
   const wizardSteps = useMemo(() => {
+    if (!isEditOnceMode) {
+      return [
+        {
+          title: t('matchmakingPage.form.wizard.steps.basic.title'),
+          desc: t('matchmakingPage.form.wizard.steps.basic.desc'),
+        },
+      ];
+    }
     return [
       {
         title: t('matchmakingPage.form.wizard.steps.basic.title'),
@@ -202,21 +246,22 @@ export default function MatchmakingApply() {
         title: t('matchmakingPage.form.wizard.steps.identity.title'),
         desc: t('matchmakingPage.form.wizard.steps.identity.desc'),
       },
-      {
-        title: t('matchmakingPage.form.wizard.steps.photos.title'),
-        desc: t('matchmakingPage.form.wizard.steps.photos.desc'),
-      },
     ];
-  }, [t]);
+  }, [t, isEditOnceMode]);
 
   const wizardCurrent = wizardSteps?.[wizardStep] || { title: '', desc: '' };
+  const consentsWizardStep = isEditOnceMode ? 2 : 0;
 
   useEffect(() => {
     if (!isWizardMode) return;
     setWizardStep(0);
   }, [isWizardMode]);
 
-  const BRAND_LOGO_SRC = staticAssetUrl('/brand.png');
+  useEffect(() => {
+    setWizardStep((s) => Math.max(0, Math.min(WIZARD_TOTAL_STEPS - 1, s)));
+  }, [WIZARD_TOTAL_STEPS]);
+
+  const BRAND_LOGO_SRC = staticAssetUrl('/brand-logo.webp');
 
   const submitFeedbackRef = useRef(null);
   const wizardTopRef = useRef(null);
@@ -272,7 +317,11 @@ export default function MatchmakingApply() {
           const data = best || {};
 
           if (!isEditOnceMode) {
-            navigate('/profilim', { replace: true, state: { from: 'applyRedirectExisting', applicationId: id } });
+            if (isEmbedded) {
+              setError(t('matchmakingPage.form.errors.alreadySubmitted'));
+              return;
+            }
+            navigateToProfile({ from: 'applyRedirectExisting', applicationId: id });
             return;
           }
 
@@ -293,7 +342,6 @@ export default function MatchmakingApply() {
               country: String(data?.country || prev.country || ''),
               whatsapp: String(data?.whatsapp || prev.whatsapp || ''),
               email: String(data?.email || prev.email || ''),
-              instagram: String(data?.instagram || prev.instagram || ''),
               nationality: String(data?.nationality || prev.nationality || ''),
               gender: String(data?.gender || prev.gender || ''),
               heightCm: details?.heightCm === 0 || details?.heightCm ? String(details.heightCm) : String(prev.heightCm || ''),
@@ -327,7 +375,7 @@ export default function MatchmakingApply() {
 
               consent18Plus: !!data?.consent18Plus,
               consentPrivacy: !!data?.consentPrivacy,
-              consentPhotoShare: !!data?.consentPhotoShare,
+              consentPhotoShare: true,
               consentTerms: !!data?.consentTerms,
             };
           });
@@ -506,12 +554,12 @@ export default function MatchmakingApply() {
   const [form, setForm] = useState({
     username: '',
     fullName: '',
+    inviteCode: '',
     age: '',
     city: '',
     country: '',
     whatsapp: '',
     email: '',
-    instagram: '',
     nationality: '',
     gender: '',
     heightCm: '',
@@ -541,7 +589,7 @@ export default function MatchmakingApply() {
     about: '',
     consent18Plus: false,
     consentPrivacy: false,
-    consentPhotoShare: false,
+    consentPhotoShare: true,
     consentTerms: false,
     hpCompany: '',
   });
@@ -653,6 +701,52 @@ export default function MatchmakingApply() {
     });
   };
 
+  const onMaritalStatusChange = (e) => {
+    const value = String(e?.target?.value || '');
+    const normalized = value.trim().toLowerCase();
+    const requiresChildrenInfo = normalized === 'widowed' || normalized === 'divorced';
+
+    setForm((prev) => {
+      const next = {
+        ...prev,
+        maritalStatus: value,
+      };
+      if (!requiresChildrenInfo) {
+        next.hasChildren = '';
+        next.childrenCount = '';
+        next.childrenLivingSituation = '';
+      }
+      try {
+        formRef.current = { ...(formRef.current || {}), ...next };
+      } catch {
+        // ignore
+      }
+      return next;
+    });
+    if (error) setError('');
+  };
+
+  const onHasChildrenChange = (e) => {
+    const value = String(e?.target?.value || '');
+    setForm((prev) => {
+      const next = {
+        ...prev,
+        hasChildren: value,
+      };
+      if (value !== 'yes') {
+        next.childrenCount = '';
+        next.childrenLivingSituation = '';
+      }
+      try {
+        formRef.current = { ...(formRef.current || {}), ...next };
+      } catch {
+        // ignore
+      }
+      return next;
+    });
+    if (error) setError('');
+  };
+
   const onNativeLanguageChange = (e) => {
     const value = e?.target?.value || '';
     setForm((prev) => {
@@ -700,7 +794,8 @@ export default function MatchmakingApply() {
   const validateWizardStep = (step) => {
     const requiredValue = (value) => String(value ?? '').trim();
     const f = (formRef.current && typeof formRef.current === 'object' ? formRef.current : form);
-    const foreignLanguages = Array.isArray(f.foreignLanguages) ? f.foreignLanguages.filter(Boolean) : [];
+    const maritalStatus = String(f.maritalStatus || '').trim().toLowerCase();
+    const requiresChildrenInfo = maritalStatus === 'widowed' || maritalStatus === 'divorced';
 
     if (step === 0) {
       const normalizedUsername = normalizeUsername(f.username);
@@ -709,61 +804,49 @@ export default function MatchmakingApply() {
       if (!requiredValue(f.age)) return setError(t('matchmakingPage.form.errors.age'));
       if (!requiredValue(f.city)) return setError(t('matchmakingPage.form.errors.city'));
       if (!requiredValue(f.country)) return setError(t('matchmakingPage.form.errors.country'));
+
+      if (!isEditOnceMode) {
+        if (!requiredValue(f.nationality)) return setError(t('matchmakingPage.form.errors.nationality'));
+        if (!requiredValue(f.gender)) return setError(t('matchmakingPage.form.errors.gender'));
+        if (!requiredValue(f.occupation)) return setError(t('matchmakingPage.form.errors.occupation'));
+        if (!requiredValue(f.maritalStatus)) return setError(t('matchmakingPage.form.errors.maritalStatus'));
+
+        if (requiresChildrenInfo) {
+          if (!requiredValue(f.hasChildren)) return setError(t('matchmakingPage.form.errors.hasChildren'));
+          if (f.hasChildren === 'yes' && !requiredValue(f.childrenCount)) {
+            return setError(t('matchmakingPage.form.errors.childrenCount'));
+          }
+        }
+      }
       return true;
     }
 
     if (step === 1) {
-      if (!requiredValue(form.heightCm)) return setError(t('matchmakingPage.form.errors.heightRequired'));
-      if (!requiredValue(form.weightKg)) return setError(t('matchmakingPage.form.errors.weightRequired'));
-      if (!requiredValue(form.occupation)) return setError(t('matchmakingPage.form.errors.occupation'));
-      if (!requiredValue(form.education)) return setError(t('matchmakingPage.form.errors.education'));
-      if ((form.education === 'university' || form.education === 'masters' || form.education === 'phd') && !requiredValue(form.educationDepartment)) {
-        return setError(t('matchmakingPage.form.errors.educationDepartment'));
-      }
-      if (!requiredValue(form.maritalStatus)) return setError(t('matchmakingPage.form.errors.maritalStatus'));
-      if (!requiredValue(form.hasChildren)) return setError(t('matchmakingPage.form.errors.hasChildren'));
-      if (form.hasChildren === 'yes' && !requiredValue(form.childrenCount)) {
-        return setError(t('matchmakingPage.form.errors.childrenCount'));
-      }
-      if (!isEditOnceMode && form.hasChildren === 'yes' && !requiredValue(form.childrenLivingSituation)) {
-        return setError(t('matchmakingPage.form.errors.childrenLivingSituation'));
-      }
-      if (!requiredValue(form.incomeLevel)) return setError(t('matchmakingPage.form.errors.incomeLevel'));
-      if (!requiredValue(form.religion)) return setError(t('matchmakingPage.form.errors.religion'));
-      if (!requiredValue(form.religiousValues)) return setError(t('matchmakingPage.form.errors.religiousValues'));
-      if (!requiredValue(form.familyApprovalStatus)) return setError(t('matchmakingPage.form.errors.familyApprovalStatus'));
-      if (!requiredValue(form.marriageTimeline)) return setError(t('matchmakingPage.form.errors.marriageTimeline'));
-      if (!requiredValue(form.relocationWillingness)) return setError(t('matchmakingPage.form.errors.relocationWillingness'));
-      if (!requiredValue(form.preferredLivingCountry)) return setError(t('matchmakingPage.form.errors.preferredLivingCountry'));
+      if (!isEditOnceMode) return true;
 
-      if (!requiredValue(form.nativeLanguage)) return setError(t('matchmakingPage.form.errors.nativeLanguage'));
-      if (form.nativeLanguage === 'other' && !requiredValue(form.nativeLanguageOther)) {
-        return setError(t('matchmakingPage.form.errors.nativeLanguageOther'));
+      if (!requiredValue(form.occupation)) return setError(t('matchmakingPage.form.errors.occupation'));
+      if (!requiredValue(form.maritalStatus)) return setError(t('matchmakingPage.form.errors.maritalStatus'));
+
+      if (requiresChildrenInfo) {
+        if (!requiredValue(form.hasChildren)) return setError(t('matchmakingPage.form.errors.hasChildren'));
+        if (form.hasChildren === 'yes' && !requiredValue(form.childrenCount)) {
+          return setError(t('matchmakingPage.form.errors.childrenCount'));
+        }
       }
-      if (!foreignLanguages.length) return setError(t('matchmakingPage.form.errors.foreignLanguages'));
-      if (foreignLanguages.includes('other') && !requiredValue(form.foreignLanguageOther)) {
-        return setError(t('matchmakingPage.form.errors.foreignLanguageOther'));
-      }
-      if (!requiredValue(form.communicationLanguage)) return setError(t('matchmakingPage.form.errors.communicationLanguage'));
-      if (form.communicationLanguage === 'other' && !requiredValue(form.communicationLanguageOther)) {
-        return setError(t('matchmakingPage.form.errors.communicationLanguageOther'));
-      }
-      if (!requiredValue(form.smoking)) return setError(t('matchmakingPage.form.errors.smoking'));
-      if (!requiredValue(form.alcohol)) return setError(t('matchmakingPage.form.errors.alcohol'));
       return true;
     }
 
     if (step === 2) {
+      if (!isEditOnceMode) return true;
       if (!requiredValue(f.nationality)) return setError(t('matchmakingPage.form.errors.nationality'));
       if (!requiredValue(f.gender)) return setError(t('matchmakingPage.form.errors.gender'));
       return true;
     }
 
     if (step === 3) {
-      if (!requiredValue(form.about)) return setError(t('matchmakingPage.form.errors.about'));
-
+      if (isEditOnceMode) return true;
       const minApplicantAge = isIndonesianNationality(form.nationality) ? 21 : 18;
-      if (!form.consent18Plus || !form.consentPrivacy || !form.consentPhotoShare || !form.consentTerms) {
+      if (!form.consent18Plus || !form.consentPrivacy || !form.consentTerms) {
         return setError(t('matchmakingPage.form.errors.consentsRequired', { minAge: minApplicantAge }));
       }
 
@@ -789,6 +872,43 @@ export default function MatchmakingApply() {
     if (!isWizardMode) return;
     if (submitting) return;
     setError('');
+    if (wizardStep <= 0) {
+      if (isEditOnceMode) {
+        const returnTo = String(location?.state?.returnTo || '').trim();
+        if (returnTo) {
+          if (isEmbedded) {
+            try {
+              if (typeof window !== 'undefined' && window.top && window.top !== window.self) {
+                try {
+                  sessionStorage.setItem('mk_profile_skip_apply_inline_once', '1');
+                } catch {
+                  // ignore
+                }
+                window.top.location.assign(returnTo);
+                return;
+              }
+            } catch {
+              // ignore
+            }
+          }
+          navigate(returnTo, { replace: true });
+          return;
+        }
+
+        // Default: bir önceki sayfaya dön; history yoksa profil.
+        try {
+          navigate(-1);
+        } catch {
+          navigateToProfile({ from: 'editOnceBack' });
+        }
+        return;
+      }
+
+      setWizardStep(0);
+      scrollWizardToTop();
+      return;
+    }
+
     setWizardStep((s) => Math.max(0, s - 1));
     scrollWizardToTop();
   };
@@ -809,56 +929,30 @@ export default function MatchmakingApply() {
       return setError(t('matchmakingPage.form.errors.honeypotTriggered'));
     }
 
-    // Çok hızlı gönderimi engelle (bot davranışı)
-    if (Date.now() - formOpenedAt < 5000) {
-      return setError(t('matchmakingPage.form.errors.tooFast'));
-    }
-
-    // Basit client-side rate-limit (sunucu tarafı kadar güvenli değil ama spam'i azaltır)
-    try {
-      const last = Number(localStorage.getItem('mk_apply_last_submit_at') || '0');
-      if (last && Date.now() - last < 60_000) {
-        return setError(t('matchmakingPage.form.errors.rateLimited'));
+    if (!isEditOnceMode) {
+      // Çok hızlı gönderimi engelle (bot davranışı)
+      if (Date.now() - formOpenedAt < 5000) {
+        return setError(t('matchmakingPage.form.errors.tooFast'));
       }
-    } catch (err) {
-      // ignore
-    }
 
-    // Firestore rules, başvuru kaydı için bu onayların true olmasını bekliyor.
-    // Diğer tüm alanlar opsiyonel kalsa bile, bu 3 onay olmadan gönderim engellenir.
-    if (!form.consent18Plus || !form.consentPrivacy || !form.consentPhotoShare || !form.consentTerms) {
-      return setError(t('matchmakingPage.form.errors.consentsRequired', { minAge: minApplicantAge }));
-    }
-
-    let recaptchaToken = '';
-    const recaptchaAction = 'matchmaking_apply_submit';
-    try {
-      recaptchaToken = await getRecaptchaEnterpriseToken(recaptchaAction);
-    } catch (err) {
-      if (isRecaptchaEnterpriseEnabled()) {
-        console.error('recaptcha enterprise error:', err);
-        return setError(t('matchmakingPage.form.errors.recaptchaFailed'));
-      }
-    }
-
-    if (isRecaptchaEnterpriseEnabled()) {
-      if (!recaptchaToken) {
-        return setError(t('matchmakingPage.form.errors.recaptchaFailed'));
-      }
+      // Basit client-side rate-limit (sunucu tarafı kadar güvenli değil ama spam'i azaltır)
       try {
-        const verdict = await verifyRecaptchaEnterpriseToken({ token: recaptchaToken, expectedAction: recaptchaAction });
-        if (!verdict?.allowed) {
-          return setError(t('matchmakingPage.form.errors.recaptchaRejected'));
+        const last = Number(localStorage.getItem('mk_apply_last_submit_at') || '0');
+        if (last && Date.now() - last < 60_000) {
+          return setError(t('matchmakingPage.form.errors.rateLimited'));
         }
       } catch (err) {
-        console.error('recaptcha enterprise verify error:', err);
-        return setError(t('matchmakingPage.form.errors.recaptchaFailed'));
+        // ignore
+      }
+
+      // Firestore rules, başvuru kaydı için bu onayların true olmasını bekliyor.
+      // Diğer tüm alanlar opsiyonel kalsa bile, bu 3 onay olmadan gönderim engellenir.
+      if (!form.consent18Plus || !form.consentPrivacy || !form.consentTerms) {
+        return setError(t('matchmakingPage.form.errors.consentsRequired', { minAge: minApplicantAge }));
       }
     }
 
-    // Kullanıcı isteği: Instagram hariç tüm alanlar zorunlu.
     const requiredValue = (value) => String(value ?? '').trim();
-    const foreignLanguages = Array.isArray(form.foreignLanguages) ? form.foreignLanguages.filter(Boolean) : [];
 
     const normalizedUsername = normalizeUsername(form.username);
     if (!normalizedUsername) {
@@ -866,6 +960,13 @@ export default function MatchmakingApply() {
     }
 
     if (!requiredValue(form.fullName)) return setError(t('matchmakingPage.form.errors.fullName'));
+
+    const inviteCodeRaw = String(form.inviteCode || '').trim();
+    const inviteCode = inviteCodeRaw.replace(/\s+/g, '');
+    if (inviteCode && !/^\d{4}$/.test(inviteCode)) {
+      return setError(t('matchmakingPage.form.errors.inviteCodeInvalid'));
+    }
+
     if (!requiredValue(form.age)) return setError(t('matchmakingPage.form.errors.age'));
     if (!requiredValue(form.city)) return setError(t('matchmakingPage.form.errors.city'));
     if (!requiredValue(form.country)) return setError(t('matchmakingPage.form.errors.country'));
@@ -874,45 +975,18 @@ export default function MatchmakingApply() {
     if (!requiredValue(form.nationality)) return setError(t('matchmakingPage.form.errors.nationality'));
     if (!requiredValue(form.gender)) return setError(t('matchmakingPage.form.errors.gender'));
 
-    if (!requiredValue(form.heightCm)) return setError(t('matchmakingPage.form.errors.heightRequired'));
-    if (!requiredValue(form.weightKg)) return setError(t('matchmakingPage.form.errors.weightRequired'));
     if (!requiredValue(form.occupation)) return setError(t('matchmakingPage.form.errors.occupation'));
-    if (!requiredValue(form.education)) return setError(t('matchmakingPage.form.errors.education'));
-    if ((form.education === 'university' || form.education === 'masters' || form.education === 'phd') && !requiredValue(form.educationDepartment)) {
-      return setError(t('matchmakingPage.form.errors.educationDepartment'));
-    }
     if (!requiredValue(form.maritalStatus)) return setError(t('matchmakingPage.form.errors.maritalStatus'));
-    if (!requiredValue(form.hasChildren)) return setError(t('matchmakingPage.form.errors.hasChildren'));
-    if (form.hasChildren === 'yes' && !requiredValue(form.childrenCount)) {
-      return setError(t('matchmakingPage.form.errors.childrenCount'));
-    }
-    if (!isEditOnceMode && form.hasChildren === 'yes' && !requiredValue(form.childrenLivingSituation)) {
-      return setError(t('matchmakingPage.form.errors.childrenLivingSituation'));
-    }
-    if (!requiredValue(form.incomeLevel)) return setError(t('matchmakingPage.form.errors.incomeLevel'));
-    if (!requiredValue(form.religion)) return setError(t('matchmakingPage.form.errors.religion'));
-    if (!requiredValue(form.religiousValues)) return setError(t('matchmakingPage.form.errors.religiousValues'));
-    if (!requiredValue(form.familyApprovalStatus)) return setError(t('matchmakingPage.form.errors.familyApprovalStatus'));
-    if (!requiredValue(form.marriageTimeline)) return setError(t('matchmakingPage.form.errors.marriageTimeline'));
-    if (!requiredValue(form.relocationWillingness)) return setError(t('matchmakingPage.form.errors.relocationWillingness'));
-    if (!requiredValue(form.preferredLivingCountry)) return setError(t('matchmakingPage.form.errors.preferredLivingCountry'));
 
-    if (!requiredValue(form.nativeLanguage)) return setError(t('matchmakingPage.form.errors.nativeLanguage'));
-    if (form.nativeLanguage === 'other' && !requiredValue(form.nativeLanguageOther)) {
-      return setError(t('matchmakingPage.form.errors.nativeLanguageOther'));
-    }
-    if (!foreignLanguages.length) return setError(t('matchmakingPage.form.errors.foreignLanguages'));
-    if (foreignLanguages.includes('other') && !requiredValue(form.foreignLanguageOther)) {
-      return setError(t('matchmakingPage.form.errors.foreignLanguageOther'));
-    }
-    if (!requiredValue(form.communicationLanguage)) return setError(t('matchmakingPage.form.errors.communicationLanguage'));
-    if (form.communicationLanguage === 'other' && !requiredValue(form.communicationLanguageOther)) {
-      return setError(t('matchmakingPage.form.errors.communicationLanguageOther'));
-    }
-    if (!requiredValue(form.smoking)) return setError(t('matchmakingPage.form.errors.smoking'));
-    if (!requiredValue(form.alcohol)) return setError(t('matchmakingPage.form.errors.alcohol'));
+    const maritalStatus = String(form.maritalStatus || '').trim().toLowerCase();
+    const requiresChildrenInfo = maritalStatus === 'widowed' || maritalStatus === 'divorced';
 
-    if (!requiredValue(form.about)) return setError(t('matchmakingPage.form.errors.about'));
+    if (requiresChildrenInfo) {
+      if (!requiredValue(form.hasChildren)) return setError(t('matchmakingPage.form.errors.hasChildren'));
+      if (form.hasChildren === 'yes' && !requiredValue(form.childrenCount)) {
+        return setError(t('matchmakingPage.form.errors.childrenCount'));
+      }
+    }
 
     if (photoFiles.photo1 && !isImageFile(photoFiles.photo1)) return setError(t('matchmakingPage.form.errors.photoType'));
     if (photoFiles.photo2 && !isImageFile(photoFiles.photo2)) return setError(t('matchmakingPage.form.errors.photoType'));
@@ -926,24 +1000,17 @@ export default function MatchmakingApply() {
 
     let childrenCountNum = toNumberOrNull(form.childrenCount);
     let childrenLivingSituation = String(form.childrenLivingSituation || '').trim() || null;
-    if (String(form.hasChildren || '') === 'yes') {
+    if (requiresChildrenInfo && String(form.hasChildren || '') === 'yes') {
       // Evet seçildiyse: 1–20 arası zorunlu.
       if (childrenCountNum === null || childrenCountNum < 1 || childrenCountNum > 20) {
         return setError(t('matchmakingPage.form.errors.childrenCount'));
       }
 
       const allowed = new Set(['with_children', 'separate']);
-      // Yeni başvurularda zorunlu; editOnce'ta eksikse görmezden gel.
-      if (!isEditOnceMode) {
-        if (!childrenLivingSituation || !allowed.has(childrenLivingSituation)) {
-          return setError(t('matchmakingPage.form.errors.childrenLivingSituation'));
-        }
-      } else {
-        if (childrenLivingSituation && !allowed.has(childrenLivingSituation)) {
-          return setError(t('matchmakingPage.form.errors.childrenLivingSituation'));
-        }
-        if (!childrenLivingSituation) childrenLivingSituation = null;
+      if (childrenLivingSituation && !allowed.has(childrenLivingSituation)) {
+        return setError(t('matchmakingPage.form.errors.childrenLivingSituation'));
       }
+      if (!childrenLivingSituation) childrenLivingSituation = null;
     } else {
       // Hayır/emin değilim seçildiyse sayıyı saklamayalım.
       childrenCountNum = null;
@@ -1108,6 +1175,7 @@ export default function MatchmakingApply() {
         username: String(form.username || '').trim(),
         usernameLower: normalizedUsername,
         fullName: String(form.fullName || '').trim(),
+        inviteCode4: inviteCode ? inviteCode : null,
         age: ageNum,
         ageGroup: computeAgeGroup(
           ageNum,
@@ -1120,7 +1188,6 @@ export default function MatchmakingApply() {
         country: String(form.country || '').trim(),
         whatsapp: String(form.whatsapp || '').trim(),
         email: (form.email || '').trim(),
-        instagram: (form.instagram || '').trim(),
         nationality: form.nationality || '',
         gender: form.gender || '',
         details: {
@@ -1133,9 +1200,9 @@ export default function MatchmakingApply() {
               ? String(form.educationDepartment || '').trim()
               : '',
           maritalStatus: form.maritalStatus || '',
-          hasChildren: form.hasChildren || '',
-          childrenCount: childrenCountNum,
-          childrenLivingSituation,
+          hasChildren: requiresChildrenInfo ? (form.hasChildren || '') : '',
+          childrenCount: requiresChildrenInfo ? childrenCountNum : null,
+          childrenLivingSituation: requiresChildrenInfo ? childrenLivingSituation : null,
           incomeLevel: form.incomeLevel || '',
           religion: form.religion || '',
           religiousValues: String(form.religiousValues || '').trim(),
@@ -1179,15 +1246,10 @@ export default function MatchmakingApply() {
         userId: uid,
         consent18Plus: !!form.consent18Plus,
         consentPrivacy: !!form.consentPrivacy,
-        consentPhotoShare: !!form.consentPhotoShare,
+        consentPhotoShare: true,
         consentTerms: !!form.consentTerms,
         lang: (i18n.language || 'tr').split('-')[0],
         source: 'site',
-        recaptchaEnterprise: {
-          provider: 'google-recaptcha-enterprise',
-          action: recaptchaAction,
-          token: recaptchaToken,
-        },
         // createdAt server-side set edilecek (API submit). Firestore direct create eskisi için.
         createdAt: serverTimestamp(),
         pool: {
@@ -1204,7 +1266,6 @@ export default function MatchmakingApply() {
         const editPayload = { ...payload };
         delete editPayload.createdAt;
         delete editPayload.status;
-        delete editPayload.recaptchaEnterprise;
         delete editPayload.photoPaths;
         delete editPayload.photoCloudinary;
         delete editPayload.photoContentTypes;
@@ -1230,10 +1291,14 @@ export default function MatchmakingApply() {
           typeof editRes?.applicationId === 'string' && editRes.applicationId.trim() ? editRes.applicationId.trim() : docRef.id;
         setSuccess(true);
         setLastApplicationId(nextId);
-        navigate('/profilim', {
-          replace: true,
-          state: { from: 'matchmakingEditOnce', applicationId: nextId },
+
+        tiktokTrack('Lead', {
+          source: 'matchmaking_apply',
+          mode: 'edit_once',
+          applicationId: nextId,
         });
+
+        navigateToProfile({ from: 'matchmakingEditOnce', applicationId: nextId });
         return;
       }
 
@@ -1257,16 +1322,32 @@ export default function MatchmakingApply() {
         typeof submitRes?.applicationId === 'string' && submitRes.applicationId.trim() ? submitRes.applicationId.trim() : docRef.id;
       setLastApplicationId(nextId);
 
+      tiktokTrack('Lead', {
+        source: 'matchmaking_apply',
+        mode: 'apply_submit',
+        applicationId: nextId,
+      });
+
+      // Davet kodu opsiyonel: varsa best-effort redeem et (bulunamazsa/yanlışsa başvuruyu bozmayalım).
+      if (inviteCode) {
+        try {
+          await authFetch('/api/matchmaking-invite-code-redeem', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ code: inviteCode }),
+          });
+        } catch (e) {
+          console.warn('invite code redeem failed (ignored):', e);
+        }
+      }
+
       try {
         localStorage.setItem('mk_apply_last_submit_at', String(Date.now()));
       } catch (err) {
         // ignore
       }
 
-      navigate('/profilim', {
-        replace: true,
-        state: { from: 'matchmakingApply', applicationId: nextId },
-      });
+      navigateToProfile({ from: 'matchmakingApply', applicationId: nextId });
       return;
     } catch (err) {
       console.error('matchmaking submit error:', err);
@@ -1315,7 +1396,7 @@ export default function MatchmakingApply() {
 
   return (
     <div className="min-h-screen bg-[#050814] text-white relative" id="matchmaking-top">
-      <Navigation />
+      {isEmbedded ? null : <Navigation />}
 
       {/* Background (Uniqah theme) */}
       <div aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden">
@@ -1325,7 +1406,7 @@ export default function MatchmakingApply() {
         <div className="absolute inset-0 opacity-[0.18] [background-image:linear-gradient(to_right,rgba(255,255,255,0.08)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.08)_1px,transparent_1px)] [background-size:64px_64px]" />
       </div>
 
-      <main className="relative max-w-3xl mx-auto px-4 pt-16 md:pt-20 pb-12">
+      <main className={"relative max-w-3xl mx-auto px-4 " + (isEmbedded ? 'pt-6 pb-10' : 'pt-16 md:pt-20 pb-12')}>
         <div className="relative overflow-hidden rounded-[28px] border border-white/10 bg-gradient-to-b from-white/10 via-white/[0.06] to-transparent shadow-[0_30px_90px_rgba(0,0,0,0.45)]">
           <div aria-hidden="true" className="absolute inset-0">
             <div className="absolute -top-24 -right-24 w-80 h-80 bg-[radial-gradient(circle_at_center,rgba(245,158,11,0.35),rgba(245,158,11,0)_60%)] blur-2xl" />
@@ -1360,19 +1441,7 @@ export default function MatchmakingApply() {
               <p className="text-sm text-white/80">{t('matchmakingPage.privacyNote')}</p>
             </div>
 
-            {!isAuthGate && !isEditOnceMode ? (
-              <div className="mt-4 flex flex-col sm:flex-row sm:items-center sm:justify-end gap-2">
-                {deferState.error ? <p className="text-sm text-amber-200">{deferState.error}</p> : null}
-                <button
-                  type="button"
-                  onClick={deferApply}
-                  disabled={deferState.loading}
-                  className="text-sm font-semibold underline text-white/80 hover:text-white disabled:opacity-60"
-                >
-                  {t('matchmakingPage.form.deferCta')}
-                </button>
-              </div>
-            ) : null}
+            {/* Profil formu zorunlu: erteleme CTA'sı kaldırıldı. */}
           </div>
         </div>
 
@@ -1513,6 +1582,21 @@ export default function MatchmakingApply() {
                     placeholder={t('matchmakingPage.form.placeholders.fullName')}
                   />
                 </div>
+
+                {isEditOnceMode ? (
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-semibold text-white/90 md:text-slate-800">{t('matchmakingPage.form.labels.inviteCode')}</label>
+                    <input
+                      value={form.inviteCode}
+                      onChange={onChange('inviteCode')}
+                      className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                      inputMode="numeric"
+                      placeholder={t('matchmakingPage.form.placeholders.inviteCode')}
+                    />
+                    <div className="mt-2 text-xs text-white/70 md:text-slate-600">{t('matchmakingPage.form.inviteCodeHelp')}</div>
+                  </div>
+                ) : null}
+
                 <div>
                   <label className="block text-sm font-semibold text-white/90 md:text-slate-800">{t('matchmakingPage.form.labels.age')}</label>
                   <input
@@ -1541,42 +1625,126 @@ export default function MatchmakingApply() {
                     placeholder={t('matchmakingPage.form.placeholders.country')}
                   />
                 </div>
-                <div>
-                  <label className="block text-sm font-semibold text-white/90 md:text-slate-800">{t('matchmakingPage.form.labels.whatsapp')}</label>
-                  <input
-                    value={form.whatsapp}
-                    onChange={onChange('whatsapp')}
-                    className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
-                    placeholder={t('matchmakingPage.form.placeholders.whatsapp')}
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-white/90 md:text-slate-800">{t('matchmakingPage.form.labels.email')}</label>
-                  <input
-                    value={form.email}
-                    onChange={onChange('email')}
-                    className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
-                    placeholder={t('matchmakingPage.form.placeholders.email')}
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-white/90 md:text-slate-800">{t('matchmakingPage.form.labels.instagram')}</label>
-                  <input
-                    value={form.instagram}
-                    onChange={onChange('instagram')}
-                    className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
-                    placeholder={t('matchmakingPage.form.placeholders.instagram')}
-                  />
-                </div>
+
+                {!isEditOnceMode ? (
+                  <>
+                    <div>
+                      <label className="block text-sm font-semibold text-white/90 md:text-slate-800">{t('matchmakingPage.form.labels.nationality')}</label>
+                      <input
+                        value={form.nationality}
+                        onChange={onChange('nationality')}
+                        maxLength={60}
+                        className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                        placeholder={t('matchmakingPage.form.placeholders.country')}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-white/90 md:text-slate-800">{t('matchmakingPage.form.labels.gender')}</label>
+                      <select
+                        value={form.gender}
+                        onChange={onGenderChange}
+                        className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                      >
+                        {genderOptions.map((opt) => (
+                          <option key={opt.id} value={opt.id} disabled={!opt.id}>
+                            {opt.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-white/90 md:text-slate-800">{t('matchmakingPage.form.labels.occupation')}</label>
+                      <input
+                        value={form.occupation}
+                        onChange={onChange('occupation')}
+                        className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                        placeholder={t('matchmakingPage.form.placeholders.occupation')}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-white/90 md:text-slate-800">{t('matchmakingPage.form.labels.maritalStatus')}</label>
+                      <select
+                        value={form.maritalStatus}
+                        onChange={onMaritalStatusChange}
+                        className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                      >
+                        {maritalStatusOptions.map((opt) => (
+                          <option key={opt.id} value={opt.id}>
+                            {opt.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {(String(form.maritalStatus || '').trim().toLowerCase() === 'widowed' ||
+                      String(form.maritalStatus || '').trim().toLowerCase() === 'divorced') ? (
+                      <>
+                        <div>
+                          <label className="block text-sm font-semibold text-white/90 md:text-slate-800">{t('matchmakingPage.form.labels.hasChildren')}</label>
+                          <select
+                            value={form.hasChildren}
+                            onChange={onHasChildrenChange}
+                            className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                          >
+                            {yesNoOptions.map((opt) => (
+                              <option key={opt.id} value={opt.id}>
+                                {opt.label}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+
+                        {form.hasChildren === 'yes' ? (
+                          <div>
+                            <label className="block text-sm font-semibold text-white/90 md:text-slate-800">{t('matchmakingPage.form.labels.childrenCount')}</label>
+                            <input
+                              value={form.childrenCount}
+                              onChange={onChange('childrenCount')}
+                              className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                              inputMode="numeric"
+                              placeholder={t('matchmakingPage.form.placeholders.childrenCount')}
+                            />
+                          </div>
+                        ) : null}
+                      </>
+                    ) : null}
+                  </>
+                ) : null}
+
+                {isEditOnceMode ? (
+                  <>
+                    <div>
+                      <label className="block text-sm font-semibold text-white/90 md:text-slate-800">{t('matchmakingPage.form.labels.whatsapp')}</label>
+                      <input
+                        value={form.whatsapp}
+                        onChange={onChange('whatsapp')}
+                        className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                        placeholder={t('matchmakingPage.form.placeholders.whatsapp')}
+                      />
+                      <div className="mt-2 text-xs text-white/70 md:text-slate-600">{t('matchmakingPage.form.contactNumberNote')}</div>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-white/90 md:text-slate-800">{t('matchmakingPage.form.labels.email')}</label>
+                      <input
+                        value={form.email}
+                        onChange={onChange('email')}
+                        className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                        placeholder={t('matchmakingPage.form.placeholders.email')}
+                      />
+                    </div>
+                  </>
+                ) : null}
               </div>
 
-              <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
-                {t('matchmakingPage.form.contactPrivacyNotice')}
-              </div>
+              {isEditOnceMode ? (
+                <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+                  {t('matchmakingPage.form.contactPrivacyNotice')}
+                </div>
+              ) : null}
             </div>
           )}
 
-          {(!isWizardMode || wizardStep === 1) && (
+          {isEditOnceMode && (!isWizardMode || wizardStep === 1) && (
           <div
             key={isWizardMode ? `wizard-step-${wizardStep}` : 'all-steps-more'}
             className={
@@ -1648,7 +1816,7 @@ export default function MatchmakingApply() {
                 <label className="block text-sm text-white/80 md:text-slate-700">{t('matchmakingPage.form.labels.maritalStatus')}</label>
                 <select
                   value={form.maritalStatus}
-                  onChange={onChange('maritalStatus')}
+                  onChange={onMaritalStatusChange}
                   className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
                 >
                   {maritalStatusOptions.map((opt) => (
@@ -1658,50 +1826,56 @@ export default function MatchmakingApply() {
                   ))}
                 </select>
               </div>
-              <div>
-                <label className="block text-sm text-white/80 md:text-slate-700">{t('matchmakingPage.form.labels.hasChildren')}</label>
-                <select
-                  value={form.hasChildren}
-                  onChange={onChange('hasChildren')}
-                  className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
-                >
-                  {yesNoOptions.map((opt) => (
-                    <option key={opt.id} value={opt.id}>
-                      {opt.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
 
-              {form.hasChildren === 'yes' && (
-                <div>
-                  <label className="block text-sm text-white/80 md:text-slate-700">{t('matchmakingPage.form.labels.childrenCount')}</label>
-                  <input
-                    value={form.childrenCount}
-                    onChange={onChange('childrenCount')}
-                    className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
-                    inputMode="numeric"
-                    placeholder={t('matchmakingPage.form.placeholders.childrenCount')}
-                  />
-                </div>
-              )}
+              {(String(form.maritalStatus || '').trim().toLowerCase() === 'widowed' ||
+                String(form.maritalStatus || '').trim().toLowerCase() === 'divorced') ? (
+                <>
+                  <div>
+                    <label className="block text-sm text-white/80 md:text-slate-700">{t('matchmakingPage.form.labels.hasChildren')}</label>
+                    <select
+                      value={form.hasChildren}
+                      onChange={onHasChildrenChange}
+                      className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                    >
+                      {yesNoOptions.map((opt) => (
+                        <option key={opt.id} value={opt.id}>
+                          {opt.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
 
-              {form.hasChildren === 'yes' && (
-                <div>
-                  <label className="block text-sm text-white/80 md:text-slate-700">{t('matchmakingPage.form.labels.childrenLivingSituation')}</label>
-                  <select
-                    value={form.childrenLivingSituation}
-                    onChange={onChange('childrenLivingSituation')}
-                    className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
-                  >
-                    {childrenLivingSituationOptions.map((opt) => (
-                      <option key={opt.id} value={opt.id}>
-                        {opt.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
+                  {form.hasChildren === 'yes' ? (
+                    <>
+                      <div>
+                        <label className="block text-sm text-white/80 md:text-slate-700">{t('matchmakingPage.form.labels.childrenCount')}</label>
+                        <input
+                          value={form.childrenCount}
+                          onChange={onChange('childrenCount')}
+                          className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                          inputMode="numeric"
+                          placeholder={t('matchmakingPage.form.placeholders.childrenCount')}
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm text-white/80 md:text-slate-700">{t('matchmakingPage.form.labels.childrenLivingSituation')}</label>
+                        <select
+                          value={form.childrenLivingSituation}
+                          onChange={onChange('childrenLivingSituation')}
+                          className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                        >
+                          {childrenLivingSituationOptions.map((opt) => (
+                            <option key={opt.id} value={opt.id}>
+                              {opt.label}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </>
+                  ) : null}
+                </>
+              ) : null}
 
               <div>
                 <label className="block text-sm text-white/80 md:text-slate-700">{t('matchmakingPage.form.labels.incomeLevel')}</label>
@@ -1944,7 +2118,7 @@ export default function MatchmakingApply() {
           </div>
           )}
 
-          {(!isWizardMode || wizardStep === 2) && (
+          {isEditOnceMode && (!isWizardMode || wizardStep === 2) && (
           <div
             key={isWizardMode ? `wizard-step-${wizardStep}` : 'all-steps-identity'}
             className={
@@ -1989,12 +2163,12 @@ export default function MatchmakingApply() {
           )}
 
           {genderConfirm.open ? (
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-              <div className="w-full max-w-md overflow-hidden rounded-xl bg-white shadow-xl">
-                <div className="border-b border-slate-200 px-4 py-3">
+            <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/60 p-4 pt-6 overflow-y-auto">
+              <div className="w-full max-w-md overflow-hidden rounded-xl bg-white shadow-xl max-h-[85vh] flex flex-col">
+                <div className="border-b border-slate-200 px-4 py-3 shrink-0">
                   <p className="font-semibold text-slate-900">{t('matchmakingPage.form.confirmGender.title')}</p>
                 </div>
-                <div className="px-4 py-4">
+                <div className="px-4 py-4 overflow-y-auto flex-1">
                   <p className="text-sm text-slate-700">
                     {t('matchmakingPage.form.confirmGender.text', { gender: genderConfirmLabel })}
                   </p>
@@ -2019,100 +2193,33 @@ export default function MatchmakingApply() {
             </div>
           ) : null}
 
-          {(!isWizardMode || wizardStep === 3) && (
+          {(!isWizardMode || wizardStep === consentsWizardStep) && (
           <div
-            key={isWizardMode ? `wizard-step-${wizardStep}` : 'all-steps-photos'}
+            key={isWizardMode ? `wizard-step-${wizardStep}-consents` : 'all-steps-consents'}
             className={
               isWizardMode
                 ? 'rounded-[26px] border border-white/10 bg-white/5 p-5 md:p-6 shadow-[0_20px_60px_rgba(0,0,0,0.25)] gemini-fade-up'
                 : ''
             }
           >
-          <div>
-            <label className="block text-sm font-semibold text-white/90 md:text-slate-800">{t('matchmakingPage.form.labels.photos')}</label>
-            {isEditOnceMode ? (
-              <p className="mt-2 text-xs text-white/60 md:text-slate-600">{t('matchmakingPage.form.editOnce.photosLocked')}</p>
-            ) : (
-              <>
-                <div className="mt-2 space-y-3">
-                  <div>
-                    <label className="block text-xs font-semibold text-white/80 md:text-slate-700">{t('matchmakingPage.form.labels.photo1')}</label>
-                    <div className="mt-1 flex items-center gap-3">
-                      <input
-                        id="matchmaking-photo1"
-                        type="file"
-                        accept="image/*"
-                        onChange={(e) => setPhotoFiles((p) => ({ ...p, photo1: e.target.files?.[0] || null }))}
-                        className="sr-only"
-                      />
-                      <label
-                        htmlFor="matchmaking-photo1"
-                        className="inline-flex cursor-pointer items-center rounded-full border border-slate-900 bg-slate-900 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-slate-800 hover:border-slate-800 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/60"
-                      >
-                        {t('matchmakingPage.form.photo.choose')}
-                      </label>
-                      <span className="min-w-0 flex-1 text-xs text-white/60 md:text-slate-600 break-all">
-                        {photoFiles.photo1?.name || t('matchmakingPage.form.photo.noFileChosen')}
-                      </span>
-                    </div>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-semibold text-white/80 md:text-slate-700">{t('matchmakingPage.form.labels.photo2')}</label>
-                    <div className="mt-1 flex items-center gap-3">
-                      <input
-                        id="matchmaking-photo2"
-                        type="file"
-                        accept="image/*"
-                        onChange={(e) => setPhotoFiles((p) => ({ ...p, photo2: e.target.files?.[0] || null }))}
-                        className="sr-only"
-                      />
-                      <label
-                        htmlFor="matchmaking-photo2"
-                        className="inline-flex cursor-pointer items-center rounded-full border border-slate-900 bg-slate-900 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-slate-800 hover:border-slate-800 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/60"
-                      >
-                        {t('matchmakingPage.form.photo.choose')}
-                      </label>
-                      <span className="min-w-0 flex-1 text-xs text-white/60 md:text-slate-600 break-all">
-                        {photoFiles.photo2?.name || t('matchmakingPage.form.photo.noFileChosen')}
-                      </span>
-                    </div>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-semibold text-white/80 md:text-slate-700">{t('matchmakingPage.form.labels.photo3')}</label>
-                    <div className="mt-1 flex items-center gap-3">
-                      <input
-                        id="matchmaking-photo3"
-                        type="file"
-                        accept="image/*"
-                        onChange={(e) => setPhotoFiles((p) => ({ ...p, photo3: e.target.files?.[0] || null }))}
-                        className="sr-only"
-                      />
-                      <label
-                        htmlFor="matchmaking-photo3"
-                        className="inline-flex cursor-pointer items-center rounded-full border border-slate-900 bg-slate-900 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-slate-800 hover:border-slate-800 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/60"
-                      >
-                        {t('matchmakingPage.form.photo.choose')}
-                      </label>
-                      <span className="min-w-0 flex-1 text-xs text-white/60 md:text-slate-600 break-all">
-                        {photoFiles.photo3?.name || t('matchmakingPage.form.photo.noFileChosen')}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-                <p className="mt-2 text-xs text-white/60 md:text-slate-600">{t('matchmakingPage.form.photoHint')}</p>
-              </>
-            )}
-          </div>
+          {isEditOnceMode ? (
+            <>
+              <div>
+                <label className="block text-sm font-semibold text-white/90 md:text-slate-800">{t('matchmakingPage.form.labels.photos')}</label>
+                <p className="mt-2 text-xs text-white/60 md:text-slate-600">{t('matchmakingPage.form.editOnce.photosLocked')}</p>
+              </div>
 
-          <div>
-            <label className="block text-sm font-semibold text-white/90 md:text-slate-800">{t('matchmakingPage.form.labels.about')}</label>
-            <textarea
-              value={form.about}
-              onChange={onChange('about')}
-              className="mt-1 w-full min-h-[110px] rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-amber-300/60"
-              placeholder={t('matchmakingPage.form.placeholders.about')}
-            />
-          </div>
+              <div>
+                <label className="block text-sm font-semibold text-white/90 md:text-slate-800">{t('matchmakingPage.form.labels.about')}</label>
+                <textarea
+                  value={form.about}
+                  onChange={onChange('about')}
+                  className="mt-1 w-full min-h-[110px] rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-amber-300/60"
+                  placeholder={t('matchmakingPage.form.placeholders.about')}
+                />
+              </div>
+            </>
+          ) : null}
 
           <div className={isWizardMode ? 'space-y-3' : 'space-y-3 rounded-none border-0 md:rounded-xl md:border md:border-slate-200 p-0 md:p-4'}>
             <label className="flex items-start gap-3 text-sm text-white/80 md:text-slate-800">
@@ -2163,10 +2270,6 @@ export default function MatchmakingApply() {
                 />
               </span>
             </label>
-            <label className="flex items-start gap-3 text-sm text-white/80 md:text-slate-800">
-              <input type="checkbox" checked={form.consentPhotoShare} onChange={onChange('consentPhotoShare')} className="mt-1" />
-              <span>{t('matchmakingPage.form.consents.photo')}</span>
-            </label>
           </div>
 
           </div>
@@ -2184,7 +2287,7 @@ export default function MatchmakingApply() {
               <button
                 type="button"
                 onClick={goWizardBack}
-                disabled={submitting || wizardStep <= 0}
+                disabled={submitting || (wizardStep <= 0 && !isEditOnceMode)}
                 className="w-full sm:w-40 gemini-organic-btn rounded-full bg-white/10 border border-white/15 text-white font-semibold py-3 hover:bg-white/[0.14] transition disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/60"
               >
                 {t('matchmakingPage.form.wizard.back')}
@@ -2227,7 +2330,7 @@ export default function MatchmakingApply() {
           </div>
         )}
       </main>
-      <Footer />
+      {isEmbedded ? null : <Footer />}
     </div>
   );
 }

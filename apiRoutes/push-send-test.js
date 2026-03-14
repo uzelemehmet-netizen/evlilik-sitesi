@@ -73,8 +73,8 @@ export default async function pushSendTest(req, res) {
         link: url,
       },
       notification: {
-        icon: '/pwa-192x192.png',
-        badge: '/pwa-64x64.png',
+        icon: '/pwa-192x192.png?v=20260224-1',
+        badge: '/pwa-64x64.png?v=20260224-1',
       },
     },
   });

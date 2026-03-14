@@ -1,5 +1,6 @@
 import { getAdmin, normalizeBody, requireIdToken } from './_firebaseAdmin.js';
 import { ensureEligibleOrThrow, ensureProfileCompleteOrThrow } from './_matchmakingEligibility.js';
+import { sendPushToUid } from './_push.js';
 
 function safeStr(v) {
   return typeof v === 'string' ? v.trim() : '';
@@ -50,6 +51,53 @@ function pickBestNonStubApplication(items) {
 
   const best = scored.find((x) => !x.isStub) || null;
   return best ? best.a : null;
+}
+
+function buildFallbackAppFromUserDoc({ uid, userDoc }) {
+  const u = userDoc && typeof userDoc === 'object' ? userDoc : {};
+  const app = u?.application && typeof u.application === 'object' ? u.application : {};
+  const pp = u?.publicProfile && typeof u.publicProfile === 'object' ? u.publicProfile : {};
+  const details = u?.details && typeof u.details === 'object' ? u.details : {};
+
+  const about =
+    safeStr(details?.about) ||
+    safeStr(details?.aboutTr) ||
+    safeStr(details?.aboutId) ||
+    safeStr(pp?.about) ||
+    safeStr(pp?.aboutTr) ||
+    safeStr(pp?.aboutId) ||
+    safeStr(app?.about) ||
+    safeStr(app?.aboutTr) ||
+    safeStr(app?.aboutId);
+
+  const photoUrls = Array.isArray(app?.photoUrls)
+    ? app.photoUrls
+    : Array.isArray(pp?.photoUrls)
+      ? pp.photoUrls
+      : Array.isArray(u?.photoUrls)
+        ? u.photoUrls
+        : [];
+
+  return {
+    id: '',
+    userId: safeStr(uid),
+    source: 'user_doc_fallback',
+    username: safeStr(app?.username) || safeStr(pp?.username) || safeStr(u?.username),
+    gender: safeStr(app?.gender) || safeStr(pp?.gender) || safeStr(u?.gender),
+    lookingForGender: safeStr(app?.lookingForGender) || safeStr(pp?.lookingForGender) || safeStr(u?.lookingForGender),
+    city: safeStr(app?.city) || safeStr(pp?.city) || safeStr(u?.city),
+    country: safeStr(app?.country) || safeStr(pp?.country) || safeStr(u?.country),
+    age: u?.age,
+    details,
+    photoUrls: Array.isArray(photoUrls) ? photoUrls.filter((x) => typeof x === 'string' && x.trim()) : [],
+    about: safeStr(details?.about) || safeStr(pp?.about) || safeStr(app?.about),
+    aboutTr: safeStr(details?.aboutTr) || safeStr(pp?.aboutTr) || safeStr(app?.aboutTr),
+    aboutId: safeStr(details?.aboutId) || safeStr(pp?.aboutId) || safeStr(app?.aboutId),
+    expectations: safeStr(details?.expectations) || safeStr(pp?.expectations) || safeStr(app?.expectations),
+    expectationsTr: safeStr(details?.expectationsTr) || safeStr(pp?.expectationsTr) || safeStr(app?.expectationsTr),
+    expectationsId: safeStr(details?.expectationsId) || safeStr(pp?.expectationsId) || safeStr(app?.expectationsId),
+    __aboutOk: !!about,
+  };
 }
 
 function isIdentityVerifiedUserDoc(userDoc) {
@@ -175,6 +223,24 @@ export default async function handler(req, res) {
       otherApp = pickBestNonStubApplication(otherApps);
 
       if (!myApp || !otherApp) {
+        const [myUserSnap, otherUserSnap] = await Promise.all([
+          db.collection('matchmakingUsers').doc(uid).get(),
+          db.collection('matchmakingUsers').doc(fromUid).get(),
+        ]);
+        const myUser = myUserSnap.exists ? (myUserSnap.data() || {}) : {};
+        const otherUser = otherUserSnap.exists ? (otherUserSnap.data() || {}) : {};
+
+        if (!myApp) {
+          const fb = buildFallbackAppFromUserDoc({ uid, userDoc: myUser });
+          if (fb && fb.__aboutOk) myApp = fb;
+        }
+        if (!otherApp) {
+          const fb = buildFallbackAppFromUserDoc({ uid: fromUid, userDoc: otherUser });
+          if (fb && fb.__aboutOk) otherApp = fb;
+        }
+      }
+
+      if (!myApp || !otherApp) {
         res.statusCode = 404;
         res.setHeader('content-type', 'application/json');
         res.end(JSON.stringify({ ok: false, error: 'application_not_found' }));
@@ -186,6 +252,7 @@ export default async function handler(req, res) {
     let status = decision === 'approve' ? 'approved' : 'rejected';
     let matchId = '';
     let shouldNotifyReject = false;
+    let shouldNotify = false;
 
     await db.runTransaction(async (tx) => {
       const inboxSnap = await tx.get(inboxRef);
@@ -212,6 +279,9 @@ export default async function handler(req, res) {
       if (decision === 'reject' && curStatus !== 'rejected') {
         shouldNotifyReject = true;
       }
+
+      // Non-idempotent update -> notify requester.
+      shouldNotify = true;
 
       const patch = {
         type: 'pre_match',
@@ -284,6 +354,25 @@ export default async function handler(req, res) {
       tx.set(inboxRef, patch, { merge: true });
       tx.set(outboxRef, patch, { merge: true });
     });
+
+    // Push to requester (best-effort).
+    if (shouldNotify) {
+      try {
+        await sendPushToUid({
+          uid: fromUid,
+          title: status === 'approved' ? 'Ön eşleşme onayı' : 'Ön eşleşme yanıtı',
+          body: status === 'approved' ? 'Ön eşleşme isteğiniz kabul edildi.' : 'Ön eşleşme isteğiniz reddedildi.',
+          url: '/profilim',
+          type: status === 'approved' ? 'pre_match_approved' : 'pre_match_rejected',
+          data: {
+            byUid: uid,
+            ...(matchId ? { matchId } : {}),
+          },
+        });
+      } catch {
+        // ignore
+      }
+    }
 
     if (decision === 'reject' && shouldNotifyReject) {
       const systemProfile = { username: 'Sistem', age: null, city: '', photoUrl: '' };

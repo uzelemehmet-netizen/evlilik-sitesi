@@ -1,13 +1,53 @@
 ﻿<!doctype html>
 <html lang="tr">
   <head>
-    <!-- Google Tag Manager -->
-    <script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
-    new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
-    j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
-    'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
-    })(window,document,'script','dataLayer','GTM-KJQWB823');</script>
-    <!-- End Google Tag Manager -->
+    <script>
+      // Defensive global stub: some injected/3p scripts (esp. in certain mobile in-app browsers)
+      // reference a global `swbrowser` identifier. If it's missing, it can throw a ReferenceError
+      // and break app initialization.
+      window.swbrowser = window.swbrowser || {};
+      // eslint-disable-next-line no-var
+      var swbrowser = window.swbrowser;
+
+      // Similar defensive stub for `xbrowser` (seen in some auto-fill/injected scripts).
+      // Use a Proxy when available so any method call becomes a no-op.
+      (function () {
+        try {
+          if (typeof window.xbrowser !== 'undefined') {
+            // eslint-disable-next-line no-var
+            var xbrowser = window.xbrowser;
+            return;
+          }
+
+          var noop = function () {};
+          var stub = {};
+
+          // Prefer Proxy to avoid "xbrowser.foo is not a function" crashes.
+          if (typeof Proxy === 'function') {
+            stub = new Proxy(
+              {},
+              {
+                get: function (_t, prop) {
+                  if (prop === '__isStub') return true;
+                  // Avoid Promise-like assimilation edge cases.
+                  if (prop === 'then') return undefined;
+                  return noop;
+                },
+              }
+            );
+          }
+
+          window.xbrowser = stub;
+          // eslint-disable-next-line no-var
+          var xbrowser = window.xbrowser;
+        } catch (e) {
+          // As a last resort, just define an object.
+          window.xbrowser = window.xbrowser || {};
+          // eslint-disable-next-line no-var
+          var xbrowser = window.xbrowser;
+        }
+      })();
+    </script>
     <!-- Google Analytics 4 -->
     <script>
       window.dataLayer = window.dataLayer || [];
@@ -17,30 +57,88 @@
         'ad_storage': 'granted'
       });
     </script>
-    <script async src="https://www.googletagmanager.com/gtag/js?id=G-GJPELR2CH6"></script>
     <script>
+      // GA4/Ads: load after first interaction or idle timeout (improves initial Load/Wall)
       window.dataLayer = window.dataLayer || [];
       function gtag(){dataLayer.push(arguments);}
+      // Queue config early; gtag.js will drain dataLayer once loaded.
       gtag('js', new Date());
-      gtag('config', 'G-GJPELR2CH6', { send_page_view: false });
+      gtag('config', 'G-N3SFCC5YZ3', { send_page_view: false });
       gtag('config', 'AW-17732388792');
+
+      (function(){
+        var loaded = false;
+        function load3p(){
+          if (loaded) return;
+          loaded = true;
+          try {
+            var s = document.createElement('script');
+            s.async = true;
+            s.crossOrigin = 'anonymous';
+            s.src = 'https://www.googletagmanager.com/gtag/js?id=G-N3SFCC5YZ3';
+            document.head.appendChild(s);
+          } catch (e) {
+            // ignore
+          }
+
+          // TikTok Pixel (delayed)
+          try {
+            var w = window, d = document, t = 'ttq';
+            w.TiktokAnalyticsObject = t;
+            var ttq = w[t] = w[t] || [];
+            ttq.methods = ["page","track","identify","instances","debug","on","off","once","ready","alias","group","enableCookie","disableCookie","holdConsent","revokeConsent","grantConsent"];
+            ttq.setAndDefer = function(tObj, eName){ tObj[eName] = function(){ tObj.push([eName].concat(Array.prototype.slice.call(arguments,0))); }; };
+            for (var i = 0; i < ttq.methods.length; i++) ttq.setAndDefer(ttq, ttq.methods[i]);
+            ttq.instance = function(e){
+              var n = ttq._i[e] || [];
+              for (var j = 0; j < ttq.methods.length; j++) ttq.setAndDefer(n, ttq.methods[j]);
+              return n;
+            };
+            ttq.load = function(e, n){
+              var r = 'https://analytics.tiktok.com/i18n/pixel/events.js';
+              ttq._i = ttq._i || {}; ttq._i[e] = []; ttq._i[e]._u = r; ttq._t = ttq._t || {}; ttq._t[e] = +new Date; ttq._o = ttq._o || {}; ttq._o[e] = n || {};
+              var s2 = d.createElement('script');
+              s2.type = 'text/javascript'; s2.async = true; s2.crossOrigin = 'anonymous';
+              s2.src = r + '?sdkid=' + e + '&lib=' + t;
+              var f = d.getElementsByTagName('script')[0];
+              f.parentNode.insertBefore(s2, f);
+            };
+            ttq.load('D665H0RC77UFHCQP2AA0');
+            ttq.page();
+          } catch (e) {
+            // ignore
+          }
+        }
+
+        function once(name, fn){
+          try { window.addEventListener(name, fn, { once: true, passive: true }); } catch { window.addEventListener(name, fn, true); }
+        }
+
+        once('pointerdown', load3p);
+        once('keydown', load3p);
+        once('touchstart', load3p);
+        once('scroll', load3p);
+
+        // If user never interacts, still load analytics — but only AFTER window load.
+        // This avoids 3p requests becoming the page's load blocker.
+        window.addEventListener('load', function(){
+          if (typeof requestIdleCallback === 'function') {
+            requestIdleCallback(load3p, { timeout: 6000 });
+          } else {
+            setTimeout(load3p, 6000);
+          }
+        }, { once: true });
+      })();
     </script>
     <!-- End Google Analytics 4 -->
     <!-- Google Ads Conversion Tracking -->
     <meta charset="UTF-8" />
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     <!-- Favicon / App icons (PWA) -->
-    <link rel="icon" href="/favicon.ico" sizes="any" />
-    <link rel="shortcut icon" href="/favicon.ico" />
-    <link rel="icon" type="image/svg+xml" href="/icon.svg?v=20260201-3" />
-    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png?v=20260205-2" />
-    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png?v=20260205-2" />
-    <link rel="icon" type="image/png" sizes="48x48" href="/favicon-48x48.png?v=20260205-2" />
-    <link rel="icon" type="image/png" sizes="64x64" href="/favicon-64x64.png?v=20260205-2" />
-    <link rel="icon" type="image/png" sizes="192x192" href="/favicon-192x192.png?v=20260205-2" />
-    <link rel="icon" type="image/png" sizes="512x512" href="/favicon-512x512.png?v=20260205-2" />
-    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon-180x180.png?v=20260205-2" />
-    <link rel="manifest" href="/pwa-manifest.webmanifest?v=20260201-3" />
+    <link rel="icon" type="image/png" href="/favicon.png?v=20260310-1" />
+    <link rel="shortcut icon" type="image/png" href="/favicon.png?v=20260310-1" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon-180x180.png?v=20260310-1" />
+    <link rel="manifest" href="/manifest.webmanifest?v=20260310-1" />
     <meta name="theme-color" content="#0b1220" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Uniqah | Evlilik Eşleştirme</title>
@@ -57,7 +155,7 @@
       content="Evlilik odaklı eşleştirme ve güvenli iletişim adımları sunan kapalı sistem."
     />
     <meta property="og:url" content="https://uniqah.com" />
-    <meta property="og:image" content="https://uniqah.com/pwa-512x512.png" />
+    <meta property="og:image" content="https://uniqah.com/ChatGPT%20Image%2017%20%C5%9Eub%202026%2014_37_55.png?v=20260217-1" />
     <meta property="og:site_name" content="Uniqah" />
     <!-- Twitter Cards -->
     <meta name="twitter:card" content="summary_large_image" />
@@ -66,13 +164,11 @@
       name="twitter:description"
       content="Evlilik odaklı eşleştirme ve güvenli iletişim adımları sunan kapalı sistem."
     />
-    <meta name="twitter:image" content="https://uniqah.com/pwa-512x512.png" />
+    <meta name="twitter:image" content="https://uniqah.com/ChatGPT%20Image%2017%20%C5%9Eub%202026%2014_37_55.png?v=20260217-1" />
     <meta name="robots" content="index,follow" />
     <link rel="canonical" href="https://uniqah.com/" />
     <meta name="referrer" content="no-referrer-when-downgrade">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Orbitron:wght@400;500;600;700;800;900&family=Poppins:wght@400;500;600;700;800;900&family=Rajdhani:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Fonts are self-hosted via @fontsource (see src/main.jsx) -->
     <meta name="probely-verification" content="ffba07fc-80e6-4fdb-a364-8e2700305878" />
     <!-- Structured Data: Organization -->
     <script type="application/ld+json">
@@ -83,7 +179,7 @@
         "legalName": "PT MoonStar Global Indonesia",
         "url": "https://uniqah.com",
         "description": "Evlilik amacıyla eşleştirme, güvenli iletişim ve süreç rehberliği sunar.",
-        "logo": "https://uniqah.com/brand.png",
+        "logo": "https://uniqah.com/ChatGPT%20Image%2017%20%C5%9Eub%202026%2014_35_26.png",
         "email": "info@uniqah.com",
         "telephone": [
           "+905550343852",
@@ -120,12 +216,10 @@
         "sameAs": []
       }
     </script>
+
+    <!-- TikTok Pixel Code moved into deferred loader above -->
   </head>
   <body style="font-family: 'Poppins', 'Inter', sans-serif;">
-    <!-- Google Tag Manager (noscript) -->
-    <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-KJQWB823"
-    height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
-    <!-- End Google Tag Manager (noscript) -->
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
   </body>

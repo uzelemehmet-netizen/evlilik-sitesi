@@ -4,11 +4,15 @@ import { COMPANY } from "../config/company";
 import { isFeatureEnabled } from "../config/siteVariant";
 import { buildWhatsAppUrl } from "../utils/whatsapp";
 import { useTranslation } from 'react-i18next';
+import { staticAssetUrl } from '../utils/staticAssetUrl';
 
 export default function Footer() {
   const currentYear = new Date().getFullYear();
   const location = useLocation();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+
+  const FOOTER_IMAGE_SRC = staticAssetUrl('/ChatGPT%20Image%2017%20%C5%9Eub%202026%2014_33_00.png');
+  const FOOTER_PARTNER_IMAGE_SRC = staticAssetUrl('/ChatGPT%20Image%20Jan%2014,%202026,%2001_53_44%20PM.png');
 
   const getWhatsappLink = () => {
     let message = t('footer.whatsappMessages.general');
@@ -31,7 +35,7 @@ export default function Footer() {
       message = t('footer.whatsappMessages.home');
     }
 
-    return buildWhatsAppUrl(message);
+    return buildWhatsAppUrl(message, { lang: String(i18n?.language || 'tr'), context: 'footer' });
   };
 
   const whatsappLink = getWhatsappLink();
@@ -49,13 +53,22 @@ export default function Footer() {
         <div className="grid grid-cols-1 md:grid-cols-5 gap-8 mb-8">
           <div>
             <div className="mb-4">
-              <img
-                src="/logos/moonstar-mark-light.png"
-                alt="MoonStar Global Indonesia"
-                className="h-12 w-auto"
-                loading="lazy"
-                decoding="async"
-              />
+              <div className="flex items-center gap-3">
+                <img
+                  src={FOOTER_IMAGE_SRC}
+                  alt="Uniqah"
+                  className="h-12 w-auto"
+                  loading="lazy"
+                  decoding="async"
+                />
+                <img
+                  src={FOOTER_PARTNER_IMAGE_SRC}
+                  alt=""
+                  className="h-12 w-auto object-contain"
+                  loading="lazy"
+                  decoding="async"
+                />
+              </div>
             </div>
             <p className="text-gray-400" style={{ fontFamily: '"Poppins", sans-serif' }}>
               {t('footer.brandBlurb', { company: 'PT MoonStar Global Indonesia' })}

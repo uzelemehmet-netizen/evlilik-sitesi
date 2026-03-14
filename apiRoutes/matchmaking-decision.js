@@ -1,6 +1,7 @@
 import { getAdmin, normalizeBody, requireIdToken } from './_firebaseAdmin.js';
 import { assertNotResetIgnoredMatch, getMatchmakingResetAtMs } from './_matchmakingReset.js';
 import { ensureMembershipActiveOrThrow, ensureProfileCompleteOrThrow } from './_matchmakingEligibility.js';
+import { sendPushToUid } from './_push.js';
 
 function normalizeDecision(v) {
   const s = String(v || '').toLowerCase().trim();
@@ -309,6 +310,10 @@ export default async function handler(req, res) {
     let creditGranted = 0;
     let cooldownUntilMs = 0;
 
+    let shouldPush = false;
+    let otherUidForPush = '';
+    let fromUsernameForPush = '';
+
     await db.runTransaction(async (tx) => {
       const snap = await tx.get(ref);
       if (!snap.exists) {
@@ -340,6 +345,8 @@ export default async function handler(req, res) {
       const side = uid === aUserId ? 'a' : 'b';
       const otherSide = side === 'a' ? 'b' : 'a';
       const otherUserId = side === 'a' ? bUserId : aUserId;
+
+      otherUidForPush = otherUserId;
 
       const meRef = db.collection('matchmakingUsers').doc(uid);
       const otherUserRef = db.collection('matchmakingUsers').doc(otherUserId);
@@ -493,6 +500,11 @@ export default async function handler(req, res) {
       }
 
       decisions[side] = decision;
+
+      if (decision === 'accept') {
+        shouldPush = true;
+        fromUsernameForPush = safeStr(myApp?.username) || safeStr(myProfileSnap?.username);
+      }
 
       const patch = {
         decisions,
@@ -696,6 +708,34 @@ export default async function handler(req, res) {
 
       tx.set(ref, patch, { merge: true });
     });
+
+    // Push to the other user (best-effort) for inbound interactions.
+    if (shouldPush && otherUidForPush) {
+      try {
+        const from = fromUsernameForPush ? `${fromUsernameForPush}` : 'Bir kullanıcı';
+        if (status === 'mutual_interest' || status === 'mutual_accepted') {
+          await sendPushToUid({
+            uid: otherUidForPush,
+            title: 'Karşılıklı beğeni',
+            body: `${from} sizi de beğendi.`,
+            url: '/profilim',
+            type: status === 'mutual_accepted' ? 'match_mutual_accepted' : 'match_mutual_interest',
+            data: { matchId, fromUid: uid },
+          });
+        } else {
+          await sendPushToUid({
+            uid: otherUidForPush,
+            title: 'Yeni beğeni',
+            body: `${from} sizi beğendi.`,
+            url: '/profilim',
+            type: 'like_received',
+            data: { matchId, fromUid: uid },
+          });
+        }
+      } catch {
+        // ignore
+      }
+    }
 
     res.statusCode = 200;
     res.setHeader('content-type', 'application/json');

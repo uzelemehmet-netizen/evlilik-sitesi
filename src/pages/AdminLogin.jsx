@@ -49,11 +49,9 @@ export default function AdminLogin() {
   const validateFirebaseProject = () => {
     const { projectId, authDomain, apiKey } = getActiveFirebaseInfo();
 
-    // Bu repoda firebase.js içinde fallback bir demo proje var.
-    // VITE_FIREBASE_* env'leri eksikse, uygulama yanlış projeye bağlanıp admin login'i her zaman başarısız olur.
-    const looksLikeFallback = projectId === 'web-sitem-new-firebase' || authDomain === 'web-sitem-new-firebase.firebaseapp.com';
-
-    if (!projectId || !authDomain || !apiKey || looksLikeFallback) {
+    // Eğer Vercel/CI ortamında VITE_FIREBASE_* eksik/yanlışsa, admin login doğru çalışmaz.
+    // Bu repo artık sessiz fallback kullanmıyor; yine de burada kullanıcıya net yönlendirme verelim.
+    if (!projectId || !authDomain || !apiKey) {
       const msg =
         'Firebase proje ayarları eksik/yanlış görünüyor. Bu yüzden doğru email/şifre ile bile giriş başarısız olur.\n\n' +
         'Çözüm: Firebase Console → Project settings → (Web app) SDK config değerlerini alıp .env.local / Vercel env içine yazın:\n' +

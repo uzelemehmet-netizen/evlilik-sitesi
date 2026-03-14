@@ -6,9 +6,28 @@ export default function RequireAuth({ children }) {
   const { user, loading } = useAuth();
   const location = useLocation();
 
-  const isPublicPath = (pathname) => {
+  const normalizePath = (pathname) => {
     const rawPath = String(pathname || '/');
-    const path = rawPath.replace(/\/+$/, '') || '/';
+    return rawPath.replace(/\/+$/, '') || '/';
+  };
+
+  const getAuthModeForPath = (pathname) => {
+    const path = normalizePath(pathname);
+    // Bu sayfalar “kayıt ol -> form doldur” akışının bir parçası.
+    // Direkt login yerine signup ekranını açmak daha doğru.
+    if (
+      path === '/wedding/apply' ||
+      path === '/evlilik/eslestirme-basvuru' ||
+      path === '/evlilik/eslestirme-basvurusu' ||
+      path === '/evlilik/uyelik'
+    ) {
+      return 'signup';
+    }
+    return 'login';
+  };
+
+  const isPublicPath = (pathname) => {
+    const path = normalizePath(pathname);
 
     // Explicit protected pages that live under otherwise-public prefixes.
     // These must require a real (non-anonymous) authenticated user.
@@ -54,9 +73,11 @@ export default function RequireAuth({ children }) {
 
   if (!user || user.isAnonymous) {
     if (isPublicPath(location.pathname)) return children;
+
+    const mode = getAuthModeForPath(location.pathname);
     return (
       <Navigate
-        to="/login"
+        to={`/login?mode=${mode}`}
         replace
         state={{
           from: `${location.pathname || ''}${location.search || ''}`,

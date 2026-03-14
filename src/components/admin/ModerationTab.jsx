@@ -160,6 +160,8 @@ export default function ModerationTab() {
           const id = safeStr(it?.id);
           const st = safeStr(statusById?.[id]) || safeStr(it?.status) || 'new';
           const note = safeStr(noteById?.[id]);
+          const createdAt = it?.createdAt || null;
+          const updatedAt = it?.updatedAt || null;
 
           return (
             <div key={id} className="rounded-xl border border-slate-200 bg-slate-50 p-4">
@@ -173,10 +175,23 @@ export default function ModerationTab() {
                     <span className="font-semibold">User:</span> <span className="font-mono">{safeStr(it?.userId) || '-'}</span>
                     {safeStr(it?.userEmail) ? <span className="ml-2 text-slate-600">({safeStr(it.userEmail)})</span> : null}
                   </div>
+                  {safeStr(it?.contact) || safeStr(it?.context?.contact) ? (
+                    <div className="mt-1 text-xs text-slate-700 break-all">
+                      <span className="font-semibold">Contact:</span>{' '}
+                      <span className="font-mono">{safeStr(it?.contact) || safeStr(it?.context?.contact)}</span>
+                    </div>
+                  ) : null}
                   <div className="mt-1 text-xs text-slate-700 break-all">
                     <span className="font-semibold">Match:</span> <span className="font-mono">{safeStr(it?.matchId) || '-'}</span>
                   </div>
-                  <div className="mt-1 text-xs text-slate-600">Tarih: {fmtDate(it?.createdAt || it?.updatedAt || null)}</div>
+                  <div className="mt-1 text-xs text-slate-600">
+                    <span className="font-semibold">Gönderim:</span> {fmtDate(createdAt)}
+                    {updatedAt && updatedAt !== createdAt ? (
+                      <span className="ml-2">
+                        <span className="font-semibold">Güncelleme:</span> {fmtDate(updatedAt)}
+                      </span>
+                    ) : null}
+                  </div>
 
                   {safeStr(it?.text) ? (
                     <div className="mt-2 text-sm text-slate-900 whitespace-pre-wrap">{safeStr(it.text)}</div>

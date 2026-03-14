@@ -1,9 +1,6 @@
 name: Matchmaking Cron
 
 on:
-  schedule:
-    # GitHub Actions schedule minimum ~5 minutes (best-effort).
-    - cron: '*/15 * * * *'
   workflow_dispatch:
 
 jobs:

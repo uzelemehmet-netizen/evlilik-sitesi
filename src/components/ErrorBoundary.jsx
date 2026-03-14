@@ -1,10 +1,12 @@
 import React from 'react';
 import i18n from '../i18n.js';
+import { buildSupportReport, storeSupportReport } from '../utils/supportReport.js';
+import { getAnonBrowserId } from '../utils/clickTracker.js';
 
 export default class ErrorBoundary extends React.Component {
   constructor(props) {
     super(props);
-    this.state = { hasError: false, error: null, info: null };
+    this.state = { hasError: false, error: null, info: null, reporting: false, reported: false, reportError: '' };
   }
 
   static getDerivedStateFromError(error) {
@@ -19,6 +21,19 @@ export default class ErrorBoundary extends React.Component {
     } catch {
       // ignore
     }
+
+    // Prepare a support report (best-effort) so the user can forward it via Contact page.
+    storeSupportReport(
+      buildSupportReport({
+        kind: 'uncaught_render_error',
+        flow: 'error_boundary',
+        message: typeof error?.message === 'string' ? String(error.message) : String(error || ''),
+        extra: {
+          stack: typeof error?.stack === 'string' ? String(error.stack).slice(0, 4000) : '',
+          componentStack: typeof info?.componentStack === 'string' ? String(info.componentStack).slice(0, 4000) : '',
+        },
+      })
+    );
   }
 
   componentDidUpdate(prevProps, prevState) {
@@ -155,6 +170,85 @@ export default class ErrorBoundary extends React.Component {
     this.hardReload({ reason: 'user_clicked_reload' });
   };
 
+  handleReport = () => {
+    (async () => {
+      if (this.state.reporting || this.state.reported) return;
+      try {
+        this.setState({ reporting: true, reportError: '' });
+      } catch {
+        // ignore
+      }
+
+      try {
+        const errMsg = this.getErrorMessage();
+        const info = this.state.info;
+        const report = buildSupportReport({
+          kind: 'uncaught_render_error',
+          flow: 'error_boundary',
+          message: typeof errMsg === 'string' ? errMsg : String(errMsg || ''),
+          extra: {
+            stack: typeof this.state.error?.stack === 'string' ? String(this.state.error.stack).slice(0, 4000) : '',
+            componentStack: typeof info?.componentStack === 'string' ? String(info.componentStack).slice(0, 4000) : '',
+          },
+        });
+
+        const payload = {
+          report,
+          anonId: getAnonBrowserId(),
+          pagePath: (() => {
+            try {
+              return String(window.location?.pathname || '');
+            } catch {
+              return '';
+            }
+          })(),
+          tz: (() => {
+            try {
+              return String(Intl.DateTimeFormat().resolvedOptions().timeZone || '');
+            } catch {
+              return '';
+            }
+          })(),
+        };
+
+        const res = await fetch('/api/public-error-report', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify(payload),
+          keepalive: true,
+        });
+
+        const data = await res.json().catch(() => null);
+        if (!res.ok || !data?.ok) {
+          try {
+            this.setState({ reportError: 'report_failed' });
+          } catch {
+            // ignore
+          }
+          return;
+        }
+
+        try {
+          this.setState({ reported: true });
+        } catch {
+          // ignore
+        }
+      } catch {
+        try {
+          this.setState({ reportError: 'report_failed' });
+        } catch {
+          // ignore
+        }
+      } finally {
+        try {
+          this.setState({ reporting: false });
+        } catch {
+          // ignore
+        }
+      }
+    })();
+  };
+
   render() {
     if (this.state.hasError) {
       const isDev = (() => {
@@ -194,6 +288,25 @@ export default class ErrorBoundary extends React.Component {
             >
               {t('appErrorBoundary.tryAgain')}
             </button>
+
+            <button
+              type="button"
+              onClick={this.handleReport}
+              disabled={this.state.reporting || this.state.reported}
+              className="ml-2 inline-flex items-center justify-center bg-white text-slate-900 px-6 py-2.5 rounded-lg font-medium border border-slate-200 hover:bg-slate-50 transition text-sm disabled:opacity-60"
+            >
+              {this.state.reported
+                ? t('appErrorBoundary.report.sent')
+                : this.state.reporting
+                  ? t('appErrorBoundary.report.sending')
+                  : t('appErrorBoundary.report.button')}
+            </button>
+
+            {this.state.reportError ? (
+              <div className="mt-3 rounded-lg border border-rose-200 bg-rose-50 p-2 text-rose-900 text-xs">
+                {t('appErrorBoundary.report.failed')}
+              </div>
+            ) : null}
 
             <button
               type="button"

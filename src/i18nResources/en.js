@@ -10,6 +10,12 @@ export default {
     body: 'The page could not be loaded. Please try refreshing.',
     tryAgain: 'Try again',
     reload: 'Reload page',
+    report: {
+      button: 'Report error',
+      sending: 'Reporting…',
+      sent: 'Reported. Thank you.',
+      failed: 'Could not send the report. Please try again.',
+    },
   },
     pwa: {
       install: {
@@ -35,11 +41,12 @@ export default {
         installedHint: 'The app is on your home screen. You can also enable notifications.',
         installAvailableHint: 'Your browser supports installation. Click to install.',
         installNotAvailableHint:
-          'If you don’t see an install button: use your browser menu and choose “Add to Home Screen / Install app” (on some devices it appears after the first visit over HTTPS).',
+          'If you don’t see an install button: use your browser menu and choose “Add to Home Screen / Install app” (on some devices it appears after the first visit over HTTPS). If you opened the link inside an in-app browser (WhatsApp/Instagram), use the menu to “Open in Safari/Chrome”, then try again.',
         ios: {
           title: 'For iPhone/iPad (Safari)',
           step1: 'Open the site in Safari.',
-          step2: 'Tap Share (square with arrow).',
+          matchmakingHub: 'Find a match',
+          matchmakingHint: "Don't have a match yet? Join our matchmaking system and find match candidates here.",
           step3: 'Choose “Add to Home Screen” and confirm.',
         },
         notifications: {
@@ -120,7 +127,7 @@ export default {
     travel: "Travel",
     explore: "Explore",
     tours: "Tours",
-    wedding: "Wedding Guidance",
+    wedding: "TR–ID Wedding Guidance",
     matchmaking: "Matchmaking",
     panel: "My profile",
     documents: "Documents",
@@ -179,7 +186,7 @@ export default {
 
   footer: {
     brandBlurb:
-      'A brand of {{company}}. We connect people with care — and support your journey from meeting to marriage.',
+      'A brand of {{company}}. We focus on Turkey–Indonesia wedding guidance: communication, documents, official steps, translation and on-the-ground coordination. Matchmaking is a secondary helper flow.',
     brandsTitle: 'Brands',
     brandNoteDameturk: '',
     sections: {
@@ -187,6 +194,7 @@ export default {
       legal: 'Legal',
       contact: 'Contact',
       social: 'Social',
+      showEmailFallback: 'Having trouble? Continue with email',
     },
     links: {
       membership: 'Membership',
@@ -235,6 +243,16 @@ export default {
       done: 'Done',
       missingHint: 'This step is not visible right now. You can continue.',
     },
+    publicGuidance: {
+      step1: {
+        title: 'Payment & trust (1/2)',
+        body: 'To remove trust concerns, we don’t charge any guidance fee until you arrive in Indonesia. You can pay when you get here. You can benefit from our guidance service at the best price, and complete your marriage in the easiest way without dealing with complicated procedures beyond collecting your own documents.',
+      },
+      step2: {
+        title: 'Guidance process (2/2)',
+        body: 'We run our guidance service on the ground in Indonesia as a Turkish team living here. We support friends coming to Indonesia for marriage at every step—from airport pickup to taking you and your spouse to the airport on your return.',
+      },
+    },
     onboarding: {
       matches: {
         title: 'Matches',
@@ -271,6 +289,13 @@ export default {
       title: 'Profile details',
       body: 'Request permission to view profile details.',
     },
+
+    pwaNudge: {
+      title: 'Install the app and enable notifications',
+      body: 'Install the app and enable notifications so you don’t miss messages, requests, and approvals.',
+      primary: 'One click: Install + Enable',
+      later: 'Later',
+    },
   },
 
   ui: {
@@ -296,7 +321,7 @@ export default {
       readLess: 'Show less',
       match: 'Match',
       profile: 'Profile',
-      verified: 'Verified',
+      verified: 'Trusted user',
       unknown: 'Unknown',
       zoom: 'Enlarge',
       enlargePhotoAria: 'Enlarge photo of {{name}}',
@@ -321,7 +346,8 @@ export default {
       description: 'Invite a friend. Once both of you complete identity verification, you both get free membership.',
       myCodeLabel: 'Your invite code',
       shareButton: 'Share on WhatsApp',
-      shareMessage: 'Join Uniqah: {{url}}',
+      shareMessage:
+        'https://uniqah.com/login\n\nMarriage-focused dating app invite code: {{code}}. Add this code to the signup form to get 1 month of free membership.',
       copy: 'Copy',
       copied: 'Copied.',
       enterCodeLabel: 'Invite code',
@@ -348,7 +374,7 @@ export default {
     },
 
     feedback: {
-      nav: 'Support / Report',
+      nav: 'Support / Request',
       backToProfile: 'Back to my profile',
       title: 'Support • Feedback • Report an issue',
       subtitle: 'Send suggestions/comments or report steps that are not working.',
@@ -391,6 +417,7 @@ export default {
       viewProfile: 'View profile',
       accept: 'Like back',
       reject: 'Reject',
+      titleShort: 'Requests',
       modalTitleMessages: 'Messages',
       modalTitleRequests: 'Requests',
     },
@@ -432,6 +459,12 @@ export default {
       lastUpdated: 'Auto-refreshes (20s).',
       countHint: 'Total: {{total}} • Shown: {{shown}}',
       filtersHint: 'Age range: {{min}} – {{max}}',
+      trust: {
+        title: 'Trust & verification',
+        body:
+          'This system is marriage-focused and follows a controlled flow. Identity verification is optional; it is a trust badge for users who choose to do it.\n\nInformation submitted for verification is used only for verification purposes and is not kept permanently after verification is completed. You can delete your account at any time; after deletion, your profile and match data are removed from the system.',
+        sortNote: 'Note: Verified profiles are shown at the top of Explore.',
+      },
       empty: 'No profiles to show right now.',
       requestProfileNow: 'Send match request',
       requesting: 'Requesting…',
@@ -460,9 +493,14 @@ export default {
     profileGate: {
       important: 'IMPORTANT',
       title: 'Complete your profile',
-      body: 'Complete the profile form to chat and send/answer requests.',
+      body: 'Because this system brings together people who intend to marry, you need to fill out the profile form to interact with other users.',
       cta: 'Fill the profile form',
       badge: 'Unknown user',
+    },
+
+    profileIncompleteExploreWarning: {
+      title: 'Please fill out the profile form',
+      body: 'Because your profile information is missing, the Explore page may show people of your own gender instead of the opposite gender. Please fill out the profile form.',
     },
 
     membershipModal: {
@@ -505,6 +543,8 @@ export default {
         hasChildren: 'Has children?',
         childrenCount: 'Children count',
         childrenLivingSituation: 'Lives with children?',
+        familyObstacle: 'Family obstacle?',
+        familyObstacleDetails: 'Family obstacle (details)',
         familyApprovalStatus: 'Family approval',
         religion: 'Religion',
         religiousValues: 'Religious values',
@@ -514,6 +554,7 @@ export default {
         preferredLivingCountry: 'Preferred living country',
         communicationLanguage: 'Communication language',
         communicationLanguageOther: 'Communication language (other)',
+        canCommunicateWithTranslationApp: 'Can communicate with translation app',
         smoking: 'Smoking',
         alcohol: 'Alcohol',
         nativeLanguage: 'Native language',
@@ -861,6 +902,87 @@ export default {
       identityStatus: 'Status',
       verifyNow: 'Verify my identity',
       identityHelp: 'By verifying your identity, you can increase trust and remove membership/feature restrictions.',
+      identityIntro: {
+        title: 'What is identity verification?',
+        body:
+          'This step is not mandatory.\n\nIdentity verification is for people who want to increase their trust score, earn a trust badge on their profile, and be shown higher in Explore.\n\nInformation submitted for verification is used only for verification purposes and is not kept permanently after the process is completed.',
+        cta: 'I read it, continue',
+      },
+      actionIntro: {
+        explore: {
+          title: 'Explore',
+          body: 'Explore shows profiles selected for you. Verified profiles may appear higher in the list.',
+          cta: 'I read it, open',
+        },
+        editProfile: {
+          title: 'Profile',
+          body: 'Here you can update your application/profile information. Changes may affect matching.',
+          cta: 'I read it, continue',
+        },
+        matches: {
+          title: 'My matches',
+          body: 'Manage your matches here: likes, approve/decline, and chat steps happen here.',
+          cta: 'I read it, open',
+        },
+        partnerPrefs: {
+          title: 'Partner preferences',
+          body: 'Updating your criteria helps you see more relevant matches.',
+          cta: 'I read it, edit',
+        },
+        membership: {
+          title: 'Membership',
+          body: 'View your membership status and manage membership-related features here.',
+          cta: 'I read it, open',
+        },
+        photo: {
+          title: 'Photos',
+          body: 'Manage your photos and optionally enable photo privacy (blur).',
+          cta: 'I read it, open',
+        },
+        guidance: {
+          title: 'Wedding guidance',
+          body: 'See guidance information for the marriage process and quick contact options.',
+          cta: 'I read it, open',
+        },
+        feedback: {
+          title: 'Feedback / Report',
+          body: 'Use this to request support or report inappropriate behavior.',
+          cta: 'I read it, continue',
+        },
+        identity: {
+          title: 'Identity verification',
+          body: 'This opens identity verification options. Verification is optional and improves your trust badge.',
+          cta: 'I read it, open',
+        },
+        referral: {
+          title: 'Invite',
+          body: 'Invite friends with a code/link and track any referral benefits here.',
+          cta: 'I read it, open',
+        },
+        logout: {
+          title: 'Logout',
+          body: 'You will be signed out safely. You can sign in again anytime and continue where you left off.',
+          cta: 'I read it, logout',
+        },
+      },
+      identityTrust: {
+        title: 'What is this for?',
+        points: {
+          optional: 'It is not mandatory; it is an optional trust badge.',
+          privacy: 'Verification details are not shared outside verification purposes.',
+          destroy: 'After verification is completed, submitted verification files/data are not kept permanently.',
+          deleteAccount: 'You can delete your account anytime to remove your profile and match data.',
+          sorting: 'Verified profiles are shown at the top in Explore.',
+        },
+      },
+
+      emailVerify: {
+        title: 'Email verification (optional)',
+        body: 'Your email: {{email}}. If you want, we can send you a verification email.',
+        cta: 'Send verification email',
+        sent: 'Verification email sent. Please check your inbox.',
+        failed: 'Could not send verification email. Please try again.',
+      },
       accountTitle: 'Account',
       accountDeleteDesc: 'You can permanently delete your account and related data.',
       deleteAccount: 'Delete account',
@@ -868,12 +990,23 @@ export default {
       oldPanel: 'Old panel (temporary)',
       verifyModalTitle: 'Identity verification',
       verifyModalInfo:
-        'We use identity verification to help users trust each other.\nAfter approval, your identity information is deleted from the system.\nIdentity verification is not mandatory.\nThe verified profile badge is designed to help you appear more trustworthy.',
+        'Identity verification is optional.\n\nChoose a method and follow the steps. After review, your badge will appear on your profile.',
       verifyMethodUpload: 'Upload ID photos',
       verifyMethodWhatsApp: 'WhatsApp video call',
       verifyWhatsAppTitle: 'Verify via WhatsApp video call',
       verifyWhatsAppBody: 'Verification is done via a WhatsApp video call. You can create a request and open WhatsApp.',
       verifyWhatsAppCta: 'Open WhatsApp',
+      verifyMethodSelfieVideo: 'Selfie video verification',
+      verifyMethodSocial: 'Social media verification',
+      verifySelfieVideoTitle: 'Selfie video (WhatsApp) verification',
+      verifySelfieVideoBody: 'You will be asked to send a 5-second selfie video on WhatsApp. You can create a request and open WhatsApp.',
+      verifySelfieVideoCta: 'Open WhatsApp',
+      verifySocialTitle: 'Social media verification',
+      verifySocialBody: 'Choose your Instagram / TikTok / YouTube / Facebook account and submit your username. Our team will review and assign your badge.',
+      verifySocialPlatform: 'Platform',
+      verifySocialUsername: 'Username',
+      verifySocialMissing: 'Please choose a platform and enter your username.',
+      verifySocialSubmitted: 'Submitted. Pending review.',
       idType: 'ID type',
       idTypeTrId: 'National ID',
       idTypePassport: 'Passport',
@@ -1493,11 +1626,11 @@ export default {
   },
 
   meta: {
-    baseTitle: 'Uniqah | Marriage Matchmaking',
+    baseTitle: 'Uniqah | Turkey–Indonesia Wedding Guidance',
     baseDescription:
-      'Uniqah is a closed matchmaking system focused on marriage and safer in-app communication.',
+      'Uniqah provides step-by-step Turkey–Indonesia wedding guidance: document checks, official timeline planning, translation/communication and on-the-ground coordination.',
     pages: {
-      home: { title: 'Uniqah | Marriage Matchmaking' },
+      home: { title: 'Uniqah | Turkey–Indonesia Wedding Guidance' },
       about: { title: "About" },
       corporate: { title: "Corporate" },
       contact: { title: "Contact" },
@@ -1508,7 +1641,7 @@ export default {
           "Planned Indonesia tour packages and group tours: on-the-ground programs for Bali, Lombok, Komodo and more.",
       },
       wedding: {
-        title: "Wedding Guidance",
+        title: "Turkey–Indonesia Wedding Guidance",
         description:
           "Guidance for your wedding process in Indonesia: end-to-end support for hotels, transport, interpretation and official paperwork.",
       },
@@ -1521,11 +1654,16 @@ export default {
   },
 
   weddingPage: {
+    publicNote: {
+      p1: 'Note: This page is designed to help couples who are planning to get married with the marriage procedures. If you don’t have a match candidate yet, please visit our',
+      link: 'Match candidate page',
+      p2: '.',
+    },
     hero: {
       badge: 'Guidance for the marriage process',
-      title: 'We’re with you for your wedding preparation',
+      title: 'Turkey–Indonesia Wedding Guidance',
       description:
-        'We plan the paperwork, official procedures, family-to-family communication, and the key organization steps together—turning it into a reassuring journey away from uncertainty.',
+        'For Turkish and Indonesian couples, we clarify documents, official steps, family communication, translation and on-the-ground coordination—so the process feels clear and reassuring.',
       actions: {
         openForm: "Open the Wedding Plan Form",
         matchmakingHub: "Matchmaking",
@@ -1590,21 +1728,45 @@ export default {
       flexibleNote:
         'You can fill out the "Wedding Plan" form below, or review the required documents in detail from the "Marriage Documents" tab.',
     },
+    process: {
+      title: 'How does the process work?',
+      subtitle: 'These steps are a general roadmap; details can vary by case and official authorities.',
+    },
     steps: [
       {
-        title: "We understand you and your situation",
+        title: 'First step: planning form',
         description:
-          "You fill out the form; with the information you provide, we clarify your needs.",
+          'To get to know you and plan the process in the best way, you need to fill out the 15-question form in the Planning section and send it to us. This step is completely free and takes only a few minutes.',
       },
       {
-        title: "We plan it together with you",
+        title: 'We plan together',
         description:
-          "We shape the documents, dates, and steps together based on your budget and expectations.",
+          'After reviewing the form you sent, we get back to you and prepare a clear plan for the process together.',
       },
       {
-        title: "We manage the process step by step",
+        title: 'Agreement & guidance contract',
         description:
-          'From your arrival until the marriage is completed, we’re with you at every step.',
+          'After you confirm that you want our guidance service, you pay 40% of the calculated total budget. For mutual trust, we receive the remaining 60% after you arrive in Indonesia.',
+      },
+      {
+        title: 'Marriage paperwork process',
+        description:
+          'We prepare the required documents together and start the marriage procedures. We handle the full follow-up and tracking of the process.',
+      },
+      {
+        title: 'Indonesia phase',
+        description:
+          'We plan flights, hotel reservations, and local transport. Throughout the marriage procedures, we stay with you, interpret for communication with your partner and their family, and support you until the marriage is completed.',
+      },
+      {
+        title: 'Post-marriage procedures',
+        description:
+          'After the marriage, we ensure it is approved/registered by the official authorities. If you will live in Turkey, we handle visa procedures for your spouse; if you will live in Indonesia, we handle residence/permit procedures. If requested, we also organize your honeymoon in Indonesia.',
+      },
+      {
+        title: 'Completion of the guidance service',
+        description:
+          'Once we make sure all procedures are completed properly, we close the process—helping you marry in the easiest and best way, and start your marriage with peace and happiness.',
       },
     ],
     images: {
@@ -1615,6 +1777,77 @@ export default {
       plan: "Wedding Plan",
       documents: 'Marriage Documents',
     },
+    mobileTabs: {
+      documents: 'Documents',
+      process: 'Process',
+      guidance: 'Guidance',
+      planning: 'Planning',
+    },
+    mobileDocuments: {
+      question: {
+        title: 'Where will the marriage take place?',
+        hint: 'Required documents vary by the country where the marriage is registered.',
+        options: {
+          indonesia: 'In Indonesia',
+          turkiye: 'In Turkey',
+        },
+      },
+      trPlaceholder: {
+        title: 'Documents for marrying in Turkey',
+        note:
+          'Official document lists can vary depending on the city, the consulate/governorate practice, and current regulations. Let’s clarify this together using verified official sources.',
+        action: 'Ask for the document list on WhatsApp',
+        whatsappMessage:
+          'Hello, can you share the latest required documents and official source links for marrying in Turkey (TR citizen + Indonesian citizen)?',
+      },
+      trRequirements: {
+        title: 'Documents required for an official marriage in Turkey',
+        note:
+          'Note: Requirements can vary by city, authority, and current regulations. We can confirm the latest checklist together for your specific municipality.',
+        steps: [
+          {
+            title: '🇮🇩 1️⃣ Indonesian Embassy in Ankara: marriage permission (CNI)',
+            intro: '(Certificate of no impediment / proof of single status)',
+            items: [
+              '👩 Documents for the Indonesian woman',
+              'Passport (original + copy)',
+              'KTP (Indonesian ID) copy',
+              'Family card (Kartu Keluarga)',
+              'Birth certificate',
+              'Proof of being single',
+              'Letter of eligibility to marry from local authority in Indonesia (N1/N4 equivalent)',
+              '2–4 photos',
+              'If applicable: divorce decree or spouse death certificate',
+              '👨 Documents for the Turkish citizen man',
+              'National ID card copy',
+              'Population registry extract',
+              'Residence certificate',
+              'Proof of being single',
+              '2 photos',
+            ],
+            notes: [
+              '📌 After these checks, the embassy issues a Certificate of No Impediment / marriage permission letter.',
+              '📌 In some cases, a permission letter from the woman’s family in Indonesia may be requested.',
+            ],
+          },
+          {
+            title: '🇹🇷 2️⃣ Turkish authorities: starting the marriage procedures',
+            intro:
+              'The exact checklist can vary by municipality/marriage office. We prepare based on the latest checklist of the specific office where you will apply.',
+            items: [
+              'Application documents (forms/declarations required by the municipality)',
+              'Copies of IDs/passports and required translations/notarization',
+              'Current address/residence info (as required by the authority)',
+              'Photos (in the size and count requested)',
+              'Health report (if required by the authority)',
+            ],
+          },
+        ],
+        action: 'Ask the latest checklist on WhatsApp',
+        whatsappMessage:
+          'Hello, could you share the latest document checklist and application steps for an official marriage in Turkey (Turkish citizen + Indonesian citizen)? Municipality/district: …',
+      },
+    },
     plan: {
       title: "Share your wedding plan with us",
       subtitle:
@@ -1622,6 +1855,190 @@ export default {
       successTitle: "Your request has been sent successfully!",
       successText:
         "Thank you for filling out the form. We will get back to you within 24 hours.",
+      why: {
+        title: 'Why planning matters',
+        text:
+          'In cross‑country marriages, the biggest problem is not managing the process correctly. Even a small typo can lead to major losses—both financially and in time. That’s why planning your process correctly from the very beginning is the #1 requirement. Our guidance service helps you plan in the easiest and most accurate way and complete the marriage process smoothly. For us to plan the entire process correctly for you, we need the information you provide. That’s why completing our 15‑question form in just a few minutes will benefit you in every way.',
+      },
+      quiz: {
+        introTitle: 'Step-by-step Wedding Plan Quiz',
+        introText: 'Complete it in 2–3 minutes, then send your answers to us on WhatsApp.',
+        start: 'Start planning',
+        back: 'Back',
+        next: 'Next',
+        submit: 'Send via WhatsApp',
+        progress: 'Question {{current}} / {{total}}',
+        errors: {
+          required: 'Please answer this question.',
+        },
+        options: {
+          yes: 'Yes',
+          no: 'No',
+          later: "I'll decide later",
+          turkiye: 'Turkey',
+          indonesia: 'Indonesia',
+          other: 'Other',
+          employment: {
+            worker: 'Private sector',
+            civilServant: 'Civil servant',
+            retired: 'Retired',
+            publicEmployee: 'Public employee',
+            businessOwner: 'Business owner',
+            other: 'Other',
+          },
+          marital: {
+            single: 'Single',
+            widowed: 'Widowed',
+            divorced: 'Divorced',
+            divorceInProgress: 'Divorce in progress',
+          },
+          partnerMarital: {
+            single: 'Single',
+            widowed: 'Widowed',
+            divorced: 'Divorced',
+          },
+        },
+        fields: {
+          employmentStatus: 'Your employment status',
+          profession: 'Your profession',
+          maritalStatus: 'Your marital status',
+          hasChildren: 'Do you have children?',
+          legalWhere: 'In which country will the official marriage take place?',
+          plannedLiveWhere: 'Where do you plan to live after marriage?',
+          nationality: 'Your nationality',
+          nationalityOther: 'Nationality (Other)',
+          livingCountry: 'Which country do you live in?',
+          livingCountryOther: 'Living country (Other)',
+          budget: 'Budget you set aside for marriage',
+          indonesiaDuration: 'Estimated duration in Indonesia',
+          weddingDate: 'Planned wedding date',
+          partnerAge: "Partner’s age",
+          partnerCity: "Partner’s city",
+          partnerMaritalStatus: "Partner’s marital status",
+          partnerHasChildren: 'Does your partner have children?',
+          partnerChildrenCount: 'How many children?',
+          partnerChildrenLiveWithUs: 'Will the child(ren) live with you?',
+        },
+        placeholders: {
+          profession: 'e.g., engineer, teacher, shop owner…',
+          budget: 'e.g., 150,000 TRY',
+          indonesiaDuration: 'e.g., 5 days / 15 days / 1 month',
+          weddingDate: 'e.g., 2026-06-15',
+          partnerAge: 'e.g., 28',
+          partnerCity: 'e.g., Jakarta / Istanbul',
+          partnerChildrenCount: 'e.g., 1',
+          nationalityOther: 'e.g., German, Dutch…',
+          livingCountryOther: 'e.g., Germany, Netherlands…',
+        },
+        steps: {
+          personal: {
+            title: 'Let’s get to know you',
+            desc: 'We’ll start with a few basics.',
+          },
+          nationality: {
+            title: 'Nationality',
+            desc: 'Select your nationality.',
+          },
+          livingCountry: {
+            title: 'Living country',
+            desc: 'Which country do you currently live in?',
+          },
+          employment: {
+            title: 'Employment',
+            desc: 'Select your employment status.',
+          },
+          profession: {
+            title: 'Profession',
+            desc: 'Write your profession.',
+          },
+          marital: {
+            title: 'Marital status',
+            desc: 'Select your marital status.',
+          },
+          children: {
+            title: 'Children',
+            desc: 'Do you have children?',
+          },
+          legalWhere: {
+            title: 'Official process',
+            desc: 'In which country will the official marriage take place?',
+          },
+          plannedLiveWhere: {
+            title: 'Life plan',
+            desc: 'Select where you plan to live after marriage.',
+          },
+          budget: {
+            title: 'Budget',
+            desc: 'Enter your budget so we can plan appropriately.',
+          },
+          indonesiaDuration: {
+            title: 'Indonesia duration',
+            desc: 'How long do you plan to stay in Indonesia?',
+          },
+          weddingDate: {
+            title: 'Wedding date',
+            desc: 'Enter an approximate date if you’re not sure yet.',
+          },
+          partnerAge: {
+            title: "Partner’s age",
+            desc: "Enter your partner’s age.",
+          },
+          partnerCity: {
+            title: "Partner’s city",
+            desc: "Enter your partner’s city.",
+          },
+          partnerMarital: {
+            title: "Partner’s marital status",
+            desc: "Select your partner’s marital status.",
+          },
+          partnerChildren: {
+            title: 'Partner children',
+            desc: 'This can affect paperwork and planning in some cases.',
+          },
+          services: {
+            title: 'Services',
+            desc: 'Choose the services you need (you can select multiple).',
+          },
+          honeymoon: {
+            title: 'Honeymoon',
+            desc: 'Would you consider a honeymoon trip after the marriage?',
+          },
+        },
+        whatsapp: {
+          intro: 'Hello, I’m sending my wedding plan quiz answers:',
+          summaryTemplate:
+            'Nationality: {{nationality}} | Living: {{livingCountry}} | Official marriage: {{legalWhere}} | Life plan: {{plannedLiveWhere}} | Budget: {{budget}}',
+          none: 'No selection',
+          labels: {
+            summary: 'Summary',
+            name: 'Full name',
+            age: 'Age',
+            city: 'City',
+            phone: 'Phone',
+            nationality: 'Nationality',
+            livingCountry: 'Living country',
+            employment: 'Employment',
+            profession: 'Profession',
+            maritalStatus: 'Marital status',
+            hasChildren: 'Children',
+            legalWhere: 'Official marriage country',
+            plannedLiveWhere: 'Life plan',
+            marriageMunicipality: 'Marriage city/district',
+            budget: 'Budget',
+            indonesiaDuration: 'Indonesia duration',
+            weddingDate: 'Wedding date',
+            partnerAge: "Partner’s age",
+            partnerCity: "Partner’s city",
+            partnerMaritalStatus: "Partner’s marital status",
+            partnerHasChildren: "Partner has children",
+            partnerChildrenCount: 'Children count',
+            partnerChildrenLiveWithUs: 'Will they live with you',
+            services: 'Requested services',
+            honeymoon: 'Honeymoon',
+            extraNote: 'Extra note / question',
+          },
+        },
+      },
       form: {
         sections: {
           basicInfo: {
@@ -1631,12 +2048,18 @@ export default {
               phone: "Contact number",
               city: "City",
               age: "Age",
+              budget: 'Budget you have set aside for marriage',
             },
             placeholders: {
               name: "Your full name",
               phone: "+90 555 034 3852",
               city: "Your city",
               age: "Your age",
+              budget: 'e.g., 150,000 TRY',
+            },
+            hints: {
+              budget:
+                'The budget you enter here helps us determine what kind of wedding plan we should prepare.',
             },
           },
           privacyNote:
@@ -1647,14 +2070,15 @@ export default {
           hint:
             "You can select multiple options. If you're not sure, you can leave them blank.",
           options: {
-            consulting: "Consulting",
-            paperworkTracking: "Paperwork tracking",
-            familyCommunication: "Family-to-family communication",
-            transport: "Transport",
-            interpretation: "Interpretation",
-            ongoingGuidance: "Ongoing guidance throughout the process",
             accommodation: "Accommodation",
-            honeymoon: "Honeymoon",
+            communicationInterpretation: 'Communication interpretation (partner and/or family)',
+            research: 'Research',
+            documentCollection: 'Document collection',
+            legalFollowUp: 'Legal follow-up',
+            flightTicket: 'Flight tickets',
+            localTransport: 'Local transport in Indonesia',
+            postMarriage: 'Post-marriage procedures',
+            visaResidence: 'Visa / residence',
           },
         },
         schedule: {
@@ -1680,30 +2104,36 @@ export default {
       title: 'Required documents for marriage (general checklist)',
       subtitle:
         "The headings below are for general information. We check the exact and up-to-date list for your situation together.",
+      disclaimer:
+        'Note: This content is for general information. Requirements can vary by city/authority and may change over time; please confirm with the relevant office before applying.',
       foreignSpouse: {
-        title: "Documents for the foreign spouse",
-        intro: "In general, these are the core documents requested from the foreign spouse:",
+        title: 'Documents for the Turkish citizen (foreign spouse)',
+        intro: 'For a marriage in Indonesia, the Turkish-citizen spouse may be asked for:',
         items: [
-          "Valid passport (with at least 6 months validity)",
-          'Entry/residency requirements (if applicable)',
-          'Certificate of no impediment to marriage (from the relevant consulate/authority)',
-          "Birth certificate (multilingual)",
-          'Single status certificate (translated/apostilled if required)',
-          "If applicable, divorce decree or death certificate (translated and notarized)",
-          "Proof of residence",
-          "Passport photo taken within the last 6 months",
+          'Turkish national ID card',
+          'Passport (at least 6 months validity as of the return date to Turkey)',
+          'Birth certificate',
+          'Single status certificate',
+          'Proof of residence (requested by some KUA offices)',
+          'Criminal record certificate (requested by some KUA offices)',
+          'Medical report (requested by some KUA offices)',
+          'If previously married: divorce decree or previous spouse’s death certificate',
+          'Passport photo taken within the last 6 months',
+          'Marriage permit / approval letter to be obtained from the embassy/consulate',
         ],
       },
       indonesianSpouse: {
-        title: 'Documents for the local spouse',
-        intro: 'For the locally registered spouse, the following documents are commonly required:',
+        title: 'Documents for the Indonesian citizen',
+        intro: 'For a marriage in Indonesia, the Indonesian-citizen spouse may be asked for:',
         items: [
-          'National identity document',
+          'KTP',
+          'Family card (KK)',
+          'Parents’ information',
           'Birth certificate',
-          'Family registry document',
-          'Marital status letter (single / divorced / widowed)',
-          'Local application forms and required approvals',
-          "Passport photo taken within the last 6 months",
+          'Forms N1, N2, N4',
+          'RT/RW letter',
+          'Form N3',
+          'Passport photo taken within the last 6 months',
         ],
       },
       extras: {
@@ -1720,9 +2150,10 @@ export default {
       importantNotes: {
         title: "📌 Important notes",
         items: [
-          'For many documents, apostille and local-language translation may be required (check with the relevant authority).',
-          "A single typo, a missing document, or an incorrect processing order can negatively affect the whole application.",
-          "The required documents and workflow may vary by city, institution, and officer.",
+          '* Which documents must be translated for the foreign spouse can vary by the KUA office.',
+          '** Documents that require an apostille must be apostilled.',
+          '*** Requirements can change over time due to changing regulations; always check the latest list.',
+          '**** Missing documents or even spelling mismatches can lead to rejection and force you to restart the process; for time/cost protection, we recommend getting guidance support.',
         ],
       },
       personalDifferences: {
@@ -1749,6 +2180,10 @@ export default {
           a: "Depending on your document readiness, the city you apply in, and institutional workload, the planning and official procedures typically take from a few weeks to a few months.",
         },
         {
+          q: 'How much do marriage costs usually add up to?',
+          a: "It depends entirely on your budget. We don’t push anyone beyond their means; we build a plan together based on your needs and budget.",
+        },
+        {
           q: 'What should be my first step for getting married?',
           a: "First, you should clarify which documents are required for your case. After reviewing the list, you can contact us on WhatsApp so we can build an up-to-date checklist based on your city and situation.",
         },
@@ -1764,8 +2199,8 @@ export default {
     },
     bottomCta: {
       title: "Let’s plan your wedding together",
-      description: "Fill out the form below or contact us on WhatsApp right away.",
-      action: "Ask now on WhatsApp",
+      description: 'Open the planning form and complete it in a few minutes; we’ll get back to you and create a clear plan together.',
+      action: 'Open Planning Form',
       message: "Hello, I'd like to get information about the wedding package.",
       note:
         "We reply in Turkish; if needed, we also help you communicate with your partner’s family in Indonesian.",
@@ -1955,10 +2390,11 @@ export default {
       badgeCompany: 'PT MoonStar Global Indonesia',
       badgeSocial: "Uniqah social channels",
       title: "Uniqah",
-      subtitle: 'Matchmaking • Wedding guidance • Safer in-app communication',
+      subtitle: 'Turkey–Indonesia • Wedding guidance • Process support',
       description:
-        'Uniqah is our marriage-oriented matchmaking system. We aim for a safe, respectful, and transparent process with clear steps. When needed, we also provide translation and process guidance.',
+        'Uniqah is primarily a wedding guidance hub for Turkey–Indonesia couples. We clarify steps around documents, official processes, translation/communication and practical coordination so the journey feels calmer and more predictable.',
       note: 'A marriage-oriented setup with privacy and safety as priorities.',
+      freeNote: 'Using the app is completely free.',
       ctaTours: "Start application",
       ctaBrochures: "View documents",
       ctaTrust: "Trust & Legal",
@@ -2029,16 +2465,16 @@ export default {
       title: "How do we proceed?",
       steps: [
         {
-          title: "1) Apply",
-          description: "Confirm the rules and complete your application.",
+          title: "1) Your goal & situation",
+          description: "We clarify your Turkey–Indonesia wedding plan and current situation.",
         },
         {
-          title: "2) Profile & verification",
-          description: "Create your profile and clarify your photos and details.",
+          title: "2) Documents & official steps",
+          description: "We review required documents and plan the official timeline step by step.",
         },
         {
-          title: "3) Matching & chat",
-          description: "Chat with suitable matches and decide mutually.",
+          title: "3) Coordination & completion",
+          description: "We support translation and on-the-ground coordination to complete the process smoothly.",
         },
       ],
       ctaTours: "Go to Uniqah",
@@ -2091,6 +2527,9 @@ export default {
       description:
         "Matchmaking flow or wedding guidance… ask anything on your mind and we’ll make it simple and clear together.",
       ctaTryFree: "Try for free",
+      ctaWeddingGuidance: 'Open wedding guidance',
+      ctaMatchmaking: 'Find a match',
+      matchmakingHint: "Don’t have a spouse candidate yet? Join our matchmaking system and track your matches from your Profile page.",
       ctaContact: "Open the contact form",
       ctaWhatsapp: "Ask via WhatsApp",
     },
@@ -2117,9 +2556,9 @@ export default {
         weddingTitle: "Uniqah – Matchmaking",
         weddingDesc:
           "Serious-intent matchmaking with safety steps, profile management, chat flow and a clear decision process.",
-        dameturkTitle: "DaMeTurk",
+        dameturkTitle: "Turkey–Indonesia wedding guidance",
         dameturkDesc:
-          "Our authentic Turkish ice cream production and sales operations in Indonesia—built as a local brand value under PT MoonStar Global Indonesia. dameturk.com",
+          "For Turkish and Indonesian couples, we provide step-by-step guidance on required documents, official process steps, translation/communication support, and on-the-ground coordination.",
       },
       socialNote:
         "We support the Uniqah community through guides and content.",
@@ -2413,14 +2852,81 @@ export default {
     forceInfo: 'A fresh sign-in was requested for this action. Please sign in again.',
     googleCta: 'Continue with Google',
     googleSignupCta: 'Sign up with Google',
-    redirecting: 'Redirecting to Google sign-in…',
+    appleCta: 'Continue with Apple',
+    appleSignupCta: 'Sign up with Apple',
+    redirecting: 'Redirecting to sign-in…',
     redirectScreen: {
       title: 'Redirecting…',
       body: 'Opening your profile. If this takes too long, you can continue using the button below.',
       goProfile: 'Go to my profile',
       refresh: 'Refresh',
     },
-    signupGuide: 'To sign up, enter your gender, nationality, and age.',
+    signupGuide: 'To sign up, continue with Google, then complete your short profile.',
+    signupExistingAccountHint: 'If you already have an account, sign in with Google.',
+    quickProfile: {
+      title: 'Quick Profile',
+      lead: 'Complete your short profile, then continue.',
+      labels: {
+        fullName: 'Name',
+        age: 'Age',
+        gender: 'Gender',
+        city: 'City',
+        country: 'Country',
+        maritalStatus: 'Marital status',
+        hasChildren: 'Do you have children?',
+        childrenCount: 'How many?',
+        occupation: 'Occupation',
+        photo: 'Profile photo (1)',
+      },
+      placeholders: {
+        fullName: 'Your name',
+        age: 'e.g., 28',
+        city: 'City',
+        childrenCount: 'e.g., 1',
+        occupation: 'Occupation',
+      },
+      options: {
+        select: 'Select',
+        countryTr: 'Turkey',
+        countryId: 'Indonesia',
+        countryOther: 'Other',
+        maritalSingle: 'Single',
+        maritalMarried: 'Married',
+        maritalDivorced: 'Divorced',
+        maritalWidowed: 'Widowed',
+        hasChildrenNo: 'No',
+        hasChildrenYes: 'Yes',
+      },
+      statuses: {
+        photoUploading: 'Uploading photo…',
+        photoUploaded: 'Photo uploaded.',
+      },
+      actions: {
+        createProfile: 'Create my profile',
+      },
+      steps: {
+        step2Google: 'Step 2: Sign up with Google',
+      },
+      infos: {
+        ready: 'Your profile is ready. You can continue now.',
+      },
+      errors: {
+        fillFirst: 'Please fill out the quick profile form first.',
+        nameRequired: 'Name is required.',
+        ageInvalid: 'Age must be between 18 and 99.',
+        genderRequired: 'Gender is required.',
+        cityRequired: 'City is required.',
+        countryRequired: 'Country is required.',
+        maritalRequired: 'Marital status is required.',
+        occupationRequired: 'Occupation is required.',
+        hasChildrenRequired: 'Children status is required.',
+        childrenCountRequired: 'Children count (1-20) is required.',
+        photoRequired: 'Profile photo is required.',
+        photoNotImage: 'Please select an image file.',
+        photoUploadFailed: 'Photo upload failed.',
+        saveFailed: 'Could not save your profile. Please try again.',
+      },
+    },
     or: 'or',
     labels: {
       email: 'Email',
@@ -2458,6 +2964,30 @@ export default {
       prefix: 'If you forgot your password, click',
       suffix: 'to receive a reset link by email.',
     },
+    passwordToggle: {
+      show: 'Show',
+      hide: 'Hide',
+    },
+    feedback: {
+      title: 'Complaint / Feedback',
+      lead: 'If you are having an issue during sign-up, please report the problem together with your contact number or email. We will check it right away and get back to you.',
+      contactLabel: 'Contact (phone or email)',
+      contactPlaceholder: 'e.g., +62 812… or name@site.com',
+      placeholder: 'Contact (phone or email) + your issue…',
+      note: 'Note: Include your contact details so we can reach you.',
+      reportCta: 'Report this error',
+      prefillHeader: 'Please fill in the details below:',
+      prefillContact: 'Contact (phone or email):',
+      prefillProblem: 'Problem (what were you trying to do / what happened?):',
+      prefillUiError: 'On-screen error',
+      prefillDebugCode: 'Error code',
+      prefillDebugMessage: 'Technical message',
+      send: 'Send',
+      sending: 'Sending…',
+      sent: 'Sent. Thank you.',
+      tooShort: 'Please write at least {{min}} characters.',
+      failed: 'Could not send. Please try again.',
+    },
     legal: {
       prefix: 'By continuing, you agree to the',
       contract: 'User / Membership agreement',
@@ -2465,6 +2995,11 @@ export default {
       privacy: 'Privacy Policy',
     },
     resetSent: 'A password reset link has been sent to your email.',
+    infos: {
+      accountExistsTryLogin: 'You already have an account. Please try signing in with your email and password.',
+      inAppBrowserGoogleRedirect:
+        'Google sign-in may not work inside TikTok’s in-app browser. We’re opening Google sign-in using redirect…',
+    },
     errors: {
       noAccountFoundSignupRequired:
         "We couldn't find an account for this Google login. You need to sign up first. We've switched you to sign-up—please choose gender/nationality, enter your age, and try again.",
@@ -2477,13 +3012,18 @@ export default {
         'Google sign-in failed (unauthorized-domain).\n\nIn Firebase Console → Authentication → Settings → Authorized domains, add: {{host}}',
       googleOperationNotAllowed:
         'Google sign-in is disabled. Enable the Google provider in Firebase Console → Authentication → Sign-in method.',
+      appleOperationNotAllowed:
+        'Apple sign-in is disabled. Enable the Apple provider in Firebase Console → Authentication → Sign-in method.',
       firebaseAuthInvalidConfig:
         'Firebase Auth configuration is invalid. Check `VITE_FIREBASE_*` values in `.env.local` (and Vercel env).',
       googleFailed: 'Google sign-in failed.',
+      appleFailed: 'Apple sign-in failed.',
       invalidCredential: 'Invalid email or password (or the account was not found). If you forgot your password, use “Forgot password”.',
       invalidEmail: 'That email address looks invalid. Please check it and try again.',
       emailAlreadyInUse: 'An account already exists with this email. Please sign in or use “Forgot password”.',
       weakPassword: 'Password is too weak. Please choose a stronger password (e.g., at least 6 characters).',
+      rateLimited: 'Too many attempts in a short time. Please wait about a minute and try again.',
+      networkFailed: 'Network error. Please check your connection and try again.',
       passwordsDoNotMatch: 'Passwords do not match. Please type the same password again.',
       emailPasswordRequired: 'Email and password are required.',
       genderRequired: 'Please select your gender to sign up.',
@@ -2906,13 +3446,32 @@ export default {
     verification: {
       title: 'Identity verification',
       cta: 'Verify identity',
-      verifiedBadge: 'Identity verified',
+      verifiedBadge: 'Trusted user',
       requiredTitle: 'Identity verification (badge)',
       requiredBody: 'Identity verification is not mandatory; it is a trust badge. If there is a rule violation, you can file a complaint with screenshots/evidence.',
       unverifiedTitle: 'Not verified (badge)',
       unverifiedBodyMale: 'Identity verification is optional. Note: actions for men require an active membership.',
       unverifiedBodyFemale: 'Identity verification is optional. Note: identity verification can unlock some flows.',
       referenceCode: 'Verification code',
+      pendingHint: 'Status: pending review',
+      tabs: {
+        selfieVideo: 'Selfie video',
+        social: 'Social media',
+      },
+      selfieVideo: {
+        title: 'Verify with selfie video (WhatsApp)',
+        lead: 'Send a 5-second selfie video on WhatsApp. You can create a request and open WhatsApp.',
+        pendingHint: 'Your selfie video verification request was created. Please complete the video submission on WhatsApp.',
+      },
+      social: {
+        title: 'Verify with social media',
+        lead: 'Choose a platform and submit your username. After review, the badge will be assigned.',
+        platformLabel: 'Social media',
+        usernameLabel: 'Username',
+        submit: 'Submit',
+        success: 'Submitted. Pending review.',
+        pendingHint: 'Your social media verification request was created. Pending review.',
+      },
       manualUpload: {
         title: 'Verify on the site (manual)',
         lead: 'Not mandatory. Upload the front/back of your ID and a selfie. After review, a badge will be assigned to your account.',
@@ -2932,9 +3491,10 @@ export default {
         openWhatsapp: 'Send verification message on WhatsApp',
       },
       errors: {
-        kycNotConfigured: 'Automatic KYC is not configured yet. Please use WhatsApp or manual verification.',
-        whatsappNotConfigured: 'WhatsApp number is not configured. Please use manual verification.',
+        kycNotConfigured: 'Automatic KYC is not configured yet. Please use WhatsApp or social media verification.',
+        whatsappNotConfigured: 'WhatsApp number is not configured. Please use social media verification.',
         missingFiles: 'Please choose ID (front/back) and a selfie.',
+        missingSocial: 'Please choose a platform and enter your username.',
       },
     },
 
@@ -3254,7 +3814,7 @@ export default {
       },
       candidate: {
         fallbackName: 'Candidate',
-        verifiedBadge: 'Identity verified',
+        verifiedBadge: 'Trusted user',
         proBadge: 'PRO',
         standardBadge: 'STANDARD',
         badges: {
@@ -3449,6 +4009,7 @@ export default {
         p1Title: 'Marriage-focused system',
         p1Body: 'The goal is not dating or games. It is a controlled process for meeting with serious marriage intent.',
         p2Title: 'Privacy',
+        freeUsageNotice: 'Using the app is completely free.',
         p2Body: 'Profiles are not public. Your details are shown only to the person you are matched with.',
         p3Title: 'Decision mechanism',
         p3Body: 'Matches progress with accept/reject decisions. Without mutual acceptance, nothing continues; a single rejection ends the match.',
@@ -3586,7 +4147,10 @@ export default {
         partnerPreferences: 'Partner preferences',
       },
       contactPrivacyNotice:
-        'Your contact details (WhatsApp/email/Instagram) are private. They are not shown publicly while filling the form or in the app UI. They may only be shared after the 48-hour active match period, and only with your approval.',
+        'Your contact details (WhatsApp/email) are private. They are not shown publicly while filling the form or in the app UI.',
+      contactNumberNote: 'Your contact number is not shared with anyone; it is only required for system verification.',
+      inviteCodeHelp:
+        'If a friend invited you, you can enter the invite code here to benefit from free membership. If you do not have an invite code, you can leave this field empty.',
       confirmGender: {
         title: 'Confirm gender',
         text: 'You selected your gender as "{{gender}}". Do you confirm?',
@@ -3596,10 +4160,11 @@ export default {
       labels: {
         username: 'Username',
         fullName: 'Full name',
+        inviteCode: 'Invite code (optional)',
         age: 'Age',
         city: 'City',
         country: 'Country',
-        whatsapp: 'WhatsApp',
+        whatsapp: 'Contact number',
         email: 'Email',
         instagram: 'Instagram',
         nationality: 'Nationality',
@@ -3659,6 +4224,7 @@ export default {
       placeholders: {
         username: 'e.g., moonstar_34',
         fullName: 'e.g., John Doe',
+        inviteCode: 'e.g., 1234',
         age: 'e.g., 29',
         city: 'e.g., Istanbul',
         country: 'e.g., Turkey',
@@ -3833,12 +4399,11 @@ export default {
         submitFailed: 'Application could not be submitted. Please try again.',
         tooFast: 'Form was submitted too quickly. Please fill it and try again.',
         rateLimited: 'Too many attempts in a short time. Please try again in 1 minute.',
-        recaptchaFailed: 'Spam verification failed. Please refresh and try again.',
-        recaptchaRejected: 'Your application could not be accepted due to spam protection. Please try again later.',
 
         username: 'Please choose a username.',
         usernameTaken: 'This username is already taken. Please choose another.',
         fullName: 'Please enter your full name.',
+        inviteCodeInvalid: 'Invite code must be 4 digits (e.g., 1234).',
         age: 'Please enter your age.',
         ageRange: 'Age must be between {{minAge}} and 99.',
         email: 'Please enter your email address.',
@@ -3916,10 +4481,10 @@ export default {
   },
 
   matchmakingMembership: {
-    title: 'Membership activation',
-    lead: 'Membership is free for now. You can activate it with one click.',
-    freeNowTitle: 'Free for now',
-    freeNowBody: 'Membership is currently free. Once we reach enough members, we may add payment and switch to a paid model.',
+    title: 'Membership',
+    lead: 'Membership is automatically active. Using the app is completely free.',
+    freeNowTitle: 'Completely free',
+    freeNowBody: 'All features in the app are free; there is no extra payment or activation step.',
     freeActivateCta: 'Activate my membership for free',
     activating: 'Activating…',
     activated: 'Membership activated.',
@@ -3934,7 +4499,7 @@ export default {
       apiUnavailableDev: 'API is not reachable. In local dev, run `npm run dev` (api+web).',
     },
     backToPanel: 'Back to panel',
-    freeNowFootnote: 'Note: Membership is free for now. A payment step may be added later.',
+    freeNowFootnote: 'Note: The app is completely free.',
   },
 
   memberFeed: {

@@ -1,5 +1,6 @@
 import { getAdmin, normalizeBody, requireIdToken } from './_firebaseAdmin.js';
 import { ensureMembershipActiveOrThrow, ensureProfileCompleteOrThrow } from './_matchmakingEligibility.js';
+import { sendPushToUid } from './_push.js';
 
 function safeStr(v) {
   return typeof v === 'string' ? v.trim() : '';
@@ -141,6 +142,7 @@ export default async function handler(req, res) {
     const fromProfile = buildFromProfileFromMatchProfile(myProfileSnap);
 
     let status = 'pending';
+    let shouldNotifyPush = false;
 
     await db.runTransaction(async (tx) => {
       const outSnap = await tx.get(outboxRef);
@@ -178,6 +180,7 @@ export default async function handler(req, res) {
             patch.messageCreatedAt = FieldValue.serverTimestamp();
             patch.messageCreatedAtMs = now;
             patch.messageReadAtMs = 0;
+            shouldNotifyPush = true;
           }
 
           tx.set(inboxRef, patch, { merge: true });
@@ -212,7 +215,23 @@ export default async function handler(req, res) {
       tx.set(inboxRef, payload, { merge: true });
       tx.set(outboxRef, payload, { merge: true });
       status = 'pending';
+      shouldNotifyPush = true;
     });
+
+    if (status === 'pending' && shouldNotifyPush) {
+      const fromName = safeStr(fromProfile?.username) || 'Bir üye';
+      const bodyText = messageText
+        ? `${fromName}: ${messageText}`.slice(0, 160)
+        : `${fromName} fotoğraflarınızı görmek için izin istiyor.`;
+      await sendPushToUid({
+        uid: otherUid,
+        title: 'Fotoğraf isteği',
+        body: bodyText,
+        url: matchId ? `/app/match/${matchId}` : '/app/matches',
+        type: 'photo_access_request',
+        data: { requestId, matchId, fromUid: uid },
+      }).catch(() => null);
+    }
 
     res.statusCode = 200;
     res.setHeader('content-type', 'application/json');

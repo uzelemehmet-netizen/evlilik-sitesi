@@ -46,13 +46,7 @@ Relevant pages:
 - KVKK Information Notice (TR): `https://uniqah.com/docs/kvkk-aydinlatma-metni.html`
 - KVKK Information Notice (EN): `https://uniqah.com/docs/kvkk-information-notice-en.html`
 
-### 3.3 reCAPTCHA (anti-spam)
-
-For critical actions (such as submitting an application), reCAPTCHA Enterprise can be enabled depending on configuration. Verification is assessed server-side:
-
-- Token generation (client) + assessment (server): `/api/recaptcha-assess`
-
-### 3.4 PII and contact-data blocking in profile texts
+### 3.3 PII and contact-data blocking in profile texts
 
 The platform blocks users from putting contact details and other sensitive personal data into profile text fields.
 
@@ -60,7 +54,7 @@ The platform blocks users from putting contact details and other sensitive perso
 
 This reduces early off-platform contact sharing via profile fields.
 
-### 3.5 Localized storage for profile texts (optional)
+### 3.4 Localized storage for profile texts (optional)
 
 If translation is configured, the server may store a translated variant of “About” and “Expectations” between supported languages so that cross-language matches can better understand each other.
 

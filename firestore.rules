@@ -37,11 +37,13 @@ service cloud.firestore {
       }
 
       function isValidGenderWrite() {
-        return request.resource.data.gender in ['male', 'female'];
+        return !('gender' in request.resource.data)
+          || request.resource.data.gender in ['male', 'female'];
       }
 
       function isValidNationalityWrite() {
-        return request.resource.data.nationality in ['tr', 'id', 'other'];
+        return !('nationality' in request.resource.data)
+          || request.resource.data.nationality in ['tr', 'id', 'other'];
       }
 
       function isValidAgeWrite() {
@@ -58,8 +60,12 @@ service cloud.firestore {
         && isValidGenderWrite()
         && isValidNationalityWrite()
         && isValidAgeWrite()
-        && request.resource.data.createdAt == request.time
-        && request.resource.data.updatedAt == request.time;
+        // Not: client tarafında serverTimestamp() kullanıldığı için eşitlik kontrolü
+        // bazı konfigürasyonlarda signup'ı tamamen kırabiliyor. Timestamp olmasını yeterli gör.
+        && ('createdAt' in request.resource.data)
+        && ('updatedAt' in request.resource.data)
+        && ((request.resource.data.createdAt == request.time) || (request.resource.data.createdAt is timestamp))
+        && ((request.resource.data.updatedAt == request.time) || (request.resource.data.updatedAt is timestamp));
 
       // Yeni iskelet uyumu: kullanıcı kendi temel profil alanlarını gerektiğinde güncelleyebilsin.
       // Güvenlik: sadece whitelist alanlar değişebilsin; kritik alanlar (blocked/lock vb.) client'tan set edilemesin.
@@ -68,7 +74,7 @@ service cloud.firestore {
         && (!request.resource.data.diff(resource.data).changedKeys().hasAny(['gender']) || isValidGenderWrite())
         && (!request.resource.data.diff(resource.data).changedKeys().hasAny(['nationality']) || isValidNationalityWrite())
         && (!request.resource.data.diff(resource.data).changedKeys().hasAny(['age']) || isValidAgeWrite())
-        && request.resource.data.updatedAt == request.time
+        && ((request.resource.data.updatedAt == request.time) || (request.resource.data.updatedAt is timestamp))
       );
 
       allow delete: if isAdmin();

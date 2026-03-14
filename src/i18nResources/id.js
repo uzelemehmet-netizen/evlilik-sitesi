@@ -33,6 +33,103 @@ const overrides = {
     body: 'Halaman tidak dapat dimuat. Silakan coba muat ulang.',
     tryAgain: 'Coba lagi',
     reload: 'Muat ulang halaman',
+    report: {
+      button: 'Laporkan error',
+      sending: 'Mengirim…',
+      sent: 'Terkirim. Terima kasih.',
+      failed: 'Laporan tidak terkirim. Silakan coba lagi.',
+    },
+  },
+
+  authPage: {
+    passwordToggle: {
+      show: 'Tampilkan',
+      hide: 'Sembunyikan',
+    },
+    quickProfile: {
+      title: 'Profil Cepat',
+      lead: 'Lengkapi profil singkat Anda, lalu lanjutkan.',
+      labels: {
+        fullName: 'Nama',
+        age: 'Usia',
+        gender: 'Jenis kelamin',
+        city: 'Kota',
+        country: 'Negara',
+        maritalStatus: 'Status pernikahan',
+        hasChildren: 'Punya anak?',
+        childrenCount: 'Berapa?',
+        occupation: 'Pekerjaan',
+        photo: 'Foto profil (1)',
+      },
+      placeholders: {
+        fullName: 'Nama Anda',
+        age: 'contoh: 28',
+        city: 'Kota',
+        childrenCount: 'contoh: 1',
+        occupation: 'Pekerjaan',
+      },
+      options: {
+        select: 'Pilih',
+        countryTr: 'Turki',
+        countryId: 'Indonesia',
+        countryOther: 'Lainnya',
+        maritalSingle: 'Lajang',
+        maritalMarried: 'Menikah',
+        maritalDivorced: 'Bercerai',
+        maritalWidowed: 'Duda/Janda',
+        hasChildrenNo: 'Tidak',
+        hasChildrenYes: 'Ya',
+      },
+      statuses: {
+        photoUploading: 'Mengunggah foto…',
+        photoUploaded: 'Foto berhasil diunggah.',
+      },
+      actions: {
+        createProfile: 'Buat profil saya',
+      },
+      steps: {
+        step2Google: 'Langkah 2: Daftar dengan Google',
+      },
+      infos: {
+        ready: 'Profil Anda siap. Anda bisa lanjut sekarang.',
+      },
+      errors: {
+        fillFirst: 'Silakan isi formulir profil cepat terlebih dahulu.',
+        nameRequired: 'Nama wajib diisi.',
+        ageInvalid: 'Usia harus antara 18–99.',
+        genderRequired: 'Jenis kelamin wajib diisi.',
+        cityRequired: 'Kota wajib diisi.',
+        countryRequired: 'Negara wajib diisi.',
+        maritalRequired: 'Status pernikahan wajib diisi.',
+        occupationRequired: 'Pekerjaan wajib diisi.',
+        hasChildrenRequired: 'Status anak wajib diisi.',
+        childrenCountRequired: 'Jumlah anak (1–20) wajib diisi.',
+        photoRequired: 'Foto profil wajib diisi.',
+        photoNotImage: 'Silakan pilih file gambar.',
+        photoUploadFailed: 'Gagal mengunggah foto.',
+        saveFailed: 'Profil tidak dapat disimpan. Silakan coba lagi.',
+      },
+    },
+    feedback: {
+      title: 'Keluhan / Masukan',
+      lead: 'Jika Anda mengalami kendala saat pendaftaran, mohon laporkan masalahnya beserta nomor kontak atau email Anda. Kami akan segera cek dan menghubungi Anda kembali.',
+      contactLabel: 'Kontak (telepon atau email)',
+      contactPlaceholder: 'Contoh: +62 812… atau nama@site.com',
+      placeholder: 'Kontak (telepon atau email) + kendala yang Anda alami…',
+      note: 'Catatan: Sertakan kontak agar kami bisa menghubungi Anda.',
+      reportCta: 'Laporkan error ini',
+      prefillHeader: 'Mohon isi detail di bawah ini:',
+      prefillContact: 'Kontak (telepon atau email):',
+      prefillProblem: 'Masalah (apa yang Anda lakukan / apa yang terjadi?):',
+      prefillUiError: 'Error yang terlihat',
+      prefillDebugCode: 'Kode error',
+      prefillDebugMessage: 'Pesan teknis',
+      send: 'Kirim',
+      sending: 'Mengirim…',
+      sent: 'Terkirim. Terima kasih.',
+      tooShort: 'Silakan tulis minimal {{min}} karakter.',
+      failed: 'Gagal mengirim. Silakan coba lagi.',
+    },
   },
   navigation: {
     siteTitle: "Uniqah",
@@ -174,6 +271,16 @@ const overrides = {
       done: 'Selesai',
       missingHint: 'Langkah ini belum terlihat saat ini. Anda bisa melanjutkan.',
     },
+    publicGuidance: {
+      step1: {
+        title: 'Pembayaran & kepercayaan (1/2)',
+        body: 'Agar Anda merasa aman, kami tidak meminta biaya pendampingan apa pun sampai Anda tiba di Indonesia. Pembayaran bisa dilakukan setelah Anda sampai di sini. Anda bisa memanfaatkan layanan pendampingan kami dengan harga terbaik, dan mewujudkan pernikahan dengan cara paling mudah tanpa harus mengurus proses rumit selain mengumpulkan dokumen Anda sendiri.',
+      },
+      step2: {
+        title: 'Proses pendampingan (2/2)',
+        body: 'Layanan pendampingan kami dijalankan langsung di Indonesia oleh tim Turki yang tinggal di sini. Kami mendampingi setiap tahap untuk teman-teman yang akan datang ke Indonesia untuk menikah—mulai dari penjemputan di bandara hingga mengantar Anda dan pasangan ke bandara saat kepulangan.',
+      },
+    },
     onboarding: {
       matches: {
         title: 'Kecocokan',
@@ -210,12 +317,20 @@ const overrides = {
       title: 'Detail profil',
       body: 'Minta izin untuk melihat detail profil.',
     },
+
+    pwaNudge: {
+      title: 'Instal aplikasi dan aktifkan notifikasi',
+      body: 'Instal aplikasi dan aktifkan notifikasi agar tidak ketinggalan pesan, permintaan, dan persetujuan.',
+      primary: 'Satu klik: Instal + Aktifkan',
+      later: 'Nanti',
+    },
   },
 
   admin: {
     userTools: {
       prompts: {
-        blockReason: 'Alasan blokir (opsional):',
+        matchmakingHub: 'Cari pasangan',
+        matchmakingHint: 'Belum punya calon pasangan? Daftar ke sistem pencocokan kami dan temukan calon pasangan di sini.',
         noteOptional: 'Catatan (opsional):',
       },
       defaults: {
@@ -503,7 +618,7 @@ const overrides = {
       processing: 'Memproses…',
       match: 'Pencocokan',
       profile: 'Profil',
-      verified: 'Terverifikasi',
+      verified: 'Pengguna terpercaya',
       unknown: 'Tidak diketahui',
       zoom: 'Perbesar',
       enlargePhotoAria: 'Perbesar foto {{name}}',
@@ -598,6 +713,7 @@ const overrides = {
       viewProfile: 'Lihat profil',
       accept: 'Suka balik',
       reject: 'Tolak',
+      titleShort: 'Permintaan',
       modalTitleMessages: 'Pesan',
       modalTitleRequests: 'Permintaan',
     },
@@ -639,6 +755,12 @@ const overrides = {
       lastUpdated: 'Otomatis diperbarui (20 dtk).',
       countHint: 'Total: {{total}} • Ditampilkan: {{shown}}',
       filtersHint: 'Rentang usia: {{min}} – {{max}}',
+      trust: {
+        title: 'Kepercayaan & verifikasi',
+        body:
+          'Sistem ini berfokus pada pernikahan dan berjalan dengan alur yang terkontrol. Verifikasi identitas tidak wajib; ini adalah lencana kepercayaan bagi pengguna yang memilih melakukannya.\n\nInformasi yang dikirim untuk verifikasi hanya digunakan untuk tujuan verifikasi dan tidak disimpan secara permanen setelah verifikasi selesai. Anda dapat menghapus akun kapan saja; setelah dihapus, data profil dan kecocokan Anda dihapus dari sistem.',
+        sortNote: 'Catatan: Profil terverifikasi ditampilkan di urutan teratas di Jelajahi.',
+      },
       empty: 'Belum ada profil untuk ditampilkan.',
       requestProfileNow: 'Kirim permintaan kecocokan',
       requesting: 'Mengirim…',
@@ -666,9 +788,14 @@ const overrides = {
     profileGate: {
       important: 'PENTING',
       title: 'Lengkapi profilmu',
-      body: 'Isi formulir profil untuk chat dan kirim/balas permintaan.',
+      body: 'Karena sistem ini mempertemukan orang-orang yang berniat menikah, Anda perlu mengisi formulir profil untuk dapat berinteraksi dengan pengguna lain.',
       cta: 'Isi formulir profil',
       badge: 'Pengguna tidak dikenal',
+    },
+
+    profileIncompleteExploreWarning: {
+      title: 'Silakan isi formulir profil',
+      body: 'Karena informasi profil Anda belum ada, halaman Jelajahi bisa menampilkan orang dengan jenis kelamin yang sama, bukan lawan jenis. Silakan isi formulir profil.',
     },
 
     membershipModal: {
@@ -709,6 +836,8 @@ const overrides = {
         hasChildren: 'Punya anak?',
         childrenCount: 'Jumlah anak',
         childrenLivingSituation: 'Tinggal bersama anak?',
+        familyObstacle: 'Ada hambatan dari keluarga?',
+        familyObstacleDetails: 'Hambatan keluarga (detail)',
         familyApprovalStatus: 'Persetujuan keluarga',
         religion: 'Agama',
         religiousValues: 'Nilai agama',
@@ -718,6 +847,7 @@ const overrides = {
         preferredLivingCountry: 'Negara tinggal yang diinginkan',
         communicationLanguage: 'Bahasa komunikasi',
         communicationLanguageOther: 'Bahasa komunikasi (lainnya)',
+        canCommunicateWithTranslationApp: 'Bisa berkomunikasi dengan aplikasi terjemahan',
         smoking: 'Merokok',
         alcohol: 'Alkohol',
         nativeLanguage: 'Bahasa ibu',
@@ -971,6 +1101,87 @@ const overrides = {
       identityStatus: 'Status',
       verifyNow: 'Verifikasi identitas saya',
       identityHelp: 'Dengan memverifikasi identitas, Anda dapat meningkatkan kepercayaan dan menghapus batasan fitur/keanggotaan.',
+      identityIntro: {
+        title: 'Apa itu verifikasi identitas?',
+        body:
+          'Langkah ini tidak wajib.\n\nVerifikasi identitas ditujukan untuk pengguna yang ingin meningkatkan skor kepercayaan, mendapatkan lencana kepercayaan di profil, dan ditampilkan lebih atas di Jelajahi.\n\nInformasi yang dikirim untuk verifikasi hanya digunakan untuk verifikasi dan tidak disimpan secara permanen setelah proses selesai.',
+        cta: 'Saya sudah baca, lanjutkan',
+      },
+      actionIntro: {
+        explore: {
+          title: 'Jelajahi',
+          body: 'Jelajahi menampilkan profil yang dipilih untuk Anda. Profil terverifikasi bisa muncul lebih atas.',
+          cta: 'Saya sudah baca, buka',
+        },
+        editProfile: {
+          title: 'Profil',
+          body: 'Di sini Anda dapat memperbarui informasi pengajuan/profil. Perubahan dapat memengaruhi pencocokan.',
+          cta: 'Saya sudah baca, lanjutkan',
+        },
+        matches: {
+          title: 'Pencocokan saya',
+          body: 'Kelola pencocokan di sini: suka, setujui/tolak, dan langkah chat ada di sini.',
+          cta: 'Saya sudah baca, buka',
+        },
+        partnerPrefs: {
+          title: 'Preferensi pasangan',
+          body: 'Memperbarui kriteria membantu Anda melihat pencocokan yang lebih relevan.',
+          cta: 'Saya sudah baca, edit',
+        },
+        membership: {
+          title: 'Keanggotaan',
+          body: 'Lihat status keanggotaan dan kelola fitur terkait keanggotaan di sini.',
+          cta: 'Saya sudah baca, buka',
+        },
+        photo: {
+          title: 'Foto',
+          body: 'Kelola foto Anda dan (opsional) aktifkan privasi foto (blur).',
+          cta: 'Saya sudah baca, buka',
+        },
+        guidance: {
+          title: 'Panduan pernikahan',
+          body: 'Lihat informasi panduan proses pernikahan dan opsi kontak cepat.',
+          cta: 'Saya sudah baca, buka',
+        },
+        feedback: {
+          title: 'Masukan / Laporan',
+          body: 'Gunakan ini untuk meminta dukungan atau melaporkan perilaku yang tidak pantas.',
+          cta: 'Saya sudah baca, lanjutkan',
+        },
+        identity: {
+          title: 'Verifikasi identitas',
+          body: 'Ini membuka opsi verifikasi identitas. Verifikasi bersifat opsional dan meningkatkan lencana kepercayaan Anda.',
+          cta: 'Saya sudah baca, buka',
+        },
+        referral: {
+          title: 'Undang',
+          body: 'Undang teman dengan kode/tautan dan pantau manfaat referral di sini.',
+          cta: 'Saya sudah baca, buka',
+        },
+        logout: {
+          title: 'Keluar',
+          body: 'Anda akan keluar dengan aman. Anda bisa masuk kembali kapan saja dan melanjutkan dari tempat terakhir.',
+          cta: 'Saya sudah baca, keluar',
+        },
+      },
+      identityTrust: {
+        title: 'Untuk apa verifikasi ini?',
+        points: {
+          optional: 'Tidak wajib; ini hanya lencana kepercayaan (opsional).',
+          privacy: 'Detail verifikasi tidak dibagikan di luar tujuan verifikasi.',
+          destroy: 'Setelah verifikasi selesai, file/data verifikasi yang dikirim tidak disimpan secara permanen.',
+          deleteAccount: 'Anda dapat menghapus akun kapan saja untuk menghapus data profil dan kecocokan.',
+          sorting: 'Profil terverifikasi ditampilkan di urutan teratas di Jelajahi.',
+        },
+      },
+
+      emailVerify: {
+        title: 'Verifikasi email (opsional)',
+        body: 'Email Anda: {{email}}. Jika Anda ingin, kami bisa mengirim email verifikasi.',
+        cta: 'Kirim email verifikasi',
+        sent: 'Email verifikasi terkirim. Silakan cek kotak masuk Anda.',
+        failed: 'Tidak dapat mengirim email verifikasi. Silakan coba lagi.',
+      },
       accountTitle: 'Akun',
       accountDeleteDesc: 'Anda dapat menghapus akun dan data terkait secara permanen.',
       deleteAccount: 'Hapus akun',
@@ -978,12 +1189,23 @@ const overrides = {
       oldPanel: 'Panel lama (sementara)',
       verifyModalTitle: 'Verifikasi identitas',
       verifyModalInfo:
-        'Kami melakukan verifikasi identitas agar pengguna saling percaya.\nSetelah disetujui, informasi identitas Anda akan dihapus dari sistem.\nVerifikasi identitas tidak wajib.\nLencana profil terverifikasi dibuat agar Anda terlihat lebih tepercaya.',
+        'Verifikasi identitas bersifat opsional.\n\nPilih metode dan ikuti langkahnya. Setelah ditinjau, lencana akan muncul di profil Anda.',
       verifyMethodUpload: 'Unggah foto identitas',
       verifyMethodWhatsApp: 'Panggilan video WhatsApp',
       verifyWhatsAppTitle: 'Verifikasi lewat panggilan video WhatsApp',
       verifyWhatsAppBody: 'Verifikasi dilakukan melalui panggilan video WhatsApp. Anda dapat membuat permintaan dan membuka WhatsApp.',
       verifyWhatsAppCta: 'Buka WhatsApp',
+      verifyMethodSelfieVideo: 'Verifikasi video selfie',
+      verifyMethodSocial: 'Verifikasi via media sosial',
+      verifySelfieVideoTitle: 'Verifikasi video selfie (WhatsApp)',
+      verifySelfieVideoBody: 'Anda akan diminta mengirim video selfie 5 detik lewat WhatsApp. Anda dapat membuat permintaan dan membuka WhatsApp.',
+      verifySelfieVideoCta: 'Buka WhatsApp',
+      verifySocialTitle: 'Verifikasi via media sosial',
+      verifySocialBody: 'Pilih akun Instagram / TikTok / YouTube / Facebook Anda dan kirim username. Tim kami akan meninjau dan memberikan lencana.',
+      verifySocialPlatform: 'Platform',
+      verifySocialUsername: 'Username',
+      verifySocialMissing: 'Silakan pilih platform dan masukkan username Anda.',
+      verifySocialSubmitted: 'Terkirim. Menunggu peninjauan.',
       idType: 'Jenis ID',
       idTypeTrId: 'ID Nasional',
       idTypePassport: 'Paspor',
@@ -1219,6 +1441,7 @@ const overrides = {
       description:
         'Uniqah adalah sistem matchmaking berorientasi pernikahan. Kami menargetkan proses yang aman, saling menghormati, dan transparan dengan langkah-langkah yang jelas. Jika diperlukan, kami juga memberi dukungan seperti penerjemahan dan panduan proses.',
       note: 'Berorientasi pernikahan dengan privasi dan keamanan sebagai prioritas.',
+      freeNote: 'Menggunakan aplikasi ini sepenuhnya gratis.',
       ctaTours: 'Mulai ajukan',
       ctaBrochures: 'Lihat dokumen',
       ctaTrust: 'Kepercayaan & Legal',
@@ -1321,6 +1544,9 @@ const overrides = {
       description:
         'Baik tentang paket tur maupun rencana perjalanan pribadi Anda… Tanyakan semuanya, dan kami bantu menyederhanakan prosesnya.',
       ctaTryFree: 'Coba gratis',
+      ctaWeddingGuidance: 'Buka panduan pernikahan',
+      ctaMatchmaking: 'Cari pasangan',
+      matchmakingHint: 'Belum punya calon pasangan? Daftar ke sistem pencocokan kami dan pantau hasilnya dari halaman Profil Anda.',
       ctaContact: 'Buka formulir kontak',
       ctaWhatsapp: 'Tanya via WhatsApp',
     },
@@ -1677,7 +1903,8 @@ const overrides = {
         partnerPreferences: 'Preferensi calon pasangan',
       },
       contactPrivacyNotice:
-        'Detail kontak Anda (WhatsApp/email/Instagram) bersifat privat. Tidak ditampilkan secara publik saat Anda mengisi formulir maupun di tampilan aplikasi. Detail ini hanya dapat dibagikan kepada orang yang benar-benar cocok dengan Anda setelah periode pencocokan aktif 48 jam, dan hanya dengan persetujuan Anda.',
+        'Detail kontak Anda (WhatsApp/email) bersifat privat. Tidak ditampilkan secara publik saat Anda mengisi formulir maupun di tampilan aplikasi.',
+      contactNumberNote: 'Nomor kontak Anda tidak dibagikan kepada siapa pun; hanya diperlukan untuk verifikasi sistem.',
       confirmGender: {
         title: 'Konfirmasi gender',
         text: 'Anda memilih gender Anda sebagai "{{gender}}". Konfirmasi?',
@@ -1690,7 +1917,7 @@ const overrides = {
         age: 'Usia',
         city: 'Kota',
         country: 'Negara',
-        whatsapp: 'Nomor WhatsApp',
+        whatsapp: 'Nomor kontak',
         email: 'Email',
         instagram: 'Instagram (opsional)',
         nationality: 'Kewarganegaraan',
@@ -1917,8 +2144,6 @@ const overrides = {
         consentPhotoShare: 'Untuk mengirim, Anda harus menyetujui penggunaan foto untuk pencocokan.',
         consentsRequired:
           'Untuk mengirim, Anda harus menyetujui kotak persetujuan (18+, kebijakan privasi, syarat & ketentuan, persetujuan foto).',
-        recaptchaFailed: 'Verifikasi keamanan gagal. Silakan coba lagi.',
-        recaptchaRejected: 'Verifikasi keamanan ditolak. Silakan coba lagi.',
 
         username: 'Nama pengguna wajib diisi.',
         usernameTaken: 'Nama pengguna ini sudah digunakan.',
@@ -2021,14 +2246,16 @@ const overrides = {
       "Aksi ini meminta login ulang. Silakan masuk kembali.",
     googleCta: "Lanjut dengan Google",
     googleSignupCta: "Daftar dengan Google",
-    redirecting: "Mengarahkan ke masuk Google…",
+    appleCta: "Lanjut dengan Apple",
+    appleSignupCta: "Daftar dengan Apple",
+    redirecting: "Mengalihkan ke login…",
     redirectScreen: {
       title: "Mengalihkan…",
       body: "Membuka profil Anda. Jika layar ini lama, Anda bisa lanjut lewat tombol di bawah.",
       goProfile: "Ke profil saya",
       refresh: "Muat ulang",
     },
-    signupGuide: "Untuk mendaftar, masukkan jenis kelamin, kewarganegaraan, dan usia Anda.",
+    signupGuide: "Untuk mendaftar, lanjutkan dengan Google atau Apple, lalu lengkapi profil singkat Anda.",
     or: "atau",
     labels: {
       email: 'Email',
@@ -2052,6 +2279,7 @@ const overrides = {
       signup: 'Daftar',
       switchToSignup: 'Belum punya akun? Daftar',
       switchToLogin: 'Sudah punya akun? Masuk',
+      showEmailFallback: 'Ada kendala? Lanjutkan dengan email',
       forgot: 'Lupa kata sandi',
     },
     signup: {
@@ -2073,6 +2301,11 @@ const overrides = {
       privacy: 'Kebijakan Privasi',
     },
     resetSent: 'Tautan reset kata sandi telah dikirim ke email Anda.',
+    infos: {
+      accountExistsTryLogin: 'Anda sudah memiliki akun. Silakan coba masuk dengan email dan kata sandi Anda.',
+      inAppBrowserGoogleRedirect:
+        'Masuk dengan Google mungkin tidak berfungsi di browser dalam aplikasi TikTok. Kami akan membuka login Google dengan redirect…',
+    },
     errors: {
       noAccountFoundSignupRequired:
         'Akun tidak ditemukan. Anda perlu mendaftar terlebih dahulu. Kami mengalihkan Anda ke pendaftaran—pilih jenis kelamin/kewarganegaraan, masukkan usia, lalu coba lagi.',
@@ -2085,13 +2318,18 @@ const overrides = {
         'Login Google gagal (unauthorized-domain).\n\nTambahkan domain ini di Firebase Console → Authentication → Settings → Authorized domains: {{host}}',
       googleOperationNotAllowed:
         'Login Google dinonaktifkan. Aktifkan penyedia Google di Firebase Console → Authentication → Sign-in method.',
+      appleOperationNotAllowed:
+        'Login Apple dinonaktifkan. Aktifkan penyedia Apple di Firebase Console → Authentication → Sign-in method.',
       firebaseAuthInvalidConfig:
         'Konfigurasi Firebase Auth tidak valid. Periksa nilai `VITE_FIREBASE_*` di `.env.local` (dan env Vercel).',
       googleFailed: 'Masuk dengan Google gagal.',
+      appleFailed: 'Masuk dengan Apple gagal.',
       invalidCredential: 'Email atau kata sandi salah (atau akun tidak ditemukan). Jika Anda lupa kata sandi, gunakan “Lupa kata sandi”.',
       invalidEmail: 'Alamat email tampak tidak valid. Silakan periksa dan coba lagi.',
       emailAlreadyInUse: 'Akun dengan email ini sudah ada. Silakan masuk atau gunakan “Lupa kata sandi”.',
       weakPassword: 'Kata sandi terlalu lemah. Silakan pilih kata sandi yang lebih kuat (mis. minimal 6 karakter).',
+      rateLimited: 'Terlalu banyak percobaan dalam waktu singkat. Silakan tunggu sekitar 1 menit lalu coba lagi.',
+      networkFailed: 'Terjadi kesalahan jaringan. Periksa koneksi internet Anda lalu coba lagi.',
       passwordsDoNotMatch: 'Kata sandi tidak cocok. Silakan ketik ulang kata sandi yang sama.',
       emailPasswordRequired: 'Email dan kata sandi wajib diisi.',
       genderRequired: 'Pilih jenis kelamin untuk mendaftar.',
@@ -2477,6 +2715,7 @@ const overrides = {
         p1Title: 'Privasi',
         p1Body: 'Profil tidak dipublikasikan secara umum. Hanya kandidat yang cocok yang muncul di panel.',
         p2Title: 'Moderasi',
+        freeUsageNotice: 'Menggunakan aplikasi ini sepenuhnya gratis.',
         p2Body: 'Sistem dan admin memantau laporan untuk mengurangi penipuan dan penyalahgunaan.',
         p3Title: 'Kejelasan alur',
         p3Body: 'Langkah setuju/tolak dan pembukaan chat/kontak dibuat jelas dan bertahap.',
@@ -2522,13 +2761,32 @@ const overrides = {
     verification: {
       title: 'Verifikasi identitas',
       cta: 'Verifikasi identitas',
-      verifiedBadge: 'Identitas terverifikasi',
+      verifiedBadge: 'Pengguna terpercaya',
       requiredTitle: 'Verifikasi identitas (lencana)',
       requiredBody: 'Verifikasi identitas adalah lencana kepercayaan. Jika ada pelanggaran aturan, Anda bisa mengajukan keluhan dengan screenshot/bukti.',
       unverifiedTitle: 'Belum terverifikasi (lencana)',
       unverifiedBodyMale: 'Verifikasi identitas bersifat opsional. Catatan: untuk pria, aksi membutuhkan keanggotaan aktif.',
       unverifiedBodyFemale: 'Verifikasi identitas bersifat opsional. Catatan: verifikasi identitas dapat membuka beberapa alur.',
       referenceCode: 'Kode verifikasi',
+      pendingHint: 'Status: menunggu peninjauan',
+      tabs: {
+        selfieVideo: 'Video selfie',
+        social: 'Media sosial',
+      },
+      selfieVideo: {
+        title: 'Verifikasi dengan video selfie (WhatsApp)',
+        lead: 'Kirim video selfie 5 detik lewat WhatsApp. Anda dapat membuat permintaan dan membuka WhatsApp.',
+        pendingHint: 'Permintaan verifikasi video selfie dibuat. Silakan selesaikan pengiriman video lewat WhatsApp.',
+      },
+      social: {
+        title: 'Verifikasi dengan media sosial',
+        lead: 'Pilih platform dan kirim username Anda. Setelah ditinjau, lencana akan diberikan.',
+        platformLabel: 'Media sosial',
+        usernameLabel: 'Username',
+        submit: 'Kirim',
+        success: 'Terkirim. Menunggu peninjauan.',
+        pendingHint: 'Permintaan verifikasi media sosial dibuat. Menunggu peninjauan.',
+      },
       manualUpload: {
         title: 'Verifikasi di situs (manual)',
         lead: 'Tidak wajib. Unggah foto KTP/ID (depan & belakang) dan satu selfie. Setelah ditinjau, lencana akan diberikan ke akun Anda.',
@@ -2548,9 +2806,10 @@ const overrides = {
         openWhatsapp: 'Kirim pesan verifikasi di WhatsApp',
       },
       errors: {
-        kycNotConfigured: 'KYC otomatis belum dikonfigurasi. Silakan gunakan WhatsApp atau verifikasi manual.',
-        whatsappNotConfigured: 'Nomor WhatsApp belum dikonfigurasi. Silakan gunakan verifikasi manual.',
+        kycNotConfigured: 'KYC otomatis belum dikonfigurasi. Silakan gunakan WhatsApp atau verifikasi media sosial.',
+        whatsappNotConfigured: 'Nomor WhatsApp belum dikonfigurasi. Silakan gunakan verifikasi media sosial.',
         missingFiles: 'Silakan pilih ID (depan/belakang) dan selfie.',
+        missingSocial: 'Silakan pilih platform dan masukkan username Anda.',
       },
     },
 
@@ -2880,7 +3139,7 @@ const overrides = {
       },
       candidate: {
         fallbackName: 'Kandidat',
-        verifiedBadge: 'Identitas terverifikasi',
+        verifiedBadge: 'Pengguna terpercaya',
         proBadge: 'PRO',
         standardBadge: 'STANDAR',
         matchedProfile: 'Profil kecocokan',
@@ -2906,10 +3165,10 @@ const overrides = {
   },
 
   matchmakingMembership: {
-    title: 'Aktivasi keanggotaan',
-    lead: 'Keanggotaan gratis untuk saat ini. Kamu bisa mengaktifkannya dengan satu klik.',
-    freeNowTitle: 'Gratis untuk saat ini',
-    freeNowBody: 'Keanggotaan saat ini gratis. Saat jumlah anggota sudah cukup, kami dapat menambahkan pembayaran dan beralih ke model berbayar.',
+    title: 'Keanggotaan',
+    lead: 'Keanggotaan aktif secara otomatis. Menggunakan aplikasi ini sepenuhnya gratis.',
+    freeNowTitle: 'Sepenuhnya gratis',
+    freeNowBody: 'Semua fitur di aplikasi gratis; tidak ada pembayaran atau langkah aktivasi tambahan.',
     freeActivateCta: 'Aktifkan keanggotaan saya gratis',
     activating: 'Mengaktifkan…',
     activated: 'Keanggotaan diaktifkan.',
@@ -2924,7 +3183,7 @@ const overrides = {
       apiUnavailableDev: 'API tidak dapat dijangkau. Di local dev, jalankan `npm run dev` (api+web).',
     },
     backToPanel: 'Kembali ke panel',
-    freeNowFootnote: 'Catatan: Keanggotaan gratis untuk saat ini. Langkah pembayaran dapat ditambahkan nanti.',
+    freeNowFootnote: 'Catatan: Aplikasi ini sepenuhnya gratis.',
   },
 
   meta: {
@@ -3300,6 +3559,11 @@ const overrides = {
   },
 
   weddingPage: {
+    publicNote: {
+      p1: 'Catatan: Halaman ini dibuat untuk membantu pasangan yang sedang merencanakan pernikahan dalam prosedur pernikahan. Jika Anda belum memiliki calon pasangan, silakan kunjungi',
+      link: 'halaman Calon Pasangan kami',
+      p2: '.',
+    },
     hero: {
       badge: 'Pendampingan untuk proses pernikahan',
       title: 'Kami mendampingi persiapan pernikahan Anda',
@@ -3369,6 +3633,10 @@ const overrides = {
       flexibleNote:
         'Anda dapat mengisi form "Rencana Pernikahan" di bawah, atau meninjau dokumen yang diperlukan secara detail pada tab "Dokumen Pernikahan di Indonesia".',
     },
+    process: {
+      title: 'Bagaimana prosesnya berjalan?',
+      subtitle: 'Langkah-langkah ini adalah peta jalan umum; detailnya bisa berbeda tergantung kasus dan instansi resmi.',
+    },
     steps: [
       {
         title: 'Kami memahami Anda dan situasi Anda',
@@ -3394,12 +3662,111 @@ const overrides = {
       plan: 'Rencana Pernikahan',
       documents: 'Dokumen Pernikahan di Indonesia',
     },
+    mobileTabs: {
+      documents: 'Dokumen',
+      process: 'Proses',
+      guidance: 'Panduan',
+      planning: 'Perencanaan',
+    },
+    mobileDocuments: {
+      question: {
+        title: 'Pernikahan akan dilaksanakan di mana?',
+        hint: 'Dokumen yang dibutuhkan berbeda tergantung negara tempat pernikahan dicatat.',
+        options: {
+          indonesia: 'Di Indonesia',
+          turkiye: 'Di Turki',
+        },
+      },
+      trRequirements: {
+        title: 'Dokumen yang diperlukan untuk pernikahan resmi di Turki',
+        note:
+          'Catatan: Persyaratan dapat berbeda tergantung kota/instansi dan peraturan terbaru. Kita bisa memastikan checklist paling update sesuai kantor tempat Anda mendaftar.',
+        steps: [
+          {
+            title: '🇮🇩 1️⃣ KBRI Ankara: izin menikah (CNI)',
+            intro: '(Surat tidak ada halangan menikah / bukti lajang)',
+            items: [
+              '👩 Dokumen untuk perempuan WNI',
+              'Paspor (asli + fotokopi)',
+              'Fotokopi KTP',
+              'Kartu Keluarga (KK)',
+              'Akte kelahiran',
+              'Bukti status belum menikah',
+              'Surat kelayakan menikah dari instansi lokal di Indonesia (setara N1/N4)',
+              'Foto 2–4 lembar',
+              'Jika ada: putusan cerai atau akta kematian pasangan',
+              '👨 Dokumen untuk pria warga negara Turki',
+              'Fotokopi kartu identitas',
+              'Ekstrak catatan kependudukan',
+              'Surat keterangan domisili',
+              'Bukti status belum menikah',
+              '2 foto',
+              'Bukti penghasilan',
+            ],
+            notes: [
+              '📌 Setelah verifikasi, KBRI menerbitkan Certificate of No Impediment / surat izin menikah.',
+              '📌 Dalam beberapa kasus, bisa diminta surat izin dari keluarga di Indonesia.',
+              '📌 Terjemahan bahasa Turki untuk dokumen yang diminta biasanya harus dilegalisasi notaris; beberapa dokumen dapat memerlukan pengesahan tambahan sesuai ketentuan instansi.',
+            ],
+          },
+          {
+            title: '🇹🇷 2️⃣ Turki: dokumen untuk kantor nikah (Belediye Evlendirme Dairesi)',
+            intro: 'Instansi pendaftaran nikah: Kantor Nikah (Belediye Evlendirme Dairesi).',
+            items: [
+              '👩 Dokumen untuk WNI',
+              'Paspor + terjemahan bahasa Turki yang dilegalisasi notaris',
+              'Akte kelahiran (terjemahan bahasa Turki + apostille)',
+              'Surat izin menikah dari KBRI',
+              'Surat keterangan belum menikah',
+              'Surat kesehatan (diambil di Turki)',
+              'Foto biometrik 4–6 lembar',
+              'Pernyataan alamat tinggal',
+              '👨 Dokumen untuk WN Turki',
+              'Kartu identitas / Kimlik',
+              'Ekstrak catatan kependudukan',
+              'Surat keterangan domisili',
+              'Surat kesehatan',
+              'Foto 4–6 lembar',
+            ],
+            notes: [
+              '📌 Syarat penting saat pendaftaran nikah di Turki',
+              '✔ Dokumen asing harus ber-apostille',
+              '✔ Terjemahan bahasa Turki harus dilegalisasi notaris',
+              '✔ Penulisan nama harus sama persis di semua dokumen',
+              '✔ Surat keterangan belum menikah wajib',
+              '✔ Surat kesehatan biasanya diambil di Turki (dokter keluarga/klinik yang ditunjuk)',
+              '⏱ Perkiraan durasi',
+              'Surat izin menikah dari KBRI: 1–5 hari',
+              'Terjemahan & notaris: 1–3 hari',
+              'Janji nikah: 1–14 hari (tergantung kepadatan kota)',
+              '⚠️ Kesalahan umum yang membuat proses jadi sulit',
+              '❌ Tidak melakukan apostille',
+              '❌ Penulisan nama berbeda',
+              '❌ Surat keterangan belum menikah tidak lengkap',
+              '❌ Dokumen sudah terlalu lama/expired',
+              '❌ Tidak menggunakan penerjemah tersumpah',
+            ],
+          },
+        ],
+        action: 'Tanyakan checklist terbaru via WhatsApp',
+        whatsappMessage:
+          'Halo, bisa dibagikan checklist dokumen terbaru dan langkah pendaftaran untuk pernikahan resmi di Turki (WN Turki + WNI)? Kota/kecamatan: …',
+      },
+    },
     plan: {
       title: 'Sampaikan rencana pernikahan Anda kepada kami',
       subtitle:
         'Isi kolom di bawah; kami akan segera menghubungi Anda dengan respons yang sesuai dengan situasi Anda.',
       successTitle: 'Permintaan Anda berhasil dikirim!',
       successText: 'Terima kasih telah mengisi form. Kami akan menghubungi Anda dalam 24 jam.',
+      why: {
+        title: 'Kenapa perencanaan itu penting?',
+        text:
+          'Dalam pernikahan lintas negara, masalah terbesar adalah tidak mengelola proses dengan benar. Bahkan kesalahan kecil seperti salah satu huruf saja dapat menyebabkan kerugian besar—baik dari sisi biaya maupun waktu. Karena itu, merencanakan proses sejak awal dengan benar adalah syarat utama. Layanan bimbingan kami membantu Anda merencanakan dengan cara yang paling mudah dan paling tepat, sehingga proses pernikahan dapat selesai dengan lancar. Agar kami bisa merencanakan seluruh proses dengan benar untuk Anda, kami membutuhkan informasi yang Anda berikan. Karena itu, meluangkan beberapa menit untuk mengisi formulir 15 pertanyaan yang kami siapkan akan sangat bermanfaat bagi Anda.',
+      },
+      quiz: {
+        start: 'Mulai perencanaan',
+      },
       form: {
         sections: {
           basicInfo: {
@@ -3562,7 +3929,7 @@ const overrides = {
       installedHint: 'Aplikasi sudah ada di layar utama. Anda juga bisa mengaktifkan notifikasi.',
       installAvailableHint: 'Browser Anda mendukung instalasi. Klik untuk memasang.',
       installNotAvailableHint:
-        'Jika tombol install tidak muncul: buka menu browser lalu pilih “Tambah ke Layar Utama / Pasang aplikasi” (di beberapa perangkat muncul setelah kunjungan pertama via HTTPS).',
+        'Jika tombol install tidak muncul: buka menu browser lalu pilih “Tambah ke Layar Utama / Pasang aplikasi” (di beberapa perangkat muncul setelah kunjungan pertama via HTTPS). Jika tautan dibuka di browser dalam aplikasi (WhatsApp/Instagram), pilih “Buka di Safari/Chrome” lalu coba lagi.',
       ios: {
         title: 'Untuk iPhone/iPad (Safari)',
         step1: 'Buka situs di Safari.',
@@ -4510,14 +4877,17 @@ export default {
     forceInfo: 'Untuk aksi ini diminta masuk ulang. Silakan masuk kembali.',
     googleCta: 'Lanjutkan dengan Google',
     googleSignupCta: 'Daftar dengan Google',
-    redirecting: 'Mengalihkan ke login Google…',
+    appleCta: 'Lanjutkan dengan Apple',
+    appleSignupCta: 'Daftar dengan Apple',
+    redirecting: 'Mengalihkan ke login…',
     redirectScreen: {
       title: 'Mengalihkan…',
       body: 'Membuka profil Anda. Jika layar ini lama, Anda bisa lanjut lewat tombol di bawah.',
       goProfile: 'Ke profil saya',
       refresh: 'Muat ulang',
     },
-    signupGuide: 'Untuk mendaftar, masukkan jenis kelamin, kewarganegaraan, dan usia Anda.',
+    signupGuide: 'Untuk mendaftar, lanjutkan dengan Google, lalu lengkapi profil singkat Anda.',
+    signupExistingAccountHint: 'Jika Anda sudah punya akun, masuk dengan Google.',
     or: 'atau',
     labels: {
       email: 'Email',
@@ -4562,6 +4932,11 @@ export default {
       privacy: 'Kebijakan Privasi',
     },
     resetSent: 'Tautan reset kata sandi telah dikirim ke email Anda.',
+    infos: {
+      accountExistsTryLogin: 'Anda sudah memiliki akun. Silakan coba masuk dengan email dan kata sandi Anda.',
+      inAppBrowserGoogleRedirect:
+        'Masuk dengan Google mungkin tidak berfungsi di browser dalam aplikasi TikTok. Kami akan membuka login Google dengan redirect…',
+    },
     errors: {
       noAccountFoundSignupRequired:
         'Akun tidak ditemukan. Anda perlu mendaftar terlebih dahulu. Kami mengalihkan Anda ke pendaftaran—pilih jenis kelamin/kewarganegaraan, masukkan usia, lalu coba lagi.',
@@ -4574,9 +4949,12 @@ export default {
         'Login Google gagal (unauthorized-domain).\n\nTambahkan domain ini di Firebase Console → Authentication → Settings → Authorized domains: {{host}}',
       googleOperationNotAllowed:
         'Login Google dinonaktifkan. Aktifkan penyedia Google di Firebase Console → Authentication → Sign-in method.',
+      appleOperationNotAllowed:
+        'Login Apple dinonaktifkan. Aktifkan penyedia Apple di Firebase Console → Authentication → Sign-in method.',
       firebaseAuthInvalidConfig:
         'Konfigurasi Firebase Auth tidak valid. Periksa nilai `VITE_FIREBASE_*` di `.env.local` (dan env Vercel).',
       googleFailed: 'Masuk dengan Google gagal.',
+      appleFailed: 'Masuk dengan Apple gagal.',
       invalidCredential: 'Email atau kata sandi salah (atau akun tidak ditemukan). Jika Anda lupa kata sandi, gunakan “Lupa kata sandi”.',
       invalidEmail: 'Alamat email tampak tidak valid. Silakan periksa dan coba lagi.',
       emailAlreadyInUse: 'Akun dengan email ini sudah ada. Silakan masuk atau gunakan “Lupa kata sandi”.',
@@ -4803,7 +5181,7 @@ export default {
     },
     verification: {
       title: 'Verifikasi identitas',
-      verifiedBadge: 'Identitas terverifikasi',
+      verifiedBadge: 'Pengguna terpercaya',
       requiredTitle: 'Verifikasi identitas (lencana)',
       requiredBody: 'Verifikasi identitas adalah lencana kepercayaan. Jika ada pelanggaran aturan, Anda bisa mengajukan keluhan dengan screenshot/bukti.',
       unverifiedTitle: 'Belum terverifikasi (lencana)',
@@ -4994,7 +5372,7 @@ export default {
       },
       candidate: {
         fallbackName: 'Kandidat',
-        verifiedBadge: 'Identitas terverifikasi',
+        verifiedBadge: 'Pengguna terpercaya',
         proBadge: 'PRO',
         standardBadge: 'STANDAR',
         badges: {

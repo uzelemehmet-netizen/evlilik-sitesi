@@ -13,6 +13,7 @@ import ModerationTab from '../components/admin/ModerationTab';
 import AuditLogsTab from '../components/admin/AuditLogsTab';
 import MatchActivityTab from '../components/admin/MatchActivityTab';
 import ClickLogsTab from '../components/admin/ClickLogsTab';
+import InviteCodesTab from '../components/admin/InviteCodesTab';
 
 export default function AdminDashboardLite() {
   const navigate = useNavigate();
@@ -21,6 +22,7 @@ export default function AdminDashboardLite() {
       { id: 'newUsers', label: 'Yeni Kullanıcılar' },
       { id: 'allUsers', label: 'Tüm Kullanıcılar' },
       { id: 'payments', label: 'Ödemeler' },
+      { id: 'inviteCodes', label: 'Davet Kodları' },
       { id: 'identity', label: 'Kimlik Doğrulama' },
       { id: 'photoUpdates', label: 'Fotoğraf Güncelleme' },
       { id: 'moderation', label: 'Şikayetler' },
@@ -77,6 +79,7 @@ export default function AdminDashboardLite() {
         {activeTab === 'newUsers' ? <NewUsers48hTab /> : null}
         {activeTab === 'allUsers' ? <AllUsersTab /> : null}
         {activeTab === 'payments' ? <PaymentsTab /> : null}
+        {activeTab === 'inviteCodes' ? <InviteCodesTab /> : null}
         {activeTab === 'identity' ? <MatchmakingIdentityTab /> : null}
         {activeTab === 'photoUpdates' ? <MatchmakingPhotoUpdatesTab /> : null}
         {activeTab === 'moderation' ? <ModerationTab /> : null}

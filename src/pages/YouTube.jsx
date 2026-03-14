@@ -5,6 +5,20 @@ import { Play, Youtube } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { getYouTubeVideosForLang } from "../data/youtube";
 import React from "react";
+import { staticAssetUrl } from "../utils/staticAssetUrl";
+
+const FALLBACK_THUMB_DATA_URL =
+  'data:image/svg+xml;charset=utf-8,' +
+  encodeURIComponent(
+    `<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720">
+      <rect width="1280" height="720" fill="#000"/>
+      <g opacity="0.9">
+        <circle cx="640" cy="360" r="84" fill="#fff" opacity="0.18"/>
+        <path d="M 615 318 L 615 402 L 695 360 Z" fill="#fff"/>
+      </g>
+      <text x="50%" y="92%" text-anchor="middle" fill="#fff" font-size="28" font-family="Arial, sans-serif" opacity="0.9">Önizleme yüklenemedi</text>
+    </svg>`
+  );
 
 function getYouTubeThumbnailCandidates(videoId) {
   const id = String(videoId || '').trim();
@@ -12,10 +26,17 @@ function getYouTubeThumbnailCandidates(videoId) {
 
   // Some videos don't have max resolution thumbnails (404). Fall back gracefully.
   return [
-    `https://i.ytimg.com/vi/${id}/maxresdefault.jpg`,
+    // Prefer self-hosted thumbs (works even when YouTube domains are blocked)
+    staticAssetUrl(`/youtube-thumbs/${id}.jpg`),
+    `https://img.youtube.com/vi/${id}/maxresdefault.jpg`,
+    `https://img.youtube.com/vi/${id}/hqdefault.jpg`,
+    `https://img.youtube.com/vi/${id}/mqdefault.jpg`,
+    `https://img.youtube.com/vi/${id}/default.jpg`,
+    // Secondary host (some networks treat these differently)
     `https://i.ytimg.com/vi/${id}/hqdefault.jpg`,
     `https://i.ytimg.com/vi/${id}/mqdefault.jpg`,
-    `https://i.ytimg.com/vi/${id}/default.jpg`,
+    // Last resort: inline placeholder (avoids broken-image icon when thumbnails are blocked)
+    FALLBACK_THUMB_DATA_URL,
   ];
 }
 

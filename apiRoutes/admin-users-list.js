@@ -4,6 +4,65 @@ function safeStr(v) {
   return typeof v === 'string' ? v.trim() : '';
 }
 
+function pickDetailsFromUserDocOrApp(userDoc, bestApp) {
+  const d = userDoc && typeof userDoc === 'object' ? userDoc : null;
+  const appSnap = d?.application && typeof d.application === 'object' ? d.application : null;
+  const detailsFromUserCache = appSnap?.details && typeof appSnap.details === 'object' ? appSnap.details : null;
+  const detailsFromBestApp = bestApp?.details && typeof bestApp.details === 'object' ? bestApp.details : null;
+  // Prefer user cache values, but fill missing keys from the best application.
+  // This prevents admin panel showing blanks when matchmakingUsers.application.details is stale/partial.
+  if (detailsFromUserCache && detailsFromBestApp) {
+    return { ...detailsFromBestApp, ...detailsFromUserCache };
+  }
+  return detailsFromUserCache || detailsFromBestApp || null;
+}
+
+function pickOccupationLabel(details) {
+  const it = details && typeof details === 'object' ? details : null;
+  if (!it) return null;
+  return (
+    safeStr(it?.occupationTr) ||
+    safeStr(it?.occupation) ||
+    safeStr(it?.occupationId) ||
+    // Backward/alternate keys
+    safeStr(it?.job) ||
+    safeStr(it?.jobTitle) ||
+    safeStr(it?.profession) ||
+    null
+  );
+}
+
+function pickMaritalStatus(details) {
+  const it = details && typeof details === 'object' ? details : null;
+  if (!it) return null;
+  return safeStr(it?.maritalStatus) || safeStr(it?.marital) || safeStr(it?.medeniDurum) || safeStr(it?.marital_status) || null;
+}
+
+function pickHasChildren(details) {
+  const it = details && typeof details === 'object' ? details : null;
+  if (!it) return null;
+  const raw = safeStr(it?.hasChildren) || safeStr(it?.children) || safeStr(it?.childStatus) || safeStr(it?.has_children);
+  if (raw) return raw;
+  // Backward compatible: some payloads used boolean.
+  if (typeof it?.hasChildren === 'boolean') return it.hasChildren ? 'yes' : 'no';
+  return null;
+}
+
+function pickChildrenCount(details) {
+  const it = details && typeof details === 'object' ? details : null;
+  if (!it) return null;
+  const raw =
+    it?.childrenCount ??
+    it?.childCount ??
+    it?.children_count ??
+    it?.child_count;
+  const n = typeof raw === 'number' ? raw : Number(String(raw ?? '').trim());
+  if (!Number.isFinite(n)) return null;
+  const i = Math.trunc(n);
+  if (i < 0 || i > 20) return null;
+  return i;
+}
+
 function toMs(ts) {
   try {
     if (!ts) return 0;
@@ -183,6 +242,12 @@ export default async function handler(req, res) {
         const applicationId = userDoc && typeof userDoc?.applicationId === 'string' ? safeStr(userDoc.applicationId) : '';
         const cachedAbout = getAnyAboutFromUserDoc(userDoc);
 
+        const details = pickDetailsFromUserDocOrApp(userDoc, null);
+        const occupation = pickOccupationLabel(details);
+        const maritalStatus = pickMaritalStatus(details);
+        const hasChildren = pickHasChildren(details);
+        const childrenCount = pickChildrenCount(details);
+
         res.statusCode = 200;
         res.setHeader('content-type', 'application/json');
         res.end(
@@ -213,6 +278,11 @@ export default async function handler(req, res) {
                   userDoc && typeof userDoc?.membership?.lastApprovedPaymentId === 'string'
                     ? safeStr(userDoc.membership.lastApprovedPaymentId) || null
                     : null,
+
+                occupation,
+                maritalStatus,
+                hasChildren,
+                childrenCount,
               },
             ],
             nextPageToken: null,
@@ -254,6 +324,12 @@ export default async function handler(req, res) {
       const applicationId = userDoc && typeof userDoc?.applicationId === 'string' ? safeStr(userDoc.applicationId) : '';
       const cachedAbout = getAnyAboutFromUserDoc(userDoc);
 
+      const details = pickDetailsFromUserDocOrApp(userDoc, null);
+      const occupation = pickOccupationLabel(details);
+      const maritalStatus = pickMaritalStatus(details);
+      const hasChildren = pickHasChildren(details);
+      const childrenCount = pickChildrenCount(details);
+
       res.statusCode = 200;
       res.setHeader('content-type', 'application/json');
       res.end(
@@ -283,6 +359,11 @@ export default async function handler(req, res) {
                 userDoc && typeof userDoc?.membership?.lastApprovedPaymentId === 'string'
                   ? safeStr(userDoc.membership.lastApprovedPaymentId) || null
                   : null,
+
+              occupation,
+              maritalStatus,
+              hasChildren,
+              childrenCount,
             },
           ],
           nextPageToken: null,
@@ -378,6 +459,12 @@ export default async function handler(req, res) {
       const effectiveApplicationId = applicationId || (bestApp?.id ? String(bestApp.id) : '');
       const hasApplication = !!effectiveApplicationId || !!cachedAbout;
 
+      const details = pickDetailsFromUserDocOrApp(userDoc, bestApp);
+      const occupation = pickOccupationLabel(details);
+      const maritalStatus = pickMaritalStatus(details);
+      const hasChildren = pickHasChildren(details);
+      const childrenCount = pickChildrenCount(details);
+
       return {
         uid,
         email: u.email || null,
@@ -411,6 +498,11 @@ export default async function handler(req, res) {
           userDoc && typeof userDoc?.membership?.lastApprovedPaymentId === 'string'
             ? safeStr(userDoc.membership.lastApprovedPaymentId) || null
             : null,
+
+        occupation,
+        maritalStatus,
+        hasChildren,
+        childrenCount,
       };
     });
 

@@ -2,6 +2,7 @@ import { getAdmin, normalizeBody, requireIdToken } from './_firebaseAdmin.js';
 import { ensureMembershipActiveOrThrow, ensureProfileCompleteOrThrow } from './_matchmakingEligibility.js';
 import { assertNotResetIgnoredMatch, getMatchmakingResetAtMs } from './_matchmakingReset.js';
 import { detectForbiddenChatText } from './_chatTextFilter.js';
+import { sendPushToUid } from './_push.js';
 
 function safeStr(v) {
   return typeof v === 'string' ? v.trim() : '';
@@ -232,6 +233,8 @@ export default async function handler(req, res) {
 
     const ts = nowMs();
     let messageId = '';
+    let otherUidForPush = '';
+    let shouldPush = false;
 
     await db.runTransaction(async (tx) => {
       const [matchSnap, meSnap] = await Promise.all([tx.get(matchRef), tx.get(meRef)]);
@@ -273,6 +276,8 @@ export default async function handler(req, res) {
         err.statusCode = 500;
         throw err;
       }
+
+      otherUidForPush = otherUid;
 
       const lock = me?.matchmakingLock && typeof me.matchmakingLock === 'object' ? me.matchmakingLock : null;
       const lockActive = !!lock?.active;
@@ -439,6 +444,9 @@ export default async function handler(req, res) {
           createdAt: FieldValue.serverTimestamp(),
           createdAtMs: ts,
         });
+
+        // Delivered message -> push the other user.
+        shouldPush = true;
       }
 
 
@@ -544,6 +552,26 @@ export default async function handler(req, res) {
 
       tx.set(matchRef, patch, { merge: true });
     });
+
+    // Push notification to the other user (best-effort).
+    if (shouldPush && otherUidForPush) {
+      try {
+        await sendPushToUid({
+          uid: otherUidForPush,
+          title: 'Yeni mesaj',
+          body: text.slice(0, 140),
+          url: '/profilim',
+          type: 'match_chat',
+          data: {
+            matchId,
+            messageId,
+            fromUid: uid,
+          },
+        });
+      } catch {
+        // ignore
+      }
+    }
 
     res.statusCode = 200;
     res.setHeader('content-type', 'application/json');

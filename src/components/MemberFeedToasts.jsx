@@ -5,6 +5,7 @@ import { useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../auth/AuthProvider.jsx';
 import { db } from '../config/firebase';
+import { isTutorialActive } from '../utils/tutorialState.js';
 
 function safeStr(v) {
   return typeof v === 'string' ? v.trim() : '';
@@ -130,12 +131,13 @@ export default function MemberFeedToasts() {
 
   useEffect(() => {
     if (!toasts.length) return;
+    const dismissMs = isTutorialActive() ? 3000 : 5500;
     const timers = toasts.map((toast) => {
       const id = toast?.id;
       if (!id) return null;
       return setTimeout(() => {
         setToasts((prev) => (Array.isArray(prev) ? prev.filter((x) => x?.id !== id) : []));
-      }, 5500);
+      }, dismissMs);
     });
 
     return () => {

@@ -42,13 +42,7 @@ Başvuru sırasında kullanıcıdan; gizlilik/policy metinleri ve KVKK aydınlat
 - KVKK Aydınlatma Metni (TR): `https://uniqah.com/docs/kvkk-aydinlatma-metni.html`
 - KVKK Information Notice (EN): `https://uniqah.com/docs/kvkk-information-notice-en.html`
 
-### 3.3 reCAPTCHA (anti-spam)
-
-Başvuru gibi kritik aksiyonlarda reCAPTCHA Enterprise doğrulaması opsiyonel olarak çalıştırılabilir (ortam değişkeni ile). Doğrulama server tarafında değerlendirilir:
-
-- Token üretimi (client) + değerlendirme (server): `/api/recaptcha-assess`
-
-### 3.4 PII / iletişim bilgisi engelleme (profil metinleri)
+### 3.3 PII / iletişim bilgisi engelleme (profil metinleri)
 
 Başvuru metin alanlarında; iletişim bilgisi, banka/kimlik vb. hassas kişisel verilerin yazılması engellenir.
 

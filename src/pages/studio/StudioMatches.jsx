@@ -16,6 +16,7 @@ import { HelpCircle, MessageCircle, User, Compass } from 'lucide-react';
 import { openPreviewGate } from '../../utils/previewGate';
 import { buildPreviewMatches } from '../../utils/studioPreviewData';
 import StudioBottomNav from '../../components/studio/StudioBottomNav';
+import { isTutorialActive } from '../../utils/tutorialState.js';
 
 export default function StudioMatches() {
   const { user } = useAuth();
@@ -97,6 +98,7 @@ export default function StudioMatches() {
   const [myProfileComplete, setMyProfileComplete] = useState(true);
 
   const [presenceByUid, setPresenceByUid] = useState({});
+  const presenceUiEnabled = false;
 
   useEffect(() => {
     if (!isPreview) return;
@@ -243,6 +245,17 @@ export default function StudioMatches() {
   };
 
   const activateFreeMembershipNow = useCallback(async () => {
+      const paywallAutoActivateRef = useRef(false);
+      useEffect(() => {
+        if (!paywallNotice) {
+          paywallAutoActivateRef.current = false;
+          return;
+        }
+        if (paywallAutoActivateRef.current) return;
+        paywallAutoActivateRef.current = true;
+        // Üyelik artık otomatik veriliyor; paywall görünürse best-effort arkada düzelt.
+        activateFreeMembershipNow();
+      }, [paywallNotice, activateFreeMembershipNow]);
     const uid = effectiveUid;
     if (!uid) return;
     if (activateMembershipRef.current) return;
@@ -477,19 +490,6 @@ export default function StudioMatches() {
     if (!uid || !mid || (d !== 'accept' && d !== 'reject')) return;
     if (inboxAction.loadingId) return;
 
-    if (!myProfileComplete) {
-      requireProfile();
-      setInboxAction({ loadingId: '', error: t('studio.profileGate.body') });
-      return;
-    }
-
-    // Üyelik aktif değilken beğeni (accept) gönderemez; reject serbest.
-    if (d === 'accept' && !myMembership?.active) {
-      requirePaid();
-      setInboxAction({ loadingId: '', error: t('studio.paywall.upgradeToInteract') });
-      return;
-    }
-
     setInboxAction({ loadingId: mid, error: '' });
     try {
       await authFetch('/api/matchmaking-decision', {
@@ -500,6 +500,8 @@ export default function StudioMatches() {
       setInboxAction({ loadingId: '', error: '' });
     } catch (e) {
       const msg = String(e?.message || '').trim();
+      if (msg === 'membership_required') requirePaid();
+      if (msg === 'profile_incomplete' || msg === 'application_not_found' || msg === 'application_required') requireProfile();
       setInboxAction({ loadingId: '', error: translateStudioApiError(t, msg) || msg || 'action_failed' });
     }
   };
@@ -515,12 +517,6 @@ export default function StudioMatches() {
     const d = String(decision || '').trim();
     if (!uid || !from || (d !== 'approve' && d !== 'reject')) return;
     if (accessAction.loadingId) return;
-
-    if (!myProfileComplete) {
-      requireProfile();
-      setAccessAction({ loadingId: '', error: t('studio.profileGate.body') });
-      return;
-    }
 
     const reqType = String(type || '').trim();
     const endpoint =
@@ -541,6 +537,8 @@ export default function StudioMatches() {
       setAccessAction({ loadingId: '', error: '' });
     } catch (e) {
       const msg = String(e?.message || '').trim();
+      if (msg === 'membership_required') requirePaid();
+      if (msg === 'profile_incomplete' || msg === 'application_not_found' || msg === 'application_required') requireProfile();
       setAccessAction({ loadingId: '', error: translateStudioApiError(t, msg) || msg || 'action_failed' });
     }
   };
@@ -850,7 +848,34 @@ export default function StudioMatches() {
     }
   };
 
+  useEffect(() => {
+    if (!isTutorialActive()) return;
+    if (!profileGateNotice) return;
+    const id = setTimeout(() => setProfileGateNotice(''), 3000);
+    return () => {
+      try {
+        clearTimeout(id);
+      } catch {
+        // noop
+      }
+    };
+  }, [profileGateNotice]);
+
+  useEffect(() => {
+    if (!isTutorialActive()) return;
+    if (!paywallNotice) return;
+    const id = setTimeout(() => setPaywallNotice(''), 3000);
+    return () => {
+      try {
+        clearTimeout(id);
+      } catch {
+        // noop
+      }
+    };
+  }, [paywallNotice]);
+
   const refreshPresence = useCallback(async () => {
+    if (!presenceUiEnabled) return;
     if (isPreview) return;
     const uid = effectiveUid;
     if (!uid) return;
@@ -888,6 +913,8 @@ export default function StudioMatches() {
   }, [effectiveUid, isPreview, matches]);
 
   useEffect(() => {
+    if (!presenceUiEnabled) return;
+
     refreshPresence();
 
     const onFocus = () => refreshPresence();
@@ -910,7 +937,7 @@ export default function StudioMatches() {
         // noop
       }
     };
-  }, [refreshPresence]);
+  }, [presenceUiEnabled, refreshPresence]);
 
   const openShort = async ({ matchId, displayName }) => {
     if (isPreview) {
@@ -1188,7 +1215,7 @@ export default function StudioMatches() {
           onMarkRead={inboxModal?.mode === 'messages' ? markDirectMessageRead : markInboxMessageRead}
           onApprove={inboxModal?.mode === 'messages' ? null : ({ fromUid, type }) => respondAccessRequest({ fromUid, decision: 'approve', type })}
           onReject={inboxModal?.mode === 'messages' ? null : ({ fromUid, type }) => respondAccessRequest({ fromUid, decision: 'reject', type })}
-          actionsDisabled={inboxModal?.mode !== 'messages' && !myProfileComplete}
+          actionsDisabled={false}
           onRequireProfile={() => {
             requireProfile();
           }}
@@ -1242,11 +1269,6 @@ export default function StudioMatches() {
               </button>
             </div>
             <p className="mt-1 text-sm text-amber-900/80">{paywallNotice}</p>
-            <div className="mt-3">
-              <button type="button" onClick={activateFreeMembershipNow} className="app-btn app-btn-indigo h-10 px-4">
-                {t('studio.paywall.upgradeCta')}
-              </button>
-            </div>
           </div>
         ) : null}
 
@@ -1346,9 +1368,9 @@ export default function StudioMatches() {
         )}
 
         {shortModal.open ? (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" role="dialog" aria-modal="true">
-            <div className="w-full max-w-lg rounded-xl bg-white shadow-xl">
-              <div className="flex items-center justify-between border-b border-slate-200 p-4">
+          <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 p-4 pt-6 overflow-y-auto" role="dialog" aria-modal="true">
+            <div className="w-full max-w-lg rounded-xl bg-white shadow-xl max-h-[85vh] flex flex-col">
+              <div className="flex items-center justify-between border-b border-slate-200 p-4 shrink-0">
                 <div className="min-w-0 flex items-center gap-3">
                   {shortOtherPhoto ? (
                     <img src={shortOtherPhoto} alt={shortOtherName} className="h-10 w-10 rounded-full object-cover" />
@@ -1376,7 +1398,7 @@ export default function StudioMatches() {
                 </button>
               </div>
 
-              <div className="p-4 pt-3">
+              <div className="p-4 pt-3 overflow-y-auto flex-1">
                 <div ref={shortScrollRef} className="h-56 overflow-y-auto rounded-lg border border-slate-200 bg-slate-50 p-3">
                   {shortLoading ? <p className="text-sm text-slate-500">{t('studio.common.loading')}</p> : null}
                   {!shortLoading && (!Array.isArray(shortMessages) || shortMessages.length === 0) ? (

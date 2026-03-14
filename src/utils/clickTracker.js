@@ -60,37 +60,101 @@ function writeDedupeMap(storageKey, map) {
   }
 }
 
-export async function trackClick(eventKey, { page } = {}) {
+export async function trackClick(eventKey, { page, trace } = {}) {
   try {
     if (typeof window === 'undefined') return { ok: false, skipped: true };
     const ek = safeStr(eventKey).toLowerCase();
     if (!ek) return { ok: false, skipped: true };
 
+    const isTrace = trace === true;
+
     const nowMs = Date.now();
     const dayKey = dayKeyTR(nowMs);
 
     // Client-side dedupe (best-effort). Server also dedupes.
-    const { key: storageKey, map } = readDedupeMap(dayKey);
-    if (map && map[ek]) return { ok: true, counted: false, deduped: true };
-    if (map) map[ek] = 1;
-    writeDedupeMap(storageKey, map);
+    // For trace mode: DO NOT dedupe; we want full click streams.
+    if (!isTrace) {
+      const { key: storageKey, map } = readDedupeMap(dayKey);
+      if (map && map[ek]) return { ok: true, counted: false, deduped: true };
+      if (map) map[ek] = 1;
+      writeDedupeMap(storageKey, map);
+    }
 
     const anonId = getAnonBrowserId();
+
+    // Diagnostics (privacy-safe): helps detect VPN/relay/proxy country mismatches.
+    let lang = '';
+    let tz = '';
+    let tzOffsetMin = null;
+    try {
+      lang = safeStr(window.navigator?.language).slice(0, 20);
+    } catch {
+      lang = '';
+    }
+    try {
+      tz = safeStr(Intl.DateTimeFormat().resolvedOptions().timeZone).slice(0, 60);
+    } catch {
+      tz = '';
+    }
+    try {
+      const n = new Date().getTimezoneOffset();
+      tzOffsetMin = Number.isFinite(n) ? Math.trunc(n) : null;
+    } catch {
+      tzOffsetMin = null;
+    }
     const payload = {
       eventKey: ek,
       anonId,
       page: safeStr(page) || safeStr(window.location?.pathname) || '/',
+      trace: trace === true,
+      ...(lang ? { lang } : {}),
+      ...(tz ? { tz } : {}),
+      ...(typeof tzOffsetMin === 'number' ? { tzOffsetMin } : {}),
     };
 
-    const res = await fetch('/api/public-track-click', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify(payload),
-      keepalive: true,
-    });
+    // Some privacy tools/adblockers block paths containing "track".
+    // Prefer a neutral alias endpoint, and fall back to the legacy route.
+    const endpoints = ['/api/public-signal', '/api/public-track-click'];
 
-    const data = await res.json().catch(() => null);
-    return data || { ok: res.ok };
+    // Best-effort: sendBeacon is usually more reliable on mobile/unload.
+    try {
+      const beacon = window.navigator?.sendBeacon;
+      if (typeof beacon === 'function') {
+        const json = JSON.stringify(payload);
+        for (const url of endpoints) {
+          try {
+            const blob = new Blob([json], { type: 'application/json' });
+            const ok = beacon.call(window.navigator, url, blob);
+            if (ok) return { ok: true, counted: null, via: 'beacon' };
+          } catch {
+            // try next endpoint
+          }
+        }
+      }
+    } catch {
+      // ignore
+    }
+
+    let last = null;
+    for (const url of endpoints) {
+      try {
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify(payload),
+          keepalive: true,
+        });
+
+        const data = await res.json().catch(() => null);
+        if (data) return data;
+        if (res.ok) return { ok: true };
+        last = { ok: false };
+      } catch {
+        last = { ok: false };
+      }
+    }
+
+    return last || { ok: false };
   } catch {
     return { ok: false };
   }

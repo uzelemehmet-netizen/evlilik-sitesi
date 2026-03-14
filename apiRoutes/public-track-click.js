@@ -21,12 +21,48 @@ function normalizeAnonId(raw) {
   return s;
 }
 
+function normalizeBool(v) {
+  if (v === true) return true;
+  if (v === false) return false;
+  const s = safeStr(v).toLowerCase();
+  if (s === '1' || s === 'true' || s === 'yes') return true;
+  if (s === '0' || s === 'false' || s === 'no') return false;
+  return false;
+}
+
 function normalizeCountryCode(raw) {
   const s = safeStr(raw).toUpperCase();
   if (!s) return 'UN';
   if (s === 'XX' || s === 'ZZ') return 'UN';
   if (!/^[A-Z]{2}$/.test(s)) return 'UN';
   return s;
+}
+
+function normalizeLang(raw) {
+  const s = safeStr(raw);
+  if (!s) return '';
+  if (s.length > 20) return '';
+  // Examples: tr-TR, en-US
+  if (!/^[a-zA-Z]{2,3}(-[a-zA-Z0-9]{2,8})?$/.test(s)) return '';
+  return s;
+}
+
+function normalizeTimezone(raw) {
+  const s = safeStr(raw);
+  if (!s) return '';
+  if (s.length > 60) return '';
+  // Examples: Europe/Istanbul, Asia/Jakarta
+  if (!/^[A-Za-z0-9_+\-/]+$/.test(s)) return '';
+  return s;
+}
+
+function normalizeTzOffsetMin(raw) {
+  const n = typeof raw === 'number' ? raw : Number(String(raw ?? '').trim());
+  if (!Number.isFinite(n)) return null;
+  const v = Math.trunc(n);
+  // JS getTimezoneOffset range is typically [-840, 840]
+  if (v < -900 || v > 900) return null;
+  return v;
 }
 
 function detectCountryFromHeaders(headers) {
@@ -65,6 +101,11 @@ export default async function handler(req, res) {
     const eventKey = normalizeEventKey(body?.eventKey);
     const anonId = normalizeAnonId(body?.anonId);
     const page = safeStr(body?.page).slice(0, 200) || null;
+    const trace = normalizeBool(body?.trace);
+
+    const lang = normalizeLang(body?.lang);
+    const tz = normalizeTimezone(body?.tz);
+    const tzOffsetMin = normalizeTzOffsetMin(body?.tzOffsetMin);
 
     if (!eventKey || !anonId) {
       res.statusCode = 400;
@@ -94,9 +135,30 @@ export default async function handler(req, res) {
     const eventRef = db.collection('clickEvents').doc(eventId);
     const statsRef = db.collection('clickStats').doc(dayKey);
 
+    // Non-deduped click traces (optional). Keep retention short.
+    const retentionDaysTrace = 7;
+    const expiresAtTrace = new Date(nowMs + retentionDaysTrace * 24 * 60 * 60 * 1000);
+    const traceRef = trace ? db.collection('clickTrace').doc() : null;
+
     let counted = false;
 
     await db.runTransaction(async (tx) => {
+      if (traceRef) {
+        tx.set(traceRef, {
+          dayKey,
+          eventKey,
+          anonId,
+          page,
+          country,
+          ...(lang ? { lang } : {}),
+          ...(tz ? { tz } : {}),
+          ...(typeof tzOffsetMin === 'number' ? { tzOffsetMin } : {}),
+          createdAt: FieldValue.serverTimestamp(),
+          createdAtMs: nowMs,
+          expiresAt: expiresAtTrace,
+        });
+      }
+
       const snap = await tx.get(eventRef);
       if (snap.exists) {
         counted = false;
@@ -110,6 +172,9 @@ export default async function handler(req, res) {
         anonId,
         page,
         country,
+        ...(lang ? { lang } : {}),
+        ...(tz ? { tz } : {}),
+        ...(typeof tzOffsetMin === 'number' ? { tzOffsetMin } : {}),
         createdAt: FieldValue.serverTimestamp(),
         createdAtMs: nowMs,
         expiresAt: expiresAtEvents,
@@ -143,18 +208,24 @@ export default async function handler(req, res) {
     const msg = String(e?.message || 'server_error');
     const code = e?.statusCode || 500;
 
-    // Non-critical analytics endpoint: if Firebase Admin isn't configured (common in local/dev),
-    // don't spam the console with 5xx and don't block the page lifecycle/keepalive calls.
-    if (code === 503 && msg.includes('firebase_admin_not_configured')) {
+    // Non-critical analytics endpoint: never break page lifecycle with 5xx.
+    // Keep 4xx for explicit client misuse; fail-open for anything else.
+    if (code >= 500) {
       res.statusCode = 200;
       res.setHeader('content-type', 'application/json');
       res.setHeader('cache-control', 'no-store');
-      res.end(JSON.stringify({ ok: false, error: 'tracking_disabled' }));
+      res.end(
+        JSON.stringify({
+          ok: false,
+          error: code === 503 && msg.includes('firebase_admin_not_configured') ? 'tracking_disabled' : 'tracking_failed',
+        })
+      );
       return;
     }
 
     res.statusCode = code;
     res.setHeader('content-type', 'application/json');
+    res.setHeader('cache-control', 'no-store');
     res.end(JSON.stringify({ ok: false, error: msg }));
   }
 }

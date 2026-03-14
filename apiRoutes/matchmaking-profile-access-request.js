@@ -1,5 +1,6 @@
 import { getAdmin, normalizeBody, requireIdToken } from './_firebaseAdmin.js';
 import { ensureEligibleOrThrow, ensureProfileCompleteOrThrow } from './_matchmakingEligibility.js';
+import { sendPushToUid } from './_push.js';
 
 function safeStr(v) {
   return typeof v === 'string' ? v.trim() : '';
@@ -333,6 +334,7 @@ export default async function handler(req, res) {
     };
 
     let status = 'pending';
+    let shouldNotifyPush = false;
 
     await db.runTransaction(async (tx) => {
       const grantedSnap = await tx.get(grantedToTargetRef);
@@ -370,6 +372,7 @@ export default async function handler(req, res) {
             patch.messageCreatedAt = FieldValue.serverTimestamp();
             patch.messageCreatedAtMs = now;
             patch.messageReadAtMs = 0;
+            shouldNotifyPush = true;
           }
 
           tx.set(inboxRef, patch, { merge: true });
@@ -395,7 +398,23 @@ export default async function handler(req, res) {
       tx.set(inboxRef, payload, { merge: true });
       tx.set(outboxRef, payload, { merge: true });
       status = 'pending';
+      shouldNotifyPush = true;
     });
+
+    if (status === 'pending' && shouldNotifyPush) {
+      const fromName = safeStr(fromProfile?.username) || 'Bir üye';
+      const bodyText = messageText
+        ? `${fromName}: ${messageText}`.slice(0, 160)
+        : `${fromName} profilinizi görmek için izin istiyor.`;
+      await sendPushToUid({
+        uid: targetUid,
+        title: 'Profil inceleme isteği',
+        body: bodyText,
+        url: '/app/matches',
+        type: 'profile_access_request',
+        data: { requestId, fromUid: uid },
+      }).catch(() => null);
+    }
 
     res.statusCode = 200;
     res.setHeader('content-type', 'application/json');

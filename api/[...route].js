@@ -51,6 +51,7 @@ function defaultLoader(fileName) {
 // Lazy-load: cold start sırasında tüm route dosyalarını import etmeyelim.
 // Bu, Vercel'de FUNCTION_INVOCATION_FAILED (özellikle cold-start / timeout) riskini ciddi azaltır.
 const handlers = {
+  'admin-invite-codes-list': defaultLoader('admin-invite-codes-list.js'),
   'admin-user-action': defaultLoader('admin-user-action.js'),
   'admin-users-list': defaultLoader('admin-users-list.js'),
   'admin-user-application-get': defaultLoader('admin-user-application-get.js'),
@@ -58,6 +59,7 @@ const handlers = {
   'admin-payments-list': defaultLoader('admin-payments-list.js'),
   'admin-audit-logs-list': defaultLoader('admin-audit-logs-list.js'),
   'admin-click-stats': defaultLoader('admin-click-stats.js'),
+  'admin-click-trace-list': defaultLoader('admin-click-trace-list.js'),
   'admin-signups-count': defaultLoader('admin-signups-count.js'),
   'admin-match-activity-list': defaultLoader('admin-match-activity-list.js'),
   'admin-user-matches-list': defaultLoader('admin-user-matches-list.js'),
@@ -69,6 +71,7 @@ const handlers = {
   'admin-new-signups-whatsapp-notify': defaultLoader('admin-new-signups-whatsapp-notify.js'),
   'client-ip': defaultLoader('client-ip.js'),
   'cloudinary-signature': defaultLoader('cloudinary-signature.js'),
+  'google-ads-lead-webhook': defaultLoader('google-ads-lead-webhook.js'),
   'identity-kyc-webhook': defaultLoader('identity-kyc-webhook.js'),
   'matchmaking-admin-approve-payment': defaultLoader('matchmaking-admin-approve-payment.js'),
   'matchmaking-admin-photo-update-decide': defaultLoader('matchmaking-admin-photo-update-decide.js'),
@@ -84,6 +87,8 @@ const handlers = {
   'matchmaking-application-edit-once': defaultLoader('matchmaking-application-edit-once.js'),
   'matchmaking-partner-preferences-update': defaultLoader('matchmaking-partner-preferences-update.js'),
   'matchmaking-application-bootstrap': defaultLoader('matchmaking-application-bootstrap.js'),
+  'matchmaking-user-ensure': defaultLoader('matchmaking-user-ensure.js'),
+  'matchmaking-quick-profile-save': defaultLoader('matchmaking-quick-profile-save.js'),
   'matchmaking-photo-update-request': defaultLoader('matchmaking-photo-update-request.js'),
   'matchmaking-chat-decision': defaultLoader('matchmaking-chat-decision.js'),
   'matchmaking-chat-mark-read': defaultLoader('matchmaking-chat-mark-read.js'),
@@ -102,6 +107,8 @@ const handlers = {
   'matchmaking-interaction-choice': defaultLoader('matchmaking-interaction-choice.js'),
   'matchmaking-membership-activate-free': defaultLoader('matchmaking-membership-activate-free.js'),
   'matchmaking-membership-cancel': defaultLoader('matchmaking-membership-cancel.js'),
+  'matchmaking-invite-code-generate': defaultLoader('matchmaking-invite-code-generate.js'),
+  'matchmaking-invite-code-redeem': defaultLoader('matchmaking-invite-code-redeem.js'),
   'matchmaking-referral-code': defaultLoader('matchmaking-referral-code.js'),
   'matchmaking-referral-accept': defaultLoader('matchmaking-referral-accept.js'),
   'matchmaking-referral-claim': defaultLoader('matchmaking-referral-claim.js'),
@@ -122,6 +129,9 @@ const handlers = {
   'admin-feedback-list': defaultLoader('admin-feedback-list.js'),
   'admin-feedback-update': defaultLoader('admin-feedback-update.js'),
   'public-join-ping': defaultLoader('public-join-ping.js'),
+  'public-error-report': defaultLoader('public-error-report.js'),
+  'public-feedback-submit': defaultLoader('public-feedback-submit.js'),
+  'public-signal': defaultLoader('public-signal.js'),
   'public-track-click': defaultLoader('public-track-click.js'),
   'push-token-upsert': defaultLoader('push-token-upsert.js'),
   'push-send-test': defaultLoader('push-send-test.js'),
@@ -140,8 +150,8 @@ const handlers = {
   'matchmaking-quick-questions': defaultLoader('matchmaking-quick-questions.js'),
   'matchmaking-verification-select': defaultLoader('matchmaking-verification-select.js'),
   'matchmaking-verification-manual-submit': defaultLoader('matchmaking-verification-manual-submit.js'),
-  'recaptcha-assess': defaultLoader('recaptcha-assess.js'),
 };
+
 
 function getRouteName(req) {
   const url = new URL(req.url || '', 'http://localhost');

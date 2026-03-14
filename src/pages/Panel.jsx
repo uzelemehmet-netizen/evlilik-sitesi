@@ -15,6 +15,7 @@ import { authFetch } from "../utils/authFetch";
 import { uploadImageToCloudinaryAuto } from '../utils/cloudinaryUpload';
 import ImageLightbox from '../components/ImageLightbox';
 import { getLocalizedProfileText } from '../utils/profileText';
+import { enablePushForCurrentUser, hasSavedPushToken } from '../utils/pushNotifications';
 
 export default function Panel() {
   const { t, i18n } = useTranslation();
@@ -55,7 +56,9 @@ export default function Panel() {
   const identityInlinePanelRef = useRef(null);
   const identityInlineButtonRef = useRef(null);
   const [identityInlineOpen, setIdentityInlineOpen] = useState(false);
-  const [identityVerificationMode, setIdentityVerificationMode] = useState('upload'); // upload | whatsapp_call
+  const [identityVerificationMode, setIdentityVerificationMode] = useState('selfie_video'); // selfie_video | social
+  const [socialVerification, setSocialVerification] = useState({ platform: 'instagram', username: '' });
+  const [socialVerificationAction, setSocialVerificationAction] = useState({ loading: false, error: '', success: '' });
 
   const [matchmaking, setMatchmaking] = useState(null);
   const [matchmakingLoading, setMatchmakingLoading] = useState(true);
@@ -282,7 +285,11 @@ export default function Panel() {
       const st = String(matchmakingUser?.identityVerification?.status || '').toLowerCase().trim();
       const m = String(matchmakingUser?.identityVerification?.method || '').toLowerCase().trim();
       if (st === 'pending' && m === 'whatsapp') {
-        setIdentityVerificationMode('whatsapp_call');
+        setIdentityVerificationMode('selfie_video');
+        return;
+      }
+      if (st === 'pending' && m === 'social') {
+        setIdentityVerificationMode('social');
       }
     } catch {
       // ignore
@@ -634,12 +641,28 @@ export default function Panel() {
     }
 
     try {
-      const perm = await Notification.requestPermission();
-      if (perm === 'granted') {
-        setChatNotifyMsgByMatchId((p) => ({ ...p, [matchId]: t('matchmakingPanel.matches.chat.notificationsEnabled') }));
-      } else {
-        setChatNotifyMsgByMatchId((p) => ({ ...p, [matchId]: t('matchmakingPanel.matches.chat.notificationsDenied') }));
+      // If permission already granted and we already have a saved token, keep UX stable.
+      try {
+        if (Notification?.permission === 'granted' && hasSavedPushToken()) {
+          setChatNotifyMsgByMatchId((p) => ({ ...p, [matchId]: t('matchmakingPanel.matches.chat.notificationsEnabled') }));
+          return;
+        }
+      } catch {
+        // ignore
       }
+
+      const result = await enablePushForCurrentUser();
+      if (result?.ok) {
+        setChatNotifyMsgByMatchId((p) => ({ ...p, [matchId]: t('matchmakingPanel.matches.chat.notificationsEnabled') }));
+        return;
+      }
+
+      if (result?.code === 'not_supported' || result?.code === 'messaging_not_supported') {
+        setChatNotifyMsgByMatchId((p) => ({ ...p, [matchId]: t('matchmakingPanel.matches.chat.notificationsNotSupported') }));
+        return;
+      }
+
+      setChatNotifyMsgByMatchId((p) => ({ ...p, [matchId]: t('matchmakingPanel.matches.chat.notificationsDenied') }));
     } catch (e) {
       setChatNotifyMsgByMatchId((p) => ({ ...p, [matchId]: t('matchmakingPanel.matches.chat.notificationsDenied') }));
     }
@@ -1287,6 +1310,12 @@ export default function Panel() {
       try {
         // Chrome/Android install prompt'u kontrol etmek için yakala.
         e.preventDefault();
+        try {
+          // Başka route'a geçilse bile prompt kaybolmasın (PwaInstallCard / tutorial CTA kullanıyor).
+          window.__uniqahDeferredPrompt = e;
+        } catch {
+          // ignore
+        }
         setDeferredInstallPrompt(e);
       } catch {
         // noop
@@ -1296,6 +1325,11 @@ export default function Panel() {
     const onAppInstalled = () => {
       setDeferredInstallPrompt(null);
       detectStandalone();
+      try {
+        window.__uniqahDeferredPrompt = null;
+      } catch {
+        // ignore
+      }
     };
 
     window.addEventListener('beforeinstallprompt', onBeforeInstallPrompt);
@@ -1417,14 +1451,14 @@ export default function Panel() {
       const data = await authFetch('/api/matchmaking-verification-select', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ method: 'whatsapp' }),
+        body: JSON.stringify({ method: 'whatsapp', lang: String(i18n?.language || 'tr') }),
       });
 
       setVerificationAction({ loading: false, error: '', result: data || null });
 
       const msg = String(data?.whatsappMessage || '').trim();
       const urlFromServer = String(data?.whatsappUrl || '').trim();
-      const url = urlFromServer || (msg ? buildWhatsAppUrl(msg) : '');
+      const url = urlFromServer || (msg ? buildWhatsAppUrl(msg, { lang: String(i18n?.language || 'tr') }) : '');
       if (url) {
         try {
           window.open(url, '_blank', 'noopener,noreferrer');
@@ -1478,6 +1512,33 @@ export default function Panel() {
     } catch (e) {
       const msg = String(e?.message || '').trim();
       setManualVerificationAction({ loading: false, error: msg || t('matchmakingPanel.errors.actionFailed'), success: '' });
+    }
+  };
+
+  const submitSocialVerification = async () => {
+    if (socialVerificationAction.loading) return;
+
+    const platform = String(socialVerification?.platform || '').trim().toLowerCase();
+    const username = String(socialVerification?.username || '').trim().replace(/^@+/, '');
+    const allowed = new Set(['instagram', 'tiktok', 'youtube', 'facebook']);
+
+    if (!allowed.has(platform) || !username) {
+      setSocialVerificationAction({ loading: false, error: t('matchmakingPanel.verification.errors.missingSocial'), success: '' });
+      return;
+    }
+
+    setSocialVerificationAction({ loading: true, error: '', success: '' });
+    try {
+      await authFetch('/api/matchmaking-verification-social-submit', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ platform, username }),
+      });
+      setSocialVerificationAction({ loading: false, error: '', success: t('matchmakingPanel.verification.social.success') });
+      setSocialVerification((p) => ({ ...(p || {}), username: '' }));
+    } catch (e) {
+      const msg = String(e?.message || '').trim();
+      setSocialVerificationAction({ loading: false, error: msg || t('matchmakingPanel.errors.actionFailed'), success: '' });
     }
   };
 
@@ -2849,8 +2910,8 @@ export default function Panel() {
               ) : null}
 
               {confirm48hModalMatchId === matchId ? (
-                <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/70 p-4">
-                  <div className="w-full max-w-md rounded-2xl border border-white/10 bg-zinc-950 p-4">
+                <div className="fixed inset-0 z-[70] flex items-start justify-center bg-black/70 p-4 pt-6 overflow-y-auto">
+                  <div className="w-full max-w-md rounded-2xl border border-white/10 bg-zinc-950 p-4 max-h-[85vh] overflow-y-auto">
                     <p className="text-sm font-semibold text-white">{t('matchmakingPanel.matches.chat.confirm48h.title')}</p>
                     <p className="mt-2 text-sm text-white/80">{t('matchmakingPanel.matches.chat.confirm48h.body')}</p>
                     <p className="mt-2 text-xs text-white/60">{t('matchmakingPanel.matches.chat.confirm48h.note')}</p>
@@ -3164,12 +3225,6 @@ export default function Panel() {
   const requestPhotoUpdate = async () => {
     if (photoUpdateAction.loading) return;
 
-    const status = String(matchmaking?.photoUpdate?.status || '').trim();
-    if (status === 'pending') {
-      setPhotoUpdateAction({ loading: false, error: t('matchmakingPanel.photos.updateRequest.pending'), success: '' });
-      return;
-    }
-
     const f1 = photoUpdateFiles.photo1;
     const f2 = photoUpdateFiles.photo2;
     const f3 = photoUpdateFiles.photo3;
@@ -3220,9 +3275,7 @@ export default function Panel() {
     } catch (e) {
       const msg = String(e?.message || '').trim();
       const mapped =
-        msg === 'pending_exists'
-          ? t('matchmakingPanel.photos.updateRequest.pending')
-          : msg === 'application_not_found'
+        msg === 'application_not_found'
             ? t('matchmakingPanel.photos.updateRequest.errors.applicationNotFound')
             : msg || t('matchmakingPanel.photos.updateRequest.errors.failed');
       setPhotoUpdateAction({ loading: false, error: mapped, success: '' });
@@ -3502,7 +3555,7 @@ export default function Panel() {
   }, [matchmaking?.id, user?.displayName, user?.email]);
 
   const openWhatsApp = (text) => {
-    const url = buildWhatsAppUrl(text);
+    const url = buildWhatsAppUrl(text, { lang: String(i18n?.language || 'tr') });
     if (!url) return;
     window.open(url, "_blank", "noopener,noreferrer");
   };
@@ -3663,15 +3716,6 @@ export default function Panel() {
                     <div className="rounded-2xl border border-emerald-300/20 bg-emerald-500/10 p-4">
                       <p className="text-sm font-semibold text-white">{t('matchmakingPanel.membershipModal.freeNowTitle')}</p>
                       <p className="mt-1 text-xs text-white/70 whitespace-pre-line">{t('matchmakingPanel.membershipModal.freeNowBody')}</p>
-
-                      <button
-                        type="button"
-                        onClick={activateFreeMembershipNow}
-                        disabled={membershipModalAction.loading}
-                        className="mt-3 w-full px-4 py-2 rounded-full bg-emerald-400 text-slate-950 text-sm font-semibold hover:bg-emerald-300 disabled:opacity-60"
-                      >
-                        {membershipModalAction.loading ? t('matchmakingPanel.membershipModal.loading') : t('matchmakingPanel.membershipModal.freeActivateCta')}
-                      </button>
                     </div>
                   </div>
                 ) : null}
@@ -4630,8 +4674,10 @@ export default function Panel() {
                       const pendingWithFiles = st === 'pending' && hasFiles;
                       const pendingHint =
                         pendingAny && method === 'whatsapp'
-                          ? 'WhatsApp görüntülü arama talebiniz alındı. Ekibimiz sizinle WhatsApp üzerinden iletişime geçecek.'
-                          : t('matchmakingPanel.verification.manualUpload.pendingHint');
+                          ? t('matchmakingPanel.verification.selfieVideo.pendingHint')
+                          : pendingAny && method === 'social'
+                            ? t('matchmakingPanel.verification.social.pendingHint')
+                            : t('matchmakingPanel.verification.pendingHint');
 
                       return (
                         <div className="mt-3">
@@ -4639,29 +4685,35 @@ export default function Panel() {
                             <div className="grid grid-cols-2 gap-2">
                               <button
                                 type="button"
-                                onClick={() => setIdentityVerificationMode('upload')}
-                                disabled={pendingAny || manualVerificationAction.loading || verificationAction.loading}
+                                onClick={() => {
+                                  setSocialVerificationAction({ loading: false, error: '', success: '' });
+                                  setIdentityVerificationMode('selfie_video');
+                                }}
+                                disabled={pendingAny || socialVerificationAction.loading || verificationAction.loading}
                                 className={
                                   "px-3 py-2 rounded-xl text-xs font-semibold border transition " +
-                                  (identityVerificationMode === 'upload'
+                                  (identityVerificationMode === 'selfie_video'
                                     ? 'bg-white/15 border-white/15 text-white'
                                     : 'bg-transparent border-white/10 text-white/75 hover:bg-white/10')
                                 }
                               >
-                                Kimlik yükleme
+                                {t('matchmakingPanel.verification.tabs.selfieVideo')}
                               </button>
                               <button
                                 type="button"
-                                onClick={() => setIdentityVerificationMode('whatsapp_call')}
-                                disabled={pendingAny || manualVerificationAction.loading || verificationAction.loading}
+                                onClick={() => {
+                                  setSocialVerificationAction({ loading: false, error: '', success: '' });
+                                  setIdentityVerificationMode('social');
+                                }}
+                                disabled={pendingAny || socialVerificationAction.loading || verificationAction.loading}
                                 className={
                                   "px-3 py-2 rounded-xl text-xs font-semibold border transition " +
-                                  (identityVerificationMode === 'whatsapp_call'
+                                  (identityVerificationMode === 'social'
                                     ? 'bg-white/15 border-white/15 text-white'
                                     : 'bg-transparent border-white/10 text-white/75 hover:bg-white/10')
                                 }
                               >
-                                WhatsApp görüntülü arama
+                                {t('matchmakingPanel.verification.tabs.social')}
                               </button>
                             </div>
                             {pendingAny ? (
@@ -4682,15 +4734,10 @@ export default function Panel() {
                             </div>
                           ) : null}
 
-                          {identityVerificationMode === 'whatsapp_call' ? (
+                          {identityVerificationMode === 'selfie_video' ? (
                             <div className="mt-3">
-                              <p className="text-xs font-semibold text-white/90">WhatsApp görüntülü arama ile doğrulama</p>
-                              <p className="mt-1 text-xs text-white/60">
-                                WhatsApp üzerinden görüntülü arama ile doğrulama yapılır. Talep oluşturup WhatsApp'ı açabilirsiniz.
-                              </p>
-                              <p className="mt-2 text-[11px] text-white/70">
-                                Kimliğinizin tamamını göstermenize gerek yok; sadece isim soyisim ve doğum tarihi bizim için yeterli.
-                              </p>
+                              <p className="text-xs font-semibold text-white/90">{t('matchmakingPanel.verification.selfieVideo.title')}</p>
+                              <p className="mt-1 text-xs text-white/60">{t('matchmakingPanel.verification.selfieVideo.lead')}</p>
 
                               {verificationAction.error ? (
                                 <div className="mt-3 rounded-lg border border-rose-300/30 bg-rose-500/10 p-2 text-rose-100 text-xs">
@@ -4719,87 +4766,58 @@ export default function Panel() {
                             </div>
                           ) : (
                             <>
-                              <p className="mt-3 text-xs font-semibold text-white/90">{t('matchmakingPanel.verification.manualUpload.title')}</p>
-                              <p className="mt-1 text-xs text-white/60">{t('matchmakingPanel.verification.manualUpload.lead')}</p>
-                              <p className="mt-2 text-[11px] text-white/70">
-                                Kimliğinizin tamamını göstermenize gerek yok; sadece isim soyisim ve doğum tarihi bizim için yeterli.
-                              </p>
+                              <div className="mt-3">
+                                <p className="text-xs font-semibold text-white/90">{t('matchmakingPanel.verification.social.title')}</p>
+                                <p className="mt-1 text-xs text-white/60">{t('matchmakingPanel.verification.social.lead')}</p>
 
-                              <div className="mt-3 space-y-3">
-                                <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
-                                  <p className="text-xs font-semibold text-white/80">{t('matchmakingPanel.verification.manualUpload.idFrontLabel')}</p>
-                                  <input
-                                    type="file"
-                                    accept="image/*"
-                                    className="mt-2 block w-full text-xs text-white/80 file:mr-3 file:rounded-lg file:border-0 file:bg-white/10 file:px-3 file:py-2 file:text-xs file:font-semibold file:text-white/90 hover:file:bg-white/15"
-                                    onChange={(e) => setManualVerificationFiles((p) => ({ ...p, idFront: e.target.files?.[0] || null }))}
-                                    disabled={pendingAny || manualVerificationAction.loading}
-                                  />
-                                  <p className="mt-2 text-[11px] text-white/60 break-words">
-                                    {manualVerificationFiles?.idFront?.name || t('matchmakingPage.form.photo.noFileChosen')}
-                                  </p>
+                                <div className="mt-3 space-y-2">
+                                  <label className="block text-[11px] text-white/70">
+                                    {t('matchmakingPanel.verification.social.platformLabel')}
+                                    <select
+                                      value={socialVerification.platform}
+                                      onChange={(e) => setSocialVerification((p) => ({ ...(p || {}), platform: e.target.value }))}
+                                      disabled={pendingAny || socialVerificationAction.loading}
+                                      className="mt-1 w-full rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-sm text-white"
+                                    >
+                                      <option value="instagram">Instagram</option>
+                                      <option value="tiktok">TikTok</option>
+                                      <option value="youtube">YouTube</option>
+                                      <option value="facebook">Facebook</option>
+                                    </select>
+                                  </label>
+
+                                  <label className="block text-[11px] text-white/70">
+                                    {t('matchmakingPanel.verification.social.usernameLabel')}
+                                    <input
+                                      value={socialVerification.username}
+                                      onChange={(e) => setSocialVerification((p) => ({ ...(p || {}), username: e.target.value }))}
+                                      disabled={pendingAny || socialVerificationAction.loading}
+                                      className="mt-1 w-full rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-white/40"
+                                      placeholder="ornek_kullanici"
+                                    />
+                                  </label>
                                 </div>
 
-                                <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
-                                  <p className="text-xs font-semibold text-white/80">{t('matchmakingPanel.verification.manualUpload.idBackLabel')}</p>
-                                  <input
-                                    type="file"
-                                    accept="image/*"
-                                    className="mt-2 block w-full text-xs text-white/80 file:mr-3 file:rounded-lg file:border-0 file:bg-white/10 file:px-3 file:py-2 file:text-xs file:font-semibold file:text-white/90 hover:file:bg-white/15"
-                                    onChange={(e) => setManualVerificationFiles((p) => ({ ...p, idBack: e.target.files?.[0] || null }))}
-                                    disabled={pendingAny || manualVerificationAction.loading}
-                                  />
-                                  <p className="mt-2 text-[11px] text-white/60 break-words">
-                                    {manualVerificationFiles?.idBack?.name || t('matchmakingPage.form.photo.noFileChosen')}
-                                  </p>
-                                </div>
+                                {socialVerificationAction.error ? (
+                                  <div className="mt-3 rounded-lg border border-rose-300/30 bg-rose-500/10 p-2 text-rose-100 text-xs">
+                                    {socialVerificationAction.error}
+                                  </div>
+                                ) : null}
+                                {socialVerificationAction.success ? (
+                                  <div className="mt-3 rounded-lg border border-emerald-300/30 bg-emerald-500/10 p-2 text-emerald-100 text-xs">
+                                    {socialVerificationAction.success}
+                                  </div>
+                                ) : null}
 
-                                <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
-                                  <p className="text-xs font-semibold text-white/80">{t('matchmakingPanel.verification.manualUpload.selfieLabel')}</p>
-                                  <input
-                                    type="file"
-                                    accept="image/*"
-                                    className="mt-2 block w-full text-xs text-white/80 file:mr-3 file:rounded-lg file:border-0 file:bg-white/10 file:px-3 file:py-2 file:text-xs file:font-semibold file:text-white/90 hover:file:bg-white/15"
-                                    onChange={(e) => setManualVerificationFiles((p) => ({ ...p, selfie: e.target.files?.[0] || null }))}
-                                    disabled={pendingAny || manualVerificationAction.loading}
-                                  />
-                                  <p className="mt-2 text-[11px] text-white/60 break-words">
-                                    {manualVerificationFiles?.selfie?.name || t('matchmakingPage.form.photo.noFileChosen')}
-                                  </p>
-                                </div>
+                                <button
+                                  type="button"
+                                  onClick={submitSocialVerification}
+                                  disabled={pendingAny || socialVerificationAction.loading}
+                                  className="mt-3 inline-flex items-center justify-center w-full px-3 py-2 rounded-full bg-white/10 border border-white/10 text-white/90 text-sm font-semibold hover:bg-white/[0.16] disabled:opacity-60"
+                                >
+                                  {socialVerificationAction.loading ? t('matchmakingPanel.actions.sending') : t('matchmakingPanel.verification.social.submit')}
+                                </button>
                               </div>
-                            </>
-                          )}
-
-                          {identityVerificationMode === 'whatsapp_call' ? null : (
-                            <>
-                              {manualVerificationAction.error ? (
-                                <div className="mt-3 rounded-lg border border-rose-300/30 bg-rose-500/10 p-2 text-rose-100 text-xs">
-                                  {manualVerificationAction.error}
-                                </div>
-                              ) : null}
-                              {manualVerificationAction.success ? (
-                                <div className="mt-3 rounded-lg border border-emerald-300/30 bg-emerald-500/10 p-2 text-emerald-100 text-xs">
-                                  {manualVerificationAction.success}
-                                </div>
-                              ) : null}
-
-                              {(pendingWithFiles || !!manualVerificationAction.success) ? (
-                                <p className="mt-2 text-[11px] text-white/65">
-                                  {t('matchmakingPanel.verification.manualUpload.reviewNote')}
-                                </p>
-                              ) : null}
-
-                              <button
-                                type="button"
-                                onClick={submitManualVerification}
-                                disabled={pendingAny || pendingWithFiles || manualVerificationAction.loading}
-                                className="mt-3 inline-flex items-center justify-center w-full px-3 py-2 rounded-full bg-white/10 border border-white/10 text-white/90 text-sm font-semibold hover:bg-white/[0.16] disabled:opacity-60"
-                              >
-                                {manualVerificationAction.loading
-                                  ? t('matchmakingPanel.verification.manualUpload.uploading')
-                                  : t('matchmakingPanel.verification.manualUpload.submit')}
-                              </button>
                             </>
                           )}
                         </div>

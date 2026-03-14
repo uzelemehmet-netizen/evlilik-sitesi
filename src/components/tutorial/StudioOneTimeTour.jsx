@@ -2,6 +2,9 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../auth/AuthProvider.jsx';
+import { setTutorialActive } from '../../utils/tutorialState.js';
+import { enablePushForCurrentUser, hasSavedPushToken } from '../../utils/pushNotifications.js';
+import { isPwaInstalled } from '../../utils/pwaInstalled.js';
 
 const LS_PREFIX = 'uniqah:tour';
 const SS_FORCE_KEY = 'uniqah:tour:force';
@@ -79,7 +82,7 @@ function computeTooltipPosition(rect, tooltipW = 340, tooltipH = 160) {
   return { top, left, arrow };
 }
 
-function TourOverlay({ uid, tourId, step, stepIndex, totalSteps, labels, onSkip, onNext }) {
+function TourOverlay({ uid, tourId, step, stepIndex, totalSteps, labels, onSkip, onNext, onPrimaryAction, primaryBusy }) {
   const selector = step?.selector || '';
   const [rect, setRect] = useState(null);
   const missingSinceRef = useRef(0);
@@ -203,7 +206,16 @@ function TourOverlay({ uid, tourId, step, stepIndex, totalSteps, labels, onSkip,
           ) : null}
 
           <div className="mt-4 flex items-center justify-end gap-2">
-            <button type="button" onClick={onNext} className="app-btn app-btn-primary">
+            {typeof onPrimaryAction === 'function' ? (
+              <button type="button" onClick={onPrimaryAction} className="app-btn app-btn-primary" disabled={!!primaryBusy}>
+                {primaryBusy ? labels?.processing || '' : step?.primaryLabel || ''}
+              </button>
+            ) : null}
+            <button
+              type="button"
+              onClick={onNext}
+              className={typeof onPrimaryAction === 'function' ? 'app-btn app-btn-outline' : 'app-btn app-btn-primary'}
+            >
               {step?.nextLabel || (stepIndex + 1 === totalSteps ? labels?.done : labels?.next) || ''}
             </button>
           </div>
@@ -213,11 +225,30 @@ function TourOverlay({ uid, tourId, step, stepIndex, totalSteps, labels, onSkip,
   );
 }
 
+function isPushEnabledInBrowser() {
+  if (typeof window === 'undefined') return false;
+  try {
+    if (!('Notification' in window)) return false;
+    if (String(Notification.permission || '') !== 'granted') return false;
+  } catch {
+    return false;
+  }
+
+  try {
+    return hasSavedPushToken();
+  } catch {
+    return false;
+  }
+}
+
 export default function StudioOneTimeTour() {
   const { user, loading } = useAuth();
   const { t } = useTranslation();
   const location = useLocation();
   const navigate = useNavigate();
+
+  const pwaNudgeDismissedRef = useRef(false);
+  const forcedTourJustStartedRef = useRef(false);
 
   const pathname = String(location?.pathname || '');
 
@@ -229,11 +260,29 @@ export default function StudioOneTimeTour() {
       next: t('tour.common.next'),
       done: t('tour.common.done'),
       missingHint: t('tour.common.missingHint'),
+      processing: t('studio.common.processing'),
     };
   }, [t]);
 
   const tours = useMemo(() => {
     return [
+      {
+        id: 'pwa-install-nudge',
+        startOnPath: '/profilim',
+        steps: [
+          {
+            path: '/profilim',
+            selector: '[data-tutorial-id="pwa-install-card"]',
+            title: t('tour.pwaNudge.title'),
+            body: t('tour.pwaNudge.body'),
+            primaryLabel: t('tour.pwaNudge.primary'),
+            nextLabel: t('tour.pwaNudge.later'),
+            skipLabel: t('tour.common.skip'),
+            missingHint: t('tour.common.missingHint'),
+            actionKey: 'install_and_notify',
+          },
+        ],
+      },
       {
         id: 'onboarding-preview',
         startOnPath: '/profilim',
@@ -369,6 +418,14 @@ export default function StudioOneTimeTour() {
   }, [t]);
 
   const [active, setActive] = useState(null); // { tourId, stepIndex }
+  const [primaryBusy, setPrimaryBusy] = useState(false);
+
+  useEffect(() => {
+    setTutorialActive(!!active?.tourId);
+    return () => {
+      setTutorialActive(false);
+    };
+  }, [active?.tourId]);
 
   // Manual-start only: tour is shown only when explicitly requested.
   useEffect(() => {
@@ -386,6 +443,42 @@ export default function StudioOneTimeTour() {
     if (!forcedId) return;
 
     const tour = tours.find((x) => x.id === forcedId) || null;
+    if (!tour || !Array.isArray(tour.steps) || tour.steps.length === 0) return;
+
+    forcedTourJustStartedRef.current = true;
+    setActive({ tourId: tour.id, stepIndex: 0 });
+    if (tour.startOnPath && pathname !== tour.startOnPath) {
+      navigate(tour.startOnPath);
+    }
+  }, [active, loading, navigate, pathname, tours, uid]);
+
+  // Auto nudge: show on every entry until completed (non-mandatory).
+  useEffect(() => {
+    if (loading) return;
+    if (!uid) return;
+    if (active) return;
+
+    // If a forced tour was started in this cycle, don't override it.
+    if (forcedTourJustStartedRef.current) {
+      forcedTourJustStartedRef.current = false;
+      return;
+    }
+
+    if (pwaNudgeDismissedRef.current) return;
+
+    // Do not run tours on non-app routes.
+    if (pathname.startsWith('/admin') || pathname === '/login' || pathname === '/documents' || pathname === '/privacy') return;
+
+    // If the user already installed the app, don't show the "install" tutorial again.
+    // Notifications can still be enabled from the UI without this tour.
+    const installed = isPwaInstalled();
+    if (installed) return;
+
+    const needsInstall = !installed;
+    const needsPush = !isPushEnabledInBrowser();
+    if (!needsInstall && !needsPush) return;
+
+    const tour = tours.find((x) => x.id === 'pwa-install-nudge') || null;
     if (!tour || !Array.isArray(tour.steps) || tour.steps.length === 0) return;
 
     setActive({ tourId: tour.id, stepIndex: 0 });
@@ -412,13 +505,16 @@ export default function StudioOneTimeTour() {
   const stepIndex = typeof active?.stepIndex === 'number' ? active.stepIndex : 0;
 
   const onSkip = () => {
-    markShown(uid, activeTour.id);
+    // This tour should re-appear every entry until completed.
+    if (activeTour.id !== 'pwa-install-nudge') markShown(uid, activeTour.id);
+    else pwaNudgeDismissedRef.current = true;
     setActive(null);
   };
 
   const onNext = () => {
     if (stepIndex + 1 >= totalSteps) {
-      markShown(uid, activeTour.id);
+      if (activeTour.id !== 'pwa-install-nudge') markShown(uid, activeTour.id);
+      else pwaNudgeDismissedRef.current = true;
       setActive(null);
       return;
     }
@@ -429,6 +525,38 @@ export default function StudioOneTimeTour() {
     // If the next step is on a different route, navigate.
     if (nextStep?.path && pathname !== nextStep.path) {
       navigate(nextStep.path);
+    }
+  };
+
+  const onPrimaryAction = async () => {
+    if (!step?.actionKey) return;
+    if (primaryBusy) return;
+    if (step.actionKey !== 'install_and_notify') return;
+
+    setPrimaryBusy(true);
+    try {
+      // 1) Trigger PWA install prompt synchronously (gesture-sensitive; best-effort)
+      let installChoicePromise = null;
+      try {
+        const dp = typeof window !== 'undefined' ? window.__uniqahDeferredPrompt : null;
+        if (dp && typeof dp.prompt === 'function') {
+          dp.prompt();
+          installChoicePromise = dp.userChoice?.catch?.(() => null) || null;
+        }
+      } catch {
+        installChoicePromise = null;
+      }
+
+      // 2) Enable notifications (permission + token upsert)
+      await enablePushForCurrentUser().catch(() => null);
+
+      // Wait install choice if we started it (best-effort)
+      if (installChoicePromise) {
+        await installChoicePromise;
+      }
+    } finally {
+      setPrimaryBusy(false);
+      onNext();
     }
   };
 
@@ -445,6 +573,8 @@ export default function StudioOneTimeTour() {
       labels={labels}
       onSkip={onSkip}
       onNext={onNext}
+      onPrimaryAction={step?.actionKey ? onPrimaryAction : null}
+      primaryBusy={primaryBusy}
     />
   );
 }

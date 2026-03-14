@@ -1,65 +1,11 @@
-import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import React from 'react';
+import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import Navigation from '../components/Navigation';
 import Footer from '../components/Footer';
-import { authFetch } from '../utils/authFetch';
 
 export default function MatchmakingMembership() {
-  const { t, i18n } = useTranslation();
-  const navigate = useNavigate();
-
-  const [action, setAction] = useState({ loading: false, error: '', success: '' });
-
-  const locale = i18n?.language === 'id' ? 'id-ID' : i18n?.language === 'en' ? 'en-US' : 'tr-TR';
-
-  const activateFree = async () => {
-    setAction({ loading: true, error: '', success: '' });
-    try {
-      const data = await authFetch('/api/matchmaking-membership-activate-free', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({}),
-      });
-
-      const untilMs = typeof data?.validUntilMs === 'number' ? data.validUntilMs : 0;
-      const untilText = untilMs
-        ? new Intl.DateTimeFormat(locale, { year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(untilMs))
-        : '';
-
-      setAction({
-        loading: false,
-        error: '',
-        success: untilText
-          ? t('matchmakingMembership.activatedUntil', { date: untilText })
-          : t('matchmakingMembership.activated'),
-      });
-
-      // Panel üyelik durumunu tekrar okuyabilsin diye kullanıcıyı panele döndür.
-      setTimeout(() => navigate('/profilim', { replace: true }), 800);
-    } catch (e) {
-      const msg = String(e?.message || '').trim();
-      const isLocalhost =
-        typeof window !== 'undefined' &&
-        (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
-
-      const mapped =
-        msg === 'free_membership_disabled'
-          ? t('matchmakingMembership.freeDisabled')
-          : msg === 'api_unreachable'
-            ? (isLocalhost ? t('matchmakingMembership.errors.apiUnavailableDev') : t('matchmakingMembership.activateFailed'))
-          : msg === 'missing_auth' || msg === 'invalid_auth' || msg === 'not_authenticated'
-            ? t('matchmakingMembership.errors.notAuthenticated')
-            : msg === 'firebase_admin_not_configured'
-              ? t('matchmakingMembership.errors.serverNotConfigured')
-              : msg === 'request_failed_404' || msg === 'request_failed_405'
-                ? (isLocalhost
-                    ? t('matchmakingMembership.errors.apiUnavailableDev')
-                    : t('matchmakingMembership.activateFailed'))
-                : t('matchmakingMembership.activateFailed');
-      setAction({ loading: false, error: mapped, success: '' });
-    }
-  };
+  const { t } = useTranslation();
 
   return (
     <div className="min-h-screen bg-[#050814] text-white relative">
@@ -82,27 +28,7 @@ export default function MatchmakingMembership() {
             <p className="mt-2 text-sm text-white/75 whitespace-pre-line">{t('matchmakingMembership.freeNowBody')}</p>
           </div>
 
-          {action.error ? (
-            <div className="mt-4 rounded-xl border border-rose-300/30 bg-rose-500/10 p-3 text-rose-100 text-sm whitespace-pre-line">
-              {action.error}
-            </div>
-          ) : null}
-          {action.success ? (
-            <div className="mt-4 rounded-xl border border-emerald-300/30 bg-emerald-500/10 p-3 text-emerald-100 text-sm whitespace-pre-line">
-              {action.success}
-            </div>
-          ) : null}
-
           <div className="mt-5 flex flex-col sm:flex-row gap-3 sm:items-center">
-            <button
-              type="button"
-              onClick={activateFree}
-              disabled={action.loading}
-              className="px-5 py-2.5 rounded-full bg-emerald-400 text-slate-950 text-sm font-semibold hover:bg-emerald-300 disabled:opacity-60"
-            >
-              {action.loading ? t('matchmakingMembership.activating') : t('matchmakingMembership.freeActivateCta')}
-            </button>
-
             <Link
               to="/profilim"
               className="px-5 py-2.5 rounded-full border border-white/10 bg-white/5 text-white/90 text-sm font-semibold hover:bg-white/[0.12] transition"

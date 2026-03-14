@@ -1,8 +1,9 @@
-import { BrowserRouter as Router, Routes, Route, useLocation, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, useLocation, useNavigate, Navigate } from 'react-router-dom';
 import { Suspense, lazy, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import AnalyticsTracker from './components/AnalyticsTracker';
 import PrivateRoute from './components/PrivateRoute';
+import PublicOneTimeTour from './components/tutorial/PublicOneTimeTour.jsx';
 
 const Home = lazy(() => import('./pages/Home'));
 const About = lazy(() => import('./pages/About'));
@@ -36,12 +37,14 @@ const AdminMatchmakingPayments = lazy(() => import('./pages/AdminMatchmakingPaym
 const AdminIdentityVerifications = lazy(() => import('./pages/AdminIdentityVerifications'));
 const AdminFeedback = lazy(() => import('./pages/AdminFeedback'));
 import RequireAuth from './auth/RequireAuth';
+import RequireCompletedApplication from './auth/RequireCompletedApplication.jsx';
 import FloatingWhatsApp from './components/FloatingWhatsApp';
 import { isFeatureEnabled } from './config/siteVariant';
 import DevOverlay from './components/DevOverlay';
 import { useAuth } from './auth/AuthProvider.jsx';
 import { authFetch } from './utils/authFetch.js';
 import { clearAppBadge, resetServiceWorkerBadge } from './utils/appBadge.js';
+import { startForegroundPushListener, stopForegroundPushListener } from './utils/pushNotifications.js';
 import MemberFeedToasts from './components/MemberFeedToasts.jsx';
 import StudioOneTimeTour from './components/tutorial/StudioOneTimeTour.jsx';
 import PreviewGateGlobal from './components/PreviewGateGlobal.jsx';
@@ -56,6 +59,27 @@ function ScrollToTop() {
       window.scrollTo(0, 0);
     }
   }, [location.pathname]);
+
+  return null;
+}
+
+function NormalizePath() {
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const pathname = String(location?.pathname || '/');
+    if (pathname === '/') return;
+
+    // Google/search gibi kaynaklar bazen route'u trailing slash ile açabiliyor (/login/).
+    // React Router'da bu 404'e düşebildiği için URL'yi normalize edelim.
+    const normalized = pathname.replace(/\/+$/, '');
+    if (!normalized || normalized === pathname) return;
+
+    const search = String(location?.search || '');
+    const hash = String(location?.hash || '');
+    navigate(`${normalized}${search}${hash}`, { replace: true });
+  }, [location?.pathname, location?.search, location?.hash, navigate]);
 
   return null;
 }
@@ -356,8 +380,17 @@ function App() {
     };
   }, []);
 
+  // Foreground push: App açıkken de (özellikle mobilde) bildirim görünür olsun.
+  useEffect(() => {
+    startForegroundPushListener().catch(() => null);
+    return () => {
+      stopForegroundPushListener();
+    };
+  }, []);
+
   return (
     <Router>
+      <NormalizePath />
       <ScrollToTop />
       <TitleManager />
       <StudioBodyClass />
@@ -367,6 +400,7 @@ function App() {
       <FloatingWhatsApp />
       <MemberFeedToasts />
       <StudioOneTimeTour />
+      <PublicOneTimeTour />
       <PreviewGateGlobal />
       {import.meta.env.DEV ? <DevOverlay /> : null}
       <Suspense
@@ -382,7 +416,9 @@ function App() {
             path="/profilim"
             element={
               <RequireAuth>
-                <StudioProfile />
+                <RequireCompletedApplication>
+                  <StudioProfile />
+                </RequireCompletedApplication>
               </RequireAuth>
             }
           />
@@ -400,7 +436,9 @@ function App() {
             path="/profilim/bilgilerim"
             element={
               <RequireAuth>
-                <StudioMyInfo />
+                <RequireCompletedApplication>
+                  <StudioMyInfo />
+                </RequireCompletedApplication>
               </RequireAuth>
             }
           />
@@ -415,7 +453,9 @@ function App() {
             path="/app/matches"
             element={
               <RequireAuth>
-                <StudioMatches />
+                <RequireCompletedApplication>
+                  <StudioMatches />
+                </RequireCompletedApplication>
               </RequireAuth>
             }
           />
@@ -423,7 +463,9 @@ function App() {
             path="/app/pool"
             element={
               <RequireAuth>
-                <StudioPool />
+                <RequireCompletedApplication>
+                  <StudioPool />
+                </RequireCompletedApplication>
               </RequireAuth>
             }
           />
@@ -431,7 +473,9 @@ function App() {
             path="/app/match/:matchId"
             element={
               <RequireAuth>
-                <StudioMatchProfile />
+                <RequireCompletedApplication>
+                  <StudioMatchProfile />
+                </RequireCompletedApplication>
               </RequireAuth>
             }
           />
@@ -439,11 +483,14 @@ function App() {
             path="/app/chat/:matchId"
             element={
               <RequireAuth>
-                <StudioChat />
+                <RequireCompletedApplication>
+                  <StudioChat />
+                </RequireCompletedApplication>
               </RequireAuth>
             }
           />
           {showWedding && <Route path="/wedding" element={<Wedding />} />}
+          {showWedding && <Route path="/wedding/app/:tab" element={<Wedding />} />}
           {showWedding && <Route path="/eslestirme" element={<MatchmakingHub />} />}
           <Route
             path="/wedding/apply"
@@ -459,6 +506,7 @@ function App() {
 
           {/* Google Ads / TR alias URL'ler */}
           {isFeatureEnabled('wedding') && <Route path="/evlilik" element={<Wedding />} />}
+          {isFeatureEnabled('wedding') && <Route path="/evlilik/app/:tab" element={<Wedding />} />}
           {isFeatureEnabled('wedding') && <Route path="/evlilik/eslestirme" element={<MatchmakingHub />} />}
           {isFeatureEnabled('wedding') && (
             <Route path="/evlilik/uniqah" element={<Navigate to="/evlilik/eslestirme" replace />} />

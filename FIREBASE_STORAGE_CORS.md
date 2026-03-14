@@ -33,20 +33,24 @@ Not: Bu dosyada `https://uniqah.com` ve `https://www.uniqah.com` originleri de t
 
 ## 2) gsutil ile bucket'a uygula
 
-Bucket adı bu projede genelde:
+Bucket adı Firebase projenizin Storage bucket adıdır. Bu repoda bunu genelde env'den okuyoruz:
 
-- `gs://web-sitem-new-firebase.appspot.com`
+- `VITE_FIREBASE_STORAGE_BUCKET`
+
+Örnek:
+
+- `gs://<YOUR_FIREBASE_STORAGE_BUCKET>`
 
 Komut:
 
 ```bash
-gsutil cors set cors.firebase-storage.json gs://web-sitem-new-firebase.appspot.com
+gsutil cors set cors.firebase-storage.json gs://<YOUR_FIREBASE_STORAGE_BUCKET>
 ```
 
 Kontrol:
 
 ```bash
-gsutil cors get gs://web-sitem-new-firebase.appspot.com
+gsutil cors get gs://<YOUR_FIREBASE_STORAGE_BUCKET>
 ```
 
 ## 3) Windows notu

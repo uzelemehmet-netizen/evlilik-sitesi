@@ -1,5 +1,6 @@
 import { getAdmin, normalizeBody, requireIdToken } from './_firebaseAdmin.js';
 import { ensureEligibleOrThrow, ensureProfileCompleteOrThrow } from './_matchmakingEligibility.js';
+import { sendPushToUid } from './_push.js';
 
 function safeStr(v) {
   return typeof v === 'string' ? v.trim() : '';
@@ -310,6 +311,23 @@ export default async function handler(req, res) {
       tx.set(inboxRef, payload, { merge: true });
       tx.set(outboxRef, payload, { merge: true });
     });
+
+    // Push notification to recipient (best-effort).
+    try {
+      await sendPushToUid({
+        uid: targetUid,
+        title: safeStr(fromProfile?.username) || 'Uniqah',
+        body: text.slice(0, 140),
+        url: '/profilim',
+        type: 'direct_message',
+        data: {
+          fromUid: uid,
+          messageId: inboxRef.id,
+        },
+      });
+    } catch {
+      // ignore
+    }
 
     res.statusCode = 200;
     res.setHeader('content-type', 'application/json');

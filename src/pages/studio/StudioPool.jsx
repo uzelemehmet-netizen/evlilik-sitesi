@@ -9,17 +9,88 @@ import { authFetch } from '../../utils/authFetch';
 import { translateStudioApiError } from '../../utils/studioErrorI18n';
 import StudioInboxModal from '../../components/studio/StudioInboxModal';
 import { useMatchmakingResetAtMs } from '../../utils/matchmakingReset';
-import { HelpCircle, RefreshCcw, Users } from 'lucide-react';
+import { HelpCircle, RefreshCcw, ShieldCheck, Users } from 'lucide-react';
 import ImageLightbox from '../../components/ImageLightbox';
 import PwaInstallCard from '../../components/PwaInstallCard';
 import { openPreviewGate } from '../../utils/previewGate';
 import { buildPreviewPoolItems } from '../../utils/studioPreviewData';
 import StudioBottomNav from '../../components/studio/StudioBottomNav';
+import { isTutorialActive } from '../../utils/tutorialState.js';
 
 const NEW_USER_BADGE_WINDOW_MS = 48 * 60 * 60 * 1000;
 
 function safeStr(v) {
   return typeof v === 'string' ? v.trim() : '';
+}
+
+function asNum(v) {
+  if (v === null || v === undefined) return null;
+  if (typeof v === 'string') {
+    const t = v.trim();
+    if (!t) return null;
+    const n = Number(t);
+    return Number.isFinite(n) ? n : null;
+  }
+  const n = typeof v === 'number' ? v : Number(v);
+  return Number.isFinite(n) ? n : null;
+}
+
+function normalizeGenderValue(v) {
+  const s = safeStr(v).toLowerCase();
+  if (s === 'male' || s === 'm' || s === 'man' || s === 'erkek') return 'male';
+  if (s === 'female' || s === 'f' || s === 'woman' || s === 'kadin' || s === 'kadın') return 'female';
+  return '';
+}
+
+function normalizeMaritalStatus(v) {
+  return safeStr(v).toLowerCase();
+}
+
+function isMinimumProfileCompleteFromUserDoc(d) {
+  const userDoc = d && typeof d === 'object' ? d : {};
+  const appFromUser = userDoc?.application && typeof userDoc.application === 'object' ? userDoc.application : null;
+  const publicProfile = userDoc?.publicProfile && typeof userDoc.publicProfile === 'object' ? userDoc.publicProfile : null;
+  const merged = {
+    ...(publicProfile || {}),
+    ...(appFromUser || {}),
+    ...(userDoc || {}),
+    details: {
+      ...((publicProfile && typeof publicProfile.details === 'object' ? publicProfile.details : {}) || {}),
+      ...((appFromUser && typeof appFromUser.details === 'object' ? appFromUser.details : {}) || {}),
+      ...((userDoc?.details && typeof userDoc.details === 'object' ? userDoc.details : {}) || {}),
+    },
+  };
+
+  const details = merged?.details && typeof merged.details === 'object' ? merged.details : {};
+
+  const fullName = safeStr(merged?.fullName);
+  const age = asNum(merged?.age);
+  const gender = normalizeGenderValue(merged?.gender);
+  const city = safeStr(merged?.city);
+  const country = safeStr(merged?.country);
+  const nationality = safeStr(merged?.nationality);
+  const occupation = safeStr(details?.occupation) || safeStr(merged?.occupation);
+  const maritalStatus = normalizeMaritalStatus(details?.maritalStatus || merged?.maritalStatus);
+
+  if (!fullName) return false;
+  if (!(typeof age === 'number' && Number.isFinite(age) && age >= 18 && age <= 99)) return false;
+  if (!gender) return false;
+  if (!city) return false;
+  if (!country) return false;
+  if (!nationality) return false;
+  if (!occupation) return false;
+  if (!maritalStatus) return false;
+
+  if (maritalStatus === 'widowed' || maritalStatus === 'divorced') {
+    const hasChildren = safeStr(details?.hasChildren || merged?.hasChildren).toLowerCase();
+    if (!hasChildren) return false;
+    if (hasChildren === 'yes') {
+      const cnt = asNum(details?.childrenCount);
+      if (!(typeof cnt === 'number' && Number.isFinite(cnt) && cnt >= 1 && cnt <= 20)) return false;
+    }
+  }
+
+  return true;
 }
 
 function clip(s, maxLen) {
@@ -107,6 +178,8 @@ export default function StudioPool() {
   const [profileGateNotice, setProfileGateNotice] = useState('');
   const [myProfileComplete, setMyProfileComplete] = useState(true);
 
+  const redirectedToApplyRef = useRef(false);
+
   const cancelledRef = useRef(false);
   const activateMembershipRef = useRef(false);
 
@@ -131,7 +204,7 @@ export default function StudioPool() {
         });
 
         if (cancelledRef.current) return;
-        setNeedsApplication(false);
+        setNeedsApplication(!!(data?.meta && data.meta.needsApplication));
         setAutoRefreshEnabled(true);
         setMeta(data?.meta || null);
         setItems(Array.isArray(data?.items) ? data.items : []);
@@ -166,6 +239,24 @@ export default function StudioPool() {
     setMyPhotosBlurred(false);
     setMyProfileComplete(false);
   }, [isPreview]);
+
+  // Başvuru formu doldurulmadıysa Keşfet'i hiç gösterme.
+  // Not: Bu sekme bazı akışlarda route-level gate'ten geçmeden açılabiliyor; burada ekstra güvenlik katmanı.
+  useEffect(() => {
+    if (redirectedToApplyRef.current) return;
+    if (isPreview) return;
+
+    // `needsApplication` backend'e göre profil/about yoksa true olabilir.
+    // `myProfileComplete` ise matchmakingUsers cache'inden about metni var mı kontrolü.
+    if (needsApplication || myProfileComplete === false) {
+      redirectedToApplyRef.current = true;
+      const from = `${location?.pathname || ''}${location?.search || ''}`;
+      navigate('/evlilik/eslestirme-basvuru?w=1', {
+        replace: true,
+        state: { profileGate: true, from },
+      });
+    }
+  }, [isPreview, needsApplication, myProfileComplete, navigate, location?.pathname, location?.search]);
 
   // Outbox (benim gönderdiğim ön eşleşme istekleri)
   useEffect(() => {
@@ -311,13 +402,7 @@ export default function StudioPool() {
         const g = String(appFromUser?.gender || publicProfile?.gender || d?.gender || '').trim().toLowerCase();
         setMyGender(g);
 
-        const about =
-          safeStr(d?.details?.about) ||
-          safeStr(d?.publicProfile?.about) ||
-          safeStr(d?.application?.about) ||
-          safeStr(d?.application?.aboutTr) ||
-          safeStr(d?.application?.aboutId);
-        setMyProfileComplete(!!about);
+        setMyProfileComplete(isMinimumProfileCompleteFromUserDoc(d));
 
         const v1 = d?.publicProfile && typeof d.publicProfile === 'object' ? d.publicProfile.photosBlurred : undefined;
         const v2 = d?.photosBlurred;
@@ -351,14 +436,7 @@ export default function StudioPool() {
         const g = String(appFromUser?.gender || publicProfile?.gender || d?.gender || '').trim().toLowerCase();
         setMyGender(g);
 
-        const about =
-          safeStr(d?.details?.about) ||
-          safeStr(d?.publicProfile?.about) ||
-          safeStr(d?.application?.about) ||
-          safeStr(d?.application?.aboutTr) ||
-          safeStr(d?.application?.aboutId);
-        // 2026-02: Apply form no longer asks for expectations; don't block interactions for missing expectations.
-        setMyProfileComplete(!!about);
+        setMyProfileComplete(isMinimumProfileCompleteFromUserDoc(d));
 
         const v1 = d?.publicProfile && typeof d.publicProfile === 'object' ? d.publicProfile.photosBlurred : undefined;
         const v2 = d?.photosBlurred;
@@ -383,11 +461,6 @@ export default function StudioPool() {
       }
     };
   }, [effectiveUid]);
-
-  const canInteract = useMemo(() => {
-    // Ürün kuralı: etkileşim başlatmak için aktif üyelik gerekir.
-    return myProfileComplete && !!myMembership.active;
-  }, [myMembership.active, myProfileComplete]);
 
   const requireProfile = () => {
     setProfileGateNotice(t('studio.profileGate.body'));
@@ -428,6 +501,17 @@ export default function StudioPool() {
       activateMembershipRef.current = false;
     }
   }, [effectiveUid, t]);
+  const paywallAutoActivateRef = useRef(false);
+  useEffect(() => {
+    if (!paywallNotice) {
+      paywallAutoActivateRef.current = false;
+      return;
+    }
+    if (paywallAutoActivateRef.current) return;
+    paywallAutoActivateRef.current = true;
+    // Üyelik artık otomatik veriliyor; paywall görünürse best-effort arkada düzelt.
+    activateFreeMembershipNow();
+  }, [paywallNotice, activateFreeMembershipNow]);
 
   const goToProfileForm = () => {
     try {
@@ -442,16 +526,33 @@ export default function StudioPool() {
     }
   };
 
+  const profileFormTo = needsApplication ? '/evlilik/eslestirme-basvuru?w=1' : '/evlilik/eslestirme-basvurusu?editOnce=1&w=1';
+
   useEffect(() => {
-    if (!needsApplication) return;
-    setProfileGateNotice(t('studio.profileGate.body'));
-    try {
-      if (typeof window !== 'undefined') window.scrollTo({ top: 0, behavior: 'smooth' });
-    } catch {
-      // noop
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [needsApplication, t]);
+    if (!isTutorialActive()) return;
+    if (!profileGateNotice) return;
+    const id = setTimeout(() => setProfileGateNotice(''), 3000);
+    return () => {
+      try {
+        clearTimeout(id);
+      } catch {
+        // noop
+      }
+    };
+  }, [profileGateNotice]);
+
+  useEffect(() => {
+    if (!isTutorialActive()) return;
+    if (!paywallNotice) return;
+    const id = setTimeout(() => setPaywallNotice(''), 3000);
+    return () => {
+      try {
+        clearTimeout(id);
+      } catch {
+        // noop
+      }
+    };
+  }, [paywallNotice]);
 
   const requirePaid = () => {
     setPaywallNotice(t('studio.paywall.upgradeToInteract'));
@@ -465,6 +566,11 @@ export default function StudioPool() {
   const respondAccessRequest = async ({ fromUid, decision }) => {
     if (isPreview) {
       openPreviewGate({ reason: t('previewGate.body') });
+      return;
+    }
+
+    if (needsApplication) {
+      requireProfile();
       return;
     }
 
@@ -560,13 +666,8 @@ export default function StudioPool() {
     const toUid = safeStr(targetUid);
     if (!uid || !toUid || requestingUid) return;
 
-    if (!myProfileComplete) {
+    if (needsApplication) {
       requireProfile();
-      return;
-    }
-
-    if (!canInteract) {
-      requirePaid();
       return;
     }
 
@@ -604,6 +705,14 @@ export default function StudioPool() {
     } catch (e) {
       const msg = safeStr(e?.message) || 'request_failed';
       setRequestingUid('');
+      if (msg === 'membership_required') {
+        requirePaid();
+        return;
+      }
+      if (msg === 'profile_incomplete' || msg === 'application_not_found') {
+        requireProfile();
+        return;
+      }
       setState((s) => ({ ...s, error: translateStudioApiError(t, msg) || msg }));
     }
   };
@@ -638,7 +747,7 @@ export default function StudioPool() {
               <button
                 type="button"
                 onClick={() => {
-                  if (!myProfileComplete) requireProfile();
+                  if (needsApplication) requireProfile();
                   setInboxModal({ open: true });
                 }}
                 className="app-btn w-full sm:w-auto"
@@ -683,6 +792,19 @@ export default function StudioPool() {
             <p className="mt-1 text-xs text-slate-500">{t('studio.pool.countHint', { total: meta.total, shown: items.length })}</p>
           ) : null}
 
+          <div className="mt-4 rounded-xl border border-slate-200 bg-white p-4 text-slate-700">
+            <div className="flex items-start gap-3">
+              <div className="mt-0.5 flex h-8 w-8 items-center justify-center rounded-full bg-emerald-50 border border-emerald-200">
+                <ShieldCheck className="h-4 w-4 text-emerald-700" />
+              </div>
+              <div>
+                <p className="font-semibold text-slate-900">{t('studio.pool.trust.title')}</p>
+                <p className="mt-1 text-sm text-slate-700 whitespace-pre-line">{t('studio.pool.trust.body')}</p>
+                <p className="mt-2 text-xs text-slate-500">{t('studio.pool.trust.sortNote')}</p>
+              </div>
+            </div>
+          </div>
+
           {paywallNotice ? (
             <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4 text-amber-900">
               <div className="flex flex-wrap items-center justify-between gap-2">
@@ -696,11 +818,6 @@ export default function StudioPool() {
                 </button>
               </div>
               <p className="mt-1 text-sm text-amber-900/80">{paywallNotice}</p>
-              <div className="mt-3">
-                <button type="button" onClick={activateFreeMembershipNow} className="app-btn app-btn-indigo h-10 px-4">
-                  {t('studio.paywall.upgradeCta')}
-                </button>
-              </div>
             </div>
           ) : null}
 
@@ -718,13 +835,9 @@ export default function StudioPool() {
               </div>
               <p className="mt-1 text-sm text-amber-900/80">{profileGateNotice}</p>
               <div className="mt-3">
-                <button
-                  type="button"
-                  onClick={goToProfileForm}
-                  className="text-sm font-semibold underline"
-                >
+                <Link to={profileFormTo} className="text-sm font-semibold underline">
                   {t('studio.profileGate.cta')}
-                </button>
+                </Link>
               </div>
             </div>
           ) : null}
@@ -767,6 +880,7 @@ export default function StudioPool() {
               const targetUid = safeStr(it?.uid);
               const createdAtMs = typeof it?.createdAtMs === 'number' && Number.isFinite(it.createdAtMs) ? it.createdAtMs : 0;
               const isNewUser = createdAtMs > 0 && Date.now() - createdAtMs <= NEW_USER_BADGE_WINDOW_MS;
+              const isVerified = p?.identityVerified === true;
               const out = targetUid ? outboxMap?.[targetUid] : null;
               const pending = safeStr(out?.status) === 'pending';
               const approved = safeStr(out?.status) === 'approved';
@@ -816,6 +930,18 @@ export default function StudioPool() {
                       <div className="h-full w-full bg-slate-100" />
                     )}
 
+                    {isVerified ? (
+                      <div className="absolute left-2 top-2">
+                        <div
+                          className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-emerald-50 border border-emerald-200"
+                          title={t('studio.common.verified')}
+                          aria-label={t('studio.common.verified')}
+                        >
+                          <ShieldCheck className="h-4 w-4 text-emerald-700" />
+                        </div>
+                      </div>
+                    ) : null}
+
                     {!canSeePhotos ? (
                       <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
                         <div className="rounded-full bg-black/60 px-3 py-1.5 text-[11px] font-semibold text-white">
@@ -828,11 +954,13 @@ export default function StudioPool() {
                   <div className="p-4">
                     <div className="flex items-start justify-between gap-2">
                       <p className="text-lg font-semibold">{name}{age}</p>
-                      {isNewUser ? (
-                        <span className="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-900 border border-emerald-200">
-                          {t('memberFeed.badge.newUser')}
-                        </span>
-                      ) : null}
+                      <div className="flex flex-wrap items-center gap-1">
+                        {isNewUser ? (
+                          <span className="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-900 border border-emerald-200">
+                            {t('memberFeed.badge.newUser')}
+                          </span>
+                        ) : null}
+                      </div>
                     </div>
 
                     {isUnknown ? (
@@ -850,20 +978,7 @@ export default function StudioPool() {
                       </div>
                     ) : null}
 
-                    {typeof p?.lastSeenAtMs === 'number' && Number.isFinite(p.lastSeenAtMs) && p.lastSeenAtMs > 0 ? (
-                      <div className="mt-2 flex items-center gap-2 text-[11px] text-slate-500">
-                        <span
-                          className={
-                            'inline-block h-2 w-2 rounded-full ' +
-                            (formatPresenceLabel(t, p.lastSeenAtMs) === t('studio.presence.online')
-                              ? 'bg-emerald-500 shadow-[0_0_0_3px_rgba(16,185,129,0.12)]'
-                              : 'bg-slate-300')
-                          }
-                          aria-hidden="true"
-                        />
-                        <span>{formatPresenceLabel(t, p.lastSeenAtMs)}</span>
-                      </div>
-                    ) : null}
+                    {/* Presence/last-seen UI is temporarily disabled until we reach enough users. */}
                     <div className="mt-2 space-y-1 text-sm text-slate-600">
                       {genderText ? <p>{genderText}</p> : null}
                       {maritalText ? <p>{maritalText}</p> : null}
@@ -923,7 +1038,7 @@ export default function StudioPool() {
             onMarkRead={markInboxMessageRead}
             onApprove={({ fromUid }) => respondAccessRequest({ fromUid, decision: 'approve' })}
             onReject={({ fromUid }) => respondAccessRequest({ fromUid, decision: 'reject' })}
-            actionsDisabled={!myProfileComplete}
+            actionsDisabled={needsApplication}
             onRequireProfile={() => {
               requireProfile();
             }}

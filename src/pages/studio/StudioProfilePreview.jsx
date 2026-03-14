@@ -76,7 +76,11 @@ export default function StudioProfilePreview() {
                 {cta.label}
                 <ArrowRight size={18} />
               </button>
-              <Link to="/evlilik/eslestirme-basvuru?w=1" className="app-btn app-btn-primary-light h-10 px-5">
+              <Link
+                to={isLoggedIn ? '/evlilik/eslestirme-basvuru?w=1' : '/login?mode=signup'}
+                state={isLoggedIn ? null : buildSignupState()}
+                className="app-btn app-btn-primary-light h-10 px-5"
+              >
                 <CheckCircle size={18} />
                 {t('matchmakingPreview.actions.goApply')}
               </Link>
@@ -97,7 +101,8 @@ export default function StudioProfilePreview() {
                   <ArrowRight size={18} />
                 </button>
                 <Link
-                  to="/evlilik/eslestirme-basvuru?w=1"
+                  to={isLoggedIn ? '/evlilik/eslestirme-basvuru?w=1' : '/login?mode=signup'}
+                  state={isLoggedIn ? null : buildSignupState()}
                   className="app-btn app-btn-outline h-10 px-5"
                 >
                   {t('matchmakingPreview.gate.ctaApply')}

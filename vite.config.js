@@ -32,15 +32,17 @@ export default defineConfig(({ mode }) => {
         injectRegister: null,
         srcDir: 'src',
         filename: 'pwa-sw.js',
-        manifestFilename: 'pwa-manifest.webmanifest',
+        manifestFilename: 'manifest.webmanifest',
         // Bazı ortamlarda plugin generateSW'e düşebildiği için aynı kuralı workbox tarafına da koyuyoruz.
         workbox: {
-          globPatterns: ['**/*.{js,css,ico,svg,woff2,webmanifest,txt,xml,json}'],
+          // Precache sadece app-shell: fontları precache'e alma (SW install/precache şişmesini azaltır)
+          globPatterns: ['**/*.{js,css,ico,svg,webmanifest,txt,xml,json}'],
           globIgnores: ['**/*.{jpg,jpeg,png,webp,avif,gif,mp4,mov,m4v}'],
         },
         injectManifest: {
           // Precache sadece "app shell" için: büyük görseller (public/*.jpg vb.) build'i kırmasın.
-          globPatterns: ['**/*.{js,css,ico,svg,woff2,webmanifest,txt,xml,json}'],
+          // Precache sadece app-shell: fontları precache'e alma
+          globPatterns: ['**/*.{js,css,ico,svg,webmanifest,txt,xml,json}'],
           globIgnores: ['**/*.{jpg,jpeg,png,webp,avif,gif,mp4,mov,m4v}'],
         },
         manifest: {
@@ -54,22 +56,22 @@ export default defineConfig(({ mode }) => {
           theme_color: '#0b1220',
           icons: [
             {
-              src: '/pwa-64x64.png?v=20260201-2',
+              src: '/pwa-64x64.png?v=20260224-1',
               sizes: '64x64',
               type: 'image/png',
             },
             {
-              src: '/pwa-192x192.png?v=20260201-2',
+              src: '/pwa-192x192.png?v=20260224-1',
               sizes: '192x192',
               type: 'image/png',
             },
             {
-              src: '/pwa-512x512.png?v=20260201-2',
+              src: '/pwa-512x512.png?v=20260224-1',
               sizes: '512x512',
               type: 'image/png',
             },
             {
-              src: '/maskable-icon-512x512.png?v=20260201-2',
+              src: '/maskable-icon-512x512.png?v=20260224-1',
               sizes: '512x512',
               type: 'image/png',
               purpose: 'maskable',
@@ -85,6 +87,10 @@ export default defineConfig(({ mode }) => {
       chunkSizeWarningLimit: 2000,
     },
     server: {
+      // Windows'ta bazı ortamlarda default host sadece IPv6 (::1) üzerinde dinleyebiliyor.
+      // Bu da 127.0.0.1 ile açınca "bağlantı reddedildi" hatasına yol açıyor.
+      // `true` => tüm arayüzlerde dinle (IPv4 dahil).
+      host: true,
       port: 5173,
       strictPort: false,
       open: true,

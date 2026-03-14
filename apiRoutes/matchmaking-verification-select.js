@@ -13,7 +13,23 @@ function normalizeMethod(v) {
   return '';
 }
 
-function getWhatsappNumber() {
+function normalizeLangBase(lang) {
+  const raw = safeStr(lang).toLowerCase();
+  if (!raw) return '';
+  const base = raw.split('-')[0];
+  return base === 'in' ? 'id' : base;
+}
+
+function getWhatsappNumber(opts = {}) {
+  const base = normalizeLangBase(opts?.lang);
+  const useId = base === 'id';
+
+  const rawTr = process.env.WHATSAPP_NUMBER_TR || process.env.VITE_WHATSAPP_NUMBER_TR || '';
+  const rawId = process.env.WHATSAPP_NUMBER_ID || process.env.VITE_WHATSAPP_NUMBER_ID || '';
+
+  if (useId && rawId) return safeStr(rawId).replace(/[^0-9]/g, '');
+  if (!useId && rawTr) return safeStr(rawTr).replace(/[^0-9]/g, '');
+
   const raw = process.env.WHATSAPP_NUMBER || process.env.VITE_WHATSAPP_NUMBER || '';
   return safeStr(raw).replace(/[^0-9]/g, '');
 }
@@ -54,6 +70,7 @@ export default async function handler(req, res) {
 
     const body = normalizeBody(req);
     const method = normalizeMethod(body?.method);
+    const lang = safeStr(body?.lang);
 
     if (!method) {
       res.statusCode = 400;
@@ -89,6 +106,9 @@ export default async function handler(req, res) {
           requestedAt: FieldValue.serverTimestamp(),
           updatedAt: FieldValue.serverTimestamp(),
         },
+        // Eğer daha önce manuel upload ile dosya gönderildiyse, yöntemi seçince bunları temizleyelim.
+        'identityVerification.files': FieldValue.delete(),
+        'identityVerification.idType': FieldValue.delete(),
         updatedAt: FieldValue.serverTimestamp(),
       };
 
@@ -99,15 +119,16 @@ export default async function handler(req, res) {
       }
 
       if (method === 'whatsapp') {
-        const wa = getWhatsappNumber();
+        const wa = getWhatsappNumber({ lang });
         const fullName = pickFullNameFromUserDoc(data);
         const userCode = pickUserCodeFromUserDoc(data);
         const lines = [
-          'Merhaba, WhatsApp görüntülü arama ile kimlik doğrulama talep ediyorum.',
+          'Merhaba, selfie video ile doğrulama yapmak istiyorum.',
+          'Bu sohbete 5 saniyelik video selfie göndereceğim.',
           `Referans: ${referenceCode}`,
           fullName ? `Ad Soyad: ${fullName}` : '',
           userCode ? `Kullanıcı kodu: ${userCode}` : '',
-          'Uygun olduğunuz bir zamanı yazar mısınız?',
+          'Teşekkürler.',
         ].filter(Boolean);
         whatsappMessage = lines.join('\n');
         // WhatsApp numarası server env'de yoksa url üretmeyiz; client kendi fallback numarasıyla mesajı açabilir.
@@ -116,7 +137,7 @@ export default async function handler(req, res) {
 
       if (method === 'manual') {
         // Manuel onay: kullanıcıdan admin ile iletişime geçmesini isteriz.
-        const wa = getWhatsappNumber();
+        const wa = getWhatsappNumber({ lang });
         whatsappMessage = `Manuel kimlik doğrulama talebi: ${referenceCode} (uid: ${uid})`;
         whatsappUrl = wa ? `https://wa.me/${wa}?text=${encodeURIComponent(whatsappMessage)}` : '';
       }

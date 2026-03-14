@@ -53,11 +53,23 @@ export default async function handler(req, res) {
       identityVerified: status === 'verified',
       'identityVerification.status': status,
       'identityVerification.method': 'kyc',
-      'identityVerification.provider': provider || null,
-      'identityVerification.sessionId': sessionId || null,
       'identityVerification.webhookAt': FieldValue.serverTimestamp(),
       updatedAt: FieldValue.serverTimestamp(),
     };
+
+    if (status === 'pending') {
+      patch['identityVerification.provider'] = provider || null;
+      patch['identityVerification.sessionId'] = sessionId || null;
+    } else {
+      // Verification completed (verified/rejected): keep only status/method; drop provider/session identifiers.
+      patch['identityVerification.provider'] = FieldValue.delete();
+      patch['identityVerification.sessionId'] = FieldValue.delete();
+      patch['identityVerification.files'] = FieldValue.delete();
+      patch['identityVerification.idType'] = FieldValue.delete();
+      if (status === 'verified') {
+        patch['identityVerification.verifiedAt'] = FieldValue.serverTimestamp();
+      }
+    }
 
     await ref.set(patch, { merge: true });
 

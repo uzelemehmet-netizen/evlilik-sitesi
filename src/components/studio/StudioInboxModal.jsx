@@ -84,9 +84,9 @@ export default function StudioInboxModal({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="w-full max-w-4xl overflow-hidden rounded-xl bg-white shadow-xl">
-        <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
+    <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/50 p-4 pt-6 overflow-y-auto">
+      <div className="w-full max-w-4xl overflow-hidden rounded-xl bg-white shadow-xl max-h-[85vh] flex flex-col">
+        <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3 shrink-0">
           <p className="font-semibold">{title}</p>
           <button
             type="button"
@@ -97,7 +97,7 @@ export default function StudioInboxModal({
           </button>
         </div>
 
-        <div className="max-h-[75vh] overflow-auto p-4">
+        <div className="overflow-y-auto flex-1 p-4">
           {error ? <p className="mb-3 text-rose-700">{error}</p> : null}
 
           {visible.length === 0 ? (

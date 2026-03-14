@@ -12,4 +12,7 @@
 /favicon-512x512.png /favicon-512x512.png 200
 /apple-touch-icon-180x180.png /apple-touch-icon-180x180.png 200
 
+/apple-app-site-association /apple-app-site-association 200
+/.well-known/apple-app-site-association /.well-known/apple-app-site-association 200
+
 /* /index.html 200

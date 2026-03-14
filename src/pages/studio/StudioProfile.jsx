@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { collection, doc, getDoc, getDocFromServer, getDocs, limit, onSnapshot, query, where } from 'firebase/firestore';
-import { signOut } from 'firebase/auth';
+import { sendEmailVerification, signOut } from 'firebase/auth';
 import { getDownloadURL, ref } from 'firebase/storage';
-import { AlertTriangle, BookOpen, Edit, Images, LogOut, Menu, MessageCircle, Share2, ShieldCheck, Star, Trash2, UploadCloud, Users, X } from 'lucide-react';
+import { AlertTriangle, BookOpen, Compass, Edit, Images, LogOut, Menu, MessageCircle, Share2, ShieldCheck, Star, Trash2, UploadCloud, Users, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import Navigation from '../../components/Navigation';
 import Footer from '../../components/Footer';
@@ -17,9 +17,85 @@ import PwaInstallCard from '../../components/PwaInstallCard.jsx';
 import { openPreviewGate } from '../../utils/previewGate';
 import { buildPreviewProfile } from '../../utils/studioPreviewData';
 import StudioBottomNav from '../../components/studio/StudioBottomNav';
+import { isOneTimeHintShown, markOneTimeHintShown } from '../../utils/oneTimeHints.js';
+import { isPwaInstalled } from '../../utils/pwaInstalled.js';
 
 function safeStr(v) {
   return typeof v === 'string' ? v.trim() : '';
+}
+
+function asNum(v) {
+  if (v === null || v === undefined) return null;
+  if (typeof v === 'string') {
+    const t = v.trim();
+    if (!t) return null;
+    const n = Number(t);
+    return Number.isFinite(n) ? n : null;
+  }
+  const n = typeof v === 'number' ? v : Number(v);
+  return Number.isFinite(n) ? n : null;
+}
+
+function normalizeGenderValue(v) {
+  const s = safeStr(v).toLowerCase();
+  if (s === 'male' || s === 'm' || s === 'man' || s === 'erkek') return 'male';
+  if (s === 'female' || s === 'f' || s === 'woman' || s === 'kadin' || s === 'kadın') return 'female';
+  return '';
+}
+
+function normalizeMaritalStatus(v) {
+  return safeStr(v).toLowerCase();
+}
+
+function isMinimumProfileCompleteFromUserAndApp(mmUser, latestApp) {
+  const userDoc = mmUser && typeof mmUser === 'object' ? mmUser : {};
+  const appFromUser = userDoc?.application && typeof userDoc.application === 'object' ? userDoc.application : null;
+  const publicProfile = userDoc?.publicProfile && typeof userDoc.publicProfile === 'object' ? userDoc.publicProfile : null;
+  const app = latestApp && typeof latestApp === 'object' ? latestApp : null;
+
+  const merged = {
+    ...(publicProfile || {}),
+    ...(appFromUser || {}),
+    ...(app || {}),
+    ...(userDoc || {}),
+    details: {
+      ...((publicProfile && typeof publicProfile.details === 'object' ? publicProfile.details : {}) || {}),
+      ...((appFromUser && typeof appFromUser.details === 'object' ? appFromUser.details : {}) || {}),
+      ...((app && typeof app.details === 'object' ? app.details : {}) || {}),
+      ...((userDoc?.details && typeof userDoc.details === 'object' ? userDoc.details : {}) || {}),
+    },
+  };
+
+  const details = merged?.details && typeof merged.details === 'object' ? merged.details : {};
+
+  const fullName = safeStr(merged?.fullName);
+  const age = asNum(merged?.age);
+  const gender = normalizeGenderValue(merged?.gender);
+  const city = safeStr(merged?.city);
+  const country = safeStr(merged?.country);
+  const nationality = safeStr(merged?.nationality);
+  const occupation = safeStr(details?.occupation) || safeStr(merged?.occupation);
+  const maritalStatus = normalizeMaritalStatus(details?.maritalStatus || merged?.maritalStatus);
+
+  if (!fullName) return false;
+  if (!(typeof age === 'number' && Number.isFinite(age) && age >= 18 && age <= 99)) return false;
+  if (!gender) return false;
+  if (!city) return false;
+  if (!country) return false;
+  if (!nationality) return false;
+  if (!occupation) return false;
+  if (!maritalStatus) return false;
+
+  if (maritalStatus === 'widowed' || maritalStatus === 'divorced') {
+    const hasChildren = safeStr(details?.hasChildren || merged?.hasChildren).toLowerCase();
+    if (!hasChildren) return false;
+    if (hasChildren === 'yes') {
+      const cnt = asNum(details?.childrenCount);
+      if (!(typeof cnt === 'number' && Number.isFinite(cnt) && cnt >= 1 && cnt <= 20)) return false;
+    }
+  }
+
+  return true;
 }
 
 function asMs(v) {
@@ -86,6 +162,21 @@ export default function StudioProfile() {
   const { user } = useAuth();
   const { t, i18n } = useTranslation();
 
+  const [pwaInstalled, setPwaInstalled] = useState(() => isPwaInstalled());
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const onAppInstalled = () => {
+      setPwaInstalled(true);
+    };
+
+    window.addEventListener('appinstalled', onAppInstalled);
+    return () => {
+      window.removeEventListener('appinstalled', onAppInstalled);
+    };
+  }, []);
+
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const profileMenuWrapRef = useRef(null);
 
@@ -123,16 +214,6 @@ export default function StudioProfile() {
   const isTr = String(i18n?.language || '').toLowerCase().startsWith('tr');
   const shortLabel = (fallbackKey, trText) => (isTr ? trText : t(fallbackKey));
 
-  const referralUiEnabled = (() => {
-    try {
-      const raw = String(import.meta?.env?.VITE_MATCHMAKING_REFERRAL_ENABLED || '').toLowerCase().trim();
-      return raw === '1' || raw === 'true' || raw === 'yes' || raw === 'on';
-    } catch {
-      return false;
-    }
-  })();
-
-
   const uid = isPreview ? '' : String(user?.uid || '').trim();
 
   const blockInteraction = () => {
@@ -143,6 +224,7 @@ export default function StudioProfile() {
   const [loading, setLoading] = useState(true);
 
   const [applyBannerOpen, setApplyBannerOpen] = useState(true);
+  
 
   const [latestApp, setLatestApp] = useState(null);
   const [latestAppId, setLatestAppId] = useState('');
@@ -151,23 +233,78 @@ export default function StudioProfile() {
   const [deleteState, setDeleteState] = useState({ loading: false, error: '' });
   const [membershipAction, setMembershipAction] = useState({ loading: false, error: '', success: '' });
 
-  const [referralCodeDraft, setReferralCodeDraft] = useState('');
-  const [referralAcceptState, setReferralAcceptState] = useState({ loading: false, error: '', success: '' });
-  const [referralClaimState, setReferralClaimState] = useState({ loading: false, error: '', success: '' });
-  const [referralCopyState, setReferralCopyState] = useState({ success: '' });
+  const [inviteState, setInviteState] = useState({ loading: false, error: '' });
+
+  const [emailVerifyState, setEmailVerifyState] = useState({ loading: false, error: '', success: '' });
 
   const [verifyModalOpen, setVerifyModalOpen] = useState(false);
+  const [identityIntroModalOpen, setIdentityIntroModalOpen] = useState(false);
+  const [actionIntroModal, setActionIntroModal] = useState({ open: false, hintId: '', title: '', body: '', cta: '' });
+  const actionIntroContinueRef = useRef(null);
   const [guidanceModalOpen, setGuidanceModalOpen] = useState(false);
   const guidanceScrollRef = useRef(null);
-  const [verifyForm, setVerifyForm] = useState({
-    idType: 'tc_id',
-    idFront: null,
-    idBack: null,
-    selfie: null,
-  });
+  const [verifySocialForm, setVerifySocialForm] = useState({ platform: 'instagram', username: '' });
   const [verifyAction, setVerifyAction] = useState({ loading: false, error: '', success: '' });
-  const [verifyMode, setVerifyMode] = useState('upload'); // upload | whatsapp_call
+  const [verifyMode, setVerifyMode] = useState('whatsapp_video'); // whatsapp_video | social
   const [verifySelectAction, setVerifySelectAction] = useState({ loading: false, error: '', result: null });
+
+  const openVerifyModalFlow = () => {
+    setVerifyAction({ loading: false, error: '', success: '' });
+    setVerifySelectAction({ loading: false, error: '', result: null });
+    setEmailVerifyState({ loading: false, error: '', success: '' });
+    const nextMode = !whatsappNumber
+      ? 'social'
+      : String(profile?.identityMethod || '').toLowerCase().trim() === 'social'
+        ? 'social'
+        : 'whatsapp_video';
+    setVerifyMode(nextMode);
+    setVerifyModalOpen(true);
+  };
+
+  const onClickVerifyNow = () => {
+    if (isPreview) return blockInteraction();
+    const hintId = 'identity-verify-intro-v1';
+    if (isOneTimeHintShown(uid, hintId)) return openVerifyModalFlow();
+    setIdentityIntroModalOpen(true);
+  };
+
+  const closeActionIntroModal = () => {
+    setActionIntroModal({ open: false, hintId: '', title: '', body: '', cta: '' });
+    actionIntroContinueRef.current = null;
+  };
+
+  const openOneTimeActionIntro = ({ hintId, titleKey, bodyKey, ctaKey, onContinue }) => {
+    if (isPreview) return blockInteraction();
+
+    const id = String(hintId || '').trim();
+    if (!id) return;
+
+    if (isOneTimeHintShown(uid, id)) {
+      try {
+        onContinue?.();
+      } catch {
+        // ignore
+      }
+      return;
+    }
+
+    actionIntroContinueRef.current = () => {
+      markOneTimeHintShown(uid, id);
+      try {
+        onContinue?.();
+      } catch {
+        // ignore
+      }
+    };
+
+    setActionIntroModal({
+      open: true,
+      hintId: id,
+      title: t(titleKey),
+      body: t(bodyKey),
+      cta: t(ctaKey),
+    });
+  };
 
   const [textDraft, setTextDraft] = useState({ about: '', expectations: '' });
   const [textTouched, setTextTouched] = useState(false);
@@ -198,10 +335,15 @@ export default function StudioProfile() {
 
   const [photoPrivacyState, setPhotoPrivacyState] = useState({ loading: false, error: '' });
   const [localPhotosBlurred, setLocalPhotosBlurred] = useState(null);
-
-  const [photoUpdateFiles, setPhotoUpdateFiles] = useState({ photo1: null, photo2: null, photo3: null });
   const [photoUpdateAction, setPhotoUpdateAction] = useState({ loading: false, error: '', success: '' });
   const [showAllMyPhotos, setShowAllMyPhotos] = useState(false);
+
+  const [photoManagerOpen, setPhotoManagerOpen] = useState(false);
+  const [photoManagerDraft, setPhotoManagerDraft] = useState({
+    urls: ['', '', '', '', ''],
+    files: [null, null, null, null, null],
+    previews: ['', '', '', '', ''],
+  });
 
   const [resolvedPhotoUrls, setResolvedPhotoUrls] = useState([]);
 
@@ -221,20 +363,22 @@ export default function StudioProfile() {
   }, [isPreview]);
 
   const isProfileIncomplete = useMemo(() => {
-    const about = safeStr(mmUser?.details?.about) || safeStr(mmUser?.publicProfile?.about);
-    // 2026-02: Apply form no longer asks for expectations.
-    if (about) return false;
+    return !isMinimumProfileCompleteFromUserAndApp(mmUser, latestApp);
+  }, [
+    latestApp,
+    mmUser,
+  ]);
 
-    const source = safeStr(latestApp?.source).toLowerCase();
-    const isStub = source === 'auto_stub' || latestApp?.details?.autoBootstrap === true;
-    return !!isStub;
-  }, [latestApp?.details?.autoBootstrap, latestApp?.source, mmUser?.details?.about, mmUser?.publicProfile?.about]);
+  const showIncompleteExploreWarning = !isPreview && isProfileIncomplete;
 
   const applySource = String(location?.state?.from || '').trim();
-  const applyApplicationId = String(location?.state?.applicationId || '').trim();
   const showApplyBanner =
     applyBannerOpen && ['matchmakingApply', 'matchmakingEditOnce', 'applyRedirectExisting'].includes(applySource);
-  const applyNextSteps = t('studio.profile.applySuccess.steps', { returnObjects: true });
+
+  const openApplyInline = () => {
+    // Inline/iframe apply bloğu kaldırıldı. Kullanıcıyı doğrudan başvuru sayfasına yönlendir.
+    navigate('/evlilik/eslestirme-basvuru?w=1');
+  };
 
   useEffect(() => {
     if (!uid) return;
@@ -376,13 +520,14 @@ export default function StudioProfile() {
 
     const age = typeof app?.age === 'number' ? app.age : typeof publicProfile?.age === 'number' ? publicProfile.age : null;
 
-    const genderRaw = String(app?.gender || publicProfile?.gender || '').trim().toLowerCase();
+    const genderValue = String(app?.gender || publicProfile?.gender || mmUser?.gender || mmUser?.details?.gender || '').trim();
+    const genderRaw = genderValue.toLowerCase();
     const genderLabel =
       genderRaw === 'male'
         ? t('matchmakingPage.form.options.gender.male')
         : genderRaw === 'female'
           ? t('matchmakingPage.form.options.gender.female')
-          : String(app?.gender || publicProfile?.gender || '').trim();
+          : genderValue;
 
     const photoUrlsRaw =
       (Array.isArray(app?.photoUrls) && app.photoUrls) ||
@@ -390,7 +535,7 @@ export default function StudioProfile() {
       (Array.isArray(mmUser?.photoUrls) && mmUser.photoUrls) ||
       [];
 
-    const photoUrls = photoUrlsRaw.map(String).map((s) => s.trim()).filter(Boolean);
+    const photoUrls = photoUrlsRaw.map(String).map((s) => s.trim()).filter(Boolean).slice(0, 5);
 
     const photoPathsRaw =
       (Array.isArray(app?.photoPaths) && app.photoPaths) ||
@@ -398,9 +543,7 @@ export default function StudioProfile() {
       (Array.isArray(mmUser?.photoPaths) && mmUser.photoPaths) ||
       [];
 
-    const photoPaths = photoPathsRaw.map(String).map((s) => s.trim()).filter(Boolean);
-
-    const photoUpdateStatus = safeStr(app?.photoUpdate?.status);
+    const photoPaths = photoPathsRaw.map(String).map((s) => s.trim()).filter(Boolean).slice(0, 5);
 
     const bio =
       String(app?.details?.about || app?.details?.bio || mmUser?.details?.about || mmUser?.details?.bio || '').trim();
@@ -439,7 +582,6 @@ export default function StudioProfile() {
       photoUrl: photoUrls.length ? photoUrls[0] : '',
       photoUrls,
       photoPaths,
-      photoUpdateStatus,
       bio,
       aboutText,
       expectationsText,
@@ -676,6 +818,61 @@ export default function StudioProfile() {
 
   const avatarUrl = myPhotoUrls.length ? String(myPhotoUrls[0] || '').trim() : '';
 
+  const closePhotoManager = () => {
+    if (photoUpdateAction.loading) return;
+    try {
+      const prevs = Array.isArray(photoManagerDraft?.previews) ? photoManagerDraft.previews : [];
+      for (const p of prevs) {
+        if (p && String(p).startsWith('blob:')) {
+          try {
+            URL.revokeObjectURL(p);
+          } catch {
+            // ignore
+          }
+        }
+      }
+    } catch {
+      // ignore
+    }
+    setPhotoManagerOpen(false);
+  };
+
+  const openPhotoManager = () => {
+    if (isPreview) {
+      blockInteraction();
+      return;
+    }
+
+    setPhotoUpdateAction({ loading: false, error: '', success: '' });
+
+    const base = (Array.isArray(myPhotoUrls) ? myPhotoUrls : [])
+      .map((s) => String(s || '').trim())
+      .filter(Boolean)
+      .slice(0, 5);
+
+    const urls = ['', '', '', '', ''];
+    for (let i = 0; i < Math.min(5, base.length); i += 1) urls[i] = base[i];
+
+    // Eski preview URL'lerini temizle.
+    try {
+      const prevs = Array.isArray(photoManagerDraft?.previews) ? photoManagerDraft.previews : [];
+      for (const p of prevs) {
+        if (p && String(p).startsWith('blob:')) {
+          try {
+            URL.revokeObjectURL(p);
+          } catch {
+            // ignore
+          }
+        }
+      }
+    } catch {
+      // ignore
+    }
+
+    setPhotoManagerDraft({ urls, files: [null, null, null, null, null], previews: ['', '', '', '', ''] });
+    setPhotoManagerOpen(true);
+  };
+
   const isImageFile = (file) => {
     if (!file) return false;
     const typ = String(file?.type || '').toLowerCase();
@@ -697,7 +894,7 @@ export default function StudioProfile() {
     }
   };
 
-  const requestPhotoUpdate = async () => {
+  const savePhotoUpdates = async () => {
     if (isPreview) {
       blockInteraction();
       return;
@@ -705,67 +902,61 @@ export default function StudioProfile() {
     if (!uid) return;
     if (photoUpdateAction.loading) return;
 
-    if (profile.photoUpdateStatus === 'pending') {
-      setPhotoUpdateAction({ loading: false, error: t('matchmakingPanel.photos.updateRequest.pending'), success: '' });
-      return;
-    }
+    const draftUrls = Array.isArray(photoManagerDraft?.urls) ? photoManagerDraft.urls : [];
+    const draftFiles = Array.isArray(photoManagerDraft?.files) ? photoManagerDraft.files : [];
+    const selectedFiles = draftFiles.filter(Boolean);
+    const hasAny = draftUrls.some((u) => String(u || '').trim()) || selectedFiles.length > 0;
 
-    const f1 = photoUpdateFiles.photo1;
-    const f2 = photoUpdateFiles.photo2;
-    const f3 = photoUpdateFiles.photo3;
-
-    if (!f1 && !f2 && !f3) {
+    if (!hasAny) {
       setPhotoUpdateAction({ loading: false, error: t('matchmakingPanel.photos.updateRequest.errors.photosRequired'), success: '' });
       return;
     }
 
-    const selected = [f1, f2, f3].filter(Boolean);
-    if (selected.some((f) => !isImageFile(f))) {
+    if (selectedFiles.some((f) => !isImageFile(f))) {
       setPhotoUpdateAction({ loading: false, error: t('matchmakingPanel.photos.updateRequest.errors.photoType'), success: '' });
       return;
     }
 
     setPhotoUpdateAction({ loading: true, error: '', success: '' });
     try {
-      const up1 = f1
-        ? await uploadImageToCloudinaryAuto(f1, {
-            folder: `matchmaking/photo-update-requests/${uid || 'unknown'}`,
-            tags: ['matchmaking', 'photo-update', 'photo1'],
-          })
-        : null;
-      const up2 = f2
-        ? await uploadImageToCloudinaryAuto(f2, {
-            folder: `matchmaking/photo-update-requests/${uid || 'unknown'}`,
-            tags: ['matchmaking', 'photo-update', 'photo2'],
-          })
-        : null;
-      const up3 = f3
-        ? await uploadImageToCloudinaryAuto(f3, {
-            folder: `matchmaking/photo-update-requests/${uid || 'unknown'}`,
-            tags: ['matchmaking', 'photo-update', 'photo3'],
-          })
-        : null;
+      const uploadedSlots = ['', '', '', '', ''];
+      for (let i = 0; i < 5; i += 1) {
+        const f = draftFiles[i] || null;
+        if (!f) continue;
+        const up = await uploadImageToCloudinaryAuto(f, {
+          folder: `matchmaking/photos/${uid || 'unknown'}`,
+          tags: ['matchmaking', 'photo-update', `photo${i + 1}`],
+        });
+        uploadedSlots[i] = String(up?.secureUrl || '').trim();
+      }
+
+      const finalSlots = [];
+      for (let i = 0; i < 5; i += 1) {
+        finalSlots.push(String(uploadedSlots[i] || draftUrls[i] || '').trim());
+      }
+      const finalUrls = finalSlots.filter(Boolean).slice(0, 5);
+      if (!finalUrls.length) {
+        setPhotoUpdateAction({ loading: false, error: t('matchmakingPanel.photos.updateRequest.errors.photosRequired'), success: '' });
+        return;
+      }
 
       await authFetch('/api/matchmaking-photo-update-request', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
           applicationId: latestAppId || '',
-          photoUrls: [up1?.secureUrl || '', up2?.secureUrl || '', up3?.secureUrl || ''],
+          photoUrls: finalUrls,
         }),
       });
 
-      setPhotoUpdateFiles({ photo1: null, photo2: null, photo3: null });
+      closePhotoManager();
       setPhotoUpdateAction({ loading: false, error: '', success: t('matchmakingPanel.photos.updateRequest.success') });
 
-      // Studio profile doesn't listen to application doc in realtime; refresh so pending badge appears.
       await refreshLatestApplication();
     } catch (e) {
       const msg = safeStr(e?.message);
       const mapped =
-        msg === 'pending_exists'
-          ? t('matchmakingPanel.photos.updateRequest.pending')
-          : msg === 'application_not_found'
+        msg === 'application_not_found'
             ? t('matchmakingPanel.photos.updateRequest.errors.applicationNotFound')
             : translateStudioApiError(t, msg) || msg || t('matchmakingPanel.photos.updateRequest.errors.failed');
 
@@ -856,43 +1047,6 @@ export default function StudioProfile() {
     }
   };
 
-  const activateFreeMembership = async () => {
-    if (isPreview) {
-      blockInteraction();
-      return;
-    }
-    if (membershipAction.loading) return;
-    setMembershipAction({ loading: true, error: '', success: '' });
-    try {
-      const data = await authFetch('/api/matchmaking-membership-activate-free', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({}),
-      });
-
-      const validUntilMs = typeof data?.validUntilMs === 'number' && Number.isFinite(data.validUntilMs) ? data.validUntilMs : 0;
-      setMmUser((prev) => {
-        if (!prev || typeof prev !== 'object') return prev;
-        const prevMembership = prev?.membership && typeof prev.membership === 'object' ? prev.membership : {};
-        const nextValidUntilMs = validUntilMs || (typeof prevMembership?.validUntilMs === 'number' ? prevMembership.validUntilMs : 0) || 0;
-        return {
-          ...prev,
-          membership: {
-            ...prevMembership,
-            active: true,
-            plan: String(prevMembership?.plan || 'eco').trim() || 'eco',
-            validUntilMs: nextValidUntilMs,
-          },
-        };
-      });
-
-      setMembershipAction({ loading: false, error: '', success: t('studio.profile.membershipActivated') });
-    } catch (e) {
-      const msg = String(e?.message || 'membership_activate_failed').trim();
-      setMembershipAction({ loading: false, error: translateStudioApiError(t, msg) || msg, success: '' });
-    }
-  };
-
   const cancelMembership = async () => {
     if (isPreview) {
       blockInteraction();
@@ -917,120 +1071,73 @@ export default function StudioProfile() {
     }
   };
 
-  const copyInviteCode = async () => {
-    const code = safeStr(mmUser?.userCode || (mmUser?.publicProfile && mmUser.publicProfile.userCode));
-    if (!code) return;
-    try {
-      if (typeof navigator !== 'undefined' && navigator?.clipboard?.writeText) {
-        await navigator.clipboard.writeText(code);
-      } else {
-        const el = document.createElement('textarea');
-        el.value = code;
-        el.setAttribute('readonly', '');
-        el.style.position = 'absolute';
-        el.style.left = '-9999px';
-        document.body.appendChild(el);
-        el.select();
-        document.execCommand('copy');
-        document.body.removeChild(el);
-      }
-      setReferralCopyState({ success: t('studio.referral.copied') });
-      setTimeout(() => setReferralCopyState({ success: '' }), 1500);
-    } catch {
-      // ignore
-    }
-  };
-
-  const acceptReferralCode = async () => {
+  const generateInviteCodeAndShareWhatsApp = async () => {
     if (isPreview) {
       blockInteraction();
       return;
     }
-    if (referralAcceptState.loading) return;
+    if (inviteState.loading) return;
 
-    const code = String(referralCodeDraft || '').trim();
-    if (!code) {
-      setReferralAcceptState({ loading: false, error: t('studio.referral.errors.invalidInviteCode'), success: '' });
-      return;
-    }
-
-    setReferralAcceptState({ loading: true, error: '', success: '' });
+    setInviteState({ loading: true, error: '' });
     try {
-      const res = await authFetch('/api/matchmaking-referral-accept', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ code }),
-      });
-
-      const status = String(res?.status || '').trim();
-      const msg = status === 'already_accepted' ? t('studio.referral.statusAlreadyAccepted') : t('studio.referral.statusAccepted');
-      setReferralAcceptState({ loading: false, error: '', success: msg });
-    } catch (e) {
-      const msg = String(e?.message || '').trim();
-      setReferralAcceptState({ loading: false, error: translateStudioApiError(t, msg) || msg, success: '' });
-    }
-  };
-
-  const claimReferralReward = async () => {
-    if (isPreview) {
-      blockInteraction();
-      return;
-    }
-    if (referralClaimState.loading) return;
-    setReferralClaimState({ loading: true, error: '', success: '' });
-    try {
-      const res = await authFetch('/api/matchmaking-referral-claim', {
+      const res = await authFetch('/api/matchmaking-invite-code-generate', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({}),
       });
 
-      const status = String(res?.status || '').trim();
-      const msg = status === 'already_claimed' ? t('studio.referral.statusAlreadyClaimed') : t('studio.referral.statusClaimed');
-      setReferralClaimState({ loading: false, error: '', success: msg });
+      const code = String(res?.code || '').trim();
+      if (!code || !/^\d{4}$/.test(code)) {
+        throw new Error('invite_code_generation_failed');
+      }
+
+      const msg = t('studio.referral.shareMessage', { code });
+
+      const waShareUrl = buildWhatsAppShareUrl(msg);
+
+      setInviteState({ loading: false, error: '' });
+
+      try {
+        if (typeof window !== 'undefined' && waShareUrl) {
+          window.location.href = waShareUrl;
+        }
+      } catch {
+        // ignore
+      }
     } catch (e) {
-      const msg = String(e?.message || '').trim();
-      setReferralClaimState({ loading: false, error: translateStudioApiError(t, msg) || msg, success: '' });
+      const msg = String(e?.message || 'invite_failed').trim();
+      setInviteState({ loading: false, error: translateStudioApiError(t, msg) || msg });
     }
   };
 
-  const submitManualVerification = async () => {
+  const submitSocialVerification = async () => {
     if (isPreview) {
       blockInteraction();
       return;
     }
     if (verifyAction.loading) return;
 
-    const idFront = verifyForm.idFront;
-    const idBack = verifyForm.idBack;
-    const selfie = verifyForm.selfie;
-    if (!idFront || !idBack || !selfie) {
-      setVerifyAction({ loading: false, error: t('studio.profile.verifyMissingFiles'), success: '' });
+    const platform = String(verifySocialForm?.platform || '').trim().toLowerCase();
+    const username = String(verifySocialForm?.username || '').trim().replace(/^@+/, '');
+    const allowed = new Set(['instagram', 'tiktok', 'youtube', 'facebook']);
+    if (!allowed.has(platform) || !username) {
+      setVerifyAction({ loading: false, error: t('studio.profile.verifySocialMissing'), success: '' });
       return;
     }
 
     setVerifyAction({ loading: true, error: '', success: '' });
     try {
-      const folder = 'matchmaking/identity';
-      const tags = ['identity_verification', 'manual', verifyForm.idType].filter(Boolean);
-
-      const upFront = await uploadImageToCloudinaryAuto(idFront, { folder, tags });
-      const upBack = await uploadImageToCloudinaryAuto(idBack, { folder, tags });
-      const upSelfie = await uploadImageToCloudinaryAuto(selfie, { folder, tags });
-
-      await authFetch('/api/matchmaking-verification-manual-submit', {
+      await authFetch('/api/matchmaking-verification-social-submit', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
-          idType: verifyForm.idType,
-          idFrontUrl: upFront?.secureUrl || '',
-          idBackUrl: upBack?.secureUrl || '',
-          selfieUrl: upSelfie?.secureUrl || '',
+          platform,
+          username,
         }),
       });
 
-      setVerifyAction({ loading: false, error: '', success: t('studio.profile.verifySubmitted') });
-      setVerifyForm({ idType: verifyForm.idType, idFront: null, idBack: null, selfie: null });
+      setVerifyAction({ loading: false, error: '', success: t('studio.profile.verifySocialSubmitted') });
+      setVerifySocialForm((p) => ({ ...(p || {}), username: '' }));
     } catch (e) {
       const msg = String(e?.message || 'verification_submit_failed').trim();
       setVerifyAction({ loading: false, error: translateStudioApiError(t, msg) || msg, success: '' });
@@ -1039,11 +1146,11 @@ export default function StudioProfile() {
 
   const whatsappNumber = useMemo(() => {
     try {
-      return getWhatsAppNumber();
+      return getWhatsAppNumber({ lang: String(i18n?.language || 'tr') });
     } catch {
       return '';
     }
-  }, []);
+  }, [i18n?.language]);
 
   const startWhatsAppCallVerification = async () => {
     if (isPreview) {
@@ -1069,7 +1176,7 @@ export default function StudioProfile() {
 
       const msg = String(data?.whatsappMessage || '').trim();
       const urlFromServer = String(data?.whatsappUrl || '').trim();
-      const url = urlFromServer || (msg ? buildWhatsAppUrl(msg) : '');
+      const url = urlFromServer || (msg ? buildWhatsAppUrl(msg, { lang: String(i18n?.language || 'tr') }) : '');
       if (url) {
         try {
           window.open(url, '_blank', 'noopener,noreferrer');
@@ -1100,13 +1207,17 @@ export default function StudioProfile() {
       const st = String(profile?.identityStatus || '').toLowerCase().trim();
       const m = String(profile?.identityMethod || '').toLowerCase().trim();
       if (st === 'pending' && m === 'whatsapp') {
-        setVerifyMode('whatsapp_call');
+        setVerifyMode('whatsapp_video');
+        return;
+      }
+      if (st === 'pending' && m === 'social') {
+        setVerifyMode('social');
         return;
       }
     } catch {
       // ignore
     }
-    setVerifyMode('upload');
+    setVerifyMode('whatsapp_video');
   }, [verifyModalOpen, profile?.identityStatus, profile?.identityMethod]);
 
   const normalizeDeleteConfirmText = (v) => {
@@ -1201,7 +1312,7 @@ export default function StudioProfile() {
 
   const guidanceWhatsAppUrl = useMemo(() => {
     const text = t('studio.profile.guidance.whatsappMessage');
-    return buildWhatsAppUrl(text);
+    return buildWhatsAppUrl(text, { lang: String(i18n?.language || 'tr') });
   }, [i18n?.language, t]);
 
   useEffect(() => {
@@ -1215,16 +1326,32 @@ export default function StudioProfile() {
       <Navigation />
 
       <main className="container mx-auto px-4 py-8">
-        <div className="mx-auto max-w-4xl overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+        <div className="mx-auto max-w-4xl overflow-visible rounded-xl border border-slate-200 bg-white shadow-sm">
           {/* Banner */}
-          <div className="relative h-44 w-full bg-slate-200">
-            <img
-              src="/bali-island-temple-ocean-sunset-panoramic.jpg"
-              alt={t('studio.profile.bannerAlt')}
-              className="h-full w-full object-cover opacity-60"
-              loading="lazy"
-              decoding="async"
-            />
+          <div className="relative h-44 w-full bg-slate-200 overflow-hidden rounded-t-xl">
+            {Array.isArray(myPhotoUrls) && myPhotoUrls.length ? (
+              <div className="h-full w-full overflow-x-auto overflow-y-hidden snap-x snap-mandatory flex">
+                {myPhotoUrls.slice(0, 5).map((u, idx) => (
+                  <img
+                    key={`${u}-${idx}`}
+                    src={u}
+                    alt={t('matchmakingPanel.photos.title')}
+                    className="h-full w-full flex-shrink-0 object-cover opacity-60 snap-center"
+                    loading={idx === 0 ? 'eager' : 'lazy'}
+                    decoding="async"
+                    draggable={false}
+                  />
+                ))}
+              </div>
+            ) : (
+              <img
+                src="/placeholder.jpg"
+                alt={t('studio.profile.bannerAlt')}
+                className="h-full w-full object-cover opacity-60"
+                loading="lazy"
+                decoding="async"
+              />
+            )}
           </div>
 
           <div className="relative p-6">
@@ -1232,17 +1359,31 @@ export default function StudioProfile() {
             <div className="absolute -top-12 left-6">
               <div className="relative">
                 {avatarUrl ? (
-                  <img
-                    src={avatarUrl}
-                    alt={profile.name}
-                    className="h-24 w-24 rounded-full border-4 border-white object-cover shadow"
-                    loading="lazy"
-                    decoding="async"
-                  />
+                  <button
+                    type="button"
+                    onClick={openPhotoManager}
+                    className="block rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+                    aria-label={shortLabel('matchmakingPanel.photos.title', 'Fotoğraflar')}
+                    title={shortLabel('matchmakingPanel.photos.title', 'Fotoğraflar')}
+                  >
+                    <img
+                      src={avatarUrl}
+                      alt={profile.name}
+                      className="h-24 w-24 rounded-full border-4 border-white object-cover shadow"
+                      loading="lazy"
+                      decoding="async"
+                    />
+                  </button>
                 ) : (
-                  <div className="flex h-24 w-24 items-center justify-center rounded-full border-4 border-white bg-slate-100 shadow">
+                  <button
+                    type="button"
+                    onClick={openPhotoManager}
+                    className="flex h-24 w-24 items-center justify-center rounded-full border-4 border-white bg-slate-100 shadow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+                    aria-label={shortLabel('matchmakingPanel.photos.title', 'Fotoğraflar')}
+                    title={shortLabel('matchmakingPanel.photos.title', 'Fotoğraflar')}
+                  >
                     <span className="text-2xl font-bold text-slate-500">{safeStr(profile.name).slice(0, 1).toUpperCase() || '?'}</span>
-                  </div>
+                  </button>
                 )}
 
                 {profile.isVerified ? (
@@ -1265,6 +1406,12 @@ export default function StudioProfile() {
                       {t('studio.profile.userCode.label')}: {safeStr(mmUser?.userCode || (mmUser?.publicProfile && mmUser.publicProfile.userCode))}
                     </span>
                   ) : null}
+                  {profile.isVerified ? (
+                    <span className="inline-flex items-center rounded-full bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-900 border border-emerald-200">
+                      <ShieldCheck className="mr-1 h-3.5 w-3.5" />
+                      {t('studio.common.verified')}
+                    </span>
+                  ) : null}
                   <span className="inline-flex items-center rounded-full bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-700">
                     {t('studio.myInfo.fields.username')}: {profile.username || t('studio.common.unknown')}
                   </span>
@@ -1277,13 +1424,15 @@ export default function StudioProfile() {
                   {t('studio.profile.membershipLabel')}: {profile.membershipActive ? t('studio.profile.membershipActive') : t('studio.profile.membershipPassive')}
                   {profile.membershipPlan ? ` (${profile.membershipPlan})` : ''}
                 </p>
+
+                <p className="mt-2 text-sm font-semibold text-emerald-700">{t('studio.profile.freeUsageNotice')}</p>
                 {profile.membershipValidUntilMs ? (
                   <p className="mt-1 text-xs text-slate-500">
                     {t('studio.profile.endsAt')}: {new Intl.DateTimeFormat(String(i18n?.language || 'tr'), { dateStyle: 'medium' }).format(new Date(profile.membershipValidUntilMs))}
                   </p>
                 ) : null}
 
-                {isProfileIncomplete ? (
+                {showIncompleteExploreWarning ? (
                   <div role="alert" className="mt-3 rounded-xl border border-red-200 bg-red-50 p-4 text-red-950">
                     <div className="flex items-start gap-3">
                       <div className="mt-0.5 inline-flex h-8 w-8 items-center justify-center rounded-full bg-red-200 text-red-900">
@@ -1294,16 +1443,13 @@ export default function StudioProfile() {
                           <span className="inline-flex items-center rounded-full border border-red-200 bg-white px-2 py-0.5 text-xs font-bold tracking-wide text-red-800">
                             {t('studio.profileGate.important')}
                           </span>
-                          <p className="font-semibold">{t('studio.profileGate.title')}</p>
+                          <p className="font-semibold">{t('studio.profileIncompleteExploreWarning.title')}</p>
                         </div>
-                        <p className="mt-1 text-sm text-red-900/90">{t('studio.profileGate.body')}</p>
+                        <p className="mt-1 text-sm text-red-900/90">{t('studio.profileIncompleteExploreWarning.body')}</p>
                         <div className="mt-3">
-                          <Link
-                            to="/evlilik/eslestirme-basvuru?w=1"
-                            className="app-btn app-btn-flat"
-                          >
+                          <button type="button" onClick={openApplyInline} className="app-btn app-btn-flat">
                             {t('studio.profileGate.cta')}
-                          </Link>
+                          </button>
                         </div>
                       </div>
                     </div>
@@ -1327,7 +1473,7 @@ export default function StudioProfile() {
                   {profileMenuOpen ? (
                     <div
                       id="profile-hamburger-menu"
-                      className="absolute left-1/2 top-full z-30 mt-2 w-[calc(100vw-1rem)] max-w-[520px] -translate-x-1/2 rounded-xl border border-slate-200 bg-white p-2 shadow-lg"
+                      className="fixed left-1/2 bottom-3 z-50 w-[calc(100vw-1rem)] max-w-[520px] -translate-x-1/2 rounded-xl border border-slate-200 bg-white p-2 shadow-lg sm:absolute sm:bottom-auto sm:top-full sm:mt-2"
                       role="dialog"
                       aria-modal="false"
                     >
@@ -1346,23 +1492,57 @@ export default function StudioProfile() {
                           </button>
                         </div>
 
-                      <div className="mt-2 grid max-h-[60vh] grid-cols-2 justify-items-center gap-2 overflow-auto">
+                      <div className="mt-2 grid max-h-[60vh] grid-cols-1 gap-2 overflow-auto sm:grid-cols-2">
                         <button
                           type="button"
                           onClick={() => {
                             setProfileMenuOpen(false);
-                            navigate('/evlilik/eslestirme-basvurusu?editOnce=1');
+                            openOneTimeActionIntro({
+                              hintId: 'profile-action-explore-v1',
+                              titleKey: 'studio.profile.actionIntro.explore.title',
+                              bodyKey: 'studio.profile.actionIntro.explore.body',
+                              ctaKey: 'studio.profile.actionIntro.explore.cta',
+                              onContinue: () => navigate('/app/pool'),
+                            });
                           }}
-                          className="app-btn app-btn-logo app-btn-logo-blue"
+                          className="app-btn app-btn-action-menu relative h-12 w-full px-5 justify-start"
+                          aria-label={shortLabel('studio.pool.title', 'Keşfet')}
+                        >
+                          <span
+                            className="absolute left-6 top-1/2 -translate-y-1/2 -translate-x-1/2 flex h-12 w-12 items-center justify-center rounded-2xl bg-white/15 ring-1 ring-white/25"
+                            aria-hidden="true"
+                          >
+                            <Compass className="h-6 w-6 text-white" />
+                          </span>
+                          <span className="min-w-0 pl-14 text-sm font-semibold tracking-wide text-white">
+                            <span className="block whitespace-nowrap">{shortLabel('studio.pool.title', 'Keşfet')}</span>
+                          </span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setProfileMenuOpen(false);
+                            openOneTimeActionIntro({
+                              hintId: 'profile-action-edit-profile-v1',
+                              titleKey: 'studio.profile.actionIntro.editProfile.title',
+                              bodyKey: 'studio.profile.actionIntro.editProfile.body',
+                              ctaKey: 'studio.profile.actionIntro.editProfile.cta',
+                              onContinue: () =>
+                                navigate('/evlilik/eslestirme-basvurusu?editOnce=1&w=1', { state: { returnTo: '/profilim' } }),
+                            });
+                          }}
+                          className="app-btn app-btn-action-menu relative h-12 w-full px-5 justify-start"
                           aria-label={shortLabel('studio.profile.editProfile', 'Profil')}
                         >
-                          <span className="relative z-10 block w-full px-3">
-                            <span className="pointer-events-none absolute inset-0 flex items-center justify-center px-12">
-                              <span className="min-w-0 truncate text-center">{shortLabel('studio.profile.editProfile', 'Profil')}</span>
-                            </span>
-                            <span className="absolute right-4 top-1/2 -translate-y-1/2" aria-hidden="true">
-                              <Edit className="h-5 w-5 opacity-95" />
-                            </span>
+                          <span
+                            className="absolute left-6 top-1/2 -translate-y-1/2 -translate-x-1/2 flex h-12 w-12 items-center justify-center rounded-2xl bg-white/15 ring-1 ring-white/25"
+                            aria-hidden="true"
+                          >
+                            <Edit className="h-6 w-6 text-white" />
+                          </span>
+                          <span className="min-w-0 pl-14 text-sm font-semibold tracking-wide text-white">
+                            <span className="block whitespace-nowrap">{shortLabel('studio.profile.editProfile', 'Profil')}</span>
                           </span>
                         </button>
 
@@ -1370,18 +1550,25 @@ export default function StudioProfile() {
                           type="button"
                           onClick={() => {
                             setProfileMenuOpen(false);
-                            navigate('/profilim/destek');
+                            openOneTimeActionIntro({
+                              hintId: 'profile-action-matches-v1',
+                              titleKey: 'studio.profile.actionIntro.matches.title',
+                              bodyKey: 'studio.profile.actionIntro.matches.body',
+                              ctaKey: 'studio.profile.actionIntro.matches.cta',
+                              onContinue: () => navigate('/app/matches'),
+                            });
                           }}
-                          className="app-btn app-btn-logo app-btn-logo-blue"
-                          aria-label={shortLabel('studio.feedback.nav', 'Şikayet')}
+                          className="app-btn app-btn-action-menu relative h-12 w-full px-5 justify-start"
+                          aria-label={shortLabel('studio.profile.myMatches', 'Eşleşmelerim')}
                         >
-                          <span className="relative z-10 block w-full px-3">
-                            <span className="pointer-events-none absolute inset-0 flex items-center justify-center px-10">
-                              <span className="min-w-0 truncate text-center">{shortLabel('studio.feedback.nav', 'Şikayet')}</span>
-                            </span>
-                            <span className="absolute right-4 top-1/2 -translate-y-1/2" aria-hidden="true">
-                              <MessageCircle className="h-5 w-5 opacity-95" />
-                            </span>
+                          <span
+                            className="absolute left-6 top-1/2 -translate-y-1/2 -translate-x-1/2 flex h-12 w-12 items-center justify-center rounded-2xl bg-white/15 ring-1 ring-white/25"
+                            aria-hidden="true"
+                          >
+                            <Users className="h-6 w-6 text-white" />
+                          </span>
+                          <span className="min-w-0 pl-14 text-sm font-semibold tracking-wide text-white">
+                            <span className="block whitespace-nowrap">{shortLabel('studio.profile.myMatches', 'Eşleşmelerim')}</span>
                           </span>
                         </button>
 
@@ -1389,19 +1576,53 @@ export default function StudioProfile() {
                           type="button"
                           onClick={() => {
                             setProfileMenuOpen(false);
-                            toggleTopInlinePanel('membership');
+                            openOneTimeActionIntro({
+                              hintId: 'profile-action-partner-prefs-v1',
+                              titleKey: 'studio.profile.actionIntro.partnerPrefs.title',
+                              bodyKey: 'studio.profile.actionIntro.partnerPrefs.body',
+                              ctaKey: 'studio.profile.actionIntro.partnerPrefs.cta',
+                              onContinue: () => openPartnerPrefsModal(),
+                            });
                           }}
-                          className="app-btn app-btn-logo app-btn-logo-blue"
+                          className="app-btn app-btn-action-menu relative h-12 w-full px-5 justify-start"
+                          title={t('studio.profile.partnerPrefsTitle')}
+                          aria-label={t('studio.profile.partnerPrefsTitle')}
+                        >
+                          <span
+                            className="absolute left-6 top-1/2 -translate-y-1/2 -translate-x-1/2 flex h-12 w-12 items-center justify-center rounded-2xl bg-white/15 ring-1 ring-white/25"
+                            aria-hidden="true"
+                          >
+                            <Edit className="h-6 w-6 text-white" />
+                          </span>
+                          <span className="min-w-0 pl-14 text-sm font-semibold tracking-wide text-white">
+                            <span className="block whitespace-nowrap">{t('studio.profile.partnerPrefsTitle')}</span>
+                          </span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setProfileMenuOpen(false);
+                            openOneTimeActionIntro({
+                              hintId: 'profile-action-membership-v1',
+                              titleKey: 'studio.profile.actionIntro.membership.title',
+                              bodyKey: 'studio.profile.actionIntro.membership.body',
+                              ctaKey: 'studio.profile.actionIntro.membership.cta',
+                              onContinue: () => toggleTopInlinePanel('membership'),
+                            });
+                          }}
+                          className="app-btn app-btn-action-menu relative h-12 w-full px-5 justify-start"
                           title={t('studio.profile.subscriptionTitle')}
                           aria-label={shortLabel('studio.profile.subscriptionTitle', 'Üyelik')}
                         >
-                          <span className="relative z-10 block w-full px-3">
-                            <span className="pointer-events-none absolute inset-0 flex items-center justify-center px-10">
-                              <span className="min-w-0 truncate text-center">{shortLabel('studio.profile.subscriptionTitle', 'Üyelik')}</span>
-                            </span>
-                            <span className="absolute right-4 top-1/2 -translate-y-1/2" aria-hidden="true">
-                              <Star className="h-5 w-5 opacity-95" />
-                            </span>
+                          <span
+                            className="absolute left-6 top-1/2 -translate-y-1/2 -translate-x-1/2 flex h-12 w-12 items-center justify-center rounded-2xl bg-white/15 ring-1 ring-white/25"
+                            aria-hidden="true"
+                          >
+                            <Star className="h-6 w-6 text-white" />
+                          </span>
+                          <span className="min-w-0 pl-14 text-sm font-semibold tracking-wide text-white">
+                            <span className="block whitespace-nowrap">{shortLabel('studio.profile.subscriptionTitle', 'Üyelik')}</span>
                           </span>
                         </button>
 
@@ -1409,39 +1630,29 @@ export default function StudioProfile() {
                           type="button"
                           onClick={() => {
                             setProfileMenuOpen(false);
-                            toggleTopInlinePanel('identity');
+                            openOneTimeActionIntro({
+                              hintId: 'profile-action-photo-v1',
+                              titleKey: 'studio.profile.actionIntro.photo.title',
+                              bodyKey: 'studio.profile.actionIntro.photo.body',
+                              ctaKey: 'studio.profile.actionIntro.photo.cta',
+                              onContinue: () => {
+                                toggleTopInlinePanel('photoPrivacy');
+                                openPhotoManager();
+                              },
+                            });
                           }}
-                          className="app-btn app-btn-logo app-btn-logo-blue"
-                          title={t('studio.profile.identityTitle')}
-                          aria-label={shortLabel('studio.profile.identityTitle', 'Kimlik')}
-                        >
-                          <span className="relative z-10 block w-full px-3">
-                            <span className="pointer-events-none absolute inset-0 flex items-center justify-center px-10">
-                              <span className="min-w-0 truncate text-center">{shortLabel('studio.profile.identityTitle', 'Kimlik')}</span>
-                            </span>
-                            <span className="absolute right-4 top-1/2 -translate-y-1/2" aria-hidden="true">
-                              <ShieldCheck className="h-5 w-5 opacity-95" />
-                            </span>
-                          </span>
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setProfileMenuOpen(false);
-                            toggleTopInlinePanel('photoPrivacy');
-                          }}
-                          className="app-btn app-btn-logo app-btn-logo-blue"
+                          className="app-btn app-btn-action-menu relative h-12 w-full px-5 justify-start"
                           title={t('studio.profile.photoPrivacy.title')}
                           aria-label={shortLabel('studio.profile.photoPrivacy.title', 'Fotoğraf')}
                         >
-                          <span className="relative z-10 block w-full px-3">
-                            <span className="pointer-events-none absolute inset-0 flex items-center justify-center px-10">
-                              <span className="min-w-0 truncate text-center">{shortLabel('studio.profile.photoPrivacy.title', 'Fotoğraf')}</span>
-                            </span>
-                            <span className="absolute right-4 top-1/2 -translate-y-1/2" aria-hidden="true">
-                              <Images className="h-5 w-5 opacity-95" />
-                            </span>
+                          <span
+                            className="absolute left-6 top-1/2 -translate-y-1/2 -translate-x-1/2 flex h-12 w-12 items-center justify-center rounded-2xl bg-white/15 ring-1 ring-white/25"
+                            aria-hidden="true"
+                          >
+                            <Images className="h-6 w-6 text-white" />
+                          </span>
+                          <span className="min-w-0 pl-14 text-sm font-semibold tracking-wide text-white">
+                            <span className="block whitespace-nowrap">{shortLabel('studio.profile.photoPrivacy.title', 'Fotoğraf')}</span>
                           </span>
                         </button>
 
@@ -1449,82 +1660,133 @@ export default function StudioProfile() {
                           type="button"
                           onClick={() => {
                             setProfileMenuOpen(false);
-                            setGuidanceModalOpen(true);
+                            openOneTimeActionIntro({
+                              hintId: 'profile-action-guidance-v1',
+                              titleKey: 'studio.profile.actionIntro.guidance.title',
+                              bodyKey: 'studio.profile.actionIntro.guidance.body',
+                              ctaKey: 'studio.profile.actionIntro.guidance.cta',
+                              onContinue: () => setGuidanceModalOpen(true),
+                            });
                           }}
-                          className="app-btn app-btn-logo app-btn-logo-blue"
+                          className="app-btn app-btn-action-menu relative h-12 w-full px-5 justify-start"
                           title={t('studio.profile.guidance.button')}
                           aria-label={shortLabel('studio.profile.guidance.button', 'Rehberlik')}
                         >
-                          <span className="relative z-10 block w-full px-3">
-                            <span className="pointer-events-none absolute inset-0 flex items-center justify-center px-8">
-                              <span className="min-w-0 truncate text-center">{shortLabel('studio.profile.guidance.button', 'Rehberlik')}</span>
-                            </span>
-                            <span className="absolute right-4 top-1/2 -translate-y-1/2" aria-hidden="true">
-                              <BookOpen className="h-5 w-5 opacity-95" />
-                            </span>
-                          </span>
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setProfileMenuOpen(false);
-                            navigate('/app/matches');
-                          }}
-                          className="app-btn app-btn-logo app-btn-logo-blue"
-                          aria-label={shortLabel('studio.profile.myMatches', 'Kişilerim')}
-                        >
-                          <span className="relative z-10 block w-full px-3">
-                            <span className="pointer-events-none absolute inset-0 flex items-center justify-center px-10">
-                              <span className="min-w-0 truncate text-center">{shortLabel('studio.profile.myMatches', 'Kişilerim')}</span>
-                            </span>
-                            <span className="absolute right-4 top-1/2 -translate-y-1/2" aria-hidden="true">
-                              <Users className="h-5 w-5 opacity-95" />
-                            </span>
-                          </span>
-                        </button>
-
-                        {referralUiEnabled ? (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setProfileMenuOpen(false);
-                              setReferralAcceptState({ loading: false, error: '', success: '' });
-                              setReferralClaimState({ loading: false, error: '', success: '' });
-                              toggleTopInlinePanel('referral');
-                            }}
-                            className="app-btn app-btn-logo app-btn-logo-blue"
-                            title={t('studio.referral.title')}
-                            aria-label={shortLabel('studio.referral.title', 'Davet')}
+                          <span
+                            className="absolute left-6 top-1/2 -translate-y-1/2 -translate-x-1/2 flex h-12 w-12 items-center justify-center rounded-2xl bg-white/15 ring-1 ring-white/25"
+                            aria-hidden="true"
                           >
-                            <span className="relative z-10 block w-full px-3">
-                              <span className="pointer-events-none absolute inset-0 flex items-center justify-center px-10">
-                                <span className="min-w-0 truncate text-center">{shortLabel('studio.referral.title', 'Davet')}</span>
-                              </span>
-                              <span className="absolute right-4 top-1/2 -translate-y-1/2" aria-hidden="true">
-                                <Users className="h-5 w-5 opacity-95" />
-                              </span>
-                            </span>
-                          </button>
-                        ) : null}
+                            <BookOpen className="h-6 w-6 text-white" />
+                          </span>
+                          <span className="min-w-0 pl-14 text-sm font-semibold tracking-wide text-white">
+                            <span className="block whitespace-nowrap">{shortLabel('studio.profile.guidance.button', 'Rehberlik')}</span>
+                          </span>
+                        </button>
 
                         <button
                           type="button"
                           onClick={() => {
                             setProfileMenuOpen(false);
-                            logoutNow();
+                            openOneTimeActionIntro({
+                              hintId: 'profile-action-feedback-v1',
+                              titleKey: 'studio.profile.actionIntro.feedback.title',
+                              bodyKey: 'studio.profile.actionIntro.feedback.body',
+                              ctaKey: 'studio.profile.actionIntro.feedback.cta',
+                              onContinue: () => navigate('/profilim/destek'),
+                            });
                           }}
-                          className="app-btn app-btn-logo app-btn-logo-red"
+                          className="app-btn app-btn-action-menu relative h-12 w-full px-5 justify-start"
+                          aria-label={shortLabel('studio.feedback.nav', 'Şikayet/İstek')}
+                        >
+                          <span
+                            className="absolute left-6 top-1/2 -translate-y-1/2 -translate-x-1/2 flex h-12 w-12 items-center justify-center rounded-2xl bg-white/15 ring-1 ring-white/25"
+                            aria-hidden="true"
+                          >
+                            <MessageCircle className="h-6 w-6 text-white" />
+                          </span>
+                          <span className="min-w-0 pl-10 text-sm font-semibold tracking-wide text-white">
+                            <span className="block whitespace-nowrap">{shortLabel('studio.feedback.nav', 'Şikayet/İstek')}</span>
+                          </span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setProfileMenuOpen(false);
+                            openOneTimeActionIntro({
+                              hintId: 'profile-action-identity-panel-v1',
+                              titleKey: 'studio.profile.actionIntro.identity.title',
+                              bodyKey: 'studio.profile.actionIntro.identity.body',
+                              ctaKey: 'studio.profile.actionIntro.identity.cta',
+                              onContinue: () => toggleTopInlinePanel('identity'),
+                            });
+                          }}
+                          className="app-btn app-btn-action-menu relative h-12 w-full px-5 justify-start"
+                          title={shortLabel('studio.profile.identityTitle', 'Kimlik doğrula')}
+                          aria-label={shortLabel('studio.profile.identityTitle', 'Kimlik doğrula')}
+                        >
+                          <span
+                            className="absolute left-6 top-1/2 -translate-y-1/2 -translate-x-1/2 flex h-12 w-12 items-center justify-center rounded-2xl bg-white/15 ring-1 ring-white/25"
+                            aria-hidden="true"
+                          >
+                            <ShieldCheck className="h-6 w-6 text-white" />
+                          </span>
+                          <span className="min-w-0 pl-14 text-sm font-semibold tracking-wide text-white">
+                            <span className="block whitespace-nowrap">{shortLabel('studio.profile.identityTitle', 'Kimlik doğrula')}</span>
+                          </span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setProfileMenuOpen(false);
+                            openOneTimeActionIntro({
+                              hintId: 'profile-action-referral-v1',
+                              titleKey: 'studio.profile.actionIntro.referral.title',
+                              bodyKey: 'studio.profile.actionIntro.referral.body',
+                              ctaKey: 'studio.profile.actionIntro.referral.cta',
+                              onContinue: () => toggleTopInlinePanel('referral'),
+                            });
+                          }}
+                          className="app-btn app-btn-action-menu relative h-12 w-full px-5 justify-start"
+                          title={t('studio.referral.title')}
+                          aria-label={shortLabel('studio.referral.title', 'Davet')}
+                        >
+                          <span
+                            className="absolute left-6 top-1/2 -translate-y-1/2 -translate-x-1/2 flex h-12 w-12 items-center justify-center rounded-2xl bg-white/15 ring-1 ring-white/25"
+                            aria-hidden="true"
+                          >
+                            <Users className="h-6 w-6 text-white" />
+                          </span>
+                          <span className="min-w-0 pl-14 text-sm font-semibold tracking-wide text-white">
+                            <span className="block whitespace-nowrap">{shortLabel('studio.referral.title', 'Davet')}</span>
+                          </span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setProfileMenuOpen(false);
+                            openOneTimeActionIntro({
+                              hintId: 'profile-action-logout-v1',
+                              titleKey: 'studio.profile.actionIntro.logout.title',
+                              bodyKey: 'studio.profile.actionIntro.logout.body',
+                              ctaKey: 'studio.profile.actionIntro.logout.cta',
+                              onContinue: () => logoutNow(),
+                            });
+                          }}
+                          className="app-btn app-btn-action-menu relative h-12 w-full px-5 justify-start"
                           title={t('studio.profile.logout')}
                           aria-label={shortLabel('studio.profile.logout', 'Çıkış')}
                         >
-                          <span className="relative z-10 block w-full px-3">
-                            <span className="pointer-events-none absolute inset-0 flex items-center justify-center px-10">
-                              <span className="min-w-0 truncate text-center">{shortLabel('studio.profile.logout', 'Çıkış')}</span>
-                            </span>
-                            <span className="absolute right-4 top-1/2 -translate-y-1/2" aria-hidden="true">
-                              <LogOut className="h-5 w-5 opacity-95" />
-                            </span>
+                          <span
+                            className="absolute left-6 top-1/2 -translate-y-1/2 -translate-x-1/2 flex h-12 w-12 items-center justify-center rounded-2xl bg-white/15 ring-1 ring-white/25"
+                            aria-hidden="true"
+                          >
+                            <LogOut className="h-6 w-6 text-white" />
+                          </span>
+                          <span className="min-w-0 pl-14 text-sm font-semibold tracking-wide text-white">
+                            <span className="block whitespace-nowrap">{shortLabel('studio.profile.logout', 'Çıkış')}</span>
                           </span>
                         </button>
                       </div>
@@ -1548,6 +1810,8 @@ export default function StudioProfile() {
                         : t('studio.profile.subscriptionPassiveDesc')}
                     </p>
 
+                    <p className="mt-2 text-sm font-semibold text-emerald-700">{t('studio.profile.freeUsageNotice')}</p>
+
                     {membershipAction.error ? (
                       <div className="mt-3 rounded-md border border-rose-200 bg-rose-50 p-2 text-sm text-rose-900">{membershipAction.error}</div>
                     ) : null}
@@ -1556,24 +1820,6 @@ export default function StudioProfile() {
                     ) : null}
 
                     <div className="mt-3 flex flex-wrap gap-2">
-                      <button
-                        type="button"
-                        disabled
-                        className="app-btn app-btn-outline disabled:opacity-60"
-                        title={t('studio.profile.buySoon')}
-                      >
-                        {t('studio.profile.buySoon')}
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={activateFreeMembership}
-                        disabled={membershipAction.loading}
-                        className="app-btn app-btn-primary disabled:opacity-60"
-                      >
-                        {membershipAction.loading ? t('studio.common.processing') : t('studio.profile.activateMembership')}
-                      </button>
-
                       <button
                         type="button"
                         onClick={cancelMembership}
@@ -1615,36 +1861,51 @@ export default function StudioProfile() {
                     <div className="mt-3 flex flex-wrap gap-2">
                       <button
                         type="button"
-                        onClick={() => {
-                          setVerifyAction({ loading: false, error: '', success: '' });
-                          setVerifySelectAction({ loading: false, error: '', result: null });
-                          setVerifyMode('upload');
-                          setVerifyModalOpen(true);
-                        }}
-                        className="app-btn app-btn-outline"
+                        onClick={onClickVerifyNow}
+                        className="app-btn app-btn-primary"
                       >
-                        <UploadCloud className="mr-2 h-4 w-4" />
+                        <ShieldCheck className="mr-2 h-4 w-4" />
                         {t('studio.profile.verifyNow')}
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setVerifyAction({ loading: false, error: '', success: '' });
-                          setVerifySelectAction({ loading: false, error: '', result: null });
-                          setVerifyMode('whatsapp_call');
-                          setVerifyModalOpen(true);
-                        }}
-                        disabled={!whatsappNumber || String(profile?.identityStatus || '').toLowerCase().trim() === 'pending'}
-                        className="app-btn app-btn-primary disabled:opacity-60"
-                      >
-                        <MessageCircle className="mr-2 h-4 w-4" />
-                        {t('studio.profile.verifyMethodWhatsApp')}
                       </button>
                     </div>
 
-                    {!whatsappNumber ? (
-                      <p className="mt-2 text-xs text-slate-500">{t('matchmakingPanel.verification.errors.whatsappNotConfigured')}</p>
+                    {user?.email && user?.emailVerified === false ? (
+                      <div className="mt-4 rounded-md border border-slate-200 bg-white p-3">
+                        <div className="text-sm font-semibold text-slate-900">{t('studio.profile.emailVerify.title')}</div>
+                        <p className="mt-1 text-sm text-slate-700">{t('studio.profile.emailVerify.body', { email: String(user.email || '') })}</p>
+
+                        {emailVerifyState.error ? (
+                          <div className="mt-2 rounded-md border border-rose-200 bg-rose-50 p-2 text-sm text-rose-900">
+                            {emailVerifyState.error}
+                          </div>
+                        ) : null}
+                        {emailVerifyState.success ? (
+                          <div className="mt-2 rounded-md border border-emerald-200 bg-emerald-50 p-2 text-sm text-emerald-900">
+                            {emailVerifyState.success}
+                          </div>
+                        ) : null}
+
+                        <div className="mt-3">
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              if (emailVerifyState.loading) return;
+                              setEmailVerifyState({ loading: true, error: '', success: '' });
+                              try {
+                                if (!auth.currentUser) throw new Error('not_authenticated');
+                                await sendEmailVerification(auth.currentUser);
+                                setEmailVerifyState({ loading: false, error: '', success: t('studio.profile.emailVerify.sent') });
+                              } catch (e) {
+                                setEmailVerifyState({ loading: false, error: t('studio.profile.emailVerify.failed'), success: '' });
+                              }
+                            }}
+                            disabled={emailVerifyState.loading}
+                            className="app-btn app-btn-outline disabled:opacity-60"
+                          >
+                            {emailVerifyState.loading ? t('studio.common.processing') : t('studio.profile.emailVerify.cta')}
+                          </button>
+                        </div>
+                      </div>
                     ) : null}
                   </div>
                 ) : null}
@@ -1697,15 +1958,16 @@ export default function StudioProfile() {
                     <div className="mt-4 border-t border-slate-200 pt-4">
                       <div className="flex flex-wrap items-start justify-between gap-3">
                         <div>
-                          <div className="text-sm font-semibold text-slate-900">{t('matchmakingPanel.photos.updateRequest.title')}</div>
-                          <div className="mt-1 text-sm text-slate-600">{t('matchmakingPanel.photos.updateRequest.lead')}</div>
+                          <div className="text-sm font-semibold text-slate-900">{shortLabel('matchmakingPanel.photos.title', 'Fotoğraflar')}</div>
+                          <div className="mt-1 text-sm text-slate-600">
+                            {isTr ? 'En fazla 5 görsel ekleyebilirsiniz.' : 'You can add up to 5 images.'}
+                          </div>
                         </div>
 
-                        {profile.photoUpdateStatus === 'pending' ? (
-                          <span className="inline-flex items-center rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-900">
-                            {t('matchmakingPanel.photos.updateRequest.pending')}
-                          </span>
-                        ) : null}
+                        <button type="button" onClick={openPhotoManager} className="app-btn app-btn-primary" disabled={photoUpdateAction.loading}>
+                          <UploadCloud className="mr-2 h-4 w-4" />
+                          {photoUpdateAction.loading ? t('studio.common.processing') : isTr ? 'Fotoğraf Ekle/Değiştir' : 'Add/Change Photos'}
+                        </button>
                       </div>
 
                       {photoUpdateAction.error ? (
@@ -1714,43 +1976,6 @@ export default function StudioProfile() {
                       {photoUpdateAction.success ? (
                         <div className="mt-3 rounded-md border border-emerald-200 bg-emerald-50 p-2 text-sm text-emerald-900">{photoUpdateAction.success}</div>
                       ) : null}
-
-                      {profile.photoUpdateStatus === 'pending' ? null : (
-                        <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
-                          {[1, 2, 3].map((idx) => {
-                            const key = `photo${idx}`;
-                            const file = photoUpdateFiles?.[key] || null;
-                            return (
-                              <div key={key} className="rounded-lg border border-slate-200 bg-white p-3">
-                                <div className="text-xs font-semibold text-slate-700">{t(`matchmakingPage.form.labels.${key}`)}</div>
-                                <input
-                                  type="file"
-                                  accept="image/*"
-                                  className="mt-2 block w-full text-xs"
-                                  onChange={(e) =>
-                                    setPhotoUpdateFiles((p) => ({
-                                      ...p,
-                                      [key]: e.target.files?.[0] || null,
-                                    }))
-                                  }
-                                />
-                                <div className="mt-2 text-[11px] text-slate-500 break-words">{file?.name || t('matchmakingPage.form.photo.noFileChosen')}</div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      )}
-
-                      {profile.photoUpdateStatus === 'pending' ? null : (
-                        <button
-                          type="button"
-                          onClick={requestPhotoUpdate}
-                          disabled={photoUpdateAction.loading}
-                          className="mt-3 app-btn app-btn-primary disabled:opacity-60"
-                        >
-                          {photoUpdateAction.loading ? t('studio.common.processing') : t('matchmakingPanel.photos.updateRequest.cta')}
-                        </button>
-                      )}
                     </div>
 
                     <div className="mt-4 border-t border-slate-200 pt-4">
@@ -1800,138 +2025,38 @@ export default function StudioProfile() {
                   </div>
                 ) : null}
 
-                {referralUiEnabled && topInlinePanel === 'referral' ? (
+                {topInlinePanel === 'referral' ? (
                   <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
                     <h3 className="flex items-center gap-2 text-base font-semibold">
                       <Users className="h-5 w-5 text-indigo-600" />
                       {t('studio.referral.title')}
                     </h3>
-                    <p className="mt-2 text-sm text-slate-600">{t('studio.referral.description')}</p>
 
                     <div className="mt-3 rounded-md border border-slate-200 bg-white p-3">
-                      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                        <div className="text-sm">
-                          <div className="font-semibold text-slate-900">{t('studio.referral.myCodeLabel')}</div>
-                          <div className="mt-1 font-mono text-slate-700">
-                            {safeStr(mmUser?.userCode || (mmUser?.publicProfile && mmUser.publicProfile.userCode)) || t('studio.common.unknown')}
-                          </div>
-                        </div>
+                      <button
+                        type="button"
+                        onClick={generateInviteCodeAndShareWhatsApp}
+                        disabled={inviteState.loading}
+                        className="app-btn app-btn-primary disabled:opacity-60"
+                      >
+                        {inviteState.loading ? t('studio.common.processing') : t('studio.referral.shareButton')}
+                        <Share2 className="h-4 w-4" />
+                      </button>
 
-                        <div className="flex items-center gap-2">
-                          {(() => {
-                            const code = safeStr(mmUser?.userCode || (mmUser?.publicProfile && mmUser.publicProfile.userCode));
-                            if (!code) return null;
-                            let inviteUrl = '';
-                            try {
-                              if (typeof window !== 'undefined') {
-                                const u = new URL('/login', window.location.origin);
-                                u.searchParams.set('mode', 'signup');
-                                u.searchParams.set('ref', code);
-                                inviteUrl = u.toString();
-                              }
-                            } catch {
-                              // ignore
-                            }
-                            if (!inviteUrl) {
-                              inviteUrl = `/login?mode=signup&ref=${encodeURIComponent(code)}`;
-                            }
-                            const shareText = t('studio.referral.shareMessage', { url: inviteUrl });
-                            const waShareUrl = buildWhatsAppShareUrl(shareText);
-
-                            return (
-                              <a
-                                href={waShareUrl}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="app-btn app-btn-primary"
-                                title={t('studio.referral.shareButton')}
-                                aria-label={t('studio.referral.shareButton')}
-                              >
-                                {t('studio.referral.shareButton')}
-                                <Share2 className="h-4 w-4" />
-                              </a>
-                            );
-                          })()}
-                          <button
-                            type="button"
-                            onClick={copyInviteCode}
-                            disabled={!safeStr(mmUser?.userCode || (mmUser?.publicProfile && mmUser.publicProfile.userCode))}
-                            className="app-btn app-btn-outline disabled:opacity-60"
-                          >
-                            {t('studio.referral.copy')}
-                          </button>
-                          {referralCopyState.success ? (
-                            <span className="text-xs font-semibold text-emerald-700">{referralCopyState.success}</span>
-                          ) : null}
-                        </div>
-                      </div>
+                      {inviteState.error ? (
+                        <div className="mt-2 rounded-md border border-rose-200 bg-rose-50 p-2 text-sm text-rose-900">{inviteState.error}</div>
+                      ) : null}
                     </div>
-
-                    {safeStr(mmUser?.referral?.invitedByUid) ? (
-                      <div className="mt-3 rounded-md border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-900">
-                        <div>
-                          <span className="font-semibold">{t('studio.referral.invitedByLabel')}:</span>{' '}
-                          {safeStr(mmUser?.referral?.invitedByCode) || t('studio.common.unknown')}
-                        </div>
-
-                        {referralClaimState.error ? (
-                          <div className="mt-2 rounded-md border border-rose-200 bg-rose-50 p-2 text-sm text-rose-900">{referralClaimState.error}</div>
-                        ) : null}
-                        {referralClaimState.success ? (
-                          <div className="mt-2 rounded-md border border-emerald-200 bg-emerald-50 p-2 text-sm text-emerald-900">{referralClaimState.success}</div>
-                        ) : null}
-
-                        <div className="mt-2 flex flex-wrap gap-2">
-                          <button
-                            type="button"
-                            onClick={claimReferralReward}
-                            disabled={referralClaimState.loading}
-                            className="app-btn app-btn-primary disabled:opacity-60"
-                          >
-                            {referralClaimState.loading ? t('studio.common.processing') : t('studio.referral.claimButton')}
-                          </button>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="mt-3 rounded-md border border-slate-200 bg-white p-3">
-                        <label className="block text-sm font-semibold text-slate-900" htmlFor="referralCode">
-                          {t('studio.referral.enterCodeLabel')}
-                        </label>
-                        <div className="mt-2 flex flex-col gap-2 sm:flex-row">
-                          <input
-                            id="referralCode"
-                            value={referralCodeDraft}
-                            onChange={(e) => setReferralCodeDraft(e.target.value)}
-                            placeholder={t('studio.referral.enterCodePlaceholder')}
-                            className="w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
-                            autoComplete="off"
-                          />
-                          <button
-                            type="button"
-                            onClick={acceptReferralCode}
-                            disabled={referralAcceptState.loading}
-                            className="app-btn app-btn-primary disabled:opacity-60"
-                          >
-                            {referralAcceptState.loading ? t('studio.common.processing') : t('studio.referral.acceptButton')}
-                          </button>
-                        </div>
-
-                        {referralAcceptState.error ? (
-                          <div className="mt-2 rounded-md border border-rose-200 bg-rose-50 p-2 text-sm text-rose-900">{referralAcceptState.error}</div>
-                        ) : null}
-                        {referralAcceptState.success ? (
-                          <div className="mt-2 rounded-md border border-emerald-200 bg-emerald-50 p-2 text-sm text-emerald-900">{referralAcceptState.success}</div>
-                        ) : null}
-                      </div>
-                    )}
                   </div>
                 ) : null}
               </div>
             ) : null}
 
-            <div className="mt-6">
-              <PwaInstallCard variant="light" />
-            </div>
+            {!pwaInstalled ? (
+              <div className="mt-6">
+                <PwaInstallCard variant="light" />
+              </div>
+            ) : null}
 
             {showApplyBanner ? (
               <div className="mt-6 rounded-xl border border-amber-200 bg-amber-50 p-4">
@@ -1943,7 +2068,6 @@ export default function StudioProfile() {
 
                     <div>
                       <div className="font-semibold text-slate-900">{t('studio.profile.applySuccess.title')}</div>
-                      <div className="mt-1 text-sm text-slate-700">{t('studio.profile.applySuccess.subtitle')}</div>
                     </div>
                   </div>
 
@@ -1955,17 +2079,6 @@ export default function StudioProfile() {
                     {t('studio.common.close')}
                   </button>
                 </div>
-
-                {Array.isArray(applyNextSteps) ? (
-                  <ul className="mt-3 space-y-1 text-sm text-slate-700">
-                    {applyNextSteps.map((s, idx) => (
-                      <li key={idx} className="flex gap-2">
-                        <span className="text-amber-700">•</span>
-                        <span>{s}</span>
-                      </li>
-                    ))}
-                  </ul>
-                ) : null}
 
                 <div className="mt-4 grid grid-cols-1 gap-2 sm:flex sm:flex-wrap sm:items-center">
                   <Link
@@ -1986,12 +2099,6 @@ export default function StudioProfile() {
                   >
                     {t('studio.profile.applySuccess.ctas.learn')}
                   </Link>
-
-                  {applyApplicationId ? (
-                    <div className="text-xs text-slate-500">
-                      {t('studio.profile.applySuccess.applicationIdLabel')}: {applyApplicationId}
-                    </div>
-                  ) : null}
                 </div>
               </div>
             ) : null}
@@ -2066,20 +2173,6 @@ export default function StudioProfile() {
               </div>
             </div>
 
-            <div className="mt-6 border-t border-slate-200 pt-6">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <h2 className="text-lg font-semibold">{t('studio.profile.partnerPrefsTitle')}</h2>
-                <button
-                  type="button"
-                  onClick={openPartnerPrefsModal}
-                  className="app-btn app-btn-outline"
-                >
-                  <Edit className="mr-2 h-4 w-4" />
-                  {t('studio.profile.partnerPrefsCta')}
-                </button>
-              </div>
-            </div>
-
             <div className="mt-6">
               <div className="rounded-lg border border-rose-200 bg-rose-50 p-4">
                 <h3 className="text-lg font-semibold text-rose-800">{t('studio.profile.accountTitle')}</h3>
@@ -2106,9 +2199,9 @@ export default function StudioProfile() {
             </div>
 
             {verifyModalOpen ? (
-              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-                <div className="w-full max-w-xl rounded-xl bg-white shadow-xl">
-                  <div className="flex items-center justify-between border-b border-slate-200 p-4">
+              <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 p-4 pt-6 overflow-y-auto">
+                <div className="w-full max-w-xl rounded-xl bg-white shadow-xl max-h-[85vh] flex flex-col">
+                  <div className="flex items-center justify-between border-b border-slate-200 p-4 shrink-0">
                     <h3 className="text-lg font-semibold">{t('studio.profile.verifyModalTitle')}</h3>
                     <button
                       type="button"
@@ -2119,7 +2212,7 @@ export default function StudioProfile() {
                     </button>
                   </div>
 
-                  <div className="p-4 space-y-4">
+                  <div className="p-4 space-y-4 overflow-y-auto flex-1">
                     <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
                       <p className="text-sm text-slate-700 whitespace-pre-line">{t('studio.profile.verifyModalInfo')}</p>
                     </div>
@@ -2128,29 +2221,29 @@ export default function StudioProfile() {
                       <div className="grid grid-cols-2 gap-2">
                         <button
                           type="button"
-                          onClick={() => setVerifyMode('upload')}
+                          onClick={() => setVerifyMode('whatsapp_video')}
                           disabled={verifyAction.loading || verifySelectAction.loading || String(profile?.identityStatus || '').toLowerCase().trim() === 'pending'}
                           className={
                             "rounded-md border px-3 py-2 text-sm font-semibold transition " +
-                            (verifyMode === 'upload'
+                            (verifyMode === 'whatsapp_video'
                               ? 'bg-slate-900 text-white border-slate-900'
                               : 'bg-white text-slate-800 border-slate-200 hover:bg-slate-50')
                           }
                         >
-                          {t('studio.profile.verifyMethodUpload')}
+                          {t('studio.profile.verifyMethodSelfieVideo')}
                         </button>
                         <button
                           type="button"
-                          onClick={() => setVerifyMode('whatsapp_call')}
+                          onClick={() => setVerifyMode('social')}
                           disabled={verifyAction.loading || verifySelectAction.loading || String(profile?.identityStatus || '').toLowerCase().trim() === 'pending'}
                           className={
                             "rounded-md border px-3 py-2 text-sm font-semibold transition " +
-                            (verifyMode === 'whatsapp_call'
+                            (verifyMode === 'social'
                               ? 'bg-emerald-600 text-white border-emerald-600'
                               : 'bg-white text-slate-800 border-slate-200 hover:bg-slate-50')
                           }
                         >
-                          {t('studio.profile.verifyMethodWhatsApp')}
+                          {t('studio.profile.verifyMethodSocial')}
                         </button>
                       </div>
 
@@ -2163,11 +2256,10 @@ export default function StudioProfile() {
                       ) : null}
                     </div>
 
-                    {verifyMode === 'whatsapp_call' ? (
+                    {verifyMode === 'whatsapp_video' ? (
                       <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3">
-                        <p className="text-sm font-semibold text-emerald-900">{t('studio.profile.verifyWhatsAppTitle')}</p>
-                        <p className="mt-1 text-sm text-emerald-900/80">{t('studio.profile.verifyWhatsAppBody')}</p>
-                        <p className="mt-2 text-xs text-emerald-900/80 whitespace-pre-line">{t('studio.profile.verifyPrivacyNote')}</p>
+                        <p className="text-sm font-semibold text-emerald-900">{t('studio.profile.verifySelfieVideoTitle')}</p>
+                        <p className="mt-1 text-sm text-emerald-900/80">{t('studio.profile.verifySelfieVideoBody')}</p>
 
                         {verifySelectAction.error ? (
                           <div className="mt-3 rounded-md border border-rose-200 bg-white p-2 text-sm text-rose-700">
@@ -2187,7 +2279,7 @@ export default function StudioProfile() {
                           disabled={verifySelectAction.loading || !whatsappNumber || String(profile?.identityStatus || '').toLowerCase().trim() === 'pending'}
                           className="mt-3 app-btn app-btn-primary w-full disabled:opacity-60"
                         >
-                          {verifySelectAction.loading ? t('studio.common.loading') : t('studio.profile.verifyWhatsAppCta')}
+                          {verifySelectAction.loading ? t('studio.common.loading') : t('studio.profile.verifySelfieVideoCta')}
                         </button>
 
                         {!whatsappNumber ? (
@@ -2196,51 +2288,36 @@ export default function StudioProfile() {
                       </div>
                     ) : (
                       <>
-                        <div>
-                          <label className="block text-sm font-semibold text-slate-800">{t('studio.profile.idType')}</label>
-                          <select
-                            value={verifyForm.idType}
-                            onChange={(e) => setVerifyForm((p) => ({ ...p, idType: e.target.value }))}
-                            className="mt-1 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm"
-                          >
-                            <option value="tc_id">{t('studio.profile.idTypeTrId')}</option>
-                            <option value="passport">{t('studio.profile.idTypePassport')}</option>
-                            <option value="driver_license">{t('studio.profile.idTypeDriver')}</option>
-                          </select>
-                          <p className="mt-1 text-xs text-slate-500">{t('studio.profile.verifyPhotosHint')}</p>
-                          <p className="mt-1 text-xs text-slate-500 whitespace-pre-line">{t('studio.profile.verifyPrivacyNote')}</p>
-                        </div>
+                        <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                          <p className="text-sm font-semibold text-slate-900">{t('studio.profile.verifySocialTitle')}</p>
+                          <p className="mt-1 text-sm text-slate-700">{t('studio.profile.verifySocialBody')}</p>
 
-                        <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-                          <div>
-                            <label className="block text-sm font-semibold text-slate-800">{t('studio.profile.idFront')}</label>
-                            <input
-                              type="file"
-                              accept="image/*"
-                              onChange={(e) => setVerifyForm((p) => ({ ...p, idFront: e.target.files?.[0] || null }))}
-                              className="mt-1 block w-full text-sm"
-                              disabled={String(profile?.identityStatus || '').toLowerCase().trim() === 'pending'}
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-sm font-semibold text-slate-800">{t('studio.profile.idBack')}</label>
-                            <input
-                              type="file"
-                              accept="image/*"
-                              onChange={(e) => setVerifyForm((p) => ({ ...p, idBack: e.target.files?.[0] || null }))}
-                              className="mt-1 block w-full text-sm"
-                              disabled={String(profile?.identityStatus || '').toLowerCase().trim() === 'pending'}
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-sm font-semibold text-slate-800">{t('studio.profile.selfie')}</label>
-                            <input
-                              type="file"
-                              accept="image/*"
-                              onChange={(e) => setVerifyForm((p) => ({ ...p, selfie: e.target.files?.[0] || null }))}
-                              className="mt-1 block w-full text-sm"
-                              disabled={String(profile?.identityStatus || '').toLowerCase().trim() === 'pending'}
-                            />
+                          <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                            <label className="text-sm font-semibold text-slate-800">
+                              {t('studio.profile.verifySocialPlatform')}
+                              <select
+                                value={verifySocialForm.platform}
+                                onChange={(e) => setVerifySocialForm((p) => ({ ...(p || {}), platform: e.target.value }))}
+                                className="mt-1 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm"
+                                disabled={String(profile?.identityStatus || '').toLowerCase().trim() === 'pending'}
+                              >
+                                <option value="instagram">Instagram</option>
+                                <option value="tiktok">TikTok</option>
+                                <option value="youtube">YouTube</option>
+                                <option value="facebook">Facebook</option>
+                              </select>
+                            </label>
+
+                            <label className="text-sm font-semibold text-slate-800">
+                              {t('studio.profile.verifySocialUsername')}
+                              <input
+                                value={verifySocialForm.username}
+                                onChange={(e) => setVerifySocialForm((p) => ({ ...(p || {}), username: e.target.value }))}
+                                placeholder="ornek_kullanici"
+                                className="mt-1 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm"
+                                disabled={String(profile?.identityStatus || '').toLowerCase().trim() === 'pending'}
+                              />
+                            </label>
                           </div>
                         </div>
 
@@ -2266,10 +2343,10 @@ export default function StudioProfile() {
                       >
                         {t('studio.common.cancel')}
                       </button>
-                      {verifyMode === 'whatsapp_call' ? null : (
+                      {verifyMode === 'whatsapp_video' ? null : (
                         <button
                           type="button"
-                          onClick={submitManualVerification}
+                          onClick={submitSocialVerification}
                           disabled={verifyAction.loading || String(profile?.identityStatus || '').toLowerCase().trim() === 'pending'}
                           className="app-btn app-btn-primary disabled:opacity-60"
                         >
@@ -2282,10 +2359,95 @@ export default function StudioProfile() {
               </div>
             ) : null}
 
+            {identityIntroModalOpen ? (
+              <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 p-4 pt-6 overflow-y-auto" role="dialog" aria-modal="true">
+                <div className="w-full max-w-xl rounded-xl bg-white shadow-xl max-h-[85vh] flex flex-col">
+                  <div className="flex items-center justify-between border-b border-slate-200 p-4 shrink-0">
+                    <h3 className="text-lg font-semibold">{t('studio.profile.identityIntro.title')}</h3>
+                    <button
+                      type="button"
+                      onClick={() => setIdentityIntroModalOpen(false)}
+                      className="app-btn app-btn-ghost h-8 px-2 text-xs"
+                    >
+                      {t('studio.common.close')}
+                    </button>
+                  </div>
+
+                  <div className="p-4 space-y-4 overflow-y-auto flex-1">
+                    <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                      <p className="text-sm text-slate-700 whitespace-pre-line">{t('studio.profile.identityIntro.body')}</p>
+                    </div>
+
+                    <div className="flex items-center justify-end gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setIdentityIntroModalOpen(false)}
+                        className="app-btn app-btn-outline"
+                      >
+                        {t('studio.common.cancel')}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const hintId = 'identity-verify-intro-v1';
+                          markOneTimeHintShown(uid, hintId);
+                          setIdentityIntroModalOpen(false);
+                          openVerifyModalFlow();
+                        }}
+                        className="app-btn app-btn-primary"
+                      >
+                        {t('studio.profile.identityIntro.cta')}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ) : null}
+
+            {actionIntroModal?.open ? (
+              <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 p-4 pt-6 overflow-y-auto" role="dialog" aria-modal="true">
+                <div className="w-full max-w-xl rounded-xl bg-white shadow-xl max-h-[85vh] flex flex-col">
+                  <div className="flex items-center justify-between border-b border-slate-200 p-4 shrink-0">
+                    <h3 className="text-lg font-semibold">{actionIntroModal.title}</h3>
+                    <button type="button" onClick={closeActionIntroModal} className="app-btn app-btn-ghost h-8 px-2 text-xs">
+                      {t('studio.common.close')}
+                    </button>
+                  </div>
+
+                  <div className="p-4 space-y-4 overflow-y-auto flex-1">
+                    <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                      <p className="text-sm text-slate-700 whitespace-pre-line">{actionIntroModal.body}</p>
+                    </div>
+
+                    <div className="flex items-center justify-end gap-2">
+                      <button type="button" onClick={closeActionIntroModal} className="app-btn app-btn-outline">
+                        {t('studio.common.cancel')}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const fn = actionIntroContinueRef.current;
+                          closeActionIntroModal();
+                          try {
+                            fn?.();
+                          } catch {
+                            // ignore
+                          }
+                        }}
+                        className="app-btn app-btn-primary"
+                      >
+                        {actionIntroModal.cta}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ) : null}
+
             {partnerPrefsModalOpen ? (
-              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-                <div className="w-full max-w-3xl rounded-xl bg-white shadow-xl">
-                  <div className="flex items-center justify-between border-b border-slate-200 p-4">
+              <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 p-4 pt-6 overflow-y-auto" role="dialog" aria-modal="true">
+                <div className="w-full max-w-3xl rounded-xl bg-white shadow-xl max-h-[85vh] flex flex-col">
+                  <div className="flex items-center justify-between border-b border-slate-200 p-4 shrink-0">
                     <h3 className="text-lg font-semibold">{t('studio.profile.partnerPrefsTitle')}</h3>
                     <button
                       type="button"
@@ -2297,7 +2459,7 @@ export default function StudioProfile() {
                     </button>
                   </div>
 
-                  <div className="p-4 space-y-4">
+                  <div className="p-4 space-y-4 overflow-y-auto flex-1">
                     {partnerPrefsSaveState.error ? (
                       <div className="rounded-md border border-rose-200 bg-rose-50 p-2 text-sm text-rose-900">{partnerPrefsSaveState.error}</div>
                     ) : null}
@@ -2713,6 +2875,169 @@ export default function StudioProfile() {
       </main>
 
       <StudioBottomNav />
+
+      {photoManagerOpen ? (
+        <div className="fixed inset-0 z-50 flex items-start justify-center p-4 pt-6 overflow-y-auto">
+          <div className="absolute inset-0 bg-slate-900/60" onClick={closePhotoManager} />
+          <div className="relative w-full max-w-2xl rounded-xl border border-slate-200 bg-white shadow-xl max-h-[85vh] flex flex-col">
+            <div className="flex items-center justify-between border-b border-slate-200 p-4 shrink-0">
+              <div className="font-semibold text-slate-900">{shortLabel('matchmakingPanel.photos.title', 'Fotoğraflar')}</div>
+              <button type="button" onClick={closePhotoManager} className="app-btn app-btn-ghost h-9 px-3">
+                <X className="h-4 w-4" />
+                {isTr ? 'Kapat' : t('studio.common.close', { defaultValue: 'Close' })}
+              </button>
+            </div>
+
+            <div className="p-4 overflow-y-auto flex-1">
+              <div className="text-sm text-slate-600">
+                {isTr
+                  ? 'Mevcut fotoğraflarınızı görüntüleyin ve dilediğiniz zaman yenileyin. En fazla 5 görsel.'
+                  : 'View your photos and update any time. Up to 5 images.'}
+              </div>
+
+              <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-5">
+                {Array.from({ length: 5 }).map((_, idx) => {
+                  const url = String(photoManagerDraft?.urls?.[idx] || '').trim();
+                  const preview = String(photoManagerDraft?.previews?.[idx] || '').trim();
+                  const file = photoManagerDraft?.files?.[idx] || null;
+                  const shown = preview || url;
+                  const label = isTr ? `Fotoğraf ${idx + 1}` : `Photo ${idx + 1}`;
+
+                  return (
+                    <div key={idx} className="rounded-lg border border-slate-200 bg-slate-50 p-2">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="text-[11px] font-semibold text-slate-700">{label}</div>
+                        {shown ? (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setPhotoManagerDraft((p) => {
+                                const nextUrls = Array.isArray(p?.urls) ? [...p.urls] : ['', '', '', '', ''];
+                                const nextFiles = Array.isArray(p?.files) ? [...p.files] : [null, null, null, null, null];
+                                const nextPreviews = Array.isArray(p?.previews) ? [...p.previews] : ['', '', '', '', ''];
+
+                                if (nextPreviews[idx] && String(nextPreviews[idx]).startsWith('blob:')) {
+                                  try {
+                                    URL.revokeObjectURL(nextPreviews[idx]);
+                                  } catch {
+                                    // ignore
+                                  }
+                                }
+
+                                nextUrls[idx] = '';
+                                nextFiles[idx] = null;
+                                nextPreviews[idx] = '';
+
+                                return { ...p, urls: nextUrls, files: nextFiles, previews: nextPreviews };
+                              });
+                            }}
+                            className="app-btn app-btn-ghost h-7 px-2 text-xs"
+                            title={isTr ? 'Kaldır' : 'Remove'}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        ) : null}
+                      </div>
+
+                      <div className="mt-2 overflow-hidden rounded-md border border-slate-200 bg-white">
+                        {shown ? (
+                          <a href={shown} target="_blank" rel="noopener noreferrer" className="block">
+                            <img src={shown} alt={label} className="h-28 w-full object-cover" loading="lazy" />
+                          </a>
+                        ) : (
+                          <div className="flex h-28 items-center justify-center text-xs text-slate-500">
+                            {isTr ? 'Boş' : 'Empty'}
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="mt-2">
+                        <input
+                          id={`photo-slot-${idx}`}
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={(e) => {
+                            const f = e.target.files?.[0] || null;
+                            if (!f) return;
+                            if (!isImageFile(f)) {
+                              setPhotoUpdateAction({ loading: false, error: t('matchmakingPanel.photos.updateRequest.errors.photoType'), success: '' });
+                              return;
+                            }
+
+                            let previewUrl = '';
+                            try {
+                              previewUrl = URL.createObjectURL(f);
+                            } catch {
+                              previewUrl = '';
+                            }
+
+                            setPhotoManagerDraft((p) => {
+                              const nextUrls = Array.isArray(p?.urls) ? [...p.urls] : ['', '', '', '', ''];
+                              const nextFiles = Array.isArray(p?.files) ? [...p.files] : [null, null, null, null, null];
+                              const nextPreviews = Array.isArray(p?.previews) ? [...p.previews] : ['', '', '', '', ''];
+
+                              if (nextPreviews[idx] && String(nextPreviews[idx]).startsWith('blob:')) {
+                                try {
+                                  URL.revokeObjectURL(nextPreviews[idx]);
+                                } catch {
+                                  // ignore
+                                }
+                              }
+
+                              nextFiles[idx] = f;
+                              nextPreviews[idx] = previewUrl;
+                              return { ...p, urls: nextUrls, files: nextFiles, previews: nextPreviews };
+                            });
+                          }}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            try {
+                              document.getElementById(`photo-slot-${idx}`)?.click();
+                            } catch {
+                              // ignore
+                            }
+                          }}
+                          className="app-btn app-btn-outline w-full"
+                          disabled={photoUpdateAction.loading}
+                        >
+                          {shown ? (isTr ? 'Değiştir' : 'Replace') : isTr ? 'Ekle' : 'Add'}
+                        </button>
+                        {file?.name ? <div className="mt-1 text-[11px] text-slate-500 break-words">{file.name}</div> : null}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {photoUpdateAction.error ? (
+                <div className="mt-4 rounded-md border border-rose-200 bg-rose-50 p-2 text-sm text-rose-900">{photoUpdateAction.error}</div>
+              ) : null}
+              {photoUpdateAction.success ? (
+                <div className="mt-4 rounded-md border border-emerald-200 bg-emerald-50 p-2 text-sm text-emerald-900">{photoUpdateAction.success}</div>
+              ) : null}
+
+              <div className="mt-4 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                <button type="button" onClick={closePhotoManager} className="app-btn app-btn-outline" disabled={photoUpdateAction.loading}>
+                  {isTr ? 'Vazgeç' : 'Cancel'}
+                </button>
+                <button type="button" onClick={savePhotoUpdates} className="app-btn app-btn-primary" disabled={photoUpdateAction.loading}>
+                  {photoUpdateAction.loading ? t('studio.common.processing') : isTr ? 'Kaydet' : 'Save'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {pwaInstalled ? (
+        <div className="mt-8">
+          <PwaInstallCard variant="light" />
+        </div>
+      ) : null}
+
       <Footer />
     </div>
   );

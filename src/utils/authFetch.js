@@ -1,4 +1,5 @@
 import { auth } from '../config/firebase';
+import { buildSupportReport, storeSupportReport } from './supportReport.js';
 
 function isDebugApiEnabled() {
   if (typeof window === 'undefined') return false;
@@ -64,6 +65,15 @@ export async function authFetch(url, { headers = {}, ...options } = {}) {
       },
     });
   } catch (e) {
+    // Best-effort: prepare a report for support (no auto-redirect here).
+    storeSupportReport(
+      buildSupportReport({
+        kind: 'api_unreachable',
+        flow: 'authFetch',
+        message: 'fetch_failed',
+        extra: { url: String(url || ''), cause: String(e?.message || e || '') },
+      })
+    );
     const err = new Error('api_unreachable');
     err.cause = e;
     throw err;
@@ -99,6 +109,24 @@ export async function authFetch(url, { headers = {}, ...options } = {}) {
     err.status = res.status;
     err.url = url;
     if (!data && rawText) err.responseText = rawText.slice(0, 2000);
+
+    // Prepare a report for support to be shared via Contact.
+    try {
+      storeSupportReport(
+        buildSupportReport({
+          kind: 'api_error',
+          flow: 'authFetch',
+          code: String(data?.error || res.status || ''),
+          message: String(data?.error || `http_${res.status}`),
+          extra: {
+            url: String(url || ''),
+            status: res.status,
+          },
+        })
+      );
+    } catch {
+      // ignore
+    }
 
     if (isDebugApiEnabled()) {
       const dataString = data ? JSON.stringify(data).slice(0, 1200) : '';

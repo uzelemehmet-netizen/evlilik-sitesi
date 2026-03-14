@@ -12,6 +12,81 @@ import { authFetch } from '../../utils/authFetch';
 import { normalizePhoneForWhatsApp } from '../../utils/phone';
 import { translateStudioApiError } from '../../utils/studioErrorI18n';
 import StudioBottomNav from '../../components/studio/StudioBottomNav';
+import { isTutorialActive } from '../../utils/tutorialState.js';
+
+function safeStr(v) {
+  return typeof v === 'string' ? v.trim() : '';
+}
+
+function asNum(v) {
+  if (v === null || v === undefined) return null;
+  if (typeof v === 'string') {
+    const t = v.trim();
+    if (!t) return null;
+    const n = Number(t);
+    return Number.isFinite(n) ? n : null;
+  }
+  const n = typeof v === 'number' ? v : Number(v);
+  return Number.isFinite(n) ? n : null;
+}
+
+function normalizeGenderValue(v) {
+  const s = safeStr(v).toLowerCase();
+  if (s === 'male' || s === 'm' || s === 'man' || s === 'erkek') return 'male';
+  if (s === 'female' || s === 'f' || s === 'woman' || s === 'kadin' || s === 'kadın') return 'female';
+  return '';
+}
+
+function normalizeMaritalStatus(v) {
+  return safeStr(v).toLowerCase();
+}
+
+function isMinimumProfileCompleteFromUserDoc(d) {
+  const userDoc = d && typeof d === 'object' ? d : {};
+  const appFromUser = userDoc?.application && typeof userDoc.application === 'object' ? userDoc.application : null;
+  const publicProfile = userDoc?.publicProfile && typeof userDoc.publicProfile === 'object' ? userDoc.publicProfile : null;
+  const merged = {
+    ...(publicProfile || {}),
+    ...(appFromUser || {}),
+    ...(userDoc || {}),
+    details: {
+      ...((publicProfile && typeof publicProfile.details === 'object' ? publicProfile.details : {}) || {}),
+      ...((appFromUser && typeof appFromUser.details === 'object' ? appFromUser.details : {}) || {}),
+      ...((userDoc?.details && typeof userDoc.details === 'object' ? userDoc.details : {}) || {}),
+    },
+  };
+
+  const details = merged?.details && typeof merged.details === 'object' ? merged.details : {};
+
+  const fullName = safeStr(merged?.fullName);
+  const age = asNum(merged?.age);
+  const gender = normalizeGenderValue(merged?.gender);
+  const city = safeStr(merged?.city);
+  const country = safeStr(merged?.country);
+  const nationality = safeStr(merged?.nationality);
+  const occupation = safeStr(details?.occupation) || safeStr(merged?.occupation);
+  const maritalStatus = normalizeMaritalStatus(details?.maritalStatus || merged?.maritalStatus);
+
+  if (!fullName) return false;
+  if (!(typeof age === 'number' && Number.isFinite(age) && age >= 18 && age <= 99)) return false;
+  if (!gender) return false;
+  if (!city) return false;
+  if (!country) return false;
+  if (!nationality) return false;
+  if (!occupation) return false;
+  if (!maritalStatus) return false;
+
+  if (maritalStatus === 'widowed' || maritalStatus === 'divorced') {
+    const hasChildren = safeStr(details?.hasChildren || merged?.hasChildren).toLowerCase();
+    if (!hasChildren) return false;
+    if (hasChildren === 'yes') {
+      const cnt = asNum(details?.childrenCount);
+      if (!(typeof cnt === 'number' && Number.isFinite(cnt) && cnt >= 1 && cnt <= 20)) return false;
+    }
+  }
+
+  return true;
+}
 
 function isDebugApiEnabled() {
   if (typeof window === 'undefined') return false;
@@ -129,7 +204,31 @@ export default function StudioChat() {
     }
   };
 
+  useEffect(() => {
+    if (!isTutorialActive()) return;
+    if (!profileGateNotice) return;
+    const id = setTimeout(() => setProfileGateNotice(''), 3000);
+    return () => {
+      try {
+        clearTimeout(id);
+      } catch {
+        // noop
+      }
+    };
+  }, [profileGateNotice]);
+
   const activateFreeMembershipNow = async () => {
+      const paywallAutoActivateRef = useRef(false);
+      useEffect(() => {
+        if (!paywallNotice) {
+          paywallAutoActivateRef.current = false;
+          return;
+        }
+        if (paywallAutoActivateRef.current) return;
+        paywallAutoActivateRef.current = true;
+        // Üyelik artık otomatik veriliyor; paywall görünürse best-effort arkada düzelt.
+        activateFreeMembershipNow();
+      }, [paywallNotice]);
     if (!uid) return;
     if (activateMembershipRef.current) return;
     activateMembershipRef.current = true;
@@ -179,15 +278,7 @@ export default function StudioChat() {
           (!!membershipObj?.active && (!membershipValidUntilMs || membershipValidUntilMs > now));
         setMyMembership({ active: membershipActive });
 
-        const about = String(
-          d?.details?.about ||
-            d?.publicProfile?.about ||
-            d?.application?.about ||
-            d?.application?.aboutTr ||
-            d?.application?.aboutId ||
-            ''
-        ).trim();
-        setMyProfileComplete(!!about);
+        setMyProfileComplete(isMinimumProfileCompleteFromUserDoc(d));
 
         setMyCommLanguage(String(d?.details?.communicationLanguage || '').trim());
       } catch {
@@ -212,16 +303,7 @@ export default function StudioChat() {
           (!!membershipObj?.active && (!membershipValidUntilMs || membershipValidUntilMs > now));
         setMyMembership({ active: membershipActive });
 
-        const about = String(
-          d?.details?.about ||
-            d?.publicProfile?.about ||
-            d?.application?.about ||
-            d?.application?.aboutTr ||
-            d?.application?.aboutId ||
-            ''
-        ).trim();
-        // 2026-02: Apply form no longer asks for expectations.
-        setMyProfileComplete(!!about);
+        setMyProfileComplete(isMinimumProfileCompleteFromUserDoc(d));
 
         setMyCommLanguage(String(d?.details?.communicationLanguage || '').trim());
       },
@@ -659,11 +741,7 @@ export default function StudioChat() {
     if (!uid || !mid || !text) return;
     if (sendState.loading) return;
 
-    if (!myProfileComplete) {
-      requireProfile();
-      setSendState({ loading: false, error: t('studio.profileGate.body') });
-      return;
-    }
+    // Profile completeness is enforced server-side; client-side cache can be stale.
 
     // Üyelik aktif değilken kısa mesaj gönderemez (okuma serbest).
     if (shortChatAllowed && !myMembership?.active) {
@@ -770,12 +848,6 @@ export default function StudioChat() {
               </button>
             </div>
             <p className="mt-1 text-sm text-amber-900/80">{paywallNotice}</p>
-            <div className="mt-3">
-              <button type="button" onClick={activateFreeMembershipNow} className="app-btn app-btn-indigo h-10 px-4">
-                <Unlock className="h-4 w-4" />
-                {t('studio.paywall.upgradeCta')}
-              </button>
-            </div>
           </div>
         ) : null}
 

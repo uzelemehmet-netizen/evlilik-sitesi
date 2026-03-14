@@ -1,6 +1,7 @@
 import Navigation from '../components/Navigation';
 import Footer from '../components/Footer';
 import HeroSocialButtons from '../components/HeroSocialButtons';
+import StickyWhatsApp from '../components/StickyWhatsApp';
 import { Link } from 'react-router-dom';
 import { Trans, useTranslation } from 'react-i18next';
 import { isFeatureEnabled } from '../config/siteVariant';
@@ -8,6 +9,7 @@ import { isFeatureEnabled } from '../config/siteVariant';
 export default function About() {
   const { t } = useTranslation();
   const whyUsItems = t('about.whyUs.items', { returnObjects: true });
+  const showWedding = isFeatureEnabled('wedding');
 
   return (
     <div className="min-h-screen bg-white">
@@ -48,7 +50,7 @@ export default function About() {
               {t('about.brand.p2')}
             </p>
             <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
-              {isFeatureEnabled('wedding') && (
+              {showWedding && (
                 <Link to="/wedding" className="p-4 rounded-2xl bg-white border border-emerald-100 shadow-sm hover:shadow-md transition block">
                   <p className="text-xs uppercase tracking-wide text-emerald-700 mb-1" style={{ fontFamily: '"Poppins", sans-serif' }}>
                     {t('about.brand.cards.weddingTitle')}
@@ -58,10 +60,8 @@ export default function About() {
                   </p>
                 </Link>
               )}
-              <a
-                href="https://dameturk.com"
-                target="_blank"
-                rel="noopener noreferrer"
+              <Link
+                to={showWedding ? '/evlilik' : '/contact'}
                 className="p-4 rounded-2xl bg-white border border-emerald-100 shadow-sm hover:shadow-md transition block"
               >
                 <p className="text-xs uppercase tracking-wide text-emerald-700 mb-1" style={{ fontFamily: '"Poppins", sans-serif' }}>
@@ -70,7 +70,7 @@ export default function About() {
                 <p className="text-sm text-gray-700" style={{ fontFamily: '"Poppins", sans-serif' }}>
                   {t('about.brand.cards.dameturkDesc')}
                 </p>
-              </a>
+              </Link>
             </div>
             <p className="mt-4 text-sm text-gray-700" style={{ fontFamily: '"Poppins", sans-serif' }}>
               {t('about.brand.socialNote')}
@@ -323,6 +323,7 @@ export default function About() {
         </div>
       </section>
 
+      <StickyWhatsApp />
       <Footer />
     </div>
   );

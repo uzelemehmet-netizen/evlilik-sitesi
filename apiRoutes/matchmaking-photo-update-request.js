@@ -36,12 +36,10 @@ function pickBestApplication(items) {
 
 function normalizePhotoSlots(v) {
   const raw = Array.isArray(v) ? v : [];
-  const out = raw
-    .slice(0, 3)
+  return raw
+    .slice(0, 5)
     .map((x) => (typeof x === 'string' ? x.trim() : ''))
     .map((s) => (s ? s : ''));
-  while (out.length < 3) out.push('');
-  return out;
 }
 
 function countNonEmpty(arr) {
@@ -70,7 +68,7 @@ export default async function handler(req, res) {
     const photoUrlsBySlot = normalizePhotoSlots(body?.photoUrls);
     const providedCount = countNonEmpty(photoUrlsBySlot);
 
-    if (providedCount < 1 || providedCount > 3) {
+    if (providedCount < 1 || providedCount > 5) {
       res.statusCode = 400;
       res.setHeader('content-type', 'application/json');
       res.end(JSON.stringify({ ok: false, error: 'bad_request' }));
@@ -103,9 +101,6 @@ export default async function handler(req, res) {
       appRef = db.collection('matchmakingApplications').doc(bestId);
     }
 
-    const reqRef = db.collection('matchmakingPhotoUpdateRequests').doc();
-
-    let requestId = '';
     let applicationId = '';
 
     await db.runTransaction(async (tx) => {
@@ -122,48 +117,16 @@ export default async function handler(req, res) {
         err.statusCode = 403;
         throw err;
       }
-      const existing = app?.photoUpdate || null;
-      const status = safeStr(existing?.status);
-      if (status === 'pending') {
-        const err = new Error('pending_exists');
-        err.statusCode = 409;
-        throw err;
-      }
-
       applicationId = appRef.id;
-      requestId = reqRef.id;
-
       const now = FieldValue.serverTimestamp();
-      const previousPhotoUrlsBySlot = normalizePhotoSlots(app?.photoUrls);
-      const previousPhotoUrls = previousPhotoUrlsBySlot.filter(Boolean);
-      const slots = photoUrlsBySlot
-        .map((u, idx) => (u ? idx : null))
-        .filter((x) => typeof x === 'number');
 
-      tx.set(
-        reqRef,
-        {
-          userId: uid,
-          applicationId,
-          status: 'pending',
-          photoUrls: photoUrlsBySlot,
-          photoSlots: slots,
-          previousPhotoUrls,
-          previousPhotoUrlsBySlot,
-          createdAt: now,
-          updatedAt: now,
-        },
-        { merge: true }
-      );
+      const finalUrls = photoUrlsBySlot.filter(Boolean).slice(0, 5);
 
       tx.set(
         appRef,
         {
-          photoUpdate: {
-            status: 'pending',
-            requestId,
-            requestedAt: now,
-          },
+          photoUrls: finalUrls,
+          photoUpdate: FieldValue.delete(),
           updatedAt: now,
         },
         { merge: true }
@@ -172,7 +135,7 @@ export default async function handler(req, res) {
 
     res.statusCode = 200;
     res.setHeader('content-type', 'application/json');
-    res.end(JSON.stringify({ ok: true, requestId, applicationId }));
+    res.end(JSON.stringify({ ok: true, applicationId }));
   } catch (e) {
     res.statusCode = e?.statusCode || 500;
     res.setHeader('content-type', 'application/json');

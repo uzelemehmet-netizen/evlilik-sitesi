@@ -1,5 +1,6 @@
 import { getAdmin, normalizeBody, requireIdToken } from './_firebaseAdmin.js';
 import { assertNotResetIgnoredMatch, getMatchmakingResetAtMs } from './_matchmakingReset.js';
+import { sendPushToUid } from './_push.js';
 
 function safeStr(v) {
   return typeof v === 'string' ? v.trim() : '';
@@ -51,6 +52,9 @@ export default async function handler(req, res) {
 
     const ts = nowMs();
     let activated = false;
+    let otherUidForPush = '';
+    let newStartByMe = false;
+    let activatedByThisCall = false;
 
     await db.runTransaction(async (tx) => {
       const snap = await tx.get(matchRef);
@@ -88,6 +92,8 @@ export default async function handler(req, res) {
         throw err;
       }
 
+      otherUidForPush = otherUid;
+
       // Yeni kural: sadece 1 aktif eşleşme.
       // İki tarafın da başka bir aktif lock'u olmamalı.
       const meRef = db.collection('matchmakingUsers').doc(uid);
@@ -116,6 +122,11 @@ export default async function handler(req, res) {
       }
 
       const startedByUid = match?.activeStartByUid && typeof match.activeStartByUid === 'object' ? { ...match.activeStartByUid } : {};
+
+      const prevMe = !!startedByUid[uid];
+      const prevOther = !!startedByUid[otherUid];
+      newStartByMe = !prevMe;
+
       startedByUid[uid] = true;
 
       const patch = {
@@ -126,6 +137,7 @@ export default async function handler(req, res) {
       const bothStarted = !!startedByUid[uid] && !!startedByUid[otherUid];
       if (bothStarted) {
         activated = true;
+        activatedByThisCall = newStartByMe; // second starter activates
 
         patch.status = 'mutual_accepted';
         patch.mutualAcceptedAtMs = ts;
@@ -178,6 +190,43 @@ export default async function handler(req, res) {
 
       tx.set(matchRef, patch, { merge: true });
     });
+
+    // Push notifications (best-effort).
+    try {
+      if (activated && activatedByThisCall) {
+        // Activated now -> notify both.
+        await sendPushToUid({
+          uid,
+          title: 'Eşleşme aktif',
+          body: 'Eşleşmeniz aktifleşti. Sohbet başlayabilir.',
+          url: '/profilim',
+          type: 'active_match_activated',
+          data: { matchId },
+        });
+        if (otherUidForPush) {
+          await sendPushToUid({
+            uid: otherUidForPush,
+            title: 'Eşleşme aktif',
+            body: 'Eşleşmeniz aktifleşti. Sohbet başlayabilir.',
+            url: '/profilim',
+            type: 'active_match_activated',
+            data: { matchId },
+          });
+        }
+      } else if (!activated && newStartByMe && otherUidForPush) {
+        // Start request -> notify other.
+        await sendPushToUid({
+          uid: otherUidForPush,
+          title: 'Aktif eşleşme isteği',
+          body: 'Karşı taraf eşleşmeyi aktive etmek istiyor.',
+          url: '/profilim',
+          type: 'active_match_request',
+          data: { matchId, fromUid: uid },
+        });
+      }
+    } catch {
+      // ignore
+    }
 
     res.statusCode = 200;
     res.setHeader('content-type', 'application/json');

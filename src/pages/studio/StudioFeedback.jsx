@@ -164,7 +164,7 @@ export default function StudioFeedback() {
                   <div className="min-w-0">{t('studio.feedback.urgentNote')}</div>
                   <a
                     className="app-btn app-btn-primary h-8 px-3 text-xs w-full sm:w-auto justify-center"
-                    href={buildWhatsAppUrl(t('matchmakingHub.whatsappSupportMessage'))}
+                    href={buildWhatsAppUrl(t('matchmakingHub.whatsappSupportMessage'), { lang: String(i18n?.language || 'tr') })}
                     target="_blank"
                     rel="noreferrer"
                   >
@@ -272,7 +272,7 @@ export default function StudioFeedback() {
                       <div className="mt-3">
                         <a
                           className="app-btn app-btn-primary"
-                          href={buildWhatsAppUrl(ticketWhatsAppMsg)}
+                          href={buildWhatsAppUrl(ticketWhatsAppMsg, { lang: String(i18n?.language || 'tr') })}
                           target="_blank"
                           rel="noreferrer"
                         >

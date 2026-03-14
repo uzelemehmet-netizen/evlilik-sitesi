@@ -5,7 +5,7 @@ import { isFeatureEnabled } from "../config/siteVariant";
 import { buildWhatsAppUrl } from "../utils/whatsapp";
 import { useTranslation } from "react-i18next";
 
-function buildWhatsappLink(pathname, t) {
+function buildWhatsappLink(pathname, t, lang) {
   let message = t("floatingWhatsapp.messages.default");
 
   const path = pathname || "/";
@@ -20,19 +20,28 @@ function buildWhatsappLink(pathname, t) {
     message = t("floatingWhatsapp.messages.home");
   }
 
-  return buildWhatsAppUrl(message);
+  return buildWhatsAppUrl(message, { lang });
 }
 
 export default function FloatingWhatsApp() {
   const location = useLocation();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
 
   const isHidden = useMemo(() => {
     const path = location.pathname || "/";
-    return path.startsWith("/admin");
+    if (path.startsWith("/admin")) return true;
+
+    // Bu sayfalarda sayfaya-özel Sticky WhatsApp kullanıyoruz.
+    if (path === "/about") return true;
+    if (path.startsWith("/wedding") || path.startsWith("/evlilik")) return true;
+
+    return false;
   }, [location.pathname]);
 
-  const whatsappLink = useMemo(() => buildWhatsappLink(location.pathname, t), [location.pathname, t]);
+  const whatsappLink = useMemo(
+    () => buildWhatsappLink(location.pathname, t, String(i18n?.language || 'tr')),
+    [i18n?.language, location.pathname, t]
+  );
 
   if (isHidden) return null;
 
@@ -41,7 +50,7 @@ export default function FloatingWhatsApp() {
       href={whatsappLink}
       target="_blank"
       rel="noopener noreferrer"
-      className="fixed bottom-4 right-4 z-[80] inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-green-500 to-emerald-500 text-white px-4 py-3 font-semibold shadow-lg hover:shadow-xl transition-shadow"
+      className="hidden sm:inline-flex fixed bottom-4 right-4 z-[80] items-center gap-2 rounded-full bg-gradient-to-r from-green-500 to-emerald-500 text-white px-4 py-3 font-semibold shadow-lg hover:shadow-xl transition-shadow"
       aria-label={t("floatingWhatsapp.ariaLabel")}
     >
       <MessageCircle size={18} />

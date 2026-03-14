@@ -11,11 +11,148 @@ import { db } from '../config/firebase';
 import GeminiFAQ from '../components/gemini/GeminiFAQ';
 import PwaInstallCard from '../components/PwaInstallCard.jsx';
 import { staticAssetUrl } from '../utils/staticAssetUrl';
+import { tiktokTrack } from '../utils/tiktokPixel';
+
+const FALLBACK_THUMB_DATA_URL =
+  'data:image/svg+xml;charset=utf-8,' +
+  encodeURIComponent(
+    `<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720">
+      <rect width="1280" height="720" fill="#000"/>
+      <g opacity="0.92">
+        <circle cx="640" cy="360" r="84" fill="#fff" opacity="0.18"/>
+        <path d="M 615 318 L 615 402 L 695 360 Z" fill="#fff"/>
+      </g>
+      <text x="50%" y="92%" text-anchor="middle" fill="#fff" font-size="28" font-family="Arial, sans-serif" opacity="0.9">Önizleme yüklenemedi</text>
+    </svg>`
+  );
 
 export default function MatchmakingHub() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { user } = useAuth();
-  const BRAND_LOGO_SRC = staticAssetUrl('/brand-horizontal-source.jpg');
+  const BRAND_LOGO_SRC = staticAssetUrl('/brand-logo.webp');
+
+  const youtubeVideos = [
+    // YouTube video önizlemeleri (thumbnail + tıklayınca lazy iframe)
+    'https://youtu.be/Kgfd9KrKRdc?si=EGRqcQVqGMnZPvpp',
+    'https://youtu.be/emeOAdBT8TU?si=vvvVQWRrS7vMGB0w',
+    'https://youtu.be/OgIGPCsiEu4?si=MerWKK5Fo2U_JNM3',
+  ];
+
+  const parseYouTubeId = (url) => {
+    try {
+      const raw = String(url || '').trim();
+      if (!raw) return '';
+
+      // Accept youtu.be/<id>
+      if (raw.includes('youtu.be/')) {
+        const u = new URL(raw);
+        const id = String(u.pathname || '').replace(/^\//, '').split('/')[0] || '';
+        return id.slice(0, 32);
+      }
+
+      // Accept youtube.com/watch?v=<id> and embed variants
+      const u = new URL(raw);
+      const host = String(u.hostname || '').toLowerCase();
+      if (host.includes('youtube.com')) {
+        const v = u.searchParams.get('v');
+        if (v) return String(v).slice(0, 32);
+
+        const path = String(u.pathname || '');
+        const m = path.match(/\/(embed|shorts)\/([^/?#]+)/i);
+        if (m && m[2]) return String(m[2]).slice(0, 32);
+      }
+
+      return '';
+    } catch {
+      return '';
+    }
+  };
+
+  const [activeVideoIndex, setActiveVideoIndex] = useState(null);
+
+  const renderVideoCard = (videoUrl, idx) => {
+    const videoId = parseYouTubeId(videoUrl);
+    const isActive = activeVideoIndex === idx;
+    const thumb = videoId ? staticAssetUrl(`/youtube-thumbs/${videoId}.jpg`) : '';
+    const embed = videoId
+      ? `https://www.youtube-nocookie.com/embed/${videoId}?autoplay=1&rel=0&modestbranding=1&playsinline=1`
+      : '';
+
+    const handleThumbError = (e) => {
+      try {
+        const img = e?.currentTarget;
+        if (!img || !videoId) return;
+
+        const step = Number(img?.dataset?.fallbackStep || '0');
+        if (step === 0) {
+          img.dataset.fallbackStep = '1';
+          img.src = `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`;
+          return;
+        }
+        if (step === 1) {
+          img.dataset.fallbackStep = '2';
+          img.src = `https://img.youtube.com/vi/${videoId}/mqdefault.jpg`;
+          return;
+        }
+        if (step === 2) {
+          img.dataset.fallbackStep = '3';
+          img.src = `https://img.youtube.com/vi/${videoId}/default.jpg`;
+          return;
+        }
+
+        // Final fallback: inline placeholder (covers adblock / network blocks)
+        img.dataset.fallbackStep = '4';
+        img.onerror = null;
+        img.src = FALLBACK_THUMB_DATA_URL;
+      } catch {
+        // ignore
+      }
+    };
+
+    return (
+      <div className="rounded-2xl border border-slate-200 bg-slate-50 overflow-hidden">
+        <div className="relative w-full pt-[56.25%]">
+          {isActive && embed ? (
+            <iframe
+              className="absolute inset-0 h-full w-full"
+              src={embed}
+              title={`YouTube video ${idx + 1}`}
+              loading="lazy"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; fullscreen"
+              referrerPolicy="strict-origin-when-cross-origin"
+              allowFullScreen
+            />
+          ) : (
+            <button
+              type="button"
+              onClick={() => setActiveVideoIndex(idx)}
+              className="absolute inset-0 w-full h-full text-left"
+              aria-label="Videoyu oynat"
+            >
+              {thumb ? (
+                <img
+                  src={thumb}
+                  alt=""
+                  className="h-full w-full object-cover"
+                  loading="lazy"
+                  decoding="async"
+                  onError={handleThumbError}
+                />
+              ) : (
+                <div className="absolute inset-0 flex items-center justify-center text-xs text-slate-500">
+                  Video önizlemesi
+                </div>
+              )}
+              <div className="absolute inset-0 bg-gradient-to-t from-slate-950/35 via-transparent to-transparent" />
+              <div className="absolute bottom-2 left-2 inline-flex items-center gap-2 rounded-full bg-white/95 border border-slate-200 px-3 py-1 text-[11px] font-semibold text-slate-900 shadow-sm">
+                Oynat
+              </div>
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  };
 
   const [checkingApplication, setCheckingApplication] = useState(false);
   const [hasApplication, setHasApplication] = useState(false);
@@ -173,7 +310,7 @@ export default function MatchmakingHub() {
                       </Link>
                     )}
 
-                    {canShowApply && (
+                    {!user && canShowApply && (
                       <Link
                         to="/login?mode=signup"
                         state={{
@@ -182,6 +319,12 @@ export default function MatchmakingHub() {
                             showMatchmakingIntro: true,
                             matchmakingNext: '/evlilik/eslestirme-basvuru?w=1',
                           },
+                        }}
+                        onClick={() => {
+                          tiktokTrack('SignupRedirect', {
+                            source: 'matchmaking_hub_apply',
+                            to: '/login?mode=signup',
+                          });
                         }}
                         className="app-btn app-btn-primary-light h-10 px-5"
                       >
@@ -202,7 +345,7 @@ export default function MatchmakingHub() {
                     )}
 
                     <a
-                      href={buildWhatsAppUrl(t('matchmakingHub.whatsappSupportMessage'))}
+                      href={buildWhatsAppUrl(t('matchmakingHub.whatsappSupportMessage'), { lang: String(i18n?.language || 'tr') })}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="app-btn app-btn-primary h-10 px-5"
@@ -212,9 +355,21 @@ export default function MatchmakingHub() {
                     </a>
                   </div>
 
+                  {youtubeVideos?.[0] ? (
+                    <div className="mt-5 lg:hidden">
+                      {renderVideoCard(youtubeVideos[0], 0)}
+                    </div>
+                  ) : null}
+
                   <div className="mt-5">
                     <PwaInstallCard variant="light" flat />
                   </div>
+
+                  {youtubeVideos?.[1] ? (
+                    <div className="mt-4 lg:hidden">
+                      {renderVideoCard(youtubeVideos[1], 1)}
+                    </div>
+                  ) : null}
 
                   <div className="mt-7 grid grid-cols-1 sm:grid-cols-3 gap-3">
                     <div className="rounded-2xl border border-slate-200 bg-white p-4">
@@ -253,6 +408,12 @@ export default function MatchmakingHub() {
                       />
                     </div>
 
+                    <div className="mt-4 space-y-3 hidden lg:block">
+                      {youtubeVideos.slice(0, 3).map((videoUrl, idx) => (
+                        <div key={`${parseYouTubeId(videoUrl) || 'video'}_${idx}`}>{renderVideoCard(videoUrl, idx)}</div>
+                      ))}
+                    </div>
+
                     <div className="text-xs font-semibold text-slate-700 tracking-wide">{t('matchmakingHub.miniCard.title')}</div>
                     <div className="mt-2 text-sm text-slate-600 leading-relaxed">
                       {t('matchmakingHub.miniCard.desc')}
@@ -284,26 +445,34 @@ export default function MatchmakingHub() {
             <div className="rounded-[26px] border border-slate-200 bg-white p-6 md:p-7">
               <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                 <div className="min-w-0">
+                  {youtubeVideos?.[2] ? (
+                    <div className="mb-4 lg:hidden">
+                      {renderVideoCard(youtubeVideos[2], 2)}
+                    </div>
+                  ) : null}
+
                   <h2 className="text-lg md:text-xl font-semibold">{t('matchmakingHub.preview.title')}</h2>
                   <p className="mt-2 text-sm text-slate-600 leading-relaxed">{t('matchmakingHub.preview.subtitle')}</p>
                 </div>
-                <div className="shrink-0">
-                  <Link
-                    to="/login?mode=signup"
-                    state={{
-                      from: '/evlilik/eslestirme-basvuru?w=1',
-                      fromState: {
-                        showMatchmakingIntro: true,
-                        matchmakingNext: '/evlilik/eslestirme-basvuru?w=1',
-                      },
-                    }}
-                    className="app-btn app-btn-primary-light h-10 px-5"
-                  >
-                    <Crown size={18} />
-                    {t('matchmakingHub.preview.cta')}
-                    <ArrowRight size={18} />
-                  </Link>
-                </div>
+                {!user ? (
+                  <div className="shrink-0">
+                    <Link
+                      to="/login?mode=signup"
+                      state={{
+                        from: '/evlilik/eslestirme-basvuru?w=1',
+                        fromState: {
+                          showMatchmakingIntro: true,
+                          matchmakingNext: '/evlilik/eslestirme-basvuru?w=1',
+                        },
+                      }}
+                      className="app-btn app-btn-primary-light h-10 px-5"
+                    >
+                      <Crown size={18} />
+                      {t('matchmakingHub.preview.cta')}
+                      <ArrowRight size={18} />
+                    </Link>
+                  </div>
+                ) : null}
               </div>
 
               <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -557,21 +726,23 @@ export default function MatchmakingHub() {
 
               <div className="flex flex-col sm:flex-row gap-3">
                 {canShowApply && (
-                  <Link
-                    to="/login?mode=signup"
-                    state={{
-                      from: '/evlilik/eslestirme-basvuru?w=1',
-                      fromState: {
-                        showMatchmakingIntro: true,
-                        matchmakingNext: '/evlilik/eslestirme-basvuru?w=1',
-                      },
-                    }}
-                    className="app-btn app-btn-primary-light h-10 px-5"
-                  >
-                    <Crown size={18} />
-                    {t('matchmakingHub.actions.apply')}
-                    <ArrowRight size={18} />
-                  </Link>
+                  <>
+                    <Link
+                      to="/login?mode=signup"
+                      state={{
+                        from: '/evlilik/eslestirme-basvuru?w=1',
+                        fromState: {
+                          showMatchmakingIntro: true,
+                          matchmakingNext: '/evlilik/eslestirme-basvuru?w=1',
+                        },
+                      }}
+                      className="app-btn app-btn-primary-light h-10 px-5"
+                    >
+                      <Crown size={18} />
+                      {t('matchmakingHub.actions.apply')}
+                      <ArrowRight size={18} />
+                    </Link>
+                  </>
                 )}
 
                 {user && (

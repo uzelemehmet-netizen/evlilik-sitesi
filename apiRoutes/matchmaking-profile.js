@@ -4,6 +4,13 @@ function safeStr(v) {
   return typeof v === 'string' ? v.trim() : '';
 }
 
+function safeEnum(v) {
+  if (typeof v === 'string') return v.trim();
+  if (v === true) return 'yes';
+  if (v === false) return 'no';
+  return '';
+}
+
 function asNum(v) {
   const n = typeof v === 'number' ? v : Number(v);
   return Number.isFinite(n) ? n : null;
@@ -201,34 +208,57 @@ export default async function handler(req, res) {
             heightCm: asNum(details?.heightCm),
             weightKg: asNum(details?.weightKg),
             occupation: safeStr(details?.occupation),
+            occupationTr: safeStr(details?.occupationTr),
+            occupationId: safeStr(details?.occupationId),
             education: safeStr(details?.education),
             educationDepartment: safeStr(details?.educationDepartment),
+            educationDepartmentTr: safeStr(details?.educationDepartmentTr),
+            educationDepartmentId: safeStr(details?.educationDepartmentId),
             maritalStatus: safeStr(details?.maritalStatus),
-            hasChildren: safeStr(details?.hasChildren),
+            hasChildren: safeEnum(details?.hasChildren),
             childrenCount: asNum(details?.childrenCount),
+            childrenLivingSituation: safeStr(details?.childrenLivingSituation),
             incomeLevel: safeStr(details?.incomeLevel),
             religion: safeStr(details?.religion),
             religiousValues: safeStr(details?.religiousValues),
-            familyApprovalStatus: safeStr(details?.familyApprovalStatus),
+            religiousValuesTr: safeStr(details?.religiousValuesTr),
+            religiousValuesId: safeStr(details?.religiousValuesId),
+            familyObstacle: safeEnum(details?.familyObstacle),
+            familyObstacleDetails: safeStr(details?.familyObstacleDetails),
+            familyApprovalStatus: safeEnum(details?.familyApprovalStatus) || safeStr(details?.familyApprovalStatus),
             marriageTimeline: safeStr(details?.marriageTimeline),
-            relocationWillingness: safeStr(details?.relocationWillingness),
+            relocationWillingness: safeEnum(details?.relocationWillingness) || safeStr(details?.relocationWillingness),
             preferredLivingCountry: safeStr(details?.preferredLivingCountry),
-            smoking: safeStr(details?.smoking),
-            alcohol: safeStr(details?.alcohol),
+            smoking: safeEnum(details?.smoking),
+            alcohol: safeEnum(details?.alcohol),
             languages: {
               native: {
-                code: safeStr(nativeLang?.code),
-                other: safeStr(nativeLang?.other),
+                code: safeStr(nativeLang?.code) || safeStr(details?.nativeLanguage),
+                other: safeStr(details?.nativeLanguageOtherTr) || safeStr(nativeLang?.other) || safeStr(details?.nativeLanguageOther),
               },
               foreign: {
-                codes: Array.isArray(foreignLang?.codes) ? foreignLang.codes.map(safeStr).filter(Boolean) : [],
-                other: safeStr(foreignLang?.other),
+                codes: Array.isArray(foreignLang?.codes)
+                  ? foreignLang.codes.map(safeStr).filter(Boolean)
+                  : (Array.isArray(details?.foreignLanguages) ? details.foreignLanguages.map(safeStr).filter(Boolean) : []),
+                other: safeStr(details?.foreignLanguageOtherTr) || safeStr(foreignLang?.other) || safeStr(details?.foreignLanguageOther),
               },
             },
             communicationLanguage: safeStr(details?.communicationLanguage),
-            communicationLanguageOther: safeStr(details?.communicationLanguageOther),
+            communicationLanguageOther: safeStr(details?.communicationLanguageOtherTr) || safeStr(details?.communicationLanguageOther),
+            communicationLanguageOtherTr: safeStr(details?.communicationLanguageOtherTr),
+            communicationLanguageOtherId: safeStr(details?.communicationLanguageOtherId),
             communicationMethod: safeStr(details?.communicationMethod),
             canCommunicateWithTranslationApp: !!details?.canCommunicateWithTranslationApp,
+
+            // Geriye dönük uyumluluk / bazı ekranların kullandığı düz alanlar
+            nativeLanguage: safeStr(details?.nativeLanguage) || safeStr(nativeLang?.code),
+            nativeLanguageOther: safeStr(details?.nativeLanguageOther),
+            nativeLanguageOtherTr: safeStr(details?.nativeLanguageOtherTr),
+            nativeLanguageOtherId: safeStr(details?.nativeLanguageOtherId),
+            foreignLanguages: Array.isArray(details?.foreignLanguages) ? details.foreignLanguages.map(safeStr).filter(Boolean) : [],
+            foreignLanguageOther: safeStr(details?.foreignLanguageOther),
+            foreignLanguageOtherTr: safeStr(details?.foreignLanguageOtherTr),
+            foreignLanguageOtherId: safeStr(details?.foreignLanguageOtherId),
           },
 
           // Not: İletişim (whatsapp/email/instagram) ayrı endpoint ile açılıyor.

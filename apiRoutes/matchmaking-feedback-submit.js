@@ -86,6 +86,8 @@ export default async function matchmakingFeedbackSubmit(req, res) {
   const doc = {
     kind,
     message,
+    // Admin Moderation UI currently renders `text`; keep it populated.
+    text: message,
     status: 'new',
     userId: uid,
     userEmail: safeStr(token?.email),

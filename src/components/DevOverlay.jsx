@@ -52,7 +52,7 @@ export default function DevOverlay() {
   if (!import.meta.env.DEV) return null;
 
   return (
-    <div className="fixed bottom-3 right-3 z-[99999] w-[min(520px,calc(100vw-24px))]">
+    <div className="hidden sm:block fixed bottom-3 right-3 z-[99999] w-[min(520px,calc(100vw-24px))]">
       <div className="rounded-xl border border-black/10 bg-white/95 shadow-xl overflow-hidden">
         <div className="px-3 py-2 border-b border-black/10 flex items-center justify-between">
           <div className="text-xs font-semibold text-gray-900">DEV Diagnostics</div>

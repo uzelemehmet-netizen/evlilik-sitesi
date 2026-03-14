@@ -1,7 +1,4 @@
-﻿@import url("https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800;900&family=Poppins:wght@400;500;600;700;800;900&display=swap");
-@import url("https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@200..800&display=swap");
-
-@import url("./styles/geminiTheme.css");
+﻿@import url("./styles/geminiTheme.css");
 
 @tailwind base;
 @tailwind components;
@@ -25,6 +22,49 @@ body {
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
   line-height: 1.6;
+}
+
+.font-poppins {
+  font-family: "Poppins", "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+/* Performans: anasayfa hero görseli (AVIF/WebP öncelikli, JPG fallback) */
+.home-hero-bg {
+  background-image:
+    linear-gradient(135deg, rgba(2, 6, 23, 0.78) 0%, rgba(15, 23, 42, 0.7) 45%, rgba(16, 185, 129, 0.48) 100%),
+    url('/placeholder.jpg');
+  background-size: cover;
+  background-position: center 75%;
+  background-repeat: no-repeat;
+  background-attachment: scroll;
+}
+
+/* Performans: Home servis kartları arkaplanları (AVIF/WebP öncelikli) */
+.home-services-bg-beach {
+  background-image: url('/placeholder.jpg');
+}
+
+.home-services-bg-rice {
+  background-image: url('/placeholder.jpg');
+}
+
+/* Home: 3rd-party Unsplash yerine local arkaplanlar */
+.home-services-bg-matchmaking {
+  background-image: url('/placeholder.jpg');
+}
+
+.home-services-bg-dameturk {
+  background-image: url('/placeholder.jpg');
+}
+
+/* Performans: sayfa altı bölümleri "yaklaşınca" render et (aşağıdaki ağır görselleri geciktirir) */
+.cv-auto {
+  content-visibility: auto;
+  contain-intrinsic-size: 800px;
+}
+
+:root {
+  --app-action-blue: #14659c;
 }
 
 h1, h2, h3, h4, h5, h6 {
@@ -121,7 +161,7 @@ h3 {
 
 @layer components {
   .app-btn {
-    /* Default button style across the app: glossy PNG skins */
+    /* Default button style across the app: match action-menu buttons (flat + solid) */
     @apply inline-flex h-9 select-none items-center justify-center gap-2 rounded-xl px-3 text-xs font-semibold text-center;
     @apply text-white;
     @apply ring-1 ring-slate-300/70 ring-offset-1 ring-offset-white;
@@ -130,13 +170,10 @@ h3 {
     @apply focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-400/70 focus-visible:ring-offset-2;
     @apply disabled:pointer-events-none disabled:opacity-60;
 
-    --app-btn-skin: url('/glossy-button-set/btn-01.png');
+    --app-btn-skin: none;
 
-    background-color: transparent;
-    background-image: var(--app-btn-skin);
-    background-repeat: no-repeat;
-    background-position: center;
-    background-size: 100% 100%;
+    background-color: var(--app-action-blue);
+    background-image: none;
 
     box-shadow: none;
     text-shadow: 0 1px 2px rgba(2, 6, 23, 0.35);
@@ -173,8 +210,16 @@ h3 {
     filter: brightness(1.03) saturate(1.03);
   }
 
+  .app-btn-action-menu {
+    --app-btn-skin: none;
+    background-image: none;
+    background-color: var(--app-action-blue);
+  }
+
   .app-btn-primary {
-    --app-btn-skin: url('/glossy-button-set/btn-04.png');
+    --app-btn-skin: none;
+    background-image: none;
+    background-color: var(--app-action-blue);
   }
 
   .app-btn-primary:hover {
@@ -182,7 +227,9 @@ h3 {
   }
 
   .app-btn-primary-light {
-    --app-btn-skin: url('/glossy-button-set/btn-09.png');
+    --app-btn-skin: none;
+    background-image: none;
+    background-color: var(--app-action-blue);
   }
 
   .app-btn-primary-light:hover {
@@ -437,7 +484,9 @@ h3 {
   }
 
   .app-btn-danger {
-    --app-btn-skin: url('/glossy-button-set/btn-03.png');
+    --app-btn-skin: none;
+    background-image: none;
+    @apply bg-rose-700;
   }
 
   .app-btn-danger:hover {
@@ -445,7 +494,9 @@ h3 {
   }
 
   .app-btn-logout {
-    --app-btn-skin: url('/glossy-button-set/btn-03.png');
+    --app-btn-skin: none;
+    background-image: none;
+    @apply bg-rose-700;
   }
 
   .app-btn-logout:hover {

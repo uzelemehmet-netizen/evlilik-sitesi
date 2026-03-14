@@ -17,6 +17,7 @@ test-results/
 # Temp / backup files
 .tmp-debug.txt
 .tmp-dev-api-port
+.tmp-dev-api-port.*
 zip-log.txt
 *.bak
 

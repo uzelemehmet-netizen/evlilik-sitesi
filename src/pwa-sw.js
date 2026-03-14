@@ -120,11 +120,14 @@ registerRoute(
   ({ request }) => request.mode === 'navigate',
   new NetworkFirst({
     cacheName: 'html-pages',
-    networkTimeoutSeconds: 3,
+    // IMPORTANT: Do not use a short network timeout for navigations.
+    // On slower networks (or some regions), a 3s timeout can cause Workbox to
+    // fall back to cached HTML, which may contain stale security headers (CSP)
+    // and stale chunk references. Prefer waiting for the network.
     plugins: [
       new ExpirationPlugin({
-        maxEntries: 5,
-        maxAgeSeconds: 60 * 60, // 1 saat (offline için kısa süreli fallback)
+        maxEntries: 2,
+        maxAgeSeconds: 5 * 60, // 5 dakika: stale HTML/CSP riskini azalt
       }),
     ],
   })
@@ -181,8 +184,8 @@ if (messaging) {
 
     const options = {
       body,
-      icon: '/pwa-192x192.png?v=20260201-2',
-      badge: '/pwa-64x64.png?v=20260201-2',
+      icon: '/pwa-192x192.png?v=20260224-1',
+      badge: '/pwa-64x64.png?v=20260224-1',
       data: { url: clickUrl },
     };
 

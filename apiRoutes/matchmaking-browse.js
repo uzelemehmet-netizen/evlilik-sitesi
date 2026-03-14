@@ -18,6 +18,44 @@ function asNum(v) {
   return Number.isFinite(n) ? n : null;
 }
 
+function normalizeMaritalStatus(v) {
+  return safeStr(v).toLowerCase();
+}
+
+function isMinimumMatchmakingProfileCompleteFromApp(app) {
+  const a = app && typeof app === 'object' ? app : {};
+  const details = a?.details && typeof a.details === 'object' ? a.details : {};
+
+  const fullName = safeStr(a?.fullName);
+  const age = asNum(a?.age);
+  const gender = normalizeGender(a?.gender);
+  const city = safeStr(a?.city);
+  const country = safeStr(a?.country);
+  const nationality = safeStr(a?.nationality);
+  const occupation = safeStr(details?.occupation) || safeStr(a?.occupation);
+  const maritalStatus = normalizeMaritalStatus(details?.maritalStatus || a?.maritalStatus);
+
+  if (!fullName) return false;
+  if (!(typeof age === 'number' && Number.isFinite(age) && age >= 18 && age <= 99)) return false;
+  if (!gender) return false;
+  if (!city) return false;
+  if (!country) return false;
+  if (!nationality) return false;
+  if (!occupation) return false;
+  if (!maritalStatus) return false;
+
+  if (maritalStatus === 'widowed' || maritalStatus === 'divorced') {
+    const hasChildren = safeStr(details?.hasChildren || a?.hasChildren).toLowerCase();
+    if (!hasChildren) return false;
+    if (hasChildren === 'yes') {
+      const cnt = asNum(details?.childrenCount);
+      if (!(typeof cnt === 'number' && Number.isFinite(cnt) && cnt >= 1 && cnt <= 20)) return false;
+    }
+  }
+
+  return true;
+}
+
 function asObj(v) {
   return v && typeof v === 'object' ? v : {};
 }
@@ -49,6 +87,12 @@ function lastSeenMsFromUserDoc(userDoc) {
   if (ms > 0) return ms;
   const ts = tsToMs(userDoc?.lastSeenAt);
   return ts > 0 ? ts : 0;
+}
+
+function isIdentityVerifiedUserDoc(userDoc) {
+  if (userDoc?.identityVerified === true) return true;
+  const st = String(userDoc?.identityVerification?.status || '').toLowerCase().trim();
+  return st === 'verified' || st === 'approved';
 }
 
 const MIN_AGE = 18;
@@ -244,17 +288,44 @@ export default async function handler(req, res) {
     const myApps = myAppsSnap.docs.map((d) => ({ id: d.id, ...(d.data() || {}) }));
     const myApp = pickBestNonStubApplication(myApps);
 
-    if (!myApp) {
-      // Business gating: user has not submitted an application yet.
-      // Returning 200 avoids noisy "Failed to load resource" logs and lets the UI handle the state.
-      res.statusCode = 200;
-      res.setHeader('content-type', 'application/json');
-      res.setHeader('cache-control', 'no-store');
-      res.end(JSON.stringify({ ok: false, error: 'application_not_found', needsApplication: true }));
-      return;
+    // Ürün kararı (2026-02): Keşfet listesi yeni kayıt olan kullanıcıya da gösterilebilir.
+    // Aksiyon (istek gönderme vb.) tarafında profil formu doldurma şartı UI/API katmanında ayrıca korunur.
+    let needsApplication = false;
+    let viewerApp = myApp;
+
+    if (!viewerApp) {
+      // Bazı kullanıcıların (özellikle eski akışlarda) matchmakingApplications dokümanı olmayabilir.
+      // Bu durumda "profil formu yok" varsayımı yapmak yanlış olur; matchmakingUsers dokümanından
+      // "profil tamam mı" kararını minimum alan setinden çıkar.
+      try {
+        const snap = await db.collection('matchmakingUsers').doc(uid).get();
+        const d = snap && snap.exists ? (snap.data() || {}) : {};
+
+        const appFromUser = d?.application && typeof d.application === 'object' ? d.application : null;
+        const publicProfile = d?.publicProfile && typeof d.publicProfile === 'object' ? d.publicProfile : null;
+        const merged = {
+          ...(publicProfile || {}),
+          ...(appFromUser || {}),
+          ...(d || {}),
+          details: {
+            ...((publicProfile && typeof publicProfile.details === 'object' ? publicProfile.details : {}) || {}),
+            ...((appFromUser && typeof appFromUser.details === 'object' ? appFromUser.details : {}) || {}),
+            ...((d?.details && typeof d.details === 'object' ? d.details : {}) || {}),
+          },
+        };
+        needsApplication = !isMinimumMatchmakingProfileCompleteFromApp(merged);
+
+        viewerApp = {
+          gender: safeStr(d?.gender || d?.publicProfile?.gender || d?.application?.gender),
+          lookingForGender: safeStr(d?.lookingForGender || d?.publicProfile?.lookingForGender || d?.application?.lookingForGender),
+        };
+      } catch {
+        needsApplication = true;
+        viewerApp = {};
+      }
     }
 
-    const viewerAge = getAge(myApp);
+    const viewerAge = myApp ? getAge(myApp) : null;
     // Ürün kararı (2026-02): Keşfet'te yaş filtresi yok. Herkes herkesi görebilir.
     // Minimum yaş onayı/signup tarafında kalır; keşfet/browse tarafında yaş uyumu uygulanmaz.
     const min = 18;
@@ -363,7 +434,13 @@ export default async function handler(req, res) {
         ? 999
         : Math.abs(age - viewerAge);
     const candRange = ageRangeFromApp(cand, { ageOverride: age });
-    const genderOk = poolGenderOk(myApp, cand);
+
+    // Emniyet kemeri: gender yoksa havuza sokma.
+    // Aksi halde normalizeGender('') -> '' olduğu için filtreler çalışmayıp
+    // "herkes herkesi görüyor" etkisi oluşabiliyor.
+    if (!normalizeGender(cand?.gender)) continue;
+
+    const genderOk = poolGenderOk(viewerApp, cand);
     if (!genderOk) continue;
 
     items.push({
@@ -380,6 +457,7 @@ export default async function handler(req, res) {
         profileIncomplete: isStub,
         userCode: '',
         lastSeenAtMs: 0,
+        identityVerified: false,
         age: typeof age === 'number' && Number.isFinite(age) ? age : null,
         city: safeStr(cand?.city),
         country: safeStr(cand?.country),
@@ -407,50 +485,72 @@ export default async function handler(req, res) {
   // UC kodlarını ekle (pool'da herkes görebilsin). Best-effort.
   try {
     const uids = items.map((x) => String(x?.uid || '')).filter(Boolean);
-    const chunks = [];
-    for (let i = 0; i < uids.length; i += 10) chunks.push(uids.slice(i, i + 10));
     const codeByUid = new Map();
     const lastSeenByUid = new Map();
-    for (const chunk of chunks) {
-      const snap = await db.collection('matchmakingUsers').where('__name__', 'in', chunk).get();
-      snap.docs.forEach((d) => {
-        const u = d.data() || {};
+    const verifiedByUid = new Map();
+
+    // Not: '__name__ in' sorgusu 10 UID ile sınırlı ve bazı ortamlarda
+    // sorun çıkarabiliyor. Keşfet sıralamasının "her zaman" doğrulanmışları
+    // üste alabilmesi için docRef üzerinden batch read yapıyoruz.
+    const chunks = [];
+    for (let i = 0; i < uids.length; i += 200) chunks.push(uids.slice(i, i + 200));
+    for (const chunkUids of chunks) {
+      const refs = chunkUids.map((id) => db.collection('matchmakingUsers').doc(id));
+      let snaps = [];
+      try {
+        snaps = await db.getAll(...refs);
+      } catch {
+        snaps = await Promise.all(refs.map((r) => r.get()));
+      }
+
+      snaps.forEach((snap) => {
+        if (!snap || !snap.exists) return;
+        const u = snap.data() || {};
         const code = safeStr(u?.userCode) || safeStr(u?.publicProfile?.userCode);
-        if (code) codeByUid.set(d.id, code);
+        if (code) codeByUid.set(snap.id, code);
+
+        verifiedByUid.set(snap.id, isIdentityVerifiedUserDoc(u));
 
         const lastSeenAtMs = lastSeenMsFromUserDoc(u);
-        if (lastSeenAtMs > 0) lastSeenByUid.set(d.id, lastSeenAtMs);
+        if (lastSeenAtMs > 0) lastSeenByUid.set(snap.id, lastSeenAtMs);
       });
     }
+
     items.forEach((it) => {
       const code = codeByUid.get(String(it?.uid || '')) || '';
       if (code && it?.profile && typeof it.profile === 'object') it.profile.userCode = code;
 
       const lastSeenAtMs = lastSeenByUid.get(String(it?.uid || '')) || 0;
       if (lastSeenAtMs && it?.profile && typeof it.profile === 'object') it.profile.lastSeenAtMs = lastSeenAtMs;
+
+      const verified = verifiedByUid.get(String(it?.uid || ''));
+      if (typeof verified === 'boolean' && it?.profile && typeof it.profile === 'object') it.profile.identityVerified = verified;
     });
   } catch {
     // ignore
   }
 
-  // Sırala: daha yeni -> uid (deterministik)
+  // Sırala: doğrulanmış -> daha yeni -> uid (deterministik)
   items.sort((a, b) => {
-    return (b.createdAtMs - a.createdAtMs) || a.uid.localeCompare(b.uid);
+    const av = a?.profile?.identityVerified === true ? 1 : 0;
+    const bv = b?.profile?.identityVerified === true ? 1 : 0;
+    return (bv - av) || (b.createdAtMs - a.createdAtMs) || a.uid.localeCompare(b.uid);
   });
 
-    res.statusCode = 200;
-    res.setHeader('content-type', 'application/json');
-    res.end(
-      JSON.stringify({
-        ok: true,
-        meta: {
-          viewerAge,
-          total: items.length,
-          returned: Math.min(limitOut, items.length),
-        },
-        items: items.slice(0, limitOut),
-      })
-    );
+  res.statusCode = 200;
+  res.setHeader('content-type', 'application/json');
+  res.end(
+    JSON.stringify({
+      ok: true,
+      meta: {
+        viewerAge,
+        needsApplication,
+        total: items.length,
+        returned: Math.min(limitOut, items.length),
+      },
+      items: items.slice(0, limitOut),
+    })
+  );
   } catch (e) {
     const msg = safeStr(e?.message);
     const code = safeStr(e?.code);

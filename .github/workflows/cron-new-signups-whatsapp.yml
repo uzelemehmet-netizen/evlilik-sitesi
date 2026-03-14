@@ -1,8 +1,5 @@
 name: Cron - New Signups WhatsApp
 "on":
-  schedule:
-    # Her 5 dakikada bir (GitHub schedule gecikmeli çalışabilir)
-    - cron: '*/5 * * * *'
   workflow_dispatch: {}
 
 jobs:

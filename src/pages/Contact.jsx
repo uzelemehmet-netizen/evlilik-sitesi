@@ -6,9 +6,12 @@ import { CheckCircle, AlertCircle, Mail, Phone, MapPin, MessageCircle, Youtube }
 import emailjs from '@emailjs/browser';
 import { buildWhatsAppUrl } from '../utils/whatsapp';
 import { useTranslation, Trans } from 'react-i18next';
+import { useLocation } from 'react-router-dom';
+import { formatSupportReportText } from '../utils/supportReport';
 
 export default function Contact() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const location = useLocation();
   const [formData, setFormData] = useState({
     from_name: '',
     from_email: '',
@@ -20,6 +23,7 @@ export default function Contact() {
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState(null);
+  const [supportReportText, setSupportReportText] = useState('');
 
   // EmailJS'i başlatma
   useEffect(() => {
@@ -28,6 +32,37 @@ export default function Contact() {
       blockHeadless: false,
     });
   }, []);
+
+  // If redirected from a broken signup flow, prefill a support report.
+  useEffect(() => {
+    try {
+      const sp = new URLSearchParams(location.search || '');
+      const wantsReport = sp.get('report') === '1';
+      if (!wantsReport) return;
+
+      const raw = sessionStorage.getItem('uniqah_support_report_v1');
+      if (!raw) return;
+
+      let report = null;
+      try {
+        report = JSON.parse(raw);
+      } catch {
+        report = null;
+      }
+      if (!report || typeof report !== 'object') return;
+
+      const text = formatSupportReportText(report);
+      setSupportReportText(text);
+
+      setFormData((prev) => ({
+        ...prev,
+        subject: prev.subject || 'Kayıt hatası (otomatik rapor)',
+        message: prev.message || text,
+      }));
+    } catch {
+      // ignore
+    }
+  }, [location.search]);
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -101,7 +136,7 @@ export default function Contact() {
       icon: MessageCircle,
       title: t('contact.sidebar.whatsapp'),
       value: t('contact.sidebar.askNow'),
-      href: buildWhatsAppUrl(t('floatingWhatsapp.messages.contact'))
+      href: buildWhatsAppUrl(t('floatingWhatsapp.messages.contact'), { lang: String(i18n?.language || 'tr') })
     },
     {
       icon: MapPin,
@@ -120,9 +155,13 @@ export default function Contact() {
     {
       icon: MessageCircle,
       name: 'WhatsApp',
-      href: buildWhatsAppUrl(t('floatingWhatsapp.messages.contact'))
+      href: buildWhatsAppUrl(t('floatingWhatsapp.messages.contact'), { lang: String(i18n?.language || 'tr') })
     }
   ];
+
+  const supportWhatsAppHref = supportReportText
+    ? buildWhatsAppUrl(supportReportText, { lang: String(i18n?.language || 'tr') })
+    : '';
 
   return (
     <div className="min-h-screen bg-white">
@@ -215,6 +254,25 @@ export default function Contact() {
               <h2 className="text-2xl font-bold text-gray-900 mb-6" style={{ fontFamily: '"Poppins", sans-serif' }}>
                 {t('contact.form.title')}
               </h2>
+
+              {supportReportText ? (
+                <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-lg flex flex-col gap-3">
+                  <div className="text-amber-900 font-semibold" style={{ fontFamily: '"Poppins", sans-serif' }}>
+                    Hata raporu hazırlandı. İstersen WhatsApp’tan tek tıkla gönderebilirsin.
+                  </div>
+                  {supportWhatsAppHref ? (
+                    <a
+                      href={supportWhatsAppHref}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center justify-center gap-2 px-4 py-3 rounded-lg bg-emerald-600 text-white font-semibold hover:bg-emerald-700 transition"
+                      style={{ fontFamily: '"Poppins", sans-serif' }}
+                    >
+                      <MessageCircle size={18} /> WhatsApp ile hata raporu gönder
+                    </a>
+                  ) : null}
+                </div>
+              ) : null}
 
               {success && (
                 <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg flex gap-3">

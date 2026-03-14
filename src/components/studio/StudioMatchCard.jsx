@@ -139,6 +139,8 @@ export default function StudioMatchCard({
     return fromMap || fromSnap || 0;
   }, [currentUid, match?.aUserId, match?.bUserId, other?.lastSeenAtMs, presenceByUid]);
 
+  const presenceUiEnabled = false;
+
   const status = safeStr(match?.status);
   const tier = safeStr(match?.matchTier || match?.debug?.matchTier);
   const statusMeta = useMemo(() => {
@@ -249,20 +251,6 @@ export default function StudioMatchCard({
     if (!match?.id || !currentUid || !otherUid) return;
     if (photoRequestState.loading) return;
 
-    if (!profileComplete) {
-      const msg = t('studio.profileGate.body');
-      setPhotoRequestState({ loading: false, error: msg, status: '' });
-      if (typeof onRequireProfile === 'function') onRequireProfile();
-      return;
-    }
-
-    if (!membershipActive) {
-      const msg = t('studio.paywall.upgradeToInteract');
-      setPhotoRequestState({ loading: false, error: msg, status: '' });
-      if (typeof onRequirePaid === 'function') onRequirePaid();
-      return;
-    }
-
     setPhotoRequestState({ loading: true, error: '', status: '' });
     try {
       const data = await authFetch('/api/matchmaking-photo-access-request', {
@@ -274,6 +262,17 @@ export default function StudioMatchCard({
       setPhotoRequestState({ loading: false, error: '', status });
     } catch (e) {
       const msg = safeStr(e?.message);
+      if (msg === 'profile_incomplete' || msg === 'application_not_found' || msg === 'application_required') {
+        if (typeof onRequireProfile === 'function') onRequireProfile();
+      }
+      if (
+        msg === 'membership_required' ||
+        msg === 'membership_or_verification_required' ||
+        msg === 'free_active_membership_required' ||
+        msg === 'free_active_membership_blocked'
+      ) {
+        if (typeof onRequirePaid === 'function') onRequirePaid();
+      }
       setPhotoRequestState({ loading: false, error: translateStudioApiError(t, msg) || msg || 'request_failed', status: '' });
     }
   };
@@ -378,16 +377,6 @@ export default function StudioMatchCard({
       setActiveStartState({ loading: false, error: t('studio.errors.activeLocked'), notice: '' });
       return;
     }
-    if (!profileComplete) {
-      setActiveStartState({ loading: false, error: t('studio.profileGate.body'), notice: '' });
-      if (typeof onRequireProfile === 'function') onRequireProfile();
-      return;
-    }
-    if (!membershipActive) {
-      setActiveStartState({ loading: false, error: t('studio.paywall.upgradeToInteract'), notice: '' });
-      if (typeof onRequirePaid === 'function') onRequirePaid();
-      return;
-    }
     if (activeStartState.loading) return;
 
     const ok = typeof window !== 'undefined' ? window.confirm(t('studio.matchProfile.activeStart.confirmPrompt')) : true;
@@ -410,6 +399,17 @@ export default function StudioMatchCard({
       }
     } catch (e) {
       const msg = safeStr(e?.message);
+      if (msg === 'profile_incomplete' || msg === 'application_not_found' || msg === 'application_required') {
+        if (typeof onRequireProfile === 'function') onRequireProfile();
+      }
+      if (
+        msg === 'membership_required' ||
+        msg === 'membership_or_verification_required' ||
+        msg === 'free_active_membership_required' ||
+        msg === 'free_active_membership_blocked'
+      ) {
+        if (typeof onRequirePaid === 'function') onRequirePaid();
+      }
       setActiveStartState({ loading: false, error: translateStudioApiError(t, msg) || msg || 'active_start_failed', notice: '' });
     }
   };
@@ -424,16 +424,6 @@ export default function StudioMatchCard({
       setLikeState({ loading: false, error: t('studio.errors.activeLocked') });
       return;
     }
-    if (!profileComplete) {
-      setLikeState({ loading: false, error: t('studio.profileGate.body') });
-      if (typeof onRequireProfile === 'function') onRequireProfile();
-      return;
-    }
-    if (!membershipActive) {
-      setLikeState({ loading: false, error: t('studio.paywall.upgradeToInteract') });
-      if (typeof onRequirePaid === 'function') onRequirePaid();
-      return;
-    }
     if (likeState.loading) return;
     setLikeState({ loading: true, error: '' });
     try {
@@ -445,6 +435,17 @@ export default function StudioMatchCard({
       setLikeState({ loading: false, error: '' });
     } catch (e) {
       const msg = safeStr(e?.message);
+      if (msg === 'profile_incomplete' || msg === 'application_not_found' || msg === 'application_required') {
+        if (typeof onRequireProfile === 'function') onRequireProfile();
+      }
+      if (
+        msg === 'membership_required' ||
+        msg === 'membership_or_verification_required' ||
+        msg === 'free_active_membership_required' ||
+        msg === 'free_active_membership_blocked'
+      ) {
+        if (typeof onRequirePaid === 'function') onRequirePaid();
+      }
       setLikeState({ loading: false, error: translateStudioApiError(t, msg) || msg || 'like_failed' });
     }
   };
@@ -459,11 +460,6 @@ export default function StudioMatchCard({
       setLikeState({ loading: false, error: t('studio.errors.activeLocked') });
       return;
     }
-    if (!profileComplete) {
-      setLikeState({ loading: false, error: t('studio.profileGate.body') });
-      if (typeof onRequireProfile === 'function') onRequireProfile();
-      return;
-    }
     if (likeState.loading) return;
     setLikeState({ loading: true, error: '' });
     try {
@@ -475,6 +471,9 @@ export default function StudioMatchCard({
       setLikeState({ loading: false, error: '' });
     } catch (e) {
       const msg = safeStr(e?.message);
+      if (msg === 'profile_incomplete' || msg === 'application_not_found' || msg === 'application_required') {
+        if (typeof onRequireProfile === 'function') onRequireProfile();
+      }
       setLikeState({ loading: false, error: translateStudioApiError(t, msg) || msg || 'reject_failed' });
     }
   };
@@ -729,20 +728,20 @@ export default function StudioMatchCard({
             </div>
           ) : null}
 
-          {otherLastSeenAtMs ? (
-            <div className="mt-2 flex items-center gap-2 text-[11px] text-slate-500">
-              <span
-                className={
-                  'inline-block h-2 w-2 rounded-full ' +
-                  (formatPresenceLabel(t, otherLastSeenAtMs) === t('studio.presence.online')
-                    ? 'bg-emerald-500 shadow-[0_0_0_3px_rgba(16,185,129,0.12)]'
-                    : 'bg-slate-300')
-                }
-                aria-hidden="true"
-              />
-              <span>{formatPresenceLabel(t, otherLastSeenAtMs)}</span>
-            </div>
-          ) : null}
+              {presenceUiEnabled && otherLastSeenAtMs ? (
+                <div className="mt-2 flex items-center gap-2 text-[11px] text-slate-500">
+                  <span
+                    className={
+                      'inline-block h-2 w-2 rounded-full ' +
+                      (formatPresenceLabel(t, otherLastSeenAtMs) === t('studio.presence.online')
+                        ? 'bg-emerald-500 shadow-[0_0_0_3px_rgba(16,185,129,0.12)]'
+                        : 'bg-slate-300')
+                    }
+                    aria-hidden="true"
+                  />
+                  <span>{formatPresenceLabel(t, otherLastSeenAtMs)}</span>
+                </div>
+              ) : null}
 
           <div className="mt-2 space-y-1">
             {maritalLabel ? <p className="text-sm text-slate-600">{maritalLabel}</p> : null}

@@ -1,5 +1,6 @@
 import { getAdmin, normalizeBody, requireIdToken } from './_firebaseAdmin.js';
-import { ensureMembershipActiveOrThrow, ensureProfileCompleteOrThrow, normalizeGender } from './_matchmakingEligibility.js';
+import { ensureEligibleOrThrow, ensureProfileCompleteOrThrow, normalizeGender } from './_matchmakingEligibility.js';
+import { sendPushToUid } from './_push.js';
 
 function safeStr(v) {
   return typeof v === 'string' ? v.trim() : '';
@@ -205,6 +206,58 @@ function buildFromProfile(app) {
   };
 }
 
+function buildFallbackAppFromUserDoc({ uid, userDoc }) {
+  const u = userDoc && typeof userDoc === 'object' ? userDoc : {};
+  const app = asObj(u?.application);
+  const pp = asObj(u?.publicProfile);
+  const details = asObj(u?.details);
+
+  const about =
+    safeStr(details?.about) ||
+    safeStr(details?.aboutTr) ||
+    safeStr(details?.aboutId) ||
+    safeStr(pp?.about) ||
+    safeStr(pp?.aboutTr) ||
+    safeStr(pp?.aboutId) ||
+    safeStr(app?.about) ||
+    safeStr(app?.aboutTr) ||
+    safeStr(app?.aboutId);
+
+  const photoUrls = Array.isArray(app?.photoUrls)
+    ? app.photoUrls
+    : Array.isArray(pp?.photoUrls)
+      ? pp.photoUrls
+      : Array.isArray(u?.photoUrls)
+        ? u.photoUrls
+        : [];
+
+  return {
+    id: '',
+    userId: safeStr(uid),
+    source: 'user_doc_fallback',
+    username: safeStr(app?.username) || safeStr(pp?.username) || safeStr(u?.username),
+    gender: safeStr(app?.gender) || safeStr(pp?.gender) || safeStr(u?.gender),
+    lookingForGender: safeStr(app?.lookingForGender) || safeStr(pp?.lookingForGender) || safeStr(u?.lookingForGender),
+    city: safeStr(app?.city) || safeStr(pp?.city) || safeStr(u?.city),
+    country: safeStr(app?.country) || safeStr(pp?.country) || safeStr(u?.country),
+    age: asNum(app?.age) ?? asNum(pp?.age) ?? asNum(u?.age),
+    details,
+    photoUrls: Array.isArray(photoUrls) ? photoUrls.filter((x) => typeof x === 'string' && x.trim()) : [],
+    about: safeStr(details?.about) || safeStr(pp?.about) || safeStr(app?.about),
+    aboutTr: safeStr(details?.aboutTr) || safeStr(pp?.aboutTr) || safeStr(app?.aboutTr),
+    aboutId: safeStr(details?.aboutId) || safeStr(pp?.aboutId) || safeStr(app?.aboutId),
+    expectations: safeStr(details?.expectations) || safeStr(pp?.expectations) || safeStr(app?.expectations),
+    expectationsTr: safeStr(details?.expectationsTr) || safeStr(pp?.expectationsTr) || safeStr(app?.expectationsTr),
+    expectationsId: safeStr(details?.expectationsId) || safeStr(pp?.expectationsId) || safeStr(app?.expectationsId),
+    maritalStatus: safeStr(details?.maritalStatus),
+    occupation: safeStr(details?.occupation),
+    education: safeStr(details?.education),
+    hasChildren: details?.hasChildren,
+    wantChildren: details?.wantChildren,
+    __aboutOk: !!about,
+  };
+}
+
 export default async function handler(req, res) {
   if (String(req?.method || '').toUpperCase() !== 'POST') {
     res.statusCode = 405;
@@ -229,16 +282,23 @@ export default async function handler(req, res) {
 
     const { db, FieldValue } = getAdmin();
 
-    const [myAppsSnap, targetAppsSnap] = await Promise.all([
+    const [myAppsSnap, targetAppsSnap, meUserSnap] = await Promise.all([
       db.collection('matchmakingApplications').where('userId', '==', uid).limit(10).get(),
       db.collection('matchmakingApplications').where('userId', '==', targetUid).limit(10).get(),
+      db.collection('matchmakingUsers').doc(uid).get(),
     ]);
 
     const myApps = myAppsSnap.docs.map((d) => ({ id: d.id, ...(d.data() || {}) }));
     const targetApps = targetAppsSnap.docs.map((d) => ({ id: d.id, ...(d.data() || {}) }));
 
-    const myApp = pickBestNonStubApplication(myApps);
+    let myApp = pickBestNonStubApplication(myApps);
     const targetApp = pickBestNonStubApplication(targetApps);
+
+    const meUser = meUserSnap.exists ? (meUserSnap.data() || {}) : {};
+    if (!myApp) {
+      const fb = buildFallbackAppFromUserDoc({ uid, userDoc: meUser });
+      if (fb && fb.__aboutOk) myApp = fb;
+    }
 
     if (!myApp || !targetApp) {
       res.statusCode = 404;
@@ -249,11 +309,8 @@ export default async function handler(req, res) {
 
     // Etkileşim kuralı: ön eşleşme isteği bir aksiyon sayılır.
     try {
-      const meUserSnap = await db.collection('matchmakingUsers').doc(uid).get();
-      const meUser = meUserSnap.exists ? (meUserSnap.data() || {}) : {};
-
       await ensureProfileCompleteOrThrow(db, uid);
-      ensureMembershipActiveOrThrow(meUser);
+      ensureEligibleOrThrow(meUser, '');
     } catch (e2) {
       res.statusCode = e2?.statusCode || 402;
       res.setHeader('content-type', 'application/json');
@@ -272,6 +329,8 @@ export default async function handler(req, res) {
 
     const nowMs = Date.now();
     const requestId = `${uid}__${targetUid}`;
+
+    let shouldNotify = false;
 
     const inboxRef = db.collection('matchmakingUsers').doc(targetUid).collection('inboxPreMatchRequests').doc(requestId);
     const outboxRef = db.collection('matchmakingUsers').doc(uid).collection('outboxPreMatchRequests').doc(requestId);
@@ -296,19 +355,39 @@ export default async function handler(req, res) {
         if (st === 'approved') return;
         if (st === 'rejected') {
           // Reddedildiyse yeni istek atmaya izin veriyoruz (status'u pending'e çeker).
+          shouldNotify = true;
           tx.set(inboxRef, payload, { merge: true });
           tx.set(outboxRef, payload, { merge: true });
           return;
         }
-        // pending => sadece updatedAt tazele
+        // pending => sadece updatedAt tazele (yeniden bildirim atmayalım)
         tx.set(inboxRef, payload, { merge: true });
         tx.set(outboxRef, payload, { merge: true });
         return;
       }
 
+      shouldNotify = true;
       tx.set(inboxRef, payload, { merge: false });
       tx.set(outboxRef, payload, { merge: false });
     });
+
+    // Push to recipient (best-effort).
+    if (shouldNotify) {
+      try {
+        await sendPushToUid({
+          uid: targetUid,
+          title: 'Ön eşleşme isteği',
+          body: 'Yeni bir ön eşleşme isteğiniz var.',
+          url: '/profilim',
+          type: 'pre_match_request',
+          data: {
+            fromUid: uid,
+          },
+        });
+      } catch {
+        // ignore
+      }
+    }
 
     res.statusCode = 200;
     res.setHeader('content-type', 'application/json');

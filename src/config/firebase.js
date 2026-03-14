@@ -1,5 +1,4 @@
 import { initializeApp } from 'firebase/app';
-import { initializeAppCheck, ReCaptchaV3Provider } from 'firebase/app-check';
 import {
   browserLocalPersistence,
   browserSessionPersistence,
@@ -8,27 +7,24 @@ import {
   initializeAuth,
   inMemoryPersistence,
 } from 'firebase/auth';
-import { getFirestore } from '@firebase/firestore';
+import { getFirestore, initializeFirestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 
 import { firebaseConfig } from './firebasePublicConfig';
 
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
-
-// Optional: Firebase App Check (reCAPTCHA v3)
-// Enable by providing VITE_FIREBASE_APPCHECK_SITE_KEY in your env.
-try {
-  const siteKey = import.meta?.env?.VITE_FIREBASE_APPCHECK_SITE_KEY;
-  if (typeof window !== 'undefined' && siteKey) {
-    initializeAppCheck(app, {
-      provider: new ReCaptchaV3Provider(siteKey),
-      isTokenAutoRefreshEnabled: true,
-    });
+function assertFirebaseConfig(cfg) {
+  const required = ['apiKey', 'authDomain', 'projectId', 'appId'];
+  const missing = required.filter((k) => !String(cfg?.[k] || '').trim());
+  if (missing.length) {
+    const err = new Error(`firebase_public_config_missing:${missing.join(',')}`);
+    err.code = 'firebase_public_config_missing';
+    throw err;
   }
-} catch (e) {
-  // ignore
 }
+
+// Initialize Firebase
+assertFirebaseConfig(firebaseConfig);
+const app = initializeApp(firebaseConfig);
 
 // Initialize Firebase Authentication
 // Auth persistence
@@ -60,7 +56,23 @@ export const auth = (() => {
 })();
 
 // Initialize Cloud Firestore
-export const db = getFirestore(app);
+const firestoreForceLongPoll = String(import.meta?.env?.VITE_FIRESTORE_FORCE_LONGPOLL || '').trim() === '1';
+
+export const db = (() => {
+  try {
+    // Bazı ağlarda (VPN/kurumsal proxy/antivirüs) Firestore listen kanalı sık kopabilir.
+    // Long-polling seçenekleri bunu ciddi ölçüde azaltır.
+    return initializeFirestore(app, {
+      experimentalForceLongPolling: firestoreForceLongPoll,
+      experimentalAutoDetectLongPolling: !firestoreForceLongPoll,
+      // Fetch streams bazı ortamlarda sorun çıkarabiliyor; XHR daha uyumlu.
+      useFetchStreams: false,
+    });
+  } catch (e) {
+    // HMR / yeniden import durumunda aynı app için firestore zaten init edilmiş olabilir.
+    return getFirestore(app);
+  }
+})();
 
 // Initialize Cloud Storage
 export const storage = getStorage(app);

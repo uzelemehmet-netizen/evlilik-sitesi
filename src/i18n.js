@@ -108,6 +108,26 @@ i18n
     interpolation: {
       escapeValue: false,
     },
+  })
+  .catch((e) => {
+    // i18n init should not block the app boot.
+    try {
+      // eslint-disable-next-line no-console
+      console.error('i18n_init_failed', e);
+    } catch {
+      // ignore
+    }
+    try {
+      // Minimal fallback to keep UI usable.
+      i18n.init({
+        resources,
+        lng: 'tr',
+        fallbackLng: 'tr',
+        interpolation: { escapeValue: false },
+      });
+    } catch {
+      // ignore
+    }
   });
 
 i18n.on("languageChanged", (lng) => {

@@ -349,7 +349,7 @@ function Modal({ open, onClose, item }) {
   const hideSensitive = isStubAndIncomplete(item);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 flex items-start justify-center p-4 pt-6 overflow-y-auto">
       <div className="absolute inset-0 bg-black/60" onClick={onClose} />
       <div className="relative z-10 w-full max-w-5xl max-h-[85vh] overflow-auto rounded-2xl bg-white shadow-2xl">
         <div className="sticky top-0 z-10 border-b border-slate-200 bg-white p-4">

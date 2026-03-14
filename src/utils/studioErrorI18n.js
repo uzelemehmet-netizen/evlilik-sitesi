@@ -32,7 +32,9 @@ export function translateStudioApiError(t, raw) {
   if (s === 'not_in_their_age_range') return t('studio.errors.notInTheirAgeRange');
   if (s === 'age_required') return t('studio.errors.ageRequired');
 
-  if (s === 'profile_incomplete') return t('studio.profileGate.body');
+  if (s === 'profile_incomplete' || s === 'application_required' || s === 'application_not_found') {
+    return t('studio.profileGate.body');
+  }
 
   if (
     s === 'membership_required' ||

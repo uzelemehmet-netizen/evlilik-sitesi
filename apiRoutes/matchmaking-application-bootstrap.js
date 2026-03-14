@@ -81,6 +81,8 @@ export default async function handler(req, res) {
     }
 
     // Fallback: matchmakingUsers içinden çek.
+    // Not: Yeni signup'ta bazı alanlar henüz yok olabilir. Bu durumda da auto_stub dokümanı üretmek istiyoruz
+    // (admin "Yeni Kullanıcılar" raporları boş kalmasın).
     let gender = bodyGender;
     let nationality = bodyNat;
     let nationalityOther = bodyNatOther;
@@ -98,25 +100,14 @@ export default async function handler(req, res) {
       // ignore
     }
 
-    if (!gender || !nationality) {
-      res.statusCode = 400;
-      res.setHeader('content-type', 'application/json');
-      res.end(JSON.stringify({ ok: false, error: 'missing_profile' }));
-      return;
-    }
+    const hasGender = !!gender;
+    const hasNationality = !!nationality;
 
-    const minAge = minAgeForNat(nationality);
+    const minAge = hasNationality ? minAgeForNat(nationality) : getMinAgeFromEnv();
     const ageConfirmed = (typeof age === 'number' && age >= minAge) || legacyAgeConfirmed === true;
 
-    const lookingForGender = oppositeGender(gender);
-    if (!lookingForGender) {
-      res.statusCode = 400;
-      res.setHeader('content-type', 'application/json');
-      res.end(JSON.stringify({ ok: false, error: 'bad_gender' }));
-      return;
-    }
-
-    const lookingForNationality = defaultLookingForNationality(nationality);
+    const lookingForGender = hasGender ? oppositeGender(gender) : '';
+    const lookingForNationality = hasNationality ? defaultLookingForNationality(nationality) : '';
 
     const nowMs = Date.now();
     const applicationId = `auto_${uid}`;
@@ -141,13 +132,16 @@ export default async function handler(req, res) {
       // Böylece admin ekranı `matchmakingUsers` dokümanını okuyamasa bile UC kodunu gösterebilir.
       userCode: userCode || '',
 
-      gender,
-      lookingForGender,
+      ...(hasGender ? { gender, lookingForGender } : {}),
 
-      nationality,
-      nationalityOther: nationality === 'other' ? nationalityOther : '',
-      lookingForNationality,
-      lookingForNationalityOther: '',
+      ...(hasNationality
+        ? {
+            nationality,
+            nationalityOther: nationality === 'other' ? nationalityOther : '',
+            lookingForNationality,
+            lookingForNationalityOther: '',
+          }
+        : {}),
 
       ...(typeof age === 'number' ? { age } : {}),
 
@@ -156,6 +150,7 @@ export default async function handler(req, res) {
         autoBootstrap: true,
         signupAge: typeof age === 'number' ? age : null,
         signupAgeConfirmed: ageConfirmed,
+        missingProfile: !(hasGender && hasNationality),
       },
 
       // Firestore rules create'da bu alanlar zorunlu; admin yazdığı için rules bypass.

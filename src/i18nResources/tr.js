@@ -10,6 +10,12 @@ export default {
     body: 'Sayfa yüklenemedi. Lütfen yenilemeyi deneyin.',
     tryAgain: 'Yeniden dene',
     reload: 'Sayfayı yenile',
+    report: {
+      button: 'Hata bildir',
+      sending: 'Bildiriliyor…',
+      sent: 'Bildirildi. Teşekkürler.',
+      failed: 'Bildirim gönderilemedi. Lütfen tekrar deneyin.',
+    },
   },
   pwa: {
     install: {
@@ -21,7 +27,7 @@ export default {
       installedHint: 'Uygulama ana ekranınızda görünüyor. Dilersen bildirimleri de açabilirsiniz.',
       installAvailableHint: 'Tarayıcı yüklemeyi destekliyor. Tıklayıp kurabilirsiniz.',
       installNotAvailableHint:
-        'Yükleme seçeneği görünmüyorsa: tarayıcı menüsünden “Ana ekrana ekle / Uygulamayı yükle” seçeneğini kullanın (bazı cihazlarda HTTPS ve ilk ziyaret sonrası görünür).',
+        'Yükleme seçeneği görünmüyorsa: tarayıcı menüsünden “Ana ekrana ekle / Uygulamayı yükle” seçeneğini kullanın (bazı cihazlarda HTTPS ve ilk ziyaret sonrası görünür). Eğer WhatsApp/Instagram gibi uygulama içi tarayıcıda açtıysanız: sağ üst menüden “Tarayıcıda aç (Safari/Chrome)” deyin; sonra yükleme seçeneği görünür.',
       ios: {
         title: 'iPhone/iPad (Safari) için',
         step1: 'Siteyi Safari’de açın.',
@@ -98,7 +104,7 @@ export default {
     travel: "Seyahat",
     explore: "Keşfet",
     tours: "Turlar",
-    wedding: "Evlilik",
+    wedding: "Evlilik Rehberliği (TR–ID)",
     matchmaking: "Eş Adayı",
     panel: "Profilim",
     documents: "Dokümanlar",
@@ -113,7 +119,7 @@ export default {
 
   footer: {
     brandBlurb:
-      '{{company}} markasıdır. Tanışmadan evliliğe uzanan yolculuğunuzda güvenle eşleşme ve rehberlik sunar.',
+      '{{company}} markasıdır. Türkiye–Endonezya evlilik sürecinde; iletişim, evraklar ve resmî adımlarda rehberlik ve koordinasyon desteği sunar. Eşleştirme ise ikinci plandaki yardımcı bir akıştır.',
     brandsTitle: 'Markalarımız',
     brandNoteDameturk: '',
     sections: {
@@ -169,6 +175,16 @@ export default {
       done: 'Tamam',
       missingHint: 'Bu adım şu an görünmüyor. Devam edebilirsin.',
     },
+    publicGuidance: {
+      step1: {
+        title: 'Ödeme ve güven (1/2)',
+        body: 'Güven konusunda içiniz rahat olsun diye, Endonezya’ya gelene kadar hiçbir rehberlik ücreti talep etmiyoruz. Ödemeyi Endonezya’ya geldiğinizde yapabilirsiniz. En uygun fiyatla rehberlik hizmetimizden faydalanabilir, size ait belgeleri toplamaktan başka hiçbir karmaşık işlemle uğraşmadan evliliğinizi en kolay yoldan gerçekleştirebilirsiniz.',
+      },
+      step2: {
+        title: 'Rehberlik süreci (2/2)',
+        body: 'Rehberlik hizmetimizi Endonezya’da yaşayan bir Türk ekibi olarak Endonezya’da yürütüyoruz. Endonezya’ya evlilik için gelecek dostlarımıza her aşamada yanlarında bulunarak destek oluyoruz; havaalanından karşılayıp, dönüşte eşinizle birlikte havaalanına bırakana kadar sürecin tamamında yanınızdayız.',
+      },
+    },
     preview: {
       matches: {
         title: 'Profilim: Eşleşmeler',
@@ -219,6 +235,13 @@ export default {
       title: 'Profil detay izni',
       body: 'Profil detaylarını görüntülemek için izin isteyebilirsiniz.',
     },
+
+    pwaNudge: {
+      title: 'Uygulamayı yükle ve bildirimleri aç',
+      body: 'Uygulamayı ana ekrana ekleyip bildirimleri açarsanız; mesaj, istek ve onayları kaçırmazsınız.',
+      primary: 'Tek tık: Yükle + Bildirimleri Aç',
+      later: 'Sonra',
+    },
   },
 
   ui: {
@@ -244,7 +267,7 @@ export default {
       readLess: 'Daha az göster',
       match: 'Eşleşme',
       profile: 'Profil',
-      verified: 'Doğrulanmış',
+      verified: 'Güvenilir kullanıcı',
       unknown: 'Bilinmiyor',
       zoom: 'Büyüt',
       enlargePhotoAria: '{{name}} fotoğrafını büyüt',
@@ -269,7 +292,8 @@ export default {
       description: 'Bir arkadaşını davet et. İkiniz de kimlik doğrulaması yapınca ikinize de ücretsiz üyelik verilir.',
       myCodeLabel: 'Davet kodun',
       shareButton: 'WhatsApp’tan paylaş',
-      shareMessage: 'Uniqah’a katıl: {{url}}',
+      shareMessage:
+        'https://uniqah.com/login\n\nEvlilik amaçlı tanışma uygulamasına davet kodun {{code}}. Bu kodu kayıt formuna ekleyerek 1 aylık ücretsiz üyelik kazanabilirsin.',
       copy: 'Kopyala',
       copied: 'Kopyalandı.',
       enterCodeLabel: 'Davet kodu',
@@ -296,7 +320,7 @@ export default {
     },
 
     feedback: {
-      nav: 'Destek / Bildirim',
+      nav: 'Şikayet/İstek',
       backToProfile: 'Profilime dön',
       title: 'Destek • Öneri • Sorun bildir',
       subtitle: 'Sistemle ilgili öneri/yorum yazabilir veya çalışmayan adımları bildirebilirsin.',
@@ -339,6 +363,7 @@ export default {
       viewProfile: 'Profili gör',
       accept: 'Beğen',
       reject: 'Reddet',
+      titleShort: 'İstekler',
       modalTitleMessages: 'Mesajlar',
       modalTitleRequests: 'İstekler',
     },
@@ -380,6 +405,12 @@ export default {
       lastUpdated: 'Otomatik yenilenir (20 sn).',
       countHint: 'Toplam: {{total}} • Gösterilen: {{shown}}',
       filtersHint: 'Yaş aralığı: {{min}} – {{max}}',
+      trust: {
+        title: 'Güven ve doğrulama',
+        body:
+          'Bu sistem evlilik odaklı, kontrollü bir akışla ilerler. Kimlik doğrulama zorunlu değildir; isteyen kullanıcıların güven rozetidir.\n\nDoğrulama için gönderilen bilgiler yalnızca doğrulama amacıyla kullanılır, doğrulama tamamlandıktan sonra kalıcı olarak saklanmaz. Hesabını dilediğin zaman silebilirsin; silme işlemi sonrası profil ve eşleşme verilerin sistemden kaldırılır.',
+        sortNote: 'Not: Keşfet ekranında kimlik doğrulaması yapan profiller üst sıralarda gösterilir.',
+      },
       empty: 'Şu an gösterilecek profil bulunamadı.',
       goToMatchCard: 'Eşleşme kartına git',
       requestProfileNow: 'Eşleşme isteği gönder',
@@ -408,9 +439,14 @@ export default {
     profileGate: {
       important: 'ÖNEMLİ',
       title: 'Profilini tamamla',
-      body: 'Mesajlaşmak ve istek gönderip yanıtlamak için önce profil formunu doldur.',
+      body: 'Bu sistem evlilik niyetindeki insanları bir araya getirdiği için diğer kullanıcılarla etkileşime geçebilmeniz için profil formunu doldurmanız gerekmektedir.',
       cta: 'Profil formunu doldur',
       badge: 'Bilinmeyen kullanıcı',
+    },
+
+    profileIncompleteExploreWarning: {
+      title: 'Profil formunu doldurmalısın',
+      body: 'Profil bilgileriniz olmadığı için Keşfet sayfasında karşı cinsiyet yerine kendi cinsiyetinizdeki kişiler görüntülenebilir. Bu yüzden lütfen profil formunu doldurun.',
     },
 
     membershipModal: {
@@ -431,7 +467,7 @@ export default {
         membership: 'Üyelik ve doğrulama',
       },
       contactPrivacyNotice:
-        'İletişim bilgileriniz (WhatsApp/e-posta/Instagram) gizlidir. Form doldururken ve uygulamada herkese açık şekilde gösterilmez. Bu bilgiler yalnızca 48 saatlik aktif eşleşme sürecinden sonra, kesin eşleşme sağlanırsa ve sizin onayınızla paylaşılabilir.',
+        'İletişim bilgileriniz (WhatsApp/e-posta) gizlidir. Form doldururken ve uygulamada herkese açık şekilde gösterilmez.',
       fields: {
         username: 'Kullanıcı adı',
         fullName: 'Ad Soyad',
@@ -452,6 +488,8 @@ export default {
         hasChildren: 'Çocuğu var mı?',
         childrenCount: 'Çocuk sayısı',
         childrenLivingSituation: 'Çocuklarıyla yaşıyor mu?',
+        familyObstacle: 'Aile engeli var mı?',
+        familyObstacleDetails: 'Aile engeli (detay)',
         familyApprovalStatus: 'Aile onayı',
         religion: 'Din',
         religiousValues: 'Dini hassasiyet',
@@ -461,6 +499,7 @@ export default {
         preferredLivingCountry: 'Tercih edilen ülke',
         communicationLanguage: 'İletişim dili',
         communicationLanguageOther: 'İletişim dili (diğer)',
+        canCommunicateWithTranslationApp: 'Çeviri uygulaması ile konuşabilir',
         smoking: 'Sigara',
         alcohol: 'Alkol',
         nativeLanguage: 'Ana dil',
@@ -808,19 +847,105 @@ export default {
       identityStatus: 'Durum',
       verifyNow: 'Kimliğimi Doğrula',
       identityHelp: 'Kimliğini doğrulayarak güven puanını artırabilir ve üyelik/özellik kısıtlarını kaldırabilirsin.',
+      identityIntro: {
+        title: 'Kimlik doğrulama nedir?',
+        body:
+          'Bu adım zorunlu değildir.\n\nKimlik doğrulama; güven puanını yükseltmek, profilinde güven rozeti göstermek ve Keşfet\'te daha üst sıralarda yer almak isteyenler içindir.\n\nDoğrulama için gönderilen bilgiler sadece doğrulama amacıyla kullanılır ve süreç tamamlandıktan sonra kalıcı olarak saklanmaz.',
+        cta: 'Okudum, devam et',
+      },
+      actionIntro: {
+        explore: {
+          title: 'Keşfet',
+          body: 'Keşfet, sistemin senin için seçtiği profilleri gösterir. Kimliği doğrulanmış profiller daha üstte görünebilir.',
+          cta: 'Okudum, aç',
+        },
+        editProfile: {
+          title: 'Profil',
+          body: 'Bu bölümde başvuru/profil bilgilerini güncelleyebilirsin. Değişiklikler eşleşme sürecini etkileyebilir.',
+          cta: 'Okudum, devam et',
+        },
+        matches: {
+          title: 'Eşleşmelerim',
+          body: 'Eşleşmelerini buradan yönetirsin: beğeni, onay/ret ve sohbet adımları burada ilerler.',
+          cta: 'Okudum, aç',
+        },
+        partnerPrefs: {
+          title: 'Aradığım kişi tercihleri',
+          body: 'Kriterlerini güncelleyerek daha uygun eşleşmeler görmene yardımcı olur.',
+          cta: 'Okudum, düzenle',
+        },
+        membership: {
+          title: 'Üyelik',
+          body: 'Üyelik durumunu ve üyeliğe bağlı bazı özellikleri buradan yönetebilirsin.',
+          cta: 'Okudum, aç',
+        },
+        photo: {
+          title: 'Fotoğraflar',
+          body: 'Fotoğraflarını yönetebilir ve istersen fotoğraf gizliliğini (blur) ayarlayabilirsin.',
+          cta: 'Okudum, aç',
+        },
+        guidance: {
+          title: 'Evlilik Rehberliği',
+          body: 'Evlilik süreciyle ilgili rehberlik bilgilerini ve hızlı iletişim seçeneklerini görürsün.',
+          cta: 'Okudum, aç',
+        },
+        feedback: {
+          title: 'Şikayet/İstek',
+          body: 'Uygunsuz davranışları bildirmek veya destek istemek için bu kanalı kullanabilirsin.',
+          cta: 'Okudum, devam et',
+        },
+        identity: {
+          title: 'Kimlik doğrulama',
+          body: 'Bu bölüm kimlik doğrulama seçeneklerini açar. Doğrulama isteğe bağlıdır ve güven rozetini güçlendirir.',
+          cta: 'Okudum, aç',
+        },
+        referral: {
+          title: 'Davet',
+          body: 'Davet kodu/bağlantısı ile arkadaşlarını davet edebilir, kampanya/avantaj varsa buradan takip edebilirsin.',
+          cta: 'Okudum, aç',
+        },
+        logout: {
+          title: 'Çıkış',
+          body: 'Hesabından güvenli şekilde çıkış yaparsın. Tekrar giriş yaptığında kaldığın yerden devam edebilirsin.',
+          cta: 'Okudum, çıkış yap',
+        },
+      },
+      identityTrust: {
+        title: 'Bu doğrulama ne işe yarar?',
+        points: {
+          optional: 'Zorunlu değildir; sadece güven rozetidir (isteğe bağlı).',
+          privacy: 'Doğrulama bilgileri doğrulama amacı dışında paylaşılmaz.',
+          destroy: 'Doğrulama tamamlandıktan sonra gönderdiğin doğrulama dosyaları/verileri kalıcı olarak saklanmaz.',
+          deleteAccount: 'Hesabını dilediğin zaman silerek profil ve eşleşme verilerini kaldırabilirsin.',
+          sorting: 'Kimlik doğrulaması yapan profiller Keşfet’te üst sıralarda gösterilir.',
+        },
+      },
+
+      emailVerify: {
+        title: 'E-posta doğrulama (isteğe bağlı)',
+        body: 'E-posta adresin: {{email}}. Doğrulamak istersen sana bir doğrulama e-postası gönderebiliriz.',
+        cta: 'Doğrulama e-postası gönder',
+        sent: 'Doğrulama e-postası gönderildi. Gelen kutunu kontrol et.',
+        failed: 'E-posta doğrulama gönderilemedi. Lütfen tekrar deneyin.',
+      },
       accountTitle: 'Hesap',
       accountDeleteDesc: 'Hesabınızı ve ilişkili verileri kalıcı olarak silebilirsiniz.',
       deleteAccount: 'Hesabı Sil',
       deleting: 'Siliniyor…',
       oldPanel: 'Eski panel (geçici)',
       verifyModalTitle: 'Kimlik doğrulama',
-      verifyModalInfo:
-        'Kimlik doğrulama adımını kullanıcıların birbirine güvenmesi amacıyla yapıyoruz.\nKimlik bilgileriniz onaydan sonra sistem tarafından silinerek yok edilir.\nKimlik doğrulama zorunlu bir adım değildir.\nDoğrulanmış profil rozeti almak sizi daha güvenilir göstermek için hazırlanmıştır.',
-      verifyMethodUpload: 'Kimlik yükleme',
-      verifyMethodWhatsApp: 'WhatsApp görüntülü arama',
-      verifyWhatsAppTitle: 'WhatsApp görüntülü arama ile doğrulama',
-      verifyWhatsAppBody: 'WhatsApp üzerinden görüntülü arama ile doğrulama yapılır. Talep oluşturup WhatsApp\'ı açabilirsiniz.',
-      verifyWhatsAppCta: "WhatsApp'ı aç",
+      verifyModalInfo: 'Kimlik doğrulama isteğe bağlıdır.\n\nBir yöntem seçin ve yönergeleri takip edin. İnceleme tamamlandığında rozet profilinizde görünür.',
+      verifyMethodSelfieVideo: 'Selfie video doğrulama',
+      verifyMethodSocial: 'Sosyal medya ile doğrulama',
+      verifySelfieVideoTitle: 'Selfie video (WhatsApp) ile doğrulama',
+      verifySelfieVideoBody: 'WhatsApp üzerinden 5 saniyelik bir video selfie göndermeniz istenir. Talep oluşturup WhatsApp\'ı açabilirsiniz.',
+      verifySelfieVideoCta: "WhatsApp'ı aç",
+      verifySocialTitle: 'Sosyal medya ile doğrulama',
+      verifySocialBody: 'Instagram / TikTok / YouTube / Facebook hesabınızı seçin ve kullanıcı adınızı gönderin. Ekibimiz kontrol edip rozetinizi tanımlar.',
+      verifySocialPlatform: 'Platform',
+      verifySocialUsername: 'Kullanıcı adı',
+      verifySocialMissing: 'Lütfen platform seçin ve kullanıcı adınızı yazın.',
+      verifySocialSubmitted: 'Talebiniz alındı. İnceleme bekleniyor.',
       idType: 'Kimlik türü',
       idTypeTrId: 'T.C. Kimlik',
       idTypePassport: 'Pasaport',
@@ -1510,11 +1635,11 @@ export default {
   },
 
   meta: {
-    baseTitle: 'Uniqah | Evlilik Eşleştirme',
+    baseTitle: 'Uniqah | Türkiye–Endonezya Evlilik Rehberliği',
     baseDescription:
-      'Uniqah, evlilik odaklı eşleştirme ve güvenli iletişim adımları sunan kapalı bir sistemdir.',
+      'Uniqah, Türkiye–Endonezya evlilik sürecinde adım adım rehberlik sunar: evrak kontrolü, resmî süreç zamanlaması, tercüme/iletişim ve sahada koordinasyon.',
     pages: {
-      home: { title: 'Uniqah | Evlilik Eşleştirme' },
+      home: { title: 'Uniqah | Türkiye–Endonezya Evlilik Rehberliği' },
       about: { title: "Hakkımızda" },
       corporate: { title: "Kurumsal" },
       contact: { title: "İletişim" },
@@ -1525,7 +1650,7 @@ export default {
           "Planlı Endonezya tur paketleri ve grup turları: Bali, Lombok, Komodo ve daha fazlası için sahada organize edilen programlar.",
       },
       wedding: {
-        title: "Evlilik Rehberliği",
+        title: "Türkiye–Endonezya Evlilik Rehberliği",
         description:
           "Endonezya'da evlilik süreciniz için rehberlik: otel, ulaşım, tercümanlık ve resmi evrak işlemlerinde uçtan uca destek.",
       },
@@ -1614,7 +1739,10 @@ export default {
         partnerPreferences: 'Evleneceğim Kişide Aradıklarım',
       },
       contactPrivacyNotice:
-        'İletişim bilgileriniz (WhatsApp/e-posta/Instagram) gizlidir. Form doldururken ve uygulamada herkese açık şekilde gösterilmez. Bu bilgiler yalnızca 48 saatlik aktif tanışma sürecinden sonra ve sizin onayınızla paylaşılabilir.',
+        'İletişim bilgileriniz (WhatsApp/e-posta) gizlidir. Form doldururken ve uygulamada herkese açık şekilde gösterilmez.',
+      contactNumberNote: 'İletişim numaranız kimseyle paylaşılmaz; sadece sistem doğrulamanız için gereklidir.',
+      inviteCodeHelp:
+        'Sizi bir arkadaşınız davet ettiyse davet kodunuzu bu alana ekleyip ücretsiz üyelikten faydalanabilirsiniz. Davet kodunuz yoksa bu alanı boş bırakabilirsiniz.',
       confirmGender: {
         title: 'Cinsiyet onayı',
         text: 'Kendi cinsiyetinizi "{{gender}}" olarak seçtiniz. Onaylıyor musunuz?',
@@ -1624,10 +1752,11 @@ export default {
       labels: {
         username: 'Kullanıcı adı',
         fullName: 'Ad Soyad',
+        inviteCode: 'Davet kodu (opsiyonel)',
         age: 'Yaş',
         city: 'Şehir',
         country: 'Yaşadığınız ülke',
-        whatsapp: 'WhatsApp numarası',
+        whatsapp: 'İletişim numarası',
         email: 'E-posta',
         instagram: 'Instagram (opsiyonel)',
         nationality: 'Uyruğunuz',
@@ -1687,6 +1816,7 @@ export default {
       placeholders: {
         username: 'Örn: moonstar_34',
         fullName: 'Örn: Mehmet Yılmaz',
+        inviteCode: 'Örn: 1234',
         age: 'Örn: 29',
         city: 'Örn: İstanbul',
         country: 'Örn: Türkiye',
@@ -1726,7 +1856,7 @@ export default {
         },
         maritalStatus: {
           single: 'Bekar',
-          widowed: 'Dul (eşi vefat etmiş)',
+          widowed: 'Eşi vefat etmiş',
           divorced: 'Boşanmış',
           other: 'Diğer',
           doesnt_matter: 'Farketmez',
@@ -1856,6 +1986,7 @@ export default {
         username: 'Lütfen kullanıcı adı belirleyin.',
         usernameTaken: 'Bu kullanıcı adı kullanımda. Lütfen başka bir kullanıcı adı seçin.',
         fullName: 'Lütfen ad soyad girin.',
+        inviteCodeInvalid: 'Davet kodu 4 haneli olmalı (örnek: 1234).',
         age: 'Lütfen yaş girin.',
         ageRange: 'Yaş {{minAge}}–99 arasında olmalı.',
         email: 'Lütfen e-posta adresinizi girin.',
@@ -1930,8 +2061,6 @@ export default {
         submitFailed: 'Başvuru gönderilemedi. Lütfen tekrar deneyin.',
         tooFast: 'Form çok hızlı gönderildi. Lütfen bilgileri doldurup tekrar deneyin.',
         rateLimited: 'Kısa sürede çok fazla deneme yapıldı. Lütfen 1 dakika sonra tekrar deneyin.',
-        recaptchaFailed: 'Spam doğrulaması yapılamadı. Lütfen sayfayı yenileyip tekrar deneyin.',
-        recaptchaRejected: 'Spam koruması nedeniyle başvurunuz alınamadı. Lütfen biraz sonra tekrar deneyin.',
       },
     },
     bottomNote:
@@ -1939,15 +2068,21 @@ export default {
   },
 
   weddingPage: {
+    publicNote: {
+      p1: 'Not: Bu sayfa evlilik planı yapan çiftlerin evlilik prosedürlerine yardımcı olmak amacıyla hazırlanmıştır. Eğer bir eş adayınız yoksa',
+      link: 'Eş adayı sayfamızı',
+      p2: ' ziyaret edin.',
+    },
     hero: {
       badge: 'Evlilik süreci için rehberlik',
-      title: 'Evlilik Hazırlıklarınız İçin Yanınızdayız',
+      title: 'Türkiye–Endonezya Evlilik Rehberliği',
       description:
-        'Evraklar, resmî işlemler, aileler arası iletişim ve organizasyon adımlarını birlikte planlayarak bu süreci kafanızı kurcalayan sorulardan uzak, güven veren bir yolculuğa dönüştürüyoruz.',
+        'Türk ve Endonezyalı çiftler için; evraklar, resmî işlemler, aileler arası iletişim, tercüme ve saha koordinasyon adımlarını netleştirerek süreci güven veren bir yolculuğa dönüştürüyoruz.',
       actions: {
         openForm: "Evlilik Planı Formunu Aç",
         matchmakingApply: 'Eşleştirme Başvurusu',
-        matchmakingHub: 'Eşleştirme',
+        matchmakingHub: 'Eş adayı bul',
+        matchmakingHint: 'Henüz bir eş adayınız yok mu? Eşleştirme sistemine kayıt olup eş adaylarını buradan bulabilirsiniz.',
         quickChat: "WhatsApp ile Hızlı Görüşme",
         enableNotifications: 'Bildirimleri aç',
         notificationTitle: 'Bildirimler açık',
@@ -2008,21 +2143,45 @@ export default {
       flexibleNote:
         'Aşağıdan "Evlilik Planı" formunu doldurabilir ya da "Evlilik Belgeleri" sekmesinden gerekli evrakları detaylı inceleyebilirsiniz.',
     },
+    process: {
+      title: 'Süreç Nasıl İşler?',
+      subtitle: 'Aşağıdaki adımlar genel yol haritasıdır; detaylar duruma ve resmî kurumlara göre değişebilir.',
+    },
     steps: [
       {
-        title: "Sizi ve Durumunuzu Tanıyoruz",
+        title: 'İlk adım: Planlama formu',
         description:
-          "Formu dolduruyorsunuz; sizden aldığımız bilgilerle ihtiyaçlarınızı netleştiriyoruz.",
+          'Sizi tanımamız ve süreci en iyi şekilde planlamamız için Planlama bölümündeki 15 soruluk formu doldurup bize göndermeniz gerekiyor. Bu aşama tamamen ücretsizdir ve sadece birkaç dakikanızı ayırmanız yeterli olacaktır.',
       },
       {
-        title: "Sizinle Birlikte Planlıyoruz",
+        title: 'Birlikte plan yapıyoruz',
         description:
-          "Belgeler, tarih ve süreç adımlarını; bütçenize ve beklentilerinize göre birlikte şekillendiriyoruz.",
+          'Gönderdiğiniz formu inceledikten sonra size dönüş yapıyoruz ve birlikte süreç hakkında net bir plan hazırlıyoruz.',
       },
       {
-        title: "Süreci Adım Adım Yönetiyoruz",
+        title: 'Anlaşma ve rehberlik anlaşması',
         description:
-          'Varışınızdan nikâhın tamamlanmasına kadar her adımda yanınızdayız.',
+          'Rehberlik hizmetimizi almayı onayladıktan sonra hesaplanan toplam bütçenin %40’lık kısmının ödemesini yapıyorsunuz. Karşılıklı güven açısından kalan %60’lık kısmı Endonezya’ya geldikten sonra alıyoruz.',
+      },
+      {
+        title: 'Nikâh işlemleri süreci',
+        description:
+          'Gerekli evrakları birlikte hazırlıyoruz ve nikâh işlemlerini başlatıyoruz. Tüm işlem takibini biz gerçekleştiriyoruz.',
+      },
+      {
+        title: 'Endonezya süreci',
+        description:
+          'Uçak bileti, otel rezervasyonu ve ulaşım planlamasını yapıyoruz. Nikâh işlemleri boyunca eş adayınız ve ailesiyle iletişiminizde yanınızda olur, tercümanlık yapar ve nikâh tamamlanana kadar size eşlik ederiz.',
+      },
+      {
+        title: 'Nikâh sonrası işlemler',
+        description:
+          'Nikâhtan sonra evliliğin resmî makamlar tarafından onaylanmasını sağlıyoruz. Türkiye’de yaşanacaksa eş adayı için vize işlemlerini; Endonezya’da yaşanacaksa oturum işlemlerini yürütüyoruz. Talep edilirse Endonezya’da balayı tatilinizi de organize ediyoruz.',
+      },
+      {
+        title: 'Rehberlik hizmetinin tamamlanması',
+        description:
+          'Tüm işlemlerin eksiksiz tamamlandığından emin olduktan sonra süreci tamamlamış oluyoruz; en kolay yoldan en iyi şekilde evlenerek evliliğinize mutlu bir başlangıç yapmanızı sağlamış oluyoruz.',
       },
     ],
     images: {
@@ -2033,6 +2192,105 @@ export default {
       plan: "Evlilik Planı",
       documents: 'Evlilik Belgeleri',
     },
+    mobileTabs: {
+      documents: 'Belgeler',
+      process: 'Süreç',
+      guidance: 'Rehberlik',
+      planning: 'Planlama',
+    },
+    mobileDocuments: {
+      question: {
+        title: 'Nikâh nerede gerçekleşecek?',
+        hint: 'Belgeler, nikâhın kıyılacağı ülkeye göre değişir.',
+        options: {
+          indonesia: 'Endonezya’da',
+          turkiye: 'Türkiye’de',
+        },
+      },
+      trRequirements: {
+        title: 'Türkiye’de resmî nikâh için gerekli belgeler',
+        note:
+          'Not: Belgeler; şehir, kurum ve güncel mevzuata göre değişebilir. Bu listeyi birlikte netleştirip en güncel kontrol listesini çıkarabiliriz.',
+        steps: [
+          {
+            title: '🇮🇩 1️⃣ Ankara Endonezya Büyükelçiliği: Evlenme izin belgesi',
+            intro: '(Bekârlık ve evlenmeye engel yoktur yazısı)',
+            items: [
+              '👩 Endonezya vatandaşı için gerekli belgeler',
+              'Pasaport (aslı + fotokopi)',
+              'KTP (Endonezya kimlik kartı) fotokopi',
+              'Aile kartı (Kartu Keluarga)',
+              'Doğum belgesi',
+              'Bekâr olduğunu gösteren belge',
+              'Endonezya’daki yerel makamdan evlenme uygunluk yazısı (N1/N4 eşdeğeri)',
+              '2–4 adet fotoğraf',
+              'Varsa boşanma kararı veya eşin ölüm belgesi',
+              '👨 Türk vatandaşı erkekten istenen belgeler',
+              'Kimlik kartı fotokopisi',
+              'Nüfus kayıt örneği',
+              'İkamet belgesi',
+              'Bekâr olduğunu gösterir belge',
+              '2 adet fotoğraf',
+              'Gelir belgesi',
+            ],
+            notes: [
+              '📌 Büyükelçilik bu ayarlardan sonra Evlenme İzin Yazısı / Certificate of No Impediment düzenler.',
+              '📌 Bazı durumlarda kadının Endonezya’daki ailesinden izin yazısı istenebilir.',
+              '📌 Türk vatandaşından istenen belgelerin Türkçe çevirisi noter onaylı olmalı; bazı belgeler Dışişleri Bakanlığı’ndan onaylanmalıdır.',
+            ],
+          },
+          {
+            title: '🇹🇷 2️⃣ Türkiye’de resmî nikâh için belediyeye verilecek belgeler',
+            intro: 'Nikâh başvurusu yapılacak kurum: Belediye Evlendirme Dairesi',
+            items: [
+              '👩 Endonezya vatandaşı için gerekli belgeler',
+              'Pasaport + noter onaylı Türkçe tercümesi',
+              'Doğum belgesi (Türkçe tercümeli ve apostilli)',
+              'Endonezya Büyükelçiliğinden evlenme izin belgesi',
+              'Bekârlık belgesi',
+              'Sağlık raporu (Türkiye’de alınır)',
+              '4–6 adet biyometrik fotoğraf',
+              'İkamet adres beyanı',
+              '👨 Türk vatandaşı erkek için gerekli belgeler',
+              'Nüfus cüzdanı / T.C. kimlik kartı',
+              'Nüfus kayıt örneği',
+              'İkametgâh belgesi',
+              'Sağlık raporu',
+              '4–6 adet fotoğraf',
+            ],
+            notes: [
+              '📌 Türkiye’de nikâh başvurusu sırasında önemli şartlar',
+              '✔ Yabancı belgeler apostilli olmalı',
+              '✔ Türkçe tercümesi noter onaylı olmalı',
+              '✔ İsim yazımları belgelerde birebir aynı olmalı',
+              '✔ Bekârlık belgesi zorunludur',
+              '✔ Sağlık raporu Türkiye’de aile hekiminden alınır',
+              '⏱ Ortalama süre',
+              'Büyükelçilik izin yazısı: 1–5 gün',
+              'Belge tercüme & noter: 1–3 gün',
+              'Nikâh randevusu: şehir yoğunluğuna göre 1–14 gün',
+              '⚠️ Süreci zorlaştıran yaygın hatalar',
+              '❌ Apostil yapılmaması',
+              '❌ İsimlerin farklı yazılması',
+              '❌ Bekârlık belgesinin eksik olması',
+              '❌ Belgelerin eski tarihli olması',
+              '❌ Yeminli tercüme kullanılmaması',
+            ],
+          },
+        ],
+        action: 'WhatsApp’tan güncel kontrol listesini sor',
+        whatsappMessage:
+          'Merhaba, Türkiye’de resmî nikâh (TR vatandaşı + Endonezya vatandaşı) için güncel belge listesini ve başvuru adımlarını paylaşabilir misiniz? Nikâh il/ilçesi: …',
+      },
+      trPlaceholder: {
+        title: 'Türkiye’de nikâh için belge listesi',
+        note:
+          'Resmî belge listesi; şehir, konsolosluk/valilik uygulaması ve güncel mevzuata göre değişebilir. Bu kısmı doğrulanmış resmî kaynaklara göre birlikte netleştirelim.',
+        action: 'WhatsApp’tan belge listesini sor',
+        whatsappMessage:
+          'Merhaba, Türkiye’de nikâh için (TR vatandaşı + Endonezya vatandaşı) istenen güncel belgeleri ve kaynak linklerini paylaşabilir misiniz?',
+      },
+    },
     plan: {
       title: "Evlilik Planınızı Bize İletin",
       subtitle:
@@ -2040,6 +2298,189 @@ export default {
       successTitle: "Talebiniz başarıyla gönderildi!",
       successText:
         "Formu doldurduğunuz için teşekkür ederiz. 24 saat içinde size geri dönüş yapacağız.",
+      why: {
+        title: 'Neden planlama gerekli?',
+        text:
+          'Farklı ülkelerden evliliklerde en büyük problem, süreci doğru yönetememektir. Yapılacak bir harf hatası dahi; gerek maddi anlamda, gerekse zaman kaybı anlamında büyük zararlara sebep olabilir. Bu yüzden sürecinizin en baştan doğru planlanması birinci şarttır. Rehberlik hizmetimiz, sizin için bunu en kolay ve doğru yoldan planlamanızı ve evlilik sürecini sıkıntısız tamamlamanızı sağlar. Tüm süreci sizin için doğru planlamamız, vereceğiniz bilgilere bağlıdır. Bu sebeple sizler için hazırladığımız 15 soruluk formu birkaç dakikanızı ayırarak doldurmanız, her açıdan faydanıza olacaktır.',
+      },
+      quiz: {
+        introTitle: 'Adım Adım Evlilik Planı Testi',
+        introText:
+          "Bu form, hali hazırda evleneceğiniz bir eş adayınız varsa size evlilik prosedürlerinde rehberlik hizmeti vermemiz amacıyla doldurulur. Eğer bir eş adayınız yoksa lütfen ‘Eş adayı bul’ butonuna tıklayarak ya da eş adayı sayfamızı ziyaret ederek ücretsiz kayıt olun ve form doldurarak sistemimize kayıt olun.",
+        introItems: [
+          'Eş adayı sayfamızdaki eş adayı bulma sistemimiz yeni olduğu için hemen bir eş adayı bulamayabilirsiniz. Uygulamayı telefonunuza indirip bildirimleri açarak size uygun bir eş adayı olduğunda bildirim alabilirsiniz.',
+        ],
+        start: 'Planlamaya Başla',
+        back: 'Geri',
+        next: 'Devam',
+        submit: 'WhatsApp ile Gönder',
+        progress: 'Soru {{current}} / {{total}}',
+        errors: {
+          required: 'Lütfen bu soruyu yanıtlayın.',
+        },
+        options: {
+          yes: 'Evet',
+          no: 'Hayır',
+          later: 'Daha sonra karar verecem',
+          turkiye: 'Türkiye',
+          indonesia: 'Endonezya',
+          other: 'Diğer',
+          employment: {
+            worker: 'Özel sektör',
+            civilServant: 'Memur',
+            retired: 'Emekli',
+            publicEmployee: 'Kamu çalışanı',
+            businessOwner: 'İş sahibi',
+            other: 'Diğer',
+          },
+          marital: {
+            single: 'Bekâr',
+            widowed: 'Eşi vefat etmiş',
+            divorced: 'Boşanmış',
+            divorceInProgress: 'Boşanma süreci devam ediyor',
+          },
+          partnerMarital: {
+            single: 'Bekâr',
+            widowed: 'Eşi vefat etmiş',
+            divorced: 'Boşanmış',
+          },
+        },
+        fields: {
+          employmentStatus: 'Çalışma durumunuz',
+          profession: 'Mesleğiniz',
+          maritalStatus: 'Medeni durumunuz',
+          hasChildren: 'Çocuğunuz var mı?',
+          legalWhere: 'Resmî nikâh hangi ülkede olacak?',
+          plannedLiveWhere: 'Evlilik sonrası nerede yaşamayı planlıyorsunuz?',
+          nationality: 'Uyruğunuz',
+          nationalityOther: 'Uyruğunuz (Diğer)',
+          livingCountry: 'Hangi ülkede yaşıyorsunuz?',
+          livingCountryOther: 'Yaşadığınız ülke (Diğer)',
+          budget: 'Evlilik için ayırdığınız bütçe',
+          indonesiaDuration: 'Endonezya’da tahmini kalış süreniz',
+          weddingDate: 'Planlanan nikâh tarihi',
+          partnerAge: 'Eş adayınızın yaşı',
+          partnerCity: 'Eş adayınızın şehri',
+          partnerMaritalStatus: 'Eş adayınızın medeni durumu',
+          partnerHasChildren: 'Eş adayınızın çocuğu var mı?',
+          partnerChildrenCount: 'Kaç çocuğu var?',
+          partnerChildrenLiveWithUs: 'Çocuk(lar) sizinle yaşayacak mı?',
+        },
+        placeholders: {
+          profession: 'Örn: Mühendis, öğretmen, esnaf…',
+          budget: 'Örn: 100.000 TL',
+          indonesiaDuration: 'Örn: 5 gün / 15 gün / 1 ay',
+          weddingDate: 'Örn: 2026-06-15',
+          partnerAge: 'Örn: 28',
+          partnerCity: 'Örn: Jakarta / İstanbul',
+          partnerChildrenCount: 'Örn: 1',
+          nationalityOther: 'Örn: Alman, Hollandalı…',
+          livingCountryOther: 'Örn: Almanya, Hollanda…',
+        },
+        steps: {
+          personal: {
+            title: 'Sizi Tanıyalım',
+            desc: 'Kısaca temel bilgilerinizi alalım.',
+          },
+          nationality: {
+            title: 'Uyruk',
+            desc: 'Uyruğunuzu seçin.',
+          },
+          livingCountry: {
+            title: 'Yaşadığınız Ülke',
+            desc: 'Şu anda hangi ülkede yaşıyorsunuz?',
+          },
+          employment: {
+            title: 'İş Durumu',
+            desc: 'Çalışma durumunuzu seçin.',
+          },
+          profession: {
+            title: 'Meslek',
+            desc: 'Mesleğinizi yazın.',
+          },
+          marital: {
+            title: 'Medeni Durum',
+            desc: 'Medeni durumunuzu seçin.',
+          },
+          children: {
+            title: 'Çocuk Durumu',
+            desc: 'Çocuğunuz var mı?',
+          },
+          legalWhere: {
+            title: 'Resmî İşlemler',
+            desc: 'Resmî nikâh hangi ülkede olacak?',
+          },
+          plannedLiveWhere: {
+            title: 'Yaşam Planı',
+            desc: 'Evlilik sonrası yaşamayı planladığınız ülkeyi seçin.',
+          },
+          budget: {
+            title: 'Bütçe',
+            desc: 'Planlamayı doğru yapmak için bütçenizi yazın.',
+          },
+          indonesiaDuration: {
+            title: 'Endonezya Süresi',
+            desc: 'Endonezya’da süreç için ne kadar kalmayı planlıyorsunuz?',
+          },
+          weddingDate: {
+            title: 'Nikâh Tarihi',
+            desc: 'Tahmini nikâh tarihini yazın (bilmiyorsanız yaklaşık).',
+          },
+          partnerAge: {
+            title: 'Eş Adayı Yaş',
+            desc: 'Eş adayınızın yaşını yazın.',
+          },
+          partnerCity: {
+            title: 'Eş Adayı Şehir',
+            desc: 'Eş adayınızın şehrini yazın.',
+          },
+          partnerMarital: {
+            title: 'Eş Adayı Medeni Durum',
+            desc: 'Eş adayınızın medeni durumunu seçin.',
+          },
+          partnerChildren: {
+            title: 'Eş Adayı Çocuk',
+            desc: 'Bazı durumlarda bu bilgi evrak ve süreç planını etkiler.',
+          },
+          services: {
+            title: 'Hizmet İhtiyacı',
+            desc: 'İhtiyaç duyduğunuz hizmetleri seçin (birden fazla seçebilirsiniz).',
+          },
+          honeymoon: {
+            title: 'Balayı',
+            desc: 'Nikâh sonrası balayı tatili düşünür müsünüz?',
+          },
+        },
+        whatsapp: {
+          intro: 'Merhaba, evlilik planı testimi gönderiyorum:',
+          none: 'Seçim yapılmadı',
+          labels: {
+            name: 'Ad Soyad',
+            age: 'Yaş',
+            city: 'Şehir',
+            phone: 'Telefon',
+            nationality: 'Uyruk',
+            livingCountry: 'Yaşadığı ülke',
+            employment: 'İş durumu',
+            profession: 'Meslek',
+            maritalStatus: 'Medeni durum',
+            hasChildren: 'Çocuk',
+            legalWhere: 'Resmî nikâh ülkesi',
+            plannedLiveWhere: 'Yaşam planı',
+            budget: 'Bütçe',
+            indonesiaDuration: 'Endonezya süresi',
+            weddingDate: 'Nikâh tarihi',
+            partnerAge: 'Eş adayı yaşı',
+            partnerCity: 'Eş adayı şehri',
+            partnerMaritalStatus: 'Eş adayı medeni durumu',
+            partnerHasChildren: 'Eş adayının çocuğu var mı',
+            partnerChildrenCount: 'Çocuk sayısı',
+            partnerChildrenLiveWithUs: 'Çocuk(lar) sizinle yaşayacak mı',
+            services: 'İstediğim hizmetler',
+            honeymoon: 'Balayı',
+          },
+        },
+      },
       form: {
         sections: {
           basicInfo: {
@@ -2049,12 +2490,18 @@ export default {
               phone: "İletişim Numarası",
               city: "Şehir",
               age: "Yaş",
+              budget: 'Evlilik için ayırdığınız bütçe',
             },
             placeholders: {
               name: "Adınız ve soyadınız",
               phone: "+90 555 034 3852",
               city: "Yaşadığınız şehir",
               age: "Yaşınız",
+              budget: 'Örn: 100.000 TL',
+            },
+            hints: {
+              budget:
+                'Bu alanda belirteceğiniz bütçe, nasıl bir evlilik planlamamız gerektiğini belirtecektir.',
             },
           },
           privacyNote: 'Gizlilik notu: Başvuru bilgileri eşleştirme ve güvenlik amacıyla işlenir; profiliniz kamuya açık listelenmez. Kurallara aykırı durumlarda destek hattına delil (ekran görüntüsü vb.) ile başvurabilirsiniz.',
@@ -2064,14 +2511,15 @@ export default {
           hint:
             "Birden fazla seçenek işaretleyebilirsiniz. Emin olmadığınız alanlar varsa boş bırakabilirsiniz.",
           options: {
-            consulting: "Danışmanlık",
-            paperworkTracking: "Evrak Takibi",
-            familyCommunication: "Ailelerarası İletişim",
-            transport: "Ulaşım",
-            interpretation: "Tercümelik",
-            ongoingGuidance: "Süreç Boyunca Rehberlik",
-            accommodation: "Konaklama",
-            honeymoon: "Balayı",
+            communicationInterpretation: 'Eş adayı ve/veya ailesiyle iletişim tercümanlığı',
+            research: 'Araştırma',
+            documentCollection: 'Evrak toplama',
+            legalFollowUp: 'Nikâh işlemleri',
+            flightTicket: 'Uçak bileti',
+            accommodation: 'Konaklama',
+            localTransport: 'Endonezya içi ulaşım',
+            postMarriage: 'Nikâh sonrası işlemler',
+            visaResidence: 'Vize / oturum',
           },
         },
         schedule: {
@@ -2098,30 +2546,36 @@ export default {
       title: 'Evlilik İçin Gerekli Belgeler (Genel Liste)',
       subtitle:
         "Aşağıdaki başlıklar genel bilgilendirme içindir. Sizin durumunuz için net ve güncel listeyi birlikte kontrol ediyoruz.",
+      disclaimer:
+        'Not: Bu içerik genel bilgilendirme amaçlıdır; belge ve şartlar şehir/kurum uygulamalarına ve güncel mevzuata göre değişebilir. Başvuru öncesi ilgili kurumdan teyit edilmelidir.',
       foreignSpouse: {
-        title: "Yabancı Eş İçin Belgeler",
-        intro: "Genel olarak yabancı eşten talep edilen temel belgeler:",
+        title: 'Türk Vatandaşı (Yabancı Eş) İçin Belgeler',
+        intro: "Endonezya'da nikâh için Türk vatandaşı eşten istenebilen belgeler:",
         items: [
-          "Geçerli pasaport (en az 6 ay geçerlilik süresi ile)",
-          'Giriş şartları / ikamet belgesi (gerekiyorsa)',
-          'Evlenme ehliyet belgesi (ilgili konsolosluk/kurumdan)',
-          "Doğum belgesi (çok dilli)",
-          'Bekârlık belgesi (gerekirse yerel dile çevrili ve apostilli)',
-          "Varsa boşanma kararı veya vefat belgesi (çevrili ve noter onaylı)",
-          "İkamet belgesi",
-          "Son 6 ayda çekilmiş vesikalık fotoğraf",
+          'T.C. kimlik kartı',
+          "Pasaport (Türkiye'ye dönüş tarihinde en az 6 ay geçerli)",
+          'Doğum belgesi',
+          'Bekârlık belgesi',
+          'İkamet belgesi (bazı KUA ofisleri)',
+          'Adli sicil kaydı (bazı KUA ofisleri)',
+          'Sağlık raporu (bazı KUA ofisleri)',
+          'Daha önce evlendiyse: boşanma mahkeme kararı veya önceki eşin ölüm raporu',
+          'Son 6 ay içinde çekilmiş vesikalık fotoğraf',
+          'Elçilikten alınacak evlilik izin belgesi',
         ],
       },
       indonesianSpouse: {
-        title: 'Diğer Eş İçin Belgeler',
-        intro: 'Yerel vatandaş olan eşten çoğu başvuruda şu belgeler istenir:',
+        title: 'Endonezya Vatandaşı İçin Belgeler',
+        intro: "Endonezya'da nikâh için Endonezya vatandaşı eşten istenebilen belgeler:",
         items: [
-          'Kimlik belgesi',
+          'KTP',
+          'Aile kartı (KK)',
+          'Ebeveyn bilgileri',
           'Doğum belgesi',
-          'Aile nüfus kaydı',
-          'Medeni durum belgesi (bekâr / boşanmış / dul)',
-          'Yerel başvuru formları ve gerekli onaylar',
-          'Son 6 ayda çekilmiş vesikalık fotoğraf',
+          'N1, N2, N4 formları',
+          'RT/RW yazısı',
+          'N3 formu',
+          'Son 6 ay içinde çekilmiş vesikalık fotoğraf',
         ],
       },
       extras: {
@@ -2138,9 +2592,10 @@ export default {
       importantNotes: {
         title: "📌 Önemli Notlar",
         items: [
-          'Birçok belge için apostil ve yerel dilde tercüme zorunlu olabilir (ilgili kuruma danışın).',
-          "Yapılacak bir harf hatası, eksik bir belge veya bilgi işlem sıralamasındaki bir hata tüm işlemleri olumsuz etkileyebilir.",
-          "Şehir, kurum ve memura göre evrak listesi ve işleyiş değişebilir.",
+          '* Yabancı eş için istenen belgeler içinde hangilerinin çevirili olması gerektiği; bağlı bulunan KUA ofisine göre değişiklik gösterebilir.',
+          '** Apostil yapılması gereken evraklar mutlaka apostil yaptırılmalıdır.',
+          '*** Gerekli belgeler zaman içinde değişen yasalarla birlikte değişebilir; güncel belgeleri sorgulayın.',
+          '**** Belgelerde eksiklik veya harf hataları nedeniyle başvurunuz reddedilebilir ve işlemlere en baştan başlamak zorunda kalabilirsiniz; zaman ve maddi zarardan kaçınmak için rehberlik desteği almanızı öneririz.',
         ],
       },
       personalDifferences: {
@@ -2167,6 +2622,10 @@ export default {
           a: "Belgelerinizin hazır olma durumuna, başvurduğunuz şehre ve kurum yoğunluğuna göre değişmekle birlikte, çoğu çift için sürecin planlama ve resmî işlemler bölümü birkaç hafta ile birkaç ay arasında tamamlanır.",
         },
         {
+          q: 'Evlilik masrafları ne kadar tutar?',
+          a: 'Masraf tamamen sizin bütçenize göre şekillenir. Kimseyi maddi imkânlarının üzerine zorlamıyoruz; ihtiyaçlarınıza ve bütçenize göre birlikte bir plan oluşturuyoruz.',
+        },
+        {
           q: 'Evlilik için önce hangi adımı atmalıyım?',
           a: "Önce hangi belgelerin sizden istendiğini netleştirmek gerekir. Belgeler listesini inceledikten sonra, bulunduğunuz şehir ve durumunuza göre sizin için güncel bir kontrol listesi oluşturmak üzere bizimle WhatsApp üzerinden iletişime geçebilirsiniz.",
         },
@@ -2182,8 +2641,8 @@ export default {
     },
     bottomCta: {
       title: "Evliliğinizi Birlikte Planlayalım",
-      description: "Aşağıdaki formu doldurun veya hemen WhatsApp'tan iletişime geçin.",
-      action: "WhatsApp'ta Şimdi Sor",
+      description: 'Planlama formunu açıp birkaç dakikada doldurun; size dönüş yapıp birlikte net bir plan çıkaralım.',
+      action: 'Planlama Formunu Aç',
       message: "Merhaba, düğün paketi hakkında bilgi almak istiyorum.",
       note:
         "Mesajlarınıza Türkçe yanıt veriyoruz; gerektiğinde Endonezce olarak da aile tarafı ile iletişimde size yardımcı oluyoruz.",
@@ -2373,10 +2832,11 @@ export default {
       badgeCompany: 'PT MoonStar Global Indonesia',
       badgeSocial: "Uniqah sosyal hesapları",
       title: "Uniqah",
-      subtitle: 'Eşleştirme • Evlilik rehberliği • Güvenli iletişim',
+      subtitle: 'Türkiye–Endonezya • Evlilik rehberliği • Süreç desteği',
       description:
-        'Uniqah, evlilik odaklı eşleştirme sistemimizdir. Güvenli bir tanışma süreci, doğru iletişim ve net adımlarla ilerlemeyi hedefleriz. İhtiyaç halinde tercüme ve süreç rehberliği desteği sunarız.',
+        'Uniqah; Türkiye–Endonezya evlilik sürecinde, iki tarafın da doğru bilgilendirilip adımları net görmesini sağlayan rehberlik sayfamızdır. Evraklar, resmî işlemler, tercüme/iletişim ve sahada koordinasyon konularında pratik bir yol haritası sunarız.',
       note: 'Evlilik odaklı, mahremiyet ve güvenlik öncelikli bir yapı.',
+      freeNote: 'Uygulamayı kullanmak tamamen ücretsizdir.',
       ctaTours: "Başvuruyu başlat",
       ctaBrochures: "Dokümanları görüntüle",
       ctaTrust: "Güven & Yasal",
@@ -2447,16 +2907,16 @@ export default {
       title: "Nasıl ilerliyoruz?",
       steps: [
         {
-          title: "1) Başvuru",
-          description: "Kuralları onaylayıp başvurunuzu tamamlayın.",
+          title: "1) İhtiyaç & hedef",
+          description: "Türkiye–Endonezya evlilik planınızı ve durumunuzu netleştiriyoruz.",
         },
         {
-          title: "2) Profil & doğrulama",
-          description: "Profilinizi oluşturun, fotoğraf ve bilgileri netleştirin.",
+          title: "2) Evrak & resmî adımlar",
+          description: "Gerekli evrakların kontrolü ve resmî süreç adımlarını planlıyoruz.",
         },
         {
-          title: "3) Eşleştirme & sohbet",
-          description: "Uygun eşleşmelerle sohbet edin ve karşılıklı karar verin.",
+          title: "3) Koordinasyon & tamamlama",
+          description: "Ulaşım/konaklama, tercüme ve sahada koordinasyonla süreci adım adım tamamlıyoruz.",
         },
       ],
       ctaTours: "Uniqah’a git",
@@ -2509,6 +2969,9 @@ export default {
       description:
         'Eşleştirme süreci, evlilik rehberliği veya seyahat/balayı planı… Aklınıza takılan her şeyi sorabilirsiniz. Süreci birlikte sade ve anlaşılır hale getirelim.',
       ctaTryFree: "Ücretsiz dene",
+      ctaWeddingGuidance: 'Evlilik rehberliğini aç',
+      ctaMatchmaking: 'Eş adayı bul',
+      matchmakingHint: 'Henüz bir eş adayınız yok mu? O halde eşleştirme sistemimize kayıt olun ve eş adaylarını Profilim sayfanızdan takip edin.',
       ctaContact: "İletişim formunu aç",
       ctaWhatsapp: "WhatsApp ile sor",
     },
@@ -2616,9 +3079,9 @@ export default {
         toursDesc: "Resmi adımlar, tercüme ve süreç koordinasyonu konusunda destek.",
         weddingTitle: "Uniqah – Eşleştirme",
         weddingDesc: "Ciddi niyetli kullanıcılar için güvenlik adımları, profil yönetimi, sohbet ve karar süreci.",
-        dameturkTitle: "DaMeTurk",
+        dameturkTitle: "Türkiye–Endonezya evlilik rehberliği",
         dameturkDesc:
-          "Endonezya’da kurduğumuz marka değeriyle orijinal Türk dondurması üretim ve satış faaliyetlerimiz. dameturk.com",
+          "Türk ve Endonezyalı çiftler için; evrak listesi, resmi süreç adımları, tercüme/iletişim desteği ve saha koordinasyonu gibi konularda adım adım rehberlik sunuyoruz.",
       },
       socialNote:
         "Uniqah topluluğunu içerikler ve rehberlerle destekliyoruz.",
@@ -2831,14 +3294,81 @@ export default {
     forceInfo: 'Bu işlem için yeniden giriş yapmanız istendi. Lütfen tekrar giriş yapın.',
     googleCta: 'Google ile devam et',
     googleSignupCta: 'Google ile kayıt ol',
-    redirecting: 'Google girişine yönlendiriliyorsunuz…',
+    appleCta: 'Apple ile devam et',
+    appleSignupCta: 'Apple ile kayıt ol',
+    redirecting: 'Girişe yönlendiriliyorsunuz…',
     redirectScreen: {
       title: 'Yönlendiriliyorsun…',
       body: 'Profil sayfası açılıyor. Bu ekran uzun sürerse aşağıdan devam edebilirsin.',
       goProfile: 'Profilime Git',
       refresh: 'Yenile',
     },
-    signupGuide: 'Kayıt için önce cinsiyet, uyruk ve yaş bilgilerinizi girin.',
+    signupGuide: 'Kayıt olmak için Google ile devam edin; ardından kısa profilinizi tamamlayın.',
+    signupExistingAccountHint: 'Zaten hesabın varsa Google ile giriş yap.',
+    quickProfile: {
+      title: 'Hızlı Profil Formu',
+      lead: 'Kısa profilini tamamla, sonra devam et.',
+      labels: {
+        fullName: 'İsim',
+        age: 'Yaş',
+        gender: 'Cinsiyet',
+        city: 'Şehir',
+        country: 'Ülke',
+        maritalStatus: 'Medeni durum',
+        hasChildren: 'Çocuk var mı?',
+        childrenCount: 'Kaç çocuk?',
+        occupation: 'Meslek',
+        photo: 'Profil fotoğrafı (1 adet)',
+      },
+      placeholders: {
+        fullName: 'Adınız',
+        age: 'Örn: 28',
+        city: 'Şehir',
+        childrenCount: 'Örn: 1',
+        occupation: 'Meslek',
+      },
+      options: {
+        select: 'Seçiniz',
+        countryTr: 'Türkiye',
+        countryId: 'Endonezya',
+        countryOther: 'Diğer',
+        maritalSingle: 'Bekar',
+        maritalMarried: 'Evli',
+        maritalDivorced: 'Boşanmış',
+        maritalWidowed: 'Dul',
+        hasChildrenNo: 'Yok',
+        hasChildrenYes: 'Var',
+      },
+      statuses: {
+        photoUploading: 'Fotoğraf yükleniyor…',
+        photoUploaded: 'Fotoğraf yüklendi.',
+      },
+      actions: {
+        createProfile: 'Profilimi Oluştur',
+      },
+      steps: {
+        step2Google: 'Adım 2: Google ile kayıt ol',
+      },
+      infos: {
+        ready: 'Profilin hazır. Şimdi devam edebilirsin.',
+      },
+      errors: {
+        fillFirst: 'Önce hızlı profil formunu doldur.',
+        nameRequired: 'İsim zorunlu.',
+        ageInvalid: 'Yaş 18-99 aralığında olmalı.',
+        genderRequired: 'Cinsiyet zorunlu.',
+        cityRequired: 'Şehir zorunlu.',
+        countryRequired: 'Ülke zorunlu.',
+        maritalRequired: 'Medeni durum zorunlu.',
+        occupationRequired: 'Meslek zorunlu.',
+        hasChildrenRequired: 'Çocuk durumu zorunlu.',
+        childrenCountRequired: 'Çocuk sayısı (1-20) zorunlu.',
+        photoRequired: 'Profil fotoğrafı zorunlu.',
+        photoNotImage: 'Lütfen bir görsel dosyası seçin.',
+        photoUploadFailed: 'Fotoğraf yükleme başarısız.',
+        saveFailed: 'Profil kaydedilemedi. Lütfen tekrar deneyin.',
+      },
+    },
     or: 'veya',
     labels: {
       email: 'E-posta',
@@ -2862,6 +3392,7 @@ export default {
       signup: 'Kayıt ol',
       switchToSignup: 'Hesabın yok mu? Kayıt ol',
       switchToLogin: 'Zaten hesabın var mı? Giriş yap',
+      showEmailFallback: 'Sorun mu yaşıyorsun? E-posta ile devam et',
       forgot: 'Şifremi unuttum',
     },
     signup: {
@@ -2876,6 +3407,30 @@ export default {
       prefix: 'Şifrenizi unuttuysanız',
       suffix: 'butonuna basıp e-posta adresinize sıfırlama bağlantısı gönderebilirsiniz.',
     },
+    passwordToggle: {
+      show: 'Göster',
+      hide: 'Gizle',
+    },
+    feedback: {
+      title: 'Şikayet / Geri bildirim',
+      lead: 'Kayıt aşamasında sorun yaşıyorsanız lütfen iletişim numaranız ya da e‑posta adresinizle birlikte sorunu bize bildirin. Hemen kontrol edip size dönüş yapalım.',
+      contactLabel: 'İletişim (telefon veya e‑posta)',
+      contactPlaceholder: 'Örn: +62 812… veya ad@site.com',
+      placeholder: 'İletişim (telefon veya e‑posta) + yaşadığınız sorunu yazın…',
+      note: 'Not: Size dönüş yapabilmemiz için iletişim bilginizi yazın.',
+      reportCta: 'Bu hatayı bildir',
+      prefillHeader: 'Lütfen aşağıyı doldurun:',
+      prefillContact: 'İletişim (telefon veya e-posta):',
+      prefillProblem: 'Sorun (ne yapmaya çalışıyordunuz / ne oldu?):',
+      prefillUiError: 'Ekrandaki hata',
+      prefillDebugCode: 'Hata kodu',
+      prefillDebugMessage: 'Teknik mesaj',
+      send: 'Gönder',
+      sending: 'Gönderiliyor…',
+      sent: 'Gönderildi. Teşekkürler.',
+      tooShort: 'Lütfen en az {{min}} karakter yazın.',
+      failed: 'Gönderilemedi. Lütfen tekrar deneyin.',
+    },
     legal: {
       prefix: 'Devam ederek',
       contract: 'Kullanıcı / Üyelik sözleşmesi',
@@ -2883,6 +3438,11 @@ export default {
       privacy: 'Gizlilik Politikası',
     },
     resetSent: 'Şifre sıfırlama bağlantısı e-posta adresinize gönderildi.',
+    infos: {
+      accountExistsTryLogin: 'Zaten kayıtlı bir hesabınız var. E-posta ve şifrenizi kullanarak giriş yapmayı deneyin.',
+      inAppBrowserGoogleRedirect:
+        'TikTok uygulama içi tarayıcısında Google ile giriş bazen çalışmıyor. Şimdi Google girişini yönlendirme (redirect) ile açıyoruz…',
+    },
     errors: {
       noAccountFoundSignupRequired:
         'Kaydınız bulunamadı. Kayıt olmanız gerekiyor. Kayıt adımına yönlendirildiniz; lütfen cinsiyet/uyruk seçip yaşınızı girin ve tekrar deneyin.',
@@ -2895,12 +3455,17 @@ export default {
         'Google ile giriş başarısız (unauthorized-domain).\n\nFirebase Console → Authentication → Settings → Authorized domains kısmına bu domain\'i ekleyin: {{host}}',
       googleOperationNotAllowed:
         'Google ile giriş kapalı. Firebase Console → Authentication → Sign-in method → Google sağlayıcısını etkinleştirin.',
+      appleOperationNotAllowed:
+        'Apple ile giriş kapalı. Firebase Console → Authentication → Sign-in method → Apple sağlayıcısını etkinleştirin.',
       firebaseAuthInvalidConfig: 'Firebase Auth yapılandırması geçersiz. `.env.local` içindeki `VITE_FIREBASE_*` değerlerini kontrol edin.',
       googleFailed: 'Google ile giriş başarısız.',
+      appleFailed: 'Apple ile giriş başarısız.',
       invalidCredential: 'E-posta veya şifre hatalı ya da hesap bulunamadı. Şifrenizi unuttuysanız “Şifremi unuttum” ile sıfırlamayı deneyin.',
       invalidEmail: 'E-posta adresi geçersiz görünüyor. Lütfen kontrol edin.',
       emailAlreadyInUse: 'Bu e-posta adresiyle zaten bir hesap var. “Giriş yap” veya “Şifremi unuttum” seçeneğini kullanın.',
       weakPassword: 'Şifre çok zayıf. Daha güçlü bir şifre deneyin (ör. en az 6 karakter).',
+      rateLimited: 'Kısa sürede çok fazla deneme yapıldı. Lütfen 1 dakika bekleyip tekrar deneyin.',
+      networkFailed: 'Bağlantı hatası oluştu. İnternetinizi kontrol edip tekrar deneyin.',
       passwordsDoNotMatch: 'Şifreler eşleşmiyor. Lütfen aynı şifreyi tekrar yazın.',
       emailPasswordRequired: 'E-posta ve şifre gerekli.',
       genderRequired: 'Kayıt olmak için cinsiyet seçin.',
@@ -3323,13 +3888,32 @@ export default {
     verification: {
       title: 'Kimlik doğrulama',
       cta: 'Kimlik doğrula',
-      verifiedBadge: 'Kimliği doğrulanmış',
+      verifiedBadge: 'Güvenilir kullanıcı',
       requiredTitle: 'Kimlik doğrulama (rozet)',
       requiredBody: 'Kimlik doğrulama zorunlu değildir; bir güven rozetidir. Kurallara aykırı davranışlarda kanıtla şikayet oluşturabilirsiniz.',
       unverifiedTitle: 'Kimlik doğrulama (rozet)',
       unverifiedBodyMale: 'Kimlik doğrulama zorunlu değildir; bir güven rozetidir. (Not: Erkek kullanıcılar için aksiyonlar üyelikle açılır.)',
       unverifiedBodyFemale: 'Kimlik doğrulama zorunlu değildir; bir güven rozetidir. (Not: Kimlik doğrulama bazı akışların kilidini açabilir.)',
       referenceCode: 'Doğrulama kodu',
+      pendingHint: 'Durum: inceleme bekleniyor',
+      tabs: {
+        selfieVideo: 'Selfie video',
+        social: 'Sosyal medya',
+      },
+      selfieVideo: {
+        title: 'Selfie video ile doğrula (WhatsApp)',
+        lead: 'WhatsApp\'ta 5 saniyelik bir video selfie gönderin. Talep oluşturup WhatsApp\'ı açabilirsiniz.',
+        pendingHint: 'Selfie video doğrulama talebiniz alındı. WhatsApp üzerinden video gönderimini tamamlayın.',
+      },
+      social: {
+        title: 'Sosyal medya ile doğrula',
+        lead: 'Platformu seçin ve kullanıcı adınızı gönderin. İnceleme sonrası rozet tanımlanır.',
+        platformLabel: 'Sosyal medya',
+        usernameLabel: 'Kullanıcı adı',
+        submit: 'Gönder',
+        success: 'Gönderildi. İnceleme bekleniyor.',
+        pendingHint: 'Sosyal medya doğrulama talebiniz alındı. İnceleme bekleniyor.',
+      },
       manualUpload: {
         title: 'Site üzerinden doğrula (manuel)',
         lead: 'Zorunlu değildir. Kimliğinizin ön/arka fotoğrafını ve bir selfie yükleyin. İnceleme sonrası hesabınıza rozet tanımlanır.',
@@ -3349,9 +3933,10 @@ export default {
         openWhatsapp: 'WhatsApp’tan doğrulama mesajı gönder',
       },
       errors: {
-        kycNotConfigured: 'Otomatik KYC şu an yapılandırılmadı. Lütfen WhatsApp veya manuel yöntemi seçin.',
-        whatsappNotConfigured: 'WhatsApp numarası yapılandırılmadı. Lütfen manuel yöntemi seçin.',
+        kycNotConfigured: 'Otomatik KYC şu an yapılandırılmadı. Lütfen WhatsApp veya sosyal medya yöntemiyle doğrulayın.',
+        whatsappNotConfigured: 'WhatsApp numarası yapılandırılmadı. Lütfen sosyal medya yöntemiyle doğrulayın.',
         missingFiles: 'Lütfen kimlik (ön/arka) ve selfie seçin.',
+        missingSocial: 'Lütfen platform seçin ve kullanıcı adınızı yazın.',
       },
     },
 
@@ -3676,7 +4261,7 @@ export default {
       },
       candidate: {
         fallbackName: 'Aday',
-        verifiedBadge: 'Kimliği doğrulanmış',
+        verifiedBadge: 'Güvenilir kullanıcı',
         proBadge: 'PRO',
         standardBadge: 'STANDART',
         badges: {
@@ -3866,6 +4451,7 @@ export default {
         p1Title: 'Evlilik odaklı sistem',
         p1Body: 'Amaç; evlilik niyeti olan kişilerin kontrollü adımlarla tanışmasıdır. Eğlence/flört amaçlı kullanım yasaktır.',
         p2Title: 'Gizlilik',
+        freeUsageNotice: 'Uygulamayı kullanmak tamamen ücretsizdir.',
         p2Body: 'Profiller kamuya açık değildir. Bilgileriniz yalnızca eşleşme teklifi alan kişiyle paylaşılır.',
         p3Title: 'Karar mekanizması',
         p3Body: 'Eşleşme teklifleri onay/ret ile ilerler. Karşılıklı onay olmadan süreç devam etmez; tek taraf ret verirse eşleşme biter.',
@@ -3924,10 +4510,10 @@ export default {
   },
 
   matchmakingMembership: {
-    title: 'Üyelik aktivasyonu',
-    lead: 'Şimdilik üyelik ücretsizdir. Üyeliğini buradan tek tıkla aktifleştirebilirsin.',
-    freeNowTitle: 'Şimdilik ücretsiz',
-    freeNowBody: 'Üyelik şu an ücretsizdir. Yeterli üye sayısına ulaşıldığında ödeme eklenip üyelik ücretli modele geçirilebilir.',
+    title: 'Üyelik',
+    lead: 'Üyelik otomatik olarak aktiftir. Uygulamayı kullanmak tamamen ücretsizdir.',
+    freeNowTitle: 'Tamamen ücretsiz',
+    freeNowBody: 'Uygulamadaki tüm özellikler ücretsizdir; ekstra bir ödeme veya aktivasyon adımı yoktur.',
     freeActivateCta: 'Üyeliğimi ücretsiz aktif et',
     activating: 'Aktifleştiriliyor…',
     activated: 'Üyelik aktifleştirildi.',
@@ -3942,7 +4528,7 @@ export default {
       apiUnavailableDev: 'API erişilemiyor. Lokal geliştirmede `npm run dev` (api+web) çalıştırın.',
     },
     backToPanel: 'Panele dön',
-    freeNowFootnote: 'Not: Üyelik şu an ücretsizdir. İleride ödeme adımı eklenebilir.',
+    freeNowFootnote: 'Not: Uygulama tamamen ücretsizdir.',
   },
 
   memberFeed: {
