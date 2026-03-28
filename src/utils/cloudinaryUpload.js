@@ -45,6 +45,26 @@ async function getCloudinarySignedParams({ folder = '', tags = [] } = {}) {
 
   if (!res.ok || !data?.ok) {
     const serverCode = data?.error ? String(data.error) : '';
+
+    if (serverCode === 'cloudinary_env_missing') {
+      const missing = data?.missing && typeof data.missing === 'object' ? data.missing : null;
+      const missingKeys = missing
+        ? Object.entries(missing)
+            .filter(([, v]) => !!v)
+            .map(([k]) => k)
+        : [];
+      const missingStr = missingKeys.length ? ` Eksik: ${missingKeys.join(', ')}.` : '';
+
+      const err = new Error(
+        `Fotoğraf yükleme sunucu ayarları eksik olduğu için başlatılamadı (cloudinary_env_missing).` +
+          missingStr +
+          ` Deploy ortamında CLOUDINARY_CLOUD_NAME / CLOUDINARY_API_KEY / CLOUDINARY_API_SECRET` +
+          ` veya tek değişken olarak CLOUDINARY_URL tanımlanmalı.`
+      );
+      err.details = data;
+      throw err;
+    }
+
     const hint = serverCode ? ` (${serverCode})` : '';
     const err = new Error(`Cloudinary signature failed: HTTP ${res.status}${hint}`);
     err.details = data;

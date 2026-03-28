@@ -311,6 +311,115 @@ function pickExtraForStorage(extraRaw) {
     downlink: pickStr('downlink', 20),
     rtt: pickStr('rtt', 20),
 
+    // Opaque (cross-origin) script error diagnostics
+    errorName: pickStr('errorName', 140),
+    errorMessage: pickStr('errorMessage', 900),
+    hasErrorObject: (() => {
+      try {
+        const v = extra?.hasErrorObject;
+        return typeof v === 'boolean' ? v : null;
+      } catch {
+        return null;
+      }
+    })(),
+    isOpaqueScriptError: (() => {
+      try {
+        const v = extra?.isOpaqueScriptError;
+        return typeof v === 'boolean' ? v : null;
+      } catch {
+        return null;
+      }
+    })(),
+    scriptInventory: (() => {
+      try {
+        const inv = safeObj(extra?.scriptInventory);
+        if (!inv) return null;
+
+        const scriptSrcHints = (() => {
+          try {
+            const raw = inv?.scriptSrcHints;
+            if (!Array.isArray(raw)) return null;
+            const outArr = [];
+            for (const it of raw) {
+              if (outArr.length >= 12) break;
+              const s = safeStr(it);
+              if (!s) continue;
+              // Must be scheme-less and query/hash free.
+              if (s.includes('://')) continue;
+              if (/[^\S\r\n]/.test(s)) return null;
+              if (/[\?#@]/.test(s)) continue;
+              if (s.length > 420) outArr.push(truncate(s, 420));
+              else outArr.push(s);
+            }
+            return outArr.length ? outArr : null;
+          } catch {
+            return null;
+          }
+        })();
+
+        const scriptHosts = (() => {
+          try {
+            const raw = inv?.scriptHosts;
+            if (!Array.isArray(raw)) return null;
+            const outArr = [];
+            const seen = new Set();
+            for (const it of raw) {
+              if (outArr.length >= 8) break;
+              const h = sanitizeHostHint(it);
+              if (!h) continue;
+              const k = h.toLowerCase();
+              if (seen.has(k)) continue;
+              seen.add(k);
+              outArr.push(truncate(h, 160));
+            }
+            return outArr.length ? outArr : null;
+          } catch {
+            return null;
+          }
+        })();
+
+        const hasGtag = (() => {
+          try {
+            return typeof inv?.hasGtag === 'boolean' ? inv.hasGtag : null;
+          } catch {
+            return null;
+          }
+        })();
+
+        const hasTikTok = (() => {
+          try {
+            return typeof inv?.hasTikTok === 'boolean' ? inv.hasTikTok : null;
+          } catch {
+            return null;
+          }
+        })();
+
+        const hasGapi = (() => {
+          try {
+            return typeof inv?.hasGapi === 'boolean' ? inv.hasGapi : null;
+          } catch {
+            return null;
+          }
+        })();
+
+        const o = {
+          scriptSrcHints,
+          scriptHosts,
+          hasGtag,
+          hasTikTok,
+          hasGapi,
+        };
+
+        for (const k of Object.keys(o)) {
+          if (o[k] === null) delete o[k];
+        }
+
+        return Object.keys(o).length ? o : null;
+      } catch {
+        return null;
+      }
+    })(),
+
     // Auth classification (Login)
     authClass: pickStr('authClass', 60),
     authProvider: pickStr('authProvider', 30),
@@ -525,6 +634,8 @@ export default async function publicErrorReport(req, res) {
     flow ? `flow: ${flow}` : null,
     code ? `code: ${code}` : null,
     pagePath ? `page: ${pagePath}` : null,
+    extraStored?.isOpaqueScriptError ? 'opaqueScriptError: true' : null,
+    extraStored?.errorName ? `errorName: ${extraStored.errorName}` : null,
     extraStored?.authClass ? `authClass: ${extraStored.authClass}` : null,
     extraStored?.authProvider ? `authProvider: ${extraStored.authProvider}` : null,
     extraStored?.authTransport ? `authTransport: ${extraStored.authTransport}` : null,
@@ -542,6 +653,12 @@ export default async function publicErrorReport(req, res) {
     extraStored?.filenameHint ? `fileHint: ${extraStored.filenameHint}` : null,
     Array.isArray(extraStored?.stackUrlHints) && extraStored.stackUrlHints.length
       ? `stackUrlHints: ${extraStored.stackUrlHints.join(' | ')}`
+      : null,
+    Array.isArray(extraStored?.scriptInventory?.scriptHosts) && extraStored.scriptInventory.scriptHosts.length
+      ? `scriptHosts: ${extraStored.scriptInventory.scriptHosts.join(' | ')}`
+      : null,
+    Array.isArray(extraStored?.scriptInventory?.scriptSrcHints) && extraStored.scriptInventory.scriptSrcHints.length
+      ? `scriptSrcHints: ${extraStored.scriptInventory.scriptSrcHints.join(' | ')}`
       : null,
     message ? `message: ${message}` : null,
     fingerprint ? `fp: ${fingerprint}` : null,

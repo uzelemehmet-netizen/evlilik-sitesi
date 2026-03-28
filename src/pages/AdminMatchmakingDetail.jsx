@@ -2,7 +2,9 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { deleteDoc, doc, getDoc, serverTimestamp, setDoc } from 'firebase/firestore';
 import { getDownloadURL, ref } from 'firebase/storage';
-import { auth, db, storage } from '../config/firebase';
+import { auth } from '../config/firebaseAuth';
+import { db } from '../config/firebaseDb';
+import { storage } from '../config/firebaseStorage';
 import { formatProfileCode } from '../utils/profileCode';
 
 function labelForGender(v) {

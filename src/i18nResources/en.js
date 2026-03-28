@@ -129,6 +129,7 @@ export default {
     tours: "Tours",
     wedding: "TR–ID Wedding Guidance",
     matchmaking: "Matchmaking",
+    leadApply: "Jodoh Mediation",
     panel: "My profile",
     documents: "Documents",
     youtube: "YouTube",
@@ -182,6 +183,163 @@ export default {
       },
     },
     note: 'Note: This is a preview; real data appears on your profile page.',
+  },
+
+  leadNoAuth: {
+    title: 'Mediation Service Application',
+    subtitle:
+      "Many people don’t trust online dating sites and ask us to mediate so they can meet reliable people, and to introduce them when someone with their desired qualities is found. For this reason, similar to Indonesia’s taaruf system, we use the information you provide to find a suitable spouse candidate, research them, and help you meet. If you want to get married this way, click here.",
+    info: {
+      title: 'About This Service',
+      b1: 'This page is designed for people who do not want to register on the matchmaking platform and want to find a reliable match through our mediation.',
+      b2: 'When a suitable match is available, you will be informed and introduced to your match.',
+      b3: 'If you wish, a detailed background review can be done mutually and the provided information can be verified to confirm reliability.',
+      b4: 'By filling out the form below, we are ready to mediate when your suitable match is found.',
+      b5: 'The information you provide here is not shared with anyone other than your suitable match and is used only to find a match for you.',
+      b6: 'After you meet a suitable match, all information can be deleted from the system upon your request.',
+    },
+    success: {
+      title: 'Your application has been received.',
+      ref: 'Reference: {{id}}',
+      note: 'You will be notified when a suitable match is found.',
+    },
+    errors: {
+      required: 'Please fill in the required fields and check the consent boxes.',
+      rateLimited: 'Too many attempts in a short time. Please try again later.',
+    },
+    common: {
+      select: 'Select…',
+      yes: 'Yes',
+      no: 'No',
+      any: 'Doesn\'t matter',
+      female: 'Female',
+      male: 'Male',
+      uploading: 'Uploading…',
+    },
+    actions: {
+      pickPhoto: 'Choose photo',
+      submit: 'Submit application',
+      sending: 'Sending…',
+      done: 'Done',
+    },
+    placeholders: {
+      whatsapp: 'Example: +90 5xx xxx xx xx / +62 ...',
+      heightCm: 'e.g., 175',
+      weightKg: 'e.g., 72',
+      profession: 'e.g., Teacher',
+      childrenCount: 'Example: 2',
+      childrenAges: 'Example: 3 and 7',
+      additionalInfoText: 'You can write briefly…',
+    },
+    fields: {
+      gender: 'Gender',
+      fullName: 'Name',
+      age: 'Age',
+      heightCm: 'Height (cm)',
+      weightKg: 'Weight (kg)',
+      city: 'City',
+      whatsapp: 'Phone / WhatsApp',
+      maritalStatus: 'Marital status',
+      hasChildren: 'Children',
+      livingWith: 'Who do you live with?',
+      occupation: 'Work status',
+      profession: 'Profession',
+      income: 'Income level',
+      foreignLanguage: 'Foreign language(s)',
+      translationOk: 'Ok to communicate via translation?',
+      familyApproval: 'Does your family approve marriage with a foreigner?',
+      additionalInfo: 'Is there any information about you that the other person should know?',
+      photo: 'Photo',
+    },
+    options: {
+      marital: {
+        single: 'Single',
+        widowed: 'Widowed',
+        divorced: 'Divorced',
+        married: 'Married',
+      },
+      hasChildren: {
+        yes: 'I have children',
+        no: 'I don\'t have children',
+      },
+      familyApproval: {
+        unknown: 'I have not talked to my family yet',
+      },
+      workStatus: {
+        civilServant: 'Civil servant',
+        worker: 'Worker',
+        businessOwner: 'Business owner',
+        retired: 'Retired',
+        notWorking: 'Not working',
+      },
+      income: {
+        low: 'Low',
+        mid: 'Medium',
+        good: 'Good',
+      },
+      livingWith: {
+        withFamily: 'With family',
+        withChildren: 'With my children',
+        withFriend: 'With a friend',
+        alone: 'Alone',
+      },
+      childrenLivingWith: {
+        withMe: 'With me',
+        notWithMe: 'Not with me',
+      },
+    },
+    children: {
+      title: 'Children Details',
+      count: 'How many children?',
+      ages: 'How old are they?',
+      livingWith: 'Who do they live with?',
+    },
+    photoNote: 'You can upload 1 to 5 photos.',
+    partner: {
+      title: 'My Preferred Match',
+      hasChildren: 'Children',
+      maritalStatus: 'Marital status',
+      ageMin: 'Age (min)',
+      ageMax: 'Age (max)',
+      heightMin: 'Height (min, cm)',
+      heightMax: 'Height (max, cm)',
+      weightMin: 'Weight (min, kg)',
+      weightMax: 'Weight (max, kg)',
+      occupation: 'Work status',
+      spouseWanted: 'What kind of match are you looking for?',
+      income: 'Income level',
+      livingWith: 'Living situation',
+      religiousValues: 'Religious values',
+    },
+    partnerOptions: {
+      hasChildren: {
+        yes: 'May have children',
+        no: 'Should not have children',
+      },
+      livingWith: {
+        withFamily: 'Lives with family',
+        withChildren: 'Lives with children',
+        alone: 'Lives alone',
+        withFriends: 'Lives with friends',
+      },
+      religiousValues: {
+        religious: 'Religious',
+      },
+    },
+    checklist: {
+      title: 'Checklist',
+      accuracy: 'I confirm that the information I provided is accurate.',
+      disclaimer: 'I accept that uniqah.com is not responsible for any outcomes arising from the information I provided.',
+    },
+    religious: {
+      title: 'Religious practices',
+      options: {
+        prayer5: '5 daily prayers',
+        fasting: 'Fasting',
+        hajj: 'Hajj',
+        umrah: 'Umrah',
+      },
+    },
   },
 
   footer: {
@@ -347,7 +505,7 @@ export default {
       myCodeLabel: 'Your invite code',
       shareButton: 'Share on WhatsApp',
       shareMessage:
-        'https://uniqah.com/login\n\nMarriage-focused dating app invite code: {{code}}. Add this code to the signup form to get 1 month of free membership.',
+        '{{url}}\n\nMarriage-focused dating app invite code: {{code}}. Add this code to the signup form to get 1 month of free membership.',
       copy: 'Copy',
       copied: 'Copied.',
       enterCodeLabel: 'Invite code',
@@ -2445,7 +2603,7 @@ export default {
         wedding: {
           title: "Wedding guidance in Indonesia",
           description:
-            "Step-by-step guidance for paperwork, local procedures, translation, transport and accommodation—so your process is calmer and more manageable.",
+            "You already have a spouse candidate you’ve met and decided to marry, but you’re not sure how to get married and how the official steps work—and you need help or guidance. Click here and let us help you with everything, including all procedures and documents, so you can achieve your dream wedding in the easiest and most comfortable way.",
         },
         youtube: {
           title: "YouTube videos",
@@ -2529,7 +2687,8 @@ export default {
       ctaTryFree: "Try for free",
       ctaWeddingGuidance: 'Open wedding guidance',
       ctaMatchmaking: 'Find a match',
-      matchmakingHint: "Don’t have a spouse candidate yet? Join our matchmaking system and track your matches from your Profile page.",
+      matchmakingHint:
+        'To meet multiple suitable spouse candidates and communicate directly, you can sign up for our matchmaking app, fill out the form, review candidates’ profiles, and message them. Click here to register for the matchmaking app and start communicating with spouse candidates.',
       ctaContact: "Open the contact form",
       ctaWhatsapp: "Ask via WhatsApp",
     },
@@ -2852,16 +3011,22 @@ export default {
     forceInfo: 'A fresh sign-in was requested for this action. Please sign in again.',
     googleCta: 'Continue with Google',
     googleSignupCta: 'Sign up with Google',
+    emailLoginCta: 'Sign in with email/password',
+    emailSignupCta: 'Sign up with email/password',
     appleCta: 'Continue with Apple',
     appleSignupCta: 'Sign up with Apple',
     redirecting: 'Redirecting to sign-in…',
+    infos: {
+      startingGoogle: 'Opening Google sign-in…',
+      inAppBrowserGoogleRedirect: 'Your browser may block popups. Redirecting to Google sign-in…',
+    },
     redirectScreen: {
       title: 'Redirecting…',
       body: 'Opening your profile. If this takes too long, you can continue using the button below.',
       goProfile: 'Go to my profile',
       refresh: 'Refresh',
     },
-    signupGuide: 'To sign up, continue with Google, then complete your short profile.',
+    signupGuide: 'To sign up, continue with Google, then complete the matchmaking form.',
     signupExistingAccountHint: 'If you already have an account, sign in with Google.',
     quickProfile: {
       title: 'Quick Profile',
@@ -2950,6 +3115,7 @@ export default {
       signup: 'Sign up',
       switchToSignup: 'No account? Sign up',
       switchToLogin: 'Already have an account? Sign in',
+      showEmailFallback: 'Having trouble? Continue with email',
       forgot: 'Forgot password',
     },
     signup: {
@@ -2988,6 +3154,43 @@ export default {
       tooShort: 'Please write at least {{min}} characters.',
       failed: 'Could not send. Please try again.',
     },
+    idSignupHelp: {
+      summary: 'Having trouble signing up? (Indonesia) Send a short form via WhatsApp',
+      labels: {
+        name: 'Name',
+        age: 'Age',
+        maritalStatus: 'Marital status',
+        hasChildren: 'Do you have children?',
+        childrenCount: 'How many children?',
+        job: 'Occupation',
+        criteriaNote: 'Your criteria (short note)',
+      },
+      placeholders: {
+        name: 'Your name',
+        age: 'e.g., 28',
+        maritalStatus: 'Single / Divorced / Widowed',
+        childrenCount: 'e.g., 1',
+        job: 'e.g., teacher',
+        criteriaNote: 'Short note…',
+      },
+      options: {
+        select: 'Select',
+        hasChildrenNo: 'No',
+        hasChildrenYes: 'Yes',
+      },
+      note: 'This form sends a message to the Indonesia WhatsApp line.',
+      sendWhatsApp: 'Send via WhatsApp',
+      messageTitle: 'Sign-up issue (Indonesia) - short info',
+      messageFields: {
+        name: 'Name',
+        age: 'Age',
+        maritalStatus: 'Marital status',
+        hasChildren: 'Children',
+        childrenCount: 'Children count',
+        job: 'Occupation',
+        criteriaNote: 'Criteria note',
+      },
+    },
     legal: {
       prefix: 'By continuing, you agree to the',
       contract: 'User / Membership agreement',
@@ -2998,7 +3201,7 @@ export default {
     infos: {
       accountExistsTryLogin: 'You already have an account. Please try signing in with your email and password.',
       inAppBrowserGoogleRedirect:
-        'Google sign-in may not work inside TikTok’s in-app browser. We’re opening Google sign-in using redirect…',
+        'Google sign-in may not work inside in-app browsers. We’re opening Google sign-in using redirect…',
     },
     errors: {
       noAccountFoundSignupRequired:
@@ -3016,6 +3219,10 @@ export default {
         'Apple sign-in is disabled. Enable the Apple provider in Firebase Console → Authentication → Sign-in method.',
       firebaseAuthInvalidConfig:
         'Firebase Auth configuration is invalid. Check `VITE_FIREBASE_*` values in `.env.local` (and Vercel env).',
+      googleInAppBlocked:
+        'Google sign-in may be blocked inside this in-app browser. Please use “Open in browser” (Chrome/Safari) and try again, or continue with email.',
+      googleRedirectNoResult:
+        'Google sign-in did not complete after returning from Google. Please try again, or continue with email/password.',
       googleFailed: 'Google sign-in failed.',
       appleFailed: 'Apple sign-in failed.',
       invalidCredential: 'Invalid email or password (or the account was not found). If you forgot your password, use “Forgot password”.',
@@ -4106,6 +4313,7 @@ export default {
         badge: 'Quick Application',
         step: 'Step {{current}} / {{total}}',
         back: 'Back',
+        backPage: 'Back to previous page',
         next: 'Next',
         steps: {
           basic: {
@@ -4148,7 +4356,7 @@ export default {
       },
       contactPrivacyNotice:
         'Your contact details (WhatsApp/email) are private. They are not shown publicly while filling the form or in the app UI.',
-      contactNumberNote: 'Your contact number is not shared with anyone; it is only required for system verification.',
+      contactNumberNote: 'Your contact number is not shared with anyone; it is required so we can contact you if needed.',
       inviteCodeHelp:
         'If a friend invited you, you can enter the invite code here to benefit from free membership. If you do not have an invite code, you can leave this field empty.',
       confirmGender: {
@@ -4379,9 +4587,11 @@ export default {
       submit: 'Submit application',
       submitting: 'Submitting…',
       success: 'Your application was received. Matches will appear on your panel.',
+      successNoAuth: 'Your application was received. Our team will contact you as soon as possible.',
       errors: {
         blocked: 'This account is blocked from submitting matchmaking applications. Please contact support if you think this is a mistake.',
         mustLogin: 'You must be signed in to submit the application.',
+        contactRequired: 'Please enter your WhatsApp number or your email address so we can contact you.',
         alreadySubmitted: 'You already have a matchmaking application. You can update your info from your Profile page.',
         profileTextWriteOnceUsed: 'Your “About” and “Expectations” texts can only be written once. They cannot be edited afterwards.',
         profileTextPII: 'Do not share contact info (phone, email, link, Instagram, IBAN, etc.) in “About” or “Expectations”.',

@@ -7,7 +7,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { buildWhatsAppUrl } from '../utils/whatsapp';
-import { db } from '../config/firebase';
+import { db } from '../config/firebaseDb';
 import { doc, getDoc } from 'firebase/firestore';
 import { useAuth } from '../auth/AuthProvider';
 import { staticAssetUrl } from '../utils/staticAssetUrl';
@@ -1547,6 +1547,21 @@ export default function Wedding() {
             >
               <MessageCircle size={18} className="text-white" />
               {t('weddingPage.hero.actions.matchmakingHub')}
+            </Link>
+
+            <Link
+              to="/aracilik"
+              onClick={() => {
+                try {
+                  void trackClick('wedding_click:go_lead_apply', { page: String(location?.pathname || '') || '/' });
+                } catch {
+                  // ignore
+                }
+              }}
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-emerald-600 text-white px-5 md:px-6 py-2 md:py-2.5 rounded-full font-medium text-xs md:text-sm shadow-md hover:bg-emerald-700 hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200"
+            >
+              <MessageCircle size={18} className="text-white" />
+              {t('navigation.leadApply')}
             </Link>
 
             <a

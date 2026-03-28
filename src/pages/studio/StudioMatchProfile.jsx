@@ -7,7 +7,7 @@ import Navigation from '../../components/Navigation';
 import Footer from '../../components/Footer';
 import EmojiPicker from '../../components/EmojiPicker';
 import { useAuth } from '../../auth/AuthProvider';
-import { db } from '../../config/firebase';
+import { db } from '../../config/firebaseDb';
 import { authFetch } from '../../utils/authFetch';
 import { translateStudioApiError } from '../../utils/studioErrorI18n';
 import { getLocalizedProfileText } from '../../utils/profileText';
@@ -1435,7 +1435,15 @@ export default function StudioMatchProfile() {
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
                   <p className="truncate text-xl font-semibold">{otherName}{otherAge ? `, ${otherAge}` : ''}</p>
-                  {otherVerified ? <ShieldCheck className="h-5 w-5 text-emerald-600" title={t('studio.common.verified')} /> : null}
+                  {otherVerified ? (
+                    <span
+                      className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700"
+                      title={t('studio.common.verified')}
+                    >
+                      <ShieldCheck className="h-[30px] w-[30px] text-emerald-600" aria-hidden="true" />
+                      <span className="whitespace-nowrap">{t('studio.common.verified')}</span>
+                    </span>
+                  ) : null}
                 </div>
 
                 {otherUserCode ? (

@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { doc, getDoc, serverTimestamp, setDoc } from 'firebase/firestore';
-import { db } from '../../config/firebase';
+import { db } from '../../config/firebaseDb';
 import { uploadImageToCloudinaryAuto } from '../../utils/cloudinaryUpload';
 
 const DEFAULT_MEDIA = Object.freeze({

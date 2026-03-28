@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { collection, limit, onSnapshot, orderBy, query, where } from 'firebase/firestore';
 import { useTranslation } from 'react-i18next';
-import { db } from '../../config/firebase';
+import { db } from '../../config/firebaseDb';
 import { authFetch } from '../../utils/authFetch';
 
 function fmtMoney(amount, currency) {

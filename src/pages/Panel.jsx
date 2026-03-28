@@ -7,7 +7,9 @@ import { collection, doc, limit, onSnapshot, orderBy, query, where } from "fireb
 import { getDownloadURL, ref } from 'firebase/storage';
 import Navigation from "../components/Navigation";
 import Footer from "../components/Footer";
-import { auth, db, storage } from "../config/firebase";
+import { auth } from "../config/firebaseAuth";
+import { db } from "../config/firebaseDb";
+import { storage } from "../config/firebaseStorage";
 import { useAuth } from "../auth/AuthProvider";
 import { buildWhatsAppUrl, getWhatsAppNumber } from "../utils/whatsapp";
 import { normalizePhoneForWhatsApp } from "../utils/phone";

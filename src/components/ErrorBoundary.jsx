@@ -259,6 +259,15 @@ export default class ErrorBoundary extends React.Component {
         }
       })();
 
+      const isLocalHost = (() => {
+        try {
+          const h = String(window.location?.hostname || '').toLowerCase();
+          return h === 'localhost' || h === '127.0.0.1';
+        } catch {
+          return false;
+        }
+      })();
+
       const t = (key, vars) => {
         try {
           return i18n.t(key, vars);
@@ -275,7 +284,7 @@ export default class ErrorBoundary extends React.Component {
             <h1 className="text-xl font-semibold text-gray-900 mb-2">{t('appErrorBoundary.title')}</h1>
             <p className="text-sm text-gray-600 mb-6">{t('appErrorBoundary.body')}</p>
 
-            {isDev && errMsg ? (
+            {(isDev || isLocalHost) && errMsg ? (
               <div className="mb-4 rounded-lg border border-gray-200 bg-gray-50 p-3 text-left text-xs text-gray-700 whitespace-pre-wrap">
                 {errMsg}
               </div>

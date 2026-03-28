@@ -1,5 +1,25 @@
 import crypto from 'crypto';
 
+function parseCloudinaryUrl(raw) {
+  const s = typeof raw === 'string' ? raw.trim() : '';
+  if (!s) return null;
+
+  // Expected format:
+  //   cloudinary://<api_key>:<api_secret>@<cloud_name>
+  // Cloudinary also allows optional query params; we ignore them.
+  try {
+    const u = new URL(s);
+    if (u.protocol !== 'cloudinary:') return null;
+    const cloudName = u.hostname ? decodeURIComponent(u.hostname) : '';
+    const apiKey = u.username ? decodeURIComponent(u.username) : '';
+    const apiSecret = u.password ? decodeURIComponent(u.password) : '';
+    if (!cloudName || !apiKey || !apiSecret) return null;
+    return { cloudName, apiKey, apiSecret };
+  } catch {
+    return null;
+  }
+}
+
 function normalizeBody(req) {
   const b = req?.body;
   if (!b) return {};
@@ -28,9 +48,20 @@ export default async function handler(req, res) {
     return;
   }
 
-  const cloudName = process.env.CLOUDINARY_CLOUD_NAME || process.env.VITE_CLOUDINARY_CLOUD_NAME;
-  const apiKey = process.env.CLOUDINARY_API_KEY;
-  const apiSecret = process.env.CLOUDINARY_API_SECRET;
+  let cloudName = process.env.CLOUDINARY_CLOUD_NAME || process.env.VITE_CLOUDINARY_CLOUD_NAME;
+  let apiKey = process.env.CLOUDINARY_API_KEY;
+  let apiSecret = process.env.CLOUDINARY_API_SECRET;
+
+  // Support standard Cloudinary env (server-side) as a single var.
+  // This is common in deploy providers and avoids key sprawl.
+  if (!cloudName || !apiKey || !apiSecret) {
+    const parsed = parseCloudinaryUrl(process.env.CLOUDINARY_URL);
+    if (parsed) {
+      if (!cloudName) cloudName = parsed.cloudName;
+      if (!apiKey) apiKey = parsed.apiKey;
+      if (!apiSecret) apiSecret = parsed.apiSecret;
+    }
+  }
 
   if (!cloudName || !apiKey || !apiSecret) {
     res.statusCode = 500;

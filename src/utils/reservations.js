@@ -1,5 +1,5 @@
 import { addDoc, collection, serverTimestamp } from "firebase/firestore";
-import { db } from "../config/firebase";
+import { db } from "../config/firebaseDb";
 import { RESERVATION_STATUS } from "./reservationStatus";
 
 function generatePaymentReference() {

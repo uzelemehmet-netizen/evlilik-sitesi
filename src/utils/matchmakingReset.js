@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { doc, onSnapshot } from 'firebase/firestore';
-import { db } from '../config/firebase';
+import { db } from '../config/firebaseDb';
 
 function asMs(v) {
   if (typeof v === 'number' && Number.isFinite(v)) return v;

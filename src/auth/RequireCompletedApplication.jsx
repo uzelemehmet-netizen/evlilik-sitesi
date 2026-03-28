@@ -1,8 +1,20 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
-import { collection, doc, getDoc, getDocs, limit, query, where } from 'firebase/firestore';
-import { db } from '../config/firebase';
 import { useAuth } from './AuthProvider';
+
+let firestoreApiPromise = null;
+async function loadFirestoreApi() {
+  if (!firestoreApiPromise) {
+    firestoreApiPromise = Promise.all([
+      import('../config/firebaseDb'),
+      import('firebase/firestore'),
+    ]).then(([dbMod, fs]) => {
+      const db = dbMod?.db || dbMod?.default;
+      return { db, ...fs };
+    });
+  }
+  return firestoreApiPromise;
+}
 
 function safeStr(v) {
   return typeof v === 'string' ? v.trim() : '';
@@ -128,6 +140,8 @@ function hasMinimumProfileInApplicationDoc(a) {
 async function isProfileComplete(uid) {
   const userId = safeStr(uid);
   if (!userId) return false;
+
+  const { db, collection, doc, getDoc, getDocs, limit, query, where } = await loadFirestoreApi();
 
   // Fast path: matchmakingUsers minimum profile fields.
   try {

@@ -8,7 +8,9 @@ import { useTranslation } from 'react-i18next';
 import Navigation from '../../components/Navigation';
 import Footer from '../../components/Footer';
 import { useAuth } from '../../auth/AuthProvider';
-import { auth, db, storage } from '../../config/firebase';
+import { auth } from '../../config/firebaseAuth';
+import { db } from '../../config/firebaseDb';
+import { storage } from '../../config/firebaseStorage';
 import { authFetch } from '../../utils/authFetch';
 import { uploadImageToCloudinaryAuto } from '../../utils/cloudinaryUpload';
 import { translateStudioApiError } from '../../utils/studioErrorI18n';
@@ -19,6 +21,31 @@ import { buildPreviewProfile } from '../../utils/studioPreviewData';
 import StudioBottomNav from '../../components/studio/StudioBottomNav';
 import { isOneTimeHintShown, markOneTimeHintShown } from '../../utils/oneTimeHints.js';
 import { isPwaInstalled } from '../../utils/pwaInstalled.js';
+import { enablePushForCurrentUser, hasSavedPushToken } from '../../utils/pushNotifications.js';
+import { trackClick } from '../../utils/clickTracker';
+
+const LS_PUSH_AFTER_INSTALL_PENDING_PREFIX = 'uniqah:push:nudgeAfterInstall:pending';
+const LS_PUSH_AFTER_INSTALL_DISMISSED_PREFIX = 'uniqah:push:nudgeAfterInstall:dismissed';
+
+function pushAfterInstallKey(prefix, uid) {
+  return `${prefix}:${uid}`;
+}
+
+function isPushEnabledInBrowser() {
+  if (typeof window === 'undefined') return false;
+  try {
+    if (!('Notification' in window)) return false;
+    if (String(Notification.permission || '') !== 'granted') return false;
+  } catch {
+    return false;
+  }
+
+  try {
+    return hasSavedPushToken();
+  } catch {
+    return false;
+  }
+}
 
 function safeStr(v) {
   return typeof v === 'string' ? v.trim() : '';
@@ -162,20 +189,59 @@ export default function StudioProfile() {
   const { user } = useAuth();
   const { t, i18n } = useTranslation();
 
+  const rawUid = String(user?.uid || '').trim();
+  const isPreview = !user || user.isAnonymous || !rawUid;
+  const uid = isPreview ? '' : rawUid;
+
   const [pwaInstalled, setPwaInstalled] = useState(() => isPwaInstalled());
+  const [pushAfterInstallPending, setPushAfterInstallPending] = useState(false);
+  const [pushAfterInstallDismissed, setPushAfterInstallDismissed] = useState(false);
+  const [pushEnabledNow, setPushEnabledNow] = useState(() => isPushEnabledInBrowser());
+  const [pushNudgeBusy, setPushNudgeBusy] = useState(false);
+  const [pushNudgeFeedback, setPushNudgeFeedback] = useState('');
+
+  useEffect(() => {
+    if (!uid) {
+      setPushAfterInstallPending(false);
+      setPushAfterInstallDismissed(false);
+      return;
+    }
+
+    try {
+      const pending = window.localStorage.getItem(pushAfterInstallKey(LS_PUSH_AFTER_INSTALL_PENDING_PREFIX, uid)) === '1';
+      const dismissed = window.localStorage.getItem(pushAfterInstallKey(LS_PUSH_AFTER_INSTALL_DISMISSED_PREFIX, uid)) === '1';
+      setPushAfterInstallPending(pending);
+      setPushAfterInstallDismissed(dismissed);
+    } catch {
+      setPushAfterInstallPending(false);
+      setPushAfterInstallDismissed(false);
+    }
+  }, [uid]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
     const onAppInstalled = () => {
       setPwaInstalled(true);
+
+      // After install, show a one-time (dismissible) reminder to enable notifications.
+      if (uid) {
+        try {
+          window.localStorage.setItem(pushAfterInstallKey(LS_PUSH_AFTER_INSTALL_PENDING_PREFIX, uid), '1');
+          window.localStorage.removeItem(pushAfterInstallKey(LS_PUSH_AFTER_INSTALL_DISMISSED_PREFIX, uid));
+        } catch {
+          // ignore
+        }
+        setPushAfterInstallPending(true);
+        setPushAfterInstallDismissed(false);
+      }
     };
 
     window.addEventListener('appinstalled', onAppInstalled);
     return () => {
       window.removeEventListener('appinstalled', onAppInstalled);
     };
-  }, []);
+  }, [uid]);
 
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const profileMenuWrapRef = useRef(null);
@@ -209,12 +275,12 @@ export default function StudioProfile() {
     };
   }, [profileMenuOpen]);
 
-  const isPreview = !user || user.isAnonymous;
-
   const isTr = String(i18n?.language || '').toLowerCase().startsWith('tr');
   const shortLabel = (fallbackKey, trText) => (isTr ? trText : t(fallbackKey));
 
-  const uid = isPreview ? '' : String(user?.uid || '').trim();
+  useEffect(() => {
+    setPushEnabledNow(isPushEnabledInBrowser());
+  }, [pwaInstalled]);
 
   const blockInteraction = () => {
     openPreviewGate({ reason: t('previewGate.body') });
@@ -873,6 +939,22 @@ export default function StudioProfile() {
     setPhotoManagerOpen(true);
   };
 
+  const openPhotoManagerFromNavOnceRef = useRef(false);
+  useEffect(() => {
+    try {
+      if (openPhotoManagerFromNavOnceRef.current) return;
+      const s = location?.state && typeof location.state === 'object' ? location.state : null;
+      if (!s || s.openPhotoManager !== true) return;
+      openPhotoManagerFromNavOnceRef.current = true;
+
+      setTopInlinePanel('photoPrivacy');
+      openPhotoManager();
+    } catch {
+      // ignore
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location?.state]);
+
   const isImageFile = (file) => {
     if (!file) return false;
     const typ = String(file?.type || '').toLowerCase();
@@ -1091,7 +1173,28 @@ export default function StudioProfile() {
         throw new Error('invite_code_generation_failed');
       }
 
-      const msg = t('studio.referral.shareMessage', { code });
+      const baseLang = (() => {
+        const raw = String(i18n?.language || '').trim().toLowerCase();
+        const base = raw.split(/[-_]/)[0];
+        if (base === 'in') return 'id';
+        if (base === 'tr' || base === 'en' || base === 'id') return base;
+        return 'tr';
+      })();
+
+      const inviteUrl = (() => {
+        try {
+          const origin = String(window.location?.origin || 'https://uniqah.com').trim() || 'https://uniqah.com';
+          const u = new URL('/login', origin);
+          u.searchParams.set('mode', 'signup');
+          u.searchParams.set('lang', baseLang);
+          u.searchParams.set('ref', code);
+          return u.toString();
+        } catch {
+          return `https://uniqah.com/login?mode=signup&lang=${encodeURIComponent(baseLang)}&ref=${encodeURIComponent(code)}`;
+        }
+      })();
+
+      const msg = t('studio.referral.shareMessage', { code, url: inviteUrl });
 
       const waShareUrl = buildWhatsAppShareUrl(msg);
 
@@ -1326,6 +1429,23 @@ export default function StudioProfile() {
       <Navigation />
 
       <main className="container mx-auto px-4 py-8">
+        <div className="mx-auto max-w-4xl mb-3">
+          <Link
+            to="/aracilik"
+            className="inline-flex items-center justify-between gap-3 w-full rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-900 hover:bg-emerald-100 transition"
+            onClick={() => {
+              try {
+                void trackClick('cta_lead_apply_profile');
+              } catch {
+                // ignore
+              }
+            }}
+          >
+            <span>{t('navigation.leadApply')}</span>
+            <span className="text-emerald-900/70">→</span>
+          </Link>
+        </div>
+
         <div className="mx-auto max-w-4xl overflow-visible rounded-xl border border-slate-200 bg-white shadow-sm">
           {/* Banner */}
           <div className="relative h-44 w-full bg-slate-200 overflow-hidden rounded-t-xl">
@@ -2055,6 +2175,97 @@ export default function StudioProfile() {
             {!pwaInstalled ? (
               <div className="mt-6">
                 <PwaInstallCard variant="light" />
+              </div>
+            ) : pwaInstalled && pushAfterInstallPending && !pushAfterInstallDismissed && !pushEnabledNow ? (
+              <div className="mt-6 rounded-xl border border-emerald-200 bg-emerald-50 p-4">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex items-start gap-3">
+                    <div className="mt-0.5 flex h-8 w-8 items-center justify-center rounded-full bg-emerald-100">
+                      <AlertTriangle className="h-4 w-4 text-emerald-800" />
+                    </div>
+                    <div>
+                      <div className="font-semibold text-slate-900">{t('pwa.install.notifications.title')}</div>
+                      <div className="mt-1 text-sm text-slate-700">{t('pwa.install.installedHint')}</div>
+                      {pushNudgeFeedback ? (
+                        <div className="mt-2 text-sm font-semibold text-slate-700">{pushNudgeFeedback}</div>
+                      ) : null}
+                      <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center">
+                        <button
+                          type="button"
+                          disabled={pushNudgeBusy}
+                          onClick={async () => {
+                            if (pushNudgeBusy) return;
+                            setPushNudgeFeedback('');
+                            setPushNudgeBusy(true);
+                            try {
+                              const res = await enablePushForCurrentUser().catch(() => null);
+
+                              if (res?.ok) {
+                                setPushEnabledNow(true);
+                                if (uid) {
+                                  try {
+                                    window.localStorage.removeItem(pushAfterInstallKey(LS_PUSH_AFTER_INSTALL_PENDING_PREFIX, uid));
+                                  } catch {
+                                    // ignore
+                                  }
+                                }
+                                setPushAfterInstallPending(false);
+                                setPushNudgeFeedback(
+                                  res?.serverSync === false
+                                    ? t('pwa.install.notifications.enabledButNotSaved')
+                                    : t('pwa.install.notifications.enabled')
+                                );
+                                return;
+                              }
+
+                              const code = String(res?.code || '').trim();
+                              const msgKey =
+                                code === 'not_supported' || code === 'messaging_not_supported'
+                                  ? 'pwa.install.notifications.notSupported'
+                                  : code === 'not_secure_context'
+                                    ? 'pwa.install.notifications.notSecureContext'
+                                    : code === 'service_worker_not_ready'
+                                      ? 'pwa.install.notifications.serviceWorkerNotReady'
+                                      : code === 'missing_vapid_key'
+                                        ? 'pwa.install.notifications.missingSetup'
+                                        : code === 'invalid_vapid_key'
+                                          ? 'pwa.install.notifications.invalidVapidKey'
+                                          : code === 'permission_denied'
+                                            ? 'pwa.install.notifications.denied'
+                                            : 'pwa.install.notifications.error';
+
+                              setPushNudgeFeedback(t(msgKey));
+                            } finally {
+                              setPushNudgeBusy(false);
+                            }
+                          }}
+                          className="app-btn app-btn-primary"
+                        >
+                          {pushNudgeBusy ? t('studio.common.processing') : t('pwa.install.notifications.button')}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (uid) {
+                              try {
+                                window.localStorage.removeItem(pushAfterInstallKey(LS_PUSH_AFTER_INSTALL_PENDING_PREFIX, uid));
+                                window.localStorage.setItem(pushAfterInstallKey(LS_PUSH_AFTER_INSTALL_DISMISSED_PREFIX, uid), '1');
+                              } catch {
+                                // ignore
+                              }
+                            }
+                            setPushAfterInstallPending(false);
+                            setPushAfterInstallDismissed(true);
+                            setPushNudgeFeedback('');
+                          }}
+                          className="app-btn app-btn-outline"
+                        >
+                          {t('studio.common.close')}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
             ) : null}
 

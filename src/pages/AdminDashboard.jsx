@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { auth, db } from '../config/firebase';
+import { auth } from '../config/firebaseAuth';
+import { db } from '../config/firebaseDb';
 import { signOut } from 'firebase/auth';
 import { useNavigate } from 'react-router-dom';
 import { LogOut, Edit2, Upload } from 'lucide-react';

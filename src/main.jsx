@@ -3,41 +3,41 @@ import ReactDOM from 'react-dom/client';
 import App from './App.jsx';
 
 // Fonts: self-host via @fontsource (avoid runtime Google Fonts requests)
-import '@fontsource/rajdhani/400.css';
-import '@fontsource/rajdhani/500.css';
-import '@fontsource/rajdhani/600.css';
-import '@fontsource/rajdhani/700.css';
+// Limit to latin/latin-ext subsets to avoid huge mobile payload (cyrillic/greek/devanagari/vietnamese, etc.)
+// NOTE: Turkish needs latin-ext; Indonesian uses latin.
+import '@fontsource/rajdhani/latin-ext-400.css';
+import '@fontsource/rajdhani/latin-ext-500.css';
+import '@fontsource/rajdhani/latin-ext-600.css';
+import '@fontsource/rajdhani/latin-ext-700.css';
 
-import '@fontsource/inter/400.css';
-import '@fontsource/inter/500.css';
-import '@fontsource/inter/600.css';
-import '@fontsource/inter/700.css';
-import '@fontsource/inter/800.css';
+import '@fontsource/inter/latin-ext-400.css';
+import '@fontsource/inter/latin-ext-500.css';
+import '@fontsource/inter/latin-ext-600.css';
+import '@fontsource/inter/latin-ext-700.css';
 
-import '@fontsource/orbitron/400.css';
-import '@fontsource/orbitron/500.css';
-import '@fontsource/orbitron/600.css';
-import '@fontsource/orbitron/700.css';
-import '@fontsource/orbitron/800.css';
+import '@fontsource/orbitron/latin-400.css';
+import '@fontsource/orbitron/latin-500.css';
+import '@fontsource/orbitron/latin-600.css';
+import '@fontsource/orbitron/latin-700.css';
 
-import '@fontsource/poppins/300.css';
-import '@fontsource/poppins/400.css';
-import '@fontsource/poppins/500.css';
-import '@fontsource/poppins/600.css';
-import '@fontsource/poppins/700.css';
-import '@fontsource/poppins/800.css';
+import '@fontsource/poppins/latin-ext-300.css';
+import '@fontsource/poppins/latin-ext-400.css';
+import '@fontsource/poppins/latin-ext-500.css';
+import '@fontsource/poppins/latin-ext-600.css';
+import '@fontsource/poppins/latin-ext-700.css';
 
-import '@fontsource/plus-jakarta-sans/400.css';
-import '@fontsource/plus-jakarta-sans/500.css';
-import '@fontsource/plus-jakarta-sans/600.css';
-import '@fontsource/plus-jakarta-sans/700.css';
+import '@fontsource/plus-jakarta-sans/latin-ext-400.css';
+import '@fontsource/plus-jakarta-sans/latin-ext-500.css';
+import '@fontsource/plus-jakarta-sans/latin-ext-600.css';
+import '@fontsource/plus-jakarta-sans/latin-ext-700.css';
 
 import './index.css';
 import './i18n';
+import { i18nReady } from './i18n';
 import { AuthProvider } from './auth/AuthProvider.jsx';
 import ErrorBoundary from './components/ErrorBoundary.jsx';
 import { registerSW } from 'virtual:pwa-register';
-import { detectInstalledRelatedAppsAndMark, markPwaInstalled } from './utils/pwaInstalled.js';
+import { detectInstalledRelatedAppsAndMark, markPwaInstalled, reportPwaInstalledToServerBestEffort } from './utils/pwaInstalled.js';
 import { buildSupportReport } from './utils/supportReport.js';
 import { getClientCountry } from './utils/supportLine.js';
 import { getAnonBrowserId } from './utils/clickTracker.js';
@@ -168,6 +168,12 @@ if (typeof window !== 'undefined') {
     const MAX_REPORTS_PER_SESSION = 3;
     const COUNT_KEY = 'uniqah:public_error_report_count_v1';
 
+    // Opaque cross-origin script errors (message='Script error.' with no filename/stack)
+    // are often not actionable and can consume the limited per-session quota, preventing
+    // real login-blocking errors from being reported. Track them separately.
+    const MAX_OPAQUE_REPORTS_PER_SESSION = 1;
+    const OPAQUE_COUNT_KEY = 'uniqah:public_error_report_opaque_count_v1';
+
     const hostHintFromUrlLike = (raw) => {
       try {
         const s = String(raw || '').trim();
@@ -196,6 +202,15 @@ if (typeof window !== 'undefined') {
       }
     };
 
+    const getOpaqueCount = () => {
+      try {
+        const n = Number(sessionStorage.getItem(OPAQUE_COUNT_KEY) || '0');
+        return Number.isFinite(n) && n >= 0 ? n : 0;
+      } catch {
+        return 0;
+      }
+    };
+
     const incCount = () => {
       try {
         sessionStorage.setItem(COUNT_KEY, String(getCount() + 1));
@@ -204,10 +219,24 @@ if (typeof window !== 'undefined') {
       }
     };
 
-    const safeSend = async (report) => {
+    const incOpaqueCount = () => {
       try {
-        if (getCount() >= MAX_REPORTS_PER_SESSION) return;
-        incCount();
+        sessionStorage.setItem(OPAQUE_COUNT_KEY, String(getOpaqueCount() + 1));
+      } catch {
+        // ignore
+      }
+    };
+
+    const safeSend = async (report, opts = {}) => {
+      try {
+        const opaque = !!opts?.opaque;
+        if (opaque) {
+          if (getOpaqueCount() >= MAX_OPAQUE_REPORTS_PER_SESSION) return;
+          incOpaqueCount();
+        } else {
+          if (getCount() >= MAX_REPORTS_PER_SESSION) return;
+          incCount();
+        }
 
         const payload = {
           report,
@@ -282,6 +311,9 @@ if (typeof window !== 'undefined') {
           const lineno = typeof ev?.lineno === 'number' ? ev.lineno : null;
           const colno = typeof ev?.colno === 'number' ? ev.colno : null;
           const stack = typeof ev?.error?.stack === 'string' ? String(ev.error.stack).slice(0, 6000) : '';
+          const errorName = typeof ev?.error?.name === 'string' ? String(ev.error.name).slice(0, 120) : '';
+          const errorMessage = typeof ev?.error?.message === 'string' ? String(ev.error.message).slice(0, 800) : '';
+          const hasErrorObject = !!ev?.error;
 
           // Resource load errors (script/css/img) often come as a plain Event (no message).
           const target = ev?.target || null;
@@ -449,6 +481,23 @@ if (typeof window !== 'undefined') {
 
           const isResourceError = !!resourceUrl && !!tagName && !msgRaw;
 
+          const isKnown3pHostHint = (hintRaw) => {
+            try {
+              const hint = String(hintRaw || '').toLowerCase();
+              if (!hint) return false;
+              // Keep conservative: only classify well-known 3p scripts.
+              return (
+                hint.includes('apis.google.com/js/api.js') ||
+                hint.includes('apis.google.com/_/scs/') ||
+                hint.includes('google-analytics.com/') ||
+                hint.includes('googletagmanager.com/gtag/js') ||
+                hint.includes('analytics.tiktok.com/i18n/pixel/events.js')
+              );
+            } catch {
+              return false;
+            }
+          };
+
           // Some 3p analytics/pixel scripts are intentionally non-blocking and
           // may fail to load for bots (e.g., vercel-screenshot), adblockers, or
           // restricted networks. These failures are not actionable and create
@@ -456,9 +505,17 @@ if (typeof window !== 'undefined') {
           const shouldIgnoreResourceLoadError = (() => {
             try {
               if (!isResourceError) return false;
-              if (tagName !== 'script') return false;
               const hint = String(resourceUrlHint || resourceHost || resourceUrl || '').toLowerCase();
               if (!hint) return false;
+
+              // Google Translate / in-browser translate may inject resources (icons/SVG)
+              // that are not required for our app. In some regions/browsers these can fail
+              // and create noisy reports.
+              if (tagName === 'img') {
+                if (hint.includes('fonts.gstatic.com/s/i/productlogos/translate/')) return true;
+              }
+
+              if (tagName !== 'script') return false;
               if (hint.includes('googletagmanager.com/gtag/js')) return true;
               if (hint.includes('analytics.tiktok.com/i18n/pixel/events.js')) return true;
               // Some environments (e.g., embedded browsers) attempt to load Google API client.
@@ -480,10 +537,175 @@ if (typeof window !== 'undefined') {
           if (isResourceError) {
             code = 'resource_load_error';
             message = `resource_error:${tagName}`;
-          } else if (msgRaw === 'Script error.' && !filename) {
-            // Cross-origin script error without details.
-            code = 'script_error_no_details';
+          } else {
+            const isOpaqueScriptError =
+              msgRaw === 'Script error.' &&
+              !filename &&
+              (lineno === 0 || lineno === null) &&
+              (colno === 0 || colno === null) &&
+              !stack;
+
+            if (isOpaqueScriptError) {
+              // Cross-origin / injected script error without details.
+              code = 'script_error_no_details';
+            }
           }
+
+          const isOpaqueScriptError = code === 'script_error_no_details';
+
+          // If this is an opaque (detail-less) error, it's very often caused by 3p scripts
+          // being blocked/crashing in embedded browsers. These are rarely actionable and
+          // can drown out real app errors. We already rate-limit them separately, but
+          // additionally ignore if the current page likely has known 3p scripts present.
+          // (Still keep non-opaque errors; those contain stack/filename and are actionable.)
+          if (isOpaqueScriptError) {
+            try {
+              const hasKnown3p = (() => {
+                try {
+                  const scripts = Array.from(document?.scripts || []);
+                  for (const s of scripts) {
+                    const src = String(s?.src || '').trim();
+                    if (!src) continue;
+                    const hint = (() => {
+                      try {
+                        const u = new URL(src, String(window.location?.href || 'https://uniqah.com/'));
+                        const host = String(u.host || '').trim();
+                        const path = String(u.pathname || '').trim();
+                        const v = host ? `${host}${path}` : '';
+                        if (!v || v.includes('://') || /[\s\?#@]/.test(v)) return '';
+                        return v.slice(0, 420);
+                      } catch {
+                        return '';
+                      }
+                    })();
+                    if (isKnown3pHostHint(hint)) return true;
+                  }
+                  return false;
+                } catch {
+                  return false;
+                }
+              })();
+
+              const ua = typeof navigator !== 'undefined' ? String(navigator.userAgent || '') : '';
+              const isInApp = /fbav|fban|instagram|line\//i.test(ua) || /micromessenger|wechat/i.test(ua) || /tiktok|trill/i.test(ua);
+
+              // Heuristic: in-app browsers + known 3p inventory => ignore.
+              if (hasKnown3p && isInApp) return;
+            } catch {
+              // ignore
+            }
+          }
+
+          const inAppBrowserHint = (() => {
+            try {
+              const ua = typeof navigator !== 'undefined' ? String(navigator.userAgent || '') : '';
+              if (!ua) return '';
+              if (/fbav|fban/i.test(ua)) return 'facebook';
+              if (/instagram/i.test(ua)) return 'instagram';
+              if (/line\//i.test(ua)) return 'line';
+              if (/micromessenger|wechat/i.test(ua)) return 'wechat';
+              if (/tiktok|trill/i.test(ua)) return 'tiktok';
+              return '';
+            } catch {
+              return '';
+            }
+          })();
+
+          const scriptInventory = (() => {
+            try {
+              if (!isOpaqueScriptError) return null;
+              const scripts = Array.from(document?.scripts || []);
+              const out = [];
+              const hosts = [];
+              const seenHints = new Set();
+              const seenHosts = new Set();
+              let hasGtag = false;
+              let hasTikTok = false;
+              let hasGapi = false;
+
+              for (const s of scripts) {
+                if (out.length >= 12) break;
+                const src = (() => {
+                  try {
+                    return String(s?.src || '').trim();
+                  } catch {
+                    return '';
+                  }
+                })();
+                if (!src) continue;
+
+                const hint = (() => {
+                  try {
+                    const u = new URL(src, String(window.location?.href || 'https://uniqah.com/'));
+                    const host = String(u.host || '').trim();
+                    const path = String(u.pathname || '').trim();
+                    const v = host ? `${host}${path}` : '';
+                    if (!v || v.includes('://') || /[\s\?#@]/.test(v)) return '';
+                    return v.slice(0, 420);
+                  } catch {
+                    return '';
+                  }
+                })();
+
+                if (!hint) continue;
+                const k = hint.toLowerCase();
+                if (seenHints.has(k)) continue;
+                seenHints.add(k);
+                out.push(hint);
+
+                try {
+                  if (k.includes('googletagmanager.com/gtag/js')) hasGtag = true;
+                  if (k.includes('analytics.tiktok.com/i18n/pixel/events.js')) hasTikTok = true;
+                  if (k.includes('apis.google.com/js/api.js') || (k.includes('apis.google.com/_/scs/') && k.includes('/js/k=gapi'))) {
+                    hasGapi = true;
+                  }
+                } catch {
+                  // ignore
+                }
+
+                try {
+                  const h = hostHintFromUrlLike(src);
+                  const hk = String(h || '').toLowerCase();
+                  if (h && !seenHosts.has(hk) && hosts.length < 8) {
+                    seenHosts.add(hk);
+                    hosts.push(h);
+                  }
+                } catch {
+                  // ignore
+                }
+              }
+
+              return {
+                scriptSrcHints: out,
+                scriptHosts: hosts,
+                hasGtag,
+                hasTikTok,
+                hasGapi,
+              };
+            } catch {
+              return null;
+            }
+          })();
+
+          const opaqueLikelySource = (() => {
+            try {
+              if (!isOpaqueScriptError) return '';
+              const hints = Array.isArray(scriptInventory?.scriptSrcHints) ? scriptInventory.scriptSrcHints : [];
+              const low = hints.map((s) => String(s || '').toLowerCase());
+              const hasGapi =
+                low.some((s) => s.includes('apis.google.com/js/api.js')) ||
+                low.some((s) => s.includes('apis.google.com/_/scs/') && s.includes('/js/k=gapi')) ||
+                low.some((s) => s.includes('gapi_iframes'));
+
+              if (hasGapi) return 'firebase_auth_gapi_or_recaptcha';
+              if (scriptInventory?.hasGtag) return 'gtag_or_google_ads';
+              if (scriptInventory?.hasTikTok) return 'tiktok_pixel';
+              if (inAppBrowserHint) return 'in_app_browser_injected_or_blocked_3p';
+              return '';
+            } catch {
+              return '';
+            }
+          })();
 
           const report = buildSupportReport({
             kind: 'global_window_error',
@@ -497,6 +719,9 @@ if (typeof window !== 'undefined') {
               colno,
               stack,
               stackUrlHints,
+              errorName,
+              errorMessage,
+              hasErrorObject,
               eventType,
               eventIsTrusted,
               eventTimeStamp,
@@ -507,11 +732,15 @@ if (typeof window !== 'undefined') {
               resourceUrlHint,
               rel: linkRel,
               as: linkAs,
+              isOpaqueScriptError,
+              inAppBrowserHint,
+              scriptInventory,
+              opaqueLikelySource,
               ...getBasicClientMeta(),
             },
           });
 
-          void safeSend(report);
+          void safeSend(report, { opaque: isOpaqueScriptError });
         } catch {
           // ignore
         }
@@ -634,15 +863,28 @@ if (typeof window !== 'undefined') {
 // Bu yüzden sadece production build'lerde register ediyoruz.
 // Not: `load` event'ini beklemek bazı cihazlarda bildirim/push açma akışını geciktirebiliyor.
 if (import.meta.env.PROD && typeof window !== 'undefined') {
+  // Defer SW registration to avoid competing with first-load resources on slow networks (mobile/VPN).
   try {
-    registerSW({ immediate: true });
-  } catch {
-    // noop
-  }
+    const doRegister = () => {
+      try {
+        registerSW({ immediate: true });
+      } catch {
+        // noop
+      }
 
-  // Best-effort: detect installed app and persist it.
-  try {
-    detectInstalledRelatedAppsAndMark().catch(() => null);
+      // Best-effort: detect installed app and persist it.
+      try {
+        detectInstalledRelatedAppsAndMark().catch(() => null);
+      } catch {
+        // ignore
+      }
+    };
+
+    if (typeof window.requestIdleCallback === 'function') {
+      window.requestIdleCallback(doRegister, { timeout: 4000 });
+    } else {
+      window.setTimeout(doRegister, 2500);
+    }
   } catch {
     // ignore
   }
@@ -673,6 +915,13 @@ if (import.meta.env.PROD && typeof window !== 'undefined') {
 
       try {
         markPwaInstalled();
+      } catch {
+        // ignore
+      }
+
+      try {
+        // Best-effort: persist to server (may retry on next login).
+        reportPwaInstalledToServerBestEffort({ source: 'appinstalled' }).catch(() => null);
       } catch {
         // ignore
       }
@@ -710,8 +959,59 @@ root.render(
   <React.StrictMode>
     <ErrorBoundary>
       <AuthProvider>
-        <App />
+        <BootstrapApp />
       </AuthProvider>
     </ErrorBoundary>
   </React.StrictMode>
 );
+
+function BootstrapApp() {
+  const [ready, setReady] = React.useState(false);
+
+  React.useEffect(() => {
+    let alive = true;
+    Promise.resolve(i18nReady)
+      .catch(() => null)
+      .then(() => {
+        if (alive) setReady(true);
+      });
+
+    // Safety: never get stuck on a blank screen.
+    // If i18n fails to init for any reason, render the app anyway after a short timeout.
+    const t = window.setTimeout(() => {
+      try {
+        if (alive) setReady(true);
+      } catch {
+        // ignore
+      }
+    }, 3000);
+    return () => {
+      alive = false;
+      try {
+        window.clearTimeout(t);
+      } catch {
+        // ignore
+      }
+    };
+  }, []);
+
+  if (!ready) {
+    return (
+      <div className="min-h-[60vh] flex items-center justify-center text-white/80">
+        Yükleniyor…
+      </div>
+    );
+  }
+
+  return (
+    <React.Suspense
+      fallback={
+        <div className="min-h-[60vh] flex items-center justify-center text-white/80">
+          Yükleniyor…
+        </div>
+      }
+    >
+      <App />
+    </React.Suspense>
+  );
+}

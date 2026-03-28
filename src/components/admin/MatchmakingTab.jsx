@@ -2,8 +2,8 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { getDownloadURL, ref } from 'firebase/storage';
 import { doc, getDoc } from 'firebase/firestore';
-import { storage } from '../../config/firebase';
-import { db } from '../../config/firebase';
+import { storage } from '../../config/firebaseStorage';
+import { db } from '../../config/firebaseDb';
 import { authFetch } from '../../utils/authFetch';
 import { formatProfileCode } from '../../utils/profileCode';
 

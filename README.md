@@ -46,7 +46,13 @@ Notlar:
 
 ## Admin Panel Görsel Yükleme (Cloudinary)
 
-Admin panelde lokal dosyadan görsel yükleme için Cloudinary "unsigned upload preset" gerekir.
+Bu projede fotoğraf yükleme varsayılan olarak **signed upload** kullanır: tarayıcı önce `/api/cloudinary-signature` endpoint'inden imza alır, sonra Cloudinary'e yükler.
+
+- Prod/Vercel için gerekli env (server-side):
+	- `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET`
+	- veya tek değişken: `CLOUDINARY_URL=cloudinary://<api_key>:<api_secret>@<cloud_name>`
+
+Lokal geliştirmede (opsiyonel) Cloudinary **unsigned upload preset** ile client-side upload da kullanılabilir.
 
 1. `.env.example` dosyasını `.env.local` olarak kopyalayın
 2. Cloudinary Dashboard → Settings → Upload → Upload presets → **Add upload preset**
@@ -56,6 +62,9 @@ Admin panelde lokal dosyadan görsel yükleme için Cloudinary "unsigned upload 
 ```dotenv
 VITE_CLOUDINARY_UPLOAD_PRESET=your_unsigned_preset_name
 VITE_CLOUDINARY_CLOUD_NAME=your_cloud_name
+
+# Opsiyonel: unsigned upload'ı özellikle açın (varsayılan kapalı)
+VITE_CLOUDINARY_ALLOW_UNSIGNED=1
 ```
 
 Not: Vite env değişiklikleri için `npm run dev` sürecini yeniden başlatmanız gerekir.

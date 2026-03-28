@@ -6,12 +6,34 @@ import { useTranslation } from 'react-i18next';
 import { CheckCircle, MessageCircle, ShieldCheck, UserCheck, Sparkles, Lock, Crown, ArrowRight, LogIn } from 'lucide-react';
 import { buildWhatsAppUrl } from '../utils/whatsapp';
 import { useAuth } from '../auth/AuthProvider';
-import { collection, getDocs, limit, onSnapshot, orderBy, query, where } from 'firebase/firestore';
-import { db } from '../config/firebase';
 import GeminiFAQ from '../components/gemini/GeminiFAQ';
-import PwaInstallCard from '../components/PwaInstallCard.jsx';
 import { staticAssetUrl } from '../utils/staticAssetUrl';
 import { tiktokTrack } from '../utils/tiktokPixel';
+import { trackClick } from '../utils/clickTracker';
+import { getSupportCountrySync } from '../utils/supportLine';
+
+let firestoreApiPromise = null;
+async function loadFirestoreApi() {
+  if (!firestoreApiPromise) {
+    firestoreApiPromise = Promise.all([
+      import('../config/firebaseDb'),
+      import('firebase/firestore'),
+    ]).then(([dbMod, fs]) => {
+      const db = dbMod?.db || dbMod?.default;
+      return { db, ...fs };
+    });
+  }
+  return firestoreApiPromise;
+}
+
+function preloadLoginChunk() {
+  try {
+    // Same folder: src/pages/Login.jsx
+    void import('./Login');
+  } catch {
+    // ignore
+  }
+}
 
 const FALLBACK_THUMB_DATA_URL =
   'data:image/svg+xml;charset=utf-8,' +
@@ -30,6 +52,23 @@ export default function MatchmakingHub() {
   const { t, i18n } = useTranslation();
   const { user } = useAuth();
   const BRAND_LOGO_SRC = staticAssetUrl('/brand-logo.webp');
+
+  const isIdTraffic = (() => {
+    try {
+      const c = String(getSupportCountrySync({ lang: '' }) || '').toUpperCase();
+      if (c === 'ID') return true;
+      const tz = String(Intl.DateTimeFormat().resolvedOptions().timeZone || '').toLowerCase();
+      if (tz.includes('jakarta') || tz.includes('makassar') || tz.includes('jayapura')) return true;
+      const nav = String(navigator?.language || '').toLowerCase();
+      if (nav.startsWith('id') || nav.startsWith('in')) return true;
+      const lang = String(i18n?.language || '').toLowerCase();
+      return lang.startsWith('id') || lang.startsWith('in');
+    } catch {
+      return false;
+    }
+  })();
+
+  const applyTo = isIdTraffic ? '/login?mode=signup' : '/login?mode=signup&auto=google';
 
   const youtubeVideos = [
     // YouTube video önizlemeleri (thumbnail + tıklayınca lazy iframe)
@@ -173,6 +212,7 @@ export default function MatchmakingHub() {
 
     (async () => {
       try {
+        const { db, collection, getDocs, limit, query, where } = await loadFirestoreApi();
         const q = query(collection(db, 'matchmakingApplications'), where('userId', '==', user.uid), limit(1));
         const snap = await getDocs(q);
         if (cancelled) return;
@@ -190,43 +230,84 @@ export default function MatchmakingHub() {
   }, [user?.uid]);
 
   useEffect(() => {
-    const cutoffMs = Date.now() - 24 * 60 * 60 * 1000;
-    const colRef = collection(db, 'publicJoinEvents');
-    const q = query(colRef, where('createdAtMs', '>=', cutoffMs), orderBy('createdAtMs', 'desc'), limit(1));
+    let cancelled = false;
+    let unsub = null;
 
-    const unsub = onSnapshot(
-      q,
-      (snap) => {
-        const doc = snap.docs?.[0];
-        const data = doc?.data?.() || {};
-        const createdAtMs = data?.createdAtMs;
-        if (typeof createdAtMs !== 'number' || !Number.isFinite(createdAtMs)) return;
+    const start = async () => {
+      try {
+        const { db, collection, limit, onSnapshot, orderBy, query, where } = await loadFirestoreApi();
+        if (cancelled) return;
 
-        if (!joinListenerInitializedRef.current) {
-          joinListenerInitializedRef.current = true;
-          lastJoinCreatedAtMsRef.current = createdAtMs;
-          return;
-        }
+        const cutoffMs = Date.now() - 24 * 60 * 60 * 1000;
+        const colRef = collection(db, 'publicJoinEvents');
+        const q = query(colRef, where('createdAtMs', '>=', cutoffMs), orderBy('createdAtMs', 'desc'), limit(1));
 
-        if (createdAtMs <= lastJoinCreatedAtMsRef.current) return;
-        lastJoinCreatedAtMsRef.current = createdAtMs;
+        unsub = onSnapshot(
+          q,
+          (snap) => {
+            if (cancelled) return;
+            const d0 = snap.docs?.[0];
+            const data = d0?.data?.() || {};
+            const createdAtMs = data?.createdAtMs;
+            if (typeof createdAtMs !== 'number' || !Number.isFinite(createdAtMs)) return;
 
-        setJoinToastVisible(true);
-        if (joinToastTimerRef.current) {
-          clearTimeout(joinToastTimerRef.current);
-        }
-        joinToastTimerRef.current = setTimeout(() => {
-          setJoinToastVisible(false);
-          joinToastTimerRef.current = null;
-        }, 2000);
-      },
-      () => {
-        // ignore realtime errors on public feed
+            if (!joinListenerInitializedRef.current) {
+              joinListenerInitializedRef.current = true;
+              lastJoinCreatedAtMsRef.current = createdAtMs;
+              return;
+            }
+
+            if (createdAtMs <= lastJoinCreatedAtMsRef.current) return;
+            lastJoinCreatedAtMsRef.current = createdAtMs;
+
+            setJoinToastVisible(true);
+            if (joinToastTimerRef.current) {
+              clearTimeout(joinToastTimerRef.current);
+            }
+            joinToastTimerRef.current = setTimeout(() => {
+              setJoinToastVisible(false);
+              joinToastTimerRef.current = null;
+            }, 2000);
+          },
+          () => {
+            // ignore realtime errors on public feed
+          }
+        );
+      } catch {
+        // ignore
       }
-    );
+    };
+
+    // Public join feed is non-critical; load after first paint.
+    let token = null;
+    let usedIdle = false;
+    try {
+      if (typeof window !== 'undefined' && typeof window.requestIdleCallback === 'function') {
+        usedIdle = true;
+        token = window.requestIdleCallback(start, { timeout: 2500 });
+      } else {
+        token = window.setTimeout(start, 1200);
+      }
+    } catch {
+      token = window.setTimeout(start, 1200);
+    }
 
     return () => {
-      unsub();
+      cancelled = true;
+      try {
+        if (usedIdle && typeof window !== 'undefined' && typeof window.cancelIdleCallback === 'function') {
+          window.cancelIdleCallback(token);
+        } else {
+          window.clearTimeout(token);
+        }
+      } catch {
+        // ignore
+      }
+      try {
+        if (typeof unsub === 'function') unsub();
+      } catch {
+        // ignore
+      }
       if (joinToastTimerRef.current) {
         clearTimeout(joinToastTimerRef.current);
         joinToastTimerRef.current = null;
@@ -312,7 +393,7 @@ export default function MatchmakingHub() {
 
                     {!user && canShowApply && (
                       <Link
-                        to="/login?mode=signup"
+                        to={applyTo}
                         state={{
                           from: '/evlilik/eslestirme-basvuru?w=1',
                           fromState: {
@@ -321,11 +402,19 @@ export default function MatchmakingHub() {
                           },
                         }}
                         onClick={() => {
+                          preloadLoginChunk();
+                          try {
+                            void trackClick('cta_matchmaking_hub_apply');
+                          } catch {
+                            // ignore
+                          }
                           tiktokTrack('SignupRedirect', {
                             source: 'matchmaking_hub_apply',
-                            to: '/login?mode=signup',
+                            to: applyTo,
                           });
                         }}
+                        onMouseEnter={preloadLoginChunk}
+                        onTouchStart={preloadLoginChunk}
                         className="app-btn app-btn-primary-light h-10 px-5"
                       >
                         <Crown size={18} />
@@ -355,15 +444,31 @@ export default function MatchmakingHub() {
                     </a>
                   </div>
 
+                  <div className="mt-3">
+                    <Link
+                      to="/aracilik"
+                      className="group w-full inline-flex items-center justify-between gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-slate-900 hover:bg-emerald-100 transition"
+                      onClick={() => {
+                        try {
+                          void trackClick('cta_lead_apply_matchmaking_hub');
+                        } catch {
+                          // ignore
+                        }
+                      }}
+                    >
+                      <div className="min-w-0">
+                        <div className="text-xs uppercase tracking-wide text-emerald-900/70">{t('navigation.matchmaking')}</div>
+                        <div className="mt-0.5 text-sm md:text-base font-semibold truncate">{t('navigation.leadApply')}</div>
+                      </div>
+                      <div className="shrink-0 text-emerald-900/70 group-hover:text-emerald-900 transition">→</div>
+                    </Link>
+                  </div>
+
                   {youtubeVideos?.[0] ? (
                     <div className="mt-5 lg:hidden">
                       {renderVideoCard(youtubeVideos[0], 0)}
                     </div>
                   ) : null}
-
-                  <div className="mt-5">
-                    <PwaInstallCard variant="light" flat />
-                  </div>
 
                   {youtubeVideos?.[1] ? (
                     <div className="mt-4 lg:hidden">
@@ -457,13 +562,20 @@ export default function MatchmakingHub() {
                 {!user ? (
                   <div className="shrink-0">
                     <Link
-                      to="/login?mode=signup"
+                      to={applyTo}
                       state={{
                         from: '/evlilik/eslestirme-basvuru?w=1',
                         fromState: {
                           showMatchmakingIntro: true,
                           matchmakingNext: '/evlilik/eslestirme-basvuru?w=1',
                         },
+                      }}
+                      onClick={() => {
+                        try {
+                          void trackClick('cta_matchmaking_home_hero');
+                        } catch {
+                          // ignore
+                        }
                       }}
                       className="app-btn app-btn-primary-light h-10 px-5"
                     >
@@ -728,13 +840,20 @@ export default function MatchmakingHub() {
                 {canShowApply && (
                   <>
                     <Link
-                      to="/login?mode=signup"
+                      to={applyTo}
                       state={{
                         from: '/evlilik/eslestirme-basvuru?w=1',
                         fromState: {
                           showMatchmakingIntro: true,
                           matchmakingNext: '/evlilik/eslestirme-basvuru?w=1',
                         },
+                      }}
+                      onClick={() => {
+                        try {
+                          void trackClick('cta_matchmaking_home_hero');
+                        } catch {
+                          // ignore
+                        }
                       }}
                       className="app-btn app-btn-primary-light h-10 px-5"
                     >

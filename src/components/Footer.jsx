@@ -61,13 +61,27 @@ export default function Footer() {
                   loading="lazy"
                   decoding="async"
                 />
-                <img
-                  src={FOOTER_PARTNER_IMAGE_SRC}
-                  alt=""
-                  className="h-12 w-auto object-contain"
-                  loading="lazy"
-                  decoding="async"
-                />
+                    {showWedding && (
+                      <li>
+                        <Link to="/evlilik" className="hover:text-white transition">
+                          {t('navigation.wedding')}
+                        </Link>
+                      </li>
+                    )}
+                    {showWedding && (
+                      <li>
+                        <Link to="/eslestirme" className="hover:text-white transition">
+                          {t('navigation.matchmaking')}
+                        </Link>
+                      </li>
+                    )}
+                    {showWedding && (
+                      <li>
+                        <Link to="/profilim" className="hover:text-white transition">
+                          {t('navigation.panel')}
+                        </Link>
+                      </li>
+                    )}
               </div>
             </div>
             <p className="text-gray-400" style={{ fontFamily: '"Poppins", sans-serif' }}>
@@ -128,19 +142,33 @@ export default function Footer() {
                   </Link>
                 </li>
               )}
+              {showWedding && (
+                <li>
+                  <Link to="/aracilik" className="hover:text-white transition">
+                    {t('navigation.leadApply')}
+                  </Link>
+                </li>
+              )}
+              <li>
+                <Link to="/youtube" className="hover:text-white transition">
+                  {t('navigation.youtube')}
+                </Link>
+              </li>
               <li>
                 <Link to="/about" className="hover:text-white transition">
                   {t('navigation.about')}
                 </Link>
               </li>
+              {showWedding && (
+                <li>
+                  <Link to="/kurumsal" className="hover:text-white transition">
+                    {t('navigation.corporate')}
+                  </Link>
+                </li>
+              )}
               <li>
                 <Link to="/contact" className="hover:text-white transition">
                   {t('navigation.contact')}
-                </Link>
-              </li>
-              <li>
-                <Link to="/youtube" className="hover:text-white transition">
-                  {t('navigation.youtube')}
                 </Link>
               </li>
               <li>

@@ -51,6 +51,10 @@ function defaultLoader(fileName) {
 // Lazy-load: cold start sırasında tüm route dosyalarını import etmeyelim.
 // Bu, Vercel'de FUNCTION_INVOCATION_FAILED (özellikle cold-start / timeout) riskini ciddi azaltır.
 const handlers = {
+  'admin-push-incomplete-application-once': defaultLoader('admin-push-incomplete-application-once.js'),
+  'admin-leads-list': defaultLoader('admin-leads-list.js'),
+  'admin-leads-update': defaultLoader('admin-leads-update.js'),
+  'admin-translate-text': defaultLoader('admin-translate-text.js'),
   'admin-invite-codes-list': defaultLoader('admin-invite-codes-list.js'),
   'admin-user-action': defaultLoader('admin-user-action.js'),
   'admin-users-list': defaultLoader('admin-users-list.js'),
@@ -131,8 +135,10 @@ const handlers = {
   'public-join-ping': defaultLoader('public-join-ping.js'),
   'public-error-report': defaultLoader('public-error-report.js'),
   'public-feedback-submit': defaultLoader('public-feedback-submit.js'),
+  'public-lead-submit': defaultLoader('public-lead-submit.js'),
   'public-signal': defaultLoader('public-signal.js'),
   'public-track-click': defaultLoader('public-track-click.js'),
+  'pwa-installed-upsert': defaultLoader('pwa-installed-upsert.js'),
   'push-token-upsert': defaultLoader('push-token-upsert.js'),
   'push-send-test': defaultLoader('push-send-test.js'),
   'matchmaking-profile': defaultLoader('matchmaking-profile.js'),

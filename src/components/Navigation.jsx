@@ -52,16 +52,27 @@ export default function Navigation({ variant = 'default' } = {}) {
     () => [
       { to: "/", label: t("navigation.home"), active: isActive("/") },
       ...(showWedding
+        ? [
+            {
+              to: '/aracilik',
+              label: t('navigation.leadApply'),
+              active: isActive('/aracilik') || isActive('/evlilik/aracilik-basvurusu'),
+            },
+          ]
+        : []),
+      ...(showWedding
         ? [{ to: "/wedding", label: t("navigation.wedding"), active: isActive("/wedding") || isActive("/evlilik") }]
         : []),
-      { to: "/about", label: t("navigation.about"), active: isActive("/about") },
-      { to: "/kurumsal", label: t("navigation.corporate"), active: isActive("/kurumsal") },
-      { to: "/youtube", label: t("navigation.youtube"), active: isActive("/youtube") },
-      { to: "/contact", label: t("navigation.contact"), active: isActive("/contact") },
       ...(showWedding
         ? [{ to: "/eslestirme", label: t("navigation.matchmaking"), active: isActive("/eslestirme") }]
         : []),
       ...(showWedding ? [{ to: "/profilim", label: t("navigation.panel"), active: isActive("/profilim") }] : []),
+      { to: "/youtube", label: t("navigation.youtube"), active: isActive("/youtube") },
+      { to: "/about", label: t("navigation.about"), active: isActive("/about") },
+      ...(showWedding
+        ? [{ to: "/kurumsal", label: t("navigation.corporate"), active: isActive("/kurumsal") }]
+        : []),
+      { to: "/contact", label: t("navigation.contact"), active: isActive("/contact") },
     ],
     [location.pathname, showWedding, t]
   );
@@ -136,6 +147,11 @@ export default function Navigation({ variant = 'default' } = {}) {
                   } catch {
                     // ignore
                   }
+                  try {
+                    sessionStorage.setItem('preferred_lang_source', 'selector');
+                  } catch {
+                    // ignore
+                  }
                   i18n.changeLanguage('tr');
                   return;
                 }
@@ -145,7 +161,12 @@ export default function Navigation({ variant = 'default' } = {}) {
                 } catch {
                   // ignore
                 }
-                i18n.changeLanguage(e.target.value);
+                try {
+                  sessionStorage.setItem('preferred_lang_source', 'selector');
+                } catch {
+                  // ignore
+                }
+                i18n.changeLanguage(String(e.target.value || 'tr').toLowerCase());
               }}
               className="px-2 py-1.5 rounded-full text-xs sm:text-sm font-semibold border border-emerald-200 bg-white text-slate-800 shadow-sm"
               aria-label={t('navigation.language')}
@@ -165,6 +186,16 @@ export default function Navigation({ variant = 'default' } = {}) {
             </Link>
             {showWedding && (
               <Link
+                to="/aracilik"
+                className={tabClass(isActive('/aracilik') || isActive('/evlilik/aracilik-basvurusu'))}
+                style={{ fontFamily: '"Poppins", sans-serif' }}
+                onClick={() => trackNav('/aracilik')}
+              >
+                {t('navigation.leadApply')}
+              </Link>
+            )}
+            {showWedding && (
+              <Link
                 to="/wedding"
                 className={tabClass(isActive('/wedding') || isActive('/evlilik'))}
                 style={{ fontFamily: '"Poppins", sans-serif' }}
@@ -173,38 +204,6 @@ export default function Navigation({ variant = 'default' } = {}) {
                 {t('navigation.wedding')}
               </Link>
             )}
-            <Link
-              to="/about"
-              className={tabClass(isActive('/about'))}
-              style={{ fontFamily: '"Poppins", sans-serif' }}
-              onClick={() => trackNav('/about')}
-            >
-              {t('navigation.about')}
-            </Link>
-            <Link
-              to="/kurumsal"
-              className={tabClass(isActive('/kurumsal'))}
-              style={{ fontFamily: '"Poppins", sans-serif' }}
-              onClick={() => trackNav('/kurumsal')}
-            >
-              {t('navigation.corporate')}
-            </Link>
-            <Link
-              to="/youtube"
-              className={tabClass(isActive('/youtube'))}
-              style={{ fontFamily: '"Poppins", sans-serif' }}
-              onClick={() => trackNav('/youtube')}
-            >
-              {t('navigation.youtube')}
-            </Link>
-            <Link
-              to="/contact"
-              className={tabClass(isActive('/contact'))}
-              style={{ fontFamily: '"Poppins", sans-serif' }}
-              onClick={() => trackNav('/contact')}
-            >
-              {t('navigation.contact')}
-            </Link>
             {showWedding && (
               <Link
                 to="/eslestirme"
@@ -223,6 +222,40 @@ export default function Navigation({ variant = 'default' } = {}) {
                 onClick={() => trackNav('/profilim')}
               >
                 {t('navigation.panel')}
+              </Link>
+            )}
+            <Link
+              to="/youtube"
+              className={tabClass(isActive('/youtube'))}
+              style={{ fontFamily: '"Poppins", sans-serif' }}
+              onClick={() => trackNav('/youtube')}
+            >
+              {t('navigation.youtube')}
+            </Link>
+            <Link
+              to="/about"
+              className={tabClass(isActive('/about'))}
+              style={{ fontFamily: '"Poppins", sans-serif' }}
+              onClick={() => trackNav('/about')}
+            >
+              {t('navigation.about')}
+            </Link>
+            <Link
+              to="/contact"
+              className={tabClass(isActive('/contact'))}
+              style={{ fontFamily: '"Poppins", sans-serif' }}
+              onClick={() => trackNav('/contact')}
+            >
+              {t('navigation.contact')}
+            </Link>
+            {showWedding && (
+              <Link
+                to="/kurumsal"
+                className={tabClass(isActive('/kurumsal'))}
+                style={{ fontFamily: '"Poppins", sans-serif' }}
+                onClick={() => trackNav('/kurumsal')}
+              >
+                {t('navigation.corporate')}
               </Link>
             )}
             </div>
@@ -276,6 +309,11 @@ export default function Navigation({ variant = 'default' } = {}) {
                       } catch {
                         // ignore
                       }
+                      try {
+                        sessionStorage.setItem('preferred_lang_source', 'selector');
+                      } catch {
+                        // ignore
+                      }
                       i18n.changeLanguage('tr');
                       return;
                     }
@@ -285,7 +323,12 @@ export default function Navigation({ variant = 'default' } = {}) {
                     } catch {
                       // ignore
                     }
-                    i18n.changeLanguage(e.target.value);
+                    try {
+                      sessionStorage.setItem('preferred_lang_source', 'selector');
+                    } catch {
+                      // ignore
+                    }
+                    i18n.changeLanguage(String(e.target.value || 'tr').toLowerCase());
                   }}
                   className="w-full px-3 py-2 rounded-xl text-sm font-semibold border border-emerald-200 bg-white text-slate-800 shadow-sm"
                   aria-label={t('navigation.language')}

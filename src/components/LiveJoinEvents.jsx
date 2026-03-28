@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { collection, limit, onSnapshot, orderBy, query, where } from 'firebase/firestore';
-import { db } from '../config/firebase';
+import { db } from '../config/firebaseDb';
 
 function nowMs() {
   return Date.now();

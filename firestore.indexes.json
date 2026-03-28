@@ -55,6 +55,14 @@
         { "fieldPath": "status", "order": "ASCENDING" },
         { "fieldPath": "createdAtMs", "order": "DESCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "matchmakingLeads",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "lead.gender", "order": "ASCENDING" },
+        { "fieldPath": "createdAtMs", "order": "DESCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []

@@ -1,4 +1,45 @@
+import { authFetch } from './authFetch.js';
+
 const LS_KEY = 'uniqah_pwa_installed_v1';
+const LS_PWA_SERVER_MARKED_PREFIX = 'uniqah:pwa:serverMarked:v1:';
+const LS_PWA_SERVER_WANTED = 'uniqah:pwa:serverWanted:v1';
+
+function safeSetStorageItem(key, value) {
+  const storage = safeGetStorage();
+  if (!storage) return false;
+  try {
+    storage.setItem(String(key), String(value));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function safeGetStorageItem(key) {
+  const storage = safeGetStorage();
+  if (!storage) return '';
+  try {
+    return String(storage.getItem(String(key)) || '');
+  } catch {
+    return '';
+  }
+}
+
+function safeRemoveStorageItem(key) {
+  const storage = safeGetStorage();
+  if (!storage) return false;
+  try {
+    storage.removeItem(String(key));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function serverMarkedKey(uid) {
+  const u = String(uid || '').trim();
+  return `${LS_PWA_SERVER_MARKED_PREFIX}${u || 'unknown'}`;
+}
 
 function safeGetStorage() {
   try {
@@ -27,6 +68,40 @@ export function markPwaInstalled() {
   } catch {
     return false;
   }
+}
+
+export function hasReportedPwaInstalledToServer(uid) {
+  const u = String(uid || '').trim();
+  if (!u) return false;
+  return safeGetStorageItem(serverMarkedKey(u)) === '1';
+}
+
+export async function reportPwaInstalledToServerBestEffort({ source = 'unknown', uid } = {}) {
+  // Only report if we have a local install signal.
+  if (!isPwaInstalled()) return false;
+
+  const u = String(uid || '').trim();
+  if (u && hasReportedPwaInstalledToServer(u)) return true;
+
+  try {
+    await authFetch('/api/pwa-installed-upsert', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ source: String(source || 'unknown').slice(0, 80) }),
+    });
+
+    if (u) safeSetStorageItem(serverMarkedKey(u), '1');
+    safeRemoveStorageItem(LS_PWA_SERVER_WANTED);
+    return true;
+  } catch {
+    // If user is not authenticated yet, we'll retry on next login.
+    safeSetStorageItem(LS_PWA_SERVER_WANTED, '1');
+    return false;
+  }
+}
+
+export function wantsReportPwaInstalledToServer() {
+  return safeGetStorageItem(LS_PWA_SERVER_WANTED) === '1';
 }
 
 export function isRunningAsPwa() {

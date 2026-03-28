@@ -1,4 +1,4 @@
-import app from '../config/firebase';
+import app from '../config/firebaseApp';
 import { authFetch } from './authFetch';
 import { firebaseWebPushVapidKey } from '../config/firebasePublicConfig';
 

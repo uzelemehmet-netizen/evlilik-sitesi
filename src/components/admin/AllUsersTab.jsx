@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { authFetch } from '../../utils/authFetch';
 import { getDownloadURL, ref } from 'firebase/storage';
-import { storage } from '../../config/firebase';
+import { storage } from '../../config/firebaseStorage';
 
 function fmtDate(ms) {
   try {
@@ -92,6 +92,8 @@ export default function AllUsersTab() {
 
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
   const [deleteFinal, setDeleteFinal] = useState(false);
+
+  const [campaignState, setCampaignState] = useState({ loading: false, error: '', msg: '', details: null });
 
   const trimmedQuery = useMemo(() => String(query || '').trim(), [query]);
 
@@ -255,6 +257,66 @@ export default function AllUsersTab() {
       setActionErr(String(e?.message || 'bulk_islem_basarisiz'));
     } finally {
       setActing(false);
+    }
+  };
+
+  const sendIncompleteApplicationPushOnce = async ({ dryRun } = {}) => {
+    setCampaignState({ loading: true, error: '', msg: '', details: null });
+    try {
+      const isDryRun = dryRun !== false;
+      const totalWanted = 200;
+      const chunkLimit = 60;
+
+      let cursorUid = '';
+      let totalCandidates = 0;
+      let processed = 0;
+      let totalSent = 0;
+      let totalSkipped = 0;
+      let totalWouldSend = 0;
+
+      let lastData = null;
+
+      for (let i = 0; i < 20; i++) {
+        const data = await authFetch('/api/admin-push-incomplete-application-once', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({
+            dryRun: isDryRun,
+            limit: chunkLimit,
+            cursorUid,
+            title: 'Başvurunu tamamla',
+            body: 'İletişim numaranızı ekleyin; gerektiğinde sizinle iletişime geçebilmemiz için gerekli.',
+            url: '/evlilik/eslestirme-basvuru?w=1',
+          }),
+        });
+
+        lastData = data || null;
+        totalCandidates = typeof data?.candidates === 'number' ? data.candidates : totalCandidates;
+        processed += typeof data?.processed === 'number' ? data.processed : 0;
+        totalSent += typeof data?.sent === 'number' ? data.sent : 0;
+        totalSkipped += typeof data?.skipped === 'number' ? data.skipped : 0;
+        totalWouldSend += typeof data?.wouldSend === 'number' ? data.wouldSend : 0;
+
+        const next = String(data?.nextCursorUid || '').trim();
+        cursorUid = next;
+
+        const line = isDryRun
+          ? `Dry-run: işlenen ${processed}, gönderilecek ${totalWouldSend}, atlanan ${totalSkipped}`
+          : `Gönderim: işlenen ${processed}, gönderilen ${totalSent}, atlanan ${totalSkipped}`;
+        setCampaignState({ loading: true, error: '', msg: line, details: lastData });
+
+        // Stop if finished or we processed enough.
+        if (!cursorUid) break;
+        if (processed >= totalWanted) break;
+      }
+
+      const finalLine = isDryRun
+        ? `Dry-run bitti: aday ${totalCandidates || 0}, işlenen ${processed}, gönderilecek ${totalWouldSend}, atlanan ${totalSkipped}`
+        : `Gönderim bitti: aday ${totalCandidates || 0}, işlenen ${processed}, gönderilen ${totalSent}, atlanan ${totalSkipped}`;
+
+      setCampaignState({ loading: false, error: '', msg: finalLine, details: lastData });
+    } catch (e) {
+      setCampaignState({ loading: false, error: String(e?.message || 'push_gonderilemedi'), msg: '', details: null });
     }
   };
 
@@ -488,7 +550,11 @@ export default function AllUsersTab() {
   }
 
   const openFormModal = async (uidOverride) => {
-    const uidToLoad = String(uidOverride ?? selectedUid ?? '').trim();
+    // Not: onClick handler'larında bu fonksiyon direkt verilirse React event objesini parametre diye geçirir.
+    // UID yerine "[object PointerEvent]" gibi değerler gitmesin diye sadece string uid kabul ediyoruz.
+    const uidToLoad = typeof uidOverride === 'string' && uidOverride.trim()
+      ? uidOverride.trim()
+      : String(selectedUid ?? '').trim();
     if (!uidToLoad) return;
     setShowRawJson(false);
     setFormLightbox({ open: false, urls: [], index: 0, title: '' });
@@ -552,10 +618,18 @@ export default function AllUsersTab() {
         }
       };
 
+      // Bazı eski/alternatif şemalarda foto alanları details altında olabilir.
+      const appDetails = app?.details && typeof app.details === 'object' ? app.details : null;
+      const userDetails = user?.details && typeof user.details === 'object' ? user.details : null;
+
       pushDirect(app?.photoUrls);
       pushDirect(app?.publicProfile?.photoUrls);
+      pushDirect(appDetails?.photoUrls);
+      pushDirect(appDetails?.photos);
       pushDirect(user?.photoUrls);
       pushDirect(user?.publicProfile?.photoUrls);
+      pushDirect(userDetails?.photoUrls);
+      pushDirect(userDetails?.photos);
 
       // Eğer direkt URL varsa önce onları göster.
       if (direct.length) {
@@ -576,9 +650,14 @@ export default function AllUsersTab() {
 
       pushPaths(app?.photoPaths);
       pushPaths(app?.publicProfile?.photoPaths);
+      pushPaths(appDetails?.photoPaths);
       pushPaths(user?.photoPaths);
       pushPaths(user?.publicProfile?.photoPaths);
+      pushPaths(userDetails?.photoPaths);
       if (safeStr(user?.photoPath)) paths.push(safeStr(user.photoPath));
+      if (safeStr(app?.photoPath)) paths.push(safeStr(app.photoPath));
+      if (safeStr(appDetails?.photoPath)) paths.push(safeStr(appDetails.photoPath));
+      if (safeStr(userDetails?.photoPath)) paths.push(safeStr(userDetails.photoPath));
 
       if (!paths.length) {
         if (!cancelled) setFormPhotoState({ loading: false, urls: [], error: '' });
@@ -680,6 +759,29 @@ export default function AllUsersTab() {
       const entries = Object.entries(data || {});
       if (!entries.length) return <span className="text-sm text-slate-500">—</span>;
 
+      function shouldHideKeyByPath(path) {
+        const p = String(path || '').trim();
+        if (!p) return false;
+        const low = p.toLowerCase();
+
+        // Teknik / admin için gürültü olan alanlar (ham JSON'da zaten görülebilir)
+        if (low === 'application.id') return true;
+        if (low === 'application.userid' || low.endsWith('.userid')) return true;
+        if (low.endsWith('.applicationid') || low === 'application.applicationid') return true;
+
+        if (low.endsWith('createdat') || low.endsWith('updatedat')) return true;
+        if (low.endsWith('createdatms') || low.endsWith('updatedatms')) return true;
+        if (low.endsWith('profiletexttranslatedatms') || low.includes('profiletexttranslate')) return true;
+
+        if (low.includes('.pool')) return true;
+        if (low.includes('.photocloudinary') || low.includes('.photocontenttypes') || low.includes('.photooriginaltypes')) return true;
+
+        // Checklist/onay alanları (istenmiyor)
+        if (low.includes('consent18plus') || low.includes('consentprivacy') || low.includes('consentterms') || low.includes('consentphotoshare') || low.includes('consentmarketing')) return true;
+
+        return false;
+      }
+
       // Büyük/teknik alanları burada göstermek istemiyoruz.
       const skipKeys = new Set([
         'profileTextTranslate',
@@ -697,6 +799,19 @@ export default function AllUsersTab() {
             const key = String(k);
             const label = labelizeKey(key) || key;
             const nextHintKey = hintKey ? `${hintKey}.${key}` : key;
+
+            if (shouldHideKeyByPath(nextHintKey)) return null;
+
+            // Partner prefs içinde boş/varsayılan "Farketmez" değerleri gürültü yapıyor: gizle.
+            const isPreferencePath = nextHintKey.toLowerCase().includes('partnerpreferences');
+            if (Array.isArray(v) && isPreferencePath && v.length === 0) return null;
+
+            if (isPrimitive(v)) {
+              const formatted = formatPrimitive(v, nextHintKey);
+              if (formatted === '—') return null;
+              if (isPreferencePath && formatted === 'Farketmez') return null;
+            }
+
 
             // URL gibi görünüyorsa linkle
             if (typeof v === 'string' && looksLikeImageUrl(v)) {
@@ -741,22 +856,71 @@ export default function AllUsersTab() {
           <h2 className="text-lg font-semibold text-gray-800">Tüm Kullanıcılar</h2>
           <p className="text-sm text-gray-600">Firebase Auth kullanıcıları listelenir; Firestore (matchmakingUsers) durumları da gösterilir.</p>
         </div>
-
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            className="px-3 py-2 rounded-lg bg-slate-700 text-white text-sm hover:bg-slate-800 disabled:opacity-60"
-            disabled={acting}
-            onClick={bulkMarkSystemUsers}
-            title="Mevcut tüm kullanıcıları sistem kullanıcısı olarak işaretle"
-          >
-            Tümünü Sistem Kullanıcısı Yap
-          </button>
-        </div>
       </div>
+
+      {campaignState.error ? <p className="mt-3 text-sm text-rose-700">{campaignState.error}</p> : null}
+      {campaignState.msg ? <p className="mt-3 text-sm text-emerald-700">{campaignState.msg}</p> : null}
+
+      {Array.isArray(campaignState?.details?.results) && campaignState.details.results.length ? (
+        <details className="mt-2 rounded-lg border border-slate-200 bg-slate-50">
+          <summary className="cursor-pointer select-none px-3 py-2 text-sm font-semibold text-slate-800">
+            Push sonucu detayları (ilk {Math.min(20, campaignState.details.results.length)})
+          </summary>
+          <div className="p-3 bg-white border-t border-slate-200">
+            <div className="space-y-1">
+              {campaignState.details.results.slice(0, 20).map((r, idx) => (
+                <div key={idx} className="text-xs text-slate-800 break-all">
+                  <span className="font-semibold">{String(r?.uid || '')}</span>
+                  {r?.skipped ? ' • skipped' : r?.dryRun ? ' • dryRun' : ''}
+                  {r?.reason ? ` • reason:${String(r.reason)}` : ''}
+                  {r?.appSource ? ` • appSource:${String(r.appSource)}` : ''}
+                  {r?.appId ? ` • appId:${String(r.appId)}` : ''}
+                  {r?.error ? ` • error:${String(r.error)}` : ''}
+                </div>
+              ))}
+            </div>
+          </div>
+        </details>
+      ) : null}
 
       <div className="mt-4 space-y-4">
         <div>
+          <div className="mb-3 flex flex-col md:flex-row md:items-center gap-2">
+            <button
+              type="button"
+              className="px-3 py-2 rounded-lg bg-slate-700 text-white text-sm hover:bg-slate-800 disabled:opacity-60"
+              disabled={acting}
+              onClick={bulkMarkSystemUsers}
+              title="Mevcut tüm kullanıcıları sistem kullanıcısı olarak işaretle"
+            >
+              Tümünü Sistem Kullanıcısı Yap
+            </button>
+
+            <button
+              type="button"
+              className="px-3 py-2 rounded-lg bg-indigo-600 text-white text-sm hover:bg-indigo-700 disabled:opacity-60"
+              disabled={acting || campaignState.loading}
+              onClick={() => sendIncompleteApplicationPushOnce({ dryRun: true })}
+              title="Push açık olanlardan formu eksik görünenlere (tek seferlik) dry-run"
+            >
+              Eksik Forma Push (Dry-run)
+            </button>
+
+            <button
+              type="button"
+              className="px-3 py-2 rounded-lg bg-rose-600 text-white text-sm hover:bg-rose-700 disabled:opacity-60"
+              disabled={acting || campaignState.loading}
+              onClick={() => {
+                const ok = window.confirm('Push açık olan ve formu eksik olanlara tek seferlik bildirim gönderilecek. Devam?');
+                if (!ok) return;
+                sendIncompleteApplicationPushOnce({ dryRun: false });
+              }}
+              title="Push açık olanlardan formu eksik görünenlere tek seferlik gönder"
+            >
+              Eksik Forma Push Gönder
+            </button>
+          </div>
+
           <div className="flex flex-col md:flex-row gap-2">
             <input
               value={query}
@@ -796,12 +960,15 @@ export default function AllUsersTab() {
                     <th className="text-left px-3 py-2">İsim</th>
                     <th className="text-left px-3 py-2">Yaş</th>
                     <th className="text-left px-3 py-2">Cinsiyet</th>
+                    <th className="text-left px-3 py-2">WhatsApp</th>
                     <th className="text-left px-3 py-2">Email</th>
                     <th className="text-left px-3 py-2">UID</th>
                     <th className="text-left px-3 py-2">Durum</th>
                     <th className="text-left px-3 py-2">Üyelik</th>
                     <th className="text-left px-3 py-2">Ödeme</th>
                     <th className="text-left px-3 py-2">Kimlik</th>
+                    <th className="text-left px-3 py-2">Uygulama</th>
+                    <th className="text-left px-3 py-2">Bildirim</th>
                     <th className="text-left px-3 py-2">Oluştu</th>
                     <th className="text-left px-3 py-2">Son giriş</th>
                   </tr>
@@ -836,6 +1003,14 @@ export default function AllUsersTab() {
                           ? { label: 'DOĞRULANMADI', cls: pill('amber') }
                           : { label: '—', cls: 'text-gray-500' };
 
+                    const pwaPill = u?.pwaInstalled
+                      ? { label: 'YÜKLÜ', cls: pill('green') }
+                      : { label: '—', cls: 'text-gray-500' };
+
+                    const pushPill = u?.pushEnabled
+                      ? { label: 'AÇIK', cls: pill('green') }
+                      : { label: '—', cls: 'text-gray-500' };
+
                     return (
                       <tr
                         key={u?.uid}
@@ -854,6 +1029,7 @@ export default function AllUsersTab() {
                         <td className="px-3 py-2">{u?.fullName || '-'}</td>
                         <td className="px-3 py-2">{typeof u?.age === 'number' ? u.age : '-'}</td>
                         <td className="px-3 py-2">{genderLabel(u?.gender)}</td>
+                        <td className="px-3 py-2 font-mono break-all">{u?.whatsapp || '-'}</td>
                         <td className="px-3 py-2 break-all">{u?.email || '-'}</td>
                         <td className="px-3 py-2 font-mono">{shortUid(u?.uid)}</td>
                         <td className="px-3 py-2">
@@ -890,6 +1066,20 @@ export default function AllUsersTab() {
                             <span className={identityPill.cls}>{identityPill.label}</span>
                           )}
                         </td>
+                        <td className="px-3 py-2">
+                          {pwaPill.cls.includes('text-gray-500') ? (
+                            <span className={pwaPill.cls}>{pwaPill.label}</span>
+                          ) : (
+                            <span className={pwaPill.cls}>{pwaPill.label}</span>
+                          )}
+                        </td>
+                        <td className="px-3 py-2">
+                          {pushPill.cls.includes('text-gray-500') ? (
+                            <span className={pushPill.cls}>{pushPill.label}</span>
+                          ) : (
+                            <span className={pushPill.cls}>{pushPill.label}</span>
+                          )}
+                        </td>
                         <td className="px-3 py-2">{fmtDate(u?.createdAtMs)}</td>
                         <td className="px-3 py-2">{fmtDate(u?.lastSignInAtMs)}</td>
                       </tr>
@@ -898,7 +1088,7 @@ export default function AllUsersTab() {
 
                   {!users.length && !loading ? (
                     <tr>
-                      <td colSpan={12} className="px-3 py-6 text-center text-gray-500">
+                      <td colSpan={14} className="px-3 py-6 text-center text-gray-500">
                         Kayıt bulunamadı.
                       </td>
                     </tr>
@@ -942,6 +1132,12 @@ export default function AllUsersTab() {
                   <span className={selected.identityVerified === true ? pill('green') : pill('amber')}>
                     Kimlik: {selected.identityVerified === true ? 'Doğrulandı' : 'Doğrulanmadı'}
                   </span>
+                  <span className={selected.pwaInstalled ? pill('green') : pill('amber')}>
+                    Uygulama: {selected.pwaInstalled ? 'Yüklü' : 'Yok'}
+                  </span>
+                  <span className={selected.pushEnabled ? pill('green') : pill('amber')}>
+                    Bildirim: {selected.pushEnabled ? 'Açık' : 'Kapalı'}
+                  </span>
                   <span className={selected.lastApprovedPaymentId ? pill('green') : pill('amber')}>
                     Ödeme: {selected.lastApprovedPaymentId ? 'Alındı' : 'Yok'}
                   </span>
@@ -951,7 +1147,7 @@ export default function AllUsersTab() {
               <div className="flex flex-col items-start md:items-end gap-2">
                 <button
                   type="button"
-                  onClick={openFormModal}
+                  onClick={() => openFormModal(selectedUid)}
                   disabled={!selectedUid}
                   className="px-3 py-2 rounded-lg bg-white border text-sm hover:bg-gray-100 disabled:opacity-60"
                   title="Seçili kullanıcının form/başvuru detaylarını ve fotoğraflarını göster"
@@ -960,19 +1156,34 @@ export default function AllUsersTab() {
                 </button>
 
                 <div className="text-xs text-gray-700 space-y-1">
-                  <div><span className="font-semibold">UC:</span> <span className="font-mono">{selected.userCode || '-'}</span></div>
-                  <div><span className="font-semibold">İsim:</span> {selected.fullName || '-'}</div>
-                  <div><span className="font-semibold">Yaş:</span> {typeof selected.age === 'number' ? selected.age : '-'}</div>
-                  <div><span className="font-semibold">Cinsiyet:</span> {genderLabel(selected.gender)}</div>
-                  <div><span className="font-semibold">Meslek:</span> {formatPrimitive(selected.occupation, 'occupation')}</div>
-                  <div><span className="font-semibold">Medeni Durum:</span> {formatPrimitive(selected.maritalStatus, 'maritalStatus')}</div>
-                  <div><span className="font-semibold">Çocuğu Var mı:</span> {formatPrimitive(selected.hasChildren, 'hasChildren')}</div>
-                  {typeof selected.childrenCount === 'number' ? (
-                    <div><span className="font-semibold">Çocuk Sayısı:</span> {formatPrimitive(selected.childrenCount, 'childrenCount')}</div>
-                  ) : null}
-                  <div><span className="font-semibold">Email:</span> {selected.email || '-'}</div>
-                  <div><span className="font-semibold">UID:</span> <span className="font-mono">{selected.uid}</span></div>
-                  <div><span className="font-semibold">Üyelik bitiş:</span> {selected.membershipValidUntilMs ? fmtDate(selected.membershipValidUntilMs) : '-'}</div>
+                  {(() => {
+                    const app = formModal?.uid && formModal.uid === selectedUid ? formModal.application : null;
+                    const city = typeof app?.city === 'string' ? app.city.trim() : '';
+                    const country = typeof app?.country === 'string' ? app.country.trim() : '';
+
+                    return (
+                      <>
+                        <div><span className="font-semibold">UC:</span> <span className="font-mono">{selected.userCode || '-'}</span></div>
+                        <div><span className="font-semibold">İsim:</span> {selected.fullName || '-'}</div>
+                        <div><span className="font-semibold">Yaş:</span> {typeof selected.age === 'number' ? selected.age : '-'}</div>
+                        <div><span className="font-semibold">Cinsiyet:</span> {genderLabel(selected.gender)}</div>
+                        <div><span className="font-semibold">Meslek:</span> {formatPrimitive(selected.occupation, 'occupation')}</div>
+
+                        <div><span className="font-semibold">Medeni Durum:</span> {formatPrimitive(selected.maritalStatus, 'maritalStatus')}</div>
+                        <div><span className="font-semibold">Çocuğu Var mı:</span> {formatPrimitive(selected.hasChildren, 'hasChildren')}</div>
+                        {typeof selected.childrenCount === 'number' ? (
+                          <div><span className="font-semibold">Çocuk Sayısı:</span> {formatPrimitive(selected.childrenCount, 'childrenCount')}</div>
+                        ) : null}
+
+                        <div><span className="font-semibold">Şehir:</span> {city || '-'}</div>
+                        <div><span className="font-semibold">Ülke:</span> {country || '-'}</div>
+
+                        <div><span className="font-semibold">Email:</span> {selected.email || '-'}</div>
+                        <div><span className="font-semibold">UID:</span> <span className="font-mono">{selected.uid}</span></div>
+                        <div><span className="font-semibold">Üyelik bitiş:</span> {selected.membershipValidUntilMs ? fmtDate(selected.membershipValidUntilMs) : '-'}</div>
+                      </>
+                    );
+                  })()}
                 </div>
               </div>
             </div>
@@ -1185,7 +1396,7 @@ export default function AllUsersTab() {
                 <button
                   type="button"
                   className="px-3 py-2 rounded-lg bg-white border text-sm hover:bg-gray-100"
-                  onClick={openFormModal}
+                  onClick={() => openFormModal(formModal.uid)}
                   disabled={formModal.loading}
                 >
                   Yenile
@@ -1252,6 +1463,15 @@ export default function AllUsersTab() {
                     </div>
                   ) : null}
 
+                  {formModal.application && String(formModal.application?.source || '').trim().toLowerCase() === 'auto_stub' ? (
+                    <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+                      <p className="font-semibold">Bu kullanıcıda sadece otomatik stub başvuru var.</p>
+                      <p className="mt-1 text-amber-800">
+                        Kullanıcı başvuru formunu tamamlamamış olabilir. Bu yüzden meslek/medeni durum/çocuk gibi alanlar boş görünebilir.
+                      </p>
+                    </div>
+                  ) : null}
+
                   <section className="mt-4 rounded-xl border border-slate-200 bg-white p-4">
                     <h4 className="text-sm font-bold text-slate-900">Özet</h4>
                     <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1262,18 +1482,88 @@ export default function AllUsersTab() {
                           <div className="text-sm"><span className="text-slate-600">Ad Soyad:</span> {safeStr(formModal.user?.fullName) || safeStr(formModal.application?.fullName) || '-'}</div>
                           <div className="text-sm"><span className="text-slate-600">Yaş:</span> {typeof formModal.user?.age === 'number' ? formModal.user.age : '-'}</div>
                           <div className="text-sm"><span className="text-slate-600">Cinsiyet:</span> {formatPrimitive(formModal.user?.gender || formModal.application?.gender, 'gender')}</div>
-                          <div className="text-sm"><span className="text-slate-600">Başvuru ID:</span> <span className="font-mono text-xs">{safeStr(formModal.user?.applicationId) || '-'}</span></div>
+                          {(() => {
+                            const app = formModal.application && typeof formModal.application === 'object' ? formModal.application : null;
+                            const appDetails = app?.details && typeof app.details === 'object' ? app.details : null;
+                            const userDetails = formModal.user?.details && typeof formModal.user.details === 'object' ? formModal.user.details : null;
+                            const ppDetails = formModal.user?.publicProfile?.details && typeof formModal.user.publicProfile.details === 'object'
+                              ? formModal.user.publicProfile.details
+                              : null;
+                            const d = appDetails || userDetails || ppDetails;
+                            const occupation = d ? (safeStr(d?.occupationTr) || safeStr(d?.occupation) || safeStr(d?.job) || safeStr(d?.profession)) : '';
+                            const maritalStatus = d ? (safeStr(d?.maritalStatus) || safeStr(d?.marital)) : '';
+                            const hasChildren = d ? (d?.hasChildren ?? d?.children ?? null) : null;
+                            const childrenCount = d ? (d?.childrenCount ?? d?.childCount ?? null) : null;
+
+                            const blocks = [];
+
+                            blocks.push(
+                              <div key="occupation" className="text-sm"><span className="text-slate-600">Meslek:</span> {formatPrimitive(occupation || null, 'occupation')}</div>
+                            );
+                            blocks.push(
+                              <div key="maritalStatus" className="text-sm"><span className="text-slate-600">Medeni Durum:</span> {formatPrimitive(maritalStatus || null, 'maritalStatus')}</div>
+                            );
+                            blocks.push(
+                              <div key="hasChildren" className="text-sm"><span className="text-slate-600">Çocuk:</span> {formatPrimitive(hasChildren, 'hasChildren')}</div>
+                            );
+
+                            const ccNum = typeof childrenCount === 'number' ? childrenCount : Number(String(childrenCount ?? '').trim());
+                            const hasChildrenFmt = formatPrimitive(hasChildren, 'hasChildren');
+                            if (hasChildrenFmt === 'Evet' || (Number.isFinite(ccNum) && ccNum >= 0 && ccNum <= 20)) {
+                              blocks.push(
+                                <div key="childrenCount" className="text-sm"><span className="text-slate-600">Çocuk Sayısı:</span> {Number.isFinite(ccNum) ? String(Math.trunc(ccNum)) : '—'}</div>
+                              );
+                            }
+
+                            const whatsapp = safeStr(app?.whatsapp);
+                            const instagram = safeStr(app?.instagram);
+                            if (whatsapp) blocks.push(
+                              <div key="whatsapp" className="text-sm"><span className="text-slate-600">WhatsApp:</span> {whatsapp}</div>
+                            );
+                            if (instagram) blocks.push(
+                              <div key="instagram" className="text-sm"><span className="text-slate-600">Instagram:</span> {instagram}</div>
+                            );
+
+                            return blocks;
+                          })()}
+                        </div>
+                      </div>
+
+                      <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                        <div className="text-xs font-semibold text-slate-600">İletişim Bilgileri</div>
+                        <div className="mt-2 space-y-1">
+                          {(() => {
+                            const app = formModal.application && typeof formModal.application === 'object' ? formModal.application : null;
+                            const fromApp = safeStr(app?.whatsapp);
+                            const fromSelected = safeStr(selected?.whatsapp);
+                            const fromUser = safeStr(formModal.user?.whatsapp) || safeStr(formModal.user?.application?.whatsapp);
+                            const v = fromApp || fromSelected || fromUser;
+
+                            if (v) {
+                              return (
+                                <div className="text-sm">
+                                  <span className="text-slate-600">İletişim numarası:</span>{' '}
+                                  <span className="font-mono break-all">{v}</span>
+                                </div>
+                              );
+                            }
+
+                            return (
+                              <div className="text-sm text-slate-600">İletişim numarası yok</div>
+                            );
+                          })()}
                         </div>
                       </div>
 
                       <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
                         <div className="text-xs font-semibold text-slate-600">Başvuru (matchmakingApplications)</div>
                         <div className="mt-2 space-y-1">
-                          <div className="text-sm"><span className="text-slate-600">Doküman ID:</span> <span className="font-mono text-xs">{safeStr(formModal.application?.id) || '-'}</span></div>
+                          <div className="text-sm"><span className="text-slate-600">Kaynak:</span> {safeStr(formModal.application?.source) || '-'}</div>
                           <div className="text-sm"><span className="text-slate-600">Durum:</span> {formatPrimitive(formModal.application?.status, 'status')}</div>
+                          <div className="text-sm"><span className="text-slate-600">Şehir:</span> {safeStr(formModal.application?.city) || '-'}</div>
+                          <div className="text-sm"><span className="text-slate-600">Ülke:</span> {safeStr(formModal.application?.country) || '-'}</div>
                           <div className="text-sm"><span className="text-slate-600">Oluştu:</span> {typeof formModal.application?.createdAtMs === 'number' ? fmtDate(formModal.application.createdAtMs) : (formModal.application?.createdAt?.ms ? fmtDate(formModal.application.createdAt.ms) : '-')}</div>
                           <div className="text-sm"><span className="text-slate-600">Güncellendi:</span> {typeof formModal.application?.updatedAtMs === 'number' ? fmtDate(formModal.application.updatedAtMs) : (formModal.application?.updatedAt?.ms ? fmtDate(formModal.application.updatedAt.ms) : '-')}</div>
-                          <div className="text-sm"><span className="text-slate-600">Kullanıcı UID:</span> <span className="font-mono text-xs">{safeStr(formModal.application?.userId) || '-'}</span></div>
                         </div>
                       </div>
                     </div>

@@ -3,7 +3,9 @@ import Footer from '../components/Footer';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation, Trans } from 'react-i18next';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { auth, db, storage } from '../config/firebase';
+import { auth } from '../config/firebaseAuth';
+import { db } from '../config/firebaseDb';
+import { storage } from '../config/firebaseStorage';
 import { collection, doc, getDoc, getDocs, limit, query, serverTimestamp, setDoc, where } from 'firebase/firestore';
 import { getDownloadURL, ref, uploadBytes } from 'firebase/storage';
 import { useAuth } from '../auth/AuthProvider';
@@ -11,6 +13,7 @@ import { uploadImageToCloudinaryAuto } from '../utils/cloudinaryUpload';
 import { authFetch } from '../utils/authFetch';
 import { staticAssetUrl } from '../utils/staticAssetUrl';
 import { tiktokTrack } from '../utils/tiktokPixel';
+import { markFunnelApplyCompleted } from '../utils/funnelTracker';
 
 function toNumberOrNull(value) {
   if (value === null || value === undefined) return null;
@@ -138,6 +141,22 @@ export default function MatchmakingApply() {
   const location = useLocation();
   const navigate = useNavigate();
 
+  const afterSaveOpenPhotoManager = useMemo(() => {
+    try {
+      return !!(location?.state && typeof location.state === 'object' && location.state.afterSaveOpenPhotoManager);
+    } catch {
+      return false;
+    }
+  }, [location?.state]);
+
+  const afterSubmitOpenPhotoManager = useMemo(() => {
+    try {
+      return !!(location?.state && typeof location.state === 'object' && location.state.afterSubmitOpenPhotoManager);
+    } catch {
+      return false;
+    }
+  }, [location?.state]);
+
   const isEmbedded = useMemo(() => {
     try {
       const params = new URLSearchParams(location.search || '');
@@ -151,7 +170,17 @@ export default function MatchmakingApply() {
 
   const isEditOnceMode = useMemo(() => {
     try {
-      return new URLSearchParams(location.search || '').get('editOnce') === '1';
+      const params = new URLSearchParams(location.search || '');
+      const raw = String(
+        params.get('editOnce') ||
+          params.get('editonce') ||
+          params.get('edit_once') ||
+          params.get('mode') ||
+          ''
+      )
+        .trim()
+        .toLowerCase();
+      return raw === '1' || raw === 'true' || raw === 'yes' || raw === 'editonce' || raw === 'edit_once' || raw === 'edit';
     } catch {
       return false;
     }
@@ -316,17 +345,23 @@ export default function MatchmakingApply() {
           const id = best?.id;
           const data = best || {};
 
-          if (!isEditOnceMode) {
-            if (isEmbedded) {
-              setError(t('matchmakingPage.form.errors.alreadySubmitted'));
-              return;
-            }
-            navigateToProfile({ from: 'applyRedirectExisting', applicationId: id });
-            return;
-          }
-
-          // EditOnce modunda: redirect etme; formu mevcut verilerle prefill et.
+          // Yeni ürün kararı: Daha önce başvuru yapılmış olsa bile kullanıcı bu sayfada kalabilsin
+          // ve daha önce boş bıraktığı yerleri doldurabilsin.
           setExistingApplication({ id, ...data });
+
+          setAutoPrefilled((prev) => {
+            const next = { ...(prev && typeof prev === 'object' ? prev : {}) };
+            if (safeStr(data?.username)) next.username = true;
+            if (safeStr(data?.fullName)) next.fullName = true;
+            if (data?.age === 0 || data?.age) next.age = true;
+            if (safeStr(data?.city)) next.city = true;
+            if (safeStr(data?.country)) next.country = true;
+            if (safeStr(data?.gender)) next.gender = true;
+            const details = data?.details && typeof data.details === 'object' ? data.details : {};
+            if (safeStr(details?.occupation)) next.occupation = true;
+            return next;
+          });
+
           setForm((prev) => {
             const details = data?.details && typeof data.details === 'object' ? data.details : {};
             const languages = details?.languages && typeof details.languages === 'object' ? details.languages : {};
@@ -341,7 +376,6 @@ export default function MatchmakingApply() {
               city: String(data?.city || prev.city || ''),
               country: String(data?.country || prev.country || ''),
               whatsapp: String(data?.whatsapp || prev.whatsapp || ''),
-              email: String(data?.email || prev.email || ''),
               nationality: String(data?.nationality || prev.nationality || ''),
               gender: String(data?.gender || prev.gender || ''),
               heightCm: details?.heightCm === 0 || details?.heightCm ? String(details.heightCm) : String(prev.heightCm || ''),
@@ -391,6 +425,85 @@ export default function MatchmakingApply() {
   }, [isEditOnceMode, navigate, user?.uid]);
 
   const [existingApplication, setExistingApplication] = useState(null);
+
+  const [autoPrefilled, setAutoPrefilled] = useState({});
+
+  // Kayıt sırasında zaten alınan temel bilgileri tekrar sormayalım.
+  // matchmakingsUsers dokümanından best-effort prefill edip alanları gizleriz.
+  useEffect(() => {
+    const uid = String(user?.uid || '').trim();
+    if (!uid) return;
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const snap = await getDoc(doc(db, 'matchmakingUsers', uid));
+        if (cancelled) return;
+        if (!snap.exists()) return;
+
+        const mmUser = snap.data() || {};
+        const application = mmUser?.application && typeof mmUser.application === 'object' ? mmUser.application : {};
+        const publicProfile = mmUser?.publicProfile && typeof mmUser.publicProfile === 'object' ? mmUser.publicProfile : {};
+        const details = application?.details && typeof application.details === 'object' ? application.details : {};
+
+        const candidate = {
+          username: safeStr(application?.username || publicProfile?.username || mmUser?.username),
+          fullName: safeStr(application?.fullName || publicProfile?.fullName || mmUser?.fullName || user?.displayName),
+          age:
+            application?.age === 0 || application?.age
+              ? String(application.age)
+              : publicProfile?.age === 0 || publicProfile?.age
+                ? String(publicProfile.age)
+                : '',
+          city: safeStr(application?.city || publicProfile?.city),
+          country: safeStr(application?.country || publicProfile?.country),
+          gender: safeStr(application?.gender || publicProfile?.gender),
+          occupation: safeStr(details?.occupation || application?.occupation || publicProfile?.occupation),
+        };
+
+        setForm((prev) => {
+          const next = { ...prev };
+          const nextPrefilled = {};
+
+          const maybeFill = (key, value) => {
+            const prevVal = String(prev?.[key] ?? '').trim();
+            const nextVal = String(value ?? '').trim();
+            if (!prevVal && nextVal) {
+              next[key] = nextVal;
+              nextPrefilled[key] = true;
+            }
+          };
+
+          maybeFill('username', candidate.username);
+          maybeFill('fullName', candidate.fullName);
+          maybeFill('age', candidate.age);
+          maybeFill('city', candidate.city);
+          maybeFill('country', candidate.country);
+          maybeFill('gender', candidate.gender);
+          maybeFill('occupation', candidate.occupation);
+
+          if (!Object.keys(nextPrefilled).length) {
+            return prev;
+          }
+
+          try {
+            formRef.current = next;
+          } catch {
+            // ignore
+          }
+          setAutoPrefilled((p) => ({ ...(p && typeof p === 'object' ? p : {}), ...nextPrefilled }));
+
+          return next;
+        });
+      } catch {
+        // ignore (rules/missing) - kullanıcı yine formu doldurabilir.
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.displayName, user?.uid]);
 
   const genderOptions = useMemo(
     () => [
@@ -559,7 +672,6 @@ export default function MatchmakingApply() {
     city: '',
     country: '',
     whatsapp: '',
-    email: '',
     nationality: '',
     gender: '',
     heightCm: '',
@@ -635,6 +747,7 @@ export default function MatchmakingApply() {
   const [lastApplicationId, setLastApplicationId] = useState('');
 
   const formElRef = useRef(null);
+  const userInteractedRef = useRef(false);
 
   useEffect(() => {
     if (!error) return;
@@ -646,6 +759,7 @@ export default function MatchmakingApply() {
   }, [error]);
 
   const onChange = (key) => (e) => {
+    userInteractedRef.current = true;
     const value = e?.target?.type === 'checkbox' ? !!e.target.checked : e.target.value;
     try {
       formRef.current = { ...(formRef.current || {}), [key]: value };
@@ -657,6 +771,7 @@ export default function MatchmakingApply() {
   };
 
   const onGenderChange = (e) => {
+    userInteractedRef.current = true;
     const next = String(e?.target?.value || '').trim();
     if (!next) {
       try {
@@ -673,6 +788,7 @@ export default function MatchmakingApply() {
   };
 
   const confirmGenderApply = () => {
+    userInteractedRef.current = true;
     const g = String(genderConfirm?.value || '').trim();
     if (!g) {
       setGenderConfirm({ open: false, value: '' });
@@ -690,6 +806,7 @@ export default function MatchmakingApply() {
   const confirmGenderCancel = () => setGenderConfirm({ open: false, value: '' });
 
   const onEducationChange = (e) => {
+    userInteractedRef.current = true;
     const value = e?.target?.value || '';
     setForm((prev) => {
       const needsDept = value === 'university' || value === 'masters' || value === 'phd';
@@ -702,6 +819,7 @@ export default function MatchmakingApply() {
   };
 
   const onMaritalStatusChange = (e) => {
+    userInteractedRef.current = true;
     const value = String(e?.target?.value || '');
     const normalized = value.trim().toLowerCase();
     const requiresChildrenInfo = normalized === 'widowed' || normalized === 'divorced';
@@ -799,47 +917,20 @@ export default function MatchmakingApply() {
 
     if (step === 0) {
       const normalizedUsername = normalizeUsername(f.username);
-      if (!normalizedUsername) return setError(t('matchmakingPage.form.errors.username'));
-      if (!requiredValue(f.fullName)) return setError(t('matchmakingPage.form.errors.fullName'));
-      if (!requiredValue(f.age)) return setError(t('matchmakingPage.form.errors.age'));
-      if (!requiredValue(f.city)) return setError(t('matchmakingPage.form.errors.city'));
-      if (!requiredValue(f.country)) return setError(t('matchmakingPage.form.errors.country'));
-
-      if (!isEditOnceMode) {
-        if (!requiredValue(f.nationality)) return setError(t('matchmakingPage.form.errors.nationality'));
-        if (!requiredValue(f.gender)) return setError(t('matchmakingPage.form.errors.gender'));
-        if (!requiredValue(f.occupation)) return setError(t('matchmakingPage.form.errors.occupation'));
-        if (!requiredValue(f.maritalStatus)) return setError(t('matchmakingPage.form.errors.maritalStatus'));
-
-        if (requiresChildrenInfo) {
-          if (!requiredValue(f.hasChildren)) return setError(t('matchmakingPage.form.errors.hasChildren'));
-          if (f.hasChildren === 'yes' && !requiredValue(f.childrenCount)) {
-            return setError(t('matchmakingPage.form.errors.childrenCount'));
-          }
-        }
-      }
+      // Username: yeni başvuru için gerekli; ama kullanıcı zaten başvuru yaptıysa
+      // mevcut başvuru id'si üzerinden update yapılabildiği için zorunlu değil.
+      const hasExisting = !!(existingApplication && typeof existingApplication === 'object' && safeStr(existingApplication?.id));
+      if (!hasExisting && !normalizedUsername) return setError(t('matchmakingPage.form.errors.username'));
       return true;
     }
 
     if (step === 1) {
       if (!isEditOnceMode) return true;
-
-      if (!requiredValue(form.occupation)) return setError(t('matchmakingPage.form.errors.occupation'));
-      if (!requiredValue(form.maritalStatus)) return setError(t('matchmakingPage.form.errors.maritalStatus'));
-
-      if (requiresChildrenInfo) {
-        if (!requiredValue(form.hasChildren)) return setError(t('matchmakingPage.form.errors.hasChildren'));
-        if (form.hasChildren === 'yes' && !requiredValue(form.childrenCount)) {
-          return setError(t('matchmakingPage.form.errors.childrenCount'));
-        }
-      }
       return true;
     }
 
     if (step === 2) {
       if (!isEditOnceMode) return true;
-      if (!requiredValue(f.nationality)) return setError(t('matchmakingPage.form.errors.nationality'));
-      if (!requiredValue(f.gender)) return setError(t('matchmakingPage.form.errors.gender'));
       return true;
     }
 
@@ -913,6 +1004,47 @@ export default function MatchmakingApply() {
     scrollWizardToTop();
   };
 
+  const goBackPage = () => {
+    if (submitting) return;
+    setError('');
+
+    if (!isEditOnceMode) {
+      try {
+        navigate(-1);
+      } catch {
+        navigateToProfile({ from: 'applyBack' });
+      }
+      return;
+    }
+
+    const returnTo = String(location?.state?.returnTo || '').trim();
+    if (returnTo) {
+      if (isEmbedded) {
+        try {
+          if (typeof window !== 'undefined' && window.top && window.top !== window.self) {
+            try {
+              sessionStorage.setItem('mk_profile_skip_apply_inline_once', '1');
+            } catch {
+              // ignore
+            }
+            window.top.location.assign(returnTo);
+            return;
+          }
+        } catch {
+          // ignore
+        }
+      }
+      navigate(returnTo, { replace: true });
+      return;
+    }
+
+    try {
+      navigate(-1);
+    } catch {
+      navigateToProfile({ from: 'editOnceBack' });
+    }
+  };
+
   const onSubmit = async (e) => {
     e.preventDefault();
     setError('');
@@ -970,7 +1102,6 @@ export default function MatchmakingApply() {
     if (!requiredValue(form.age)) return setError(t('matchmakingPage.form.errors.age'));
     if (!requiredValue(form.city)) return setError(t('matchmakingPage.form.errors.city'));
     if (!requiredValue(form.country)) return setError(t('matchmakingPage.form.errors.country'));
-    // İletişim alanları artık opsiyonel (kullanıcı dilerse daha sonra profilinden güncelleyebilir).
 
     if (!requiredValue(form.nationality)) return setError(t('matchmakingPage.form.errors.nationality'));
     if (!requiredValue(form.gender)) return setError(t('matchmakingPage.form.errors.gender'));
@@ -1031,9 +1162,7 @@ export default function MatchmakingApply() {
     setSubmitting(true);
     try {
       const uid = currentUser?.uid || auth.currentUser?.uid;
-      if (!uid) {
-        throw new Error('Auth missing uid');
-      }
+      if (!uid) throw new Error('Auth missing uid');
 
       // Engellenen kullanıcılar başvuru gönderemesin
       try {
@@ -1051,7 +1180,12 @@ export default function MatchmakingApply() {
       // Firestore rules, başkalarının başvurularını okumaya izin vermediği için
       // client-side uniqueness query'leri permission-denied ile kırılır.
       // Bu yüzden benzersizliği docId üzerinden enforce ediyoruz (case-insensitive).
-      const docId = isEditOnceMode ? String(existingApplication?.id || '') : String(normalizedUsername || '').trim();
+      const hasExistingId = !!(existingApplication && typeof existingApplication === 'object' && safeStr(existingApplication?.id));
+      const docId = isEditOnceMode
+        ? String(existingApplication?.id || '')
+        : hasExistingId
+          ? String(existingApplication?.id || '')
+          : String(normalizedUsername || '').trim();
       const docRef = docId ? doc(colRef, docId) : null;
       if (isEditOnceMode && !docRef) {
         return setError(t('matchmakingPage.form.errors.submitFailed'));
@@ -1171,7 +1305,8 @@ export default function MatchmakingApply() {
 
       const payload = {
         profileNo: allocatedProfileNo,
-        profileCode: allocatedProfileNo !== null ? `MK-${allocatedProfileNo}` : String(form.username || '').trim(),
+        profileCode:
+          allocatedProfileNo !== null ? `MK-${allocatedProfileNo}` : String(form.username || '').trim(),
         username: String(form.username || '').trim(),
         usernameLower: normalizedUsername,
         fullName: String(form.fullName || '').trim(),
@@ -1187,7 +1322,6 @@ export default function MatchmakingApply() {
         city: String(form.city || '').trim(),
         country: String(form.country || '').trim(),
         whatsapp: String(form.whatsapp || '').trim(),
-        email: (form.email || '').trim(),
         nationality: form.nationality || '',
         gender: form.gender || '',
         details: {
@@ -1298,7 +1432,7 @@ export default function MatchmakingApply() {
           applicationId: nextId,
         });
 
-        navigateToProfile({ from: 'matchmakingEditOnce', applicationId: nextId });
+        navigateToProfile({ from: 'matchmakingEditOnce', applicationId: nextId, openPhotoManager: afterSaveOpenPhotoManager });
         return;
       }
 
@@ -1347,7 +1481,10 @@ export default function MatchmakingApply() {
         // ignore
       }
 
-      navigateToProfile({ from: 'matchmakingApply', applicationId: nextId });
+      // Funnel: signup -> apply completion
+      markFunnelApplyCompleted();
+
+      navigateToProfile({ from: 'matchmakingApply', applicationId: nextId, openPhotoManager: afterSubmitOpenPhotoManager });
       return;
     } catch (err) {
       console.error('matchmaking submit error:', err);
@@ -1367,6 +1504,10 @@ export default function MatchmakingApply() {
         setError(t('matchmakingPage.form.errors.alreadySubmitted'));
       } else if (apiMsg === 'profile_text_pii_blocked') {
         setError(t('matchmakingPage.form.errors.profileTextPII'));
+      } else if (apiMsg === 'contact_required') {
+        setError(t('matchmakingPage.form.errors.contactRequired'));
+      } else if (apiMsg === 'rate_limited') {
+        setError(t('matchmakingPage.form.errors.rateLimited'));
       } else if (apiMsg === 'edit_once_used') {
         setError(t('matchmakingPage.form.errors.editOnceUsed'));
       } else if (code === 'unauthenticated') {
@@ -1564,24 +1705,28 @@ export default function MatchmakingApply() {
               }
             >
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-semibold text-white/90 md:text-slate-800">{t('matchmakingPage.form.labels.username')}</label>
-                  <input
-                    value={form.username}
-                    onChange={onChange('username')}
-                    className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
-                    placeholder={t('matchmakingPage.form.placeholders.username')}
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-white/90 md:text-slate-800">{t('matchmakingPage.form.labels.fullName')}</label>
-                  <input
-                    value={form.fullName}
-                    onChange={onChange('fullName')}
-                    className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
-                    placeholder={t('matchmakingPage.form.placeholders.fullName')}
-                  />
-                </div>
+                {autoPrefilled.username ? null : (
+                  <div>
+                    <label className="block text-sm font-semibold text-white/90 md:text-slate-800">{t('matchmakingPage.form.labels.username')}</label>
+                    <input
+                      value={form.username}
+                      onChange={onChange('username')}
+                      className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                      placeholder={t('matchmakingPage.form.placeholders.username')}
+                    />
+                  </div>
+                )}
+                {autoPrefilled.fullName ? null : (
+                  <div>
+                    <label className="block text-sm font-semibold text-white/90 md:text-slate-800">{t('matchmakingPage.form.labels.fullName')}</label>
+                    <input
+                      value={form.fullName}
+                      onChange={onChange('fullName')}
+                      className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                      placeholder={t('matchmakingPage.form.placeholders.fullName')}
+                    />
+                  </div>
+                )}
 
                 {isEditOnceMode ? (
                   <div className="md:col-span-2">
@@ -1597,34 +1742,40 @@ export default function MatchmakingApply() {
                   </div>
                 ) : null}
 
-                <div>
-                  <label className="block text-sm font-semibold text-white/90 md:text-slate-800">{t('matchmakingPage.form.labels.age')}</label>
-                  <input
-                    value={form.age}
-                    onChange={onChange('age')}
-                    className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
-                    inputMode="numeric"
-                    placeholder={t('matchmakingPage.form.placeholders.age')}
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-white/90 md:text-slate-800">{t('matchmakingPage.form.labels.city')}</label>
-                  <input
-                    value={form.city}
-                    onChange={onChange('city')}
-                    className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
-                    placeholder={t('matchmakingPage.form.placeholders.city')}
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-white/90 md:text-slate-800">{t('matchmakingPage.form.labels.country')}</label>
-                  <input
-                    value={form.country}
-                    onChange={onChange('country')}
-                    className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
-                    placeholder={t('matchmakingPage.form.placeholders.country')}
-                  />
-                </div>
+                {autoPrefilled.age ? null : (
+                  <div>
+                    <label className="block text-sm font-semibold text-white/90 md:text-slate-800">{t('matchmakingPage.form.labels.age')}</label>
+                    <input
+                      value={form.age}
+                      onChange={onChange('age')}
+                      className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                      inputMode="numeric"
+                      placeholder={t('matchmakingPage.form.placeholders.age')}
+                    />
+                  </div>
+                )}
+                {autoPrefilled.city ? null : (
+                  <div>
+                    <label className="block text-sm font-semibold text-white/90 md:text-slate-800">{t('matchmakingPage.form.labels.city')}</label>
+                    <input
+                      value={form.city}
+                      onChange={onChange('city')}
+                      className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                      placeholder={t('matchmakingPage.form.placeholders.city')}
+                    />
+                  </div>
+                )}
+                {autoPrefilled.country ? null : (
+                  <div>
+                    <label className="block text-sm font-semibold text-white/90 md:text-slate-800">{t('matchmakingPage.form.labels.country')}</label>
+                    <input
+                      value={form.country}
+                      onChange={onChange('country')}
+                      className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                      placeholder={t('matchmakingPage.form.placeholders.country')}
+                    />
+                  </div>
+                )}
 
                 {!isEditOnceMode ? (
                   <>
@@ -1638,29 +1789,33 @@ export default function MatchmakingApply() {
                         placeholder={t('matchmakingPage.form.placeholders.country')}
                       />
                     </div>
-                    <div>
-                      <label className="block text-sm font-semibold text-white/90 md:text-slate-800">{t('matchmakingPage.form.labels.gender')}</label>
-                      <select
-                        value={form.gender}
-                        onChange={onGenderChange}
-                        className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
-                      >
-                        {genderOptions.map((opt) => (
-                          <option key={opt.id} value={opt.id} disabled={!opt.id}>
-                            {opt.label}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-semibold text-white/90 md:text-slate-800">{t('matchmakingPage.form.labels.occupation')}</label>
-                      <input
-                        value={form.occupation}
-                        onChange={onChange('occupation')}
-                        className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
-                        placeholder={t('matchmakingPage.form.placeholders.occupation')}
-                      />
-                    </div>
+                    {autoPrefilled.gender ? null : (
+                      <div>
+                        <label className="block text-sm font-semibold text-white/90 md:text-slate-800">{t('matchmakingPage.form.labels.gender')}</label>
+                        <select
+                          value={form.gender}
+                          onChange={onGenderChange}
+                          className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                        >
+                          {genderOptions.map((opt) => (
+                            <option key={opt.id} value={opt.id} disabled={!opt.id}>
+                              {opt.label}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
+                    {autoPrefilled.occupation ? null : (
+                      <div>
+                        <label className="block text-sm font-semibold text-white/90 md:text-slate-800">{t('matchmakingPage.form.labels.occupation')}</label>
+                        <input
+                          value={form.occupation}
+                          onChange={onChange('occupation')}
+                          className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                          placeholder={t('matchmakingPage.form.placeholders.occupation')}
+                        />
+                      </div>
+                    )}
                     <div>
                       <label className="block text-sm font-semibold text-white/90 md:text-slate-800">{t('matchmakingPage.form.labels.maritalStatus')}</label>
                       <select
@@ -1711,36 +1866,21 @@ export default function MatchmakingApply() {
                   </>
                 ) : null}
 
-                {isEditOnceMode ? (
-                  <>
-                    <div>
-                      <label className="block text-sm font-semibold text-white/90 md:text-slate-800">{t('matchmakingPage.form.labels.whatsapp')}</label>
-                      <input
-                        value={form.whatsapp}
-                        onChange={onChange('whatsapp')}
-                        className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
-                        placeholder={t('matchmakingPage.form.placeholders.whatsapp')}
-                      />
-                      <div className="mt-2 text-xs text-white/70 md:text-slate-600">{t('matchmakingPage.form.contactNumberNote')}</div>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-semibold text-white/90 md:text-slate-800">{t('matchmakingPage.form.labels.email')}</label>
-                      <input
-                        value={form.email}
-                        onChange={onChange('email')}
-                        className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
-                        placeholder={t('matchmakingPage.form.placeholders.email')}
-                      />
-                    </div>
-                  </>
-                ) : null}
+                <div>
+                  <label className="block text-sm font-semibold text-white/90 md:text-slate-800">{t('matchmakingPage.form.labels.whatsapp')}</label>
+                  <input
+                    value={form.whatsapp}
+                    onChange={onChange('whatsapp')}
+                    className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                    placeholder={t('matchmakingPage.form.placeholders.whatsapp')}
+                  />
+                  <div className="mt-2 text-xs text-white/70 md:text-slate-600">{t('matchmakingPage.form.contactNumberNote')}</div>
+                </div>
               </div>
 
-              {isEditOnceMode ? (
-                <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
-                  {t('matchmakingPage.form.contactPrivacyNotice')}
-                </div>
-              ) : null}
+              <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+                {t('matchmakingPage.form.contactPrivacyNotice')}
+              </div>
             </div>
           )}
 
@@ -1776,15 +1916,17 @@ export default function MatchmakingApply() {
                 />
               </div>
 
-              <div>
-                <label className="block text-sm text-white/80 md:text-slate-700">{t('matchmakingPage.form.labels.occupation')}</label>
-                <input
-                  value={form.occupation}
-                  onChange={onChange('occupation')}
-                  className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
-                  placeholder={t('matchmakingPage.form.placeholders.occupation')}
-                />
-              </div>
+              {autoPrefilled.occupation ? null : (
+                <div>
+                  <label className="block text-sm text-white/80 md:text-slate-700">{t('matchmakingPage.form.labels.occupation')}</label>
+                  <input
+                    value={form.occupation}
+                    onChange={onChange('occupation')}
+                    className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                    placeholder={t('matchmakingPage.form.placeholders.occupation')}
+                  />
+                </div>
+              )}
               <div>
                 <label className="block text-sm text-white/80 md:text-slate-700">{t('matchmakingPage.form.labels.education')}</label>
                 <select
@@ -2141,20 +2283,22 @@ export default function MatchmakingApply() {
                     placeholder={t('matchmakingPage.form.placeholders.country')}
                   />
                 </div>
-                <div>
-                  <label className="block text-sm text-white/80 md:text-slate-700">{t('matchmakingPage.form.labels.gender')}</label>
-                  <select
-                    value={form.gender}
-                    onChange={onGenderChange}
-                    className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
-                  >
-                    {genderOptions.map((opt) => (
-                      <option key={opt.id} value={opt.id} disabled={!opt.id}>
-                        {opt.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                {autoPrefilled.gender ? null : (
+                  <div>
+                    <label className="block text-sm text-white/80 md:text-slate-700">{t('matchmakingPage.form.labels.gender')}</label>
+                    <select
+                      value={form.gender}
+                      onChange={onGenderChange}
+                      className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                    >
+                      {genderOptions.map((opt) => (
+                        <option key={opt.id} value={opt.id} disabled={!opt.id}>
+                          {opt.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -2283,45 +2427,73 @@ export default function MatchmakingApply() {
           )}
 
           {isWizardMode ? (
-            <div className="w-full flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-3">
-              <button
-                type="button"
-                onClick={goWizardBack}
-                disabled={submitting || (wizardStep <= 0 && !isEditOnceMode)}
-                className="w-full sm:w-40 gemini-organic-btn rounded-full bg-white/10 border border-white/15 text-white font-semibold py-3 hover:bg-white/[0.14] transition disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/60"
-              >
-                {t('matchmakingPage.form.wizard.back')}
-              </button>
-
-              {wizardStep >= WIZARD_TOTAL_STEPS - 1 ? (
-                <button
-                  type="submit"
-                  disabled={submitting}
-                  className="w-full sm:w-56 gemini-organic-btn rounded-full gemini-gradient text-white font-semibold py-3 shadow-[0_18px_50px_rgba(244,63,94,0.20)] hover:brightness-110 transition disabled:opacity-60 active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-200/60 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
-                  aria-busy={submitting ? 'true' : 'false'}
-                >
-                  {submitting ? t('matchmakingPage.form.submitting') : t('matchmakingPage.form.submit')}
-                </button>
-              ) : (
+            <div className="w-full">
+              <div className="w-full flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-3">
                 <button
                   type="button"
-                  onClick={goWizardNext}
-                  disabled={submitting}
-                  className="w-full sm:w-56 gemini-organic-btn rounded-full gemini-gradient text-white font-semibold py-3 shadow-[0_18px_50px_rgba(244,63,94,0.20)] hover:brightness-110 transition disabled:opacity-60 active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-200/60 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+                  onClick={goWizardBack}
+                  disabled={submitting || (wizardStep <= 0 && !isEditOnceMode)}
+                  className="w-full sm:w-40 gemini-organic-btn rounded-full bg-white/10 border border-white/15 text-white font-semibold py-3 hover:bg-white/[0.14] transition disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/60"
                 >
-                  {t('matchmakingPage.form.wizard.next')}
+                  {t('matchmakingPage.form.wizard.back')}
                 </button>
-              )}
+
+                {wizardStep >= WIZARD_TOTAL_STEPS - 1 ? (
+                  <button
+                    type="submit"
+                    disabled={submitting}
+                    className="w-full sm:w-56 gemini-organic-btn rounded-full gemini-gradient text-white font-semibold py-3 shadow-[0_18px_50px_rgba(244,63,94,0.20)] hover:brightness-110 transition disabled:opacity-60 active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-200/60 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+                    aria-busy={submitting ? 'true' : 'false'}
+                  >
+                    {submitting ? t('matchmakingPage.form.submitting') : t('matchmakingPage.form.submit')}
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={goWizardNext}
+                    disabled={submitting}
+                    className="w-full sm:w-56 gemini-organic-btn rounded-full gemini-gradient text-white font-semibold py-3 shadow-[0_18px_50px_rgba(244,63,94,0.20)] hover:brightness-110 transition disabled:opacity-60 active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-200/60 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+                  >
+                    {t('matchmakingPage.form.wizard.next')}
+                  </button>
+                )}
+              </div>
+
+              {isEditOnceMode && wizardStep > 0 ? (
+                <div className="mt-3 flex items-center justify-center">
+                  <button
+                    type="button"
+                    onClick={goBackPage}
+                    disabled={submitting}
+                    className="w-full sm:w-56 gemini-organic-btn rounded-full bg-white/10 border border-white/15 text-white font-semibold py-3 hover:bg-white/[0.14] transition disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/60"
+                  >
+                    {t('matchmakingPage.form.wizard.backPage')}
+                  </button>
+                </div>
+              ) : null}
             </div>
           ) : (
-            <button
-              type="submit"
-              disabled={submitting}
-              className="w-full sm:w-56 sm:mx-auto rounded-full bg-gradient-to-r from-amber-300 to-amber-500 text-slate-950 font-semibold py-3 shadow-[0_16px_40px_rgba(245,158,11,0.25)] hover:brightness-110 transition disabled:opacity-60 active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/60 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
-              aria-busy={submitting ? 'true' : 'false'}
-            >
-              {submitting ? t('matchmakingPage.form.submitting') : t('matchmakingPage.form.submit')}
-            </button>
+            <div className="w-full flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-3">
+              {isEditOnceMode ? (
+                <button
+                  type="button"
+                  onClick={goBackPage}
+                  disabled={submitting}
+                  className="w-full sm:w-40 gemini-organic-btn rounded-full bg-white/10 border border-white/15 text-white md:text-slate-900 md:bg-white/80 md:border-slate-200 font-semibold py-3 hover:bg-white/[0.14] md:hover:bg-white transition disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/60"
+                >
+                  {t('matchmakingPage.form.wizard.back')}
+                </button>
+              ) : null}
+
+              <button
+                type="submit"
+                disabled={submitting}
+                className="w-full sm:w-56 rounded-full bg-gradient-to-r from-amber-300 to-amber-500 text-slate-950 font-semibold py-3 shadow-[0_16px_40px_rgba(245,158,11,0.25)] hover:brightness-110 transition disabled:opacity-60 active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/60 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+                aria-busy={submitting ? 'true' : 'false'}
+              >
+                {submitting ? t('matchmakingPage.form.submitting') : t('matchmakingPage.form.submit')}
+              </button>
+            </div>
           )}
 
           <p className="text-xs text-white/60 md:text-slate-500">{t('matchmakingPage.bottomNote')}</p>

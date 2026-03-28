@@ -4,7 +4,7 @@ import { X } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../auth/AuthProvider.jsx';
-import { db } from '../config/firebase';
+import { db } from '../config/firebaseDb';
 import { isTutorialActive } from '../utils/tutorialState.js';
 
 function safeStr(v) {

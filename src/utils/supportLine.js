@@ -87,7 +87,35 @@ export async function getClientCountry() {
   }
 
   try {
-    const res = await fetch('/api/client-ip', { method: 'GET', headers: { accept: 'application/json' } });
+    const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+    const timeoutMs = 2500;
+    const timeoutId = controller
+      ? window.setTimeout(() => {
+          try {
+            controller.abort();
+          } catch {
+            // ignore
+          }
+        }, timeoutMs)
+      : null;
+
+    const res = await fetch('/api/client-ip', {
+      method: 'GET',
+      headers: { accept: 'application/json' },
+      cache: 'no-store',
+      signal: controller ? controller.signal : undefined,
+    });
+
+    if (timeoutId) {
+      try {
+        window.clearTimeout(timeoutId);
+      } catch {
+        // ignore
+      }
+    }
+
+    if (!res || !res.ok) throw new Error('client_ip_bad_status');
+
     const json = await res.json().catch(() => null);
     const country = safeUpperCountry(json?.country);
 

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Navigate } from 'react-router-dom';
-import { auth } from '../config/firebase';
+import { auth } from '../config/firebaseAuth';
 
 export default function PrivateRoute({ children }) {
   const [isAuthenticated, setIsAuthenticated] = useState(null);

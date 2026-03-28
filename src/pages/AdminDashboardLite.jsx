@@ -3,7 +3,7 @@ import { signOut } from 'firebase/auth';
 import { useNavigate } from 'react-router-dom';
 import { LogOut } from 'lucide-react';
 
-import { auth } from '../config/firebase';
+import { auth } from '../config/firebaseAuth';
 import NewUsers48hTab from '../components/admin/NewUsers48hTab';
 import AllUsersTab from '../components/admin/AllUsersTab';
 import PaymentsTab from '../components/admin/PaymentsTab';
@@ -14,6 +14,7 @@ import AuditLogsTab from '../components/admin/AuditLogsTab';
 import MatchActivityTab from '../components/admin/MatchActivityTab';
 import ClickLogsTab from '../components/admin/ClickLogsTab';
 import InviteCodesTab from '../components/admin/InviteCodesTab';
+import LeadsPoolTab from '../components/admin/LeadsPoolTab';
 
 export default function AdminDashboardLite() {
   const navigate = useNavigate();
@@ -21,6 +22,7 @@ export default function AdminDashboardLite() {
     () => [
       { id: 'newUsers', label: 'Yeni Kullanıcılar' },
       { id: 'allUsers', label: 'Tüm Kullanıcılar' },
+      { id: 'leadsPool', label: 'Aracılık Havuzu' },
       { id: 'payments', label: 'Ödemeler' },
       { id: 'inviteCodes', label: 'Davet Kodları' },
       { id: 'identity', label: 'Kimlik Doğrulama' },
@@ -78,6 +80,7 @@ export default function AdminDashboardLite() {
 
         {activeTab === 'newUsers' ? <NewUsers48hTab /> : null}
         {activeTab === 'allUsers' ? <AllUsersTab /> : null}
+        {activeTab === 'leadsPool' ? <LeadsPoolTab /> : null}
         {activeTab === 'payments' ? <PaymentsTab /> : null}
         {activeTab === 'inviteCodes' ? <InviteCodesTab /> : null}
         {activeTab === 'identity' ? <MatchmakingIdentityTab /> : null}

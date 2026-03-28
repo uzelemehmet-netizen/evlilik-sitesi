@@ -18,6 +18,10 @@ function storageKey(uid, tourId) {
   return `${LS_PREFIX}:${tourId}:${uid}`;
 }
 
+function storageKeyCount(uid, tourId) {
+  return `${LS_PREFIX}:${tourId}:${uid}:shownCount`;
+}
+
 function isShown(uid, tourId) {
   if (!uid || !tourId) return true;
   try {
@@ -33,6 +37,28 @@ function markShown(uid, tourId) {
     window.localStorage.setItem(storageKey(uid, tourId), '1');
   } catch {
     // ignore
+  }
+}
+
+function getShownCount(uid, tourId) {
+  if (!uid || !tourId) return 0;
+  try {
+    const raw = window.localStorage.getItem(storageKeyCount(uid, tourId));
+    const n = Number(raw);
+    return Number.isFinite(n) && n >= 0 ? Math.floor(n) : 0;
+  } catch {
+    return 0;
+  }
+}
+
+function incrementShownCount(uid, tourId) {
+  if (!uid || !tourId) return 0;
+  try {
+    const next = getShownCount(uid, tourId) + 1;
+    window.localStorage.setItem(storageKeyCount(uid, tourId), String(next));
+    return next;
+  } catch {
+    return getShownCount(uid, tourId);
   }
 }
 
@@ -249,6 +275,8 @@ export default function StudioOneTimeTour() {
 
   const pwaNudgeDismissedRef = useRef(false);
   const forcedTourJustStartedRef = useRef(false);
+  const pwaNudgeWentOfflineRef = useRef(false);
+  const [pwaNudgeOnlineSeq, setPwaNudgeOnlineSeq] = useState(0);
 
   const pathname = String(location?.pathname || '');
 
@@ -417,6 +445,39 @@ export default function StudioOneTimeTour() {
     ];
   }, [t]);
 
+  // Track offline→online transitions so PWA nudge can be shown once when coming back online.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    try {
+      pwaNudgeWentOfflineRef.current = !window.navigator?.onLine;
+    } catch {
+      pwaNudgeWentOfflineRef.current = false;
+    }
+
+    const onOffline = () => {
+      pwaNudgeWentOfflineRef.current = true;
+      // Allow showing again after a new offline→online cycle.
+      pwaNudgeDismissedRef.current = false;
+    };
+
+    const onOnline = () => {
+      setPwaNudgeOnlineSeq((n) => n + 1);
+    };
+
+    window.addEventListener('offline', onOffline);
+    window.addEventListener('online', onOnline);
+
+    return () => {
+      try {
+        window.removeEventListener('offline', onOffline);
+        window.removeEventListener('online', onOnline);
+      } catch {
+        // noop
+      }
+    };
+  }, []);
+
   const [active, setActive] = useState(null); // { tourId, stepIndex }
   const [primaryBusy, setPrimaryBusy] = useState(false);
 
@@ -452,11 +513,27 @@ export default function StudioOneTimeTour() {
     }
   }, [active, loading, navigate, pathname, tours, uid]);
 
-  // Auto nudge: show on every entry until completed (non-mandatory).
+  // Auto nudge: show once after offline→online (non-mandatory).
   useEffect(() => {
     if (loading) return;
     if (!uid) return;
     if (active) return;
+
+    // Only react to an online event (avoid showing on normal navigation).
+    if (!pwaNudgeOnlineSeq) return;
+
+    // Only show if we previously went offline.
+    if (!pwaNudgeWentOfflineRef.current) return;
+
+    // If we're still offline, do nothing (wait for real online).
+    try {
+      if (typeof window !== 'undefined' && window.navigator?.onLine === false) return;
+    } catch {
+      // ignore
+    }
+
+    // Disarm immediately so this online event triggers at most once.
+    pwaNudgeWentOfflineRef.current = false;
 
     // If a forced tour was started in this cycle, don't override it.
     if (forcedTourJustStartedRef.current) {
@@ -474,6 +551,10 @@ export default function StudioOneTimeTour() {
     const installed = isPwaInstalled();
     if (installed) return;
 
+    // Show at most 2 times per user (persistent).
+    const maxAutoShows = 2;
+    if (getShownCount(uid, 'pwa-install-nudge') >= maxAutoShows) return;
+
     const needsInstall = !installed;
     const needsPush = !isPushEnabledInBrowser();
     if (!needsInstall && !needsPush) return;
@@ -481,11 +562,13 @@ export default function StudioOneTimeTour() {
     const tour = tours.find((x) => x.id === 'pwa-install-nudge') || null;
     if (!tour || !Array.isArray(tour.steps) || tour.steps.length === 0) return;
 
+    // Count immediately to avoid re-showing on every Profile visit.
+    incrementShownCount(uid, 'pwa-install-nudge');
     setActive({ tourId: tour.id, stepIndex: 0 });
     if (tour.startOnPath && pathname !== tour.startOnPath) {
       navigate(tour.startOnPath);
     }
-  }, [active, loading, navigate, pathname, tours, uid]);
+  }, [active, loading, navigate, pathname, pwaNudgeOnlineSeq, tours, uid]);
 
   const activeTour = useMemo(() => {
     if (!active?.tourId) return null;

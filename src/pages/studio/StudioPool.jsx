@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Trans, useTranslation } from 'react-i18next';
-import { collection, doc, getDoc, getDocFromServer, limit, onSnapshot, orderBy, query } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocFromServer, getDocs, limit, onSnapshot, orderBy, query, where } from 'firebase/firestore';
 import Navigation from '../../components/Navigation';
 import { useAuth } from '../../auth/AuthProvider';
-import { db } from '../../config/firebase';
+import { db } from '../../config/firebaseDb';
 import { authFetch } from '../../utils/authFetch';
 import { translateStudioApiError } from '../../utils/studioErrorI18n';
 import StudioInboxModal from '../../components/studio/StudioInboxModal';
@@ -142,10 +142,12 @@ function formatPresenceLabel(t, lastSeenAtMs) {
 }
 
 export default function StudioPool() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+
+  const isTr = String(i18n?.language || '').toLowerCase().startsWith('tr');
 
   const isPreview = !user || user.isAnonymous;
   const effectiveUid = isPreview ? '' : String(user?.uid || '').trim();
@@ -177,6 +179,10 @@ export default function StudioPool() {
   const [paywallNotice, setPaywallNotice] = useState('');
   const [profileGateNotice, setProfileGateNotice] = useState('');
   const [myProfileComplete, setMyProfileComplete] = useState(true);
+  const [myHasAnyPhoto, setMyHasAnyPhoto] = useState(null); // null=unknown
+  const [myHasAnyApplication, setMyHasAnyApplication] = useState(null); // null=unknown
+
+  const [completeProfileGateOpen, setCompleteProfileGateOpen] = useState(false);
 
   const redirectedToApplyRef = useRef(false);
 
@@ -462,6 +468,72 @@ export default function StudioPool() {
     };
   }, [effectiveUid]);
 
+  // En az 1 fotoğraf var mı? (pre-match gate için)
+  useEffect(() => {
+    const uid = effectiveUid;
+    if (!uid) {
+      setMyHasAnyPhoto(null);
+      setMyHasAnyApplication(null);
+      return;
+    }
+
+    const parseAppsSnap = (snap) => {
+      try {
+        let count = 0;
+        let hasPhoto = false;
+        snap.forEach((d) => {
+          count += 1;
+          if (hasPhoto) return;
+          const data = typeof d?.data === 'function' ? d.data() || {} : d?.data || {};
+          const urls = Array.isArray(data?.photoUrls) ? data.photoUrls : [];
+          if (urls.some((u) => safeStr(u))) hasPhoto = true;
+        });
+        return { count, hasPhoto };
+      } catch {
+        return null;
+      }
+    };
+
+    const qApps = query(collection(db, 'matchmakingApplications'), where('userId', '==', uid), limit(10));
+
+    let cancelled = false;
+    (async () => {
+      try {
+        const snap = await getDocs(qApps);
+        if (cancelled) return;
+        const parsed = parseAppsSnap(snap);
+        if (!parsed) return;
+        setMyHasAnyApplication(parsed.count > 0);
+        setMyHasAnyPhoto(!!parsed.hasPhoto);
+      } catch {
+        // ignore
+      }
+    })();
+
+    const unsub = onSnapshot(
+      qApps,
+      (snap) => {
+        const parsed = parseAppsSnap(snap);
+        if (!parsed) return;
+        setMyHasAnyApplication(parsed.count > 0);
+        setMyHasAnyPhoto(!!parsed.hasPhoto);
+      },
+      () => {
+        setMyHasAnyApplication(null);
+        setMyHasAnyPhoto(null);
+      }
+    );
+
+    return () => {
+      cancelled = true;
+      try {
+        unsub();
+      } catch {
+        // noop
+      }
+    };
+  }, [effectiveUid]);
+
   const requireProfile = () => {
     setProfileGateNotice(t('studio.profileGate.body'));
     try {
@@ -526,6 +598,40 @@ export default function StudioPool() {
     }
   };
 
+  const openCompleteProfileGate = () => {
+    setCompleteProfileGateOpen(true);
+    try {
+      if (typeof window !== 'undefined') window.scrollTo({ top: 0, behavior: 'smooth' });
+    } catch {
+      // noop
+    }
+  };
+
+  const dismissCompleteProfileGate = () => setCompleteProfileGateOpen(false);
+
+  const startCompleteProfileGate = () => {
+    dismissCompleteProfileGate();
+    const mustApply = needsApplication || myHasAnyApplication === false;
+    const to = mustApply ? '/evlilik/eslestirme-basvuru?w=1' : '/evlilik/eslestirme-basvurusu?editOnce=1&w=1';
+    const state = mustApply
+      ? { afterSubmitOpenPhotoManager: true }
+      : {
+          returnTo: '/profilim',
+          afterSaveOpenPhotoManager: true,
+        };
+
+    try {
+      navigate(to, { replace: false, state });
+    } catch {
+      // fallback
+      try {
+        window.location.href = to;
+      } catch {
+        // noop
+      }
+    }
+  };
+
   const profileFormTo = needsApplication ? '/evlilik/eslestirme-basvuru?w=1' : '/evlilik/eslestirme-basvurusu?editOnce=1&w=1';
 
   useEffect(() => {
@@ -569,8 +675,8 @@ export default function StudioPool() {
       return;
     }
 
-    if (needsApplication) {
-      requireProfile();
+    if (needsApplication || myProfileComplete === false || myHasAnyPhoto === false) {
+      openCompleteProfileGate();
       return;
     }
 
@@ -590,6 +696,8 @@ export default function StudioPool() {
       setAccessAction({ loadingId: '', error: '' });
     } catch (e) {
       const msg = safeStr(e?.message) || 'action_failed';
+      if (msg === 'membership_required') requirePaid();
+      if (msg === 'profile_incomplete' || msg === 'application_not_found' || msg === 'application_required') openCompleteProfileGate();
       setAccessAction({ loadingId: '', error: translateStudioApiError(t, msg) || msg });
     }
   };
@@ -666,8 +774,8 @@ export default function StudioPool() {
     const toUid = safeStr(targetUid);
     if (!uid || !toUid || requestingUid) return;
 
-    if (needsApplication) {
-      requireProfile();
+    if (needsApplication || myProfileComplete === false || myHasAnyPhoto === false) {
+      openCompleteProfileGate();
       return;
     }
 
@@ -709,8 +817,8 @@ export default function StudioPool() {
         requirePaid();
         return;
       }
-      if (msg === 'profile_incomplete' || msg === 'application_not_found') {
-        requireProfile();
+      if (msg === 'profile_incomplete' || msg === 'application_not_found' || msg === 'application_required') {
+        openCompleteProfileGate();
         return;
       }
       setState((s) => ({ ...s, error: translateStudioApiError(t, msg) || msg }));
@@ -818,6 +926,38 @@ export default function StudioPool() {
                 </button>
               </div>
               <p className="mt-1 text-sm text-amber-900/80">{paywallNotice}</p>
+            </div>
+          ) : null}
+
+          {completeProfileGateOpen ? (
+            <div role="alert" className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4 text-amber-950">
+              <div className="flex flex-wrap items-start justify-between gap-2">
+                <p className="font-semibold">
+                  {t('studio.profile.completeProfileTutorial.title', { defaultValue: isTr ? 'Profilini tamamla' : 'Complete your profile' })}
+                </p>
+                <button
+                  type="button"
+                  onClick={dismissCompleteProfileGate}
+                  className="rounded-md px-2 py-1 text-sm font-semibold text-amber-900/70 hover:bg-amber-100"
+                >
+                  {t('studio.common.close')}
+                </button>
+              </div>
+              <p className="mt-1 text-sm text-amber-900/80">
+                {t('studio.profile.completeProfileTutorial.body', {
+                  defaultValue: isTr
+                    ? 'Ön eşleşme için profilini tamamlayıp en az 1 fotoğraf yüklemelisin.'
+                    : 'To use pre-match, please complete your profile and upload at least 1 photo.',
+                })}
+              </p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <button type="button" onClick={startCompleteProfileGate} className="app-btn app-btn-primary">
+                  {t('studio.profile.completeProfileTutorial.actions.ok', { defaultValue: isTr ? 'Tamam' : 'Continue' })}
+                </button>
+                <button type="button" onClick={dismissCompleteProfileGate} className="app-btn app-btn-outline">
+                  {t('studio.profile.completeProfileTutorial.actions.later', { defaultValue: isTr ? 'Daha sonra' : 'Not now' })}
+                </button>
+              </div>
             </div>
           ) : null}
 

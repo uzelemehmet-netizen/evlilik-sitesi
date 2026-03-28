@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { collection, limit, onSnapshot, orderBy, query, where } from 'firebase/firestore';
-import { db } from '../../config/firebase';
+import { db } from '../../config/firebaseDb';
 
 function safeStr(v) {
   return typeof v === 'string' ? v.trim() : '';

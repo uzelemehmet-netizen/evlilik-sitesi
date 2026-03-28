@@ -1,4 +1,4 @@
-import { auth } from '../config/firebase.js';
+import { auth } from '../config/firebaseAuth.js';
 
 function safeStr(v) {
   return typeof v === 'string' ? v.trim() : '';

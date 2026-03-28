@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { collection, limit, onSnapshot, orderBy, query, where } from 'firebase/firestore';
 import { useTranslation } from 'react-i18next';
-import { db } from '../../config/firebase';
+import { db } from '../../config/firebaseDb';
 import { authFetch } from '../../utils/authFetch';
 
 const MANUAL_MATCH_DRAFT_KEY = 'mk_admin_manual_match_draft_v1';

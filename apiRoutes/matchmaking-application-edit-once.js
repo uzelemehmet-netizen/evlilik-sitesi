@@ -197,7 +197,6 @@ export default async function handler(req, res) {
     city: safeStr(payload?.city, 80),
     country: safeStr(payload?.country, 80),
     whatsapp: safeStr(payload?.whatsapp, 60),
-    email: safeStr(payload?.email, 120),
     instagram: safeStr(payload?.instagram, 80),
     nationality: safeStr(payload?.nationality, 30),
     gender: safeStr(payload?.gender, 30),

@@ -74,6 +74,7 @@ function eventLabelTr(eventKey) {
     landing_login_auto_signup: 'Login açıldı (otomatik kayıt modu)',
     auth_switch_to_signup: 'Kayıt moduna geçiş (tık)',
     auth_switch_to_login: 'Giriş moduna geçiş (tık)',
+    'signup_auto_skipped:inapp': 'Otomatik kayıt atlandı (in-app)',
     'signup_start:google': 'Kayıt başlatıldı (Google)',
     'signup_start:email': 'Kayıt başlatıldı (E-posta)',
     'signup_success:google': 'Kayıt başarılı (Google)',
@@ -152,6 +153,8 @@ export default function ClickLogsTab() {
       // NOTE: totals are per-event unique; the same anonId can contribute to multiple keys.
       'auth_switch_to_signup',
       'landing_login_signup',
+      'landing_login_auto_signup',
+      'signup_auto_trigger:google',
       'signup_start:google',
       'signup_start:email',
     ],

@@ -5,7 +5,8 @@ import { signOut } from 'firebase/auth';
 import { collection, limit, onSnapshot, orderBy, query } from 'firebase/firestore';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../auth/AuthProvider';
-import { auth, db } from '../../config/firebase';
+import { auth } from '../../config/firebaseAuth';
+import { db } from '../../config/firebaseDb';
 
 function safeStr(v) {
   return typeof v === 'string' ? v.trim() : '';

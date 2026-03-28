@@ -1,8 +1,9 @@
 import { BrowserRouter as Router, Routes, Route, useLocation, useNavigate, Navigate } from 'react-router-dom';
-import { Suspense, lazy, useEffect } from 'react';
+import { Suspense, lazy, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import AnalyticsTracker from './components/AnalyticsTracker';
 import PrivateRoute from './components/PrivateRoute';
+import { maybeReportDropoffAfterSignupBeforeApply } from './utils/funnelTracker';
 import PublicOneTimeTour from './components/tutorial/PublicOneTimeTour.jsx';
 
 const Home = lazy(() => import('./pages/Home'));
@@ -19,6 +20,7 @@ const YouTube = lazy(() => import('./pages/YouTube'));
 const DocumentsHub = lazy(() => import('./pages/DocumentsHub'));
 const Privacy = lazy(() => import('./pages/Privacy'));
 const NotFound = lazy(() => import('./pages/NotFound'));
+const MatchmakingLeadNoAuth = lazy(() => import('./pages/MatchmakingLeadNoAuth'));
 
 const StudioProfile = lazy(() => import('./pages/studio/StudioProfile'));
 // Studio preview is now the same pages in guest mode.
@@ -45,7 +47,6 @@ import { useAuth } from './auth/AuthProvider.jsx';
 import { authFetch } from './utils/authFetch.js';
 import { clearAppBadge, resetServiceWorkerBadge } from './utils/appBadge.js';
 import { startForegroundPushListener, stopForegroundPushListener } from './utils/pushNotifications.js';
-import MemberFeedToasts from './components/MemberFeedToasts.jsx';
 import StudioOneTimeTour from './components/tutorial/StudioOneTimeTour.jsx';
 import PreviewGateGlobal from './components/PreviewGateGlobal.jsx';
 
@@ -356,6 +357,58 @@ function MatchmakingHeartbeatGlobal() {
   return null;
 }
 
+function DeferredMemberFeedToasts() {
+  const location = useLocation();
+  const [Comp, setComp] = useState(null);
+
+  useEffect(() => {
+    const p = String(location?.pathname || '');
+    const shouldEnable = !p.startsWith('/admin') && (p.startsWith('/app') || p === '/profilim' || p.startsWith('/profilim/'));
+    if (!shouldEnable) return;
+    if (Comp) return;
+
+    let cancelled = false;
+    const load = () => {
+      import('./components/MemberFeedToasts.jsx')
+        .then((m) => {
+          if (cancelled) return;
+          setComp(() => m?.default || null);
+        })
+        .catch(() => null);
+    };
+
+    // First-load friendly: do not compete with route chunk on slow networks.
+    let token = null;
+    let usedIdle = false;
+    try {
+      if (typeof window !== 'undefined' && typeof window.requestIdleCallback === 'function') {
+        usedIdle = true;
+        token = window.requestIdleCallback(load, { timeout: 2500 });
+      } else {
+        token = window.setTimeout(load, 800);
+      }
+    } catch {
+      token = window.setTimeout(load, 800);
+    }
+
+    return () => {
+      cancelled = true;
+      try {
+        if (usedIdle && typeof window !== 'undefined' && typeof window.cancelIdleCallback === 'function') {
+          window.cancelIdleCallback(token);
+        } else {
+          window.clearTimeout(token);
+        }
+      } catch {
+        // noop
+      }
+    };
+  }, [Comp, location?.pathname]);
+
+  if (!Comp) return null;
+  return <Comp />;
+}
+
 function App() {
   console.log('App component loaded');
   const showWedding = isFeatureEnabled('wedding');
@@ -388,6 +441,43 @@ function App() {
     };
   }, []);
 
+  // Funnel: signup tamamlandıktan sonra form doldurmadan ayrılma (drop-off) sinyali.
+  useEffect(() => {
+    const report = () => {
+      try {
+        maybeReportDropoffAfterSignupBeforeApply({ page: String(window.location?.pathname || '') });
+      } catch {
+        // ignore
+      }
+    };
+
+    const onVis = () => {
+      try {
+        if (document.visibilityState === 'hidden') report();
+      } catch {
+        // ignore
+      }
+    };
+
+    try {
+      window.addEventListener('pagehide', report);
+      window.addEventListener('beforeunload', report);
+      document.addEventListener('visibilitychange', onVis);
+    } catch {
+      // ignore
+    }
+
+    return () => {
+      try {
+        window.removeEventListener('pagehide', report);
+        window.removeEventListener('beforeunload', report);
+        document.removeEventListener('visibilitychange', onVis);
+      } catch {
+        // ignore
+      }
+    };
+  }, []);
+
   return (
     <Router>
       <NormalizePath />
@@ -398,7 +488,7 @@ function App() {
       <AnalyticsTracker />
       <MatchmakingHeartbeatGlobal />
       <FloatingWhatsApp />
-      <MemberFeedToasts />
+      <DeferredMemberFeedToasts />
       <StudioOneTimeTour />
       <PublicOneTimeTour />
       <PreviewGateGlobal />
@@ -541,6 +631,9 @@ function App() {
           <Route path="/youtube" element={<YouTube />} />
           <Route path="/documents" element={<DocumentsHub />} />
           <Route path="/privacy" element={<Privacy />} />
+
+          <Route path="/aracilik" element={<MatchmakingLeadNoAuth />} />
+          <Route path="/evlilik/aracilik-basvurusu" element={<Navigate to="/aracilik" replace />} />
 
           <Route path="/admin" element={<AdminLogin />} />
           <Route

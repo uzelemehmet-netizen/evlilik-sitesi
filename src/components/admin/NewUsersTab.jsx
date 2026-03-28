@@ -2,7 +2,8 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { getDownloadURL, ref } from 'firebase/storage';
 import { collection, doc, getDoc, limit, onSnapshot, orderBy, query, Timestamp, where } from 'firebase/firestore';
-import { db, storage } from '../../config/firebase';
+import { db } from '../../config/firebaseDb';
+import { storage } from '../../config/firebaseStorage';
 import { formatProfileCode } from '../../utils/profileCode';
 
 const LS_NOTIFY_KEY = 'admin_new_users_notify_v1';

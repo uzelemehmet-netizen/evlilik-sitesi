@@ -82,7 +82,7 @@ export default function Home() {
 
           {showWedding ? (
             <>
-              <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-4xl mx-auto">
+              <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 max-w-6xl mx-auto">
                 <a
                   href={primaryCtaHref}
                   className="group rounded-2xl bg-white/10 text-white border border-white/20 p-4 md:p-5 hover:bg-white/15 transition text-left"
@@ -122,6 +122,28 @@ export default function Home() {
                       <div className="mt-4 inline-flex items-center gap-2 app-btn app-btn-primary-light h-11 px-5">
                         <Sparkles size={18} />
                         {t('home.cta.ctaMatchmaking')}
+                      </div>
+                    </div>
+                  </div>
+                </a>
+
+                <a
+                  href="/aracilik"
+                  className="group rounded-2xl bg-white/10 text-white border border-white/20 p-4 md:p-5 hover:bg-white/15 transition text-left"
+                  onClick={() => trackClick('cta_lead_apply_home_hero', { page: '/' })}
+                  aria-label={t('navigation.leadApply')}
+                >
+                  <div className="flex items-start gap-3">
+                    <div className="mt-0.5 inline-flex items-center justify-center w-10 h-10 rounded-2xl bg-white/10 border border-white/15">
+                      <MessageCircle size={18} className="text-white" />
+                    </div>
+                    <div className="flex-1">
+                      <div className="text-xs uppercase tracking-wide text-white/80">{t('leadNoAuth.info.title')}</div>
+                      <div className="mt-1 text-base md:text-lg font-semibold">{t('navigation.leadApply')}</div>
+                      <div className="mt-1 text-sm text-white/85">{t('leadNoAuth.subtitle')}</div>
+                      <div className="mt-4 inline-flex items-center gap-2 app-btn app-btn-primary-light h-11 px-5">
+                        <MessageCircle size={18} />
+                        {t('navigation.leadApply')}
                       </div>
                     </div>
                   </div>

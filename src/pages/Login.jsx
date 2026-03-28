@@ -11,27 +11,198 @@ import {
   signInWithPopup,
   signInWithRedirect,
 } from "firebase/auth";
-import { collection, doc, getDoc, getDocs, limit, query, serverTimestamp, setDoc, where } from "firebase/firestore";
 import Navigation from "../components/Navigation";
 import Footer from "../components/Footer";
-import { auth, db } from "../config/firebase";
+import { auth } from "../config/firebaseAuth";
 import { useAuth } from "../auth/AuthProvider";
 import { isFeatureEnabled } from "../config/siteVariant";
 import { authFetch } from "../utils/authFetch";
 import { trackClick } from "../utils/clickTracker";
 import { getAnonBrowserId } from "../utils/clickTracker";
+import { markFunnelSignupCompleted } from "../utils/funnelTracker";
 import { tiktokPage, tiktokTrack } from "../utils/tiktokPixel";
 import { buildSupportReport, openSupportReport, storeSupportReport } from "../utils/supportReport";
 import { uploadImageToCloudinaryAuto } from '../utils/cloudinaryUpload';
 import { buildWhatsAppUrl } from '../utils/whatsapp';
 import { useSupportLine } from '../hooks/useSupportLine';
+import { getClientCountry, getSupportCountrySync } from '../utils/supportLine';
+
+let firestoreApiPromise = null;
+async function loadFirestoreApi() {
+  if (!firestoreApiPromise) {
+    firestoreApiPromise = Promise.all([
+      import('../config/firebaseDb'),
+      import('firebase/firestore'),
+    ]).then(([dbMod, fs]) => {
+      const db = dbMod?.db || dbMod?.default;
+      return { db, ...fs };
+    });
+  }
+  return firestoreApiPromise;
+}
 
 export default function Login() {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const supportLine = useSupportLine(String(i18n?.language || 'tr'));
+
+  const isLikelyIdTraffic = useMemo(() => {
+    try {
+      const c = String(getSupportCountrySync({ lang: '' }) || '').toUpperCase();
+      if (c === 'ID') return true;
+      const tz = String(Intl.DateTimeFormat().resolvedOptions().timeZone || '').toLowerCase();
+      if (tz.includes('jakarta') || tz.includes('makassar') || tz.includes('jayapura')) return true;
+      return false;
+    } catch {
+      return false;
+    }
+  }, []);
+
+  useEffect(() => {
+    // If the user is likely in Indonesia, ensure UI language is Indonesian.
+    // Do not override explicit querystring lang.
+    try {
+      const params = new URLSearchParams(location.search || '');
+      const explicit = String(params.get('lang') || '').trim();
+      if (explicit) return;
+
+      // If user explicitly chose a language (selector/signup), never override it.
+      const source = (() => {
+        try {
+          return String(localStorage.getItem('preferred_lang_source') || '').trim();
+        } catch {
+          // ignore
+        }
+        try {
+          return String(sessionStorage.getItem('preferred_lang_source') || '').trim();
+        } catch {
+          return '';
+        }
+      })();
+      if (source === 'selector' || source === 'signup') return;
+
+      const current = String(i18n?.language || '').toLowerCase();
+      if (current.startsWith('id') || current.startsWith('in')) return;
+
+      // First try cached/heuristic signal.
+      if (isLikelyIdTraffic) {
+        void i18n.changeLanguage('id');
+        return;
+      }
+
+      // Then do a best-effort country fetch (/api/client-ip) to make it deterministic.
+      Promise.resolve(getClientCountry())
+        .then((country) => {
+          const sourceNow = (() => {
+            try {
+              return String(localStorage.getItem('preferred_lang_source') || '').trim();
+            } catch {
+              // ignore
+            }
+            try {
+              return String(sessionStorage.getItem('preferred_lang_source') || '').trim();
+            } catch {
+              return '';
+            }
+          })();
+          if (sourceNow === 'selector' || sourceNow === 'signup') return;
+
+          const c = String(country || '').trim().toUpperCase();
+          if (c !== 'ID') return;
+          const cur2 = String(i18n?.language || '').toLowerCase();
+          if (cur2.startsWith('id') || cur2.startsWith('in')) return;
+          void i18n.changeLanguage('id');
+        })
+        .catch(() => {
+          // ignore
+        });
+    } catch {
+      // ignore
+    }
+  }, [i18n, isLikelyIdTraffic, location.search]);
+
+  const normalizeBaseLang = (raw) => {
+    const base = String(raw || '').trim().toLowerCase().split(/[-_]/)[0];
+    if (base === 'in') return 'id';
+    if (base === 'tr' || base === 'en' || base === 'id') return base;
+    return 'tr';
+  };
+
+  const authUiLang = useMemo(() => normalizeBaseLang(i18n?.language), [i18n?.language]);
+
+  useEffect(() => {
+    // Firebase Auth e-posta şablonları / hata metinleri için dil.
+    try {
+      auth.languageCode = authUiLang;
+    } catch {
+      // ignore
+    }
+  }, [authUiLang]);
+
+  const configureGoogleProviderLocale = (provider) => {
+    try {
+      // Google OAuth UI dilini zorla (özellikle popup/redirect sayfaları).
+      provider.setCustomParameters({ hl: authUiLang });
+    } catch {
+      // ignore
+    }
+  };
+
+  const startGoogleRedirect = (provider, { flow = 'google_redirect_start' } = {}) => {
+    try {
+      setInfo(t('authPage.redirecting'));
+    } catch {
+      // ignore
+    }
+
+    writeAuthProvider('google');
+    writeRedirectStartMarker({ provider: 'google', intent: mode });
+
+    // Do not await: preserve user-gesture context.
+    void signInWithRedirect(auth, provider).catch((e) => {
+      try {
+        const code = String(e?.code || '').trim();
+        const msg = String(e?.message || '').trim();
+        void reportAuthIssue({
+          kind: 'auth_redirect_start_failed',
+          flow,
+          code: code || 'unknown',
+          message: msg,
+          intent: mode,
+        });
+      } catch {
+        // ignore
+      }
+
+      // Surface to UI (avoid silent failures that look like "button does nothing").
+      try {
+        const code = String(e?.code || '').trim();
+        if (code === 'auth/unauthorized-domain') {
+          const host = typeof window !== 'undefined' ? String(window.location.hostname || '') : '';
+          setError(
+            t('authPage.errors.googleUnauthorizedDomain', {
+              host: host || t('authPage.errors.domainNotFound'),
+            })
+          );
+        } else if (code === 'auth/operation-not-allowed') {
+          setError(t('authPage.errors.googleOperationNotAllowed'));
+        } else if (code === 'auth/invalid-api-key' || code === 'auth/configuration-not-found') {
+          setError(t('authPage.errors.firebaseAuthInvalidConfig'));
+        } else if (code === 'auth/network-request-failed') {
+          setError(t('authPage.errors.networkFailed'));
+        } else {
+          setError(String(e?.message || '').trim() || t('authPage.errors.googleFailed'));
+        }
+      } catch {
+        // ignore
+      }
+
+      authFlowBusyRef.current = false;
+      setBusy(false);
+    });
+  };
 
   const safeStr = (v) => (typeof v === 'string' ? v.trim() : '');
 
@@ -188,12 +359,135 @@ export default function Login() {
   const [confirmPassword, setConfirmPassword] = useState('');
 
   useEffect(() => {
-    // Signup ekranında email/password adımı varsayılan kapalı.
+    // Email/password adımı varsayılan kapalı (kullanıcı butonla açar).
     setEmailFallbackVisible(false);
     setEmail('');
     setPassword('');
     setConfirmPassword('');
   }, [mode]);
+
+  // Post-auth navigation: redirect/popup akışlarında hedef sayfa bilgisi
+  // URL state kaybolabildiği için sessionStorage'da saklanır.
+  const POST_AUTH_NAV_KEY = 'auth_post_auth_nav_v1';
+  const writePendingPostAuthNav = (target, state) => {
+    try {
+      const t = String(target || '').trim();
+      if (!t) return;
+      sessionStorage.setItem(
+        POST_AUTH_NAV_KEY,
+        JSON.stringify({ target: t, state: typeof state === 'undefined' ? null : state, atMs: Date.now() })
+      );
+    } catch {
+      // ignore
+    }
+  };
+  const readPendingPostAuthNav = () => {
+    try {
+      const raw = sessionStorage.getItem(POST_AUTH_NAV_KEY);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      if (!parsed || typeof parsed !== 'object') return null;
+      const ageMs = Date.now() - Number(parsed.atMs || 0);
+      // Eski kalmış hedefler yönlendirme loop'u yaratmasın.
+      if (!Number.isFinite(ageMs) || ageMs < 0 || ageMs > 10 * 60 * 1000) return null;
+      return parsed;
+    } catch {
+      return null;
+    }
+  };
+  const clearPendingPostAuthNav = () => {
+    try {
+      sessionStorage.removeItem(POST_AUTH_NAV_KEY);
+    } catch {
+      // ignore
+    }
+  };
+
+  // Redirect debug marker: helps diagnose cases where Google chooser completes but
+  // Firebase cannot finalize the redirect (getRedirectResult returns null).
+  const REDIRECT_START_KEY = 'auth_redirect_start_v1';
+  const writeRedirectStartMarker = ({ provider, intent } = {}) => {
+    try {
+      const host = (() => {
+        try {
+          return String(window.location?.hostname || '');
+        } catch {
+          return '';
+        }
+      })();
+      const path = (() => {
+        try {
+          return String(window.location?.pathname || '');
+        } catch {
+          return '';
+        }
+      })();
+      const search = (() => {
+        try {
+          return String(window.location?.search || '');
+        } catch {
+          return '';
+        }
+      })();
+
+      sessionStorage.setItem(
+        REDIRECT_START_KEY,
+        JSON.stringify({
+          atMs: Date.now(),
+          provider: String(provider || '').trim(),
+          intent: String(intent || '').trim(),
+          host,
+          path,
+          search,
+        })
+      );
+    } catch {
+      // ignore
+    }
+  };
+  const readRedirectStartMarker = () => {
+    try {
+      const raw = sessionStorage.getItem(REDIRECT_START_KEY);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      if (!parsed || typeof parsed !== 'object') return null;
+      const ageMs = Date.now() - Number(parsed.atMs || 0);
+      if (!Number.isFinite(ageMs) || ageMs < 0 || ageMs > 10 * 60 * 1000) return null;
+      return parsed;
+    } catch {
+      return null;
+    }
+  };
+  const clearRedirectStartMarker = () => {
+    try {
+      sessionStorage.removeItem(REDIRECT_START_KEY);
+    } catch {
+      // ignore
+    }
+  };
+
+  // DEV-only: capture Google auth transport decision (popup vs redirect) to diagnose local issues.
+  const GOOGLE_DECISION_KEY = 'auth_google_decision_v1';
+  const writeGoogleDecisionDebug = (payload) => {
+    try {
+      if (!import.meta.env.DEV) return;
+      sessionStorage.setItem(
+        GOOGLE_DECISION_KEY,
+        JSON.stringify({ atMs: Date.now(), ...(payload && typeof payload === 'object' ? payload : {}) })
+      );
+    } catch {
+      // ignore
+    }
+  };
+  const readGoogleDecisionDebug = () => {
+    try {
+      const raw = sessionStorage.getItem(GOOGLE_DECISION_KEY);
+      if (!raw) return null;
+      return JSON.parse(raw);
+    } catch {
+      return null;
+    }
+  };
 
   const QUICK_PROFILE_DRAFT_KEY = 'mk_quick_profile_draft_v1';
   const readQuickProfileDraft = () => {
@@ -272,21 +566,29 @@ export default function Login() {
   const idSignupHelpText = useMemo(() => {
     try {
       const pick = (v) => String(v || '').trim();
+
+      const hasChildrenLabel = (() => {
+        const v = pick(idSignupHelp.hasChildren);
+        if (v === 'yes') return t('authPage.idSignupHelp.options.hasChildrenYes');
+        if (v === 'no') return t('authPage.idSignupHelp.options.hasChildrenNo');
+        return '-';
+      })();
+
       const lines = [
-        'Kayıt sorunu (Endonezya) - kısa bilgi',
-        `İsim: ${pick(idSignupHelp.name) || '-'}`,
-        `Yaş: ${pick(idSignupHelp.age) || '-'}`,
-        `Medeni durum: ${pick(idSignupHelp.maritalStatus) || '-'}`,
-        `Çocuk: ${pick(idSignupHelp.hasChildren) || '-'}`,
-        `Kaç çocuk: ${pick(idSignupHelp.childrenCount) || '-'}`,
-        `Meslek: ${pick(idSignupHelp.job) || '-'}`,
-        `Kriter notu: ${pick(idSignupHelp.criteriaNote) || '-'}`,
+        t('authPage.idSignupHelp.messageTitle'),
+        `${t('authPage.idSignupHelp.messageFields.name')}: ${pick(idSignupHelp.name) || '-'}`,
+        `${t('authPage.idSignupHelp.messageFields.age')}: ${pick(idSignupHelp.age) || '-'}`,
+        `${t('authPage.idSignupHelp.messageFields.maritalStatus')}: ${pick(idSignupHelp.maritalStatus) || '-'}`,
+        `${t('authPage.idSignupHelp.messageFields.hasChildren')}: ${hasChildrenLabel}`,
+        `${t('authPage.idSignupHelp.messageFields.childrenCount')}: ${pick(idSignupHelp.childrenCount) || '-'}`,
+        `${t('authPage.idSignupHelp.messageFields.job')}: ${pick(idSignupHelp.job) || '-'}`,
+        `${t('authPage.idSignupHelp.messageFields.criteriaNote')}: ${pick(idSignupHelp.criteriaNote) || '-'}`,
       ];
       return lines.join('\n');
     } catch {
       return '';
     }
-  }, [idSignupHelp]);
+  }, [idSignupHelp, t]);
 
   const idSignupHelpCanSend = useMemo(() => {
     if (!showIdSignupHelp) return false;
@@ -631,6 +933,8 @@ export default function Login() {
     };
 
     try {
+      const { db, collection, doc, getDoc, getDocs, limit, query, where } = await loadFirestoreApi();
+
       // Fast path: matchmakingUsers doc'unda minimum alanlar.
       try {
         const uRef = doc(db, 'matchmakingUsers', userId);
@@ -677,6 +981,21 @@ export default function Login() {
       setNeedsQuickProfile(false);
       setQuickProfileCheckDone(true);
       return;
+    }
+
+    // Signup sonrası kullanıcı mutlaka başvuru formuna gitsin.
+    // Google redirect/popup akışlarında yeni kullanıcı bazen mode=login ile dönebiliyor;
+    // bu yüzden pending target başvuru formuysa quick profile ekranına düşürmeyelim.
+    try {
+      const pending = readPendingPostAuthNav();
+      const pendingTarget = String(pending?.target || '').trim();
+      if (mode === 'signup' || (pendingTarget && isMatchmakingApplyPath(pendingTarget))) {
+        setNeedsQuickProfile(false);
+        setQuickProfileCheckDone(true);
+        return;
+      }
+    } catch {
+      // ignore
     }
 
     let cancelled = false;
@@ -1016,6 +1335,35 @@ export default function Login() {
 
     navigateNext(next, state);
   };
+
+  // Redirect/popup sonrası hedefe kesin yönlendirme.
+  // Kritik: RequireAuth bounce'larını engellemek için AuthProvider loading=false + user geldiğinde çalıştır.
+  useEffect(() => {
+    if (hasNavigatedRef.current) return;
+    if (authLoading) return;
+    if (!user || user.isAnonymous) return;
+    if (authFlowBusyRef.current) return;
+
+    const pending = readPendingPostAuthNav();
+    const pendingTarget = String(pending?.target || '').trim();
+    if (!pendingTarget) return;
+
+    (async () => {
+      try {
+        clearPendingPostAuthNav();
+        // auth_intent artık yönlendirme için gerekmiyor; bayat kalıp loop yapmasın.
+        try {
+          clearAuthIntent();
+        } catch {
+          // ignore
+        }
+        await navigateNextWithApplyGuard(user?.uid, pendingTarget, pending?.state);
+      } catch {
+        // ignore
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authLoading, user?.uid]);
   const resolveAuthLanguage = (lang) => {
     const key = String(lang || '').toLowerCase();
     if (key.startsWith('tr')) return 'tr';
@@ -1055,6 +1403,8 @@ export default function Login() {
     } catch {
       // Fall back to client Firestore.
     }
+
+    const { db, doc, getDoc, serverTimestamp, setDoc } = await loadFirestoreApi();
 
     const ref = doc(db, "matchmakingUsers", uid);
     const snap = await getDoc(ref);
@@ -1205,19 +1555,49 @@ export default function Login() {
       try {
         const r = await Promise.race([
           Promise.resolve(getRedirectResult(auth)).then((result) => ({ timeout: false, result })),
-          new Promise((resolve) => setTimeout(() => resolve({ timeout: true, result: null }), 8000)),
+          new Promise((resolve) =>
+            setTimeout(
+              () => resolve({ timeout: true, result: null }),
+              import.meta.env.DEV ? 1500 : 8000
+            )
+          ),
         ]);
 
         // Bazı in-app tarayıcılarda getRedirectResult hiç resolve olmayabiliyor.
         // Timeout durumunda sessizce devam edip diğer effect'lerin yönlendirmesine izin veriyoruz.
-        if (r?.timeout) return;
+        if (r?.timeout) {
+          try {
+            const intent = readAuthIntent() || 'login';
+            void trackClick(`${intent}_redirect_result_timeout:${providerLabel}`);
+          } catch {
+            // ignore
+          }
+          return;
+        }
 
         const result = r?.result;
         if (result?.user && isActive) {
           clearAuthProvider();
+          clearRedirectStartMarker();
 
           const info2 = getAdditionalUserInfo(result);
           const isNewUser = !!info2?.isNewUser;
+
+          // CTA-driven auto signup (/login?mode=signup&auto=google): after redirect,
+          // keep whether user is new so we can route existing users to /profilim.
+          try {
+            const params = new URLSearchParams(location.search || '');
+            const isAutoGoogle = String(params.get('auto') || '').toLowerCase() === 'google';
+            if (isAutoGoogle) {
+              sessionStorage.setItem('uniqah:last_auth_new_user_v1', isNewUser ? '1' : '0');
+              if (!isNewUser) {
+                // Force post-auth target for existing users.
+                writeForcedTarget('/profilim');
+              }
+            }
+          } catch {
+            // ignore
+          }
 
           // Redirect akışında sayfa yenilendiği için mode kaybolabilir.
           // Bu yüzden intent'i (login/signup) sessionStorage üzerinden okuyoruz.
@@ -1241,6 +1621,7 @@ export default function Login() {
 
             // Account created: count this as signup success even if profile save fails.
             await trackClick(`signup_success:${providerLabel}_redirect`);
+            markFunnelSignupCompleted(`${providerLabel}_redirect`);
             try {
               if (typeof window !== 'undefined' && typeof window.gtag === 'function') {
                 window.gtag('event', 'sign_up', { method: `${providerLabel}_redirect` });
@@ -1285,12 +1666,73 @@ export default function Login() {
             clearSignupProfile();
           }
 
+          // Redirect dönüşünde hedefi sakla: effect'ler kesin yönlendirsin.
           const target = resolvePostAuthTarget(isNewUser, isNewUser ? 'signup' : intent);
           const state = isNewUser ? null : resolvePostAuthState();
+          writePendingPostAuthNav(target, state);
           clearStoredRedirect();
           writeForcedTarget('');
-          // Navigasyonu burada yapmıyoruz; hızlı profil kontrolü (needsQuickProfile)
-          // tamamlanınca üstteki effect tek sefer yönlendirecek.
+          // Kritik: Redirect sonucu geldiğinde elimizde user varken hemen yönlendir.
+          // Bu, AuthProvider timing kaynaklı login'e geri düşme sorunlarını engeller.
+          try {
+            await navigateNextWithApplyGuard(result?.user?.uid, target, state);
+            clearPendingPostAuthNav();
+          } catch {
+            // Best-effort; fallback effect pending target'ı kullanır.
+          }
+        } else if (isActive) {
+          // If we know a redirect was started recently but we got no result, surface a useful error
+          // and store a support report for diagnosis (host mismatch, storage restrictions, etc.).
+          const marker = readRedirectStartMarker();
+          if (marker) {
+            clearRedirectStartMarker();
+
+            try {
+              const hostNow = (() => {
+                try {
+                  return String(window.location?.hostname || '');
+                } catch {
+                  return '';
+                }
+              })();
+
+              storeSupportReport(
+                buildSupportReport({
+                  kind: 'auth_redirect_no_result',
+                  flow: `${providerLabel}_redirect`,
+                  code: 'redirect_result_null',
+                  message: 'getRedirectResult returned null after redirect start',
+                  extra: {
+                    marker,
+                    hostNow,
+                    pathNow: (() => {
+                      try {
+                        return String(window.location?.pathname || '');
+                      } catch {
+                        return '';
+                      }
+                    })(),
+                    searchNow: (() => {
+                      try {
+                        return String(window.location?.search || '');
+                      } catch {
+                        return '';
+                      }
+                    })(),
+                    currentUserUid: safeStr(auth?.currentUser?.uid),
+                  },
+                })
+              );
+            } catch {
+              // ignore
+            }
+
+            try {
+              setError(t('authPage.errors.googleRedirectNoResult'));
+            } catch {
+              // ignore
+            }
+          }
         }
       } catch (e) {
         const code = String(e?.code || '').trim();
@@ -1334,9 +1776,31 @@ export default function Login() {
           return;
         }
 
+        if (code === 'auth/network-request-failed') {
+          setError(t('authPage.errors.networkFailed'));
+          return;
+        }
+
+        if (code === 'auth/internal-error') {
+          const isInAppBrowser = (() => {
+            try {
+              const ua = typeof navigator !== 'undefined' ? String(navigator.userAgent || '') : '';
+              return /fbav|fban|instagram|line\//i.test(ua) || /micromessenger|wechat/i.test(ua) || /tiktok|trill/i.test(ua);
+            } catch {
+              return false;
+            }
+          })();
+
+          // Firebase Auth sometimes loads https://apis.google.com/js/api.js during Google sign-in.
+          // In some in-app browsers this can fail in opaque ways; fail open with email fallback.
+          if (providerLabel === 'google' && isInAppBrowser) {
+            setError(t('authPage.errors.googleInAppBlocked'));
+            return;
+          }
+        }
+
         if (intent === 'signup') {
           setError(t('authPage.errors.googleFailed'));
-          setEmailFallbackVisible(true);
         }
       } finally {
         authFlowBusyRef.current = false;
@@ -1367,8 +1831,10 @@ export default function Login() {
           // Kullanıcı zaten login olmuşsa (mevcut session), URL'deki `mode=signup`
           // onu "yeni kullanıcı" gibi değerlendirmemeli. Aksi halde CTA'lar kullanıcıyı
           // signup ekranını göstermeden direkt başvuru formuna itebiliyor.
-          const target = resolvePostAuthTarget(false, mode);
-          const state = resolvePostAuthState();
+          const pending = readPendingPostAuthNav();
+          const target = String(pending?.target || '').trim() || resolvePostAuthTarget(false, mode);
+          const state = pending ? pending.state : resolvePostAuthState();
+          clearPendingPostAuthNav();
           clearStoredRedirect();
           writeForcedTarget('');
           await navigateNextWithApplyGuard(user?.uid, target, state);
@@ -1380,30 +1846,53 @@ export default function Login() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, redirectCheckDone, mode, needsQuickProfile, quickProfileCheckDone]);
 
+  // CTA-driven signup: /login?mode=signup&auto=google
+  // Auto-start Google auth once, after redirect-result check is done.
+  // NOTE: Must stay above any early-return branches to keep hook order stable.
+  const autoGoogleOnceRef = useRef(false);
   useEffect(() => {
-    if (hasNavigatedRef.current) return;
-    if (authFlowBusyRef.current) return;
-    const current = auth?.currentUser || null;
-    if (!current) return;
-    if (!quickProfileCheckDone) return;
-    if (needsQuickProfile) return;
-    // Eğer daha önce signup akışında hedef zorlandıysa (auth_force_target),
-    // burada tek sefer kullanıp hemen temizlemeliyiz; aksi halde kullanıcı
-    // sonraki girişlerde de sürekli forma itilir.
-    (async () => {
-      try {
-        const forced = readForcedTarget();
-        const target = forced || resolvePostAuthTarget(false, mode);
-        const state = resolvePostAuthState();
-        clearStoredRedirect();
-        writeForcedTarget('');
-        await navigateNextWithApplyGuard(current?.uid, target, state);
-      } catch {
-        // ignore
+    try {
+      if (autoGoogleOnceRef.current) return;
+      if (!redirectCheckDone) return;
+      if (authFlowBusyRef.current) return;
+      if (busy) return;
+      if (user) return;
+      if (mode !== 'signup') return;
+
+      const params = new URLSearchParams(location.search || '');
+      const auto = String(params.get('auto') || '').toLowerCase();
+      if (auto !== 'google') return;
+
+      const isInAppBrowser = (() => {
+        try {
+          const ua = typeof navigator !== 'undefined' ? String(navigator.userAgent || '') : '';
+          // Facebook/Instagram/Line/WeChat/etc in-app browsers often break OAuth flows.
+          return /fbav|fban|instagram|line\//i.test(ua) || /micromessenger|wechat/i.test(ua);
+        } catch {
+          return false;
+        }
+      })();
+
+      // Safety: do NOT auto-trigger Google auth inside in-app browsers.
+      // Keep the user on the page so they can pick email fallback or open in a real browser.
+      if (isInAppBrowser) {
+        autoGoogleOnceRef.current = true;
+        try {
+          void trackClick('signup_auto_skipped:inapp');
+        } catch {
+          // ignore
+        }
+        return;
       }
-    })();
+
+      autoGoogleOnceRef.current = true;
+      // Best-effort: start Google flow immediately.
+      void handleGoogle();
+    } catch {
+      // ignore
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [redirectTarget.from, redirectTarget.fromState, mode, needsQuickProfile, quickProfileCheckDone]);
+  }, [location.search, redirectCheckDone, mode, user, busy]);
 
   if (user && !needsQuickProfile) {
     // Kullanıcı login olduysa bu sayfada form göstermeyelim.
@@ -1453,25 +1942,66 @@ export default function Login() {
     setInfo('');
     authFlowBusyRef.current = true;
 
+    // UI signal: confirm the click handler executed.
+    try {
+      setInfo(t('authPage.infos.startingGoogle') || t('authPage.redirecting'));
+    } catch {
+      // ignore
+    }
+
+    const AUTO_GOOGLE_KEY = 'uniqah:auto_google_v1';
+    const LAST_AUTH_NEW_USER_KEY = 'uniqah:last_auth_new_user_v1';
+
+    const isAutoGoogle = (() => {
+      try {
+        const params = new URLSearchParams(location.search || '');
+        return String(params.get('auto') || '').toLowerCase() === 'google';
+      } catch {
+        return false;
+      }
+    })();
+
+    const forcedTransport = (() => {
+      try {
+        const params = new URLSearchParams(location.search || '');
+        const v = String(params.get('transport') || '').trim().toLowerCase();
+        if (v === 'popup' || v === 'redirect') return v;
+        return '';
+      } catch {
+        return '';
+      }
+    })();
+
+
     try {
       clearSignupProfile();
 
-      if (mode === 'signup') {
-        tiktokTrack('SignupStart', { method: 'google', source: 'login' });
-        void trackClick('signup_start:google');
-      } else {
-        void trackClick('login_start:google');
-      }
-
-      writeAuthIntent(mode);
-      writeForcedTarget('');
-
       const provider = new GoogleAuthProvider();
+      configureGoogleProviderLocale(provider);
 
       const isTikTokInApp = (() => {
         try {
           const ua = typeof navigator !== 'undefined' ? String(navigator.userAgent || '') : '';
           return /trill[_\s/\-]?|tiktok/i.test(ua);
+        } catch {
+          return false;
+        }
+      })();
+
+      const isOtherInApp = (() => {
+        try {
+          const ua = typeof navigator !== 'undefined' ? String(navigator.userAgent || '') : '';
+          // Facebook/Instagram/Line/WeChat/etc in-app browsers often block popups.
+          return /fbav|fban|instagram|line\//i.test(ua) || /micromessenger|wechat/i.test(ua);
+        } catch {
+          return false;
+        }
+      })();
+
+      const isMiuiOrLite = (() => {
+        try {
+          const ua = typeof navigator !== 'undefined' ? String(navigator.userAgent || '') : '';
+          return /miuibrowser|lite\s*browser/i.test(ua);
         } catch {
           return false;
         }
@@ -1486,20 +2016,98 @@ export default function Login() {
         }
       })();
 
-      if (isTikTokInApp || isIOS) {
+      // Prefer popup when possible; use redirect only for environments known to block popups
+      // (or when explicitly requested via auto=google).
+      let willRedirect = isTikTokInApp || isOtherInApp || isMiuiOrLite || isIOS || isAutoGoogle;
+
+      // Debug override: allow forcing the transport via query param.
+      // Example: /login?mode=signup&transport=popup
+      if (forcedTransport === 'popup') willRedirect = false;
+      if (forcedTransport === 'redirect') willRedirect = true;
+
+      writeGoogleDecisionDebug({
+        intent: String(mode || ''),
+        isAutoGoogle: isAutoGoogle ? '1' : '0',
+        forcedTransport: forcedTransport || '',
+        isTikTokInApp: isTikTokInApp ? '1' : '0',
+        isOtherInApp: isOtherInApp ? '1' : '0',
+        isMiuiOrLite: isMiuiOrLite ? '1' : '0',
+        isIOS: isIOS ? '1' : '0',
+        willRedirect: willRedirect ? '1' : '0',
+        ua: (() => {
+          try {
+            return String(navigator.userAgent || '').slice(0, 220);
+          } catch {
+            return '';
+          }
+        })(),
+      });
+
+      if (isAutoGoogle) {
+        try {
+          sessionStorage.setItem(AUTO_GOOGLE_KEY, '1');
+        } catch {
+          // ignore
+        }
+        try {
+          void trackClick('signup_auto_trigger:google');
+        } catch {
+          // ignore
+        }
+      }
+
+      // Önemli: Popup/redirect tarayıcı tarafından "user gesture" ister.
+      // Bu yüzden signIn çağrısından ÖNCE await etmiyoruz.
+      if (mode === 'signup') {
+        tiktokTrack('SignupStart', { method: 'google', source: 'login' });
+        try {
+          void trackClick('signup_start:google');
+        } catch {
+          // ignore
+        }
+      } else {
+        try {
+          void trackClick('login_start:google');
+        } catch {
+          // ignore
+        }
+      }
+
+      writeAuthIntent(mode);
+      writeForcedTarget('');
+
+      // In-app / OEM browsers frequently break popup auth. For CTA auto=google,
+      // prefer redirect to reduce friction (esp. common in ID traffic).
+      if (willRedirect) {
         try {
           setInfo(t('authPage.infos.inAppBrowserGoogleRedirect'));
         } catch {
-          setInfo(t('authPage.redirecting'));
+          // ignore
         }
-        writeAuthProvider('google');
-        await signInWithRedirect(auth, provider);
+        startGoogleRedirect(provider, { flow: 'google_redirect_start' });
         return;
       }
 
+      // Popup: call immediately (no awaits before this).
       const result = await signInWithPopup(auth, provider);
       const info2 = getAdditionalUserInfo(result);
       const isNewUser = !!info2?.isNewUser;
+
+      if (isAutoGoogle) {
+        try {
+          sessionStorage.setItem(LAST_AUTH_NEW_USER_KEY, isNewUser ? '1' : '0');
+        } catch {
+          // ignore
+        }
+        // If user is NOT new, CTA should land on profile instead of forcing the apply form.
+        if (!isNewUser) {
+          try {
+            writeForcedTarget('/profilim');
+          } catch {
+            // ignore
+          }
+        }
+      }
 
       if (isNewUser && mode !== 'signup') {
         try {
@@ -1512,6 +2120,7 @@ export default function Login() {
       if (isNewUser) {
         markHasSignedUpBefore();
         await trackClick('signup_success:google');
+        markFunnelSignupCompleted('google_popup');
         try {
           if (typeof window !== 'undefined' && typeof window.gtag === 'function') {
             window.gtag('event', 'sign_up', { method: 'google' });
@@ -1549,9 +2158,32 @@ export default function Login() {
       } else {
         clearSignupProfile();
       }
+
+      // Popup akışında da post-auth hedefi sakla (özellikle yeni kullanıcı mode=login'den gelirse).
+      try {
+        const intent = mode;
+        const target = resolvePostAuthTarget(isNewUser, isNewUser ? 'signup' : intent);
+        const state = isNewUser ? null : resolvePostAuthState();
+        writePendingPostAuthNav(target, state);
+
+        // Popup sonucu geldi: elimizde user varken hemen yönlendir.
+        try {
+          await navigateNextWithApplyGuard(result?.user?.uid, target, state);
+          clearPendingPostAuthNav();
+        } catch {
+          // ignore
+        }
+      } catch {
+        // ignore
+      }
     } catch (e) {
       const code = String(e?.code || '').trim();
       const msg = String(e?.message || '').trim();
+
+      writeGoogleDecisionDebug({
+        lastErrorCode: code || 'unknown',
+        lastErrorMessage: msg ? msg.slice(0, 220) : '',
+      });
 
       if (mode === 'signup') {
         void trackClick(`signup_error:google_popup:${code || 'unknown'}`);
@@ -1563,15 +2195,16 @@ export default function Login() {
         code === 'auth/popup-blocked' ||
         code === 'auth/popup-closed-by-user' ||
         code === 'auth/cancelled-popup-request' ||
-        code === 'auth/argument-error'
+        code === 'auth/argument-error' ||
+        code === 'auth/operation-not-supported-in-this-environment' ||
+        code === 'auth/web-storage-unsupported'
       ) {
         try {
           const provider2 = new GoogleAuthProvider();
-          setInfo(t('authPage.redirecting'));
+          configureGoogleProviderLocale(provider2);
           writeForcedTarget('');
           writeAuthIntent(mode);
-          writeAuthProvider('google');
-          await signInWithRedirect(auth, provider2);
+          startGoogleRedirect(provider2, { flow: 'google_popup_fallback_redirect_start' });
           return;
         } catch (e2) {
           const host = typeof window !== 'undefined' ? String(window.location.hostname || '') : '';
@@ -1582,7 +2215,6 @@ export default function Login() {
                 host: host || t('authPage.errors.domainNotFound'),
               })
           );
-          if (mode === 'signup') setEmailFallbackVisible(true);
           return;
         }
       }
@@ -1595,38 +2227,48 @@ export default function Login() {
             host: host || t('authPage.errors.domainNotFound'),
           })
         );
-        if (mode === 'signup') setEmailFallbackVisible(true);
         return;
       }
 
       if (code === 'auth/operation-not-allowed') {
         void reportAuthIssue({ kind: 'auth_google_operation_not_allowed', flow: 'google_popup', code, message: msg, intent: mode });
         setError(t('authPage.errors.googleOperationNotAllowed'));
-        if (mode === 'signup') setEmailFallbackVisible(true);
         return;
       }
 
       if (code === 'auth/invalid-api-key' || code === 'auth/configuration-not-found') {
         void reportAuthIssue({ kind: 'auth_invalid_firebase_config', flow: 'google_popup', code, message: msg, intent: mode });
         setError(t('authPage.errors.firebaseAuthInvalidConfig'));
-        if (mode === 'signup') setEmailFallbackVisible(true);
         return;
       }
 
       if (code === 'auth/too-many-requests') {
         setError(t('authPage.errors.rateLimited'));
-        if (mode === 'signup') setEmailFallbackVisible(true);
         return;
+      }
+
+      if (code === 'auth/internal-error') {
+        const isInAppBrowser = (() => {
+          try {
+            const ua = typeof navigator !== 'undefined' ? String(navigator.userAgent || '') : '';
+            return /fbav|fban|instagram|line\//i.test(ua) || /micromessenger|wechat/i.test(ua) || /tiktok|trill/i.test(ua);
+          } catch {
+            return false;
+          }
+        })();
+
+        if (isInAppBrowser) {
+          setError(t('authPage.errors.googleInAppBlocked'));
+          return;
+        }
       }
 
       if (code === 'auth/network-request-failed') {
         setError(t('authPage.errors.networkFailed'));
-        if (mode === 'signup') setEmailFallbackVisible(true);
         return;
       }
 
       setError(msg || t('authPage.errors.googleFailed'));
-      if (mode === 'signup') setEmailFallbackVisible(true);
     } finally {
       authFlowBusyRef.current = false;
       setBusy(false);
@@ -1665,6 +2307,7 @@ export default function Login() {
 
         try {
           await trackClick('signup_success:email_password');
+          markFunnelSignupCompleted('email_password');
         } catch {
           // ignore
         }
@@ -1713,7 +2356,15 @@ export default function Login() {
         return;
       }
 
-      setError(msg || t('authPage.errors.loginFailed'));
+      void reportAuthIssue({
+        kind: mode === 'signup' ? 'auth_email_signup_failed' : 'auth_email_login_failed',
+        flow: mode === 'signup' ? 'email_signup' : 'email_login',
+        code,
+        message: msg,
+        intent: mode,
+      });
+
+      setError(t('authPage.errors.loginFailed'));
     } finally {
       authFlowBusyRef.current = false;
       setBusy(false);
@@ -1920,6 +2571,98 @@ export default function Login() {
     }
   };
 
+  const devAuthState = (() => {
+    // Important: do NOT use hooks here. This component has an early return path
+    // (user && !needsQuickProfile) and hooks after that would break hook order.
+    if (!import.meta.env.DEV) return null;
+    try {
+      const marker = readRedirectStartMarker();
+      const pending = readPendingPostAuthNav();
+
+      const hostNow = (() => {
+        try {
+          return String(window.location?.hostname || '');
+        } catch {
+          return '';
+        }
+      })();
+      const originNow = (() => {
+        try {
+          return String(window.location?.origin || '');
+        } catch {
+          return '';
+        }
+      })();
+      const pathNow = (() => {
+        try {
+          return String(window.location?.pathname || '');
+        } catch {
+          return '';
+        }
+      })();
+      const searchNow = (() => {
+        try {
+          return String(window.location?.search || '');
+        } catch {
+          return '';
+        }
+      })();
+
+      const ss = (key) => {
+        try {
+          return String(sessionStorage.getItem(key) || '');
+        } catch {
+          return '';
+        }
+      };
+
+      return {
+        env: {
+          mode: String(import.meta.env.MODE || ''),
+          dev: import.meta.env.DEV ? '1' : '0',
+          authPersistence: String(import.meta.env.VITE_AUTH_PERSISTENCE || ''),
+        },
+        url: {
+          origin: originNow,
+          host: hostNow,
+          path: pathNow,
+          search: searchNow,
+        },
+        page: {
+          mode: String(mode || ''),
+          forceLogin: forceLogin ? '1' : '0',
+          busy: busy ? '1' : '0',
+          authLoading: authLoading ? '1' : '0',
+          redirectCheckDone: redirectCheckDone ? '1' : '0',
+          quickProfile: {
+            needs: needsQuickProfile ? '1' : '0',
+            checkDone: quickProfileCheckDone ? '1' : '0',
+            stage: String(quickProfileStage || ''),
+          },
+        },
+        auth: {
+          contextUserUid: safeStr(user?.uid),
+          currentUserUid: safeStr(auth?.currentUser?.uid),
+          isAnon: user?.isAnonymous ? '1' : '0',
+          languageCode: safeStr(auth?.languageCode),
+        },
+        flow: {
+          authProvider: safeStr(readAuthProvider()),
+          authIntent: safeStr(readAuthIntent()),
+          forcedTarget: safeStr(readForcedTarget()),
+          pendingPostAuthTarget: safeStr(pending?.target),
+          pendingPostAuthAgeMs: pending?.atMs ? String(Date.now() - Number(pending.atMs || 0)) : '',
+          redirectMarker: marker,
+          googleDecision: readGoogleDecisionDebug(),
+          autoGoogle: ss('uniqah:auto_google_v1'),
+          lastAuthNewUser: ss('uniqah:last_auth_new_user_v1'),
+        },
+      };
+    } catch {
+      return { failed: '1' };
+    }
+  })();
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-white via-slate-50 to-emerald-50/40">
       <Navigation />
@@ -1964,6 +2707,7 @@ export default function Login() {
               ) : null}
             </div>
           ) : null}
+
 
           {needsQuickProfile ? (
             <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 p-4">
@@ -2182,29 +2926,27 @@ export default function Login() {
                 {mode === 'signup' ? t('authPage.googleSignupCta') : t('authPage.googleCta')}
               </button>
 
+              <button
+                type="button"
+                onClick={() => {
+                  setEmailFallbackVisible(true);
+                  try {
+                    void trackClick(mode === 'signup' ? 'signup_click_email_password' : 'login_click_email_password');
+                  } catch {
+                    // ignore
+                  }
+                }}
+                disabled={busy}
+                className="w-full px-5 py-3 rounded-2xl border border-slate-300 bg-white text-slate-900 text-sm font-semibold hover:bg-slate-50 disabled:opacity-60"
+              >
+                {mode === 'signup' ? t('authPage.emailSignupCta') : t('authPage.emailLoginCta')}
+              </button>
+
               {mode === 'signup' ? (
                 <div className="text-xs text-slate-600">{t('authPage.signupExistingAccountHint')}</div>
               ) : null}
 
-              {mode === 'signup' && !emailFallbackVisible ? (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setEmailFallbackVisible(true);
-                    try {
-                      void trackClick('signup_show_email_fallback');
-                    } catch {
-                      // ignore
-                    }
-                  }}
-                  disabled={busy}
-                  className="text-left text-xs font-semibold text-sky-700 hover:underline disabled:opacity-60"
-                >
-                  {t('authPage.actions.showEmailFallback')}
-                </button>
-              ) : null}
-
-              {mode === 'login' || emailFallbackVisible ? (
+              {emailFallbackVisible ? (
                 <div className="mt-2 rounded-2xl border border-slate-200 bg-white p-4">
                   <div className="text-xs text-slate-500">{t('authPage.or')}</div>
 
@@ -2272,93 +3014,93 @@ export default function Login() {
           {showIdSignupHelp ? (
               <details className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50/60 p-3">
                 <summary className="cursor-pointer select-none text-xs font-semibold text-emerald-900">
-                  Kayıt sırasında sorun mu yaşıyorsun? (Endonezya) WhatsApp’tan kısa form gönder
+                  {t('authPage.idSignupHelp.summary')}
                 </summary>
                 <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-xs font-semibold text-slate-700">İsim</label>
+                    <label className="block text-xs font-semibold text-slate-700">{t('authPage.idSignupHelp.labels.name')}</label>
                     <input
                       value={idSignupHelp.name}
                       onChange={(e) => setIdSignupHelp((p) => ({ ...p, name: e.target.value }))}
                       className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
-                      placeholder="Adınız"
+                      placeholder={t('authPage.idSignupHelp.placeholders.name')}
                       autoComplete="name"
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-semibold text-slate-700">Yaş</label>
+                    <label className="block text-xs font-semibold text-slate-700">{t('authPage.idSignupHelp.labels.age')}</label>
                     <input
                       value={idSignupHelp.age}
                       onChange={(e) => setIdSignupHelp((p) => ({ ...p, age: e.target.value }))}
                       className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
-                      placeholder="Örn: 28"
+                      placeholder={t('authPage.idSignupHelp.placeholders.age')}
                       inputMode="numeric"
                       autoComplete="off"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-xs font-semibold text-slate-700">Medeni durum</label>
+                    <label className="block text-xs font-semibold text-slate-700">{t('authPage.idSignupHelp.labels.maritalStatus')}</label>
                     <input
                       value={idSignupHelp.maritalStatus}
                       onChange={(e) => setIdSignupHelp((p) => ({ ...p, maritalStatus: e.target.value }))}
                       className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
-                      placeholder="Bekar / Boşanmış / Dul"
+                      placeholder={t('authPage.idSignupHelp.placeholders.maritalStatus')}
                       autoComplete="off"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-xs font-semibold text-slate-700">Çocuk var mı?</label>
+                    <label className="block text-xs font-semibold text-slate-700">{t('authPage.idSignupHelp.labels.hasChildren')}</label>
                     <select
                       value={idSignupHelp.hasChildren}
                       onChange={(e) => setIdSignupHelp((p) => ({ ...p, hasChildren: e.target.value }))}
                       className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
                     >
-                      <option value="">Seçiniz</option>
-                      <option value="yok">Yok</option>
-                      <option value="var">Var</option>
+                      <option value="">{t('authPage.idSignupHelp.options.select')}</option>
+                      <option value="no">{t('authPage.idSignupHelp.options.hasChildrenNo')}</option>
+                      <option value="yes">{t('authPage.idSignupHelp.options.hasChildrenYes')}</option>
                     </select>
                   </div>
 
                   <div>
-                    <label className="block text-xs font-semibold text-slate-700">Kaç çocuk?</label>
+                    <label className="block text-xs font-semibold text-slate-700">{t('authPage.idSignupHelp.labels.childrenCount')}</label>
                     <input
                       value={idSignupHelp.childrenCount}
                       onChange={(e) => setIdSignupHelp((p) => ({ ...p, childrenCount: e.target.value }))}
                       className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
-                      placeholder="Örn: 1"
+                      placeholder={t('authPage.idSignupHelp.placeholders.childrenCount')}
                       inputMode="numeric"
                       autoComplete="off"
-                      disabled={String(idSignupHelp.hasChildren || '') !== 'var'}
+                      disabled={String(idSignupHelp.hasChildren || '') !== 'yes'}
                     />
                   </div>
 
                   <div>
-                    <label className="block text-xs font-semibold text-slate-700">Meslek</label>
+                    <label className="block text-xs font-semibold text-slate-700">{t('authPage.idSignupHelp.labels.job')}</label>
                     <input
                       value={idSignupHelp.job}
                       onChange={(e) => setIdSignupHelp((p) => ({ ...p, job: e.target.value }))}
                       className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
-                      placeholder="Örn: öğretmen"
+                      placeholder={t('authPage.idSignupHelp.placeholders.job')}
                       autoComplete="off"
                     />
                   </div>
 
                   <div className="md:col-span-2">
-                    <label className="block text-xs font-semibold text-slate-700">Aradığı kişide kriterler (kısa not)</label>
+                    <label className="block text-xs font-semibold text-slate-700">{t('authPage.idSignupHelp.labels.criteriaNote')}</label>
                     <textarea
                       value={idSignupHelp.criteriaNote}
                       onChange={(e) => setIdSignupHelp((p) => ({ ...p, criteriaNote: e.target.value }))}
                       rows={3}
                       className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
-                      placeholder="Kısa not..."
+                      placeholder={t('authPage.idSignupHelp.placeholders.criteriaNote')}
                     />
                   </div>
 
                   <div className="md:col-span-2 flex items-center justify-between gap-3">
                     <div className="text-[11px] text-slate-600">
-                      Bu form mesajı Endonezya WhatsApp hattına gönderir.
+                      {t('authPage.idSignupHelp.note')}
                     </div>
                     <a
                       href={idSignupHelpHref}
@@ -2369,7 +3111,7 @@ export default function Login() {
                         idSignupHelpCanSend ? 'bg-emerald-700 text-white hover:bg-emerald-800' : 'bg-slate-200 text-slate-500 pointer-events-none'
                       }`}
                     >
-                      WhatsApp’tan gönder
+                      {t('authPage.idSignupHelp.sendWhatsApp')}
                     </a>
                   </div>
                 </div>
@@ -2440,8 +3182,8 @@ export default function Login() {
           </div>
 
           <p className="mt-6 text-xs text-slate-500">
-            {t("authPage.legal.prefix")}
-            <span className="ml-1">
+            {t("authPage.legal.prefix")}{' '}
+            <span>
               <a href="/docs/matchmaking-kullanim-sozlesmesi.html" target="_blank" rel="noopener noreferrer" className="text-sky-700 hover:underline">
                 {t("authPage.legal.contract")}
               </a>

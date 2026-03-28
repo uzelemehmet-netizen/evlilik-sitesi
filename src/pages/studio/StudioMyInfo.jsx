@@ -6,7 +6,7 @@ import Navigation from '../../components/Navigation';
 import Footer from '../../components/Footer';
 import StudioBottomNav from '../../components/studio/StudioBottomNav';
 import { useAuth } from '../../auth/AuthProvider';
-import { db } from '../../config/firebase';
+import { db } from '../../config/firebaseDb';
 import { getLocalizedProfileText } from '../../utils/profileText';
 
 function safeStr(v) {

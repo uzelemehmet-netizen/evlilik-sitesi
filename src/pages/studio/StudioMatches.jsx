@@ -1,13 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { collection, doc, getDoc, getDocFromServer, limit, onSnapshot, orderBy, query, where } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocFromServer, getDocs, limit, onSnapshot, orderBy, query, where } from 'firebase/firestore';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Trans, useTranslation } from 'react-i18next';
 import { useAuth } from '../../auth/AuthProvider';
-import { db } from '../../config/firebase';
+import { db } from '../../config/firebaseDb';
 import Navigation from '../../components/Navigation';
 import Footer from '../../components/Footer';
 import StudioMatchCard from '../../components/studio/StudioMatchCard';
-import PwaInstallCard from '../../components/PwaInstallCard';
 import StudioInboxModal from '../../components/studio/StudioInboxModal';
 import { authFetch } from '../../utils/authFetch';
 import { translateStudioApiError } from '../../utils/studioErrorI18n';
@@ -17,6 +16,80 @@ import { openPreviewGate } from '../../utils/previewGate';
 import { buildPreviewMatches } from '../../utils/studioPreviewData';
 import StudioBottomNav from '../../components/studio/StudioBottomNav';
 import { isTutorialActive } from '../../utils/tutorialState.js';
+
+function safeStr(v) {
+  return typeof v === 'string' ? v.trim() : '';
+}
+
+function asNum(v) {
+  if (v === null || v === undefined) return null;
+  if (typeof v === 'string') {
+    const t = v.trim();
+    if (!t) return null;
+    const n = Number(t);
+    return Number.isFinite(n) ? n : null;
+  }
+  const n = typeof v === 'number' ? v : Number(v);
+  return Number.isFinite(n) ? n : null;
+}
+
+function normalizeGenderValue(v) {
+  const s = safeStr(v).toLowerCase();
+  if (s === 'male' || s === 'm' || s === 'man' || s === 'erkek') return 'male';
+  if (s === 'female' || s === 'f' || s === 'woman' || s === 'kadin' || s === 'kadın') return 'female';
+  return '';
+}
+
+function normalizeMaritalStatus(v) {
+  return safeStr(v).toLowerCase();
+}
+
+function isMinimumProfileCompleteFromUserDoc(d) {
+  const userDoc = d && typeof d === 'object' ? d : {};
+  const appFromUser = userDoc?.application && typeof userDoc.application === 'object' ? userDoc.application : null;
+  const publicProfile = userDoc?.publicProfile && typeof userDoc.publicProfile === 'object' ? userDoc.publicProfile : null;
+  const merged = {
+    ...(publicProfile || {}),
+    ...(appFromUser || {}),
+    ...(userDoc || {}),
+    details: {
+      ...((publicProfile && typeof publicProfile.details === 'object' ? publicProfile.details : {}) || {}),
+      ...((appFromUser && typeof appFromUser.details === 'object' ? appFromUser.details : {}) || {}),
+      ...((userDoc?.details && typeof userDoc.details === 'object' ? userDoc.details : {}) || {}),
+    },
+  };
+
+  const details = merged?.details && typeof merged.details === 'object' ? merged.details : {};
+
+  const fullName = safeStr(merged?.fullName);
+  const age = asNum(merged?.age);
+  const gender = normalizeGenderValue(merged?.gender);
+  const city = safeStr(merged?.city);
+  const country = safeStr(merged?.country);
+  const nationality = safeStr(merged?.nationality);
+  const occupation = safeStr(details?.occupation) || safeStr(merged?.occupation);
+  const maritalStatus = normalizeMaritalStatus(details?.maritalStatus || merged?.maritalStatus);
+
+  if (!fullName) return false;
+  if (!(typeof age === 'number' && Number.isFinite(age) && age >= 18 && age <= 99)) return false;
+  if (!gender) return false;
+  if (!city) return false;
+  if (!country) return false;
+  if (!nationality) return false;
+  if (!occupation) return false;
+  if (!maritalStatus) return false;
+
+  if (maritalStatus === 'widowed' || maritalStatus === 'divorced') {
+    const hasChildren = safeStr(details?.hasChildren || merged?.hasChildren).toLowerCase();
+    if (!hasChildren) return false;
+    if (hasChildren === 'yes') {
+      const cnt = asNum(details?.childrenCount);
+      if (!(typeof cnt === 'number' && Number.isFinite(cnt) && cnt >= 1 && cnt <= 20)) return false;
+    }
+  }
+
+  return true;
+}
 
 export default function StudioMatches() {
   const { user } = useAuth();
@@ -96,6 +169,10 @@ export default function StudioMatches() {
   const [paywallNotice, setPaywallNotice] = useState('');
   const [profileGateNotice, setProfileGateNotice] = useState('');
   const [myProfileComplete, setMyProfileComplete] = useState(true);
+  const [myHasAnyPhoto, setMyHasAnyPhoto] = useState(null); // null=unknown
+  const [myHasAnyApplication, setMyHasAnyApplication] = useState(null); // null=unknown
+
+  const [completeProfileGateOpen, setCompleteProfileGateOpen] = useState(false);
 
   const [presenceByUid, setPresenceByUid] = useState({});
   const presenceUiEnabled = false;
@@ -176,15 +253,7 @@ export default function StudioMatches() {
           (!!membershipObj?.active && (!membershipValidUntilMs || membershipValidUntilMs > now));
         setMyMembership({ active: membershipActive });
 
-        const about = String(
-          d?.details?.about ||
-            d?.publicProfile?.about ||
-            d?.application?.about ||
-            d?.application?.aboutTr ||
-            d?.application?.aboutId ||
-            ''
-        ).trim();
-        setMyProfileComplete(!!about);
+        setMyProfileComplete(isMinimumProfileCompleteFromUserDoc(d));
       } catch {
         // best-effort
       }
@@ -207,16 +276,8 @@ export default function StudioMatches() {
           (!!membershipObj?.active && (!membershipValidUntilMs || membershipValidUntilMs > now));
         setMyMembership({ active: membershipActive });
 
-        const about = String(
-          d?.details?.about ||
-            d?.publicProfile?.about ||
-            d?.application?.about ||
-            d?.application?.aboutTr ||
-            d?.application?.aboutId ||
-            ''
-        ).trim();
         // 2026-02: Apply form no longer asks for expectations.
-        setMyProfileComplete(!!about);
+        setMyProfileComplete(isMinimumProfileCompleteFromUserDoc(d));
       },
       () => {
         setMyLock({ active: false, matchId: '' });
@@ -239,6 +300,102 @@ export default function StudioMatches() {
     setProfileGateNotice(t('studio.profileGate.body'));
     try {
       if (typeof window !== 'undefined') window.scrollTo({ top: 0, behavior: 'smooth' });
+    } catch {
+      // noop
+    }
+  };
+
+  // En az 1 fotoğraf + en az 1 başvuru var mı? (pre-match gate için)
+  useEffect(() => {
+    const uid = effectiveUid;
+    if (!uid) {
+      setMyHasAnyPhoto(null);
+      setMyHasAnyApplication(null);
+      return;
+    }
+
+    const parseAppsSnap = (snap) => {
+      try {
+        let count = 0;
+        let hasPhoto = false;
+        snap.forEach((d) => {
+          count += 1;
+          if (hasPhoto) return;
+          const data = typeof d?.data === 'function' ? d.data() || {} : d?.data || {};
+          const urls = Array.isArray(data?.photoUrls) ? data.photoUrls : [];
+          if (urls.some((u) => safeStr(u))) hasPhoto = true;
+        });
+        return { count, hasPhoto };
+      } catch {
+        return null;
+      }
+    };
+
+    const qApps = query(collection(db, 'matchmakingApplications'), where('userId', '==', uid), limit(10));
+
+    let cancelled = false;
+    (async () => {
+      try {
+        const snap = await getDocs(qApps);
+        if (cancelled) return;
+        const parsed = parseAppsSnap(snap);
+        if (!parsed) return;
+        setMyHasAnyApplication(parsed.count > 0);
+        setMyHasAnyPhoto(!!parsed.hasPhoto);
+      } catch {
+        // ignore
+      }
+    })();
+
+    const unsub = onSnapshot(
+      qApps,
+      (snap) => {
+        const parsed = parseAppsSnap(snap);
+        if (!parsed) return;
+        setMyHasAnyApplication(parsed.count > 0);
+        setMyHasAnyPhoto(!!parsed.hasPhoto);
+      },
+      () => {
+        setMyHasAnyApplication(null);
+        setMyHasAnyPhoto(null);
+      }
+    );
+
+    return () => {
+      cancelled = true;
+      try {
+        unsub();
+      } catch {
+        // noop
+      }
+    };
+  }, [effectiveUid]);
+
+  const openCompleteProfileGate = () => {
+    setCompleteProfileGateOpen(true);
+    try {
+      if (typeof window !== 'undefined') window.scrollTo({ top: 0, behavior: 'smooth' });
+    } catch {
+      // noop
+    }
+  };
+
+  const dismissCompleteProfileGate = () => setCompleteProfileGateOpen(false);
+
+  const startCompleteProfileGate = () => {
+    dismissCompleteProfileGate();
+
+    const hasApp = myHasAnyApplication === true;
+    const to = hasApp ? '/evlilik/eslestirme-basvurusu?editOnce=1&w=1' : '/evlilik/eslestirme-basvuru?w=1';
+    const state = hasApp
+      ? {
+          returnTo: '/profilim',
+          afterSaveOpenPhotoManager: true,
+        }
+      : { afterSubmitOpenPhotoManager: true };
+
+    try {
+      navigate(to, { replace: false, state });
     } catch {
       // noop
     }
@@ -527,6 +684,12 @@ export default function StudioMatches() {
           : '/api/matchmaking-pre-match-respond';
     const loadingKey = `${reqType || 'pre_match'}:${from}`;
 
+    const isPreMatch = endpoint === '/api/matchmaking-pre-match-respond';
+    if (isPreMatch && (myProfileComplete === false || myHasAnyPhoto === false || myHasAnyApplication === false)) {
+      openCompleteProfileGate();
+      return;
+    }
+
     setAccessAction({ loadingId: loadingKey, error: '' });
     try {
       await authFetch(endpoint, {
@@ -538,7 +701,10 @@ export default function StudioMatches() {
     } catch (e) {
       const msg = String(e?.message || '').trim();
       if (msg === 'membership_required') requirePaid();
-      if (msg === 'profile_incomplete' || msg === 'application_not_found' || msg === 'application_required') requireProfile();
+      if (msg === 'profile_incomplete' || msg === 'application_not_found' || msg === 'application_required') {
+        if (isPreMatch) openCompleteProfileGate();
+        else requireProfile();
+      }
       setAccessAction({ loadingId: '', error: translateStudioApiError(t, msg) || msg || 'action_failed' });
     }
   };
@@ -1272,6 +1438,39 @@ export default function StudioMatches() {
           </div>
         ) : null}
 
+        {completeProfileGateOpen ? (
+          <div role="alert" className="mb-4 mx-auto max-w-4xl rounded-xl border border-amber-200 bg-amber-50 p-4 text-amber-950">
+            <div className="flex flex-wrap items-start justify-between gap-2">
+              <p className="font-semibold">
+                {t('studio.profile.completeProfileTutorial.title', { defaultValue: targetLang === 'tr' ? 'Profilini tamamla' : 'Complete your profile' })}
+              </p>
+              <button
+                type="button"
+                onClick={dismissCompleteProfileGate}
+                className="rounded-md px-2 py-1 text-sm font-semibold text-amber-900/70 hover:bg-amber-100"
+              >
+                {t('studio.common.close')}
+              </button>
+            </div>
+            <p className="mt-1 text-sm text-amber-900/80">
+              {t('studio.profile.completeProfileTutorial.body', {
+                defaultValue:
+                  targetLang === 'tr'
+                    ? 'Ön eşleşme için profilini tamamlayıp en az 1 fotoğraf yüklemelisin.'
+                    : 'To use pre-match, please complete your profile and upload at least 1 photo.',
+              })}
+            </p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <button type="button" onClick={startCompleteProfileGate} className="app-btn app-btn-primary">
+                {t('studio.profile.completeProfileTutorial.actions.ok', { defaultValue: targetLang === 'tr' ? 'Tamam' : 'Continue' })}
+              </button>
+              <button type="button" onClick={dismissCompleteProfileGate} className="app-btn app-btn-outline">
+                {t('studio.profile.completeProfileTutorial.actions.later', { defaultValue: targetLang === 'tr' ? 'Daha sonra' : 'Not now' })}
+              </button>
+            </div>
+          </div>
+        ) : null}
+
         {profileGateNotice ? (
           <div className="mb-4 mx-auto max-w-4xl rounded-xl border border-amber-200 bg-amber-50 p-4 text-amber-950">
             <div className="flex flex-wrap items-center justify-between gap-2">
@@ -1320,9 +1519,6 @@ export default function StudioMatches() {
                   }}
                 />
               </p>
-            </div>
-            <div className="mt-4 text-left">
-              <PwaInstallCard variant="light" />
             </div>
             <div className="mt-4 flex items-center justify-center gap-2">
               <Link

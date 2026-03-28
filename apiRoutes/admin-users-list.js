@@ -63,6 +63,33 @@ function pickChildrenCount(details) {
   return i;
 }
 
+function pickWhatsapp(userDoc, bestApp) {
+  try {
+    const u = userDoc && typeof userDoc === 'object' ? userDoc : null;
+    const a = bestApp && typeof bestApp === 'object' ? bestApp : null;
+
+    // Prefer top-level whatsapp on application docs.
+    const v =
+      safeStr(u?.application?.whatsapp) ||
+      safeStr(u?.whatsapp) ||
+      safeStr(a?.whatsapp) ||
+      safeStr(a?.application?.whatsapp) ||
+      // Backward/alternate keys
+      safeStr(u?.details?.whatsapp) ||
+      safeStr(u?.application?.details?.whatsapp) ||
+      safeStr(a?.details?.whatsapp) ||
+      safeStr(a?.application?.details?.whatsapp) ||
+      '';
+
+    // Basic sanity: keep it short; don't try to normalize here.
+    if (!v) return null;
+    if (v.length > 80) return v.slice(0, 80);
+    return v;
+  } catch {
+    return null;
+  }
+}
+
 function toMs(ts) {
   try {
     if (!ts) return 0;
@@ -102,6 +129,24 @@ function isMembershipActive(userDoc, now = Date.now()) {
   if (!m || !m.active) return false;
   const until = typeof m.validUntilMs === 'number' ? m.validUntilMs : 0;
   return until > now;
+}
+
+function pickPushEnabled(userDoc) {
+  return userDoc?.push?.enabled === true;
+}
+
+function pickPushEnabledAtMs(userDoc) {
+  const ms = userDoc?.push?.updatedAtMs;
+  return typeof ms === 'number' && Number.isFinite(ms) && ms > 0 ? ms : null;
+}
+
+function pickPwaInstalled(userDoc) {
+  return userDoc?.pwa?.installed === true;
+}
+
+function pickPwaInstalledAtMs(userDoc) {
+  const ms = userDoc?.pwa?.installedAtMs;
+  return typeof ms === 'number' && Number.isFinite(ms) && ms > 0 ? ms : null;
 }
 
 function parseAge(v) {
@@ -247,6 +292,7 @@ export default async function handler(req, res) {
         const maritalStatus = pickMaritalStatus(details);
         const hasChildren = pickHasChildren(details);
         const childrenCount = pickChildrenCount(details);
+        const whatsapp = pickWhatsapp(userDoc, null);
 
         res.statusCode = 200;
         res.setHeader('content-type', 'application/json');
@@ -274,6 +320,10 @@ export default async function handler(req, res) {
                 age: userDoc ? parseAge(userDoc?.age) : null,
                 gender: userDoc ? normalizeGender(userDoc?.gender) : null,
                 identityVerified: userDoc ? (userDoc?.identityVerified === true) : null,
+                pwaInstalled: userDoc ? pickPwaInstalled(userDoc) : false,
+                pwaInstalledAtMs: userDoc ? pickPwaInstalledAtMs(userDoc) : null,
+                pushEnabled: userDoc ? pickPushEnabled(userDoc) : false,
+                pushEnabledAtMs: userDoc ? pickPushEnabledAtMs(userDoc) : null,
                 lastApprovedPaymentId:
                   userDoc && typeof userDoc?.membership?.lastApprovedPaymentId === 'string'
                     ? safeStr(userDoc.membership.lastApprovedPaymentId) || null
@@ -283,6 +333,7 @@ export default async function handler(req, res) {
                 maritalStatus,
                 hasChildren,
                 childrenCount,
+                whatsapp,
               },
             ],
             nextPageToken: null,
@@ -329,6 +380,7 @@ export default async function handler(req, res) {
       const maritalStatus = pickMaritalStatus(details);
       const hasChildren = pickHasChildren(details);
       const childrenCount = pickChildrenCount(details);
+      const whatsapp = pickWhatsapp(userDoc, null);
 
       res.statusCode = 200;
       res.setHeader('content-type', 'application/json');
@@ -355,6 +407,10 @@ export default async function handler(req, res) {
               age: userDoc ? parseAge(userDoc?.age) : null,
               gender: userDoc ? normalizeGender(userDoc?.gender) : null,
               identityVerified: userDoc ? (userDoc?.identityVerified === true) : null,
+              pwaInstalled: userDoc ? pickPwaInstalled(userDoc) : false,
+              pwaInstalledAtMs: userDoc ? pickPwaInstalledAtMs(userDoc) : null,
+              pushEnabled: userDoc ? pickPushEnabled(userDoc) : false,
+              pushEnabledAtMs: userDoc ? pickPushEnabledAtMs(userDoc) : null,
               lastApprovedPaymentId:
                 userDoc && typeof userDoc?.membership?.lastApprovedPaymentId === 'string'
                   ? safeStr(userDoc.membership.lastApprovedPaymentId) || null
@@ -364,6 +420,7 @@ export default async function handler(req, res) {
               maritalStatus,
               hasChildren,
               childrenCount,
+              whatsapp,
             },
           ],
           nextPageToken: null,
@@ -464,6 +521,7 @@ export default async function handler(req, res) {
       const maritalStatus = pickMaritalStatus(details);
       const hasChildren = pickHasChildren(details);
       const childrenCount = pickChildrenCount(details);
+      const whatsapp = pickWhatsapp(userDoc, bestApp);
 
       return {
         uid,
@@ -494,6 +552,10 @@ export default async function handler(req, res) {
             normalizeGender(bestApp?.gender))
           : (normalizeGender(bestApp?.gender) ?? null),
         identityVerified: userDoc ? (userDoc?.identityVerified === true) : null,
+        pwaInstalled: userDoc ? pickPwaInstalled(userDoc) : false,
+        pwaInstalledAtMs: userDoc ? pickPwaInstalledAtMs(userDoc) : null,
+        pushEnabled: userDoc ? pickPushEnabled(userDoc) : false,
+        pushEnabledAtMs: userDoc ? pickPushEnabledAtMs(userDoc) : null,
         lastApprovedPaymentId:
           userDoc && typeof userDoc?.membership?.lastApprovedPaymentId === 'string'
             ? safeStr(userDoc.membership.lastApprovedPaymentId) || null
@@ -503,6 +565,8 @@ export default async function handler(req, res) {
         maritalStatus,
         hasChildren,
         childrenCount,
+
+        whatsapp,
       };
     });
 

@@ -106,6 +106,7 @@ export default {
     tours: "Turlar",
     wedding: "Evlilik Rehberliği (TR–ID)",
     matchmaking: "Eş Adayı",
+    leadApply: "Aracılık Hizmeti",
     panel: "Profilim",
     documents: "Dokümanlar",
     youtube: "YouTube",
@@ -166,6 +167,163 @@ export default {
       whatsapp: 'WhatsApp',
     },
     copyright: '© {{year}} {{company}}. Tüm hakları saklıdır.',
+  },
+
+  leadNoAuth: {
+    title: 'Aracılık Hizmeti Başvurusu',
+    subtitle:
+      "Birçok kişi online tanışma sitelerine güvenmiyor ve bizden güvenilir insanlarla tanışmak için aracılık etmemizi ve istedikleri özelliklerde biri olduğunda tanıştırmamızı talep ediyor. Bu sebeple Endonezya’daki taaruf sistemine benzer şekilde, verdiğiniz bilgilerle size uygun eş adayını bulup hakkında araştırma yapıyoruz ve tanışmanızı sağlıyoruz. Siz de bu şekilde evlenmek istiyorsanız aşağıdaki formu doldurarak başvurunuzu oluşturun.",
+    info: {
+      title: 'Aracılık Hizmeti Hakkında',
+      b1: 'Bu sayfa, eşleştirme platformuna kayıt olmak istemeyen kişiler için; bizim aracılığımızla güvenilir bir eş adayı bulmak amacıyla tasarlanmıştır.',
+      b2: 'Uygun bir eş adayı olduğunda bilgilendirilirsiniz ve eş adayınızla tanıştırılırsınız.',
+      b3: 'Dilerseniz, karşılıklı olarak eş adayınız hakkında detaylı araştırma yapılır ve güvenilirliği teyit etmek için verilen bilgiler doğrulanır.',
+      b4: 'Aşağıdaki formu doldurarak, uygun eş adayınız bulunduğunda size aracılık etmek için hazırız.',
+      b5: 'Burada verdiğiniz bilgiler, uygun eş adayınız dışında kimse ile paylaşılmaz ve yalnızca size uygun eş adayını bulmak için kullanılır.',
+      b6: 'Uygun bir eş adayı ile tanıştıktan sonra talep etmeniz halinde tüm bilgiler sistemden silinir.',
+    },
+    success: {
+      title: 'Başvurunuz alındı.',
+      ref: 'Referans: {{id}}',
+      note: 'Uygun bir eş adayı bulunduğunda bilgilendirileceksiniz.',
+    },
+    errors: {
+      required: 'Lütfen zorunlu alanları doldurun ve onay kutularını işaretleyin.',
+      rateLimited: 'Kısa sürede çok fazla deneme yapıldı. Lütfen daha sonra tekrar deneyin.',
+    },
+    common: {
+      select: 'Seçin…',
+      yes: 'Evet',
+      no: 'Hayır',
+      any: 'Farketmez',
+      female: 'Kadın',
+      male: 'Erkek',
+      uploading: 'Yükleniyor…',
+    },
+    actions: {
+      pickPhoto: 'Fotoğraf seç',
+      submit: 'Başvuruyu Gönder',
+      sending: 'Gönderiliyor…',
+      done: 'Tamam',
+    },
+    placeholders: {
+      whatsapp: 'Örn: +90 5xx xxx xx xx / +62 ...',
+      heightCm: 'Örn: 175',
+      weightKg: 'Örn: 72',
+      profession: 'Örn: Öğretmen',
+      childrenCount: 'Örn: 2',
+      childrenAges: 'Örn: 3 ve 7',
+      additionalInfoText: 'Kısaca yazabilirsiniz…',
+    },
+    fields: {
+      gender: 'Cinsiyet',
+      fullName: 'İsim',
+      age: 'Yaş',
+      heightCm: 'Boy (cm)',
+      weightKg: 'Kilo (kg)',
+      city: 'Şehir',
+      whatsapp: 'Telefon / WhatsApp',
+      maritalStatus: 'Medeni durum',
+      hasChildren: 'Çocuk durumu',
+      livingWith: 'Kimle yaşıyorsun',
+      occupation: 'İş durumu',
+      profession: 'Meslek',
+      income: 'Gelir durumu',
+      foreignLanguage: 'Konuşulan yabancı dil',
+      translationOk: 'Çeviri aracılığıyla iletişim kabul eder mi?',
+      familyApproval: 'Ailen yabancı biriyle evlenmene izin verir mi?',
+      additionalInfo: 'Kendiniz hakkında vermek istediğiniz, karşı tarafın bilmesi gereken bir bilgi var mı?',
+      photo: 'Fotoğraf',
+    },
+    options: {
+      marital: {
+        single: 'Bekar',
+        widowed: 'Dul',
+        divorced: 'Boşanmış',
+        married: 'Evli',
+      },
+      hasChildren: {
+        yes: 'Çocuğum var',
+        no: 'Çocuğum yok',
+      },
+      familyApproval: {
+        unknown: 'Henüz ailemle konuşmadım',
+      },
+      workStatus: {
+        civilServant: 'Memur',
+        worker: 'İşçi',
+        businessOwner: 'Kendi işinin sahibi',
+        retired: 'Emekli',
+        notWorking: 'Çalışmıyor',
+      },
+      income: {
+        low: 'Düşük',
+        mid: 'Orta',
+        good: 'İyi',
+      },
+      livingWith: {
+        withFamily: 'Ailemle yaşıyorum',
+        withChildren: 'Çocuklarımla yaşıyorum',
+        withFriend: 'Arkadaşımla yaşıyorum',
+        alone: 'Yalnız yaşıyorum',
+      },
+      childrenLivingWith: {
+        withMe: 'Benimle yaşıyor',
+        notWithMe: 'Benimle yaşamıyor',
+      },
+    },
+    children: {
+      title: 'Çocuk Bilgileri',
+      count: 'Kaç çocuk?',
+      ages: 'Çocuklar kaç yaşında?',
+      livingWith: 'Çocuklar kimle yaşıyor?',
+    },
+    photoNote: 'En az 1, en fazla 5 fotoğraf yükleyebilirsiniz.',
+    partner: {
+      title: 'Aradığım Kişi',
+      hasChildren: 'Çocuk durumu',
+      maritalStatus: 'Medeni durum',
+      ageMin: 'Yaş (min)',
+      ageMax: 'Yaş (max)',
+      heightMin: 'Boy (min, cm)',
+      heightMax: 'Boy (max, cm)',
+      weightMin: 'Kilo (min, kg)',
+      weightMax: 'Kilo (max, kg)',
+      occupation: 'İş durumu',
+      spouseWanted: 'Nasıl bir eş adayı arıyorsunuz?',
+      income: 'Gelir durumu',
+      livingWith: 'Kimle yaşıyor',
+      religiousValues: 'Dinî değerleri',
+    },
+    partnerOptions: {
+      hasChildren: {
+        yes: 'Çocuğu olsun',
+        no: 'Çocuğu olmasın',
+      },
+      livingWith: {
+        withFamily: 'Aile ile yaşıyor',
+        withChildren: 'Çocuklarıyla yaşıyor',
+        alone: 'Yalnız yaşıyor',
+        withFriends: 'Arkadaşlarıyla yaşıyor',
+      },
+      religiousValues: {
+        religious: 'Dindar',
+      },
+    },
+    checklist: {
+      title: 'Kontrol listesi',
+      accuracy: 'Verdiğim bilgilerin doğruluğunu kabul ederim.',
+      disclaimer: "Verdiğim bilgilerden doğabilecek sonuçlardan uniqah.com'un sorumlu olmadığını kabul ederim.",
+    },
+    religious: {
+      title: 'Dini görevleri yerine getirme',
+      options: {
+        prayer5: '5 vakit namaz',
+        fasting: 'Oruç',
+        hajj: 'Hac',
+        umrah: 'Umre',
+      },
+    },
   },
 
   tour: {
@@ -267,7 +425,7 @@ export default {
       readLess: 'Daha az göster',
       match: 'Eşleşme',
       profile: 'Profil',
-      verified: 'Güvenilir kullanıcı',
+      verified: 'Doğrulanmış kullanıcı',
       unknown: 'Bilinmiyor',
       zoom: 'Büyüt',
       enlargePhotoAria: '{{name}} fotoğrafını büyüt',
@@ -293,7 +451,7 @@ export default {
       myCodeLabel: 'Davet kodun',
       shareButton: 'WhatsApp’tan paylaş',
       shareMessage:
-        'https://uniqah.com/login\n\nEvlilik amaçlı tanışma uygulamasına davet kodun {{code}}. Bu kodu kayıt formuna ekleyerek 1 aylık ücretsiz üyelik kazanabilirsin.',
+        '{{url}}\n\nEvlilik amaçlı tanışma uygulamasına davet kodun {{code}}. Bu kodu kayıt formuna ekleyerek 1 aylık ücretsiz üyelik kazanabilirsin.',
       copy: 'Kopyala',
       copied: 'Kopyalandı.',
       enterCodeLabel: 'Davet kodu',
@@ -399,7 +557,7 @@ export default {
     },
 
     pool: {
-      title: 'Keşfet',
+      title: 'Eş Adayları',
       backToMatches: '← Eşleşmelere dön',
       refresh: 'Yenile',
       lastUpdated: 'Otomatik yenilenir (20 sn).',
@@ -1696,6 +1854,7 @@ export default {
         badge: 'Hızlı Başvuru',
         step: 'Adım {{current}} / {{total}}',
         back: 'Geri',
+        backPage: 'Sayfaya dön',
         next: 'Devam',
         steps: {
           basic: {
@@ -1740,7 +1899,7 @@ export default {
       },
       contactPrivacyNotice:
         'İletişim bilgileriniz (WhatsApp/e-posta) gizlidir. Form doldururken ve uygulamada herkese açık şekilde gösterilmez.',
-      contactNumberNote: 'İletişim numaranız kimseyle paylaşılmaz; sadece sistem doğrulamanız için gereklidir.',
+      contactNumberNote: 'İletişim numaranız kimseyle paylaşılmaz; gerektiğinde sizinle iletişime geçmemiz için gereklidir.',
       inviteCodeHelp:
         'Sizi bir arkadaşınız davet ettiyse davet kodunuzu bu alana ekleyip ücretsiz üyelikten faydalanabilirsiniz. Davet kodunuz yoksa bu alanı boş bırakabilirsiniz.',
       confirmGender: {
@@ -1971,9 +2130,11 @@ export default {
       submitting: 'Gönderiliyor…',
       success:
         'Başvurunuz alındı. Profilinizle eşleşen kişiler Profilim sayfanızda görüntülenecektir.',
+      successNoAuth: 'Başvurunuz alındı. Ekibimiz en kısa sürede sizinle iletişime geçecektir.',
       errors: {
         blocked: 'Bu hesap evlilik başvurularında engellenmiş. Eğer bunun hata olduğunu düşünüyorsanız bizimle iletişime geçin.',
         mustLogin: 'Başvuruyu göndermek için giriş yapmanız gerekir.',
+        contactRequired: 'Lütfen iletişim için WhatsApp numaranızı veya e-posta adresinizi girin.',
         alreadySubmitted: 'Zaten bir evlilik başvurunuz var. Profilim sayfanızdan bilgilerinizi güncelleyebilirsiniz.',
         profileTextWriteOnceUsed: 'Profil metinleri Profilim sayfasından güncellenebilir.',
         profileTextPII: '“Hakkımda” ve “Aradığım kişi” alanlarına iletişim bilgisi (telefon, e-posta, link, Instagram, IBAN vb.) yazmayın.',
@@ -2887,7 +3048,7 @@ export default {
         wedding: {
           title: "Endonezya’da evlilik rehberliği",
           description:
-            "Evlilik sürecinizde belgeler, yasal işlemler, tercümanlık, ulaşım ve konaklama dahil adım adım ilerler; süreci daha sakin ve yönetilebilir hale getiririz.",
+            'Tanışıp evlilik kararı aldığınız bir eş adayınız var ve nasıl evleneceğinizi, resmî işlemlerin nasıl ilerlediğini bilmiyorsunuz ve yardıma ya da rehberliğe mi ihtiyacınız var? Buraya tıklayın; tüm işlemler ve belgeler dahil her konuda size yardım edelim. Siz en rahat ve kolay yoldan hayalinizdeki evliliği gerçekleştirin.',
         },
         youtube: {
           title: "YouTube videoları",
@@ -2971,7 +3132,8 @@ export default {
       ctaTryFree: "Ücretsiz dene",
       ctaWeddingGuidance: 'Evlilik rehberliğini aç',
       ctaMatchmaking: 'Eş adayı bul',
-      matchmakingHint: 'Henüz bir eş adayınız yok mu? O halde eşleştirme sistemimize kayıt olun ve eş adaylarını Profilim sayfanızdan takip edin.',
+      matchmakingHint:
+        'Size uygun birden fazla eş adayı ile tanışıp doğrudan iletişime geçmek için tanışma uygulamamıza kayıt olup form doldurabilir, eş adaylarının profillerini inceleyebilir ya da onlarla iletişime geçebilirsiniz. Eşleştirme uygulamamıza kayıt olmak ve eş adaylarıyla iletişime geçmek için buraya tıklayın.',
       ctaContact: "İletişim formunu aç",
       ctaWhatsapp: "WhatsApp ile sor",
     },
@@ -3294,16 +3456,22 @@ export default {
     forceInfo: 'Bu işlem için yeniden giriş yapmanız istendi. Lütfen tekrar giriş yapın.',
     googleCta: 'Google ile devam et',
     googleSignupCta: 'Google ile kayıt ol',
+    emailLoginCta: 'Email/Şifre ile giriş yap',
+    emailSignupCta: 'Email/Şifre ile kaydol',
     appleCta: 'Apple ile devam et',
     appleSignupCta: 'Apple ile kayıt ol',
     redirecting: 'Girişe yönlendiriliyorsunuz…',
+    infos: {
+      startingGoogle: 'Google giriş ekranı açılıyor…',
+      inAppBrowserGoogleRedirect: 'Tarayıcınız popup engelliyor olabilir. Google girişine yönlendiriyoruz…',
+    },
     redirectScreen: {
       title: 'Yönlendiriliyorsun…',
       body: 'Profil sayfası açılıyor. Bu ekran uzun sürerse aşağıdan devam edebilirsin.',
       goProfile: 'Profilime Git',
       refresh: 'Yenile',
     },
-    signupGuide: 'Kayıt olmak için Google ile devam edin; ardından kısa profilinizi tamamlayın.',
+    signupGuide: 'Kayıt olmak için Google ile devam edin; ardından eşleştirme başvuru formunu doldurun.',
     signupExistingAccountHint: 'Zaten hesabın varsa Google ile giriş yap.',
     quickProfile: {
       title: 'Hızlı Profil Formu',
@@ -3431,6 +3599,43 @@ export default {
       tooShort: 'Lütfen en az {{min}} karakter yazın.',
       failed: 'Gönderilemedi. Lütfen tekrar deneyin.',
     },
+    idSignupHelp: {
+      summary: 'Kayıt sırasında sorun mu yaşıyorsun? (Endonezya) WhatsApp’tan kısa form gönder',
+      labels: {
+        name: 'İsim',
+        age: 'Yaş',
+        maritalStatus: 'Medeni durum',
+        hasChildren: 'Çocuk var mı?',
+        childrenCount: 'Kaç çocuk?',
+        job: 'Meslek',
+        criteriaNote: 'Aradığı kişide kriterler (kısa not)',
+      },
+      placeholders: {
+        name: 'Adınız',
+        age: 'Örn: 28',
+        maritalStatus: 'Bekar / Boşanmış / Dul',
+        childrenCount: 'Örn: 1',
+        job: 'Örn: öğretmen',
+        criteriaNote: 'Kısa not...',
+      },
+      options: {
+        select: 'Seçiniz',
+        hasChildrenNo: 'Yok',
+        hasChildrenYes: 'Var',
+      },
+      note: 'Bu form mesajı Endonezya WhatsApp hattına gönderir.',
+      sendWhatsApp: 'WhatsApp’tan gönder',
+      messageTitle: 'Kayıt sorunu (Endonezya) - kısa bilgi',
+      messageFields: {
+        name: 'İsim',
+        age: 'Yaş',
+        maritalStatus: 'Medeni durum',
+        hasChildren: 'Çocuk',
+        childrenCount: 'Kaç çocuk',
+        job: 'Meslek',
+        criteriaNote: 'Kriter notu',
+      },
+    },
     legal: {
       prefix: 'Devam ederek',
       contract: 'Kullanıcı / Üyelik sözleşmesi',
@@ -3441,7 +3646,7 @@ export default {
     infos: {
       accountExistsTryLogin: 'Zaten kayıtlı bir hesabınız var. E-posta ve şifrenizi kullanarak giriş yapmayı deneyin.',
       inAppBrowserGoogleRedirect:
-        'TikTok uygulama içi tarayıcısında Google ile giriş bazen çalışmıyor. Şimdi Google girişini yönlendirme (redirect) ile açıyoruz…',
+        'Uygulama içi tarayıcılarda Google ile giriş bazen çalışmıyor. Şimdi Google girişini yönlendirme (redirect) ile açıyoruz…',
     },
     errors: {
       noAccountFoundSignupRequired:
@@ -3458,6 +3663,10 @@ export default {
       appleOperationNotAllowed:
         'Apple ile giriş kapalı. Firebase Console → Authentication → Sign-in method → Apple sağlayıcısını etkinleştirin.',
       firebaseAuthInvalidConfig: 'Firebase Auth yapılandırması geçersiz. `.env.local` içindeki `VITE_FIREBASE_*` değerlerini kontrol edin.',
+      googleInAppBlocked:
+        'Google ile giriş bu uygulama içi tarayıcıda engellenmiş olabilir. Lütfen menüden “Tarayıcıda aç” ile Chrome/Safari’de açıp tekrar deneyin veya e‑posta ile devam edin.',
+      googleRedirectNoResult:
+        'Google ile giriş, Google’dan geri döndükten sonra tamamlanamadı. Lütfen tekrar deneyin veya Email/Şifre ile devam edin.',
       googleFailed: 'Google ile giriş başarısız.',
       appleFailed: 'Apple ile giriş başarısız.',
       invalidCredential: 'E-posta veya şifre hatalı ya da hesap bulunamadı. Şifrenizi unuttuysanız “Şifremi unuttum” ile sıfırlamayı deneyin.',
