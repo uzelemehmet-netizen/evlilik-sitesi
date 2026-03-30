@@ -1,5 +1,3 @@
-/* eslint-disable no-restricted-globals */
-
 import { cleanupOutdatedCaches, precacheAndRoute } from 'workbox-precaching';
 import { clientsClaim } from 'workbox-core';
 import { registerRoute } from 'workbox-routing';
@@ -213,7 +211,7 @@ self.addEventListener('notificationclick', (event) => {
 
   event.waitUntil(
     (async () => {
-      const clientList = await clients.matchAll({ type: 'window', includeUncontrolled: true });
+      const clientList = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
       for (const client of clientList) {
         try {
           if ('focus' in client) {
@@ -226,7 +224,7 @@ self.addEventListener('notificationclick', (event) => {
         }
       }
       try {
-        await clients.openWindow(url);
+        await self.clients.openWindow(url);
       } catch {
         // ignore
       }

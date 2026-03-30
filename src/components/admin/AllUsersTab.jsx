@@ -36,7 +36,11 @@ function statusLabel(code) {
   if (c === 'DISABLED') return 'DEVRE DIŞI';
   if (c === 'BLOCKED') return 'ENGELLİ';
   if (c === 'FORM') return 'FORM';
+  if (c === 'CACHE') return 'FORM CACHE';
+  if (c === 'STUB') return 'STUB';
+  if (c === 'PROFILE') return 'PROFİL';
   if (c === 'SYSTEM') return 'SİSTEM';
+  if (c === 'NO_AUTH') return 'AUTH YOK';
   if (c === 'NO_DOC') return 'DOKÜMAN YOK';
   return c || '-';
 }
@@ -45,8 +49,21 @@ function statusPillClass(code) {
   const c = String(code || '').toUpperCase();
   if (c === 'BLOCKED' || c === 'DISABLED') return 'bg-rose-100 text-rose-800';
   if (c === 'FORM') return 'bg-emerald-100 text-emerald-800';
+  if (c === 'CACHE') return 'bg-teal-100 text-teal-800';
+  if (c === 'STUB') return 'bg-amber-100 text-amber-800';
+  if (c === 'PROFILE') return 'bg-sky-100 text-sky-800';
   if (c === 'SYSTEM') return 'bg-slate-200 text-slate-800';
+  if (c === 'NO_AUTH') return 'bg-fuchsia-100 text-fuchsia-800';
   return 'bg-amber-100 text-amber-800';
+}
+
+function applicationStateLabel(state) {
+  const s = String(state || '').toLowerCase();
+  if (s === 'real') return 'Gerçek form';
+  if (s === 'cache') return 'Cache form';
+  if (s === 'stub' || s === 'stub_cache') return 'Stub';
+  if (s === 'profile') return 'Profil cache';
+  return 'Yok';
 }
 
 function pill(color) {
@@ -976,11 +993,22 @@ export default function AllUsersTab() {
                 <tbody>
                   {visibleUsers.map((u) => {
                     const isSelected = selected?.uid && u?.uid === selected.uid;
+                    const applicationStatusCode =
+                      u?.applicationState === 'real'
+                        ? 'FORM'
+                        : u?.applicationState === 'cache'
+                          ? 'CACHE'
+                          : u?.applicationState === 'stub' || u?.applicationState === 'stub_cache'
+                            ? 'STUB'
+                            : u?.applicationState === 'profile'
+                              ? 'PROFILE'
+                              : null;
                     const status = [
                       u?.disabled ? 'DISABLED' : null,
                       u?.blocked ? 'BLOCKED' : null,
-                      u?.hasApplication ? 'FORM' : null,
+                      applicationStatusCode,
                       u?.systemUser ? 'SYSTEM' : null,
+                      u?.hasAuthRecord === false ? 'NO_AUTH' : null,
                       u?.hasUserDoc ? null : 'NO_DOC',
                     ].filter(Boolean);
 
@@ -1121,7 +1149,7 @@ export default function AllUsersTab() {
                     Üyelik: {selected.membershipActive ? 'Aktif' : 'Pasif'}
                   </span>
                   <span className={selected.hasApplication ? pill('green') : pill('amber')}>
-                    Form: {selected.hasApplication ? 'Var' : 'Yok'}
+                    Başvuru: {applicationStateLabel(selected.applicationState)}
                   </span>
                   <span className={selected.blocked ? pill('red') : pill('slate')}>
                     {selected.blocked ? 'Engelli' : 'Engel yok'}
@@ -1456,12 +1484,38 @@ export default function AllUsersTab() {
                     ) : null}
                   </section>
 
-                  {!formModal.application ? (
-                    <div className="mt-4 text-sm text-slate-700">
-                      <p className="font-semibold">Başvuru/Form bulunamadı.</p>
-                      <p className="mt-1 text-slate-600">Kullanıcı henüz form doldurmamış olabilir veya kayıt farklı koleksiyonda olabilir.</p>
-                    </div>
-                  ) : null}
+                  {(() => {
+                    const hasUserCache = !!(
+                      formModal.user?.userCode ||
+                      formModal.user?.fullName ||
+                      typeof formModal.user?.age === 'number' ||
+                      formModal.user?.gender ||
+                      (Array.isArray(formModal.user?.photoUrls) && formModal.user.photoUrls.length) ||
+                      (Array.isArray(formModal.user?.photoPaths) && formModal.user.photoPaths.length) ||
+                      formModal.user?.photoPath ||
+                      formModal.user?.details ||
+                      formModal.user?.publicProfile ||
+                      formModal.user?.application
+                    );
+
+                    if (formModal.application) return null;
+
+                    if (hasUserCache) {
+                      return (
+                        <div className="mt-4 rounded-xl border border-sky-200 bg-sky-50 p-3 text-sm text-sky-900">
+                          <p className="font-semibold">Gerçek başvuru dokümanı bulunamadı, kullanıcı önbellek/profil verisi gösteriliyor.</p>
+                          <p className="mt-1 text-sky-800">Bu kullanıcı sistemde aktif olabilir; bazı alanlar matchmakingUsers veya publicProfile önbelleğinden geliyor.</p>
+                        </div>
+                      );
+                    }
+
+                    return (
+                      <div className="mt-4 text-sm text-slate-700">
+                        <p className="font-semibold">Başvuru/Form bulunamadı.</p>
+                        <p className="mt-1 text-slate-600">Kullanıcı henüz form doldurmamış olabilir veya kayıt farklı koleksiyonda olabilir.</p>
+                      </div>
+                    );
+                  })()}
 
                   {formModal.application && String(formModal.application?.source || '').trim().toLowerCase() === 'auto_stub' ? (
                     <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
@@ -1469,6 +1523,13 @@ export default function AllUsersTab() {
                       <p className="mt-1 text-amber-800">
                         Kullanıcı başvuru formunu tamamlamamış olabilir. Bu yüzden meslek/medeni durum/çocuk gibi alanlar boş görünebilir.
                       </p>
+                    </div>
+                  ) : null}
+
+                  {formModal.application && String(formModal.application?.source || '').trim().toLowerCase() === 'user_profile_cache' ? (
+                    <div className="mt-4 rounded-xl border border-sky-200 bg-sky-50 p-3 text-sm text-sky-900">
+                      <p className="font-semibold">Bu kayıt kullanıcı profil önbelleğinden derlendi.</p>
+                      <p className="mt-1 text-sky-800">Yani ayrı bir matchmakingApplications dokümanı bulunamadı; admin görünümü matchmakingUsers/publicProfile verisini gösteriyor.</p>
                     </div>
                   ) : null}
 
@@ -1480,16 +1541,24 @@ export default function AllUsersTab() {
                         <div className="mt-2 space-y-1">
                           <div className="text-sm"><span className="text-slate-600">UC:</span> <span className="font-mono">{safeStr(formModal.user?.userCode) || '-'}</span></div>
                           <div className="text-sm"><span className="text-slate-600">Ad Soyad:</span> {safeStr(formModal.user?.fullName) || safeStr(formModal.application?.fullName) || '-'}</div>
-                          <div className="text-sm"><span className="text-slate-600">Yaş:</span> {typeof formModal.user?.age === 'number' ? formModal.user.age : '-'}</div>
+                          <div className="text-sm"><span className="text-slate-600">Yaş:</span> {typeof formModal.user?.age === 'number' ? formModal.user.age : (typeof formModal.application?.age === 'number' ? formModal.application.age : '-')}</div>
                           <div className="text-sm"><span className="text-slate-600">Cinsiyet:</span> {formatPrimitive(formModal.user?.gender || formModal.application?.gender, 'gender')}</div>
                           {(() => {
                             const app = formModal.application && typeof formModal.application === 'object' ? formModal.application : null;
                             const appDetails = app?.details && typeof app.details === 'object' ? app.details : null;
+                            const userAppDetails = formModal.user?.application?.details && typeof formModal.user.application.details === 'object'
+                              ? formModal.user.application.details
+                              : null;
                             const userDetails = formModal.user?.details && typeof formModal.user.details === 'object' ? formModal.user.details : null;
                             const ppDetails = formModal.user?.publicProfile?.details && typeof formModal.user.publicProfile.details === 'object'
                               ? formModal.user.publicProfile.details
                               : null;
-                            const d = appDetails || userDetails || ppDetails;
+                            const d = {
+                              ...(ppDetails || {}),
+                              ...(userDetails || {}),
+                              ...(userAppDetails || {}),
+                              ...(appDetails || {}),
+                            };
                             const occupation = d ? (safeStr(d?.occupationTr) || safeStr(d?.occupation) || safeStr(d?.job) || safeStr(d?.profession)) : '';
                             const maritalStatus = d ? (safeStr(d?.maritalStatus) || safeStr(d?.marital)) : '';
                             const hasChildren = d ? (d?.hasChildren ?? d?.children ?? null) : null;

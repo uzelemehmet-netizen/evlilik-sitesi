@@ -49,7 +49,7 @@ export const auth = (() => {
     // initializeAuth, persistence'i en baştan bağladığı için,
     // "önce restore edip sonra setPersistence" yarışını engeller.
     return initializeAuth(app, { persistence: authPersistence, popupRedirectResolver: browserPopupRedirectResolver });
-  } catch (e) {
+  } catch {
     // HMR / yeniden import durumunda aynı app için auth zaten init edilmiş olabilir.
     return getAuth(app);
   }
@@ -68,7 +68,7 @@ export const db = (() => {
       // Fetch streams bazı ortamlarda sorun çıkarabiliyor; XHR daha uyumlu.
       useFetchStreams: false,
     });
-  } catch (e) {
+  } catch {
     // HMR / yeniden import durumunda aynı app için firestore zaten init edilmiş olabilir.
     return getFirestore(app);
   }

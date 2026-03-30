@@ -349,12 +349,17 @@ const overrides = {
     infos: {
       startingGoogle: 'Membuka login Google…',
       inAppBrowserGoogleRedirect: 'Browser Anda mungkin memblokir popup. Mengalihkan ke login Google…',
+      accountExistsTryLogin: 'Anda sudah memiliki akun. Silakan coba masuk dengan email dan kata sandi Anda.',
     },
     redirectScreen: {
       title: 'Mengalihkan…',
       body: 'Membuka profil Anda. Jika layar ini lama, Anda bisa lanjut lewat tombol di bawah.',
       goProfile: 'Ke profil saya',
       refresh: 'Muat ulang',
+    },
+    trustNote: {
+      title: 'Dirancang untuk niat menikah yang serius',
+      body: 'Uniqah adalah sistem berorientasi pernikahan yang didirikan oleh pasangan Turki-Indonesia. Akun dapat dibatasi setelah peninjauan atas pelanggaran kebijakan atau niat buruk; jika Anda memintanya melalui jalur WhatsApp kami, kami dapat melakukan riset lebih mendetail tentang calon pasangan yang Anda kenal dan membantu membangun rasa percaya di antara kalian.',
     },
     signupGuide: 'Untuk mendaftar, lanjutkan dengan Google, lalu isi formulir pendaftaran matchmaking.',
     signupExistingAccountHint: 'Jika Anda sudah punya akun, masuk dengan Google.',
@@ -528,11 +533,6 @@ const overrides = {
       privacy: 'Kebijakan Privasi',
     },
     resetSent: 'Tautan reset kata sandi telah dikirim ke email Anda.',
-    infos: {
-      accountExistsTryLogin: 'Anda sudah memiliki akun. Silakan coba masuk dengan email dan kata sandi Anda.',
-      inAppBrowserGoogleRedirect:
-        'Masuk dengan Google mungkin tidak berfungsi di browser dalam aplikasi. Kami akan membuka login Google dengan redirect…',
-    },
     errors: {
       noAccountFoundSignupRequired:
         'Akun tidak ditemukan. Anda perlu mendaftar terlebih dahulu. Kami mengalihkan Anda ke pendaftaran—pilih jenis kelamin/kewarganegaraan, masukkan usia, lalu coba lagi.',
@@ -551,6 +551,10 @@ const overrides = {
         'Konfigurasi Firebase Auth tidak valid. Periksa nilai `VITE_FIREBASE_*` di `.env.local` (dan env Vercel).',
       googleInAppBlocked:
         'Masuk dengan Google mungkin diblokir di browser dalam aplikasi ini. Silakan gunakan “Buka di browser” (Chrome/Safari) lalu coba lagi, atau lanjutkan dengan email.',
+      googlePopupBlocked:
+        'Browser memblokir popup Google. Izinkan popup lalu coba lagi. Jika masih gagal, buka di Chrome/Safari atau lanjutkan dengan email.',
+      googlePopupClosed:
+        'Jendela Google ditutup sebelum proses selesai. Silakan coba lagi.',
       googleRedirectNoResult:
         'Masuk dengan Google tidak berhasil diselesaikan setelah kembali dari Google. Silakan coba lagi, atau lanjutkan dengan email/kata sandi.',
       googleFailed: 'Masuk dengan Google gagal.',
@@ -918,10 +922,6 @@ const overrides = {
   },
 
   studio: {
-    accessInbox: {
-      openButton: 'Permintaan masuk',
-      openButtonWithCount: 'Permintaan masuk ({{count}})',
-    },
     common: {
       back: 'Kembali',
       open: 'Buka',
@@ -947,10 +947,6 @@ const overrides = {
       lastSeenHours_other: 'Terakhir aktif: {{count}} jam lalu',
       lastSeenDays_one: 'Terakhir aktif: {{count}} hari lalu',
       lastSeenDays_other: 'Terakhir aktif: {{count}} hari lalu',
-    },
-
-    errors: {
-      generic: 'Kesalahan',
     },
 
     referral: {
@@ -1085,6 +1081,14 @@ const overrides = {
       actionsSoon: 'Segera: pesan singkat',
       notInTheirRange: 'Untuk interaksi, kamu harus masuk rentang usianya.',
       notInTheirRangeShort: 'Rentang usia tidak cocok',
+      optionalDetailsRecommendation: {
+        title: 'Detail sisanya bisa Anda lengkapi nanti',
+        body: 'Kolom wajib Anda sudah lengkap. Jika mau, sekarang Anda bisa melengkapi sisa detail profil dan preferensi agar saran pasangan lebih baik. Jika pilih nanti, Anda bisa terus memakai Jelajah.',
+        actions: {
+          ok: 'OK',
+          later: 'Nanti',
+        },
+      },
     },
 
     waitingNote: {
@@ -1104,7 +1108,9 @@ const overrides = {
       important: 'PENTING',
       title: 'Lengkapi profilmu',
       body: 'Karena sistem ini mempertemukan orang-orang yang berniat menikah, Anda perlu mengisi formulir profil untuk dapat berinteraksi dengan pengguna lain.',
+      photoBody: 'Formulir Anda sudah pernah diisi. Untuk berinteraksi sekarang, Anda perlu mengunggah minimal 1 foto. Silakan tambahkan dari bagian Foto Saya.',
       cta: 'Isi formulir profil',
+      photoCta: 'Unggah foto',
       badge: 'Pengguna tidak dikenal',
     },
 
@@ -1378,6 +1384,16 @@ const overrides = {
       membershipActive: 'Aktif',
       membershipPassive: 'Tidak aktif',
       endsAt: 'Berakhir',
+      completeProfileTutorial: {
+        title: 'Lengkapi profil Anda',
+        body: 'Untuk bisa berinteraksi, silakan isi formulir profil dan selesaikan pembuatan profil Anda (termasuk minimal 1 foto).',
+        photoBody: 'Formulir Anda sudah tersimpan. Untuk berinteraksi sekarang, Anda perlu mengunggah minimal 1 foto. Buka Foto Saya lalu tambahkan foto.',
+        actions: {
+          ok: 'Isi formulir',
+          uploadPhoto: 'Unggah foto',
+          later: 'Nanti saja',
+        },
+      },
       editProfile: 'Edit profil',
       myMatches: 'Pencocokan saya',
       logout: 'Keluar',
@@ -1484,6 +1500,10 @@ const overrides = {
         points: {
           optional: 'Tidak wajib; ini hanya lencana kepercayaan (opsional).',
           privacy: 'Detail verifikasi tidak dibagikan di luar tujuan verifikasi.',
+          matchmakingHub: 'Hub pencocokan',
+          matchmakingHint: 'Jika Anda belum punya calon pasangan, Anda bisa masuk ke alur pencocokan dari sini.',
+          verifyMethodUpload: 'Unggah foto identitas',
+          verifyMethodWhatsApp: 'Panggilan video WhatsApp',
           destroy: 'Setelah verifikasi selesai, file/data verifikasi yang dikirim tidak disimpan secara permanen.',
           deleteAccount: 'Anda dapat menghapus akun kapan saja untuk menghapus data profil dan kecocokan.',
           sorting: 'Profil terverifikasi ditampilkan di urutan teratas di Jelajahi.',
@@ -1772,8 +1792,8 @@ const overrides = {
           description: 'Dukungan via WhatsApp; bantuan multi-bahasa bila diperlukan.',
         },
         {
-          title: 'Struktur legal',
-          description: 'Uniqah adalah merek di bawah PT MoonStar Global Indonesia.',
+          title: 'Pendiri & legal',
+          description: 'Uniqah didirikan oleh pasangan Turki–Indonesia dan beroperasi di bawah PT MoonStar Global Indonesia.',
         },
       ],
     },
@@ -2176,28 +2196,41 @@ const overrides = {
         badge: 'Pengajuan Cepat',
         step: 'Langkah {{current}} / {{total}}',
         back: 'Kembali',
-        next: 'Lanjut',
+        next: 'Lanjutkan',
+        finish: 'Selesai',
+        completeCta: 'Selesai',
         steps: {
           basic: {
-            title: 'Kontak & informasi dasar',
-            desc: 'Mulai dari informasi inti dan detail kontak Anda.',
+            title: 'Informasi wajib',
+            desc: 'Masukkan informasi inti yang dibutuhkan untuk menyelesaikan pengajuan Anda.',
           },
           details: {
-            title: 'Detail tambahan',
-            desc: 'Gaya hidup dan preferensi bahasa membantu pencocokan.',
+            title: 'Detail opsional',
+            desc: 'Tambahkan informasi tambahan jika Anda ingin kami mengenal Anda lebih baik.',
           },
           identity: {
-            title: 'Tentang Anda & yang dicari',
-            desc: 'Pilih kewarganegaraan/jenis kelamin dan kriteria pasangan.',
+            title: 'Kriteria pasangan',
+            desc: 'Di langkah terakhir, Anda dapat menjelaskan kualitas pasangan yang Anda cari.',
           },
           photos: {
             title: 'Foto & perkenalan singkat',
-            desc: 'Unggah 3 foto dan perkenalkan diri secara singkat.',
+            desc: 'Unggah hingga 5 foto dan perkenalkan diri secara singkat.',
           },
           preferences: {
             title: 'Preferensi pasangan & persetujuan',
             desc: 'Lengkapi preferensi dan kirim pengajuan Anda.',
           },
+        },
+        checkpoints: {
+          basic: {
+            body: 'Anda bisa menyelesaikan formulir di sini, atau lanjut ke langkah 2 agar kami bisa menemukan kandidat yang paling tepat untuk Anda.',
+          },
+          details: {
+            body: 'Anda bisa menyelesaikan formulir di sini, atau lanjut ke langkah terakhir untuk menjelaskan kualitas pasangan yang Anda cari.',
+          },
+        },
+        complete: {
+          body: 'Terima kasih sudah mengisi semua informasi. Anda sudah mengambil keputusan terbaik untuk membantu kami menemukan orang yang tepat bagi Anda.',
         },
       },
       editOnce: {
@@ -2266,7 +2299,7 @@ const overrides = {
         relocationWillingness: 'Apakah Anda bersedia tinggal di luar negara Anda?',
         preferredLivingCountry: 'Negara tempat tinggal yang diinginkan',
 
-        photos: 'Foto (3)',
+        photos: 'Foto (1 wajib, hingga 5)',
         photo: 'Foto',
         photo1: 'Foto 1',
         photo2: 'Foto 2',
@@ -2437,7 +2470,7 @@ const overrides = {
         partnerAgeNeedsYourAge: 'Rentang usia dihitung berdasarkan usia Anda.',
         partnerAgeComputed: 'Perkiraan rentang usia: {{min}}–{{max}}',
       },
-      photoHint: 'Silakan unggah 3 foto terbaru yang jelas (wajah terlihat), tanpa filter berat.',
+      photoHint: 'Minimal 1 foto wajib diunggah, dan Anda dapat mengunggah hingga 5 foto jika mau. Silakan unggah foto terbaru yang jelas (wajah terlihat), tanpa filter berat.',
       consents: {
         age: 'Saya berusia 18+.',
         privacy:

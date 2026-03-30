@@ -27,6 +27,37 @@ function shortId(s, head = 6, tail = 4) {
   return `${v.slice(0, head)}…${v.slice(-tail)}`;
 }
 
+function auditActionLabel(value) {
+  const raw = safeStr(value);
+  if (!raw) return '-';
+  const labels = {
+    login: 'Giriş',
+    logout: 'Çıkış',
+    create: 'Oluşturma',
+    update: 'Güncelleme',
+    delete: 'Silme',
+    approve: 'Onaylama',
+    reject: 'Reddetme',
+    run: 'Çalıştırma',
+  };
+  if (labels[raw]) return labels[raw];
+  return raw.replace(/_/g, ' ');
+}
+
+function auditErrorLabel(value) {
+  const raw = safeStr(value);
+  if (!raw) return '';
+  const labels = {
+    unauthorized: 'yetkisiz',
+    forbidden: 'erişim yasak',
+    not_found: 'bulunamadı',
+    bad_request: 'geçersiz istek',
+    server_error: 'sunucu hatası',
+    audit_load_failed: 'kayıtlar yüklenemedi',
+  };
+  return labels[raw] || raw.replace(/_/g, ' ');
+}
+
 export default function AuditLogsTab() {
   const [q, setQ] = useState('');
   const [limit, setLimit] = useState(120);
@@ -76,7 +107,7 @@ export default function AuditLogsTab() {
           <input
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            placeholder="Ara: action / uid / email / error"
+            placeholder="Ara: aksiyon / uid / e-posta / hata"
             className="w-full sm:w-96 px-3 py-2 border border-gray-300 rounded text-sm"
             disabled={loading}
           />
@@ -114,7 +145,7 @@ export default function AuditLogsTab() {
                     <div className="text-xs text-gray-800 break-all">{safeStr(x?.adminEmail) || '-'}</div>
                     <div className="text-[11px] text-gray-600 font-mono">{shortId(x?.adminUid) || ''}</div>
                   </td>
-                  <td className="px-3 py-2 font-mono text-xs">{safeStr(x?.action) || '-'}</td>
+                  <td className="px-3 py-2 text-xs">{auditActionLabel(x?.action)}</td>
                   <td className="px-3 py-2 font-mono text-xs">{shortId(x?.targetUid) || '-'}</td>
                   <td className="px-3 py-2">
                     {x?.ok ? (
@@ -122,7 +153,7 @@ export default function AuditLogsTab() {
                     ) : (
                       <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold border border-rose-200 bg-rose-50 text-rose-900">HATA</span>
                     )}
-                    {!x?.ok && safeStr(x?.error) ? <div className="mt-1 text-xs text-rose-800">{safeStr(x.error)}</div> : null}
+                    {!x?.ok && safeStr(x?.error) ? <div className="mt-1 text-xs text-rose-800">{auditErrorLabel(x.error)}</div> : null}
                   </td>
                   <td className="px-3 py-2">
                     {x?.meta ? (

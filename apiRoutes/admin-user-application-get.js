@@ -1,30 +1,19 @@
 import { getAdmin, normalizeBody, requireAdmin } from './_firebaseAdmin.js';
-
-function safeStr(v) {
-  return typeof v === 'string' ? v.trim() : '';
-}
-
-function toMs(ts) {
-  try {
-    if (!ts) return 0;
-    if (typeof ts === 'number' && Number.isFinite(ts)) return ts;
-    if (ts instanceof Date) {
-      const n = ts.getTime();
-      return Number.isFinite(n) ? n : 0;
-    }
-    if (typeof ts?.toMillis === 'function') return ts.toMillis();
-    if (typeof ts?.seconds === 'number') return ts.seconds * 1000;
-    return 0;
-  } catch {
-    return 0;
-  }
-}
+import {
+  asObj,
+  buildProfileCacheApplication,
+  hasMeaningfulApplicationCache,
+  hasMeaningfulProfileCache,
+  loadApplicationsForUid,
+  pickBestApp,
+  resolveAdminApplicationState,
+  safeStr,
+} from './_adminMatchmakingProfiles.js';
 
 function pickUserForAdminModal(userDoc) {
   const u = userDoc && typeof userDoc === 'object' ? userDoc : null;
   if (!u) return null;
 
-  const asObj = (v) => (v && typeof v === 'object' && !Array.isArray(v) ? v : null);
   const pickDetails = (details) => {
     const d = asObj(details);
     if (!d) return null;
@@ -117,18 +106,23 @@ export default async function handler(req, res) {
 
     let pickedUser = null;
     let cachedApplication = null;
+    let syntheticProfileApplication = null;
     let cachedApplicationId = '';
+    let userDoc = null;
 
     // Öncelik: matchmakingUsers.applicationId varsa direkt doc getir (en güvenilir yol).
     try {
       const userSnap = await db.collection('matchmakingUsers').doc(uid).get();
-      const userDoc = userSnap.exists ? (userSnap.data() || {}) : null;
+      userDoc = userSnap.exists ? (userSnap.data() || {}) : null;
       pickedUser = pickUserForAdminModal(userDoc);
 
       // Bazı akışlarda (özellikle profil ekranı / cache) başvuru verisi matchmakingUsers.application altında tutulur.
       // Uygulama dokümanı bulunamazsa admin modalında yine de detayları gösterebilmek için saklayalım.
-      cachedApplication = userDoc?.application && typeof userDoc.application === 'object' ? (userDoc.application || null) : null;
+      cachedApplication = hasMeaningfulApplicationCache(userDoc) && userDoc?.application && typeof userDoc.application === 'object'
+        ? (userDoc.application || null)
+        : null;
       cachedApplicationId = safeStr(userDoc?.applicationId);
+      syntheticProfileApplication = hasMeaningfulProfileCache(userDoc) ? buildProfileCacheApplication(userDoc, uid) : null;
 
       const applicationId = safeStr(userDoc?.applicationId);
       if (applicationId) {
@@ -145,21 +139,10 @@ export default async function handler(req, res) {
       // ignore, fallback to queries
     }
 
-    // Fallback: eşitlik filtresiyle farklı field'larda ara, en yeniyi JS'te seç.
-    const queries = [
-      db.collection('matchmakingApplications').where('userId', '==', uid).limit(50).get(),
-      db.collection('matchmakingApplications').where('uid', '==', uid).limit(50).get(),
-      db.collection('matchmakingApplications').where('userUid', '==', uid).limit(50).get(),
-      db.collection('matchmakingApplications').where('ownerUid', '==', uid).limit(50).get(),
-    ];
-
-    const snaps = await Promise.allSettled(queries);
-    const docs = [];
-    for (const s of snaps) {
-      if (s.status === 'fulfilled' && s.value && !s.value.empty) {
-        for (const d of s.value.docs) docs.push(d);
-      }
-    }
+    const docs = await loadApplicationsForUid(db, uid, {
+      applicationId: cachedApplicationId,
+      limitPerField: 50,
+    });
 
     if (!docs.length) {
       res.statusCode = 200;
@@ -169,29 +152,28 @@ export default async function handler(req, res) {
         res.end(JSON.stringify({ ok: true, application: { id, ...cachedApplication }, count: 0, user: pickedUser, fromCache: true }));
         return;
       }
+      if (syntheticProfileApplication) {
+        res.end(
+          JSON.stringify({
+            ok: true,
+            application: syntheticProfileApplication,
+            count: 0,
+            user: pickedUser,
+            fromCache: true,
+            applicationState: resolveAdminApplicationState(userDoc, null),
+          })
+        );
+        return;
+      }
       res.end(JSON.stringify({ ok: true, application: null, count: 0, user: pickedUser }));
       return;
     }
 
-    const uniq = new Map();
-    for (const d of docs) {
-      if (!uniq.has(d.id)) uniq.set(d.id, d);
-    }
-
-    let best = null;
-    let bestMs = -1;
-    for (const d of uniq.values()) {
-      const data = d.data() || {};
-      const ms = Math.max(toMs(data?.updatedAt), toMs(data?.createdAt), toMs(data?.updatedAtMs), toMs(data?.createdAtMs));
-      if (!best || ms >= bestMs) {
-        best = { id: d.id, ...data };
-        bestMs = ms;
-      }
-    }
+    const best = pickBestApp(docs);
 
     res.statusCode = 200;
     res.setHeader('content-type', 'application/json');
-    res.end(JSON.stringify({ ok: true, application: best, count: uniq.size, user: pickedUser }));
+    res.end(JSON.stringify({ ok: true, application: best, count: docs.length, user: pickedUser, applicationState: resolveAdminApplicationState(userDoc, best) }));
   } catch (e) {
     res.statusCode = e?.statusCode || 500;
     res.setHeader('content-type', 'application/json');

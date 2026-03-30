@@ -306,17 +306,6 @@ export default async function handler(req, res) {
     return;
   }
 
-  const anyUsed = snap.docs.some((d) => {
-    const cur = d.data() || {};
-    return !!cur?.userEditOnceUsedAt;
-  });
-  if (anyUsed) {
-    res.statusCode = 409;
-    res.setHeader('content-type', 'application/json');
-    res.end(JSON.stringify({ ok: false, error: 'edit_once_used' }));
-    return;
-  }
-
   const bestDoc = pickBestApplicationDoc(snap.docs);
   if (!bestDoc) {
     res.statusCode = 404;
@@ -474,9 +463,6 @@ export default async function handler(req, res) {
           ...updates,
           migratedFrom: curId,
           migratedAt: FieldValue.serverTimestamp(),
-          userEditOnceUsedAt: FieldValue.serverTimestamp(),
-          userEditOnceUsedBy: uid,
-          userEditOnceUpdatedAt: FieldValue.serverTimestamp(),
           updatedAt: FieldValue.serverTimestamp(),
         });
 
@@ -497,9 +483,7 @@ export default async function handler(req, res) {
   } else {
     await docRef.update({
       ...updates,
-      userEditOnceUsedAt: FieldValue.serverTimestamp(),
-      userEditOnceUsedBy: uid,
-      userEditOnceUpdatedAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
     });
   }
 

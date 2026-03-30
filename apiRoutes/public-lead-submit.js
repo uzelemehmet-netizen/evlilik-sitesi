@@ -61,6 +61,10 @@ function sha256Short(input) {
   }
 }
 
+function safeMs(v) {
+  return typeof v === 'number' && Number.isFinite(v) ? v : 0;
+}
+
 function dayKeyTRFromMs(ms) {
   const offsetMs = 180 * 60 * 1000;
   const d = new Date(ms + offsetMs);
@@ -230,27 +234,49 @@ export default async function publicLeadSubmit(req, res) {
     const { db, FieldValue } = getAdmin();
     const nowMs = Date.now();
 
+    // Aynı WhatsApp ile art arda tıklamalarda kullanıcıyı 429 ile durdurmak yerine,
+    // kısa bir süre içinde tekrar gelirse önceki başvuruyu "başarılı" sayıp aynı id'yi döndür.
+    // Böylece kullanıcı "Kısa sürede çok fazla deneme" uyarısı görmez.
+    const dedupeWindowMs = (() => {
+      const raw = Number(String(process.env.PUBLIC_LEAD_DEDUPE_WINDOW_MS || '').trim());
+      if (Number.isFinite(raw) && raw > 0) return Math.max(10_000, Math.min(24 * 60 * 60 * 1000, Math.trunc(raw)));
+      return 10 * 60 * 1000; // default: 10 dk
+    })();
+
     // Basic rate limit / dedupe per WhatsApp per day.
     const dayKey = dayKeyTRFromMs(nowMs);
     const fp = sha256Short(`${dayKey}|${whatsapp}`);
     const dedupeRef = db.collection('publicLeadDedupe').doc(`${dayKey}__${fp || 'nofp'}`);
-    const leadRef = db.collection('matchmakingLeads').doc();
+    const newLeadRef = db.collection('matchmakingLeads').doc();
+
+    let outLeadId = '';
+    let deduped = false;
 
     await db.runTransaction(async (tx) => {
       const d = await tx.get(dedupeRef);
       if (d.exists) {
-        const err = new Error('rate_limited');
-        err.statusCode = 429;
-        throw err;
+        const prev = d.data() || {};
+        const prevLeadId = safeStr(prev?.leadId);
+        const prevMs = safeMs(prev?.createdAtMs);
+        const withinWindow = prevMs > 0 && nowMs - prevMs >= 0 && nowMs - prevMs < dedupeWindowMs;
+
+        if (prevLeadId && withinWindow) {
+          outLeadId = prevLeadId;
+          deduped = true;
+          return;
+        }
       }
+
+      outLeadId = newLeadRef.id;
 
       tx.set(dedupeRef, {
         createdAt: FieldValue.serverTimestamp(),
         createdAtMs: nowMs,
         whatsappHash: fp || null,
+        leadId: outLeadId,
       });
 
-      tx.set(leadRef, {
+      tx.set(newLeadRef, {
         kind: 'matchmaking_lead',
         status: 'new',
         createdAt: FieldValue.serverTimestamp(),
@@ -319,7 +345,7 @@ export default async function publicLeadSubmit(req, res) {
 
     res.statusCode = 200;
     res.setHeader('content-type', 'application/json');
-    res.end(JSON.stringify({ ok: true, id: leadRef.id }));
+    res.end(JSON.stringify({ ok: true, id: outLeadId || newLeadRef.id, deduped }));
   } catch (e) {
     const code = String(e?.message || 'server_error');
     res.statusCode = e?.statusCode || (code === 'rate_limited' ? 429 : 500);

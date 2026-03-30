@@ -133,7 +133,6 @@ export async function authFetch(url, { headers = {}, ...options } = {}) {
       const responseText = rawText ? rawText.slice(0, 400) : '';
 
       // Bazı console'lar object'i "Object" diye gösteriyor; string log her zaman kopyalanabilir.
-      // eslint-disable-next-line no-console
       console.warn(
         `[authFetch] request_failed url=${url} status=${res.status} error=${String(data?.error || '')} contentType=${contentType} data=${dataString} responseText=${responseText}`
       );

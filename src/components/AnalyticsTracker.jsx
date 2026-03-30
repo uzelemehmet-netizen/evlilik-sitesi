@@ -11,7 +11,7 @@ function toEventKeySafe(raw) {
   const s = safeStr(raw).toLowerCase();
   if (!s) return '';
   return s
-    .replace(/[^a-z0-9:_\-/\.]+/g, '_')
+    .replace(/[^a-z0-9:_./-]+/g, '_')
     .replace(/_+/g, '_')
     .slice(0, 110);
 }

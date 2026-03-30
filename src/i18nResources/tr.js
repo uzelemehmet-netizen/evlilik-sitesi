@@ -32,7 +32,23 @@ export default {
         title: 'iPhone/iPad (Safari) için',
         step1: 'Siteyi Safari’de açın.',
         step2: 'Paylaş’a dokunun (oklu kare).',
+        matchmakingHub: 'Eş adayı bul',
+        matchmakingHint: 'Henüz bir eş adayınız yoksa eşleştirme sistemine katılıp adayları buradan inceleyebilirsiniz.',
         step3: '“Ana Ekrana Ekle” seçin ve ekleyin.',
+      },
+      preview: {
+        matches: {
+          title: 'Profilim: Eşleşmeler',
+          body: 'Eşleşmeler, istekler ve sohbetler Profilim ekranından yönetilir.',
+        },
+        pool: {
+          title: 'Havuz: Adaylar',
+          body: 'Adaylara göz atıp istek gönderebilir veya beğeni bırakabilirsin.',
+        },
+        request: {
+          title: 'Eşleşme isteği gönder',
+          body: 'Bu butonlar örnek amaçlıdır. Gerçek işlem için önce kayıt olmalı ve formu doldurmalısın.',
+        },
       },
       notifications: {
         title: 'Bildirimler',
@@ -128,6 +144,21 @@ export default {
       legal: 'Yasal',
       contact: 'İletişim',
       social: 'Sosyal Ağlar',
+      showEmailFallback: 'Sorun mu yaşıyorsun? E-posta ile devam et',
+      preview: {
+        matches: {
+          title: 'Profilim: Eşleşmeler',
+          body: 'Eşleşmeler, istekler ve sohbetler Profilim ekranından yönetilir.',
+        },
+        pool: {
+          title: 'Havuz: Adaylar',
+          body: 'Adaylara göz atıp istek gönderebilir veya beğeni bırakabilirsin.',
+        },
+        request: {
+          title: 'Eşleşme isteği gönder',
+          body: 'Bu butonlar örnek amaçlıdır. Gerçek işlem için önce kayıt olmalı ve formu doldurmalısın.',
+        },
+      },
     },
     links: {
       membership: 'Üyelik',
@@ -140,6 +171,16 @@ export default {
       siteRules: 'Site Kuralları',
       refundPolicy: 'İptal ve İade Politikası',
       privacyPolicy: 'Gizlilik Politikası',
+      confirmError: 'Onay işlemi başarısız: {{error}}',
+      contactRequestError: 'İletişim isteği başarısız: {{error}}',
+      contactApproveError: 'İletişim onayı başarısız: {{error}}',
+      title: 'Firma Bilgileri',
+      labels: {
+        legalName: 'Ticari Ünvan',
+        address: 'Adres',
+        tax: 'Vergi',
+        nib: 'NIB',
+      },
     },
     companyInfo: {
       title: 'Firma Bilgileri',
@@ -441,10 +482,6 @@ export default {
       lastSeenDays_other: 'Son aktif: {{count}} gün önce',
     },
 
-    errors: {
-      generic: 'Hata',
-    },
-
     referral: {
       title: 'Arkadaşını Davet Et',
       description: 'Bir arkadaşını davet et. İkiniz de kimlik doğrulaması yapınca ikinize de ücretsiz üyelik verilir.',
@@ -579,6 +616,14 @@ export default {
       actionsSoon: 'Yakında: kısa mesaj',
       notInTheirRange: 'Etkileşim için onun yaş aralığında olmalısın.',
       notInTheirRangeShort: 'Yaş aralığı uymuyor',
+      optionalDetailsRecommendation: {
+        title: 'Kalan detayları istersen tamamlayabilirsin',
+        body: 'Zorunlu alanların tamamlandı. İstersen kalan profil ve tercih detaylarını şimdi doldurup daha iyi eşleşme önerileri alabilirsin. Sonra dersen keşfette kullanıma devam edebilirsin.',
+        actions: {
+          ok: 'Tamam',
+          later: 'Sonra',
+        },
+      },
     },
 
     waitingNote: {
@@ -597,8 +642,10 @@ export default {
     profileGate: {
       important: 'ÖNEMLİ',
       title: 'Profilini tamamla',
-      body: 'Bu sistem evlilik niyetindeki insanları bir araya getirdiği için diğer kullanıcılarla etkileşime geçebilmeniz için profil formunu doldurmanız gerekmektedir.',
-      cta: 'Profil formunu doldur',
+      body: 'Sayfaları gezebilirsiniz. Ancak diğer kullanıcılarla etkileşime geçebilmek için profil formunu doldurup profilinizi oluşturmayı tamamlamanız gerekmektedir.',
+      photoBody: 'Daha önce form doldurmuşsunuz. Etkileşime geçebilmek için şimdi en az 1 fotoğraf yüklemeniz gerekiyor. Lütfen Fotoğraflarım bölümünden fotoğraf ekleyin.',
+      cta: 'Formu doldur',
+      photoCta: 'Fotoğraf yükle',
       badge: 'Bilinmeyen kullanıcı',
     },
 
@@ -967,6 +1014,16 @@ export default {
       membershipActive: 'Aktif',
       membershipPassive: 'Pasif',
       endsAt: 'Bitiş',
+      completeProfileTutorial: {
+        title: 'Profilini tamamla',
+        body: 'Etkileşime geçebilmek için profil formunu doldurup profilini oluşturmalısın. (En az 1 fotoğraf dahil)',
+        photoBody: 'Formun kayıtlı. Etkileşime geçebilmek için şimdi en az 1 fotoğraf yüklemen gerekiyor. Fotoğraflarım bölümüne gidip fotoğraf ekleyebilirsin.',
+        actions: {
+          ok: 'Formu doldur',
+          uploadPhoto: 'Fotoğraf yükle',
+          later: 'Daha sonra',
+        },
+      },
       editProfile: 'Profili Düzenle',
       myMatches: 'Eşleşmelerim',
       logout: 'Çıkış',
@@ -1073,11 +1130,18 @@ export default {
         points: {
           optional: 'Zorunlu değildir; sadece güven rozetidir (isteğe bağlı).',
           privacy: 'Doğrulama bilgileri doğrulama amacı dışında paylaşılmaz.',
+          matchmakingHub: 'Eş adayı sayfasını aç?',
+          matchmakingHint: 'Bu kullanıcının herkese açık eş adayı akışını incelemek için eş adayı sayfasını yeni sekmede açabilirsiniz.',
           destroy: 'Doğrulama tamamlandıktan sonra gönderdiğin doğrulama dosyaları/verileri kalıcı olarak saklanmaz.',
           deleteAccount: 'Hesabını dilediğin zaman silerek profil ve eşleşme verilerini kaldırabilirsin.',
           sorting: 'Kimlik doğrulaması yapan profiller Keşfet’te üst sıralarda gösterilir.',
+        verifyMethodUpload: 'Kimlik fotoğraflarını yükle',
+        verifyMethodWhatsApp: 'WhatsApp görüntülü görüşme',
         },
       },
+        verifyWhatsAppTitle: 'WhatsApp görüntülü görüşme ile doğrula',
+        verifyWhatsAppBody: 'Doğrulama, WhatsApp görüntülü görüşmesi üzerinden yapılır. Talep oluşturup WhatsApp’ı açabilirsiniz.',
+        verifyWhatsAppCta: 'WhatsApp’ı aç',
 
       emailVerify: {
         title: 'E-posta doğrulama (isteğe bağlı)',
@@ -1093,6 +1157,8 @@ export default {
       oldPanel: 'Eski panel (geçici)',
       verifyModalTitle: 'Kimlik doğrulama',
       verifyModalInfo: 'Kimlik doğrulama isteğe bağlıdır.\n\nBir yöntem seçin ve yönergeleri takip edin. İnceleme tamamlandığında rozet profilinizde görünür.',
+      verifyMethodUpload: 'Kimlik fotoğraflarını yükle',
+      verifyMethodWhatsApp: 'WhatsApp görüntülü görüşme',
       verifyMethodSelfieVideo: 'Selfie video doğrulama',
       verifyMethodSocial: 'Sosyal medya ile doğrulama',
       verifySelfieVideoTitle: 'Selfie video (WhatsApp) ile doğrulama',
@@ -1282,6 +1348,8 @@ export default {
       prompts: {
         blockReason: 'Engelleme nedeni (opsiyonel):',
         noteOptional: 'Not (opsiyonel):',
+        matchmakingHub: 'Eş adayı sayfasını aç?',
+        matchmakingHint: 'Bu kullanıcının herkese açık eş adayı akışını incelemek için eş adayı sayfasını yeni sekmede açabilirsiniz.',
       },
       defaults: {
         whatsappVerificationNote: 'WhatsApp doğrulama',
@@ -1682,7 +1750,7 @@ export default {
         },
         {
           title: 'İletişim paylaşımı & destek',
-          desc: '48 saat sonunda iletişim bilgileri (karşılıklı onayla) açılır; isterseniz tercümanlı görüntülü görüşme/inceleme için destek alabilirsiniz.',
+          desc: '48 saat sonunda iletişim bilgileri (karşılıklı onayla) açılır; talep halinde tercümanlı görüşme ve ek inceleme desteği sağlanabilir.',
         },
       ],
     },
@@ -1760,7 +1828,7 @@ export default {
 
     trust: {
       title: 'Güven odaklı tasarım',
-      subtitle: 'Sistem; mahremiyet, moderasyon ve kontrollü iletişim adımlarıyla ilerler.',
+      subtitle: 'Bu sistem ciddi evlilik niyeti için tasarlandı. Mahremiyet, moderasyon ve kontrollü iletişim adımlarıyla ilerler; kurallara aykırı/kötü niyetli davranışlar incelemeyle engellenebilir.',
       badge: 'Mahremiyet • Moderasyon • Kontrollü iletişim',
       cards: {
         privacy: {
@@ -1768,12 +1836,12 @@ export default {
           desc: 'Profilin herkese açık yayınlanmaz; yalnızca süreç içinde panelde gösterilir.',
         },
         review: {
-          title: 'Kontrol & moderasyon',
-          desc: 'Şikayet hattı ve inceleme süreçleri ile kötü niyetli davranışların önü kesilir.',
+          title: 'Ciddi niyet & moderasyon',
+          desc: 'Şikayet ve inceleme süreçleriyle dolandırıcılık/uygunsuz davranışlar hızlıca kısıtlanabilir.',
         },
         support: {
           title: 'Destek',
-          desc: 'Süreçte takıldığında WhatsApp üzerinden destek alabilirsin.',
+          desc: 'Süreçte takıldığında WhatsApp üzerinden destek alabilirsin (gerekirse ek inceleme talepleri dahil).',
         },
       },
     },
@@ -1855,19 +1923,21 @@ export default {
         step: 'Adım {{current}} / {{total}}',
         back: 'Geri',
         backPage: 'Sayfaya dön',
-        next: 'Devam',
+        next: 'Devam et',
+        finish: 'Bitir',
+        completeCta: 'Tamam',
         steps: {
           basic: {
-            title: 'İletişim ve temel bilgiler',
-            desc: 'Sizi tanıyabilmemiz için temel bilgileri alalım.',
+            title: 'Zorunlu bilgiler',
+            desc: 'Başvurunun tamamlanması için gerekli temel bilgileri girin.',
           },
           details: {
-            title: 'Detaylar',
-            desc: 'Yaşam tarzı ve iletişim dilini netleştirelim.',
+            title: 'İsteğe bağlı detaylar',
+            desc: 'Dilerseniz sizi daha iyi tanımamıza yardımcı olacak bilgileri ekleyin.',
           },
           identity: {
-            title: 'Ben ve aradığım kişi',
-            desc: 'Uyruğunuz, cinsiyetiniz ve aradığınız kriterleri seçin.',
+            title: 'Aradığınız kişi',
+            desc: 'Son adımda aradığınız eş adayının özelliklerini belirtebilirsiniz.',
           },
           photos: {
             title: 'Fotoğraflar ve tanıtım',
@@ -1877,6 +1947,17 @@ export default {
             title: 'Eş adayında aradıklarınız ve onaylar',
             desc: 'Tercihlerinizi seçin ve başvuruyu tamamlayın.',
           },
+        },
+        checkpoints: {
+          basic: {
+            body: 'Dilerseniz formu burada tamamlayabilirsiniz ya da en doğru adayı bulmak için formun 2. adımına geçebilirsiniz.',
+          },
+          details: {
+            body: 'Dilerseniz formu burada tamamlayabilirsiniz ya da son adımda aradığınız kişinin özelliklerini belirtebilirsiniz.',
+          },
+        },
+        complete: {
+          body: 'Tüm bilgileri doldurduğunuz için teşekkür ederiz. Doğru kişiyi bulmak konusunda en doğru kararı verdiniz.',
         },
       },
       editOnce: {
@@ -1965,7 +2046,7 @@ export default {
         partnerSmokingPreference: 'Aradığınız kişi sigara…',
         partnerAlcoholPreference: 'Aradığınız kişi alkol…',
         photo: 'Fotoğraf',
-        photos: 'Fotoğraflar (3 adet)',
+        photos: 'Fotoğraflar (1 zorunlu, en fazla 5)',
         photo1: 'Fotoğraf 1',
         photo2: 'Fotoğraf 2',
         photo3: 'Fotoğraf 3',
@@ -2118,7 +2199,7 @@ export default {
         foreignLanguages: 'Not: Kendi dilinizi seçtikten sonra aşağıda görünmez. Bilmiyorsanız “Yabancı dil bilmiyorum” seçebilirsiniz.',
       },
       photoHint:
-        'Sadece resim dosyası yükleyin. Sistem otomatik olarak sıkıştırıp yükler (öneri: net, güncel ve yüzünüzün göründüğü bir fotoğraf).',
+        'En az 1 fotoğraf zorunludur, isterseniz toplam 5 fotoğrafa kadar yükleyebilirsiniz. Sadece resim dosyası yükleyin; sistem otomatik olarak sıkıştırıp yükler (öneri: net, güncel ve yüzünüzün göründüğü bir fotoğraf).',
       consents: {
         age: '{{minAge}} yaşından büyük olduğumu onaylıyorum.',
         privacy:
@@ -2140,8 +2221,7 @@ export default {
         profileTextPII: '“Hakkımda” ve “Aradığım kişi” alanlarına iletişim bilgisi (telefon, e-posta, link, Instagram, IBAN vb.) yazmayın.',
         consentsRequired: 'Başvuru için onay kutularını ({{minAge}}+, Gizlilik Politikası, Kullanım Sözleşmesi, Fotoğraf paylaşımı) işaretlemeniz gerekir.',
         permissionDenied: 'Başvuru gönderilemedi (izin hatası). Lütfen doğru hesapla giriş yapın veya Firestore kurallarını kontrol edin.',
-        editOnceUsed:
-          'Profil bilgileri sadece 1 defaya mahsus güncellenebilir. Düzenleme hakkınız kalmadığı için isteğiniz başarısız oldu.',
+        editOnceUsed: 'Form güncelleme isteğiniz başarısız oldu.',
         honeypotTriggered: 'Form gönderilemedi. Tarayıcı otomatik doldurma (autofill) gizli alanı doldurmuş olabilir. Lütfen sayfayı yenileyin ve otomatik doldurmayı kapatıp tekrar deneyin.',
         photoUploadFailed: 'Fotoğraf yüklenemedi. Bu projede Cloudinary yükleme varsayılan olarak SIGNED (imzalı) çalışır. Bu yüzden genelde sebep: `/api/cloudinary-signature` çalışmıyor veya server env eksik. Çözüm: Lokal geliştirmede `npm run dev` çalıştırın (API + Web birlikte) ve `.env.local` içinde `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET` tanımlı olsun. (Unsigned preset ancak özellikle açarsanız kullanılır.)',
         username: 'Lütfen kullanıcı adı belirleyin.',
@@ -2614,8 +2694,11 @@ export default {
         },
         whatsapp: {
           intro: 'Merhaba, evlilik planı testimi gönderiyorum:',
+          summaryTemplate:
+            'Uyruk: {{nationality}} | Yaşadığı ülke: {{livingCountry}} | Resmî nikâh: {{legalWhere}} | Yaşam planı: {{plannedLiveWhere}} | Bütçe: {{budget}}',
           none: 'Seçim yapılmadı',
           labels: {
+            summary: 'Özet',
             name: 'Ad Soyad',
             age: 'Yaş',
             city: 'Şehir',
@@ -2628,6 +2711,7 @@ export default {
             hasChildren: 'Çocuk',
             legalWhere: 'Resmî nikâh ülkesi',
             plannedLiveWhere: 'Yaşam planı',
+            marriageMunicipality: 'Nikâh il/ilçesi',
             budget: 'Bütçe',
             indonesiaDuration: 'Endonezya süresi',
             weddingDate: 'Nikâh tarihi',
@@ -2639,6 +2723,7 @@ export default {
             partnerChildrenLiveWithUs: 'Çocuk(lar) sizinle yaşayacak mı',
             services: 'İstediğim hizmetler',
             honeymoon: 'Balayı',
+            extraNote: 'Ek not / soru',
           },
         },
       },
@@ -2672,6 +2757,13 @@ export default {
           hint:
             "Birden fazla seçenek işaretleyebilirsiniz. Emin olmadığınız alanlar varsa boş bırakabilirsiniz.",
           options: {
+            consulting: 'Danışmanlık',
+            paperworkTracking: 'Evrak takibi',
+            familyCommunication: 'Aileler arası iletişim',
+            transport: 'Ulaşım',
+            interpretation: 'Tercümanlık',
+            ongoingGuidance: 'Süreç boyunca rehberlik',
+            honeymoon: 'Balayı',
             communicationInterpretation: 'Eş adayı ve/veya ailesiyle iletişim tercümanlığı',
             research: 'Araştırma',
             documentCollection: 'Evrak toplama',
@@ -3014,8 +3106,8 @@ export default {
           description: 'WhatsApp destekli; gerektiğinde çok dilli destek.',
         },
         {
-          title: "Yasal yapı",
-          description: 'Uniqah, PT MoonStar Global Indonesia tarafından yürütülen bir markadır.',
+          title: 'Kurucular & yasal yapı',
+          description: 'Uniqah, Türk–Endonezyalı bir çift tarafından kuruldu ve PT MoonStar Global Indonesia altında yürütülür.',
         },
       ],
     },
@@ -3215,6 +3307,8 @@ export default {
       editOnce: {
         usernameLocked: 'Edit modunda kullanıcı adı değiştirilemez (1 defalık düzeltme hakkı).',
         photosLocked: 'Edit modunda fotoğraf güncelleme kapalı. Sadece form alanlarını düzeltebilirsiniz.',
+        oneTimeWarning:
+          'Uyarı: Bu düzeltme hakkı sadece bir kez kullanılabilir. Kaydetmeden önce tüm bilgileri dikkatle kontrol edin.',
       },
     },
     partnerAgeMin: 'Min yaş',
@@ -3464,12 +3558,17 @@ export default {
     infos: {
       startingGoogle: 'Google giriş ekranı açılıyor…',
       inAppBrowserGoogleRedirect: 'Tarayıcınız popup engelliyor olabilir. Google girişine yönlendiriyoruz…',
+      accountExistsTryLogin: 'Zaten kayıtlı bir hesabınız var. E-posta ve şifrenizi kullanarak giriş yapmayı deneyin.',
     },
     redirectScreen: {
       title: 'Yönlendiriliyorsun…',
       body: 'Profil sayfası açılıyor. Bu ekran uzun sürerse aşağıdan devam edebilirsin.',
       goProfile: 'Profilime Git',
       refresh: 'Yenile',
+    },
+    trustNote: {
+      title: 'Ciddi evlilik niyeti için tasarlandı',
+      body: 'Uniqah, Türk–Endonezyalı bir çift tarafından kurulan evlilik odaklı bir sistemdir. Kurallara aykırı/kötü niyetli davranışlarda hesaplar incelemeyle kısıtlanabilir; WhatsApp hattımızdan talep etmeniz halinde tanıştığınız eş adayınız hakkında detaylı araştırma yapıp aranızda güven inşa etmenize yardımcı olabiliriz.',
     },
     signupGuide: 'Kayıt olmak için Google ile devam edin; ardından eşleştirme başvuru formunu doldurun.',
     signupExistingAccountHint: 'Zaten hesabın varsa Google ile giriş yap.',
@@ -3643,11 +3742,6 @@ export default {
       privacy: 'Gizlilik Politikası',
     },
     resetSent: 'Şifre sıfırlama bağlantısı e-posta adresinize gönderildi.',
-    infos: {
-      accountExistsTryLogin: 'Zaten kayıtlı bir hesabınız var. E-posta ve şifrenizi kullanarak giriş yapmayı deneyin.',
-      inAppBrowserGoogleRedirect:
-        'Uygulama içi tarayıcılarda Google ile giriş bazen çalışmıyor. Şimdi Google girişini yönlendirme (redirect) ile açıyoruz…',
-    },
     errors: {
       noAccountFoundSignupRequired:
         'Kaydınız bulunamadı. Kayıt olmanız gerekiyor. Kayıt adımına yönlendirildiniz; lütfen cinsiyet/uyruk seçip yaşınızı girin ve tekrar deneyin.',
@@ -3665,6 +3759,10 @@ export default {
       firebaseAuthInvalidConfig: 'Firebase Auth yapılandırması geçersiz. `.env.local` içindeki `VITE_FIREBASE_*` değerlerini kontrol edin.',
       googleInAppBlocked:
         'Google ile giriş bu uygulama içi tarayıcıda engellenmiş olabilir. Lütfen menüden “Tarayıcıda aç” ile Chrome/Safari’de açıp tekrar deneyin veya e‑posta ile devam edin.',
+      googlePopupBlocked:
+        'Tarayıcı Google açılır penceresini engelledi. Lütfen popup izni verip tekrar deneyin. Olmazsa Chrome/Safari’de yeniden açın veya e‑posta ile devam edin.',
+      googlePopupClosed:
+        'Google penceresi tamamlanmadan kapatıldı. Lütfen tekrar deneyin.',
       googleRedirectNoResult:
         'Google ile giriş, Google’dan geri döndükten sonra tamamlanamadı. Lütfen tekrar deneyin veya Email/Şifre ile devam edin.',
       googleFailed: 'Google ile giriş başarısız.',
@@ -3857,7 +3955,7 @@ export default {
     profileForm: {
       loading: 'Form yükleniyor…',
       empty: 'Henüz eşleştirme başvuru formu bulunamadı. Önce formu doldurun.',
-      openOriginalEditOnce: 'Orijinal formu aç (1 kez düzelt)',
+      openOriginalEditOnce: 'Başvuru formunu aç',
       detailsToggle: 'Başvuru bilgilerini göster',
       applicationId: 'Başvuru ID',
       applicantNationality: 'Kendi uyruğunuz',
@@ -3866,16 +3964,13 @@ export default {
       partnerGender: 'Aradığınız kişinin cinsiyeti',
       moreDetailsTitle: 'Diğer bilgiler',
       partnerPrefsTitle: 'Aradığınız kişi tercihleri',
-      editOnceTitle: 'Formu 1 defaya mahsus düzelt',
-      editOnceLead:
-        'Başvuruda yanlış/eksik bilgi varsa burada güncelleyebilirsiniz. Bu işlem sadece 1 kez yapılabilir (gönderince tekrar değiştirilemez).',
-      editOnceCta: 'Değişiklikleri kaydet (1 kez)',
+      editOnceTitle: 'Formu güncelle',
+      editOnceLead: 'Başvuru bilgilerinizde değişiklik yapabilir ve istediğiniz zaman kaydedebilirsiniz.',
+      editOnceCta: 'Değişiklikleri kaydet',
       editOnceSaving: 'Kaydediliyor…',
       editOnceSuccess: 'Güncelleme alındı. Formunuz güncellendi.',
-      editOnceUsed:
-        'Profil bilgileri sadece 1 defaya mahsus güncellenebilir. Düzenleme hakkınız kalmadığı için isteğiniz başarısız oldu.',
-      editOnceWarning:
-        'Uyarı: Bu hak sadece 1 defaya mahsustur. Lütfen göndermeden önce tüm bilgilerin doğru ve eksiksiz olduğundan emin olun.',
+      editOnceUsed: 'Form güncelleme isteğiniz başarısız oldu.',
+      editOnceWarning: 'Not: İstediğiniz zaman formu güncelleyebilirsiniz.',
       editOnceErrors: {
         failed: 'Güncelleme yapılamadı. Lütfen tekrar deneyin.',
         empty: 'Boş güncelleme gönderemezsiniz. En az bir alanı doldurun.',

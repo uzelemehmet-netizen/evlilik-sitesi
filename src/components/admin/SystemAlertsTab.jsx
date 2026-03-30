@@ -27,7 +27,7 @@ export default function SystemAlertsTab({ geminiAlerts = [] }) {
             (Vertex AI) geçme zamanı.
           </p>
         </div>
-        <div className="text-xs text-gray-500">Realtime</div>
+        <div className="text-xs text-gray-500">Canlı</div>
       </div>
 
       <div className="mt-4 space-y-3">

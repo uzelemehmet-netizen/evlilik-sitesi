@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { collection, doc, getDoc, getDocs, limit, orderBy, query, serverTimestamp, setDoc, where } from 'firebase/firestore';
 import { useTranslation } from 'react-i18next';
 import { db } from '../../config/firebaseDb';
@@ -66,6 +66,8 @@ export default function MatchmakingUserToolsTab() {
     if (lang.startsWith('id')) return 'id-ID';
     return 'en-US';
   }, [i18n.language]);
+
+  const fmtDateTimeTr = (ms) => fmtDateTime(ms, locale);
 
   const [userDoc, setUserDoc] = useState(null);
   const [applicationDoc, setApplicationDoc] = useState(null);

@@ -96,7 +96,7 @@ export default function MatchmakingMatchesTab() {
     } catch (e) {
       // ignore (corrupt storage)
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     try {
@@ -176,7 +176,7 @@ export default function MatchmakingMatchesTab() {
       unsub();
       if (typeof unsubFallback === 'function') unsubFallback();
     };
-  }, []);
+  }, [t]);
 
   const cancel = async (matchId) => {
     const ok = window.confirm(t('admin.matchmakingMatches.confirms.cancelMatch'));

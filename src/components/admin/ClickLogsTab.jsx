@@ -6,6 +6,45 @@ function safeNum(v) {
   return typeof v === 'number' && Number.isFinite(v) ? v : 0;
 }
 
+const regionNamesTr =
+  typeof Intl !== 'undefined' && typeof Intl.DisplayNames === 'function'
+    ? new Intl.DisplayNames(['tr'], { type: 'region' })
+    : null;
+
+function normalizeCountryCode(code) {
+  const raw = String(code || '').trim().toUpperCase();
+  if (!raw || raw === 'UNKNOWN' || raw === 'NULL' || raw === 'N/A' || raw === '-') return 'UN';
+  return raw;
+}
+
+function countryNameTr(code) {
+  const normalized = normalizeCountryCode(code);
+  const explicit = {
+    UN: 'Bilinmeyen',
+    XX: 'Bilinmeyen',
+    ZZ: 'Bilinmeyen',
+    EU: 'Avrupa Birliği',
+  };
+  if (explicit[normalized]) return explicit[normalized];
+
+  const alias = {
+    UK: 'GB',
+  };
+  const lookupCode = alias[normalized] || normalized;
+  if (regionNamesTr && /^[A-Z]{2}$/.test(lookupCode)) {
+    const label = regionNamesTr.of(lookupCode);
+    if (label && label !== lookupCode) return label;
+  }
+  return normalized;
+}
+
+function formatCountryLabel(code) {
+  const normalized = normalizeCountryCode(code);
+  const name = countryNameTr(normalized);
+  if (!name || name === normalized) return normalized;
+  return `${normalized} (${name})`;
+}
+
 function fmtDateKey(key) {
   const s = String(key || '').trim();
   if (!s) return '-';
@@ -67,6 +106,36 @@ function eventLabelTr(eventKey) {
   const raw = String(eventKey || '').trim();
   if (!raw) return '—';
 
+  const authCodeLabelTr = (value) => {
+    const key = String(value || '').trim().toLowerCase();
+    const labels = {
+      unknown: 'bilinmeyen hata',
+      popup_blocked: 'popup engellendi',
+      popup_closed: 'popup kullanıcı tarafından kapatıldı',
+      popup_cancelled: 'popup isteği iptal edildi',
+      user_cancelled: 'kullanıcı iptal etti',
+      network_request_failed: 'ağ isteği başarısız',
+      network_or_timeout: 'ağ veya zaman aşımı sorunu',
+      timeout: 'zaman aşımı',
+      redirect_result_null: 'Google dönüşü tamamlanamadı',
+      unauthorized_domain: 'yetkisiz alan adı',
+      operation_not_allowed: 'oturum açma yöntemi kapalı',
+      invalid_api_key: 'geçersiz Firebase API anahtarı',
+      configuration_not_found: 'Firebase yapılandırması bulunamadı',
+      too_many_requests: 'çok fazla istek',
+      invalid_email: 'geçersiz e-posta',
+      invalid_credential: 'geçersiz kimlik bilgisi',
+      wrong_password: 'yanlış şifre',
+      user_not_found: 'kullanıcı bulunamadı',
+      email_already_in_use: 'e-posta zaten kullanımda',
+      weak_password: 'zayıf şifre',
+      profile_save_failed: 'profil kaydı başarısız',
+      csp_blocked: 'içerik güvenlik kuralı engelledi',
+      internal_error: 'iç sistem hatası',
+    };
+    return labels[key] || value;
+  };
+
   // Exact keys
   const exact = {
     session_start: 'Oturum başlangıcı',
@@ -74,18 +143,70 @@ function eventLabelTr(eventKey) {
     landing_login_auto_signup: 'Login açıldı (otomatik kayıt modu)',
     auth_switch_to_signup: 'Kayıt moduna geçiş (tık)',
     auth_switch_to_login: 'Giriş moduna geçiş (tık)',
-    'signup_auto_skipped:inapp': 'Otomatik kayıt atlandı (in-app)',
+    'signup_auto_skipped:inapp': 'Otomatik kayıt atlandı (uygulama içi tarayıcı)',
+    'signup_blocked:google_inapp': 'Google kayıt engellendi (uygulama içi tarayıcı)',
+    'login_blocked:google_inapp': 'Google giriş engellendi (uygulama içi tarayıcı)',
     'signup_start:google': 'Kayıt başlatıldı (Google)',
     'signup_start:email': 'Kayıt başlatıldı (E-posta)',
+    'signup_start:email_password': 'Kayıt başlatıldı (E-posta)',
     'signup_success:google': 'Kayıt başarılı (Google)',
-    'signup_success:google_redirect': 'Kayıt başarılı (Google redirect)',
+    'signup_success:google_redirect': 'Kayıt başarılı (Google yönlendirme)',
     'signup_success:email': 'Kayıt başarılı (E-posta)',
+    'signup_success:email_password': 'Kayıt başarılı (E-posta)',
+
+    // Legacy keys (older client builds)
+    'login_start:google': 'Giriş başlatıldı (Google)',
+    'login_start:email_password': 'Giriş başlatıldı (E-posta)',
+    'login_success:email_password': 'Giriş başarılı (E-posta)',
+
+    // Canonical signin keys
     'signin_start:google': 'Giriş başlatıldı (Google)',
     'signin_start:email': 'Giriş başlatıldı (E-posta)',
     'signin_success:google': 'Giriş başarılı (Google)',
+    'signin_success:google_redirect': 'Giriş başarılı (Google yönlendirme)',
     'signin_success:email': 'Giriş başarılı (E-posta)',
+
+    // Transport / fallback diagnostics
+    'signup_redirect_start:google': 'Google ile kayıt (yönlendirme başlatıldı)',
+    'login_redirect_start:google': 'Google ile giriş (yönlendirme başlatıldı)',
+    'signup_popup_fallback_to_redirect:google': 'Google popup engellendi (yönlendirme denendi)',
+    'login_popup_fallback_to_redirect:google': 'Google popup engellendi (yönlendirme denendi)',
+    'signup_redirect_result_timeout:google': 'Google kayıt yönlendirmesi zaman aşımına uğradı',
+    'login_redirect_result_timeout:google': 'Google giriş yönlendirmesi zaman aşımına uğradı',
+    'auth_redirect_no_result:google': 'Google yönlendirmesi döndü ama sonuç tamamlanamadı',
+    'auth_redirect_salvaged:google': 'Google yönlendirmesi kurtarıldı',
   };
   if (exact[raw]) return exact[raw];
+
+  if (raw.startsWith('signup_error:') || raw.startsWith('login_error:') || raw.startsWith('signin_error:')) {
+    const parts = raw.split(':');
+    const kind = parts[0] || '';
+    const flow = parts[1] || '';
+    const code = parts.slice(2).join(':');
+
+    const flowLabel = (() => {
+      if (flow === 'google_popup') return 'Google popup';
+      if (flow === 'google_redirect') return 'Google yönlendirme';
+      if (flow === 'google_redirect_start') return 'Google yönlendirme başlangıcı';
+      if (flow === 'google_popup_fallback_redirect_start') return 'Google popup→yönlendirme yedeği';
+      if (flow === 'email' || flow === 'email_password') return 'E-posta';
+      return flow ? flow.replace(/_/g, ' ') : '';
+    })();
+
+    const codeLabel = (() => {
+      const c = String(code || '').trim();
+      if (!c) return 'bilinmeyen hata';
+      const short = c
+        .replace(/^auth\//, '')
+        .replace(/^auth_/, '')
+        .replace(/^firebase:/, '')
+        .trim();
+      return authCodeLabelTr(short || c);
+    })();
+
+    const kindLabel = kind.startsWith('signup_') ? 'Kayıt hatası' : kind.startsWith('signin_') || kind.startsWith('login_') ? 'Giriş hatası' : 'Hata';
+    return flowLabel ? `${kindLabel} (${flowLabel}): ${codeLabel}` : `${kindLabel}: ${codeLabel}`;
+  }
 
   // Prefixed / pattern keys
   if (raw.startsWith('arrival:')) {
@@ -95,9 +216,9 @@ function eventLabelTr(eventKey) {
 
   if (raw.startsWith('landing_clickid:')) {
     const src = raw.slice('landing_clickid:'.length);
-    if (!src) return 'Landing: click id bulundu';
-    if (src === 'google') return 'Landing: Google click id';
-    return `Landing: click id (${src})`;
+    if (!src) return 'Açılış: tıklama kimliği bulundu';
+    if (src === 'google') return 'Açılış: Google tıklama kimliği';
+    return `Açılış: tıklama kimliği (${src})`;
   }
 
   if (raw.startsWith('utm_source:')) {
@@ -110,7 +231,7 @@ function eventLabelTr(eventKey) {
   }
   if (raw.startsWith('utm_medium:')) {
     const v = raw.slice('utm_medium:'.length);
-    return v ? `UTM medium: ${v}` : 'UTM medium';
+    return v ? `UTM ortamı: ${v}` : 'UTM ortamı';
   }
 
   // Generic fallback
@@ -136,7 +257,7 @@ export default function ClickLogsTab() {
   const [traceEvents, setTraceEvents] = useState([]);
   const [activeAnonId, setActiveAnonId] = useState('');
 
-  const dayKeys = Array.isArray(clickStats?.dayKeys) ? clickStats.dayKeys : [];
+  const dayKeys = useMemo(() => (Array.isArray(clickStats?.dayKeys) ? clickStats.dayKeys : []), [clickStats?.dayKeys]);
   const selectedKey = activeDayKey && dayKeys.includes(activeDayKey) ? activeDayKey : dayKeys[0] || '';
   const selectedDoc = selectedKey ? clickStats?.byDay?.[selectedKey] : null;
 
@@ -157,6 +278,7 @@ export default function ClickLogsTab() {
       'signup_auto_trigger:google',
       'signup_start:google',
       'signup_start:email',
+      'signup_start:email_password',
     ],
     []
   );
@@ -166,6 +288,7 @@ export default function ClickLogsTab() {
       'signup_success:google',
       'signup_success:google_redirect',
       'signup_success:email',
+      'signup_success:email_password',
     ],
     []
   );
@@ -175,6 +298,38 @@ export default function ClickLogsTab() {
     () => sumEventTotalsForKeys(selectedDoc, signupSuccessEventKeys),
     [selectedDoc, signupSuccessEventKeys]
   );
+
+  const googleSignupDiagnostics = useMemo(() => {
+    const success = getEventTotal(selectedDoc, 'signup_success:google') + getEventTotal(selectedDoc, 'signup_success:google_redirect');
+    const start = getEventTotal(selectedDoc, 'signup_start:google');
+    const redirectStart = getEventTotal(selectedDoc, 'signup_redirect_start:google');
+    const timeout = getEventTotal(selectedDoc, 'signup_redirect_result_timeout:google');
+    const noResult = getEventTotal(selectedDoc, 'auth_redirect_no_result:google');
+    const salvaged = getEventTotal(selectedDoc, 'auth_redirect_salvaged:google');
+    const popupFallback = getEventTotal(selectedDoc, 'signup_popup_fallback_to_redirect:google');
+    const inAppBlocked = getEventTotal(selectedDoc, 'signup_blocked:google_inapp');
+    const noResultCountries = Object.entries(getEventCountries(selectedDoc, 'auth_redirect_no_result:google'))
+      .map(([k, v]) => ({ k, v: safeNum(v) }))
+      .sort((a, b) => b.v - a.v)
+      .slice(0, 6);
+    const timeoutCountries = Object.entries(getEventCountries(selectedDoc, 'signup_redirect_result_timeout:google'))
+      .map(([k, v]) => ({ k, v: safeNum(v) }))
+      .sort((a, b) => b.v - a.v)
+      .slice(0, 6);
+
+    return {
+      start,
+      redirectStart,
+      success,
+      timeout,
+      noResult,
+      salvaged,
+      popupFallback,
+      inAppBlocked,
+      noResultCountries,
+      timeoutCountries,
+    };
+  }, [selectedDoc]);
 
   const selectedSignups = useMemo(() => {
     if (!selectedKey) return 0;
@@ -291,6 +446,18 @@ export default function ClickLogsTab() {
     return traceEvents.filter((e) => String(e?.anonId || '').trim() === activeAnonId);
   }, [traceEvents, activeAnonId]);
 
+  const traceUaTotals = useMemo(() => {
+    const totals = {};
+    for (const e of visibleTrace) {
+      const key = String(e?.uaHint || '').trim() || 'unknown';
+      totals[key] = (totals[key] || 0) + 1;
+    }
+    return Object.entries(totals)
+      .map(([k, v]) => ({ k, v }))
+      .sort((a, b) => b.v - a.v)
+      .slice(0, 8);
+  }, [visibleTrace]);
+
   return (
     <div className="space-y-4">
       <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-3">
@@ -368,13 +535,13 @@ export default function ClickLogsTab() {
         </div>
 
         <div className="rounded-2xl border border-slate-200 bg-white p-4">
-          <div className="text-xs uppercase tracking-wide text-slate-500">Signup intent (approx)</div>
+          <div className="text-xs uppercase tracking-wide text-slate-500">Yaklaşık kayıt niyeti</div>
           <div className="text-lg font-bold text-slate-900">{selectedSignupClicks}</div>
           <div className="mt-2 text-sm text-slate-700">
             Kayıt olan: <span className="font-bold">{selectedSignups}</span>
           </div>
           <div className="mt-1 text-sm text-slate-700">
-            Kayıt başarılı event: <span className="font-bold">{selectedSignupSuccess}</span>
+            Kayıt başarılı olayı: <span className="font-bold">{selectedSignupSuccess}</span>
           </div>
         </div>
 
@@ -383,22 +550,74 @@ export default function ClickLogsTab() {
           <div className="text-lg font-bold text-slate-900">
             {selectedSignupClicks > 0 ? Math.max(0, selectedSignupClicks - selectedSignups) : 0}
           </div>
-          <div className="mt-2 text-sm text-slate-700">(Kayıt ol tıklayıp kayıt olmayan approx.)</div>
+          <div className="mt-2 text-sm text-slate-700">(Yaklaşık: kayıt niyeti olup kayda dönüşmeyenler)</div>
         </div>
       </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+        <div className="rounded-2xl border border-slate-200 bg-white p-4">
+          <div className="text-xs uppercase tracking-wide text-slate-500">Google kayıt başlangıcı</div>
+          <div className="text-lg font-bold text-slate-900">{googleSignupDiagnostics.start}</div>
+          <div className="mt-2 text-sm text-slate-700">Yönlendirme başlangıcı: <span className="font-bold">{googleSignupDiagnostics.redirectStart}</span></div>
+        </div>
+
+        <div className="rounded-2xl border border-slate-200 bg-white p-4">
+          <div className="text-xs uppercase tracking-wide text-slate-500">Google kayıt başarısı</div>
+          <div className="text-lg font-bold text-emerald-700">{googleSignupDiagnostics.success}</div>
+          <div className="mt-2 text-sm text-slate-700">Kurtarılan yönlendirme: <span className="font-bold">{googleSignupDiagnostics.salvaged}</span></div>
+        </div>
+
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
+          <div className="text-xs uppercase tracking-wide text-amber-700">Redirect sorunları</div>
+          <div className="text-lg font-bold text-amber-900">{googleSignupDiagnostics.timeout + googleSignupDiagnostics.noResult}</div>
+          <div className="mt-2 text-sm text-amber-900">Zaman aşımı: <span className="font-bold">{googleSignupDiagnostics.timeout}</span> · Sonuçsuz dönüş: <span className="font-bold">{googleSignupDiagnostics.noResult}</span></div>
+        </div>
+
+        <div className="rounded-2xl border border-rose-200 bg-rose-50 p-4">
+          <div className="text-xs uppercase tracking-wide text-rose-700">Riskli çevre</div>
+          <div className="text-lg font-bold text-rose-900">{googleSignupDiagnostics.popupFallback + googleSignupDiagnostics.inAppBlocked}</div>
+          <div className="mt-2 text-sm text-rose-900">Popup→yönlendirme: <span className="font-bold">{googleSignupDiagnostics.popupFallback}</span> · Uygulama içi blok: <span className="font-bold">{googleSignupDiagnostics.inAppBlocked}</span></div>
+        </div>
+      </div>
+
+      {(googleSignupDiagnostics.noResultCountries.length || googleSignupDiagnostics.timeoutCountries.length) ? (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+          <div className="rounded-2xl border border-slate-200 bg-white p-4">
+            <h3 className="text-sm font-bold text-slate-900">Google yönlendirmesi sonuçsuz dönen ülkeler</h3>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {googleSignupDiagnostics.noResultCountries.map((c) => (
+                <span key={c.k} className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs">
+                  {formatCountryLabel(c.k)}:{c.v}
+                </span>
+              ))}
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-slate-200 bg-white p-4">
+            <h3 className="text-sm font-bold text-slate-900">Google yönlendirmesi zaman aşımına düşen ülkeler</h3>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {googleSignupDiagnostics.timeoutCountries.map((c) => (
+                <span key={c.k} className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs">
+                  {formatCountryLabel(c.k)}:{c.v}
+                </span>
+              ))}
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
         <div className="lg:col-span-2 rounded-2xl border border-slate-200 bg-white p-4 overflow-x-auto">
           <div className="flex items-center justify-between gap-2">
-            <h3 className="text-sm font-bold text-slate-900">Seçili gün — Event listesi</h3>
+            <h3 className="text-sm font-bold text-slate-900">Seçili gün — Olay listesi</h3>
             {loading ? <div className="text-xs text-slate-500">Yükleniyor…</div> : null}
           </div>
 
           <table className="w-full mt-3 text-sm">
             <thead>
               <tr className="text-left text-xs uppercase tracking-wide text-slate-500 border-b">
-                <th className="py-2 pr-3">Event</th>
-                <th className="py-2 pr-3">Unique</th>
+                <th className="py-2 pr-3">Olay</th>
+                <th className="py-2 pr-3">Tekil</th>
                 <th className="py-2">Ülke (top)</th>
               </tr>
             </thead>
@@ -418,7 +637,7 @@ export default function ClickLogsTab() {
                             key={c.k}
                             className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs"
                           >
-                            {c.k}:{c.v}
+                            {formatCountryLabel(c.k)}:{c.v}
                           </span>
                         ))
                       ) : (
@@ -444,7 +663,7 @@ export default function ClickLogsTab() {
           <div className="mt-3 space-y-2">
             {(sessionStartCountries.length ? sessionStartCountries : countryTotals).slice(0, 12).map((c) => (
               <div key={c.k} className="flex items-center justify-between">
-                <div className="text-sm font-semibold text-slate-700">{c.k}</div>
+                <div className="text-sm font-semibold text-slate-700">{formatCountryLabel(c.k)}</div>
                 <div className="text-sm font-bold text-slate-900">{c.v}</div>
               </div>
             ))}
@@ -454,7 +673,7 @@ export default function ClickLogsTab() {
             <div className="mt-3 text-xs text-amber-700">Oturum başlangıcı ülke verisi yok; tüm event toplamı gösteriliyor.</div>
           ) : null}
           <div className="mt-3 text-xs text-slate-500">
-            Not: Ülke, Vercel/Cloudflare header’ları varsa görünür. Yoksa UN olarak kalır.
+            Not: Ülke, Vercel/Cloudflare header’ları varsa görünür. Yoksa UN (Bilinmeyen) olarak kalır.
           </div>
         </div>
       </div>
@@ -517,8 +736,17 @@ export default function ClickLogsTab() {
 
           <div className="lg:col-span-2 rounded-2xl border border-slate-200 bg-white p-3 overflow-x-auto">
             <div className="flex items-center justify-between">
-              <div className="text-xs uppercase tracking-wide text-slate-500">Son olaylar</div>
+              <div className="text-xs uppercase tracking-wide text-slate-500">Son hareketler</div>
               {traceLoading ? <div className="text-xs text-slate-500">Yükleniyor…</div> : null}
+            </div>
+
+            <div className="mt-2 flex flex-wrap gap-2">
+              {traceUaTotals.map((item) => (
+                <span key={item.k} className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs">
+                  {item.k}:{item.v}
+                </span>
+              ))}
+              {!traceUaTotals.length ? <span className="text-xs text-slate-400">Tarayıcı ipucu henüz yok</span> : null}
             </div>
 
             <table className="w-full mt-2 text-sm">
@@ -526,9 +754,10 @@ export default function ClickLogsTab() {
                 <tr className="text-left text-xs uppercase tracking-wide text-slate-500 border-b">
                   <th className="py-2 pr-3">Zaman</th>
                   <th className="py-2 pr-3">Ülke</th>
+                  <th className="py-2 pr-3">Tarayıcı</th>
                   <th className="py-2 pr-3">Dil</th>
                   <th className="py-2 pr-3">TZ</th>
-                  <th className="py-2 pr-3">Event</th>
+                  <th className="py-2 pr-3">Olay</th>
                   <th className="py-2">Sayfa</th>
                 </tr>
               </thead>
@@ -540,7 +769,8 @@ export default function ClickLogsTab() {
                         ? new Date(e.createdAtMs).toISOString().slice(0, 19).replace('T', ' ')
                         : '-'}
                     </td>
-                    <td className="py-2 pr-3 text-xs font-semibold">{String(e.country || 'UN')}</td>
+                    <td className="py-2 pr-3 text-xs font-semibold">{formatCountryLabel(e.country || 'UN')}</td>
+                    <td className="py-2 pr-3 text-xs font-mono">{String(e.uaHint || '-')}</td>
                     <td className="py-2 pr-3 text-xs font-mono">{String(e.lang || '-')}</td>
                     <td className="py-2 pr-3 text-xs font-mono">{String(e.tz || '-')}</td>
                     <td className="py-2 pr-3">
@@ -552,7 +782,7 @@ export default function ClickLogsTab() {
                 ))}
                 {!visibleTrace.length ? (
                   <tr>
-                    <td colSpan={6} className="py-4 text-slate-500">
+                    <td colSpan={7} className="py-4 text-slate-500">
                       Henüz trace yok.
                     </td>
                   </tr>
@@ -570,9 +800,9 @@ export default function ClickLogsTab() {
             <thead>
               <tr className="text-left text-xs uppercase tracking-wide text-slate-500 border-b">
                 <th className="py-2 pr-3">Gün</th>
-                <th className="py-2 pr-3">Unique event</th>
+                <th className="py-2 pr-3">Tekil olay</th>
                 <th className="py-2 pr-3">Kayıt ol tık</th>
-                <th className="py-2">Signup</th>
+                <th className="py-2">Kayıt</th>
               </tr>
             </thead>
             <tbody>

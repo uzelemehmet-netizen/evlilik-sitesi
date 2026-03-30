@@ -298,7 +298,7 @@ export default function StudioMyInfo() {
       conservative: 'matchmakingPage.form.options.religiousValues.conservative',
     };
     return map[v] ? t(map[v]) : v;
-  }, [i18n.language, info.details, info.details?.religiousValues, t]);
+  }, [i18n.language, info.details, t]);
 
   const partnerReligionLabel = useMemo(() => {
     const v = safeStr(info.partner?.religion);

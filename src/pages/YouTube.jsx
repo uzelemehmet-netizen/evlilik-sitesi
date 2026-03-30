@@ -1,6 +1,5 @@
 ﻿import Navigation from "../components/Navigation";
 import Footer from "../components/Footer";
-import HeroSocialButtons from "../components/HeroSocialButtons";
 import { Play, Youtube } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { getYouTubeVideosForLang } from "../data/youtube";

@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Link, useLocation, useParams } from 'react-router-dom';
 import { collection, doc, getDoc, getDocFromServer, limit, onSnapshot, orderBy, query } from 'firebase/firestore';
 import { Lock, MessageCircle, ShieldCheck, Sparkles } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -124,7 +124,6 @@ export default function StudioMatchProfile() {
   const location = useLocation();
   const { user } = useAuth();
   const { t, i18n } = useTranslation();
-  const navigate = useNavigate();
   const [myCommLanguage, setMyCommLanguage] = useState('');
 
   const isPreview = !user || user.isAnonymous;
@@ -172,7 +171,7 @@ export default function StudioMatchProfile() {
   const [matchLoading, setMatchLoading] = useState(true);
   const [myLock, setMyLock] = useState({ active: false, matchId: '' });
 
-  const [myProfileComplete, setMyProfileComplete] = useState(true);
+  const [, setMyProfileComplete] = useState(true);
 
   const [myMembership, setMyMembership] = useState({ active: false });
 
@@ -350,15 +349,6 @@ export default function StudioMatchProfile() {
     };
   }, [uid]);
 
-  const requireProfile = () => {
-    setProfileGateNotice(t('studio.profileGate.body'));
-    try {
-      if (typeof window !== 'undefined') window.scrollTo({ top: 0, behavior: 'smooth' });
-    } catch {
-      // noop
-    }
-  };
-
   useEffect(() => {
     if (!isTutorialActive()) return;
     if (!profileGateNotice) return;
@@ -385,7 +375,7 @@ export default function StudioMatchProfile() {
     };
   }, [paywallNotice]);
 
-  const activateFreeMembershipNow = async () => {
+  const activateFreeMembershipNow = useCallback(async () => {
     if (!uid) return;
     if (activateMembershipRef.current) return;
     activateMembershipRef.current = true;
@@ -404,7 +394,7 @@ export default function StudioMatchProfile() {
     } finally {
       activateMembershipRef.current = false;
     }
-  };
+  }, [t, uid]);
 
   const paywallAutoActivateRef = useRef(false);
   useEffect(() => {
@@ -416,7 +406,7 @@ export default function StudioMatchProfile() {
     paywallAutoActivateRef.current = true;
     // Üyelik artık otomatik veriliyor; paywall görünürse best-effort arkada düzelt.
     activateFreeMembershipNow();
-  }, [paywallNotice]);
+  }, [activateFreeMembershipNow, paywallNotice]);
 
   useEffect(() => {
     if (!mid) return;
@@ -594,13 +584,6 @@ export default function StudioMatchProfile() {
     setProfilePhotoIndex(0);
   }, [mid]);
 
-  const unreadCount = useMemo(() => {
-    if (!match || !uid) return 0;
-    const m = match?.chatUnreadByUid && typeof match.chatUnreadByUid === 'object' ? match.chatUnreadByUid : {};
-    const n = typeof m?.[uid] === 'number' ? m[uid] : 0;
-    return Number.isFinite(n) && n > 0 ? n : 0;
-  }, [match, uid]);
-
   const isActiveMatchForMe = !!myLock?.active && !!myLock?.matchId && myLock.matchId === mid;
   const lockedByOtherActiveMatch = !!myLock?.active && !!myLock?.matchId && myLock.matchId !== mid;
   const longChatAllowed = isParticipant && isActiveMatchForMe && (matchStatus === 'mutual_accepted' || matchStatus === 'contact_unlocked');
@@ -662,91 +645,42 @@ export default function StudioMatchProfile() {
         : String(rawValue || '');
   };
 
-  const genderLabel = useMemo(() => tOption('gender', otherMerged?.gender), [otherMerged?.gender, t]);
-  const nationalityLabel = useMemo(() => tOption('nationality', otherMerged?.nationality), [otherMerged?.nationality, t]);
-  const educationLabel = useMemo(
-    () => tOption('education', otherMerged?.details?.education || otherMerged?.education),
-    [otherMerged?.details?.education, otherMerged?.education, t]
-  );
-  const occupationLabel = useMemo(
-    () => tOption('occupation', otherMerged?.details?.occupation || otherMerged?.occupation),
-    [otherMerged?.details?.occupation, otherMerged?.occupation, t]
-  );
-  const religionLabel = useMemo(
-    () => tOption('religion', otherMerged?.details?.religion || otherMerged?.religion),
-    [otherMerged?.details?.religion, otherMerged?.religion, t]
-  );
-  const incomeLabel = useMemo(() => tOption('income', otherMerged?.details?.incomeLevel), [otherMerged?.details?.incomeLevel, t]);
-  const timelineLabel = useMemo(
-    () => tOption('timeline', otherMerged?.details?.marriageTimeline),
-    [otherMerged?.details?.marriageTimeline, t]
-  );
-  const familyApprovalLabel = useMemo(
-    () => tOption('familyApproval', otherMerged?.details?.familyApprovalStatus),
-    [otherMerged?.details?.familyApprovalStatus, t]
-  );
-  const preferredLivingCountryLabel = useMemo(
-    () => tOption('livingCountry', otherMerged?.details?.preferredLivingCountry),
-    [otherMerged?.details?.preferredLivingCountry, t]
-  );
-  const commLanguageLabel = useMemo(
-    () => tOption('commLanguage', otherMerged?.details?.communicationLanguage),
-    [otherMerged?.details?.communicationLanguage, t]
-  );
-  const hasChildrenLabel = useMemo(
-    () => tYesNoCommon(otherMerged?.details?.hasChildren),
-    [otherMerged?.details?.hasChildren, t]
-  );
-  const childrenLivingSituationLabel = useMemo(
-    () => tOption('childrenLivingSituation', otherMerged?.details?.childrenLivingSituation),
-    [otherMerged?.details?.childrenLivingSituation, t]
-  );
-  const smokingLabel = useMemo(() => tYesNoCommon(otherMerged?.details?.smoking), [otherMerged?.details?.smoking, t]);
-  const alcoholLabel = useMemo(() => tYesNoCommon(otherMerged?.details?.alcohol), [otherMerged?.details?.alcohol, t]);
-  const relocationLabel = useMemo(
-    () => tYesNoCommon(otherMerged?.details?.relocationWillingness) || safeStr(otherMerged?.details?.relocationWillingness),
-    [otherMerged?.details?.relocationWillingness, t]
-  );
+  const genderLabel = tOption('gender', otherMerged?.gender);
+  const nationalityLabel = tOption('nationality', otherMerged?.nationality);
+  const educationLabel = tOption('education', otherMerged?.details?.education || otherMerged?.education);
+  const occupationLabel = tOption('occupation', otherMerged?.details?.occupation || otherMerged?.occupation);
+  const religionLabel = tOption('religion', otherMerged?.details?.religion || otherMerged?.religion);
+  const incomeLabel = tOption('income', otherMerged?.details?.incomeLevel);
+  const timelineLabel = tOption('timeline', otherMerged?.details?.marriageTimeline);
+  const familyApprovalLabel = tOption('familyApproval', otherMerged?.details?.familyApprovalStatus);
+  const preferredLivingCountryLabel = tOption('livingCountry', otherMerged?.details?.preferredLivingCountry);
+  const commLanguageLabel = tOption('commLanguage', otherMerged?.details?.communicationLanguage);
+  const childrenLivingSituationLabel = tOption('childrenLivingSituation', otherMerged?.details?.childrenLivingSituation);
+  const smokingLabel = tYesNoCommon(otherMerged?.details?.smoking);
+  const alcoholLabel = tYesNoCommon(otherMerged?.details?.alcohol);
+  const relocationLabel = tYesNoCommon(otherMerged?.details?.relocationWillingness) || safeStr(otherMerged?.details?.relocationWillingness);
+  const familyObstacleLabel = tYesNoCommon(otherMerged?.details?.familyObstacle);
+  const canCommunicateWithTranslationAppLabel = tYesNoCommon(otherMerged?.details?.canCommunicateWithTranslationApp);
 
-  const familyObstacleLabel = useMemo(
-    () => tYesNoCommon(otherMerged?.details?.familyObstacle),
-    [otherMerged?.details?.familyObstacle, t]
-  );
+  const otherPartner = otherMerged?.partnerPreferences && typeof otherMerged.partnerPreferences === 'object'
+    ? otherMerged.partnerPreferences
+    : {};
 
-  const canCommunicateWithTranslationAppLabel = useMemo(
-    () => tYesNoCommon(otherMerged?.details?.canCommunicateWithTranslationApp),
-    [otherMerged?.details?.canCommunicateWithTranslationApp, t]
-  );
+  const otherLookingForGenderLabel = tOptionOrDoesntMatter('gender', otherMerged?.lookingForGender);
+  const otherLookingForNationalityLabel = tOptionOrDoesntMatter('nationality', otherMerged?.lookingForNationality);
 
-  const otherPartner = useMemo(() => {
-    const p = otherMerged?.partnerPreferences;
-    return p && typeof p === 'object' ? p : {};
-  }, [otherMerged?.partnerPreferences]);
-
-  const otherLookingForGenderLabel = useMemo(
-    () => tOptionOrDoesntMatter('gender', otherMerged?.lookingForGender),
-    [otherMerged?.lookingForGender, t]
-  );
-  const otherLookingForNationalityLabel = useMemo(
-    () => tOptionOrDoesntMatter('nationality', otherMerged?.lookingForNationality),
-    [otherMerged?.lookingForNationality, t]
-  );
-
-  const partnerMaritalStatusLabel = useMemo(() => {
+  const partnerMaritalStatusLabel = (() => {
     const raw = safeStr(otherPartner?.maritalStatus);
     if (!raw) return '';
     const key = maritalStatusToKey(raw);
     if (key) return t(key);
     if (raw.toLowerCase() === 'doesnt_matter' || raw.toLowerCase() === 'doesntmatter') return tDoesntMatter();
     return tOption('maritalStatus', raw) || raw;
-  }, [otherPartner?.maritalStatus, t]);
+  })();
 
-  const partnerReligionLabel = useMemo(
-    () => tOptionOrDoesntMatter('religion', otherPartner?.religion),
-    [otherPartner?.religion, t]
-  );
+  const partnerReligionLabel = tOptionOrDoesntMatter('religion', otherPartner?.religion);
 
-  const partnerCommunicationMethodsLabel = useMemo(() => {
+  const partnerCommunicationMethodsLabel = (() => {
     const list = Array.isArray(otherPartner?.communicationMethods) ? otherPartner.communicationMethods : [];
     const mapped = list
       .map((x) => safeStr(x))
@@ -759,55 +693,38 @@ export default function StudioMatchProfile() {
       })
       .filter(Boolean);
     return mapped.length ? mapped.join(', ') : '';
-  }, [otherPartner?.communicationMethods, t]);
+  })();
 
-  const partnerLivingCountryLabel = useMemo(
-    () => tOptionOrDoesntMatter('livingCountry', otherPartner?.livingCountry),
-    [otherPartner?.livingCountry, t]
-  );
+  const partnerLivingCountryLabel = tOptionOrDoesntMatter('livingCountry', otherPartner?.livingCountry);
+  const partnerEducationLabel = tOptionOrDoesntMatter('education', otherPartner?.educationPreference);
+  const partnerOccupationLabel = tOptionOrDoesntMatter('occupation', otherPartner?.occupationPreference);
+  const partnerChildrenLabel = tOptionOrDoesntMatter('partnerChildren', otherPartner?.childrenPreference);
 
-  const partnerEducationLabel = useMemo(
-    () => tOptionOrDoesntMatter('education', otherPartner?.educationPreference),
-    [otherPartner?.educationPreference, t]
-  );
-
-  const partnerOccupationLabel = useMemo(
-    () => tOptionOrDoesntMatter('occupation', otherPartner?.occupationPreference),
-    [otherPartner?.occupationPreference, t]
-  );
-
-  const partnerChildrenLabel = useMemo(
-    () => tOptionOrDoesntMatter('partnerChildren', otherPartner?.childrenPreference),
-    [otherPartner?.childrenPreference, t]
-  );
-
-  const partnerFamilyValuesLabel = useMemo(() => {
+  const partnerFamilyValuesLabel = (() => {
     const raw = safeStr(otherPartner?.familyValuesPreference);
     if (!raw) return '';
     const norm = raw.toLowerCase();
     if (norm === 'doesnt_matter' || norm === 'doesntmatter') return tDoesntMatter();
     return tOption('familyValues', raw) || raw;
-  }, [otherPartner?.familyValuesPreference, t]);
+  })();
 
-  const partnerSmokingPreferenceLabel = useMemo(() => {
+  const partnerSmokingPreferenceLabel = (() => {
     const raw = safeStr(otherPartner?.smokingPreference);
     if (!raw) return '';
     const norm = raw.toLowerCase();
     if (norm === 'doesnt_matter' || norm === 'doesntmatter') return tDoesntMatter();
     return tYesNoCommon(raw) || raw;
-  }, [otherPartner?.smokingPreference, t]);
+  })();
 
-  const partnerAlcoholPreferenceLabel = useMemo(() => {
+  const partnerAlcoholPreferenceLabel = (() => {
     const raw = safeStr(otherPartner?.alcoholPreference);
     if (!raw) return '';
     const norm = raw.toLowerCase();
     if (norm === 'doesnt_matter' || norm === 'doesntmatter') return tDoesntMatter();
     return tYesNoCommon(raw) || raw;
-  }, [otherPartner?.alcoholPreference, t]);
+  })();
 
-
-
-  const nativeLanguageLabel = useMemo(() => {
+  const nativeLanguageLabel = (() => {
     const languages = otherMerged?.details?.languages && typeof otherMerged.details.languages === 'object' ? otherMerged.details.languages : {};
     const native = languages?.native && typeof languages.native === 'object' ? languages.native : {};
     const code = safeStr(native?.code || otherMerged?.details?.nativeLanguage);
@@ -818,9 +735,9 @@ export default function StudioMatchProfile() {
     if (!code) return '';
     if (code === 'other') return otherText;
     return tOption('commLanguage', code) || code;
-  }, [otherMerged, t]);
+  })();
 
-  const foreignLanguagesLabel = useMemo(() => {
+  const foreignLanguagesLabel = (() => {
     const languages = otherMerged?.details?.languages && typeof otherMerged.details.languages === 'object' ? otherMerged.details.languages : {};
     const native = languages?.native && typeof languages.native === 'object' ? languages.native : {};
     const foreign = languages?.foreign && typeof languages.foreign === 'object' ? languages.foreign : {};
@@ -839,7 +756,7 @@ export default function StudioMatchProfile() {
       .map((c) => (c === 'other' ? foreignOther : tOption('commLanguage', c) || c))
       .filter(Boolean);
     return labels.length ? labels.join(', ') : '';
-  }, [otherMerged, t]);
+  })();
 
   const requirePaid = () => {
     setPaywallNotice(t('studio.paywall.upgradeToInteract'));
@@ -1035,30 +952,6 @@ export default function StudioMatchProfile() {
   const activeStartByUid = match?.activeStartByUid && typeof match.activeStartByUid === 'object' ? match.activeStartByUid : {};
   const iStarted = !!(uid && activeStartByUid?.[uid]);
 
-  const openShortModal = async () => {
-    if (isPreview) {
-      openPreviewGate({ reason: t('previewGate.body') });
-      return;
-    }
-    if (!uid || !mid) return;
-    if (lockedByOtherActiveMatch) {
-      setShortState({ loading: false, error: t('studio.errors.activeLocked') });
-      return;
-    }
-    setShortModalOpen(true);
-    setShortText('');
-    setShortState({ loading: false, error: '' });
-    try {
-      await authFetch('/api/matchmaking-chat-mark-read', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ matchId: mid }),
-      });
-    } catch {
-      // noop
-    }
-  };
-
   const sendShort = async (e) => {
     e?.preventDefault?.();
     if (isPreview) {
@@ -1181,7 +1074,7 @@ export default function StudioMatchProfile() {
   const autoTranslateInFlightRef = useRef(false);
   const autoTranslateAttemptedRef = useRef(new Set());
 
-  const autoTranslateMessage = async ({ messageId }) => {
+  const autoTranslateMessage = useCallback(async ({ messageId }) => {
     if (isPreview) return;
     const msgId = safeStr(messageId);
     if (!uid || !mid || !msgId) return;
@@ -1194,7 +1087,7 @@ export default function StudioMatchProfile() {
     } catch {
       // silent
     }
-  };
+  }, [effectiveTargetLang, isPreview, mid, uid]);
 
   useEffect(() => {
     if (isPreview) return;
@@ -1254,7 +1147,7 @@ export default function StudioMatchProfile() {
     }, 350);
 
     return () => clearTimeout(timer);
-  }, [effectiveTargetLang, isPreview, longChatAllowed, messages, messagesLoading, mid, uid]);
+  }, [autoTranslateMessage, effectiveTargetLang, isPreview, longChatAllowed, messages, messagesLoading, mid, uid]);
 
   const startActive = async () => {
     if (isPreview) {
@@ -2226,7 +2119,7 @@ export default function StudioMatchProfile() {
                         const fromMe = !!uid && safeStr(m?.userId) === uid;
                         const translated =
                           m?.translations && typeof m.translations === 'object'
-                            ? safeStr(m.translations?.[targetLang])
+                            ? safeStr(m.translations?.[effectiveTargetLang])
                             : '';
                         return (
                           <div key={m.id} className={`flex ${fromMe ? 'justify-end' : 'justify-start'}`}>
@@ -2239,7 +2132,7 @@ export default function StudioMatchProfile() {
                               {safeStr(m?.text)}
                               {!fromMe ? (
                                 <div className="mt-2 flex items-center justify-between gap-2">
-                                  {translated ? <div className="text-xs text-slate-600">{targetLang.toUpperCase()}: {translated}</div> : <span />}
+                                  {translated ? <div className="text-xs text-slate-600">{effectiveTargetLang.toUpperCase()}: {translated}</div> : <span />}
                                   <button
                                     type="button"
                                     onClick={() => translateMessage({ messageId: m.id })}

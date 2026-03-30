@@ -243,7 +243,7 @@ export default function LeadsPoolTab() {
 
     setPatch({ saving: true, error: '', success: '' });
     try {
-      await authFetch(`/api/admin-lead-delete?ts=${Date.now()}`, {
+      const payload = await authFetch(`/api/admin-lead-delete?ts=${Date.now()}`, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ id: leadId }),
@@ -251,7 +251,11 @@ export default function LeadsPoolTab() {
 
       setItems((p) => (Array.isArray(p) ? p.filter((x) => x?.id !== leadId) : []));
       setDetail({ open: false, item: null });
-      setPatch({ saving: false, error: '', success: 'Silindi.' });
+      setPatch({
+        saving: false,
+        error: '',
+        success: payload?.alreadyDeleted ? 'Kayıt zaten silinmişti; listeden kaldırıldı.' : 'Silindi.',
+      });
     } catch (e) {
       const msg = String(e?.message || '').trim();
       setPatch({ saving: false, error: msg || 'Silinemedi.', success: '' });

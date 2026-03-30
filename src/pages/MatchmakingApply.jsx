@@ -6,7 +6,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { auth } from '../config/firebaseAuth';
 import { db } from '../config/firebaseDb';
 import { storage } from '../config/firebaseStorage';
-import { collection, doc, getDoc, getDocs, limit, query, serverTimestamp, setDoc, where } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs, limit, query, serverTimestamp, where } from 'firebase/firestore';
 import { getDownloadURL, ref, uploadBytes } from 'firebase/storage';
 import { useAuth } from '../auth/AuthProvider';
 import { uploadImageToCloudinaryAuto } from '../utils/cloudinaryUpload';
@@ -14,6 +14,99 @@ import { authFetch } from '../utils/authFetch';
 import { staticAssetUrl } from '../utils/staticAssetUrl';
 import { tiktokTrack } from '../utils/tiktokPixel';
 import { markFunnelApplyCompleted } from '../utils/funnelTracker';
+import { pickMatchmakingPhotoRefs } from '../utils/matchmakingProfileCompletion';
+
+const PHOTO_FIELD_KEYS = ['photo1', 'photo2', 'photo3', 'photo4', 'photo5'];
+const DEFAULT_LOOKING_FOR_NATIONALITY = 'id';
+const EMPTY_PHOTO_FILES = Object.freeze(
+  PHOTO_FIELD_KEYS.reduce((acc, key) => {
+    acc[key] = null;
+    return acc;
+  }, {})
+);
+
+function getBaseLang(raw) {
+  const base = String(raw || '').trim().toLowerCase().split(/[-_]/)[0];
+  if (base === 'in') return 'id';
+  if (base === 'tr' || base === 'en' || base === 'id') return base;
+  return 'tr';
+}
+
+function getApplyPremiumUi(lang) {
+  const copy = {
+    tr: {
+      heroFacts: [
+        {
+          title: 'Kisa ve secili form',
+          body: 'Ilk adim uzun bir sorgu degil; sistemin sizi tanimasi icin gerekli cekirdek bilgiler istenir.',
+        },
+        {
+          title: 'Profil herkese acik degil',
+          body: 'Paylastiginiz bilgi ve fotograflar kontrollu akis icinde kullanilir; vitrin gibi yayinlanmaz.',
+        },
+        {
+          title: 'Iletisim kilitli baslar',
+          body: 'Temas hemen acilmaz; once uygunluk, sonra sistem ici akis ve karsilikli onay gerekir.',
+        },
+      ],
+      editorialEyebrow: 'Basvuru masasi',
+      editorialTitle: 'Amacimiz sizi yormak degil, sizi dogru sekilde yerlestirmek',
+      editorialBody: 'Bu form, sizi rastgele kalabaliga acmak icin degil; daha duzgun eslesmeler ve daha temiz bir surec icin kullanilir.',
+      formDeskTitle: 'Form boyunca neye dikkat ediyoruz?',
+      formDeskBody: 'Netlik, mahremiyet ve kontrollu iletisim. Bu uc nokta, tum akis boyunca korunur.',
+      footerNoteTitle: 'Formdan sonra ne olur?',
+      footerNoteBody: 'Bilgileriniz sistem akisini hazirlar. Uygunluk, profil tamamlama ve temas adimlari topluca degil kontrollu sekilde acilir.',
+    },
+    en: {
+      heroFacts: [
+        {
+          title: 'Short and selective form',
+          body: 'The first step is not an endless questionnaire; it asks for the core details needed to place you correctly.',
+        },
+        {
+          title: 'Your profile is not public',
+          body: 'Your details and photos stay inside the controlled flow; they are not published like a showcase.',
+        },
+        {
+          title: 'Contact starts locked',
+          body: 'Contact does not open immediately; fit, in-system flow and mutual approval come first.',
+        },
+      ],
+      editorialEyebrow: 'Application desk',
+      editorialTitle: 'The goal is not to tire you, but to place you correctly',
+      editorialBody: 'This form is not for exposing you to a crowd. It exists to support cleaner matches and a more orderly process.',
+      formDeskTitle: 'What do we protect throughout this form?',
+      formDeskBody: 'Clarity, privacy and controlled contact. Those three principles stay in place across the whole flow.',
+      footerNoteTitle: 'What happens after the form?',
+      footerNoteBody: 'Your details prepare the system flow. Fit, profile completion and contact do not open all at once; they open in a controlled sequence.',
+    },
+    id: {
+      heroFacts: [
+        {
+          title: 'Form singkat dan terpilih',
+          body: 'Langkah awal ini bukan pertanyaan panjang; hanya meminta inti informasi yang dibutuhkan sistem.',
+        },
+        {
+          title: 'Profil tidak publik',
+          body: 'Informasi dan foto Anda dipakai dalam alur terkontrol; tidak dipublikasikan seperti etalase.',
+        },
+        {
+          title: 'Kontak tetap terkunci dulu',
+          body: 'Kontak tidak langsung dibuka; kecocokan, alur sistem, dan persetujuan kedua pihak didahulukan.',
+        },
+      ],
+      editorialEyebrow: 'Meja pengajuan',
+      editorialTitle: 'Tujuannya bukan membuat Anda lelah, tetapi menempatkan Anda dengan benar',
+      editorialBody: 'Form ini bukan untuk membuka Anda ke keramaian. Form ini dipakai untuk match yang lebih bersih dan proses yang lebih rapi.',
+      formDeskTitle: 'Apa yang kami jaga sepanjang form ini?',
+      formDeskBody: 'Kejelasan, privasi, dan kontak yang terkontrol. Tiga prinsip ini dijaga sepanjang alur.',
+      footerNoteTitle: 'Apa yang terjadi setelah form?',
+      footerNoteBody: 'Data Anda menyiapkan alur sistem. Kecocokan, kelengkapan profil, dan kontak tidak dibuka sekaligus; semuanya dibuka bertahap.',
+    },
+  };
+
+  return copy[lang] || copy.tr;
+}
 
 function toNumberOrNull(value) {
   if (value === null || value === undefined) return null;
@@ -21,11 +114,6 @@ function toNumberOrNull(value) {
   if (!s) return null;
   const n = Number(s);
   return Number.isFinite(n) ? n : null;
-}
-
-function selectedValuesFromSelectEvent(e) {
-  const opts = Array.from(e?.target?.selectedOptions || []);
-  return opts.map((o) => String(o.value)).filter((v) => v);
 }
 
 function isImageFile(file) {
@@ -40,12 +128,28 @@ function safeStr(v) {
   return typeof v === 'string' ? v.trim() : '';
 }
 
+function normalizePathOnly(path) {
+  return safeStr(path).split(/[?#]/)[0];
+}
+
+function isMatchmakingApplyPath(path) {
+  const normalized = normalizePathOnly(path);
+  return normalized === '/wedding/apply' || normalized === '/evlilik/eslestirme-basvuru' || normalized === '/evlilik/eslestirme-basvurusu';
+}
+
 function isIndonesianNationality(raw) {
   const s = String(raw || '').trim().toLowerCase();
   if (!s) return false;
   if (s === 'id') return true;
   if (s === 'indonesia' || s === 'indonezya' || s === 'endonezya') return true;
   return s.includes('indonesia') || s.includes('indonezya') || s.includes('endonezya');
+}
+
+function deriveLookingForGender(gender) {
+  const value = String(gender || '').trim().toLowerCase();
+  if (value === 'male') return 'female';
+  if (value === 'female') return 'male';
+  return '';
 }
 
 function asMs(v) {
@@ -129,7 +233,7 @@ async function compressImageToJpeg(file, { maxWidth = 1600, maxHeight = 1600, qu
   } finally {
     try {
       URL.revokeObjectURL(url);
-    } catch (e) {
+    } catch {
       // ignore
     }
   }
@@ -140,22 +244,8 @@ export default function MatchmakingApply() {
   const { user, loading } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
-
-  const afterSaveOpenPhotoManager = useMemo(() => {
-    try {
-      return !!(location?.state && typeof location.state === 'object' && location.state.afterSaveOpenPhotoManager);
-    } catch {
-      return false;
-    }
-  }, [location?.state]);
-
-  const afterSubmitOpenPhotoManager = useMemo(() => {
-    try {
-      return !!(location?.state && typeof location.state === 'object' && location.state.afterSubmitOpenPhotoManager);
-    } catch {
-      return false;
-    }
-  }, [location?.state]);
+  const applyPremiumUi = getApplyPremiumUi(getBaseLang(i18n?.language));
+  const isIndonesianUi = useMemo(() => String(i18n?.language || '').trim().toLowerCase().startsWith('id'), [i18n?.language]);
 
   const isEmbedded = useMemo(() => {
     try {
@@ -165,26 +255,11 @@ export default function MatchmakingApply() {
       return false;
     }
   }, [location.search]);
-
-  const [deferState, setDeferState] = useState({ loading: false, error: '' });
-
   const isEditOnceMode = useMemo(() => {
-    try {
-      const params = new URLSearchParams(location.search || '');
-      const raw = String(
-        params.get('editOnce') ||
-          params.get('editonce') ||
-          params.get('edit_once') ||
-          params.get('mode') ||
-          ''
-      )
-        .trim()
-        .toLowerCase();
-      return raw === '1' || raw === 'true' || raw === 'yes' || raw === 'editonce' || raw === 'edit_once' || raw === 'edit';
-    } catch {
-      return false;
-    }
-  }, [location.search]);
+    // Ürün kararı (29 Mart 2026): "1 defalık düzeltme" modu kaldırıldı.
+    // Kullanıcılar bu sayfadan istedikleri zaman bilgilerini güncelleyebilsin.
+    return false;
+  }, []);
 
   const navigateToProfile = (state) => {
     const nextState = state && typeof state === 'object' ? state : undefined;
@@ -206,28 +281,37 @@ export default function MatchmakingApply() {
     navigate('/profilim', { replace: true, state: nextState });
   };
 
-  const deferApply = async () => {
-    const uid = String(user?.uid || '').trim();
-    if (!uid) return;
-    if (deferState.loading) return;
+  const resolvePostSubmitReturnTo = () => {
+    const raw = safeStr(location?.state?.returnTo || location?.state?.from);
+    if (!raw) return '';
 
-    setDeferState({ loading: true, error: '' });
-    try {
-      const ref = doc(db, 'matchmakingUsers', uid);
-      await setDoc(
-        ref,
-        {
-          applyDeferredAtMs: Date.now(),
-          updatedAt: serverTimestamp(),
-        },
-        { merge: true }
-      );
-      navigateToProfile({ from: 'applyDeferred' });
-    } catch {
-      setDeferState({ loading: false, error: t('matchmakingPage.form.deferError') });
+    const pathOnly = normalizePathOnly(raw);
+    if (!pathOnly.startsWith('/')) return '';
+    if (pathOnly === '/login') return '';
+    if (isMatchmakingApplyPath(pathOnly)) return '';
+
+    return raw;
+  };
+
+  const navigateAfterApplySubmit = (state) => {
+    const returnTo = resolvePostSubmitReturnTo();
+    if (returnTo) {
+      if (isEmbedded) {
+        try {
+          if (typeof window !== 'undefined' && window.top && window.top !== window.self) {
+            window.top.location.assign(returnTo);
+            return;
+          }
+        } catch {
+          // ignore
+        }
+      }
+
+      navigate(returnTo, { replace: true, state });
       return;
     }
-    setDeferState({ loading: false, error: '' });
+
+    navigateToProfile(state);
   };
 
   const isWizardMode = useMemo(() => {
@@ -250,18 +334,23 @@ export default function MatchmakingApply() {
     }
   }, [isEmbedded, location.search]);
 
-  const WIZARD_TOTAL_STEPS = isEditOnceMode ? 3 : 1;
+  const requestedWizardStep = useMemo(() => {
+    try {
+      const fromState = Number(location?.state?.startStep);
+      if (Number.isInteger(fromState) && fromState >= 0) return fromState;
+      const params = new URLSearchParams(location.search || '');
+      const raw = Number(params.get('step'));
+      if (Number.isInteger(raw) && raw >= 0) return raw;
+    } catch {
+      // ignore
+    }
+    return 0;
+  }, [location.search, location.state]);
+
+  const WIZARD_TOTAL_STEPS = 3;
   const [wizardStep, setWizardStep] = useState(0);
 
   const wizardSteps = useMemo(() => {
-    if (!isEditOnceMode) {
-      return [
-        {
-          title: t('matchmakingPage.form.wizard.steps.basic.title'),
-          desc: t('matchmakingPage.form.wizard.steps.basic.desc'),
-        },
-      ];
-    }
     return [
       {
         title: t('matchmakingPage.form.wizard.steps.basic.title'),
@@ -276,15 +365,15 @@ export default function MatchmakingApply() {
         desc: t('matchmakingPage.form.wizard.steps.identity.desc'),
       },
     ];
-  }, [t, isEditOnceMode]);
+  }, [t]);
 
   const wizardCurrent = wizardSteps?.[wizardStep] || { title: '', desc: '' };
-  const consentsWizardStep = isEditOnceMode ? 2 : 0;
+  const consentsWizardStep = 0;
 
   useEffect(() => {
     if (!isWizardMode) return;
-    setWizardStep(0);
-  }, [isWizardMode]);
+    setWizardStep(Math.max(0, Math.min(WIZARD_TOTAL_STEPS - 1, requestedWizardStep)));
+  }, [WIZARD_TOTAL_STEPS, isWizardMode, requestedWizardStep]);
 
   useEffect(() => {
     setWizardStep((s) => Math.max(0, Math.min(WIZARD_TOTAL_STEPS - 1, s)));
@@ -349,24 +438,13 @@ export default function MatchmakingApply() {
           // ve daha önce boş bıraktığı yerleri doldurabilsin.
           setExistingApplication({ id, ...data });
 
-          setAutoPrefilled((prev) => {
-            const next = { ...(prev && typeof prev === 'object' ? prev : {}) };
-            if (safeStr(data?.username)) next.username = true;
-            if (safeStr(data?.fullName)) next.fullName = true;
-            if (data?.age === 0 || data?.age) next.age = true;
-            if (safeStr(data?.city)) next.city = true;
-            if (safeStr(data?.country)) next.country = true;
-            if (safeStr(data?.gender)) next.gender = true;
-            const details = data?.details && typeof data.details === 'object' ? data.details : {};
-            if (safeStr(details?.occupation)) next.occupation = true;
-            return next;
-          });
-
           setForm((prev) => {
             const details = data?.details && typeof data.details === 'object' ? data.details : {};
             const languages = details?.languages && typeof details.languages === 'object' ? details.languages : {};
             const nativeLang = languages?.native && typeof languages.native === 'object' ? languages.native : {};
             const foreignLang = languages?.foreign && typeof languages.foreign === 'object' ? languages.foreign : {};
+
+            const nextGender = String(data?.gender || prev.gender || '');
 
             return {
               ...prev,
@@ -377,7 +455,7 @@ export default function MatchmakingApply() {
               country: String(data?.country || prev.country || ''),
               whatsapp: String(data?.whatsapp || prev.whatsapp || ''),
               nationality: String(data?.nationality || prev.nationality || ''),
-              gender: String(data?.gender || prev.gender || ''),
+              gender: nextGender,
               heightCm: details?.heightCm === 0 || details?.heightCm ? String(details.heightCm) : String(prev.heightCm || ''),
               weightKg: details?.weightKg === 0 || details?.weightKg ? String(details.weightKg) : String(prev.weightKg || ''),
               occupation: String(details?.occupation || prev.occupation || ''),
@@ -406,6 +484,13 @@ export default function MatchmakingApply() {
               smoking: String(details?.smoking || prev.smoking || ''),
               alcohol: String(details?.alcohol || prev.alcohol || ''),
               about: String(data?.about || prev.about || ''),
+              expectations: String(data?.expectations || prev.expectations || ''),
+              lookingForNationality: DEFAULT_LOOKING_FOR_NATIONALITY,
+              lookingForGender: deriveLookingForGender(nextGender),
+              partnerPreferences:
+                data?.partnerPreferences && typeof data.partnerPreferences === 'object'
+                  ? { ...(prev.partnerPreferences || {}), ...data.partnerPreferences }
+                  : prev.partnerPreferences || {},
 
               consent18Plus: !!data?.consent18Plus,
               consentPrivacy: !!data?.consentPrivacy,
@@ -414,7 +499,7 @@ export default function MatchmakingApply() {
             };
           });
         }
-      } catch (e) {
+      } catch {
         // ignore (rules/index/config) - kullanıcı yine formu görebilir.
       }
     })();
@@ -426,10 +511,8 @@ export default function MatchmakingApply() {
 
   const [existingApplication, setExistingApplication] = useState(null);
 
-  const [autoPrefilled, setAutoPrefilled] = useState({});
-
   // Kayıt sırasında zaten alınan temel bilgileri tekrar sormayalım.
-  // matchmakingsUsers dokümanından best-effort prefill edip alanları gizleriz.
+  // matchmakingsUsers dokümanından best-effort prefill edip alanları doldururuz.
   useEffect(() => {
     const uid = String(user?.uid || '').trim();
     if (!uid) return;
@@ -463,14 +546,12 @@ export default function MatchmakingApply() {
 
         setForm((prev) => {
           const next = { ...prev };
-          const nextPrefilled = {};
 
           const maybeFill = (key, value) => {
             const prevVal = String(prev?.[key] ?? '').trim();
             const nextVal = String(value ?? '').trim();
             if (!prevVal && nextVal) {
               next[key] = nextVal;
-              nextPrefilled[key] = true;
             }
           };
 
@@ -482,7 +563,8 @@ export default function MatchmakingApply() {
           maybeFill('gender', candidate.gender);
           maybeFill('occupation', candidate.occupation);
 
-          if (!Object.keys(nextPrefilled).length) {
+          const changed = Object.keys(next).some((key) => next[key] !== prev[key]);
+          if (!changed) {
             return prev;
           }
 
@@ -491,8 +573,6 @@ export default function MatchmakingApply() {
           } catch {
             // ignore
           }
-          setAutoPrefilled((p) => ({ ...(p && typeof p === 'object' ? p : {}), ...nextPrefilled }));
-
           return next;
         });
       } catch {
@@ -511,7 +591,7 @@ export default function MatchmakingApply() {
       { id: 'male', label: t('matchmakingPage.form.options.gender.male') },
       { id: 'female', label: t('matchmakingPage.form.options.gender.female') },
     ],
-    [t, i18n.language]
+    [t]
   );
 
   const yesNoMaybeOptions = useMemo(
@@ -521,7 +601,7 @@ export default function MatchmakingApply() {
       { id: 'no', label: t('matchmakingPage.form.options.common.no') },
       { id: 'unsure', label: t('matchmakingPage.form.options.common.unsure') },
     ],
-    [t, i18n.language]
+    [t]
   );
 
   const yesNoOptions = useMemo(
@@ -530,7 +610,7 @@ export default function MatchmakingApply() {
       { id: 'yes', label: t('matchmakingPage.form.options.common.yes') },
       { id: 'no', label: t('matchmakingPage.form.options.common.no') },
     ],
-    [t, i18n.language]
+    [t]
   );
 
   const childrenLivingSituationOptions = useMemo(
@@ -539,7 +619,7 @@ export default function MatchmakingApply() {
       { id: 'with_children', label: t('matchmakingPage.form.options.childrenLivingSituation.withChildren') },
       { id: 'separate', label: t('matchmakingPage.form.options.childrenLivingSituation.separate') },
     ],
-    [t, i18n.language]
+    [t]
   );
 
   const maritalStatusOptions = useMemo(
@@ -550,7 +630,7 @@ export default function MatchmakingApply() {
       { id: 'divorced', label: t('matchmakingPage.form.options.maritalStatus.divorced') },
       { id: 'other', label: t('matchmakingPage.form.options.maritalStatus.other') },
     ],
-    [t, i18n.language]
+    [t]
   );
 
   const educationOptions = useMemo(
@@ -563,19 +643,7 @@ export default function MatchmakingApply() {
       { id: 'phd', label: t('matchmakingPage.form.options.education.phd') },
       { id: 'other', label: t('matchmakingPage.form.options.education.other') },
     ],
-    [t, i18n.language]
-  );
-
-  const occupationOptions = useMemo(
-    () => [
-      { id: '', label: t('matchmakingPage.form.options.common.select') },
-      { id: 'civil_servant', label: t('matchmakingPage.form.options.occupation.civilServant') },
-      { id: 'employee', label: t('matchmakingPage.form.options.occupation.employee') },
-      { id: 'retired', label: t('matchmakingPage.form.options.occupation.retired') },
-      { id: 'business_owner', label: t('matchmakingPage.form.options.occupation.businessOwner') },
-      { id: 'other', label: t('matchmakingPage.form.options.occupation.other') },
-    ],
-    [t, i18n.language]
+    [t]
   );
 
   const incomeOptions = useMemo(
@@ -587,7 +655,7 @@ export default function MatchmakingApply() {
       { id: 'very_good', label: t('matchmakingPage.form.options.income.veryGood') },
       { id: 'prefer_not_to_say', label: t('matchmakingPage.form.options.income.preferNot') },
     ],
-    [t, i18n.language]
+    [t]
   );
 
   const religionOptions = useMemo(
@@ -599,19 +667,7 @@ export default function MatchmakingApply() {
       { id: 'buddhist', label: t('matchmakingPage.form.options.religion.buddhist') },
       { id: 'other', label: t('matchmakingPage.form.options.religion.other') },
     ],
-    [t, i18n.language]
-  );
-
-  const languageLevelOptions = useMemo(
-    () => [
-      { id: '', label: t('matchmakingPage.form.options.common.select') },
-      { id: 'none', label: t('matchmakingPage.form.options.languageLevel.none') },
-      { id: 'basic', label: t('matchmakingPage.form.options.languageLevel.basic') },
-      { id: 'intermediate', label: t('matchmakingPage.form.options.languageLevel.intermediate') },
-      { id: 'advanced', label: t('matchmakingPage.form.options.languageLevel.advanced') },
-      { id: 'native', label: t('matchmakingPage.form.options.languageLevel.native') },
-    ],
-    [t, i18n.language]
+    [t]
   );
 
   const communicationLanguageOptions = useMemo(
@@ -622,7 +678,7 @@ export default function MatchmakingApply() {
       { id: 'translation_app', label: t('matchmakingPage.form.options.commLanguage.translationApp') },
       { id: 'other', label: t('matchmakingPage.form.options.commLanguage.other') },
     ],
-    [t, i18n.language]
+    [t]
   );
 
   const religiousValuesOptions = useMemo(
@@ -632,7 +688,7 @@ export default function MatchmakingApply() {
       { id: 'medium', label: t('matchmakingPage.form.options.religiousValues.medium') },
       { id: 'conservative', label: t('matchmakingPage.form.options.religiousValues.conservative') },
     ],
-    [t, i18n.language]
+    [t]
   );
 
   // livingCountryOptions kaldırıldı: ülke alanları artık tüm ülkeleri destekler.
@@ -645,7 +701,7 @@ export default function MatchmakingApply() {
       { id: '6_12', label: t('matchmakingPage.form.options.timeline.6_12') },
       { id: '1_plus', label: t('matchmakingPage.form.options.timeline.1_plus') },
     ],
-    [t, i18n.language]
+    [t]
   );
 
   const yesNoDoesntMatterOptions = useMemo(
@@ -655,7 +711,7 @@ export default function MatchmakingApply() {
       { id: 'no', label: t('matchmakingPage.form.options.common.no') },
       { id: 'doesnt_matter', label: t('matchmakingPage.form.options.common.doesntMatter') },
     ],
-    [t, i18n.language]
+    [t]
   );
 
   const heightRangeOptions = useMemo(() => {
@@ -699,6 +755,10 @@ export default function MatchmakingApply() {
     smoking: '',
     alcohol: '',
     about: '',
+    expectations: '',
+    lookingForNationality: DEFAULT_LOOKING_FOR_NATIONALITY,
+    lookingForGender: '',
+    partnerPreferences: {},
     consent18Plus: false,
     consentPrivacy: false,
     consentPhotoShare: true,
@@ -730,7 +790,96 @@ export default function MatchmakingApply() {
     const map = new Map();
     for (const opt of out) map.set(opt.id, opt);
     return Array.from(map.values());
-  }, [t, i18n.language, communicationLanguageOptions, form.communicationLanguage]);
+  }, [t, communicationLanguageOptions, form.communicationLanguage]);
+
+  const nationalityPreferenceOptions = useMemo(
+    () => [
+      { id: '', label: t('matchmakingPage.form.options.common.select') },
+      { id: 'tr', label: t('matchmakingPage.form.options.nationality.tr') },
+      { id: 'id', label: t('matchmakingPage.form.options.nationality.id') },
+      { id: 'other', label: t('matchmakingPage.form.options.nationality.other') },
+      { id: 'doesnt_matter', label: t('matchmakingPage.form.options.common.doesntMatter') },
+    ],
+    [t]
+  );
+
+  const partnerMaritalStatusOptions = useMemo(
+    () => [
+      { id: '', label: t('matchmakingPage.form.options.common.select') },
+      { id: 'single', label: t('matchmakingPage.form.options.maritalStatus.single') },
+      { id: 'widowed', label: t('matchmakingPage.form.options.maritalStatus.widowed') },
+      { id: 'divorced', label: t('matchmakingPage.form.options.maritalStatus.divorced') },
+      { id: 'doesnt_matter', label: t('matchmakingPage.form.options.maritalStatus.doesnt_matter') },
+    ],
+    [t]
+  );
+
+  const partnerChildrenPreferenceOptions = useMemo(
+    () => [
+      { id: 'want_children', label: t('matchmakingPage.form.options.partnerChildren.wantChildren') },
+      { id: 'no_children', label: t('matchmakingPage.form.options.partnerChildren.noChildren') },
+      { id: 'doesnt_matter', label: t('matchmakingPage.form.options.common.doesntMatter') },
+    ],
+    [t]
+  );
+
+  const partnerEducationPreferenceOptions = useMemo(
+    () => [
+      { id: 'secondary', label: t('matchmakingPage.form.options.education.secondary') },
+      { id: 'high_school', label: t('matchmakingPage.form.options.education.highSchool') },
+      { id: 'university', label: t('matchmakingPage.form.options.education.university') },
+      { id: 'masters', label: t('matchmakingPage.form.options.education.masters') },
+      { id: 'phd', label: t('matchmakingPage.form.options.education.phd') },
+      { id: 'doesnt_matter', label: t('matchmakingPage.form.options.common.doesntMatter') },
+    ],
+    [t]
+  );
+
+  const partnerOccupationPreferenceOptions = useMemo(
+    () => [
+      { id: 'civil_servant', label: t('matchmakingPage.form.options.occupation.civilServant') },
+      { id: 'employee', label: t('matchmakingPage.form.options.occupation.employee') },
+      { id: 'retired', label: t('matchmakingPage.form.options.occupation.retired') },
+      { id: 'business_owner', label: t('matchmakingPage.form.options.occupation.businessOwner') },
+      { id: 'doesnt_matter', label: t('matchmakingPage.form.options.common.doesntMatter') },
+    ],
+    [t]
+  );
+
+  const partnerFamilyValuesPreferenceOptions = useMemo(
+    () => [
+      { id: 'religious', label: t('matchmakingPage.form.options.familyValues.religious') },
+      { id: 'liberal', label: t('matchmakingPage.form.options.familyValues.liberal') },
+      { id: 'doesnt_matter', label: t('matchmakingPage.form.options.common.doesntMatter') },
+    ],
+    [t]
+  );
+
+  const partnerAgeDiffOptions = useMemo(() => {
+    const options = [{ id: '', label: t('matchmakingPage.form.options.common.select') }];
+    for (let year = 0; year <= 20; year += 1) {
+      options.push({
+        id: String(year),
+        label: year === 0 ? t('matchmakingPage.form.options.ageDiff.none') : t('matchmakingPage.form.options.ageDiff.years', { count: year }),
+      });
+    }
+    return options;
+  }, [t]);
+
+  const partnerCommunicationLanguageOptions = useMemo(() => {
+    const out = [{ id: '', label: t('matchmakingPage.form.options.common.select') }];
+    for (const opt of communicationLanguageOptions) out.push(opt);
+    out.push({ id: 'doesnt_matter', label: t('matchmakingPage.form.options.common.doesntMatter') });
+
+    const current = String(form?.partnerPreferences?.communicationLanguage || '').trim();
+    if (current === 'other') {
+      out.push({ id: 'other', label: t('matchmakingPage.form.options.commLanguage.other') });
+    }
+
+    const map = new Map();
+    for (const opt of out) map.set(opt.id, opt);
+    return Array.from(map.values());
+  }, [communicationLanguageOptions, form?.partnerPreferences?.communicationLanguage, t]);
 
   const [genderConfirm, setGenderConfirm] = useState({ open: false, value: '' });
   const genderConfirmLabel = useMemo(() => {
@@ -739,7 +888,7 @@ export default function MatchmakingApply() {
     return genderOptions.find((opt) => opt.id === v)?.label || v;
   }, [genderConfirm?.value, genderOptions]);
 
-  const [photoFiles, setPhotoFiles] = useState({ photo1: null, photo2: null, photo3: null });
+  const [photoFiles, setPhotoFiles] = useState(() => ({ ...EMPTY_PHOTO_FILES }));
   const [formOpenedAt] = useState(() => Date.now());
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
@@ -770,16 +919,37 @@ export default function MatchmakingApply() {
     if (error) setError('');
   };
 
+  const onPartnerChange = (key) => (e) => {
+    userInteractedRef.current = true;
+    const value = e?.target?.type === 'checkbox' ? !!e.target.checked : e.target.value;
+    setForm((prev) => {
+      const next = {
+        ...prev,
+        partnerPreferences: {
+          ...(prev.partnerPreferences || {}),
+          [key]: value,
+        },
+      };
+      try {
+        formRef.current = next;
+      } catch {
+        // ignore
+      }
+      return next;
+    });
+    if (error) setError('');
+  };
+
   const onGenderChange = (e) => {
     userInteractedRef.current = true;
     const next = String(e?.target?.value || '').trim();
     if (!next) {
       try {
-        formRef.current = { ...(formRef.current || {}), gender: '' };
+        formRef.current = { ...(formRef.current || {}), gender: '', lookingForGender: '' };
       } catch {
         // ignore
       }
-      setForm((prev) => ({ ...prev, gender: '' }));
+      setForm((prev) => ({ ...prev, gender: '', lookingForGender: '' }));
       if (error) setError('');
       return;
     }
@@ -795,11 +965,11 @@ export default function MatchmakingApply() {
       return;
     }
     try {
-      formRef.current = { ...(formRef.current || {}), gender: g };
+      formRef.current = { ...(formRef.current || {}), gender: g, lookingForGender: deriveLookingForGender(g) };
     } catch {
       // ignore
     }
-    setForm((prev) => ({ ...prev, gender: g }));
+    setForm((prev) => ({ ...prev, gender: g, lookingForGender: deriveLookingForGender(g) }));
     setGenderConfirm({ open: false, value: '' });
   };
 
@@ -865,6 +1035,17 @@ export default function MatchmakingApply() {
     if (error) setError('');
   };
 
+  const onPickPhoto = (key) => (e) => {
+    userInteractedRef.current = true;
+    const file = e?.target?.files?.[0] || null;
+    setPhotoFiles((prev) => ({ ...(prev || {}), [key]: file }));
+    if (error) setError('');
+  };
+
+  const existingPhotoRefs = useMemo(() => pickMatchmakingPhotoRefs(existingApplication), [existingApplication]);
+  const hasExistingPhoto = existingPhotoRefs.length > 0;
+  const hasNewPhotoSelection = PHOTO_FIELD_KEYS.some((key) => !!photoFiles?.[key]);
+
   const onNativeLanguageChange = (e) => {
     const value = e?.target?.value || '';
     setForm((prev) => {
@@ -900,6 +1081,86 @@ export default function MatchmakingApply() {
   // multi-select iptal edildi
 
   const ageNumForUi = toNumberOrNull(form.age);
+  const partnerAgeOlderNum = toNumberOrNull(form?.partnerPreferences?.ageMaxOlderYears);
+  const partnerAgeYoungerNum = toNumberOrNull(form?.partnerPreferences?.ageMaxYoungerYears);
+  const partnerAgeMinForUi = ageNumForUi !== null && partnerAgeYoungerNum !== null ? Math.max(18, ageNumForUi - partnerAgeYoungerNum) : null;
+  const partnerAgeMaxForUi = ageNumForUi !== null && partnerAgeOlderNum !== null ? Math.min(99, ageNumForUi + partnerAgeOlderNum) : null;
+
+  const requiredValue = (value) => String(value ?? '').trim();
+
+  const validatePhotoInputs = () => {
+    for (const key of PHOTO_FIELD_KEYS) {
+      if (photoFiles?.[key] && !isImageFile(photoFiles[key])) return setError(t('matchmakingPage.form.errors.photoType'));
+    }
+    if (!hasExistingPhoto && !hasNewPhotoSelection) {
+      return setError(t('matchmakingPage.form.errors.photoRequired'));
+    }
+    return true;
+  };
+
+  const validateRequiredForm = (f) => {
+    const minApplicantAge = isIndonesianNationality(f?.nationality) ? 21 : 18;
+    const normalizedUsername = normalizeUsername(f?.username);
+    if (!normalizedUsername) return setError(t('matchmakingPage.form.errors.username'));
+    if (!requiredValue(f?.fullName)) return setError(t('matchmakingPage.form.errors.fullName'));
+    if (!requiredValue(f?.age)) return setError(t('matchmakingPage.form.errors.age'));
+    if (!requiredValue(f?.city)) return setError(t('matchmakingPage.form.errors.city'));
+    if (!requiredValue(f?.country)) return setError(t('matchmakingPage.form.errors.country'));
+    if (!requiredValue(f?.nationality)) return setError(t('matchmakingPage.form.errors.nationality'));
+    if (!requiredValue(f?.gender)) return setError(t('matchmakingPage.form.errors.gender'));
+    if (!requiredValue(f?.whatsapp)) return setError(t('matchmakingPage.form.errors.whatsapp'));
+    if (!requiredValue(f?.occupation)) return setError(t('matchmakingPage.form.errors.occupation'));
+    if (!requiredValue(f?.maritalStatus)) return setError(t('matchmakingPage.form.errors.maritalStatus'));
+
+    const maritalStatus = String(f?.maritalStatus || '').trim().toLowerCase();
+    const requiresChildrenInfo = maritalStatus === 'widowed' || maritalStatus === 'divorced';
+    if (requiresChildrenInfo) {
+      if (!requiredValue(f?.hasChildren)) return setError(t('matchmakingPage.form.errors.hasChildren'));
+      if (f?.hasChildren === 'yes') {
+        if (!requiredValue(f?.childrenCount)) return setError(t('matchmakingPage.form.errors.childrenCount'));
+        if (!requiredValue(f?.childrenLivingSituation)) return setError(t('matchmakingPage.form.errors.childrenLivingSituation'));
+      }
+    }
+
+    if (!f?.consent18Plus || !f?.consentPrivacy || !f?.consentTerms) {
+      return setError(t('matchmakingPage.form.errors.consentsRequired', { minAge: minApplicantAge }));
+    }
+
+    const ageStr = String(f?.age ?? '').trim();
+    const ageNum = ageStr ? Number(ageStr) : null;
+    if (ageStr && (!Number.isFinite(ageNum) || ageNum < minApplicantAge || ageNum > 99)) {
+      return setError(t('matchmakingPage.form.errors.ageRange', { minAge: minApplicantAge }));
+    }
+
+    return validatePhotoInputs();
+  };
+
+  const validateOptionalForm = (f) => {
+    const heightNum = toNumberOrNull(f?.heightCm);
+    if (heightNum !== null && (heightNum < 120 || heightNum > 230)) return setError(t('matchmakingPage.form.errors.heightRange'));
+
+    const weightNum = toNumberOrNull(f?.weightKg);
+    if (weightNum !== null && (weightNum < 35 || weightNum > 250)) return setError(t('matchmakingPage.form.errors.weightRange'));
+
+    const partnerHeightMin = String(f?.partnerPreferences?.heightMinCm ?? '').trim();
+    const partnerHeightMax = String(f?.partnerPreferences?.heightMaxCm ?? '').trim();
+    if (
+      partnerHeightMin &&
+      partnerHeightMax &&
+      partnerHeightMin !== 'any' &&
+      partnerHeightMax !== 'any' &&
+      partnerHeightMin !== 'doesnt_matter' &&
+      partnerHeightMax !== 'doesnt_matter'
+    ) {
+      const minNum = Number(partnerHeightMin);
+      const maxNum = Number(partnerHeightMax);
+      if (Number.isFinite(minNum) && Number.isFinite(maxNum) && minNum > maxNum) {
+        return setError(t('matchmakingPage.form.errors.partnerHeightRange'));
+      }
+    }
+
+    return true;
+  };
 
   const scrollWizardToTop = () => {
     try {
@@ -910,45 +1171,20 @@ export default function MatchmakingApply() {
   };
 
   const validateWizardStep = (step) => {
-    const requiredValue = (value) => String(value ?? '').trim();
     const f = (formRef.current && typeof formRef.current === 'object' ? formRef.current : form);
-    const maritalStatus = String(f.maritalStatus || '').trim().toLowerCase();
-    const requiresChildrenInfo = maritalStatus === 'widowed' || maritalStatus === 'divorced';
 
     if (step === 0) {
-      const normalizedUsername = normalizeUsername(f.username);
-      // Username: yeni başvuru için gerekli; ama kullanıcı zaten başvuru yaptıysa
-      // mevcut başvuru id'si üzerinden update yapılabildiği için zorunlu değil.
-      const hasExisting = !!(existingApplication && typeof existingApplication === 'object' && safeStr(existingApplication?.id));
-      if (!hasExisting && !normalizedUsername) return setError(t('matchmakingPage.form.errors.username'));
-      return true;
-    }
-
-    if (step === 1) {
-      if (!isEditOnceMode) return true;
-      return true;
-    }
-
-    if (step === 2) {
-      if (!isEditOnceMode) return true;
-      return true;
-    }
-
-    if (step === 3) {
-      if (isEditOnceMode) return true;
-      const minApplicantAge = isIndonesianNationality(form.nationality) ? 21 : 18;
-      if (!form.consent18Plus || !form.consentPrivacy || !form.consentTerms) {
-        return setError(t('matchmakingPage.form.errors.consentsRequired', { minAge: minApplicantAge }));
-      }
-
-      if (photoFiles.photo1 && !isImageFile(photoFiles.photo1)) return setError(t('matchmakingPage.form.errors.photoType'));
-      if (photoFiles.photo2 && !isImageFile(photoFiles.photo2)) return setError(t('matchmakingPage.form.errors.photoType'));
-      if (photoFiles.photo3 && !isImageFile(photoFiles.photo3)) return setError(t('matchmakingPage.form.errors.photoType'));
-      return true;
+      return validateRequiredForm(f);
     }
 
     return true;
   };
+
+  const wizardCheckpoint = useMemo(() => {
+    if (wizardStep === 0) return t('matchmakingPage.form.wizard.checkpoints.basic.body');
+    if (wizardStep === 1) return t('matchmakingPage.form.wizard.checkpoints.details.body');
+    return t('matchmakingPage.form.wizard.complete.body');
+  }, [t, wizardStep]);
 
   const goWizardNext = () => {
     if (!isWizardMode) return;
@@ -1051,6 +1287,9 @@ export default function MatchmakingApply() {
     setSuccess(false);
     setLastApplicationId('');
 
+    const hasExistingId = !!(existingApplication && typeof existingApplication === 'object' && safeStr(existingApplication?.id));
+    const isNewApplication = !hasExistingId;
+
     const minApplicantAge = isIndonesianNationality(form.nationality) ? 21 : 18;
 
     // Honeypot (botlar genelde doldurur)
@@ -1062,19 +1301,23 @@ export default function MatchmakingApply() {
     }
 
     if (!isEditOnceMode) {
-      // Çok hızlı gönderimi engelle (bot davranışı)
-      if (Date.now() - formOpenedAt < 5000) {
-        return setError(t('matchmakingPage.form.errors.tooFast'));
-      }
-
-      // Basit client-side rate-limit (sunucu tarafı kadar güvenli değil ama spam'i azaltır)
-      try {
-        const last = Number(localStorage.getItem('mk_apply_last_submit_at') || '0');
-        if (last && Date.now() - last < 60_000) {
-          return setError(t('matchmakingPage.form.errors.rateLimited'));
+      // Yeni başvuru: bot davranışı / spam azaltma.
+      // Güncelleme (mevcut başvuru) akışında bu kısıtlar kullanıcı deneyimini bozuyor.
+      if (isNewApplication) {
+        // Çok hızlı gönderimi engelle (bot davranışı)
+        if (Date.now() - formOpenedAt < 5000) {
+          return setError(t('matchmakingPage.form.errors.tooFast'));
         }
-      } catch (err) {
-        // ignore
+
+        // Basit client-side rate-limit (sunucu tarafı kadar güvenli değil ama spam'i azaltır)
+        try {
+          const last = Number(localStorage.getItem('mk_apply_last_submit_at') || '0');
+          if (last && Date.now() - last < 60_000) {
+            return setError(t('matchmakingPage.form.errors.rateLimited'));
+          }
+        } catch {
+          // ignore
+        }
       }
 
       // Firestore rules, başvuru kaydı için bu onayların true olmasını bekliyor.
@@ -1084,14 +1327,8 @@ export default function MatchmakingApply() {
       }
     }
 
-    const requiredValue = (value) => String(value ?? '').trim();
-
     const normalizedUsername = normalizeUsername(form.username);
-    if (!normalizedUsername) {
-      return setError(t('matchmakingPage.form.errors.username'));
-    }
-
-    if (!requiredValue(form.fullName)) return setError(t('matchmakingPage.form.errors.fullName'));
+    if (!validateRequiredForm(form)) return;
 
     const inviteCodeRaw = String(form.inviteCode || '').trim();
     const inviteCode = inviteCodeRaw.replace(/\s+/g, '');
@@ -1099,35 +1336,22 @@ export default function MatchmakingApply() {
       return setError(t('matchmakingPage.form.errors.inviteCodeInvalid'));
     }
 
-    if (!requiredValue(form.age)) return setError(t('matchmakingPage.form.errors.age'));
-    if (!requiredValue(form.city)) return setError(t('matchmakingPage.form.errors.city'));
-    if (!requiredValue(form.country)) return setError(t('matchmakingPage.form.errors.country'));
-
-    if (!requiredValue(form.nationality)) return setError(t('matchmakingPage.form.errors.nationality'));
-    if (!requiredValue(form.gender)) return setError(t('matchmakingPage.form.errors.gender'));
-
-    if (!requiredValue(form.occupation)) return setError(t('matchmakingPage.form.errors.occupation'));
-    if (!requiredValue(form.maritalStatus)) return setError(t('matchmakingPage.form.errors.maritalStatus'));
-
     const maritalStatus = String(form.maritalStatus || '').trim().toLowerCase();
     const requiresChildrenInfo = maritalStatus === 'widowed' || maritalStatus === 'divorced';
 
     if (requiresChildrenInfo) {
       if (!requiredValue(form.hasChildren)) return setError(t('matchmakingPage.form.errors.hasChildren'));
-      if (form.hasChildren === 'yes' && !requiredValue(form.childrenCount)) {
-        return setError(t('matchmakingPage.form.errors.childrenCount'));
+      if (form.hasChildren === 'yes') {
+        if (!requiredValue(form.childrenCount)) return setError(t('matchmakingPage.form.errors.childrenCount'));
+        if (!requiredValue(form.childrenLivingSituation)) {
+          return setError(t('matchmakingPage.form.errors.childrenLivingSituation'));
+        }
       }
     }
 
-    if (photoFiles.photo1 && !isImageFile(photoFiles.photo1)) return setError(t('matchmakingPage.form.errors.photoType'));
-    if (photoFiles.photo2 && !isImageFile(photoFiles.photo2)) return setError(t('matchmakingPage.form.errors.photoType'));
-    if (photoFiles.photo3 && !isImageFile(photoFiles.photo3)) return setError(t('matchmakingPage.form.errors.photoType'));
-
     const ageStr = String(form.age ?? '').trim();
     const ageNum = ageStr ? Number(ageStr) : null;
-    if (ageStr && (!Number.isFinite(ageNum) || ageNum < minApplicantAge || ageNum > 99)) {
-      return setError(t('matchmakingPage.form.errors.ageRange', { minAge: minApplicantAge }));
-    }
+    if (!validateOptionalForm(form)) return;
 
     let childrenCountNum = toNumberOrNull(form.childrenCount);
     let childrenLivingSituation = String(form.childrenLivingSituation || '').trim() || null;
@@ -1180,7 +1404,6 @@ export default function MatchmakingApply() {
       // Firestore rules, başkalarının başvurularını okumaya izin vermediği için
       // client-side uniqueness query'leri permission-denied ile kırılır.
       // Bu yüzden benzersizliği docId üzerinden enforce ediyoruz (case-insensitive).
-      const hasExistingId = !!(existingApplication && typeof existingApplication === 'object' && safeStr(existingApplication?.id));
       const docId = isEditOnceMode
         ? String(existingApplication?.id || '')
         : hasExistingId
@@ -1196,9 +1419,9 @@ export default function MatchmakingApply() {
 
       // Not: username uniqueness check artık docId üzerinden çalışır.
 
-      const compressed1 = photoFiles.photo1 ? await compressImageToJpeg(photoFiles.photo1) : null;
-      const compressed2 = photoFiles.photo2 ? await compressImageToJpeg(photoFiles.photo2) : null;
-      const compressed3 = photoFiles.photo3 ? await compressImageToJpeg(photoFiles.photo3) : null;
+      const compressedPhotos = await Promise.all(
+        PHOTO_FIELD_KEYS.map((key) => (photoFiles?.[key] ? compressImageToJpeg(photoFiles[key]) : Promise.resolve(null)))
+      );
 
       const photoPaths = [];
       const photoUrls = [];
@@ -1207,26 +1430,17 @@ export default function MatchmakingApply() {
       const folder = `uniqah/matchmakingApplications/${docRef.id}`;
       const tags = ['matchmaking', 'application'];
 
-      const hasAnyPhoto = !!(compressed1 || compressed2 || compressed3);
+      const hasAnyPhoto = compressedPhotos.some(Boolean);
       let cloudinaryOk = !hasAnyPhoto;
       let cloudinaryErr = null;
       try {
         if (hasAnyPhoto) {
           // Signed upload varsa onu, yoksa unsigned preset'i otomatik kullanır.
-          if (compressed1) {
-            const up1 = await uploadImageToCloudinaryAuto(compressed1, { folder, tags });
-            photoUrls.push(up1.secureUrl);
-            photoCloudinary.push(up1);
-          }
-          if (compressed2) {
-            const up2 = await uploadImageToCloudinaryAuto(compressed2, { folder, tags });
-            photoUrls.push(up2.secureUrl);
-            photoCloudinary.push(up2);
-          }
-          if (compressed3) {
-            const up3 = await uploadImageToCloudinaryAuto(compressed3, { folder, tags });
-            photoUrls.push(up3.secureUrl);
-            photoCloudinary.push(up3);
+          for (const compressedPhoto of compressedPhotos) {
+            if (!compressedPhoto) continue;
+            const uploaded = await uploadImageToCloudinaryAuto(compressedPhoto, { folder, tags });
+            photoUrls.push(uploaded.secureUrl);
+            photoCloudinary.push(uploaded);
           }
           cloudinaryOk = true;
         }
@@ -1251,44 +1465,28 @@ export default function MatchmakingApply() {
           throw e;
         }
 
-        if (compressed1) {
-          const storageRef1 = ref(storage, `matchmakingApplications/${docRef.id}/photo1.jpg`);
-          await uploadBytes(storageRef1, compressed1, { contentType: compressed1.type || 'image/jpeg' });
-          photoPaths.push(storageRef1.fullPath);
+        for (let index = 0; index < compressedPhotos.length; index += 1) {
+          const compressedPhoto = compressedPhotos[index];
+          if (!compressedPhoto) continue;
+          const storageRef = ref(storage, `matchmakingApplications/${docRef.id}/photo${index + 1}.jpg`);
+          await uploadBytes(storageRef, compressedPhoto, { contentType: compressedPhoto.type || 'image/jpeg' });
+          photoPaths.push(storageRef.fullPath);
           try {
-            photoUrls.push(await getDownloadURL(storageRef1));
-          } catch {
-            // ignore (rules/missing)
-          }
-        }
-
-        if (compressed2) {
-          const storageRef2 = ref(storage, `matchmakingApplications/${docRef.id}/photo2.jpg`);
-          await uploadBytes(storageRef2, compressed2, { contentType: compressed2.type || 'image/jpeg' });
-          photoPaths.push(storageRef2.fullPath);
-          try {
-            photoUrls.push(await getDownloadURL(storageRef2));
-          } catch {
-            // ignore (rules/missing)
-          }
-        }
-
-        if (compressed3) {
-          const storageRef3 = ref(storage, `matchmakingApplications/${docRef.id}/photo3.jpg`);
-          await uploadBytes(storageRef3, compressed3, { contentType: compressed3.type || 'image/jpeg' });
-          photoPaths.push(storageRef3.fullPath);
-          try {
-            photoUrls.push(await getDownloadURL(storageRef3));
+            photoUrls.push(await getDownloadURL(storageRef));
           } catch {
             // ignore (rules/missing)
           }
         }
       }
 
+      // Fotoğraf seçilmediyse bu alanları payload'a hiç koymayalım.
+      // Böylece mevcut fotoğraflar (varsa) güncelleme sırasında yanlışlıkla silinmez.
+      const includePhotoFields = hasAnyPhoto;
+
       // Kısa ve anlaşılır başvuru kodu: MK-<profileNo>
       // Not: Upload başarısız olursa numara boşa gidebilir; kabul edilebilir (sayaç sadece artar).
       let allocatedProfileNo = null;
-      if (!isEditOnceMode) {
+      if (!isEditOnceMode && isNewApplication) {
         try {
           const allocated = await authFetch('/api/matchmaking-allocate-profile-no', {
             method: 'POST',
@@ -1301,6 +1499,20 @@ export default function MatchmakingApply() {
         } catch (e) {
           console.warn('profileNo allocation failed (fallback to username/profileCode):', e);
         }
+      }
+
+      const partnerPreferences = {
+        ...(form.partnerPreferences && typeof form.partnerPreferences === 'object' ? form.partnerPreferences : {}),
+      };
+      const partnerCommunicationLanguage = String(partnerPreferences.communicationLanguage || '').trim();
+      if (partnerCommunicationLanguage === 'translation_app') {
+        partnerPreferences.canCommunicateWithTranslationApp = true;
+        partnerPreferences.translationAppPreference = 'yes';
+        partnerPreferences.communicationMethods = ['translation_app'];
+      } else if (partnerCommunicationLanguage && partnerCommunicationLanguage !== 'doesnt_matter') {
+        partnerPreferences.canCommunicateWithTranslationApp = false;
+        partnerPreferences.translationAppPreference = 'no';
+        partnerPreferences.communicationMethods = ['foreign_language'];
       }
 
       const payload = {
@@ -1324,6 +1536,9 @@ export default function MatchmakingApply() {
         whatsapp: String(form.whatsapp || '').trim(),
         nationality: form.nationality || '',
         gender: form.gender || '',
+        lookingForNationality: DEFAULT_LOOKING_FOR_NATIONALITY,
+        lookingForGender: deriveLookingForGender(form.gender),
+        partnerPreferences,
         details: {
           heightCm: heightNum,
           weightKg: weightNum,
@@ -1335,8 +1550,8 @@ export default function MatchmakingApply() {
               : '',
           maritalStatus: form.maritalStatus || '',
           hasChildren: requiresChildrenInfo ? (form.hasChildren || '') : '',
-          childrenCount: requiresChildrenInfo ? childrenCountNum : null,
-          childrenLivingSituation: requiresChildrenInfo ? childrenLivingSituation : null,
+          childrenCount: requiresChildrenInfo && form.hasChildren === 'yes' ? childrenCountNum : null,
+          childrenLivingSituation: requiresChildrenInfo && form.hasChildren === 'yes' ? childrenLivingSituation : null,
           incomeLevel: form.incomeLevel || '',
           religion: form.religion || '',
           religiousValues: String(form.religiousValues || '').trim(),
@@ -1364,19 +1579,16 @@ export default function MatchmakingApply() {
           alcohol: form.alcohol || '',
         },
         about: String(form.about || '').trim(),
-        photoPaths,
-        photoUrls,
-        photoCloudinary,
-        photoContentTypes: [
-          compressed1?.type || '',
-          compressed2?.type || '',
-          compressed3?.type || '',
-        ],
-        photoOriginalTypes: [
-          photoFiles.photo1?.type || '',
-          photoFiles.photo2?.type || '',
-          photoFiles.photo3?.type || '',
-        ],
+        expectations: String(form.expectations || '').trim(),
+        ...(includePhotoFields
+          ? {
+              photoPaths,
+              photoUrls,
+              photoCloudinary,
+              photoContentTypes: compressedPhotos.map((file) => file?.type || ''),
+              photoOriginalTypes: PHOTO_FIELD_KEYS.map((key) => photoFiles?.[key]?.type || ''),
+            }
+          : {}),
         userId: uid,
         consent18Plus: !!form.consent18Plus,
         consentPrivacy: !!form.consentPrivacy,
@@ -1432,7 +1644,7 @@ export default function MatchmakingApply() {
           applicationId: nextId,
         });
 
-        navigateToProfile({ from: 'matchmakingEditOnce', applicationId: nextId, openPhotoManager: afterSaveOpenPhotoManager });
+        navigateToProfile({ from: 'matchmakingEditOnce', applicationId: nextId });
         return;
       }
 
@@ -1477,14 +1689,14 @@ export default function MatchmakingApply() {
 
       try {
         localStorage.setItem('mk_apply_last_submit_at', String(Date.now()));
-      } catch (err) {
+      } catch {
         // ignore
       }
 
       // Funnel: signup -> apply completion
       markFunnelApplyCompleted();
 
-      navigateToProfile({ from: 'matchmakingApply', applicationId: nextId, openPhotoManager: afterSubmitOpenPhotoManager });
+      navigateAfterApplySubmit({ from: 'matchmakingApply', applicationId: nextId });
       return;
     } catch (err) {
       console.error('matchmaking submit error:', err);
@@ -1578,8 +1790,25 @@ export default function MatchmakingApply() {
               </div>
             </div>
 
-            <div className="mt-4 rounded-2xl border border-white/10 bg-white/5 p-4">
-              <p className="text-sm text-white/80">{t('matchmakingPage.privacyNote')}</p>
+            <div className="mt-4 rounded-2xl border border-slate-700/70 bg-slate-950/60 p-4 shadow-[0_16px_40px_rgba(2,6,23,0.28)]">
+              <p className="text-sm text-slate-100">{t('matchmakingPage.privacyNote')}</p>
+            </div>
+
+            <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-[minmax(0,1.12fr)_minmax(0,0.88fr)]">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 md:grid-cols-1 xl:grid-cols-3">
+                {applyPremiumUi.heroFacts.map((item) => (
+                  <div key={item.title} className="rounded-[24px] border border-white/10 bg-white/8 p-4 shadow-[0_16px_40px_rgba(2,6,23,0.20)] backdrop-blur-sm">
+                    <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-amber-100">{item.title}</div>
+                    <div className="mt-2 text-sm leading-relaxed text-slate-200">{item.body}</div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="rounded-[26px] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.10),rgba(255,255,255,0.05))] p-5 shadow-[0_20px_60px_rgba(2,6,23,0.24)] backdrop-blur-sm">
+                <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/65">{applyPremiumUi.editorialEyebrow}</div>
+                <div className="mt-3 text-lg font-semibold text-white">{applyPremiumUi.editorialTitle}</div>
+                <div className="mt-2 text-sm leading-relaxed text-slate-300">{applyPremiumUi.editorialBody}</div>
+              </div>
             </div>
 
             {/* Profil formu zorunlu: erteleme CTA'sı kaldırıldı. */}
@@ -1622,17 +1851,32 @@ export default function MatchmakingApply() {
             <p className="mt-4 text-sm text-white/60">{t('matchmakingPage.authGate.note')}</p>
           </div>
         ) : (
-          <div className="mt-6 text-white md:text-slate-900 p-0 md:rounded-[28px] md:border md:border-slate-200/80 md:bg-slate-100 md:shadow-[0_30px_90px_rgba(0,0,0,0.35)] md:p-6">
+          <div className="mt-6 rounded-[28px] border border-amber-100/80 bg-[linear-gradient(180deg,rgba(255,251,235,0.96),rgba(255,247,237,0.84))] p-3 text-slate-900 shadow-[0_24px_70px_rgba(148,163,184,0.18)] backdrop-blur-xl md:rounded-[28px] md:border md:border-slate-200/80 md:bg-none md:bg-slate-100 md:p-6 md:text-slate-900 md:shadow-[0_30px_90px_rgba(0,0,0,0.35)] md:backdrop-blur-none">
           <form
             ref={formElRef}
             onSubmit={onSubmit}
-            className="relative space-y-6 bg-transparent p-0 border-0 shadow-none md:rounded-2xl md:bg-slate-50 md:p-6 md:border md:border-slate-200/80 md:shadow-[0_20px_60px_rgba(15,23,42,0.10)] [&_input]:bg-white [&_select]:bg-white [&_textarea]:bg-white [&_input]:text-slate-900 [&_select]:text-slate-900 [&_textarea]:text-slate-900 [&_input]:placeholder:text-slate-400 [&_textarea]:placeholder:text-slate-400 [&_select]:placeholder:text-slate-400 [&_option]:text-slate-900 [&_input]:shadow-sm [&_select]:shadow-sm [&_textarea]:shadow-sm [&_input:focus-visible]:outline-none [&_select:focus-visible]:outline-none [&_textarea:focus-visible]:outline-none [&_input:focus-visible]:ring-2 [&_select:focus-visible]:ring-2 [&_textarea:focus-visible]:ring-2 [&_input:focus-visible]:ring-amber-300/60 [&_select:focus-visible]:ring-amber-300/60 [&_textarea:focus-visible]:ring-amber-300/60 [&_input:focus-visible]:border-amber-300 [&_select:focus-visible]:border-amber-300 [&_textarea:focus-visible]:border-amber-300"
+            className="relative overflow-hidden space-y-6 rounded-[24px] border border-white/90 bg-[linear-gradient(180deg,rgba(255,255,255,0.88),rgba(248,250,252,0.72))] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.95),0_18px_50px_rgba(148,163,184,0.18)] backdrop-blur-sm md:rounded-2xl md:border md:border-slate-200/80 md:bg-none md:bg-slate-50 md:p-6 md:shadow-[0_20px_60px_rgba(15,23,42,0.10)] md:backdrop-blur-none [&_input]:bg-white [&_select]:bg-white [&_textarea]:bg-white [&_input]:text-slate-900 [&_select]:text-slate-900 [&_textarea]:text-slate-900 [&_input]:placeholder:text-slate-400 [&_textarea]:placeholder:text-slate-400 [&_select]:placeholder:text-slate-400 [&_option]:text-slate-900 [&_input]:shadow-sm [&_select]:shadow-sm [&_textarea]:shadow-sm [&_input:focus-visible]:outline-none [&_select:focus-visible]:outline-none [&_textarea:focus-visible]:outline-none [&_input:focus-visible]:ring-2 [&_select:focus-visible]:ring-2 [&_textarea:focus-visible]:ring-2 [&_input:focus-visible]:ring-amber-300/60 [&_select:focus-visible]:ring-amber-300/60 [&_textarea:focus-visible]:ring-amber-300/60 [&_input:focus-visible]:border-amber-300 [&_select:focus-visible]:border-amber-300 [&_textarea:focus-visible]:border-amber-300"
           >
-          <div aria-hidden="true" className="pointer-events-none absolute inset-0 hidden md:block">
-            <div className="absolute -top-24 -right-20 w-72 h-72 bg-[radial-gradient(circle_at_center,rgba(245,158,11,0.18),rgba(245,158,11,0)_62%)]" />
-            <div className="absolute -bottom-24 -left-20 w-80 h-80 bg-[radial-gradient(circle_at_center,rgba(99,102,241,0.14),rgba(99,102,241,0)_60%)]" />
+          <div aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden">
+            <div className="absolute -top-16 -right-12 h-44 w-44 bg-[radial-gradient(circle_at_center,rgba(251,191,36,0.22),rgba(251,191,36,0)_62%)] blur-2xl md:-top-24 md:-right-20 md:h-72 md:w-72 md:bg-[radial-gradient(circle_at_center,rgba(245,158,11,0.18),rgba(245,158,11,0)_62%)] md:blur-none" />
+            <div className="absolute -bottom-16 -left-12 h-48 w-48 bg-[radial-gradient(circle_at_center,rgba(244,114,182,0.14),rgba(244,114,182,0)_60%)] blur-2xl md:-bottom-24 md:-left-20 md:h-80 md:w-80 md:bg-[radial-gradient(circle_at_center,rgba(99,102,241,0.14),rgba(99,102,241,0)_60%)] md:blur-none" />
           </div>
           <div className="relative">
+          <div className="mb-5 grid grid-cols-1 gap-4 md:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)]">
+            <div className="rounded-[24px] border border-amber-100/90 bg-[linear-gradient(135deg,rgba(255,251,235,0.94),rgba(255,255,255,0.90))] p-4 shadow-[0_16px_40px_rgba(245,158,11,0.10)]">
+              <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-amber-800">{applyPremiumUi.formDeskTitle}</div>
+              <div className="mt-2 text-sm leading-relaxed text-slate-700">{applyPremiumUi.formDeskBody}</div>
+            </div>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 md:grid-cols-1">
+              {applyPremiumUi.heroFacts.map((item) => (
+                <div key={`${item.title}-form`} className="rounded-[22px] border border-slate-200 bg-white/88 px-4 py-3 shadow-[0_12px_30px_rgba(148,163,184,0.10)]">
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">{item.title}</div>
+                  <div className="mt-1 text-sm leading-relaxed text-slate-700">{item.body}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+
           <div className="sr-only" aria-hidden="true">
             <label>
               Company
@@ -1648,34 +1892,76 @@ export default function MatchmakingApply() {
           {isWizardMode ? (
             <div
               ref={wizardTopRef}
-              className="rounded-[26px] border border-white/10 bg-white/5 p-5 md:p-6 shadow-[0_20px_60px_rgba(0,0,0,0.25)] gemini-fade-up"
+              className="rounded-[28px] border border-amber-100/90 bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(255,248,235,0.92))] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.96),0_24px_70px_rgba(148,163,184,0.18)] backdrop-blur-md gemini-fade-up md:rounded-[26px] md:border-slate-700/70 md:bg-[linear-gradient(180deg,rgba(15,23,42,0.92),rgba(15,23,42,0.82))] md:p-6 md:shadow-[0_20px_60px_rgba(2,6,23,0.40)] md:backdrop-blur-none"
             >
-              <div className="flex items-start justify-between gap-4">
+              <div className="flex flex-col gap-5 md:flex-row md:items-start md:justify-between md:gap-4">
                 <div className="min-w-0">
-                  <div className="inline-flex items-center gap-2 px-3 py-1 text-[11px] font-bold tracking-wide text-white gemini-gradient gemini-organic-btn">
+                  <div className="inline-flex items-center gap-2 rounded-full border border-amber-200/80 bg-[linear-gradient(135deg,rgba(255,248,220,0.98),rgba(254,240,200,0.98))] px-3 py-1 text-[11px] font-bold tracking-wide text-amber-950 shadow-[0_10px_24px_rgba(245,158,11,0.10)] md:border-0 md:bg-none md:px-3 md:py-1 md:text-white md:shadow-none gemini-gradient">
                     {t('matchmakingPage.form.wizard.badge')}
-                    <span className="text-white/75">•</span>
-                    <span className="text-white/95">
+                    <span className="text-amber-700/70 md:text-white/75">•</span>
+                    <span className="text-amber-950 md:text-white/95">
                       {t('matchmakingPage.form.wizard.step', { current: wizardStep + 1, total: WIZARD_TOTAL_STEPS })}
                     </span>
                   </div>
 
                   {wizardCurrent?.title ? (
-                    <h2 className="mt-3 text-lg md:text-xl font-semibold text-white leading-snug">
+                    <h2 className="mt-3 text-lg md:text-xl font-semibold text-slate-950 leading-snug md:text-white">
                       {wizardCurrent.title}
                     </h2>
                   ) : null}
                   {wizardCurrent?.desc ? (
-                    <p className="mt-1 text-sm text-white/70 leading-relaxed">{wizardCurrent.desc}</p>
+                    <p className="mt-1 text-sm leading-relaxed text-slate-700 md:text-slate-200">{wizardCurrent.desc}</p>
                   ) : null}
+
+                  <div className="mt-5 grid grid-cols-1 gap-2.5 md:grid-cols-3 md:gap-3">
+                    {wizardSteps.map((step, index) => {
+                      const isCurrent = index === wizardStep;
+                      const isPassed = index < wizardStep;
+                      return (
+                        <div
+                          key={step.title || index}
+                          className={
+                            'rounded-2xl border px-4 py-3 backdrop-blur-[2px] transition ' +
+                            (isCurrent
+                              ? 'border-amber-200/80 bg-amber-300/20 shadow-[0_14px_40px_rgba(245,158,11,0.22)]'
+                              : isPassed
+                                ? 'border-emerald-300/45 bg-emerald-400/14 shadow-[0_12px_32px_rgba(16,185,129,0.12)]'
+                                : 'border-slate-200/80 bg-white/75 shadow-[0_10px_30px_rgba(148,163,184,0.08)] md:border-slate-700/70 md:bg-slate-900/65 md:shadow-none')
+                          }
+                        >
+                          <div className="flex items-center gap-3">
+                            <div
+                              className={
+                                'flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold ' +
+                                (isCurrent
+                                  ? 'bg-amber-300 text-slate-950'
+                                  : isPassed
+                                    ? 'bg-emerald-400 text-slate-950'
+                                    : 'bg-slate-200 text-slate-700 md:bg-slate-800 md:text-slate-200')
+                              }
+                            >
+                              {index + 1}
+                            </div>
+                            <div className="min-w-0">
+                                <div className="text-sm font-semibold text-slate-900 md:text-slate-100">{step.title}</div>
+                                <div className="mt-0.5 line-clamp-2 text-xs text-slate-600 md:text-slate-300">{step.desc}</div>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
 
-                <div className="flex-shrink-0 text-right">
-                  <div className="text-xs text-white/60">{Math.round(((wizardStep + 1) / WIZARD_TOTAL_STEPS) * 100)}%</div>
+                <div className="w-full flex-shrink-0 md:w-auto md:text-right">
+                  <div className="rounded-2xl border border-amber-100/90 bg-white/88 px-4 py-3 shadow-[0_12px_30px_rgba(148,163,184,0.10)] md:border-slate-700/70 md:bg-slate-950/55 md:shadow-none">
+                    <div className="text-[11px] uppercase tracking-[0.18em] text-slate-500 md:text-slate-300">Progress</div>
+                    <div className="mt-1 text-lg font-semibold text-slate-900 md:text-slate-50">{Math.round(((wizardStep + 1) / WIZARD_TOTAL_STEPS) * 100)}%</div>
+                  </div>
                 </div>
               </div>
 
-              <div className="mt-4 h-2 rounded-full bg-white/10 overflow-hidden">
+              <div className="mt-4 h-2 overflow-hidden rounded-full bg-amber-100 md:bg-slate-800">
                 <div
                   className="h-full gemini-gradient"
                   style={{ width: `${((wizardStep + 1) / WIZARD_TOTAL_STEPS) * 100}%` }}
@@ -1700,33 +1986,29 @@ export default function MatchmakingApply() {
               key={isWizardMode ? `wizard-step-${wizardStep}` : 'all-steps'}
               className={
                 isWizardMode
-                  ? 'rounded-[26px] border border-white/10 bg-white/5 p-5 md:p-6 shadow-[0_20px_60px_rgba(0,0,0,0.25)] gemini-fade-up'
+                  ? 'rounded-[28px] border border-white/12 bg-[linear-gradient(180deg,rgba(255,255,255,0.12),rgba(255,255,255,0.05))] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.10),0_20px_60px_rgba(0,0,0,0.22)] backdrop-blur-sm gemini-fade-up md:rounded-[26px] md:border-white/10 md:bg-white/5 md:p-6 md:shadow-[0_20px_60px_rgba(0,0,0,0.25)] md:backdrop-blur-none'
                   : ''
               }
             >
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {autoPrefilled.username ? null : (
-                  <div>
-                    <label className="block text-sm font-semibold text-white/90 md:text-slate-800">{t('matchmakingPage.form.labels.username')}</label>
-                    <input
-                      value={form.username}
-                      onChange={onChange('username')}
-                      className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
-                      placeholder={t('matchmakingPage.form.placeholders.username')}
-                    />
-                  </div>
-                )}
-                {autoPrefilled.fullName ? null : (
-                  <div>
-                    <label className="block text-sm font-semibold text-white/90 md:text-slate-800">{t('matchmakingPage.form.labels.fullName')}</label>
-                    <input
-                      value={form.fullName}
-                      onChange={onChange('fullName')}
-                      className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
-                      placeholder={t('matchmakingPage.form.placeholders.fullName')}
-                    />
-                  </div>
-                )}
+                <div>
+                  <label className="block text-sm font-semibold text-white/90 md:text-slate-800">{t('matchmakingPage.form.labels.username')}</label>
+                  <input
+                    value={form.username}
+                    onChange={onChange('username')}
+                    className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                    placeholder={t('matchmakingPage.form.placeholders.username')}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-white/90 md:text-slate-800">{t('matchmakingPage.form.labels.fullName')}</label>
+                  <input
+                    value={form.fullName}
+                    onChange={onChange('fullName')}
+                    className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                    placeholder={t('matchmakingPage.form.placeholders.fullName')}
+                  />
+                </div>
 
                 {isEditOnceMode ? (
                   <div className="md:col-span-2">
@@ -1742,80 +2024,70 @@ export default function MatchmakingApply() {
                   </div>
                 ) : null}
 
-                {autoPrefilled.age ? null : (
-                  <div>
-                    <label className="block text-sm font-semibold text-white/90 md:text-slate-800">{t('matchmakingPage.form.labels.age')}</label>
-                    <input
-                      value={form.age}
-                      onChange={onChange('age')}
-                      className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
-                      inputMode="numeric"
-                      placeholder={t('matchmakingPage.form.placeholders.age')}
-                    />
-                  </div>
-                )}
-                {autoPrefilled.city ? null : (
-                  <div>
-                    <label className="block text-sm font-semibold text-white/90 md:text-slate-800">{t('matchmakingPage.form.labels.city')}</label>
-                    <input
-                      value={form.city}
-                      onChange={onChange('city')}
-                      className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
-                      placeholder={t('matchmakingPage.form.placeholders.city')}
-                    />
-                  </div>
-                )}
-                {autoPrefilled.country ? null : (
-                  <div>
-                    <label className="block text-sm font-semibold text-white/90 md:text-slate-800">{t('matchmakingPage.form.labels.country')}</label>
-                    <input
-                      value={form.country}
-                      onChange={onChange('country')}
-                      className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
-                      placeholder={t('matchmakingPage.form.placeholders.country')}
-                    />
-                  </div>
-                )}
+                <div>
+                  <label className="block text-sm font-semibold text-white/90 md:text-slate-800">{t('matchmakingPage.form.labels.age')}</label>
+                  <input
+                    value={form.age}
+                    onChange={onChange('age')}
+                    className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                    inputMode="numeric"
+                    placeholder={t('matchmakingPage.form.placeholders.age')}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-white/90 md:text-slate-800">{t('matchmakingPage.form.labels.city')}</label>
+                  <input
+                    value={form.city}
+                    onChange={onChange('city')}
+                    className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                    placeholder={t('matchmakingPage.form.placeholders.city')}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-white/90 md:text-slate-800">{t('matchmakingPage.form.labels.country')}</label>
+                  <input
+                    value={form.country}
+                    onChange={onChange('country')}
+                    className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                    placeholder={t('matchmakingPage.form.placeholders.country')}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-white/90 md:text-slate-800">{t('matchmakingPage.form.labels.nationality')}</label>
+                  <input
+                    value={form.nationality}
+                    onChange={onChange('nationality')}
+                    maxLength={60}
+                    className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                    placeholder={t('matchmakingPage.form.placeholders.country')}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-white/90 md:text-slate-800">{t('matchmakingPage.form.labels.gender')}</label>
+                  <select
+                    value={form.gender}
+                    onChange={onGenderChange}
+                    className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                  >
+                    {genderOptions.map((opt) => (
+                      <option key={opt.id} value={opt.id} disabled={!opt.id}>
+                        {opt.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
 
                 {!isEditOnceMode ? (
                   <>
                     <div>
-                      <label className="block text-sm font-semibold text-white/90 md:text-slate-800">{t('matchmakingPage.form.labels.nationality')}</label>
+                      <label className="block text-sm font-semibold text-white/90 md:text-slate-800">{t('matchmakingPage.form.labels.occupation')}</label>
                       <input
-                        value={form.nationality}
-                        onChange={onChange('nationality')}
-                        maxLength={60}
+                        value={form.occupation}
+                        onChange={onChange('occupation')}
                         className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
-                        placeholder={t('matchmakingPage.form.placeholders.country')}
+                        placeholder={t('matchmakingPage.form.placeholders.occupation')}
                       />
                     </div>
-                    {autoPrefilled.gender ? null : (
-                      <div>
-                        <label className="block text-sm font-semibold text-white/90 md:text-slate-800">{t('matchmakingPage.form.labels.gender')}</label>
-                        <select
-                          value={form.gender}
-                          onChange={onGenderChange}
-                          className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
-                        >
-                          {genderOptions.map((opt) => (
-                            <option key={opt.id} value={opt.id} disabled={!opt.id}>
-                              {opt.label}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                    )}
-                    {autoPrefilled.occupation ? null : (
-                      <div>
-                        <label className="block text-sm font-semibold text-white/90 md:text-slate-800">{t('matchmakingPage.form.labels.occupation')}</label>
-                        <input
-                          value={form.occupation}
-                          onChange={onChange('occupation')}
-                          className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
-                          placeholder={t('matchmakingPage.form.placeholders.occupation')}
-                        />
-                      </div>
-                    )}
                     <div>
                       <label className="block text-sm font-semibold text-white/90 md:text-slate-800">{t('matchmakingPage.form.labels.maritalStatus')}</label>
                       <select
@@ -1850,16 +2122,33 @@ export default function MatchmakingApply() {
                         </div>
 
                         {form.hasChildren === 'yes' ? (
-                          <div>
-                            <label className="block text-sm font-semibold text-white/90 md:text-slate-800">{t('matchmakingPage.form.labels.childrenCount')}</label>
-                            <input
-                              value={form.childrenCount}
-                              onChange={onChange('childrenCount')}
-                              className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
-                              inputMode="numeric"
-                              placeholder={t('matchmakingPage.form.placeholders.childrenCount')}
-                            />
-                          </div>
+                          <>
+                            <div>
+                              <label className="block text-sm font-semibold text-white/90 md:text-slate-800">{t('matchmakingPage.form.labels.childrenCount')}</label>
+                              <input
+                                value={form.childrenCount}
+                                onChange={onChange('childrenCount')}
+                                className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                                inputMode="numeric"
+                                placeholder={t('matchmakingPage.form.placeholders.childrenCount')}
+                              />
+                            </div>
+
+                            <div>
+                              <label className="block text-sm font-semibold text-white/90 md:text-slate-800">{t('matchmakingPage.form.labels.childrenLivingSituation')}</label>
+                              <select
+                                value={form.childrenLivingSituation}
+                                onChange={onChange('childrenLivingSituation')}
+                                className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                              >
+                                {childrenLivingSituationOptions.map((opt) => (
+                                  <option key={opt.id} value={opt.id}>
+                                    {opt.label}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                          </>
                         ) : null}
                       </>
                     ) : null}
@@ -1878,19 +2167,20 @@ export default function MatchmakingApply() {
                 </div>
               </div>
 
-              <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
-                {t('matchmakingPage.form.contactPrivacyNotice')}
+              <div className="mt-4 rounded-[22px] border border-amber-200 bg-[linear-gradient(135deg,rgba(255,251,235,0.96),rgba(255,255,255,0.90))] p-4 text-sm text-amber-900 shadow-[0_14px_34px_rgba(245,158,11,0.10)]">
+                <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-amber-700">{applyPremiumUi.editorialEyebrow}</div>
+                <div className="mt-2 leading-relaxed">{t('matchmakingPage.form.contactPrivacyNotice')}</div>
               </div>
             </div>
           )}
 
-          {isEditOnceMode && (!isWizardMode || wizardStep === 1) && (
+          {(!isWizardMode || wizardStep === 1) && (
           <div
             key={isWizardMode ? `wizard-step-${wizardStep}` : 'all-steps-more'}
             className={
               isWizardMode
-                ? 'rounded-[26px] border border-white/10 bg-white/5 p-5 md:p-6 shadow-[0_20px_60px_rgba(0,0,0,0.25)] gemini-fade-up'
-                : 'rounded-none border-0 md:rounded-xl md:border md:border-slate-200 p-0 md:p-4'
+                ? 'rounded-[28px] border border-white/12 bg-[linear-gradient(180deg,rgba(255,255,255,0.12),rgba(255,255,255,0.05))] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.10),0_20px_60px_rgba(0,0,0,0.22)] backdrop-blur-sm gemini-fade-up md:rounded-[26px] md:border-white/10 md:bg-white/5 md:p-6 md:shadow-[0_20px_60px_rgba(0,0,0,0.25)] md:backdrop-blur-none'
+                : 'rounded-[24px] border border-white/12 bg-white/5 p-4 shadow-[0_18px_50px_rgba(0,0,0,0.18)] backdrop-blur-sm md:rounded-xl md:border md:border-slate-200 md:bg-transparent md:p-4 md:shadow-none md:backdrop-blur-none'
             }
           >
             <p className="text-sm font-semibold text-white md:text-slate-900">{t('matchmakingPage.form.sections.moreDetails')}</p>
@@ -1916,17 +2206,6 @@ export default function MatchmakingApply() {
                 />
               </div>
 
-              {autoPrefilled.occupation ? null : (
-                <div>
-                  <label className="block text-sm text-white/80 md:text-slate-700">{t('matchmakingPage.form.labels.occupation')}</label>
-                  <input
-                    value={form.occupation}
-                    onChange={onChange('occupation')}
-                    className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
-                    placeholder={t('matchmakingPage.form.placeholders.occupation')}
-                  />
-                </div>
-              )}
               <div>
                 <label className="block text-sm text-white/80 md:text-slate-700">{t('matchmakingPage.form.labels.education')}</label>
                 <select
@@ -1953,71 +2232,6 @@ export default function MatchmakingApply() {
                   />
                 </div>
               )}
-
-              <div>
-                <label className="block text-sm text-white/80 md:text-slate-700">{t('matchmakingPage.form.labels.maritalStatus')}</label>
-                <select
-                  value={form.maritalStatus}
-                  onChange={onMaritalStatusChange}
-                  className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
-                >
-                  {maritalStatusOptions.map((opt) => (
-                    <option key={opt.id} value={opt.id}>
-                      {opt.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {(String(form.maritalStatus || '').trim().toLowerCase() === 'widowed' ||
-                String(form.maritalStatus || '').trim().toLowerCase() === 'divorced') ? (
-                <>
-                  <div>
-                    <label className="block text-sm text-white/80 md:text-slate-700">{t('matchmakingPage.form.labels.hasChildren')}</label>
-                    <select
-                      value={form.hasChildren}
-                      onChange={onHasChildrenChange}
-                      className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
-                    >
-                      {yesNoOptions.map((opt) => (
-                        <option key={opt.id} value={opt.id}>
-                          {opt.label}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  {form.hasChildren === 'yes' ? (
-                    <>
-                      <div>
-                        <label className="block text-sm text-white/80 md:text-slate-700">{t('matchmakingPage.form.labels.childrenCount')}</label>
-                        <input
-                          value={form.childrenCount}
-                          onChange={onChange('childrenCount')}
-                          className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
-                          inputMode="numeric"
-                          placeholder={t('matchmakingPage.form.placeholders.childrenCount')}
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-sm text-white/80 md:text-slate-700">{t('matchmakingPage.form.labels.childrenLivingSituation')}</label>
-                        <select
-                          value={form.childrenLivingSituation}
-                          onChange={onChange('childrenLivingSituation')}
-                          className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
-                        >
-                          {childrenLivingSituationOptions.map((opt) => (
-                            <option key={opt.id} value={opt.id}>
-                              {opt.label}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                    </>
-                  ) : null}
-                </>
-              ) : null}
 
               <div>
                 <label className="block text-sm text-white/80 md:text-slate-700">{t('matchmakingPage.form.labels.incomeLevel')}</label>
@@ -2256,50 +2470,244 @@ export default function MatchmakingApply() {
                   placeholder={t('matchmakingPage.form.placeholders.country')}
                 />
               </div>
+
+              <div className="md:col-span-2">
+                <label className="block text-sm text-white/80 md:text-slate-700">{t('matchmakingPage.form.labels.about')}</label>
+                <textarea
+                  value={form.about}
+                  onChange={onChange('about')}
+                  className="mt-1 min-h-[120px] w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                  placeholder={t('matchmakingPage.form.placeholders.about')}
+                />
+              </div>
             </div>
           </div>
           )}
 
-          {isEditOnceMode && (!isWizardMode || wizardStep === 2) && (
+          {(!isWizardMode || wizardStep === 2) && (
           <div
             key={isWizardMode ? `wizard-step-${wizardStep}` : 'all-steps-identity'}
             className={
               isWizardMode
-                ? 'rounded-[26px] border border-white/10 bg-white/5 p-5 md:p-6 shadow-[0_20px_60px_rgba(0,0,0,0.25)] gemini-fade-up'
+                ? 'rounded-[28px] border border-white/12 bg-[linear-gradient(180deg,rgba(255,255,255,0.12),rgba(255,255,255,0.05))] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.10),0_20px_60px_rgba(0,0,0,0.22)] backdrop-blur-sm gemini-fade-up md:rounded-[26px] md:border-white/10 md:bg-white/5 md:p-6 md:shadow-[0_20px_60px_rgba(0,0,0,0.25)] md:backdrop-blur-none'
                 : ''
             }
           >
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="rounded-none border-0 md:rounded-xl md:border md:border-slate-200 p-0 md:p-4">
-              <p className="text-sm font-semibold text-white md:text-slate-900">{t('matchmakingPage.form.sections.me')}</p>
-              <div className="mt-3 grid grid-cols-1 gap-3">
-                <div>
-                  <label className="block text-sm text-white/80 md:text-slate-700">{t('matchmakingPage.form.labels.nationality')}</label>
+          <div className="grid grid-cols-1 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm text-white/80 md:text-slate-700">{t('matchmakingPage.form.labels.partnerHeightMin')}</label>
+                <select
+                  value={form.partnerPreferences?.heightMinCm || ''}
+                  onChange={onPartnerChange('heightMinCm')}
+                  className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                >
+                  <option value="">{t('matchmakingPage.form.options.common.select')}</option>
+                  <option value="doesnt_matter">{t('matchmakingPage.form.options.common.doesntMatter')}</option>
+                  {heightRangeOptions.map((cm) => (
+                    <option key={cm} value={cm}>{cm} cm</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm text-white/80 md:text-slate-700">{t('matchmakingPage.form.labels.partnerHeightMax')}</label>
+                <select
+                  value={form.partnerPreferences?.heightMaxCm || ''}
+                  onChange={onPartnerChange('heightMaxCm')}
+                  className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                >
+                  <option value="">{t('matchmakingPage.form.options.common.select')}</option>
+                  <option value="doesnt_matter">{t('matchmakingPage.form.options.common.doesntMatter')}</option>
+                  {heightRangeOptions.map((cm) => (
+                    <option key={cm} value={cm}>{cm} cm</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm text-white/80 md:text-slate-700">{t('matchmakingPage.form.labels.partnerAgeMaxOlderYears')}</label>
+                <select
+                  value={form.partnerPreferences?.ageMaxOlderYears || ''}
+                  onChange={onPartnerChange('ageMaxOlderYears')}
+                  className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                >
+                  {partnerAgeDiffOptions.map((opt) => (
+                    <option key={opt.id} value={opt.id}>{opt.label}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm text-white/80 md:text-slate-700">{t('matchmakingPage.form.labels.partnerAgeMaxYoungerYears')}</label>
+                <select
+                  value={form.partnerPreferences?.ageMaxYoungerYears || ''}
+                  onChange={onPartnerChange('ageMaxYoungerYears')}
+                  className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                >
+                  {partnerAgeDiffOptions.map((opt) => (
+                    <option key={opt.id} value={opt.id}>{opt.label}</option>
+                  ))}
+                </select>
+              </div>
+
+              {partnerAgeMinForUi !== null && partnerAgeMaxForUi !== null ? (
+                <div className="md:col-span-2 rounded-xl border border-slate-200 bg-white/80 px-3 py-2 text-xs text-slate-600">
+                  {t('matchmakingPage.form.hints.partnerAgeComputed', { min: partnerAgeMinForUi, max: partnerAgeMaxForUi })}
+                </div>
+              ) : null}
+
+              <div>
+                <label className="block text-sm text-white/80 md:text-slate-700">{t('matchmakingPage.form.labels.partnerMaritalStatus')}</label>
+                <select
+                  value={form.partnerPreferences?.maritalStatus || ''}
+                  onChange={onPartnerChange('maritalStatus')}
+                  className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                >
+                  {partnerMaritalStatusOptions.map((opt) => (
+                    <option key={opt.id} value={opt.id}>{opt.label}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm text-white/80 md:text-slate-700">{t('matchmakingPage.form.labels.partnerReligion')}</label>
+                <select
+                  value={form.partnerPreferences?.religion || ''}
+                  onChange={onPartnerChange('religion')}
+                  className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                >
+                  {religionOptions.map((opt) => (
+                    <option key={opt.id} value={opt.id}>{opt.label}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm text-white/80 md:text-slate-700">{t('matchmakingPage.form.labels.partnerLivingCountry')}</label>
+                <select
+                  value={form.partnerPreferences?.livingCountry || ''}
+                  onChange={onPartnerChange('livingCountry')}
+                  className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                >
+                  {nationalityPreferenceOptions.map((opt) => (
+                    <option key={opt.id} value={opt.id}>{opt.label}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm text-white/80 md:text-slate-700">{t('matchmakingPage.form.labels.partnerCommunicationLanguages')}</label>
+                <select
+                  value={form.partnerPreferences?.communicationLanguage || ''}
+                  onChange={onPartnerChange('communicationLanguage')}
+                  className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                >
+                  {partnerCommunicationLanguageOptions.map((opt) => (
+                    <option key={opt.id} value={opt.id}>{opt.label}</option>
+                  ))}
+                </select>
+              </div>
+
+              {form.partnerPreferences?.communicationLanguage === 'other' ? (
+                <div className="md:col-span-2">
+                  <label className="block text-sm text-white/80 md:text-slate-700">{t('matchmakingPage.form.labels.partnerCommunicationLanguageOther')}</label>
                   <input
-                    value={form.nationality}
-                    onChange={onChange('nationality')}
-                    maxLength={60}
+                    value={form.partnerPreferences?.communicationLanguageOther || ''}
+                    onChange={onPartnerChange('communicationLanguageOther')}
                     className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
-                    placeholder={t('matchmakingPage.form.placeholders.country')}
+                    placeholder={t('matchmakingPage.form.placeholders.partnerCommunicationLanguageOther')}
                   />
                 </div>
-                {autoPrefilled.gender ? null : (
-                  <div>
-                    <label className="block text-sm text-white/80 md:text-slate-700">{t('matchmakingPage.form.labels.gender')}</label>
-                    <select
-                      value={form.gender}
-                      onChange={onGenderChange}
-                      className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
-                    >
-                      {genderOptions.map((opt) => (
-                        <option key={opt.id} value={opt.id} disabled={!opt.id}>
-                          {opt.label}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                )}
+              ) : null}
+
+              <div>
+                <label className="block text-sm text-white/80 md:text-slate-700">{t('matchmakingPage.form.labels.partnerSmokingPreference')}</label>
+                <select
+                  value={form.partnerPreferences?.smokingPreference || ''}
+                  onChange={onPartnerChange('smokingPreference')}
+                  className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                >
+                  {yesNoDoesntMatterOptions.map((opt) => (
+                    <option key={opt.id} value={opt.id}>{opt.label}</option>
+                  ))}
+                </select>
               </div>
+
+              <div>
+                <label className="block text-sm text-white/80 md:text-slate-700">{t('matchmakingPage.form.labels.partnerAlcoholPreference')}</label>
+                <select
+                  value={form.partnerPreferences?.alcoholPreference || ''}
+                  onChange={onPartnerChange('alcoholPreference')}
+                  className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                >
+                  {yesNoDoesntMatterOptions.map((opt) => (
+                    <option key={opt.id} value={opt.id}>{opt.label}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm text-white/80 md:text-slate-700">{t('matchmakingPage.form.labels.partnerChildrenPreference')}</label>
+                <select
+                  value={form.partnerPreferences?.childrenPreference || 'doesnt_matter'}
+                  onChange={onPartnerChange('childrenPreference')}
+                  className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                >
+                  {partnerChildrenPreferenceOptions.map((opt) => (
+                    <option key={opt.id} value={opt.id}>{opt.label}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm text-white/80 md:text-slate-700">{t('matchmakingPage.form.labels.partnerEducationPreference')}</label>
+                <select
+                  value={form.partnerPreferences?.educationPreference || 'doesnt_matter'}
+                  onChange={onPartnerChange('educationPreference')}
+                  className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                >
+                  {partnerEducationPreferenceOptions.map((opt) => (
+                    <option key={opt.id} value={opt.id}>{opt.label}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm text-white/80 md:text-slate-700">{t('matchmakingPage.form.labels.partnerOccupationPreference')}</label>
+                <select
+                  value={form.partnerPreferences?.occupationPreference || 'doesnt_matter'}
+                  onChange={onPartnerChange('occupationPreference')}
+                  className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                >
+                  {partnerOccupationPreferenceOptions.map((opt) => (
+                    <option key={opt.id} value={opt.id}>{opt.label}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="md:col-span-2">
+                <label className="block text-sm text-white/80 md:text-slate-700">{t('matchmakingPage.form.labels.partnerFamilyValuesPreference')}</label>
+                <select
+                  value={form.partnerPreferences?.familyValuesPreference || 'doesnt_matter'}
+                  onChange={onPartnerChange('familyValuesPreference')}
+                  className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                >
+                  {partnerFamilyValuesPreferenceOptions.map((opt) => (
+                    <option key={opt.id} value={opt.id}>{opt.label}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-semibold text-white md:text-slate-900">{t('matchmakingPage.form.labels.expectations')}</label>
+              <textarea
+                value={form.expectations}
+                onChange={onChange('expectations')}
+                className="mt-1 min-h-[120px] w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                placeholder={t('matchmakingPage.form.placeholders.expectations')}
+              />
             </div>
           </div>
 
@@ -2342,28 +2750,28 @@ export default function MatchmakingApply() {
             key={isWizardMode ? `wizard-step-${wizardStep}-consents` : 'all-steps-consents'}
             className={
               isWizardMode
-                ? 'rounded-[26px] border border-white/10 bg-white/5 p-5 md:p-6 shadow-[0_20px_60px_rgba(0,0,0,0.25)] gemini-fade-up'
+                ? 'rounded-[28px] border border-white/12 bg-[linear-gradient(180deg,rgba(255,255,255,0.12),rgba(255,255,255,0.05))] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.10),0_20px_60px_rgba(0,0,0,0.22)] backdrop-blur-sm gemini-fade-up md:rounded-[26px] md:border-white/10 md:bg-white/5 md:p-6 md:shadow-[0_20px_60px_rgba(0,0,0,0.25)] md:backdrop-blur-none'
                 : ''
             }
           >
-          {isEditOnceMode ? (
-            <>
-              <div>
-                <label className="block text-sm font-semibold text-white/90 md:text-slate-800">{t('matchmakingPage.form.labels.photos')}</label>
-                <p className="mt-2 text-xs text-white/60 md:text-slate-600">{t('matchmakingPage.form.editOnce.photosLocked')}</p>
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-white/90 md:text-slate-800">{t('matchmakingPage.form.labels.about')}</label>
-                <textarea
-                  value={form.about}
-                  onChange={onChange('about')}
-                  className="mt-1 w-full min-h-[110px] rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-amber-300/60"
-                  placeholder={t('matchmakingPage.form.placeholders.about')}
-                />
-              </div>
-            </>
-          ) : null}
+          <div>
+            <label className="block text-sm font-semibold text-white/90 md:text-slate-800">{t('matchmakingPage.form.labels.photos')}</label>
+            <p className="mt-2 text-xs text-white/60 md:text-slate-600">{t('matchmakingPage.form.photoHint')}</p>
+            <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {PHOTO_FIELD_KEYS.map((key, index) => (
+                <div key={key}>
+                  <label className="block text-xs text-white/70 md:text-slate-700" htmlFor={`mk-${key}`}>{index + 1}</label>
+                  <input
+                    id={`mk-${key}`}
+                    type="file"
+                    accept="image/*"
+                    onChange={onPickPhoto(key)}
+                    className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900"
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
 
           <div className={isWizardMode ? 'space-y-3' : 'space-y-3 rounded-none border-0 md:rounded-xl md:border md:border-slate-200 p-0 md:p-4'}>
             <label className="flex items-start gap-3 text-sm text-white/80 md:text-slate-800">
@@ -2427,13 +2835,32 @@ export default function MatchmakingApply() {
           )}
 
           {isWizardMode ? (
-            <div className="w-full">
+            <div className="w-full rounded-[28px] border border-amber-100/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.94),rgba(255,248,235,0.82))] p-3 shadow-[0_20px_60px_rgba(148,163,184,0.14)] backdrop-blur-md md:rounded-none md:border-0 md:bg-transparent md:p-0 md:shadow-none md:backdrop-blur-none">
+              <div className="mb-4 overflow-hidden rounded-[24px] border border-amber-200/80 bg-[linear-gradient(135deg,#fff8df,#fff0c2)] p-4 text-amber-950 shadow-[0_16px_40px_rgba(245,158,11,0.12)]">
+                <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                  <div>
+                    <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-amber-700/75">
+                      {wizardStep >= WIZARD_TOTAL_STEPS - 1 ? t('matchmakingPage.form.wizard.completeCta') : t('matchmakingPage.form.wizard.step', { current: wizardStep + 1, total: WIZARD_TOTAL_STEPS })}
+                    </div>
+                    <div className="mt-1 text-sm font-medium leading-relaxed text-amber-950">{wizardCheckpoint}</div>
+                  </div>
+                  {!(wizardStep === 0 && isIndonesianUi) ? (
+                    <div className="rounded-2xl border border-amber-300/70 bg-white/70 px-4 py-3 text-xs text-amber-800">
+                      {wizardStep === 0 ? 'Zorunlu alanlar tamamlandığında formu bitirebilirsiniz.' : wizardStep === 1 ? 'Bu adım tamamen isteğe bağlıdır.' : 'Son adım: tercihlerinizi ekleyip tamamlayın.'}
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+              <div className="mb-4 rounded-[24px] border border-slate-200 bg-white/85 p-4 shadow-[0_14px_40px_rgba(148,163,184,0.10)]">
+                <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">{applyPremiumUi.footerNoteTitle}</div>
+                <div className="mt-2 text-sm leading-relaxed text-slate-700">{applyPremiumUi.footerNoteBody}</div>
+              </div>
               <div className="w-full flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-3">
                 <button
                   type="button"
                   onClick={goWizardBack}
                   disabled={submitting || (wizardStep <= 0 && !isEditOnceMode)}
-                  className="w-full sm:w-40 gemini-organic-btn rounded-full bg-white/10 border border-white/15 text-white font-semibold py-3 hover:bg-white/[0.14] transition disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/60"
+                  className="w-full sm:w-40 gemini-organic-btn rounded-full border border-slate-200 bg-white text-slate-900 font-semibold py-3 shadow-[0_10px_30px_rgba(148,163,184,0.10)] hover:bg-slate-50 transition disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/60"
                 >
                   {t('matchmakingPage.form.wizard.back')}
                 </button>
@@ -2445,17 +2872,27 @@ export default function MatchmakingApply() {
                     className="w-full sm:w-56 gemini-organic-btn rounded-full gemini-gradient text-white font-semibold py-3 shadow-[0_18px_50px_rgba(244,63,94,0.20)] hover:brightness-110 transition disabled:opacity-60 active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-200/60 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
                     aria-busy={submitting ? 'true' : 'false'}
                   >
-                    {submitting ? t('matchmakingPage.form.submitting') : t('matchmakingPage.form.submit')}
+                    {submitting ? t('matchmakingPage.form.submitting') : t('matchmakingPage.form.wizard.completeCta')}
                   </button>
                 ) : (
-                  <button
-                    type="button"
-                    onClick={goWizardNext}
-                    disabled={submitting}
-                    className="w-full sm:w-56 gemini-organic-btn rounded-full gemini-gradient text-white font-semibold py-3 shadow-[0_18px_50px_rgba(244,63,94,0.20)] hover:brightness-110 transition disabled:opacity-60 active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-200/60 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
-                  >
-                    {t('matchmakingPage.form.wizard.next')}
-                  </button>
+                  <>
+                    <button
+                      type="submit"
+                      disabled={submitting}
+                      className="w-full sm:w-44 gemini-organic-btn rounded-full border border-slate-200 bg-white text-slate-900 font-semibold py-3 shadow-[0_10px_30px_rgba(148,163,184,0.10)] hover:bg-slate-50 transition disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/60"
+                      aria-busy={submitting ? 'true' : 'false'}
+                    >
+                      {submitting ? t('matchmakingPage.form.submitting') : t('matchmakingPage.form.wizard.finish')}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={goWizardNext}
+                      disabled={submitting}
+                      className="w-full sm:w-56 gemini-organic-btn rounded-full gemini-gradient text-white font-semibold py-3 shadow-[0_18px_50px_rgba(244,63,94,0.20)] hover:brightness-110 transition disabled:opacity-60 active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-200/60 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+                    >
+                      {t('matchmakingPage.form.wizard.next')}
+                    </button>
+                  </>
                 )}
               </div>
 

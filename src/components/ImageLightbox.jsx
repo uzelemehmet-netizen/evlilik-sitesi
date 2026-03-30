@@ -1,10 +1,18 @@
-import { useState, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 export default function ImageLightbox({ images, currentIndex, onClose }) {
   const { t } = useTranslation();
   const [index, setIndex] = useState(currentIndex);
+
+  const handlePrevious = useCallback(() => {
+    setIndex((prev) => (prev > 0 ? prev - 1 : images.length - 1));
+  }, [images.length]);
+
+  const handleNext = useCallback(() => {
+    setIndex((prev) => (prev < images.length - 1 ? prev + 1 : 0));
+  }, [images.length]);
 
   useEffect(() => {
     setIndex(currentIndex);
@@ -28,15 +36,7 @@ export default function ImageLightbox({ images, currentIndex, onClose }) {
       window.removeEventListener('keydown', handleKeyDown);
       document.body.style.overflow = 'unset';
     };
-  }, [index]);
-
-  const handlePrevious = () => {
-    setIndex((prev) => (prev > 0 ? prev - 1 : images.length - 1));
-  };
-
-  const handleNext = () => {
-    setIndex((prev) => (prev < images.length - 1 ? prev + 1 : 0));
-  };
+  }, [handleNext, handlePrevious, onClose]);
 
   if (!images || images.length === 0 || index === null) return null;
 

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { collection, doc, getDoc, getDocFromServer, getDocs, limit, onSnapshot, query, where } from 'firebase/firestore';
 import { sendEmailVerification, signOut } from 'firebase/auth';
@@ -24,8 +24,61 @@ import { isPwaInstalled } from '../../utils/pwaInstalled.js';
 import { enablePushForCurrentUser, hasSavedPushToken } from '../../utils/pushNotifications.js';
 import { trackClick } from '../../utils/clickTracker';
 
+const DEFAULT_LOOKING_FOR_NATIONALITY = 'id';
+
+function getBaseLang(raw) {
+  const base = String(raw || '').trim().toLowerCase().split(/[-_]/)[0];
+  if (base === 'in') return 'id';
+  if (base === 'tr' || base === 'en' || base === 'id') return base;
+  return 'tr';
+}
+
+function getStudioTrustUi(lang) {
+  const copy = {
+    tr: {
+      eyebrow: 'Uye odasi',
+      title: 'Profiliniz herkesin baktigi bir vitrin gibi calismaz',
+      body: 'Fotograflar, dogrulama ve temas ayni anda acilmaz. Sistem, duzgun bir akisi korumak icin bunlari kontrollu yonetir.',
+      facts: [
+        'Profil ve fotograflar kontrollu akista gorunur',
+        'Dogrulanmis hesaplar daha guvenli sinyal verir',
+        'Iletisim once sistem ici adimlardan gecer',
+      ],
+    },
+    en: {
+      eyebrow: 'Member room',
+      title: 'Your profile does not work like a public showcase',
+      body: 'Photos, verification and contact do not open at the same time. The system controls each part to keep the flow orderly.',
+      facts: [
+        'Profile and photos appear in a controlled flow',
+        'Verified accounts send a stronger trust signal',
+        'Contact first moves through in-system steps',
+      ],
+    },
+    id: {
+      eyebrow: 'Ruang anggota',
+      title: 'Profil Anda tidak bekerja seperti etalase publik',
+      body: 'Foto, verifikasi, dan kontak tidak dibuka bersamaan. Sistem mengatur semuanya agar alurnya tetap rapi.',
+      facts: [
+        'Profil dan foto tampil dalam alur yang terkontrol',
+        'Akun terverifikasi memberi sinyal kepercayaan lebih kuat',
+        'Kontak selalu melewati langkah sistem terlebih dahulu',
+      ],
+    },
+  };
+
+  return copy[lang] || copy.tr;
+}
+
 const LS_PUSH_AFTER_INSTALL_PENDING_PREFIX = 'uniqah:push:nudgeAfterInstall:pending';
 const LS_PUSH_AFTER_INSTALL_DISMISSED_PREFIX = 'uniqah:push:nudgeAfterInstall:dismissed';
+
+function deriveLookingForGender(gender) {
+  const value = String(gender || '').trim().toLowerCase();
+  if (value === 'male') return 'female';
+  if (value === 'female') return 'male';
+  return '';
+}
 
 function pushAfterInstallKey(prefix, uid) {
   return `${prefix}:${uid}`;
@@ -277,6 +330,7 @@ export default function StudioProfile() {
 
   const isTr = String(i18n?.language || '').toLowerCase().startsWith('tr');
   const shortLabel = (fallbackKey, trText) => (isTr ? trText : t(fallbackKey));
+  const studioTrustUi = getStudioTrustUi(getBaseLang(i18n?.language));
 
   useEffect(() => {
     setPushEnabledNow(isPushEnabledInBrowser());
@@ -378,7 +432,7 @@ export default function StudioProfile() {
 
   const [partnerPrefsModalOpen, setPartnerPrefsModalOpen] = useState(false);
   const [partnerPrefsDraft, setPartnerPrefsDraft] = useState({
-    lookingForNationality: '',
+    lookingForNationality: DEFAULT_LOOKING_FOR_NATIONALITY,
     lookingForGender: '',
     partnerPreferences: {
       heightMinCm: '',
@@ -416,6 +470,7 @@ export default function StudioProfile() {
   const [topInlinePanel, setTopInlinePanel] = useState('');
 
   const didNormalizeStubRef = useRef(false);
+  const freshSignupRedirectRef = useRef(false);
 
   useEffect(() => {
     if (!isPreview) return;
@@ -435,6 +490,34 @@ export default function StudioProfile() {
     mmUser,
   ]);
 
+  useEffect(() => {
+    if (freshSignupRedirectRef.current) return;
+    if (isPreview || !uid) return;
+    if (loading || appLoading) return;
+    if (!isProfileIncomplete) return;
+
+    let shouldRedirect = false;
+    try {
+      const raw = String(window.sessionStorage.getItem('auth_just_signed_up') || '').trim();
+      const atMs = Number(raw);
+      if (Number.isFinite(atMs) && atMs > 0) {
+        const ageMs = Date.now() - atMs;
+        if (ageMs >= 0 && ageMs <= 15 * 60 * 1000) shouldRedirect = true;
+      }
+      if (raw) window.sessionStorage.removeItem('auth_just_signed_up');
+    } catch {
+      // ignore
+    }
+
+    if (!shouldRedirect) return;
+
+    freshSignupRedirectRef.current = true;
+    navigate('/evlilik/eslestirme-basvuru?w=1', {
+      replace: true,
+      state: { returnTo: '/profilim', from: 'postSignupProfileRedirect' },
+    });
+  }, [appLoading, isPreview, isProfileIncomplete, loading, navigate, uid]);
+
   const showIncompleteExploreWarning = !isPreview && isProfileIncomplete;
 
   const applySource = String(location?.state?.from || '').trim();
@@ -443,7 +526,7 @@ export default function StudioProfile() {
 
   const openApplyInline = () => {
     // Inline/iframe apply bloğu kaldırıldı. Kullanıcıyı doğrudan başvuru sayfasına yönlendir.
-    navigate('/evlilik/eslestirme-basvuru?w=1');
+    navigate('/evlilik/eslestirme-basvuru?w=1', { state: { returnTo: '/profilim' } });
   };
 
   useEffect(() => {
@@ -525,6 +608,21 @@ export default function StudioProfile() {
     };
   }, [uid]);
 
+  const refreshLatestApplication = useCallback(async () => {
+    if (isPreview) return;
+    if (!uid) return;
+    try {
+      const q = query(collection(db, 'matchmakingApplications'), where('userId', '==', uid), limit(10));
+      const snap = await getDocs(q);
+      const items = snap.docs.map((d) => ({ id: d.id, ...(d.data() || {}) }));
+      const best = pickBestNonStubApplication(items);
+      setLatestApp(best);
+      setLatestAppId(best?.id ? String(best.id) : '');
+    } catch {
+      // ignore (best-effort)
+    }
+  }, [isPreview, uid]);
+
   useEffect(() => {
     if (isPreview) return;
     if (!uid) return;
@@ -548,7 +646,7 @@ export default function StudioProfile() {
         // ignore
       }
     })();
-  }, [isPreview, uid]);
+  }, [isPreview, refreshLatestApplication, uid]);
 
   useEffect(() => {
     if (!uid || !latestAppId) return;
@@ -667,25 +765,6 @@ export default function StudioProfile() {
     return pickMoreCompleteApp(appFromUser, latestApp);
   }, [latestApp, mmUser]);
 
-  const nationalityOptions = useMemo(
-    () => [
-      { id: '', label: t('matchmakingPage.form.options.common.select') },
-      { id: 'tr', label: t('matchmakingPage.form.options.nationality.tr') },
-      { id: 'id', label: t('matchmakingPage.form.options.nationality.id') },
-      { id: 'other', label: t('matchmakingPage.form.options.nationality.other') },
-    ],
-    [t, i18n.language]
-  );
-
-  const genderOptions = useMemo(
-    () => [
-      { id: '', label: t('matchmakingPage.form.options.common.select') },
-      { id: 'male', label: t('matchmakingPage.form.options.gender.male') },
-      { id: 'female', label: t('matchmakingPage.form.options.gender.female') },
-    ],
-    [t, i18n.language]
-  );
-
   const partnerMaritalStatusOptions = useMemo(
     () => [
       { id: '', label: t('matchmakingPage.form.options.common.select') },
@@ -694,7 +773,7 @@ export default function StudioProfile() {
       { id: 'divorced', label: t('matchmakingPage.form.options.maritalStatus.divorced') },
       { id: 'doesnt_matter', label: t('matchmakingPage.form.options.maritalStatus.doesnt_matter') },
     ],
-    [t, i18n.language]
+    [t]
   );
 
   const religionOptions = useMemo(
@@ -706,7 +785,7 @@ export default function StudioProfile() {
       { id: 'buddhist', label: t('matchmakingPage.form.options.religion.buddhist') },
       { id: 'other', label: t('matchmakingPage.form.options.religion.other') },
     ],
-    [t, i18n.language]
+    [t]
   );
 
   const yesNoDoesntMatterOptions = useMemo(
@@ -716,7 +795,7 @@ export default function StudioProfile() {
       { id: 'no', label: t('matchmakingPage.form.options.common.no') },
       { id: 'doesnt_matter', label: t('matchmakingPage.form.options.common.doesntMatter') },
     ],
-    [t, i18n.language]
+    [t]
   );
 
   const partnerChildrenPreferenceOptions = useMemo(
@@ -726,7 +805,7 @@ export default function StudioProfile() {
       { id: 'no_children', label: t('matchmakingPage.form.options.partnerChildren.noChildren') },
       { id: 'doesnt_matter', label: t('matchmakingPage.form.options.common.doesntMatter') },
     ],
-    [t, i18n.language]
+    [t]
   );
 
   const partnerEducationPreferenceOptions = useMemo(
@@ -738,7 +817,7 @@ export default function StudioProfile() {
       { id: 'phd', label: t('matchmakingPage.form.options.education.phd') },
       { id: 'doesnt_matter', label: t('matchmakingPage.form.options.common.doesntMatter') },
     ],
-    [t, i18n.language]
+    [t]
   );
 
   const partnerOccupationPreferenceOptions = useMemo(
@@ -750,7 +829,7 @@ export default function StudioProfile() {
       { id: 'business_owner', label: t('matchmakingPage.form.options.occupation.businessOwner') },
       { id: 'doesnt_matter', label: t('matchmakingPage.form.options.common.doesntMatter') },
     ],
-    [t, i18n.language]
+    [t]
   );
 
   const partnerFamilyValuesPreferenceOptions = useMemo(
@@ -760,7 +839,7 @@ export default function StudioProfile() {
       { id: 'liberal', label: t('matchmakingPage.form.options.familyValues.liberal') },
       { id: 'doesnt_matter', label: t('matchmakingPage.form.options.common.doesntMatter') },
     ],
-    [t, i18n.language]
+    [t]
   );
 
   const partnerCommunicationMethodOptions = useMemo(
@@ -769,7 +848,7 @@ export default function StudioProfile() {
       { id: 'foreign_language', label: t('matchmakingPage.form.options.partnerCommunicationMethods.foreignLanguage') },
       { id: 'translation_app', label: t('matchmakingPage.form.options.partnerCommunicationMethods.translationApp') },
     ],
-    [t, i18n.language]
+    [t]
   );
 
   const openPartnerPrefsModal = () => {
@@ -783,8 +862,8 @@ export default function StudioProfile() {
 
     setPartnerPrefsSaveState({ loading: false, error: '', success: '' });
     setPartnerPrefsDraft({
-      lookingForNationality: String(app?.lookingForNationality || '').trim(),
-      lookingForGender: String(app?.lookingForGender || '').trim(),
+      lookingForNationality: DEFAULT_LOOKING_FOR_NATIONALITY,
+      lookingForGender: deriveLookingForGender(app?.gender),
       partnerPreferences: {
         heightMinCm: partner?.heightMinCm ?? partner?.heightMinCm === 0 ? String(partner.heightMinCm) : '',
         heightMaxCm: partner?.heightMaxCm ?? partner?.heightMaxCm === 0 ? String(partner.heightMaxCm) : '',
@@ -824,8 +903,8 @@ export default function StudioProfile() {
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
           payload: {
-            lookingForNationality: partnerPrefsDraft?.lookingForNationality || '',
-            lookingForGender: partnerPrefsDraft?.lookingForGender || '',
+            lookingForNationality: DEFAULT_LOOKING_FOR_NATIONALITY,
+            lookingForGender: deriveLookingForGender(bestApp?.gender),
             partnerPreferences: partnerPrefsDraft?.partnerPreferences || {},
           },
         }),
@@ -959,21 +1038,6 @@ export default function StudioProfile() {
     if (!file) return false;
     const typ = String(file?.type || '').toLowerCase();
     return typ.startsWith('image/');
-  };
-
-  const refreshLatestApplication = async () => {
-    if (isPreview) return;
-    if (!uid) return;
-    try {
-      const q = query(collection(db, 'matchmakingApplications'), where('userId', '==', uid), limit(10));
-      const snap = await getDocs(q);
-      const items = snap.docs.map((d) => ({ id: d.id, ...(d.data() || {}) }));
-      const best = pickBestNonStubApplication(items);
-      setLatestApp(best);
-      setLatestAppId(best?.id ? String(best.id) : '');
-    } catch {
-      // ignore (best-effort)
-    }
   };
 
   const savePhotoUpdates = async () => {
@@ -1411,7 +1475,7 @@ export default function StudioProfile() {
         items: getItems('studio.profile.guidance.sections.afterMarriage.items'),
       },
     ];
-  }, [i18n?.language, t]);
+  }, [t]);
 
   const guidanceWhatsAppUrl = useMemo(() => {
     const text = t('studio.profile.guidance.whatsappMessage');
@@ -1446,9 +1510,9 @@ export default function StudioProfile() {
           </Link>
         </div>
 
-        <div className="mx-auto max-w-4xl overflow-visible rounded-xl border border-slate-200 bg-white shadow-sm">
+        <div className="mx-auto max-w-5xl overflow-visible rounded-[30px] border border-white bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(248,250,252,0.94))] shadow-[0_26px_90px_rgba(15,23,42,0.10)]">
           {/* Banner */}
-          <div className="relative h-44 w-full bg-slate-200 overflow-hidden rounded-t-xl">
+          <div className="relative h-48 w-full bg-slate-200 overflow-hidden rounded-t-[30px]">
             {Array.isArray(myPhotoUrls) && myPhotoUrls.length ? (
               <div className="h-full w-full overflow-x-auto overflow-y-hidden snap-x snap-mandatory flex">
                 {myPhotoUrls.slice(0, 5).map((u, idx) => (
@@ -1474,7 +1538,11 @@ export default function StudioProfile() {
             )}
           </div>
 
-          <div className="relative p-6">
+          <div className="relative overflow-hidden p-6 md:p-8">
+            <div aria-hidden="true" className="pointer-events-none absolute inset-0">
+              <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-emerald-200 to-transparent" />
+              <div className="absolute -right-16 top-0 h-48 w-48 rounded-full bg-[radial-gradient(circle_at_center,rgba(16,185,129,0.12),rgba(16,185,129,0)_62%)] blur-2xl" />
+            </div>
             {/* Avatar */}
             <div className="absolute -top-12 left-6">
               <div className="relative">
@@ -1514,8 +1582,12 @@ export default function StudioProfile() {
               </div>
             </div>
 
-            <div className="pt-10 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+            <div className="relative pt-10 grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_320px] gap-6 items-start">
               <div>
+                <div className="inline-flex items-center gap-2 rounded-full border border-emerald-100 bg-emerald-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-emerald-900 shadow-[0_10px_24px_rgba(16,185,129,0.10)]">
+                  <Star className="h-3.5 w-3.5" />
+                  {studioTrustUi.eyebrow}
+                </div>
                 <h1 className="text-2xl md:text-3xl font-bold flex items-center gap-2">
                   {profile.name}{profile.age ? `, ${profile.age}` : ''}
                 </h1>
@@ -1552,8 +1624,21 @@ export default function StudioProfile() {
                   </p>
                 ) : null}
 
+                <div className="mt-4 rounded-[24px] border border-slate-200 bg-[linear-gradient(135deg,rgba(255,255,255,0.98),rgba(240,253,250,0.94))] p-5 shadow-[0_16px_40px_rgba(148,163,184,0.10)]">
+                  <div className="text-lg font-semibold text-slate-900">{studioTrustUi.title}</div>
+                  <div className="mt-2 text-sm leading-relaxed text-slate-600">{studioTrustUi.body}</div>
+                  <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-3">
+                    {studioTrustUi.facts.map((fact, index) => (
+                      <div key={fact} className="rounded-[20px] border border-slate-200 bg-white px-4 py-3 shadow-[0_10px_28px_rgba(148,163,184,0.08)]">
+                        <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">0{index + 1}</div>
+                        <div className="mt-1 text-sm leading-relaxed text-slate-700">{fact}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
                 {showIncompleteExploreWarning ? (
-                  <div role="alert" className="mt-3 rounded-xl border border-red-200 bg-red-50 p-4 text-red-950">
+                  <div role="alert" className="mt-4 rounded-[24px] border border-red-200 bg-[linear-gradient(135deg,rgba(254,242,242,0.96),rgba(255,255,255,0.92))] p-4 text-red-950 shadow-[0_12px_32px_rgba(248,113,113,0.10)]">
                     <div className="flex items-start gap-3">
                       <div className="mt-0.5 inline-flex h-8 w-8 items-center justify-center rounded-full bg-red-200 text-red-900">
                         <AlertTriangle className="h-4 w-4" />
@@ -1577,7 +1662,20 @@ export default function StudioProfile() {
                 ) : null}
               </div>
 
-              <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center">
+              <div className="rounded-[26px] border border-slate-200 bg-[linear-gradient(180deg,rgba(15,23,42,0.98),rgba(15,23,42,0.92))] p-5 text-white shadow-[0_24px_80px_rgba(15,23,42,0.18)]">
+                <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/65">{studioTrustUi.eyebrow}</div>
+                <div className="mt-2 text-lg font-semibold text-white">{studioTrustUi.title}</div>
+                <div className="mt-2 text-sm leading-relaxed text-slate-300">{studioTrustUi.body}</div>
+
+                <div className="mt-4 grid grid-cols-1 gap-2">
+                  {studioTrustUi.facts.map((fact) => (
+                    <div key={`${fact}-aside`} className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white/85">
+                      {fact}
+                    </div>
+                  ))}
+                </div>
+
+                <div className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-1 sm:items-center">
                 <div ref={profileMenuWrapRef} className="relative col-span-2 sm:col-span-1">
                   <button
                     type="button"
@@ -1649,7 +1747,7 @@ export default function StudioProfile() {
                               bodyKey: 'studio.profile.actionIntro.editProfile.body',
                               ctaKey: 'studio.profile.actionIntro.editProfile.cta',
                               onContinue: () =>
-                                navigate('/evlilik/eslestirme-basvurusu?editOnce=1&w=1', { state: { returnTo: '/profilim' } }),
+                                navigate('/evlilik/eslestirme-basvuru?w=1', { state: { returnTo: '/profilim' } }),
                             });
                           }}
                           className="app-btn app-btn-action-menu relative h-12 w-full px-5 justify-start"
@@ -1915,6 +2013,7 @@ export default function StudioProfile() {
                 </div>
               </div>
             </div>
+          </div>
 
             {topInlinePanel ? (
               <div className="mt-5 grid grid-cols-1 gap-4">
@@ -2679,46 +2778,6 @@ export default function StudioProfile() {
                     ) : null}
 
                     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                      <label className="text-sm font-semibold text-slate-800">
-                        {t('matchmakingPage.form.labels.lookingForNationality')}
-                        <select
-                          value={partnerPrefsDraft?.lookingForNationality || ''}
-                          onChange={(e) =>
-                            setPartnerPrefsDraft((p) => ({
-                              ...(p || {}),
-                              lookingForNationality: e.target.value,
-                            }))
-                          }
-                          className="mt-2 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm outline-none focus:border-emerald-300 focus:ring-2 focus:ring-emerald-100"
-                        >
-                          {nationalityOptions.map((o) => (
-                            <option key={o.id} value={o.id}>
-                              {o.label}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
-
-                      <label className="text-sm font-semibold text-slate-800">
-                        {t('matchmakingPage.form.labels.lookingForGender')}
-                        <select
-                          value={partnerPrefsDraft?.lookingForGender || ''}
-                          onChange={(e) =>
-                            setPartnerPrefsDraft((p) => ({
-                              ...(p || {}),
-                              lookingForGender: e.target.value,
-                            }))
-                          }
-                          className="mt-2 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm outline-none focus:border-emerald-300 focus:ring-2 focus:ring-emerald-100"
-                        >
-                          {genderOptions.map((o) => (
-                            <option key={o.id} value={o.id}>
-                              {o.label}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
-
                       <label className="text-sm font-semibold text-slate-800">
                         {t('matchmakingPage.form.labels.partnerHeightMin')}
                         <input

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { collection, limit, onSnapshot, orderBy, query, where } from 'firebase/firestore';
 import { useTranslation } from 'react-i18next';
@@ -121,7 +121,7 @@ export default function AdminMatchmakingMatches() {
       unsub();
       if (typeof unsubFallback === 'function') unsubFallback();
     };
-  }, []);
+  }, [t]);
 
   const cancel = async (matchId) => {
     const ok = window.confirm(t('admin.matchmakingMatches.confirms.cancelMatch'));

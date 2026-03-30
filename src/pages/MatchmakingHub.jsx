@@ -48,27 +48,176 @@ const FALLBACK_THUMB_DATA_URL =
     </svg>`
   );
 
+function getBaseLang(raw) {
+  const base = String(raw || '').trim().toLowerCase().split(/[-_]/)[0];
+  if (base === 'in') return 'id';
+  if (base === 'tr' || base === 'en' || base === 'id') return base;
+  return 'tr';
+}
+
+function getMatchmakingTrustUi(lang) {
+  const copy = {
+    tr: {
+      heroPanelEyebrow: 'Uyelik odasi',
+      heroPanelTitle: 'Herkese acik bir vitrin degil, kontrollu bir eslestirme odasi',
+      heroPanelBody: 'Fotograflar, detaylar ve iletisim ayni anda ortaya cikmaz. Sistem once uygunlugu, sonra guveni ve sonra temasi acar.',
+      heroPanelStats: ['Kapali profil akisi', '48 saat + karsilikli onay', 'Insan destekli geri donus'],
+      quickFacts: [
+        {
+          title: '1-3 dk basvuru',
+          body: 'On basvuru kisa surer; once temel uygunluk ve beklenti netlesir.',
+        },
+        {
+          title: 'Profil herkese acik degil',
+          body: 'Fotograflar ve detaylar kapali sistem icinde, kontrollu sekilde gorunur.',
+        },
+        {
+          title: 'Net geri donus',
+          body: 'Durumunuz bu akis icin uygun degilse bunu acikca soyleriz.',
+        },
+      ],
+      stepsTitle: 'Kayittan sonra ne olur?',
+      steps: [
+        {
+          title: '1. Kayit ve form',
+          body: '1-3 dakikada hesabinizi acar, eslestirme formunu tamamlarsiniz.',
+        },
+        {
+          title: '2. Uygunluk kontrolu',
+          body: 'Temel bilgileriniz kontrol edilir; eksik veya uyumsuz bir nokta varsa acikca bildirilir.',
+        },
+        {
+          title: '3. Panel akisiniz acilir',
+          body: 'Uygun kullanicilar panelde kontrollu aday, eslesme ve mesaj akisini gorur.',
+        },
+        {
+          title: '4. Iletisim kilitli baslar',
+          body: 'Iletisim hemen acilmaz; once site ici surec, sonra 48 saat ve karsilikli onay gerekir.',
+        },
+      ],
+      ctaNote: 'Ucretsiz kayit • Profil herkese acik degil • Iletisim 48 saat + onay sonrasi acilir',
+      whatsappLabel: 'WhatsApptan sistem size uygun mu sorun',
+      whatsappMessage:
+        'Merhaba, kayit olmadan once Uniqah eslestirme sisteminin benim durumuma uygun olup olmadigini ogrenmek istiyorum.',
+    },
+    en: {
+      heroPanelEyebrow: 'Member room',
+      heroPanelTitle: 'Not a public showcase, but a controlled matchmaking room',
+      heroPanelBody: 'Photos, details and contact are not exposed at once. The system first checks fit, then trust, then opens contact.',
+      heroPanelStats: ['Closed-profile flow', '48h + mutual approval', 'Human-reviewed feedback'],
+      quickFacts: [
+        {
+          title: '1-3 minute application',
+          body: 'The first application is short; we first clarify fit and expectations.',
+        },
+        {
+          title: 'No public profile',
+          body: 'Photos and details are shown only inside the controlled system flow.',
+        },
+        {
+          title: 'Clear outcome',
+          body: 'If this flow is not suitable for your situation, we tell you openly.',
+        },
+      ],
+      stepsTitle: 'What happens after you sign up?',
+      steps: [
+        {
+          title: '1. Account and form',
+          body: 'You open your account and complete the matchmaking form in about 1-3 minutes.',
+        },
+        {
+          title: '2. Fit review',
+          body: 'Your core information is reviewed; if something is missing or not aligned, it is stated clearly.',
+        },
+        {
+          title: '3. Panel flow opens',
+          body: 'Eligible users see a controlled candidate, match and chat flow in the panel.',
+        },
+        {
+          title: '4. Contact starts locked',
+          body: 'Contact does not open immediately; first comes in-site flow, then 48 hours and mutual approval.',
+        },
+      ],
+      ctaNote: 'Free sign-up • No public profile • Contact unlocks only after 48h + approval',
+      whatsappLabel: 'Ask on WhatsApp if this system fits you',
+      whatsappMessage: 'Hello, before I register I want to know whether the Uniqah matchmaking system fits my situation.',
+    },
+    id: {
+      heroPanelEyebrow: 'Ruang anggota',
+      heroPanelTitle: 'Bukan etalase publik, tetapi ruang matchmaking yang terkontrol',
+      heroPanelBody: 'Foto, detail, dan kontak tidak dibuka sekaligus. Sistem memeriksa kecocokan dulu, lalu kepercayaan, lalu kontak.',
+      heroPanelStats: ['Alur profil tertutup', '48 jam + persetujuan dua pihak', 'Umpan balik dengan dukungan manusia'],
+      quickFacts: [
+        {
+          title: 'Pengajuan 1-3 menit',
+          body: 'Pengajuan awal singkat; kami pahami dulu kecocokan dan ekspektasi Anda.',
+        },
+        {
+          title: 'Profil tidak publik',
+          body: 'Foto dan detail Anda hanya tampil di alur sistem yang terkontrol.',
+        },
+        {
+          title: 'Hasilnya jelas',
+          body: 'Jika alur ini tidak cocok untuk kondisi Anda, kami akan menyampaikannya secara jujur.',
+        },
+      ],
+      stepsTitle: 'Apa yang terjadi setelah daftar?',
+      steps: [
+        {
+          title: '1. Akun dan formulir',
+          body: 'Anda membuka akun dan menyelesaikan formulir matchmaking dalam sekitar 1-3 menit.',
+        },
+        {
+          title: '2. Tinjauan kecocokan',
+          body: 'Informasi dasar Anda ditinjau; jika ada yang kurang atau tidak cocok, kami sampaikan dengan jelas.',
+        },
+        {
+          title: '3. Alur panel terbuka',
+          body: 'Pengguna yang sesuai akan melihat alur kandidat, match, dan chat yang terkontrol di panel.',
+        },
+        {
+          title: '4. Kontak tetap terkunci dulu',
+          body: 'Kontak tidak langsung dibuka; ada proses di dalam situs, lalu 48 jam dan persetujuan kedua pihak.',
+        },
+      ],
+      ctaNote: 'Daftar gratis • Profil tidak publik • Kontak terbuka hanya setelah 48 jam + persetujuan',
+      whatsappLabel: 'Tanya via WhatsApp apakah sistem ini cocok untuk Anda',
+      whatsappMessage: 'Halo, sebelum mendaftar saya ingin tahu apakah sistem matchmaking Uniqah cocok untuk situasi saya.',
+    },
+  };
+
+  return copy[lang] || copy.tr;
+}
+
 export default function MatchmakingHub() {
   const { t, i18n } = useTranslation();
   const { user } = useAuth();
   const BRAND_LOGO_SRC = staticAssetUrl('/brand-logo.webp');
+  const langBase = getBaseLang(i18n?.language);
+  const trustUi = getMatchmakingTrustUi(langBase);
+  const whatsappSupportHref = buildWhatsAppUrl(trustUi.whatsappMessage, { lang: String(i18n?.language || 'tr') });
 
-  const isIdTraffic = (() => {
+  const trafficCountryHint = (() => {
     try {
       const c = String(getSupportCountrySync({ lang: '' }) || '').toUpperCase();
-      if (c === 'ID') return true;
+      if (c === 'ID' || c === 'TR') return c;
       const tz = String(Intl.DateTimeFormat().resolvedOptions().timeZone || '').toLowerCase();
-      if (tz.includes('jakarta') || tz.includes('makassar') || tz.includes('jayapura')) return true;
+      if (tz.includes('jakarta') || tz.includes('makassar') || tz.includes('jayapura')) return 'ID';
+      if (tz.includes('istanbul')) return 'TR';
       const nav = String(navigator?.language || '').toLowerCase();
-      if (nav.startsWith('id') || nav.startsWith('in')) return true;
+      if (nav.startsWith('id') || nav.startsWith('in')) return 'ID';
+      if (nav.startsWith('tr')) return 'TR';
       const lang = String(i18n?.language || '').toLowerCase();
-      return lang.startsWith('id') || lang.startsWith('in');
+      if (lang.startsWith('id') || lang.startsWith('in')) return 'ID';
+      if (lang.startsWith('tr')) return 'TR';
+      return '';
     } catch {
-      return false;
+      return '';
     }
   })();
 
-  const applyTo = isIdTraffic ? '/login?mode=signup' : '/login?mode=signup&auto=google';
+  const isTrOrIdTraffic = trafficCountryHint === 'TR' || trafficCountryHint === 'ID';
+  const applyTo = isTrOrIdTraffic ? '/login?mode=signup' : '/login?mode=signup&auto=google';
 
   const youtubeVideos = [
     // YouTube video önizlemeleri (thumbnail + tıklayınca lazy iframe)
@@ -213,11 +362,14 @@ export default function MatchmakingHub() {
     (async () => {
       try {
         const { db, collection, getDocs, limit, query, where } = await loadFirestoreApi();
-        const q = query(collection(db, 'matchmakingApplications'), where('userId', '==', user.uid), limit(1));
-        const snap = await getDocs(q);
+        const q1 = query(collection(db, 'matchmakingApplications'), where('userId', '==', user.uid), limit(1));
+        const q2 = query(collection(db, 'matchmakingApplications'), where('uid', '==', user.uid), limit(1));
+        const q3 = query(collection(db, 'matchmakingApplications'), where('userUid', '==', user.uid), limit(1));
+        const [s1, s2, s3] = await Promise.all([getDocs(q1), getDocs(q2), getDocs(q3)]);
+        const any = !(s1?.empty ?? true) || !(s2?.empty ?? true) || !(s3?.empty ?? true);
         if (cancelled) return;
-        setHasApplication(!snap.empty);
-      } catch (e) {
+        setHasApplication(!!any);
+      } catch {
         if (!cancelled) setHasApplication(false);
       } finally {
         if (!cancelled) setCheckingApplication(false);
@@ -349,29 +501,34 @@ export default function MatchmakingHub() {
 
         {/* Hero */}
         <section className="relative max-w-7xl mx-auto px-4 pt-12 md:pt-16 pb-10 md:pb-12">
-          <div className="relative overflow-hidden rounded-[28px] border border-slate-200 bg-gradient-to-br from-white via-white to-emerald-50/40 ring-1 ring-emerald-100/50">
+          <div className="relative overflow-hidden rounded-[34px] border border-white/70 bg-[linear-gradient(145deg,rgba(255,255,255,0.98),rgba(236,253,245,0.90))] shadow-[0_30px_100px_rgba(15,23,42,0.10)] ring-1 ring-white/60">
             <div aria-hidden="true" className="absolute inset-0">
-              <div className="absolute -top-24 -right-24 w-80 h-80 bg-[radial-gradient(circle_at_center,rgba(16,185,129,0.16),rgba(16,185,129,0)_60%)] blur-2xl" />
-              <div className="absolute -bottom-24 -left-24 w-96 h-96 bg-[radial-gradient(circle_at_center,rgba(245,158,11,0.10),rgba(245,158,11,0)_60%)] blur-2xl" />
+              <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-emerald-300/70 to-transparent" />
+              <div className="absolute -top-24 -right-24 w-80 h-80 bg-[radial-gradient(circle_at_center,rgba(16,185,129,0.20),rgba(16,185,129,0)_60%)] blur-2xl" />
+              <div className="absolute -bottom-24 -left-24 w-96 h-96 bg-[radial-gradient(circle_at_center,rgba(245,158,11,0.14),rgba(245,158,11,0)_60%)] blur-2xl" />
             </div>
 
             <div className="relative p-6 md:p-10">
               <div className="flex flex-col lg:flex-row gap-8 lg:items-center lg:justify-between">
                 <div className="max-w-2xl">
-                  <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-50 border border-emerald-100 text-[11px] font-semibold tracking-wide text-emerald-950">
+                  <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/80 border border-emerald-100 text-[11px] font-semibold tracking-[0.18em] uppercase text-emerald-950 shadow-[0_10px_30px_rgba(16,185,129,0.08)]">
                     <Sparkles size={14} className="text-amber-600" />
                     <span>{t('navigation.matchmaking')}</span>
                     <span className="text-emerald-900/40">•</span>
                     <span className="text-emerald-900/70">{t('matchmakingHub.badge')}</span>
                   </div>
 
-                  <h1 className="mt-4 text-3xl md:text-4xl font-semibold leading-tight">
+                  <h1 className="mt-4 text-3xl md:text-[2.7rem] font-semibold leading-tight text-slate-950">
                     {t('matchmakingHub.title')}
                   </h1>
 
-                  <p className="mt-4 text-slate-600 leading-relaxed">
+                  <p className="mt-4 max-w-2xl text-slate-600 leading-relaxed">
                     {t('matchmakingHub.description')}
                   </p>
+
+                  <div className="mt-5 inline-flex max-w-full items-center gap-2 rounded-full border border-slate-200 bg-white/90 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-700 shadow-[0_12px_30px_rgba(148,163,184,0.12)]">
+                    {trustUi.ctaNote}
+                  </div>
 
                   <div className="mt-6 flex flex-col sm:flex-row gap-3">
                     {!user && (
@@ -434,20 +591,20 @@ export default function MatchmakingHub() {
                     )}
 
                     <a
-                      href={buildWhatsAppUrl(t('matchmakingHub.whatsappSupportMessage'), { lang: String(i18n?.language || 'tr') })}
+                      href={whatsappSupportHref}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="app-btn app-btn-primary h-10 px-5"
                     >
                       <MessageCircle size={18} />
-                      {t('matchmakingHub.actions.supportWhatsApp')}
+                      {trustUi.whatsappLabel}
                     </a>
                   </div>
 
                   <div className="mt-3">
                     <Link
                       to="/aracilik"
-                      className="group w-full inline-flex items-center justify-between gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-slate-900 hover:bg-emerald-100 transition"
+                      className="group w-full inline-flex items-center justify-between gap-3 rounded-[22px] border border-emerald-200 bg-[linear-gradient(135deg,rgba(236,253,245,0.96),rgba(255,255,255,0.96))] px-4 py-3 text-slate-900 shadow-[0_12px_35px_rgba(16,185,129,0.10)] hover:bg-emerald-100 transition"
                       onClick={() => {
                         try {
                           void trackClick('cta_lead_apply_matchmaking_hub');
@@ -502,7 +659,7 @@ export default function MatchmakingHub() {
                 </div>
 
                 <div className="flex flex-col items-center lg:items-end gap-5">
-                  <div className="w-full max-w-sm rounded-[22px] border border-slate-200 bg-white p-5">
+                  <div className="w-full max-w-sm overflow-hidden rounded-[28px] border border-slate-200 bg-[linear-gradient(180deg,rgba(15,23,42,0.98),rgba(15,23,42,0.90))] p-5 text-white shadow-[0_26px_90px_rgba(15,23,42,0.22)]">
                     <div className="flex items-center justify-center">
                       <img
                         src={BRAND_LOGO_SRC}
@@ -519,26 +676,70 @@ export default function MatchmakingHub() {
                       ))}
                     </div>
 
-                    <div className="text-xs font-semibold text-slate-700 tracking-wide">{t('matchmakingHub.miniCard.title')}</div>
-                    <div className="mt-2 text-sm text-slate-600 leading-relaxed">
-                      {t('matchmakingHub.miniCard.desc')}
+                    <div className="mt-5 inline-flex items-center rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-white/70">{trustUi.heroPanelEyebrow}</div>
+                    <div className="mt-3 text-lg font-semibold text-white">{trustUi.heroPanelTitle}</div>
+                    <div className="mt-2 text-sm leading-relaxed text-slate-300">{trustUi.heroPanelBody}</div>
+                    <div className="mt-4 space-y-2">
+                      {trustUi.heroPanelStats.map((stat) => (
+                        <div key={stat} className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white/90">
+                          {stat}
+                        </div>
+                      ))}
                     </div>
                     <div className="mt-4 grid grid-cols-3 gap-2">
-                      <div className="rounded-xl bg-slate-50 border border-slate-200 p-3 text-center">
-                        <div className="text-base font-semibold text-emerald-800">{t('matchmakingHub.miniCard.stats.privateTitle')}</div>
-                        <div className="mt-1 text-[11px] text-slate-500">{t('matchmakingHub.miniCard.stats.privateSubtitle')}</div>
+                      <div className="rounded-xl bg-white/5 border border-white/10 p-3 text-center">
+                        <div className="text-base font-semibold text-emerald-200">{t('matchmakingHub.miniCard.stats.privateTitle')}</div>
+                        <div className="mt-1 text-[11px] text-slate-400">{t('matchmakingHub.miniCard.stats.privateSubtitle')}</div>
                       </div>
-                      <div className="rounded-xl bg-slate-50 border border-slate-200 p-3 text-center">
-                        <div className="text-base font-semibold text-emerald-800">{t('matchmakingHub.miniCard.stats.fairTitle')}</div>
-                        <div className="mt-1 text-[11px] text-slate-500">{t('matchmakingHub.miniCard.stats.fairSubtitle')}</div>
+                      <div className="rounded-xl bg-white/5 border border-white/10 p-3 text-center">
+                        <div className="text-base font-semibold text-emerald-200">{t('matchmakingHub.miniCard.stats.fairTitle')}</div>
+                        <div className="mt-1 text-[11px] text-slate-400">{t('matchmakingHub.miniCard.stats.fairSubtitle')}</div>
                       </div>
-                      <div className="rounded-xl bg-slate-50 border border-slate-200 p-3 text-center">
-                        <div className="text-base font-semibold text-emerald-800">{t('matchmakingHub.miniCard.stats.safeTitle')}</div>
-                        <div className="mt-1 text-[11px] text-slate-500">{t('matchmakingHub.miniCard.stats.safeSubtitle')}</div>
+                      <div className="rounded-xl bg-white/5 border border-white/10 p-3 text-center">
+                        <div className="text-base font-semibold text-emerald-200">{t('matchmakingHub.miniCard.stats.safeTitle')}</div>
+                        <div className="mt-1 text-[11px] text-slate-400">{t('matchmakingHub.miniCard.stats.safeSubtitle')}</div>
                       </div>
                     </div>
                   </div>
                 </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section className="relative max-w-7xl mx-auto px-4 pb-10 md:pb-12">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            <div className="lg:col-span-4 rounded-[30px] border border-slate-200 bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(248,250,252,0.94))] p-6 shadow-[0_20px_60px_rgba(15,23,42,0.08)]">
+              <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-emerald-800">{t('matchmakingHub.trust.title')}</div>
+              <div className="mt-3 rounded-[22px] border border-emerald-100 bg-emerald-50/70 p-4 text-sm leading-relaxed text-slate-700">
+                {trustUi.heroPanelBody}
+              </div>
+              <div className="mt-4 space-y-3">
+                {trustUi.quickFacts.map((item) => (
+                  <div key={item.title} className="rounded-[22px] border border-slate-200 bg-white p-4 shadow-[0_12px_30px_rgba(148,163,184,0.08)]">
+                    <div className="text-sm font-semibold text-slate-900">{item.title}</div>
+                    <div className="mt-1 text-sm text-slate-600 leading-relaxed">{item.body}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="lg:col-span-8 rounded-[30px] border border-slate-200 bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(248,250,252,0.94))] p-6 md:p-7 shadow-[0_20px_60px_rgba(15,23,42,0.08)]">
+              <h2 className="text-xl md:text-2xl font-semibold text-slate-950">{trustUi.stepsTitle}</h2>
+              <div className="mt-5 grid grid-cols-1 md:grid-cols-2 gap-4">
+                {trustUi.steps.map((step, idx) => (
+                  <div key={step.title} className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-[0_14px_40px_rgba(148,163,184,0.10)]">
+                    <div className="flex items-start gap-3">
+                      <div className="w-9 h-9 rounded-full bg-emerald-50 border border-emerald-100 text-emerald-900 flex items-center justify-center text-sm font-bold shadow-[0_10px_24px_rgba(16,185,129,0.10)]">
+                        {idx + 1}
+                      </div>
+                      <div>
+                        <div className="font-semibold text-slate-900">{step.title}</div>
+                        <div className="mt-1 text-sm text-slate-600 leading-relaxed">{step.body}</div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
           </div>
@@ -834,6 +1035,7 @@ export default function MatchmakingHub() {
               <div className="min-w-0">
                 <div className="text-sm font-semibold text-slate-900">{t('matchmakingHub.cta.title')}</div>
                 <div className="mt-1 text-sm text-slate-600">{t('matchmakingHub.cta.subtitle')}</div>
+                <div className="mt-2 text-xs text-slate-500">{trustUi.ctaNote}</div>
               </div>
 
               <div className="flex flex-col sm:flex-row gap-3">

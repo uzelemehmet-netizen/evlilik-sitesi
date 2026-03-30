@@ -36,7 +36,7 @@ export default function NewsletterSignup() {
           event_label: 'newsletter'
         });
       }
-    } catch (error) {
+    } catch {
       setStatus('error');
     } finally {
       setLoading(false);

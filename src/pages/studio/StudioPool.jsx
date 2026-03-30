@@ -16,6 +16,7 @@ import { openPreviewGate } from '../../utils/previewGate';
 import { buildPreviewPoolItems } from '../../utils/studioPreviewData';
 import StudioBottomNav from '../../components/studio/StudioBottomNav';
 import { isTutorialActive } from '../../utils/tutorialState.js';
+import { hasMinimumMatchmakingProfileInUserDoc, isStubMatchmakingApplication } from '../../utils/matchmakingProfileCompletion';
 
 const NEW_USER_BADGE_WINDOW_MS = 48 * 60 * 60 * 1000;
 
@@ -23,74 +24,8 @@ function safeStr(v) {
   return typeof v === 'string' ? v.trim() : '';
 }
 
-function asNum(v) {
-  if (v === null || v === undefined) return null;
-  if (typeof v === 'string') {
-    const t = v.trim();
-    if (!t) return null;
-    const n = Number(t);
-    return Number.isFinite(n) ? n : null;
-  }
-  const n = typeof v === 'number' ? v : Number(v);
-  return Number.isFinite(n) ? n : null;
-}
-
-function normalizeGenderValue(v) {
-  const s = safeStr(v).toLowerCase();
-  if (s === 'male' || s === 'm' || s === 'man' || s === 'erkek') return 'male';
-  if (s === 'female' || s === 'f' || s === 'woman' || s === 'kadin' || s === 'kadın') return 'female';
-  return '';
-}
-
-function normalizeMaritalStatus(v) {
-  return safeStr(v).toLowerCase();
-}
-
 function isMinimumProfileCompleteFromUserDoc(d) {
-  const userDoc = d && typeof d === 'object' ? d : {};
-  const appFromUser = userDoc?.application && typeof userDoc.application === 'object' ? userDoc.application : null;
-  const publicProfile = userDoc?.publicProfile && typeof userDoc.publicProfile === 'object' ? userDoc.publicProfile : null;
-  const merged = {
-    ...(publicProfile || {}),
-    ...(appFromUser || {}),
-    ...(userDoc || {}),
-    details: {
-      ...((publicProfile && typeof publicProfile.details === 'object' ? publicProfile.details : {}) || {}),
-      ...((appFromUser && typeof appFromUser.details === 'object' ? appFromUser.details : {}) || {}),
-      ...((userDoc?.details && typeof userDoc.details === 'object' ? userDoc.details : {}) || {}),
-    },
-  };
-
-  const details = merged?.details && typeof merged.details === 'object' ? merged.details : {};
-
-  const fullName = safeStr(merged?.fullName);
-  const age = asNum(merged?.age);
-  const gender = normalizeGenderValue(merged?.gender);
-  const city = safeStr(merged?.city);
-  const country = safeStr(merged?.country);
-  const nationality = safeStr(merged?.nationality);
-  const occupation = safeStr(details?.occupation) || safeStr(merged?.occupation);
-  const maritalStatus = normalizeMaritalStatus(details?.maritalStatus || merged?.maritalStatus);
-
-  if (!fullName) return false;
-  if (!(typeof age === 'number' && Number.isFinite(age) && age >= 18 && age <= 99)) return false;
-  if (!gender) return false;
-  if (!city) return false;
-  if (!country) return false;
-  if (!nationality) return false;
-  if (!occupation) return false;
-  if (!maritalStatus) return false;
-
-  if (maritalStatus === 'widowed' || maritalStatus === 'divorced') {
-    const hasChildren = safeStr(details?.hasChildren || merged?.hasChildren).toLowerCase();
-    if (!hasChildren) return false;
-    if (hasChildren === 'yes') {
-      const cnt = asNum(details?.childrenCount);
-      if (!(typeof cnt === 'number' && Number.isFinite(cnt) && cnt >= 1 && cnt <= 20)) return false;
-    }
-  }
-
-  return true;
+  return hasMinimumMatchmakingProfileInUserDoc(d);
 }
 
 function clip(s, maxLen) {
@@ -121,24 +56,72 @@ function maritalStatusLabel(t, raw) {
   return key ? t(key) : safeStr(raw);
 }
 
-function formatPresenceLabel(t, lastSeenAtMs) {
-  const ms = typeof lastSeenAtMs === 'number' && Number.isFinite(lastSeenAtMs) ? lastSeenAtMs : 0;
-  if (!ms) return '';
+function hasFilledOptionalDetails(application) {
+  const app = application && typeof application === 'object' ? application : null;
+  if (!app || isStubMatchmakingApplication(app)) return false;
 
-  const nowMs = Date.now();
-  const diffMs = Math.max(0, nowMs - ms);
-  const onlineWindowMs = 5 * 60 * 1000;
+  const details = app?.details && typeof app.details === 'object' ? app.details : {};
+  const partner = app?.partnerPreferences && typeof app.partnerPreferences === 'object' ? app.partnerPreferences : {};
+  const languages = details?.languages && typeof details.languages === 'object' ? details.languages : {};
+  const nativeLang = languages?.native && typeof languages.native === 'object' ? languages.native : {};
+  const foreignLang = languages?.foreign && typeof languages.foreign === 'object' ? languages.foreign : {};
 
-  if (diffMs <= onlineWindowMs) return t('studio.presence.online');
+  const hasValue = (value) => {
+    if (Array.isArray(value)) return value.some((item) => hasValue(item));
+    if (value === null || value === undefined) return false;
+    if (typeof value === 'number') return Number.isFinite(value);
+    if (typeof value === 'boolean') return value;
+    const str = safeStr(value);
+    return !!str && str !== 'doesnt_matter' && str !== 'any';
+  };
 
-  const minutes = Math.round(diffMs / (60 * 1000));
-  if (minutes < 60) return t('studio.presence.lastSeenMinutes', { count: minutes });
+  const optionalDetailValues = [
+    details?.heightCm,
+    details?.weightKg,
+    details?.education,
+    details?.educationDepartment,
+    details?.incomeLevel,
+    details?.religion,
+    details?.religiousValues,
+    details?.familyApprovalStatus,
+    details?.marriageTimeline,
+    details?.relocationWillingness,
+    details?.preferredLivingCountry,
+    details?.communicationLanguage,
+    details?.communicationLanguageOther,
+    details?.smoking,
+    details?.alcohol,
+    nativeLang?.code,
+    nativeLang?.other,
+    foreignLang?.codes,
+    foreignLang?.other,
+    app?.about,
+    app?.aboutTr,
+    app?.aboutId,
+    app?.expectations,
+    app?.expectationsTr,
+    app?.expectationsId,
+  ];
 
-  const hours = Math.round(diffMs / (60 * 60 * 1000));
-  if (hours < 24) return t('studio.presence.lastSeenHours', { count: hours });
+  if (optionalDetailValues.some((value) => hasValue(value))) return true;
+  return Object.entries(partner).some(([, value]) => hasValue(value));
+}
 
-  const days = Math.round(diffMs / (24 * 60 * 60 * 1000));
-  return t('studio.presence.lastSeenDays', { count: days });
+function pickBestApplicationCandidate(currentBest, nextApp) {
+  const best = currentBest && typeof currentBest === 'object' ? currentBest : null;
+  const candidate = nextApp && typeof nextApp === 'object' ? nextApp : null;
+  if (!candidate) return best;
+  if (!best) return candidate;
+
+  const score = (item) => {
+    const source = safeStr(item?.source).toLowerCase();
+    const isStub = source === 'auto_stub' || item?.details?.autoBootstrap === true;
+    const updatedAtMs = typeof item?.updatedAtMs === 'number' && Number.isFinite(item.updatedAtMs) ? item.updatedAtMs : 0;
+    const createdAtMs = typeof item?.createdAtMs === 'number' && Number.isFinite(item.createdAtMs) ? item.createdAtMs : 0;
+    return (isStub ? 0 : 1000) + updatedAtMs + createdAtMs;
+  };
+
+  return score(candidate) >= score(best) ? candidate : best;
 }
 
 export default function StudioPool() {
@@ -163,7 +146,7 @@ export default function StudioPool() {
   const [needsApplication, setNeedsApplication] = useState(false);
 
   const [outboxMap, setOutboxMap] = useState({});
-  const [grantedMap, setGrantedMap] = useState({});
+  const [, setGrantedMap] = useState({});
   const [requestingUid, setRequestingUid] = useState('');
 
   const [inboxAccess, setInboxAccess] = useState([]);
@@ -173,18 +156,55 @@ export default function StudioPool() {
   const [lightbox, setLightbox] = useState({ open: false, images: [], index: 0, title: '' });
 
   const [myLock, setMyLock] = useState({ active: false, matchId: '' });
-  const [myMembership, setMyMembership] = useState({ active: false });
-  const [myGender, setMyGender] = useState('');
+  const [, setMyMembership] = useState({ active: false });
+  const [, setMyGender] = useState('');
   const [myPhotosBlurred, setMyPhotosBlurred] = useState(false);
   const [paywallNotice, setPaywallNotice] = useState('');
   const [profileGateNotice, setProfileGateNotice] = useState('');
   const [myProfileComplete, setMyProfileComplete] = useState(true);
   const [myHasAnyPhoto, setMyHasAnyPhoto] = useState(null); // null=unknown
   const [myHasAnyApplication, setMyHasAnyApplication] = useState(null); // null=unknown
+  const [myOptionalDetailsMissing, setMyOptionalDetailsMissing] = useState(false);
 
   const [completeProfileGateOpen, setCompleteProfileGateOpen] = useState(false);
+  const [optionalDetailsPromptOpen, setOptionalDetailsPromptOpen] = useState(false);
 
-  const redirectedToApplyRef = useRef(false);
+  const profileGateAutoShownRef = useRef(false);
+  const optionalDetailsPromptAutoShownRef = useRef(false);
+
+  const applicationRequired = useMemo(() => {
+    // Backend'den gelen needsApplication bazı edge-case'lerde yanlış pozitif olabiliyor.
+    // Kullanıcı zaten form doldurduysa (application var) UI'da tekrar forma yönlendirmeyelim.
+    if (myHasAnyApplication === true) return false;
+    if (myHasAnyApplication === false) return true;
+    // Uygulama var/yok henüz bilinmiyorsa kullanıcıyı bloklamayalım;
+    // eksikse backend çağrısı zaten application_not_found/profile_incomplete ile döner.
+    return false;
+  }, [myHasAnyApplication]);
+
+  const interactionLocked = useMemo(() => {
+    return applicationRequired || myProfileComplete === false || myHasAnyPhoto === false;
+  }, [applicationRequired, myProfileComplete, myHasAnyPhoto]);
+
+  const profileGateMode = useMemo(() => {
+    if (myHasAnyApplication === false) return 'application';
+    if (myHasAnyApplication === true) {
+      if (myHasAnyPhoto === false) return 'photo';
+      if (myHasAnyPhoto === null && myProfileComplete === false) return '';
+      if (myProfileComplete === false) return 'application';
+    }
+    return '';
+  }, [myHasAnyApplication, myHasAnyPhoto, myProfileComplete]);
+
+  const profileGateBody = useMemo(() => {
+    if (profileGateMode === 'photo') return t('studio.profileGate.photoBody');
+    return t('studio.profileGate.body');
+  }, [profileGateMode, t]);
+
+  const profileGateCta = useMemo(() => {
+    if (profileGateMode === 'photo') return t('studio.profileGate.photoCta');
+    return t('studio.profileGate.cta');
+  }, [profileGateMode, t]);
 
   const cancelledRef = useRef(false);
   const activateMembershipRef = useRef(false);
@@ -246,23 +266,33 @@ export default function StudioPool() {
     setMyProfileComplete(false);
   }, [isPreview]);
 
-  // Başvuru formu doldurulmadıysa Keşfet'i hiç gösterme.
-  // Not: Bu sekme bazı akışlarda route-level gate'ten geçmeden açılabiliyor; burada ekstra güvenlik katmanı.
+  // Ürün kararı: Keşfet listesi profil tamamlanmadan da görüntülenebilir.
+  // Ancak etkileşim aksiyonları (istek gönderme vb.) profil formu + en az 1 fotoğraf tamamlanana kadar kilitli kalır.
   useEffect(() => {
-    if (redirectedToApplyRef.current) return;
+    if (profileGateAutoShownRef.current) return;
     if (isPreview) return;
+    // Auto-uyarıyı sadece gerçekten eksik profil/app olduğu netleştiğinde göster.
+    if (!profileGateMode) return;
 
-    // `needsApplication` backend'e göre profil/about yoksa true olabilir.
-    // `myProfileComplete` ise matchmakingUsers cache'inden about metni var mı kontrolü.
-    if (needsApplication || myProfileComplete === false) {
-      redirectedToApplyRef.current = true;
-      const from = `${location?.pathname || ''}${location?.search || ''}`;
-      navigate('/evlilik/eslestirme-basvuru?w=1', {
-        replace: true,
-        state: { profileGate: true, from },
-      });
+    profileGateAutoShownRef.current = true;
+    setProfileGateNotice(profileGateBody);
+  }, [isPreview, profileGateMode, profileGateBody]);
+
+  useEffect(() => {
+    if (isPreview) return;
+    if (interactionLocked) {
+      setOptionalDetailsPromptOpen(false);
+      return;
     }
-  }, [isPreview, needsApplication, myProfileComplete, navigate, location?.pathname, location?.search]);
+    if (!myHasAnyApplication || !myProfileComplete || !myOptionalDetailsMissing) {
+      setOptionalDetailsPromptOpen(false);
+      return;
+    }
+    if (optionalDetailsPromptAutoShownRef.current) return;
+
+    optionalDetailsPromptAutoShownRef.current = true;
+    setOptionalDetailsPromptOpen(true);
+  }, [interactionLocked, isPreview, myHasAnyApplication, myOptionalDetailsMissing, myProfileComplete]);
 
   // Outbox (benim gönderdiğim ön eşleşme istekleri)
   useEffect(() => {
@@ -479,55 +509,110 @@ export default function StudioPool() {
 
     const parseAppsSnap = (snap) => {
       try {
-        let count = 0;
+        const ids = [];
         let hasPhoto = false;
+        let bestApp = null;
         snap.forEach((d) => {
-          count += 1;
-          if (hasPhoto) return;
+          const id = safeStr(d?.id);
+          if (id) ids.push(id);
           const data = typeof d?.data === 'function' ? d.data() || {} : d?.data || {};
+          bestApp = pickBestApplicationCandidate(bestApp, { id, ...data });
           const urls = Array.isArray(data?.photoUrls) ? data.photoUrls : [];
           if (urls.some((u) => safeStr(u))) hasPhoto = true;
         });
-        return { count, hasPhoto };
+        return { ids, hasPhoto, bestApp };
       } catch {
         return null;
       }
     };
 
-    const qApps = query(collection(db, 'matchmakingApplications'), where('userId', '==', uid), limit(10));
+    const qAppsUserId = query(collection(db, 'matchmakingApplications'), where('userId', '==', uid), limit(10));
+    const qAppsUid = query(collection(db, 'matchmakingApplications'), where('uid', '==', uid), limit(10));
+    const qAppsUserUid = query(collection(db, 'matchmakingApplications'), where('userUid', '==', uid), limit(10));
+
+    const mergeAndSet = (parts) => {
+      const list = Array.isArray(parts) ? parts : [];
+      const idSet = new Set();
+      let hasPhoto = false;
+      let bestApp = null;
+      for (const p of list) {
+        const ids = Array.isArray(p?.ids) ? p.ids : [];
+        for (const id of ids) idSet.add(String(id));
+        if (p?.hasPhoto) hasPhoto = true;
+        bestApp = pickBestApplicationCandidate(bestApp, p?.bestApp);
+      }
+      setMyHasAnyApplication(idSet.size > 0);
+      setMyHasAnyPhoto(!!hasPhoto);
+      setMyOptionalDetailsMissing(idSet.size > 0 && !hasFilledOptionalDetails(bestApp));
+    };
 
     let cancelled = false;
     (async () => {
       try {
-        const snap = await getDocs(qApps);
+        const [s1, s2, s3] = await Promise.all([getDocs(qAppsUserId), getDocs(qAppsUid), getDocs(qAppsUserUid)]);
         if (cancelled) return;
-        const parsed = parseAppsSnap(snap);
-        if (!parsed) return;
-        setMyHasAnyApplication(parsed.count > 0);
-        setMyHasAnyPhoto(!!parsed.hasPhoto);
+        const p1 = parseAppsSnap(s1);
+        const p2 = parseAppsSnap(s2);
+        const p3 = parseAppsSnap(s3);
+        mergeAndSet([p1, p2, p3].filter(Boolean));
       } catch {
         // ignore
       }
     })();
 
-    const unsub = onSnapshot(
-      qApps,
+    const live = { userId: null, uid: null, userUid: null };
+    const applyLive = () => mergeAndSet([live.userId, live.uid, live.userUid].filter(Boolean));
+
+    const unsub1 = onSnapshot(
+      qAppsUserId,
       (snap) => {
-        const parsed = parseAppsSnap(snap);
-        if (!parsed) return;
-        setMyHasAnyApplication(parsed.count > 0);
-        setMyHasAnyPhoto(!!parsed.hasPhoto);
+        live.userId = parseAppsSnap(snap);
+        applyLive();
       },
       () => {
-        setMyHasAnyApplication(null);
-        setMyHasAnyPhoto(null);
+        live.userId = null;
+        applyLive();
+      }
+    );
+
+    const unsub2 = onSnapshot(
+      qAppsUid,
+      (snap) => {
+        live.uid = parseAppsSnap(snap);
+        applyLive();
+      },
+      () => {
+        live.uid = null;
+        applyLive();
+      }
+    );
+
+    const unsub3 = onSnapshot(
+      qAppsUserUid,
+      (snap) => {
+        live.userUid = parseAppsSnap(snap);
+        applyLive();
+      },
+      () => {
+        live.userUid = null;
+        applyLive();
       }
     );
 
     return () => {
       cancelled = true;
       try {
-        unsub();
+        unsub1();
+      } catch {
+        // noop
+      }
+      try {
+        unsub2();
+      } catch {
+        // noop
+      }
+      try {
+        unsub3();
       } catch {
         // noop
       }
@@ -535,7 +620,7 @@ export default function StudioPool() {
   }, [effectiveUid]);
 
   const requireProfile = () => {
-    setProfileGateNotice(t('studio.profileGate.body'));
+    setProfileGateNotice(profileGateBody);
     try {
       if (typeof window !== 'undefined') window.scrollTo({ top: 0, behavior: 'smooth' });
     } catch {
@@ -585,9 +670,25 @@ export default function StudioPool() {
     activateFreeMembershipNow();
   }, [paywallNotice, activateFreeMembershipNow]);
 
-  const goToProfileForm = () => {
+  const goToProfileCompletionTarget = () => {
+    if (profileGateMode === 'photo') {
+      try {
+        navigate('/profilim', { replace: false, state: { openPhotoManager: true, profileGate: 'photo_required' } });
+      } catch {
+        try {
+          window.location.href = '/profilim';
+        } catch {
+          // noop
+        }
+      }
+      return;
+    }
+
     try {
-      navigate('/evlilik/eslestirme-basvuru?w=1', { replace: false });
+      navigate('/evlilik/eslestirme-basvuru?w=1', {
+        replace: false,
+        state: { returnTo: `${location.pathname || '/app/pool'}${location.search || ''}` },
+      });
     } catch {
       // fallback
       try {
@@ -609,30 +710,27 @@ export default function StudioPool() {
 
   const dismissCompleteProfileGate = () => setCompleteProfileGateOpen(false);
 
+  const dismissOptionalDetailsPrompt = () => setOptionalDetailsPromptOpen(false);
+
   const startCompleteProfileGate = () => {
     dismissCompleteProfileGate();
-    const mustApply = needsApplication || myHasAnyApplication === false;
-    const to = mustApply ? '/evlilik/eslestirme-basvuru?w=1' : '/evlilik/eslestirme-basvurusu?editOnce=1&w=1';
-    const state = mustApply
-      ? { afterSubmitOpenPhotoManager: true }
-      : {
-          returnTo: '/profilim',
-          afterSaveOpenPhotoManager: true,
-        };
-
-    try {
-      navigate(to, { replace: false, state });
-    } catch {
-      // fallback
-      try {
-        window.location.href = to;
-      } catch {
-        // noop
-      }
-    }
+    goToProfileCompletionTarget();
   };
 
-  const profileFormTo = needsApplication ? '/evlilik/eslestirme-basvuru?w=1' : '/evlilik/eslestirme-basvurusu?editOnce=1&w=1';
+  const goToOptionalDetailsTarget = () => {
+    dismissOptionalDetailsPrompt();
+    try {
+      navigate('/evlilik/eslestirme-basvuru?w=1', {
+        replace: false,
+        state: {
+          returnTo: `${location.pathname || '/app/pool'}${location.search || ''}`,
+          startStep: 1,
+        },
+      });
+    } catch {
+      // noop
+    }
+  };
 
   useEffect(() => {
     if (!isTutorialActive()) return;
@@ -675,7 +773,7 @@ export default function StudioPool() {
       return;
     }
 
-    if (needsApplication || myProfileComplete === false || myHasAnyPhoto === false) {
+    if (interactionLocked) {
       openCompleteProfileGate();
       return;
     }
@@ -762,7 +860,7 @@ export default function StudioPool() {
   const headerHint = useMemo(() => {
     // Yaş filtresi kaldırıldı; header'da yaş aralığı göstermiyoruz.
     return '';
-  }, [meta, t]);
+  }, []);
 
   const requestAccess = async ({ targetUid } = {}) => {
     if (isPreview) {
@@ -774,7 +872,7 @@ export default function StudioPool() {
     const toUid = safeStr(targetUid);
     if (!uid || !toUid || requestingUid) return;
 
-    if (needsApplication || myProfileComplete === false || myHasAnyPhoto === false) {
+    if (interactionLocked) {
       openCompleteProfileGate();
       return;
     }
@@ -855,7 +953,14 @@ export default function StudioPool() {
               <button
                 type="button"
                 onClick={() => {
-                  if (needsApplication) requireProfile();
+                  if (isPreview) {
+                    openPreviewGate({ reason: t('previewGate.body') });
+                    return;
+                  }
+                  if (interactionLocked) {
+                    openCompleteProfileGate();
+                    return;
+                  }
                   setInboxModal({ open: true });
                 }}
                 className="app-btn w-full sm:w-auto"
@@ -883,6 +988,17 @@ export default function StudioPool() {
               <Link
                 to="/app/matches"
                 className="app-btn w-full sm:w-auto"
+                onClick={(e) => {
+                  if (isPreview) {
+                    e.preventDefault();
+                    openPreviewGate({ reason: t('previewGate.body') });
+                    return;
+                  }
+                  if (interactionLocked) {
+                    e.preventDefault();
+                    openCompleteProfileGate();
+                  }
+                }}
               >
                 <span className="inline-flex items-center justify-center gap-2">
                   <Users className="h-4 w-4" />
@@ -944,18 +1060,48 @@ export default function StudioPool() {
                 </button>
               </div>
               <p className="mt-1 text-sm text-amber-900/80">
-                {t('studio.profile.completeProfileTutorial.body', {
-                  defaultValue: isTr
-                    ? 'Ön eşleşme için profilini tamamlayıp en az 1 fotoğraf yüklemelisin.'
-                    : 'To use pre-match, please complete your profile and upload at least 1 photo.',
-                })}
+                {profileGateMode === 'photo'
+                  ? t('studio.profile.completeProfileTutorial.photoBody')
+                  : t('studio.profile.completeProfileTutorial.body')}
               </p>
+
+              {import.meta?.env?.DEV ? (
+                <p className="mt-2 text-[11px] text-amber-900/70">
+                  debug: hasApp={String(myHasAnyApplication)} hasPhoto={String(myHasAnyPhoto)} profileComplete={String(myProfileComplete)} needsApplication={String(needsApplication)}
+                </p>
+              ) : null}
               <div className="mt-3 flex flex-wrap gap-2">
                 <button type="button" onClick={startCompleteProfileGate} className="app-btn app-btn-primary">
-                  {t('studio.profile.completeProfileTutorial.actions.ok', { defaultValue: isTr ? 'Tamam' : 'Continue' })}
+                  {profileGateMode === 'photo'
+                    ? t('studio.profile.completeProfileTutorial.actions.uploadPhoto')
+                    : t('studio.profile.completeProfileTutorial.actions.ok')}
                 </button>
                 <button type="button" onClick={dismissCompleteProfileGate} className="app-btn app-btn-outline">
-                  {t('studio.profile.completeProfileTutorial.actions.later', { defaultValue: isTr ? 'Daha sonra' : 'Not now' })}
+                  {t('studio.profile.completeProfileTutorial.actions.later')}
+                </button>
+              </div>
+            </div>
+          ) : null}
+
+          {optionalDetailsPromptOpen ? (
+            <div role="status" className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-emerald-950">
+              <div className="flex flex-wrap items-start justify-between gap-2">
+                <p className="font-semibold">{t('studio.pool.optionalDetailsRecommendation.title')}</p>
+                <button
+                  type="button"
+                  onClick={dismissOptionalDetailsPrompt}
+                  className="rounded-md px-2 py-1 text-sm font-semibold text-emerald-900/70 hover:bg-emerald-100"
+                >
+                  {t('studio.pool.optionalDetailsRecommendation.actions.later')}
+                </button>
+              </div>
+              <p className="mt-1 text-sm text-emerald-900/80">{t('studio.pool.optionalDetailsRecommendation.body')}</p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <button type="button" onClick={goToOptionalDetailsTarget} className="app-btn app-btn-primary">
+                  {t('studio.pool.optionalDetailsRecommendation.actions.ok')}
+                </button>
+                <button type="button" onClick={dismissOptionalDetailsPrompt} className="app-btn app-btn-outline">
+                  {t('studio.pool.optionalDetailsRecommendation.actions.later')}
                 </button>
               </div>
             </div>
@@ -975,9 +1121,9 @@ export default function StudioPool() {
               </div>
               <p className="mt-1 text-sm text-amber-900/80">{profileGateNotice}</p>
               <div className="mt-3">
-                <Link to={profileFormTo} className="text-sm font-semibold underline">
-                  {t('studio.profileGate.cta')}
-                </Link>
+                  <button type="button" onClick={goToProfileCompletionTarget} className="app-btn app-btn-primary h-10 px-4">
+                    {profileGateCta}
+                  </button>
               </div>
             </div>
           ) : null}
@@ -1002,9 +1148,11 @@ export default function StudioPool() {
                 />
               </p>
               <p className="mt-2 text-sm text-slate-600">{t('studio.pool.empty')}</p>
-              <div className="mt-4">
-                <PwaInstallCard variant="light" />
-              </div>
+              {!needsApplication && myProfileComplete !== false ? (
+                <div className="mt-4">
+                  <PwaInstallCard variant="light" />
+                </div>
+              ) : null}
             </div>
           ) : null}
 
@@ -1178,7 +1326,7 @@ export default function StudioPool() {
             onMarkRead={markInboxMessageRead}
             onApprove={({ fromUid }) => respondAccessRequest({ fromUid, decision: 'approve' })}
             onReject={({ fromUid }) => respondAccessRequest({ fromUid, decision: 'reject' })}
-            actionsDisabled={needsApplication}
+            actionsDisabled={interactionLocked}
             onRequireProfile={() => {
               requireProfile();
             }}

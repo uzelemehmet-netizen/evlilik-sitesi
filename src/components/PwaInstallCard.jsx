@@ -20,7 +20,7 @@ export default function PwaInstallCard({ variant = 'light', flat = false }) {
   const iosHelpRef = useRef(null);
   const [notifyStatus, setNotifyStatus] = useState('');
   const [notifyBusy, setNotifyBusy] = useState(false);
-  const [pushEnabled, setPushEnabled] = useState(false);
+  const [, setPushEnabled] = useState(false);
 
   const canBrowserNotify = useMemo(() => {
     return typeof window !== 'undefined' && 'Notification' in window;
@@ -63,9 +63,7 @@ export default function PwaInstallCard({ variant = 'light', flat = false }) {
 
     // Eğer prompt başka bir sayfada yakalandıysa (örn. /panel), burada tekrar kullan.
     try {
-      if (!deferredPrompt && window.__uniqahDeferredPrompt) {
-        setDeferredPrompt(window.__uniqahDeferredPrompt);
-      }
+      setDeferredPrompt((current) => current || window.__uniqahDeferredPrompt || current);
     } catch {
       // ignore
     }

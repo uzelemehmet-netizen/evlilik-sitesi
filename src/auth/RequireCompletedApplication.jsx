@@ -1,6 +1,12 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from './AuthProvider';
+import {
+  getMatchmakingProfileGateStateFromApp,
+  hasMinimumMatchmakingProfileInApplicationDoc,
+  hasMinimumMatchmakingProfileInUserDoc,
+  isStubMatchmakingApplication,
+} from '../utils/matchmakingProfileCompletion';
 
 let firestoreApiPromise = null;
 async function loadFirestoreApi() {
@@ -20,126 +26,22 @@ function safeStr(v) {
   return typeof v === 'string' ? v.trim() : '';
 }
 
-function asNum(v) {
-  if (v === null || v === undefined) return null;
-  if (typeof v === 'string') {
-    const t = v.trim();
-    if (!t) return null;
-    const n = Number(t);
-    return Number.isFinite(n) ? n : null;
-  }
-  const n = typeof v === 'number' ? v : Number(v);
-  return Number.isFinite(n) ? n : null;
-}
-
-function normalizeGender(v) {
-  const s = safeStr(v).toLowerCase();
-  if (s === 'male' || s === 'm' || s === 'man' || s === 'erkek') return 'male';
-  if (s === 'female' || s === 'f' || s === 'woman' || s === 'kadin' || s === 'kadın') return 'female';
-  return '';
-}
-
-function normalizeMaritalStatus(v) {
-  return safeStr(v).toLowerCase();
-}
-
 function normalizePath(pathname) {
   const raw = String(pathname || '/');
   return raw.replace(/\/+$/, '') || '/';
 }
 
-function isStubApplication(a) {
-  const source = safeStr(a?.source).toLowerCase();
-  if (source === 'auto_stub') return true;
-  if (a?.details?.autoBootstrap === true) return true;
-  return false;
-}
-
 function hasMinimumProfileInUserDoc(d) {
-  const userDoc = d && typeof d === 'object' ? d : {};
-  const appFromUser = userDoc?.application && typeof userDoc.application === 'object' ? userDoc.application : null;
-  const publicProfile = userDoc?.publicProfile && typeof userDoc.publicProfile === 'object' ? userDoc.publicProfile : null;
-  const merged = {
-    ...(publicProfile || {}),
-    ...(appFromUser || {}),
-    ...(userDoc || {}),
-    details: {
-      ...((publicProfile && typeof publicProfile.details === 'object' ? publicProfile.details : {}) || {}),
-      ...((appFromUser && typeof appFromUser.details === 'object' ? appFromUser.details : {}) || {}),
-      ...((userDoc?.details && typeof userDoc.details === 'object' ? userDoc.details : {}) || {}),
-    },
-  };
-
-  const details = merged?.details && typeof merged.details === 'object' ? merged.details : {};
-
-  const fullName = safeStr(merged?.fullName);
-  const age = asNum(merged?.age);
-  const gender = normalizeGender(merged?.gender);
-  const city = safeStr(merged?.city);
-  const country = safeStr(merged?.country);
-  const nationality = safeStr(merged?.nationality);
-  const occupation = safeStr(details?.occupation) || safeStr(merged?.occupation);
-  const maritalStatus = normalizeMaritalStatus(details?.maritalStatus || merged?.maritalStatus);
-
-  if (!fullName) return false;
-  if (!(typeof age === 'number' && Number.isFinite(age) && age >= 18 && age <= 99)) return false;
-  if (!gender) return false;
-  if (!city) return false;
-  if (!country) return false;
-  if (!nationality) return false;
-  if (!occupation) return false;
-  if (!maritalStatus) return false;
-
-  if (maritalStatus === 'widowed' || maritalStatus === 'divorced') {
-    const hasChildren = safeStr(details?.hasChildren || merged?.hasChildren).toLowerCase();
-    if (!hasChildren) return false;
-    if (hasChildren === 'yes') {
-      const cnt = asNum(details?.childrenCount);
-      if (!(typeof cnt === 'number' && Number.isFinite(cnt) && cnt >= 1 && cnt <= 20)) return false;
-    }
-  }
-
-  return true;
+  return hasMinimumMatchmakingProfileInUserDoc(d);
 }
 
 function hasMinimumProfileInApplicationDoc(a) {
-  const app = a && typeof a === 'object' ? a : {};
-  if (isStubApplication(app)) return false;
-  const details = app?.details && typeof app.details === 'object' ? app.details : {};
-
-  const fullName = safeStr(app?.fullName);
-  const age = asNum(app?.age);
-  const gender = normalizeGender(app?.gender);
-  const city = safeStr(app?.city);
-  const country = safeStr(app?.country);
-  const nationality = safeStr(app?.nationality);
-  const occupation = safeStr(details?.occupation) || safeStr(app?.occupation);
-  const maritalStatus = normalizeMaritalStatus(details?.maritalStatus || app?.maritalStatus);
-
-  if (!fullName) return false;
-  if (!(typeof age === 'number' && Number.isFinite(age) && age >= 18 && age <= 99)) return false;
-  if (!gender) return false;
-  if (!city) return false;
-  if (!country) return false;
-  if (!nationality) return false;
-  if (!occupation) return false;
-  if (!maritalStatus) return false;
-
-  if (maritalStatus === 'widowed' || maritalStatus === 'divorced') {
-    const hasChildren = safeStr(details?.hasChildren || app?.hasChildren).toLowerCase();
-    if (!hasChildren) return false;
-    if (hasChildren === 'yes') {
-      const cnt = asNum(details?.childrenCount);
-      if (!(typeof cnt === 'number' && Number.isFinite(cnt) && cnt >= 1 && cnt <= 20)) return false;
-    }
-  }
-
-  return true;
+  return hasMinimumMatchmakingProfileInApplicationDoc(a);
 }
 
-async function isProfileComplete(uid) {
+async function getProfileCompletionState(uid) {
   const userId = safeStr(uid);
-  if (!userId) return false;
+  if (!userId) return { ok: false, reason: 'application_required' };
 
   const { db, collection, doc, getDoc, getDocs, limit, query, where } = await loadFirestoreApi();
 
@@ -149,7 +51,7 @@ async function isProfileComplete(uid) {
     const uSnap = await getDoc(uRef);
     if (uSnap.exists()) {
       const d = uSnap.data() || {};
-      if (hasMinimumProfileInUserDoc(d)) return true;
+      if (hasMinimumProfileInUserDoc(d)) return { ok: true, reason: 'complete' };
     }
   } catch {
     // ignore and fall back
@@ -157,19 +59,36 @@ async function isProfileComplete(uid) {
 
   // Fallback: matchmakingApplications, non-stub.
   try {
-    const q = query(collection(db, 'matchmakingApplications'), where('userId', '==', userId), limit(10));
-    const snap = await getDocs(q);
-    if (snap.empty) return false;
+    const q1 = query(collection(db, 'matchmakingApplications'), where('userId', '==', userId), limit(10));
+    const q2 = query(collection(db, 'matchmakingApplications'), where('uid', '==', userId), limit(10));
+    const q3 = query(collection(db, 'matchmakingApplications'), where('userUid', '==', userId), limit(10));
 
-    for (const d of snap.docs) {
+    const [s1, s2, s3] = await Promise.all([getDocs(q1), getDocs(q2), getDocs(q3)]);
+    const docs = [...(s1?.docs || []), ...(s2?.docs || []), ...(s3?.docs || [])];
+    if (!docs.length) return { ok: false, reason: 'application_required' };
+
+    const seen = new Set();
+    let hasNonStubApplication = false;
+    let hasPhotoOnlyMissing = false;
+    for (const d of docs) {
+      const id = safeStr(d?.id);
+      if (id && seen.has(id)) continue;
+      if (id) seen.add(id);
       const a = d.data() || {};
-      if (hasMinimumProfileInApplicationDoc(a)) return true;
+      if (isStubMatchmakingApplication(a)) continue;
+      hasNonStubApplication = true;
+      if (hasMinimumProfileInApplicationDoc(a)) return { ok: true, reason: 'complete' };
+
+      const gateState = getMatchmakingProfileGateStateFromApp(a);
+      if (gateState.onlyPhotoMissing) hasPhotoOnlyMissing = true;
     }
 
-    return false;
+    if (!hasNonStubApplication) return { ok: false, reason: 'application_required' };
+    if (hasPhotoOnlyMissing) return { ok: false, reason: 'photo_required' };
+    return { ok: false, reason: 'profile_incomplete' };
   } catch {
     // Rules/index/config issue: be conservative and allow the app.
-    return true;
+    return { ok: true, reason: 'unknown' };
   }
 }
 
@@ -177,7 +96,7 @@ export default function RequireCompletedApplication({ children, redirectTo = '/e
   const { user, loading } = useAuth();
   const location = useLocation();
 
-  const [state, setState] = useState({ loading: true, ok: true });
+  const [state, setState] = useState({ loading: true, ok: true, reason: 'complete' });
 
   const path = useMemo(() => normalizePath(location?.pathname), [location?.pathname]);
 
@@ -186,17 +105,17 @@ export default function RequireCompletedApplication({ children, redirectTo = '/e
 
     const uid = safeStr(user?.uid);
     if (!uid || user?.isAnonymous) {
-      setState({ loading: false, ok: true });
+      setState({ loading: false, ok: true, reason: 'complete' });
       return;
     }
 
     let alive = true;
-    setState({ loading: true, ok: true });
+    setState({ loading: true, ok: true, reason: 'complete' });
 
     (async () => {
-      const ok = await isProfileComplete(uid);
+      const next = await getProfileCompletionState(uid);
       if (!alive) return;
-      setState({ loading: false, ok });
+      setState({ loading: false, ok: !!next?.ok, reason: String(next?.reason || 'profile_incomplete') });
     })();
 
     return () => {
@@ -214,11 +133,16 @@ export default function RequireCompletedApplication({ children, redirectTo = '/e
   }
 
   if (!state.ok) {
+    const isPhotoRequired = state.reason === 'photo_required';
     return (
       <Navigate
-        to={redirectTo}
+        to={isPhotoRequired ? '/profilim' : redirectTo}
         replace
-        state={{ profileGate: true, from: `${location?.pathname || ''}${location?.search || ''}` }}
+        state={{
+          profileGate: isPhotoRequired ? 'photo_required' : state.reason || true,
+          openPhotoManager: isPhotoRequired,
+          from: `${location?.pathname || ''}${location?.search || ''}`,
+        }}
       />
     );
   }

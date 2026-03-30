@@ -50,6 +50,7 @@ export default async function handler(req, res) {
         country: typeof d.country === 'string' ? d.country : 'UN',
         lang: typeof d.lang === 'string' ? d.lang : null,
         tz: typeof d.tz === 'string' ? d.tz : null,
+        uaHint: typeof d.uaHint === 'string' ? d.uaHint : null,
         tzOffsetMin: typeof d.tzOffsetMin === 'number' ? d.tzOffsetMin : null,
       });
     }

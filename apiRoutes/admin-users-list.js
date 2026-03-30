@@ -1,8 +1,14 @@
 import { getAdmin, normalizeBody, requireAdmin } from './_firebaseAdmin.js';
-
-function safeStr(v) {
-  return typeof v === 'string' ? v.trim() : '';
-}
+import {
+  loadApplicationsForUid,
+  loadBestAppsByUidBatch,
+  normalizeGender,
+  parseAge,
+  pickBestApp,
+  resolveAdminApplicationState,
+  safeStr,
+  toMs,
+} from './_adminMatchmakingProfiles.js';
 
 function pickDetailsFromUserDocOrApp(userDoc, bestApp) {
   const d = userDoc && typeof userDoc === 'object' ? userDoc : null;
@@ -90,22 +96,6 @@ function pickWhatsapp(userDoc, bestApp) {
   }
 }
 
-function toMs(ts) {
-  try {
-    if (!ts) return 0;
-    if (ts instanceof Date) {
-      const n = ts.getTime();
-      return Number.isFinite(n) ? n : 0;
-    }
-    if (typeof ts.toMillis === 'function') return ts.toMillis();
-    if (typeof ts.seconds === 'number') return ts.seconds * 1000;
-    if (typeof ts === 'number') return ts;
-    return 0;
-  } catch {
-    return 0;
-  }
-}
-
 function dateStringToMs(s) {
   try {
     const raw = safeStr(s);
@@ -149,85 +139,128 @@ function pickPwaInstalledAtMs(userDoc) {
   return typeof ms === 'number' && Number.isFinite(ms) && ms > 0 ? ms : null;
 }
 
-function parseAge(v) {
-  const n = typeof v === 'number' ? v : Number(String(v ?? '').trim());
-  if (!Number.isFinite(n)) return null;
-  const i = Math.trunc(n);
-  if (i < 18 || i > 99) return null;
-  return i;
-}
-
-function normalizeGender(v) {
-  const s = safeStr(v).toLowerCase();
-  if (s === 'female' || s === 'male') return s;
-  return null;
-}
-
-function getAnyAboutFromUserDoc(userDoc) {
-  const it = userDoc && typeof userDoc === 'object' ? userDoc : null;
-  if (!it) return '';
-  const d = it?.details && typeof it.details === 'object' ? it.details : null;
-  const pp = it?.publicProfile && typeof it.publicProfile === 'object' ? it.publicProfile : null;
-  const app = it?.application && typeof it.application === 'object' ? it.application : null;
-  return (
-    safeStr(it?.bio) ||
-    safeStr(d?.about) ||
-    safeStr(d?.bio) ||
-    safeStr(d?.aboutTr) ||
-    safeStr(d?.aboutId) ||
-    safeStr(d?.bioTr) ||
-    safeStr(d?.bioId) ||
-    safeStr(pp?.about) ||
-    safeStr(pp?.bio) ||
-    safeStr(pp?.aboutTr) ||
-    safeStr(pp?.aboutId) ||
-    safeStr(pp?.bioTr) ||
-    safeStr(pp?.bioId) ||
-    safeStr(app?.about) ||
-    safeStr(app?.bio) ||
-    safeStr(app?.aboutTr) ||
-    safeStr(app?.aboutId) ||
-    safeStr(app?.bioTr) ||
-    safeStr(app?.bioId)
-  );
-}
-
-function appScoreForAdmin(app) {
-  const source = safeStr(app?.source).toLowerCase();
-  const isStub = source === 'auto_stub' || app?.details?.autoBootstrap === true;
-  const ms =
-    (typeof app?.createdAtMs === 'number' && Number.isFinite(app.createdAtMs) ? app.createdAtMs : 0) ||
-    toMs(app?.createdAt);
-  let score = 0;
-  if (!isStub) score += 1000;
-  if (typeof app?.age === 'number' && Number.isFinite(app.age)) score += 10;
-  if (normalizeGender(app?.gender)) score += 10;
-  if (safeStr(app?.country)) score += 3;
-  if (safeStr(app?.city)) score += 2;
-  if (ms > 0) score += Math.min(50, Math.floor(ms / 1e12));
-  return score;
-}
-
-function pickBestApp(apps) {
-  const list = Array.isArray(apps) ? apps : [];
-  if (!list.length) return null;
-  let best = list[0];
-  let bestScore = appScoreForAdmin(best);
-  for (let i = 1; i < list.length; i += 1) {
-    const cand = list[i];
-    const s = appScoreForAdmin(cand);
-    if (s > bestScore) {
-      best = cand;
-      bestScore = s;
-    }
-  }
-  return best || null;
-}
-
 function looksLikeUserCode(q) {
   const s = safeStr(q);
   if (!s) return false;
   return s.toUpperCase().startsWith('UC-');
+}
+
+async function buildAdminUserEntry({ auth, db, uid, userRecord = null, userDoc = undefined, bestApp = undefined }) {
+  const resolvedUid = safeStr(uid);
+  if (!resolvedUid) return null;
+
+  let resolvedUserRecord = userRecord;
+  if (resolvedUserRecord === null) {
+    // keep null
+  } else if (!resolvedUserRecord) {
+    try {
+      resolvedUserRecord = await auth.getUser(resolvedUid);
+    } catch (e) {
+      const code = String(e?.code || '');
+      if (!code.includes('auth/user-not-found')) throw e;
+      resolvedUserRecord = null;
+    }
+  }
+
+  let resolvedUserDoc = typeof userDoc === 'undefined' ? undefined : userDoc;
+  let flags = null;
+  if (typeof resolvedUserDoc === 'undefined') {
+    const userRef = db.collection('matchmakingUsers').doc(resolvedUid);
+    const flagRef = db.collection('adminUserFlags').doc(resolvedUid);
+    const [userSnap, flagSnap] = await Promise.all([userRef.get(), flagRef.get()]);
+    resolvedUserDoc = userSnap.exists ? (userSnap.data() || {}) : null;
+    flags = flagSnap.exists ? (flagSnap.data() || {}) : null;
+  } else {
+    const flagSnap = await db.collection('adminUserFlags').doc(resolvedUid).get();
+    flags = flagSnap.exists ? (flagSnap.data() || {}) : null;
+  }
+
+  let resolvedBestApp = typeof bestApp === 'undefined' ? undefined : bestApp;
+  if (typeof resolvedBestApp === 'undefined') {
+    try {
+      const apps = await loadApplicationsForUid(db, resolvedUid, {
+        applicationId: resolvedUserDoc?.applicationId,
+        limitPerField: 25,
+      });
+      resolvedBestApp = pickBestApp(apps);
+    } catch {
+      resolvedBestApp = null;
+    }
+  }
+
+  const now = Date.now();
+  const membershipActive = resolvedUserDoc ? isMembershipActive(resolvedUserDoc, now) : false;
+  const untilMs =
+    resolvedUserDoc && typeof resolvedUserDoc?.membership?.validUntilMs === 'number'
+      ? resolvedUserDoc.membership.validUntilMs
+      : 0;
+  const plan = resolvedUserDoc && typeof resolvedUserDoc?.membership?.plan === 'string' ? resolvedUserDoc.membership.plan : '';
+  const applicationId = resolvedUserDoc && typeof resolvedUserDoc?.applicationId === 'string' ? safeStr(resolvedUserDoc.applicationId) : '';
+  const effectiveApplicationId = applicationId || (resolvedBestApp?.id ? String(resolvedBestApp.id) : '');
+  const applicationState = resolveAdminApplicationState(resolvedUserDoc, resolvedBestApp);
+  const hasApplication = applicationState === 'real' || applicationState === 'stub' || applicationState === 'cache' || applicationState === 'stub_cache';
+  const hasProfileData = applicationState !== 'none';
+
+  const details = pickDetailsFromUserDocOrApp(resolvedUserDoc, resolvedBestApp);
+  const occupation = pickOccupationLabel(details);
+  const maritalStatus = pickMaritalStatus(details);
+  const hasChildren = pickHasChildren(details);
+  const childrenCount = pickChildrenCount(details);
+  const whatsapp = pickWhatsapp(resolvedUserDoc, resolvedBestApp);
+  const authCreatedAtMs = resolvedUserRecord ? dateStringToMs(resolvedUserRecord.metadata?.creationTime) : 0;
+  const authLastSignInAtMs = resolvedUserRecord ? dateStringToMs(resolvedUserRecord.metadata?.lastSignInTime) : 0;
+  const userCreatedAtMs = toMs(resolvedUserDoc?.createdAt) || (typeof resolvedUserDoc?.createdAtMs === 'number' ? resolvedUserDoc.createdAtMs : 0);
+  const userUpdatedAtMs = toMs(resolvedUserDoc?.updatedAt) || (typeof resolvedUserDoc?.updatedAtMs === 'number' ? resolvedUserDoc.updatedAtMs : 0);
+  const appCreatedAtMs = toMs(resolvedBestApp?.createdAt) || (typeof resolvedBestApp?.createdAtMs === 'number' ? resolvedBestApp.createdAtMs : 0);
+  const lastSeenAtMs = toMs(resolvedUserDoc?.lastSeenAt) || (typeof resolvedUserDoc?.lastSeenAtMs === 'number' ? resolvedUserDoc.lastSeenAtMs : 0);
+
+  return {
+    uid: resolvedUid,
+    hasAuthRecord: !!resolvedUserRecord,
+    email: resolvedUserRecord?.email || null,
+    disabled: !!resolvedUserRecord?.disabled,
+    createdAtMs: authCreatedAtMs || userCreatedAtMs || userUpdatedAtMs || appCreatedAtMs || null,
+    lastSignInAtMs: authLastSignInAtMs || lastSeenAtMs || null,
+    systemUser: !!flags?.systemUser,
+    blocked: !!resolvedUserDoc?.blocked,
+    membershipActive,
+    membershipPlan: plan || null,
+    membershipValidUntilMs: untilMs || null,
+    hasUserDoc: !!resolvedUserDoc,
+    hasApplication,
+    hasProfileData,
+    applicationState,
+    applicationId: effectiveApplicationId || null,
+    userCode: typeof resolvedUserDoc?.userCode === 'string' ? resolvedUserDoc.userCode : null,
+    fullName:
+      typeof resolvedUserDoc?.fullName === 'string' && resolvedUserDoc.fullName.trim() ? resolvedUserDoc.fullName.trim() : null,
+    age: resolvedUserDoc
+      ? (parseAge(resolvedUserDoc?.age) ??
+        parseAge(resolvedUserDoc?.publicProfile?.age) ??
+        parseAge(resolvedUserDoc?.application?.age) ??
+        parseAge(resolvedBestApp?.age))
+      : (parseAge(resolvedBestApp?.age) ?? null),
+    gender: resolvedUserDoc
+      ? (normalizeGender(resolvedUserDoc?.gender) ??
+        normalizeGender(resolvedUserDoc?.publicProfile?.gender) ??
+        normalizeGender(resolvedUserDoc?.application?.gender) ??
+        normalizeGender(resolvedBestApp?.gender))
+      : (normalizeGender(resolvedBestApp?.gender) ?? null),
+    identityVerified: resolvedUserDoc ? (resolvedUserDoc?.identityVerified === true) : null,
+    pwaInstalled: resolvedUserDoc ? pickPwaInstalled(resolvedUserDoc) : false,
+    pwaInstalledAtMs: resolvedUserDoc ? pickPwaInstalledAtMs(resolvedUserDoc) : null,
+    pushEnabled: resolvedUserDoc ? pickPushEnabled(resolvedUserDoc) : false,
+    pushEnabledAtMs: resolvedUserDoc ? pickPushEnabledAtMs(resolvedUserDoc) : null,
+    lastApprovedPaymentId:
+      resolvedUserDoc && typeof resolvedUserDoc?.membership?.lastApprovedPaymentId === 'string'
+        ? safeStr(resolvedUserDoc.membership.lastApprovedPaymentId) || null
+        : null,
+    occupation,
+    maritalStatus,
+    hasChildren,
+    childrenCount,
+    whatsapp,
+  };
 }
 
 export default async function handler(req, res) {
@@ -274,68 +307,14 @@ export default async function handler(req, res) {
           userRecord = null;
         }
 
-        const userRef = db.collection('matchmakingUsers').doc(uid);
-        const flagRef = db.collection('adminUserFlags').doc(uid);
-        const [userSnap, flagSnap] = await Promise.all([userRef.get(), flagRef.get()]);
-        const userDoc = userSnap.exists ? (userSnap.data() || {}) : null;
-        const flags = flagSnap.exists ? (flagSnap.data() || {}) : null;
-
-        const now = Date.now();
-        const membershipActive = userDoc ? isMembershipActive(userDoc, now) : false;
-        const untilMs = userDoc && typeof userDoc?.membership?.validUntilMs === 'number' ? userDoc.membership.validUntilMs : 0;
-        const plan = userDoc && typeof userDoc?.membership?.plan === 'string' ? userDoc.membership.plan : '';
-        const applicationId = userDoc && typeof userDoc?.applicationId === 'string' ? safeStr(userDoc.applicationId) : '';
-        const cachedAbout = getAnyAboutFromUserDoc(userDoc);
-
-        const details = pickDetailsFromUserDocOrApp(userDoc, null);
-        const occupation = pickOccupationLabel(details);
-        const maritalStatus = pickMaritalStatus(details);
-        const hasChildren = pickHasChildren(details);
-        const childrenCount = pickChildrenCount(details);
-        const whatsapp = pickWhatsapp(userDoc, null);
+        const entry = await buildAdminUserEntry({ auth, db, uid, userRecord });
 
         res.statusCode = 200;
         res.setHeader('content-type', 'application/json');
         res.end(
           JSON.stringify({
             ok: true,
-            users: [
-              {
-                uid,
-                email: userRecord?.email || null,
-                disabled: !!userRecord?.disabled,
-                createdAtMs: userRecord ? dateStringToMs(userRecord.metadata?.creationTime) : null,
-                lastSignInAtMs: userRecord ? dateStringToMs(userRecord.metadata?.lastSignInTime) : null,
-                systemUser: !!flags?.systemUser,
-                blocked: !!userDoc?.blocked,
-                membershipActive,
-                membershipPlan: plan || null,
-                membershipValidUntilMs: untilMs || null,
-                hasUserDoc: !!userDoc,
-                hasApplication: !!applicationId || !!cachedAbout,
-                applicationId: applicationId || null,
-                userCode: typeof userDoc?.userCode === 'string' ? userDoc.userCode : null,
-                fullName:
-                  typeof userDoc?.fullName === 'string' && userDoc.fullName.trim() ? userDoc.fullName.trim() : null,
-                age: userDoc ? parseAge(userDoc?.age) : null,
-                gender: userDoc ? normalizeGender(userDoc?.gender) : null,
-                identityVerified: userDoc ? (userDoc?.identityVerified === true) : null,
-                pwaInstalled: userDoc ? pickPwaInstalled(userDoc) : false,
-                pwaInstalledAtMs: userDoc ? pickPwaInstalledAtMs(userDoc) : null,
-                pushEnabled: userDoc ? pickPushEnabled(userDoc) : false,
-                pushEnabledAtMs: userDoc ? pickPushEnabledAtMs(userDoc) : null,
-                lastApprovedPaymentId:
-                  userDoc && typeof userDoc?.membership?.lastApprovedPaymentId === 'string'
-                    ? safeStr(userDoc.membership.lastApprovedPaymentId) || null
-                    : null,
-
-                occupation,
-                maritalStatus,
-                hasChildren,
-                childrenCount,
-                whatsapp,
-              },
-            ],
+            users: entry ? [entry] : [],
             nextPageToken: null,
           })
         );
@@ -355,74 +334,71 @@ export default async function handler(req, res) {
       }
 
       if (!userRecord) {
+        const queryCandidates = Array.from(new Set([safeStr(q), queryLower].filter(Boolean)));
+        let resolvedUid = '';
+        let resolvedUserDoc = null;
+        let resolvedBestApp = null;
+
+        for (const candidate of queryCandidates) {
+          try {
+            const userSnap = await db.collection('matchmakingUsers').where('usernameLower', '==', candidate).limit(1).get();
+            if (!userSnap.empty) {
+              const doc = userSnap.docs[0];
+              resolvedUid = safeStr(doc.id);
+              resolvedUserDoc = doc.data() || null;
+              break;
+            }
+          } catch {
+            // ignore
+          }
+        }
+
+        if (!resolvedUid) {
+          for (const candidate of queryCandidates) {
+            try {
+              const appSnap = await db.collection('matchmakingApplications').where('usernameLower', '==', candidate).limit(10).get();
+              if (!appSnap.empty) {
+                const apps = appSnap.docs.map((doc) => ({ id: doc.id, ...(doc.data() || {}) }));
+                resolvedBestApp = pickBestApp(apps);
+                resolvedUid = safeStr(resolvedBestApp?.userId) || safeStr(appSnap.docs[0]?.id);
+                break;
+              }
+            } catch {
+              // ignore
+            }
+          }
+        }
+
+        if (!resolvedUid) {
+          res.statusCode = 200;
+          res.setHeader('content-type', 'application/json');
+          res.end(JSON.stringify({ ok: true, users: [], nextPageToken: null }));
+          return;
+        }
+
+        const entry = await buildAdminUserEntry({
+          auth,
+          db,
+          uid: resolvedUid,
+          userRecord: null,
+          userDoc: resolvedUserDoc,
+          bestApp: resolvedBestApp,
+        });
+
         res.statusCode = 200;
         res.setHeader('content-type', 'application/json');
-        res.end(JSON.stringify({ ok: true, users: [], nextPageToken: null }));
+        res.end(JSON.stringify({ ok: true, users: entry ? [entry] : [], nextPageToken: null }));
         return;
       }
 
-      const uid = String(userRecord.uid);
-      const userRef = db.collection('matchmakingUsers').doc(uid);
-      const flagRef = db.collection('adminUserFlags').doc(uid);
-      const [userSnap, flagSnap] = await Promise.all([userRef.get(), flagRef.get()]);
-      const userDoc = userSnap.exists ? (userSnap.data() || {}) : null;
-      const flags = flagSnap.exists ? (flagSnap.data() || {}) : null;
-
-      const now = Date.now();
-      const membershipActive = userDoc ? isMembershipActive(userDoc, now) : false;
-      const untilMs = userDoc && typeof userDoc?.membership?.validUntilMs === 'number' ? userDoc.membership.validUntilMs : 0;
-      const plan = userDoc && typeof userDoc?.membership?.plan === 'string' ? userDoc.membership.plan : '';
-      const applicationId = userDoc && typeof userDoc?.applicationId === 'string' ? safeStr(userDoc.applicationId) : '';
-      const cachedAbout = getAnyAboutFromUserDoc(userDoc);
-
-      const details = pickDetailsFromUserDocOrApp(userDoc, null);
-      const occupation = pickOccupationLabel(details);
-      const maritalStatus = pickMaritalStatus(details);
-      const hasChildren = pickHasChildren(details);
-      const childrenCount = pickChildrenCount(details);
-      const whatsapp = pickWhatsapp(userDoc, null);
+      const entry = await buildAdminUserEntry({ auth, db, uid: String(userRecord.uid), userRecord });
 
       res.statusCode = 200;
       res.setHeader('content-type', 'application/json');
       res.end(
         JSON.stringify({
           ok: true,
-          users: [
-            {
-              uid,
-              email: userRecord.email || null,
-              disabled: !!userRecord.disabled,
-              createdAtMs: dateStringToMs(userRecord.metadata?.creationTime),
-              lastSignInAtMs: dateStringToMs(userRecord.metadata?.lastSignInTime),
-              systemUser: !!flags?.systemUser,
-              blocked: !!userDoc?.blocked,
-              membershipActive,
-              membershipPlan: plan || null,
-              membershipValidUntilMs: untilMs || null,
-              hasUserDoc: !!userDoc,
-              hasApplication: !!applicationId || !!cachedAbout,
-              applicationId: applicationId || null,
-              userCode: typeof userDoc?.userCode === 'string' ? userDoc.userCode : null,
-              fullName: typeof userDoc?.fullName === 'string' && userDoc.fullName.trim() ? userDoc.fullName.trim() : null,
-              age: userDoc ? parseAge(userDoc?.age) : null,
-              gender: userDoc ? normalizeGender(userDoc?.gender) : null,
-              identityVerified: userDoc ? (userDoc?.identityVerified === true) : null,
-              pwaInstalled: userDoc ? pickPwaInstalled(userDoc) : false,
-              pwaInstalledAtMs: userDoc ? pickPwaInstalledAtMs(userDoc) : null,
-              pushEnabled: userDoc ? pickPushEnabled(userDoc) : false,
-              pushEnabledAtMs: userDoc ? pickPushEnabledAtMs(userDoc) : null,
-              lastApprovedPaymentId:
-                userDoc && typeof userDoc?.membership?.lastApprovedPaymentId === 'string'
-                  ? safeStr(userDoc.membership.lastApprovedPaymentId) || null
-                  : null,
-
-              occupation,
-              maritalStatus,
-              hasChildren,
-              childrenCount,
-              whatsapp,
-            },
-          ],
+          users: entry ? [entry] : [],
           nextPageToken: null,
         })
       );
@@ -466,42 +442,7 @@ export default async function handler(req, res) {
     }
 
     const now = Date.now();
-
-    // Enrich missing age/gender from applications (some users have no cache fields).
-    const needsAppUids = uids.filter((uid) => {
-      const d = userDocByUid.get(uid) || null;
-      const age = d ? (parseAge(d?.age) ?? parseAge(d?.publicProfile?.age) ?? parseAge(d?.application?.age)) : null;
-      const gender = d ? (normalizeGender(d?.gender) ?? normalizeGender(d?.publicProfile?.gender) ?? normalizeGender(d?.application?.gender)) : null;
-      const applicationId = d && typeof d?.applicationId === 'string' ? safeStr(d.applicationId) : '';
-      const cachedAbout = getAnyAboutFromUserDoc(d);
-      return age === null || gender === null || (!applicationId && !cachedAbout);
-    });
-
-    const bestAppByUid = new Map();
-    if (needsAppUids.length) {
-      const chunks = [];
-      for (let i = 0; i < needsAppUids.length; i += 10) chunks.push(needsAppUids.slice(i, i + 10));
-      for (const chunk of chunks) {
-        try {
-          const snap = await db.collection('matchmakingApplications').where('userId', 'in', chunk).get();
-          const byUid = new Map();
-          snap.docs.forEach((d) => {
-            const a = d.data() || {};
-            const uid = safeStr(a?.userId);
-            if (!uid) return;
-            const list = byUid.get(uid) || [];
-            list.push({ id: d.id, ...a });
-            byUid.set(uid, list);
-          });
-          for (const [uid, list] of byUid.entries()) {
-            const best = pickBestApp(list);
-            if (best) bestAppByUid.set(uid, best);
-          }
-        } catch {
-          // best-effort
-        }
-      }
-    }
+    const bestAppByUid = await loadBestAppsByUidBatch(db, uids, { limitPerField: 25 });
 
     const users = records.map((u) => {
       const uid = String(u.uid);
@@ -511,10 +452,11 @@ export default async function handler(req, res) {
       const untilMs = userDoc && typeof userDoc?.membership?.validUntilMs === 'number' ? userDoc.membership.validUntilMs : 0;
       const plan = userDoc && typeof userDoc?.membership?.plan === 'string' ? userDoc.membership.plan : '';
       const applicationId = userDoc && typeof userDoc?.applicationId === 'string' ? safeStr(userDoc.applicationId) : '';
-      const cachedAbout = getAnyAboutFromUserDoc(userDoc);
       const bestApp = bestAppByUid.get(uid) || null;
       const effectiveApplicationId = applicationId || (bestApp?.id ? String(bestApp.id) : '');
-      const hasApplication = !!effectiveApplicationId || !!cachedAbout;
+      const applicationState = resolveAdminApplicationState(userDoc, bestApp);
+      const hasApplication = applicationState === 'real' || applicationState === 'stub' || applicationState === 'cache' || applicationState === 'stub_cache';
+      const hasProfileData = applicationState !== 'none';
 
       const details = pickDetailsFromUserDocOrApp(userDoc, bestApp);
       const occupation = pickOccupationLabel(details);
@@ -525,6 +467,7 @@ export default async function handler(req, res) {
 
       return {
         uid,
+        hasAuthRecord: true,
         email: u.email || null,
         disabled: !!u.disabled,
         createdAtMs: dateStringToMs(u.metadata?.creationTime),
@@ -536,6 +479,8 @@ export default async function handler(req, res) {
         membershipValidUntilMs: untilMs || null,
         hasUserDoc: !!userDoc,
         hasApplication,
+        hasProfileData,
+        applicationState,
         applicationId: effectiveApplicationId || null,
         userCode: typeof userDoc?.userCode === 'string' ? userDoc.userCode : null,
         fullName: typeof userDoc?.fullName === 'string' && userDoc.fullName.trim() ? userDoc.fullName.trim() : null,
@@ -569,6 +514,49 @@ export default async function handler(req, res) {
         whatsapp,
       };
     });
+
+    if (!pageToken) {
+      const extraCandidates = new Set();
+      const collectUid = (candidate) => {
+        const uid = safeStr(candidate);
+        if (!uid || extraCandidates.has(uid) || uids.includes(uid)) return;
+        extraCandidates.add(uid);
+      };
+
+      try {
+        const recentUsersSnap = await db.collection('matchmakingUsers').orderBy('updatedAtMs', 'desc').limit(Math.max(pageSize * 3, 100)).get();
+        recentUsersSnap.docs.forEach((doc) => collectUid(doc.id));
+      } catch {
+        // ignore
+      }
+
+      try {
+        const recentAppsSnap = await db.collection('matchmakingApplications').orderBy('updatedAtMs', 'desc').limit(Math.max(pageSize * 4, 120)).get();
+        recentAppsSnap.docs.forEach((doc) => {
+          const data = doc.data() || {};
+          collectUid(data?.userId);
+          collectUid(data?.uid);
+          collectUid(data?.userUid);
+          collectUid(data?.ownerUid);
+        });
+      } catch {
+        // ignore
+      }
+
+      const extras = [];
+      for (const uid of Array.from(extraCandidates).slice(0, pageSize)) {
+        try {
+          const entry = await buildAdminUserEntry({ auth, db, uid, userRecord: undefined });
+          if (entry && !entry.hasAuthRecord && !users.some((user) => user.uid === entry.uid)) {
+            extras.push(entry);
+          }
+        } catch {
+          // ignore
+        }
+      }
+
+      if (extras.length) users.push(...extras);
+    }
 
     res.statusCode = 200;
     res.setHeader('content-type', 'application/json');

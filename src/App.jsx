@@ -11,7 +11,6 @@ const About = lazy(() => import('./pages/About'));
 const Corporate = lazy(() => import('./pages/Corporate'));
 const Contact = lazy(() => import('./pages/Contact'));
 const Login = lazy(() => import('./pages/Login'));
-const Panel = lazy(() => import('./pages/Panel'));
 const Wedding = lazy(() => import('./pages/Wedding'));
 const MatchmakingApply = lazy(() => import('./pages/MatchmakingApply'));
 const MatchmakingHub = lazy(() => import('./pages/MatchmakingHub'));
@@ -506,9 +505,7 @@ function App() {
             path="/profilim"
             element={
               <RequireAuth>
-                <RequireCompletedApplication>
-                  <StudioProfile />
-                </RequireCompletedApplication>
+                <StudioProfile />
               </RequireAuth>
             }
           />
@@ -543,9 +540,7 @@ function App() {
             path="/app/matches"
             element={
               <RequireAuth>
-                <RequireCompletedApplication>
-                  <StudioMatches />
-                </RequireCompletedApplication>
+                <StudioMatches />
               </RequireAuth>
             }
           />
@@ -553,9 +548,7 @@ function App() {
             path="/app/pool"
             element={
               <RequireAuth>
-                <RequireCompletedApplication>
-                  <StudioPool />
-                </RequireCompletedApplication>
+                <StudioPool />
               </RequireAuth>
             }
           />

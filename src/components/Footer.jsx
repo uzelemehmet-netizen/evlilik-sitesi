@@ -1,4 +1,4 @@
-﻿import { Youtube, Mail, Phone, MessageCircle, MapPin } from "lucide-react";
+﻿import { Youtube, Mail, Phone, MessageCircle } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { COMPANY } from "../config/company";
 import { isFeatureEnabled } from "../config/siteVariant";
@@ -12,8 +12,6 @@ export default function Footer() {
   const { t, i18n } = useTranslation();
 
   const FOOTER_IMAGE_SRC = staticAssetUrl('/ChatGPT%20Image%2017%20%C5%9Eub%202026%2014_33_00.png');
-  const FOOTER_PARTNER_IMAGE_SRC = staticAssetUrl('/ChatGPT%20Image%20Jan%2014,%202026,%2001_53_44%20PM.png');
-
   const getWhatsappLink = () => {
     let message = t('footer.whatsappMessages.general');
 
@@ -45,8 +43,6 @@ export default function Footer() {
   const indonesiaPhoneDisplay = COMPANY.phoneIdDisplay;
 
   const showWedding = isFeatureEnabled('wedding');
-  const isWeddingOnly = showWedding;
-
   return (
     <footer className="bg-gray-900 text-white py-16">
       <div className="max-w-7xl mx-auto px-4">

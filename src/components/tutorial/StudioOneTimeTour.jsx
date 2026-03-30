@@ -22,15 +22,6 @@ function storageKeyCount(uid, tourId) {
   return `${LS_PREFIX}:${tourId}:${uid}:shownCount`;
 }
 
-function isShown(uid, tourId) {
-  if (!uid || !tourId) return true;
-  try {
-    return window.localStorage.getItem(storageKey(uid, tourId)) === '1';
-  } catch {
-    return true;
-  }
-}
-
 function markShown(uid, tourId) {
   if (!uid || !tourId) return;
   try {
@@ -169,11 +160,11 @@ function TourOverlay({ uid, tourId, step, stepIndex, totalSteps, labels, onSkip,
     return computeTooltipPosition(rect);
   }, [rect]);
 
-  const missingTooLong = useMemo(() => {
+  const missingTooLong = (() => {
     const since = missingSinceRef.current;
     if (!since) return false;
     return Date.now() - since > 1200;
-  }, [rect, stepIndex]);
+  })();
 
   return (
     <div className="fixed inset-0 z-[9999]">

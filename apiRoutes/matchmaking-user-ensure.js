@@ -39,6 +39,9 @@ export default async function handler(req, res) {
     const age = normalizeAge(body?.age);
     const gender = normalizeGender(body?.gender);
     const lookingForGender = normalizeLookingForGender(body?.lookingForGender);
+    const authEmail = safeStr(decoded?.email).toLowerCase();
+    const displayName = safeStr(decoded?.name);
+    const authProvider = safeStr(decoded?.firebase?.sign_in_provider).toLowerCase();
 
     const { db, FieldValue } = getAdmin();
 
@@ -54,6 +57,9 @@ export default async function handler(req, res) {
 
       const existingGender = normalizeGender(data?.gender);
       const existingLookingFor = normalizeLookingForGender(data?.lookingForGender);
+      const existingAuthEmail = safeStr(data?.authEmail).toLowerCase();
+      const existingDisplayName = safeStr(data?.displayName);
+      const existingAuthProvider = safeStr(data?.authProvider).toLowerCase();
 
       const patch = {
         updatedAt: FieldValue.serverTimestamp(),
@@ -62,6 +68,12 @@ export default async function handler(req, res) {
       if (existingAge === null && typeof age === 'number') patch.age = age;
       if (!existingGender && gender) patch.gender = gender;
       if (!existingLookingFor && lookingForGender) patch.lookingForGender = lookingForGender;
+      if (authEmail && existingAuthEmail !== authEmail) {
+        patch.authEmail = authEmail;
+        patch.authEmailLower = authEmail;
+      }
+      if (displayName && existingDisplayName !== displayName) patch.displayName = displayName;
+      if (authProvider && existingAuthProvider !== authProvider) patch.authProvider = authProvider;
 
       const willCreate = !snap.exists;
       if (willCreate) {
@@ -73,6 +85,10 @@ export default async function handler(req, res) {
         Object.prototype.hasOwnProperty.call(patch, 'age') ||
         Object.prototype.hasOwnProperty.call(patch, 'gender') ||
         Object.prototype.hasOwnProperty.call(patch, 'lookingForGender') ||
+        Object.prototype.hasOwnProperty.call(patch, 'authEmail') ||
+        Object.prototype.hasOwnProperty.call(patch, 'authEmailLower') ||
+        Object.prototype.hasOwnProperty.call(patch, 'displayName') ||
+        Object.prototype.hasOwnProperty.call(patch, 'authProvider') ||
         willCreate;
 
       if (!hasMeaningfulPatch) {

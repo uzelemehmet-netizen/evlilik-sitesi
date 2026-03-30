@@ -1,10 +1,16 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { collection, limit, onSnapshot, orderBy, query, where } from 'firebase/firestore';
+import { collection, doc, getDoc, limit, onSnapshot, orderBy, query, where } from 'firebase/firestore';
 import { db } from '../../config/firebaseDb';
-
-function safeStr(v) {
-  return typeof v === 'string' ? v.trim() : '';
-}
+import {
+  dedupeAdminNewUsers,
+  getAnyAbout,
+  getCreatedAtMs,
+  hasKnownAccountIdentity,
+  isUnknownUserWithAccount,
+  pickAccountDisplayName,
+  pickAccountEmail,
+  safeStr,
+} from '../../utils/adminNewUsers';
 
 function fmtDate(ms) {
   try {
@@ -34,64 +40,21 @@ function genderLabel(g) {
   return '-';
 }
 
-function getAnyAbout(app) {
-  const it = app && typeof app === 'object' ? app : null;
-  if (!it) return '';
 
-  const legacyBio = safeStr(it?.bio);
-  if (legacyBio) return legacyBio;
-
-  const direct = safeStr(it?.about) || safeStr(it?.aboutTr) || safeStr(it?.aboutId);
-  if (direct) return direct;
-
-  const details = it?.details && typeof it.details === 'object' ? it.details : null;
-  const detailsAbout =
-    safeStr(details?.about) ||
-    safeStr(details?.bio) ||
-    safeStr(details?.aboutTr) ||
-    safeStr(details?.aboutId) ||
-    safeStr(details?.bioTr) ||
-    safeStr(details?.bioId);
-  if (detailsAbout) return detailsAbout;
-
-  const pp = it?.publicProfile && typeof it.publicProfile === 'object' ? it.publicProfile : null;
-  const ppAbout =
-    safeStr(pp?.about) ||
-    safeStr(pp?.bio) ||
-    safeStr(pp?.aboutTr) ||
-    safeStr(pp?.aboutId) ||
-    safeStr(pp?.bioTr) ||
-    safeStr(pp?.bioId);
-  return ppAbout;
-}
-
-function isUnknownUser(app) {
-  const source = safeStr(app?.source).toLowerCase();
-  const isStub = source === 'auto_stub' || app?.details?.autoBootstrap === true;
-
-  const about = getAnyAbout(app);
-  const expectations = safeStr(app?.expectations) || safeStr(app?.expectationsTr) || safeStr(app?.expectationsId);
-
-  const wroteOnceMs =
-    typeof app?.profileTextWriteOnceUsedAtMs === 'number' && Number.isFinite(app.profileTextWriteOnceUsedAtMs)
-      ? app.profileTextWriteOnceUsedAtMs
-      : 0;
-
-  const hasEditOnce = !!app?.userEditOnceUsedAt || wroteOnceMs > 0;
-  // 2026-02: Apply form no longer asks for expectations.
-  const completed = hasEditOnce || !!about || (!!about && !!expectations);
-
-  return isStub && !completed;
-}
-
-function displayLabel(app) {
-  if (isUnknownUser(app)) return 'Bilinmeyen kullanıcı';
-
-  const username = safeStr(app?.username);
+function displayLabel(app, userDoc = null) {
+  const username = safeStr(app?.username) || safeStr(userDoc?.username);
   if (username) return `@${username}`;
 
-  const fullName = safeStr(app?.fullName);
+  const fullName = safeStr(app?.fullName) || safeStr(userDoc?.fullName) || safeStr(userDoc?.publicProfile?.fullName);
   if (fullName) return fullName;
+
+  const displayName = pickAccountDisplayName(app, userDoc);
+  if (displayName) return displayName;
+
+  const accountEmail = pickAccountEmail(app, userDoc);
+  if (accountEmail) return accountEmail;
+
+  if (isUnknownUserWithAccount(app, userDoc)) return 'Bilinmeyen kullanıcı';
 
   return '-';
 }
@@ -108,6 +71,8 @@ export default function NewUsers48hTab() {
   const [error, setError] = useState('');
   const [items, setItems] = useState([]);
   const [subTab, setSubTab] = useState('unknown');
+  const [userInfoByUid, setUserInfoByUid] = useState({});
+  const [userLoadingByUid, setUserLoadingByUid] = useState({});
 
   const didInitRef = useRef(false);
 
@@ -142,18 +107,79 @@ export default function NewUsers48hTab() {
     return () => unsub();
   }, [cutoffMs]);
 
+  useEffect(() => {
+    let cancelled = false;
+
+    const toFetch = () => {
+      const list = Array.isArray(items) ? items : [];
+      const uids = [];
+      for (const it of list) {
+        const uid = safeStr(it?.userId);
+        if (!uid) continue;
+        if (userInfoByUid[uid] !== undefined) continue;
+        if (userLoadingByUid[uid]) continue;
+        uids.push(uid);
+        if (uids.length >= 40) break;
+      }
+      return uids;
+    };
+
+    const run = async () => {
+      const uids = toFetch();
+      if (!uids.length) return;
+
+      setUserLoadingByUid((prev) => {
+        const next = { ...prev };
+        for (const uid of uids) next[uid] = true;
+        return next;
+      });
+
+      try {
+        const snaps = await Promise.all(uids.map((uid) => getDoc(doc(db, 'matchmakingUsers', uid))));
+        const patch = {};
+        for (let i = 0; i < uids.length; i += 1) {
+          patch[uids[i]] = snaps[i].exists() ? (snaps[i].data() || {}) : null;
+        }
+        if (!cancelled) setUserInfoByUid((prev) => ({ ...prev, ...patch }));
+      } catch {
+        if (!cancelled) {
+          const patch = {};
+          for (const uid of uids) patch[uid] = null;
+          setUserInfoByUid((prev) => ({ ...prev, ...patch }));
+        }
+      } finally {
+        if (!cancelled) {
+          setUserLoadingByUid((prev) => {
+            const next = { ...prev };
+            for (const uid of uids) delete next[uid];
+            return next;
+          });
+        }
+      }
+    };
+
+    run();
+    return () => {
+      cancelled = true;
+    };
+  }, [items, userInfoByUid, userLoadingByUid]);
+
+  const normalizedItems = useMemo(() => dedupeAdminNewUsers(items, userInfoByUid), [items, userInfoByUid]);
+
   const groups = useMemo(() => {
-    const list = Array.isArray(items) ? items : [];
+    const list = Array.isArray(normalizedItems) ? normalizedItems : [];
     const unknown = [];
     const filled = [];
 
     for (const it of list) {
-      if (isUnknownUser(it)) unknown.push(it);
+      const uid = safeStr(it?.userId);
+      const userDoc = uid ? userInfoByUid[uid] : null;
+      if (isUnknownUserWithAccount(it, userDoc)) unknown.push(it);
       else filled.push(it);
     }
 
     return { unknown, filled, total: list.length };
-  }, [items]);
+  }, [normalizedItems, userInfoByUid]);
 
   const visible = subTab === 'filled' ? groups.filled : groups.unknown;
 
@@ -163,7 +189,7 @@ export default function NewUsers48hTab() {
         <div>
           <h2 className="text-lg font-semibold text-gray-800">Yeni Kullanıcılar (Son 48 Saat)</h2>
           <p className="text-sm text-gray-600">
-            Toplam: <span className="font-semibold text-gray-900">{groups.total}</span>
+            Son 48 saatteki benzersiz kullanıcılar. Toplam: <span className="font-semibold text-gray-900">{groups.total}</span>
           </p>
         </div>
 
@@ -212,13 +238,14 @@ export default function NewUsers48hTab() {
             </thead>
             <tbody>
               {visible.map((it) => {
-                const createdAtMs =
-                  typeof it?.createdAtMs === 'number' && Number.isFinite(it.createdAtMs) ? it.createdAtMs : 0;
+                const uid = safeStr(it?.userId);
+                const userDoc = uid ? userInfoByUid[uid] : null;
+                const createdAtMs = getCreatedAtMs(it);
                 const uc = safeStr(it?.userCode);
-                const label = displayLabel(it);
+                const label = displayLabel(it, userDoc);
                 const age = typeof it?.age === 'number' && Number.isFinite(it.age) ? it.age : '';
                 const gender = normalizeGender(it?.gender);
-                const kind = isUnknownUser(it) ? 'unknown' : 'filled';
+                const kind = isUnknownUserWithAccount(it, userDoc) ? 'unknown' : 'filled';
 
                 return (
                   <tr key={it?.id} className="border-t">

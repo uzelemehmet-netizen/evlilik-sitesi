@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { collection, doc, getDoc, getDocFromServer, limit, onSnapshot, orderBy, query } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocFromServer, getDocs, limit, onSnapshot, orderBy, query, where } from 'firebase/firestore';
 import { Lock, Send, ShieldCheck, Share2, Unlock, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import Navigation from '../../components/Navigation';
@@ -13,79 +13,14 @@ import { normalizePhoneForWhatsApp } from '../../utils/phone';
 import { translateStudioApiError } from '../../utils/studioErrorI18n';
 import StudioBottomNav from '../../components/studio/StudioBottomNav';
 import { isTutorialActive } from '../../utils/tutorialState.js';
+import { hasMinimumMatchmakingProfileInUserDoc } from '../../utils/matchmakingProfileCompletion';
 
 function safeStr(v) {
   return typeof v === 'string' ? v.trim() : '';
 }
 
-function asNum(v) {
-  if (v === null || v === undefined) return null;
-  if (typeof v === 'string') {
-    const t = v.trim();
-    if (!t) return null;
-    const n = Number(t);
-    return Number.isFinite(n) ? n : null;
-  }
-  const n = typeof v === 'number' ? v : Number(v);
-  return Number.isFinite(n) ? n : null;
-}
-
-function normalizeGenderValue(v) {
-  const s = safeStr(v).toLowerCase();
-  if (s === 'male' || s === 'm' || s === 'man' || s === 'erkek') return 'male';
-  if (s === 'female' || s === 'f' || s === 'woman' || s === 'kadin' || s === 'kadın') return 'female';
-  return '';
-}
-
-function normalizeMaritalStatus(v) {
-  return safeStr(v).toLowerCase();
-}
-
 function isMinimumProfileCompleteFromUserDoc(d) {
-  const userDoc = d && typeof d === 'object' ? d : {};
-  const appFromUser = userDoc?.application && typeof userDoc.application === 'object' ? userDoc.application : null;
-  const publicProfile = userDoc?.publicProfile && typeof userDoc.publicProfile === 'object' ? userDoc.publicProfile : null;
-  const merged = {
-    ...(publicProfile || {}),
-    ...(appFromUser || {}),
-    ...(userDoc || {}),
-    details: {
-      ...((publicProfile && typeof publicProfile.details === 'object' ? publicProfile.details : {}) || {}),
-      ...((appFromUser && typeof appFromUser.details === 'object' ? appFromUser.details : {}) || {}),
-      ...((userDoc?.details && typeof userDoc.details === 'object' ? userDoc.details : {}) || {}),
-    },
-  };
-
-  const details = merged?.details && typeof merged.details === 'object' ? merged.details : {};
-
-  const fullName = safeStr(merged?.fullName);
-  const age = asNum(merged?.age);
-  const gender = normalizeGenderValue(merged?.gender);
-  const city = safeStr(merged?.city);
-  const country = safeStr(merged?.country);
-  const nationality = safeStr(merged?.nationality);
-  const occupation = safeStr(details?.occupation) || safeStr(merged?.occupation);
-  const maritalStatus = normalizeMaritalStatus(details?.maritalStatus || merged?.maritalStatus);
-
-  if (!fullName) return false;
-  if (!(typeof age === 'number' && Number.isFinite(age) && age >= 18 && age <= 99)) return false;
-  if (!gender) return false;
-  if (!city) return false;
-  if (!country) return false;
-  if (!nationality) return false;
-  if (!occupation) return false;
-  if (!maritalStatus) return false;
-
-  if (maritalStatus === 'widowed' || maritalStatus === 'divorced') {
-    const hasChildren = safeStr(details?.hasChildren || merged?.hasChildren).toLowerCase();
-    if (!hasChildren) return false;
-    if (hasChildren === 'yes') {
-      const cnt = asNum(details?.childrenCount);
-      if (!(typeof cnt === 'number' && Number.isFinite(cnt) && cnt >= 1 && cnt <= 20)) return false;
-    }
-  }
-
-  return true;
+  return hasMinimumMatchmakingProfileInUserDoc(d);
 }
 
 function isDebugApiEnabled() {
@@ -116,6 +51,8 @@ export default function StudioChat() {
   const [myLock, setMyLock] = useState({ active: false, matchId: '' });
   const [myProfileComplete, setMyProfileComplete] = useState(true);
   const [myMembership, setMyMembership] = useState({ active: false });
+  const [myHasAnyPhoto, setMyHasAnyPhoto] = useState(null);
+  const [myHasAnyApplication, setMyHasAnyApplication] = useState(null);
   const [paywallNotice, setPaywallNotice] = useState('');
   const [profileGateNotice, setProfileGateNotice] = useState('');
   const [messages, setMessages] = useState([]);
@@ -140,6 +77,7 @@ export default function StudioChat() {
   const [lockPanelExpanded, setLockPanelExpanded] = useState(false);
 
   const activateMembershipRef = useRef(false);
+  const paywallAutoActivateRef = useRef(false);
 
   const uid = String(user?.uid || '').trim();
   const mid = String(matchId || '').trim();
@@ -195,10 +133,36 @@ export default function StudioChat() {
     }
   };
 
-  const requireProfile = () => {
-    setProfileGateNotice(t('studio.profileGate.body'));
+  const profileGateMode = useMemo(() => {
+    if (myHasAnyApplication === false) return 'application';
+    if (myHasAnyApplication === true) {
+      if (myHasAnyPhoto === false) return 'photo';
+      if (myHasAnyPhoto === null && myProfileComplete === false) return '';
+      if (myProfileComplete === false) return 'application';
+    }
+    return '';
+  }, [myHasAnyApplication, myHasAnyPhoto, myProfileComplete]);
+
+  const profileGateCta = useMemo(() => {
+    if (profileGateMode === 'photo') return t('studio.profileGate.photoCta');
+    return t('studio.profileGate.cta');
+  }, [profileGateMode, t]);
+
+  const goToProfileCompletionTarget = () => {
+    if (profileGateMode === 'photo') {
+      try {
+        navigate('/profilim', { replace: false, state: { openPhotoManager: true, profileGate: 'photo_required' } });
+      } catch {
+        // noop
+      }
+      return;
+    }
+
     try {
-      if (typeof window !== 'undefined') window.scrollTo({ top: 0, behavior: 'smooth' });
+      navigate('/evlilik/eslestirme-basvuru?w=1', {
+        replace: false,
+        state: { returnTo: `/app/chat/${String(matchId || '').trim()}` },
+      });
     } catch {
       // noop
     }
@@ -217,18 +181,7 @@ export default function StudioChat() {
     };
   }, [profileGateNotice]);
 
-  const activateFreeMembershipNow = async () => {
-      const paywallAutoActivateRef = useRef(false);
-      useEffect(() => {
-        if (!paywallNotice) {
-          paywallAutoActivateRef.current = false;
-          return;
-        }
-        if (paywallAutoActivateRef.current) return;
-        paywallAutoActivateRef.current = true;
-        // Üyelik artık otomatik veriliyor; paywall görünürse best-effort arkada düzelt.
-        activateFreeMembershipNow();
-      }, [paywallNotice]);
+  const activateFreeMembershipNow = useCallback(async () => {
     if (!uid) return;
     if (activateMembershipRef.current) return;
     activateMembershipRef.current = true;
@@ -247,7 +200,17 @@ export default function StudioChat() {
     } finally {
       activateMembershipRef.current = false;
     }
-  };
+  }, [t, uid]);
+
+  useEffect(() => {
+    if (!paywallNotice) {
+      paywallAutoActivateRef.current = false;
+      return;
+    }
+    if (paywallAutoActivateRef.current) return;
+    paywallAutoActivateRef.current = true;
+    void activateFreeMembershipNow();
+  }, [activateFreeMembershipNow, paywallNotice]);
 
   useEffect(() => {
     if (!uid) return;
@@ -311,6 +274,8 @@ export default function StudioChat() {
         setMyLock({ active: false, matchId: '' });
         setMyProfileComplete(true);
         setMyMembership({ active: false });
+        setMyHasAnyPhoto(null);
+        setMyHasAnyApplication(null);
         setMyCommLanguage('');
       }
     );
@@ -319,6 +284,118 @@ export default function StudioChat() {
       cancelled = true;
       try {
         unsub();
+      } catch {
+        // noop
+      }
+    };
+  }, [uid]);
+
+  useEffect(() => {
+    if (!uid) {
+      setMyHasAnyPhoto(null);
+      setMyHasAnyApplication(null);
+      return;
+    }
+
+    const parseAppsSnap = (snap) => {
+      try {
+        const ids = [];
+        let hasPhoto = false;
+        snap.forEach((d) => {
+          const id = safeStr(d?.id);
+          if (id) ids.push(id);
+          if (hasPhoto) return;
+          const data = typeof d?.data === 'function' ? d.data() || {} : d?.data || {};
+          const urls = Array.isArray(data?.photoUrls) ? data.photoUrls : [];
+          if (urls.some((u) => safeStr(u))) hasPhoto = true;
+        });
+        return { ids, hasPhoto };
+      } catch {
+        return null;
+      }
+    };
+
+    const mergeAndSet = (parts) => {
+      const list = Array.isArray(parts) ? parts : [];
+      const idSet = new Set();
+      let hasPhoto = false;
+      for (const part of list) {
+        const ids = Array.isArray(part?.ids) ? part.ids : [];
+        for (const id of ids) idSet.add(String(id));
+        if (part?.hasPhoto) hasPhoto = true;
+      }
+      setMyHasAnyApplication(idSet.size > 0);
+      setMyHasAnyPhoto(!!hasPhoto);
+    };
+
+    const qAppsUserId = query(collection(db, 'matchmakingApplications'), where('userId', '==', uid), limit(10));
+    const qAppsUid = query(collection(db, 'matchmakingApplications'), where('uid', '==', uid), limit(10));
+    const qAppsUserUid = query(collection(db, 'matchmakingApplications'), where('userUid', '==', uid), limit(10));
+
+    let cancelled = false;
+    (async () => {
+      try {
+        const [s1, s2, s3] = await Promise.all([getDocs(qAppsUserId), getDocs(qAppsUid), getDocs(qAppsUserUid)]);
+        if (cancelled) return;
+        mergeAndSet([parseAppsSnap(s1), parseAppsSnap(s2), parseAppsSnap(s3)].filter(Boolean));
+      } catch {
+        // ignore
+      }
+    })();
+
+    const live = { userId: null, uid: null, userUid: null };
+    const applyLive = () => mergeAndSet([live.userId, live.uid, live.userUid].filter(Boolean));
+
+    const unsub1 = onSnapshot(
+      qAppsUserId,
+      (snap) => {
+        live.userId = parseAppsSnap(snap);
+        applyLive();
+      },
+      () => {
+        live.userId = null;
+        applyLive();
+      }
+    );
+
+    const unsub2 = onSnapshot(
+      qAppsUid,
+      (snap) => {
+        live.uid = parseAppsSnap(snap);
+        applyLive();
+      },
+      () => {
+        live.uid = null;
+        applyLive();
+      }
+    );
+
+    const unsub3 = onSnapshot(
+      qAppsUserUid,
+      (snap) => {
+        live.userUid = parseAppsSnap(snap);
+        applyLive();
+      },
+      () => {
+        live.userUid = null;
+        applyLive();
+      }
+    );
+
+    return () => {
+      cancelled = true;
+      try {
+        unsub1();
+      } catch {
+        // noop
+      }
+      try {
+        unsub2();
+      } catch {
+        // noop
+      }
+      try {
+        unsub3();
       } catch {
         // noop
       }
@@ -668,7 +745,7 @@ export default function StudioChat() {
     }
   };
 
-  const autoTranslateMessage = async ({ messageId }) => {
+  const autoTranslateMessage = useCallback(async ({ messageId }) => {
     const msgId = String(messageId || '').trim();
     if (!uid || !mid || !msgId) return;
     try {
@@ -680,7 +757,7 @@ export default function StudioChat() {
     } catch {
       // silent
     }
-  };
+  }, [effectiveTargetLang, mid, uid]);
 
   useEffect(() => {
     if (!uid || !mid) return;
@@ -733,7 +810,7 @@ export default function StudioChat() {
     }, 350);
 
     return () => clearTimeout(timer);
-  }, [effectiveTargetLang, messages, messagesLoading, mid, uid]);
+  }, [autoTranslateMessage, effectiveTargetLang, messages, messagesLoading, mid, uid]);
 
   const sendMessage = async (e) => {
     e?.preventDefault?.();
@@ -866,10 +943,14 @@ export default function StudioChat() {
             </div>
             <p className="mt-1 text-sm text-amber-900/80">{profileGateNotice}</p>
             <div className="mt-3">
-              <Link to="/evlilik/eslestirme-basvuru?w=1" className="app-btn app-btn-sky h-10 px-4">
+              <button
+                type="button"
+                onClick={goToProfileCompletionTarget}
+                className="app-btn app-btn-primary h-10 px-4"
+              >
                 <Unlock className="h-4 w-4" />
-                {t('studio.profileGate.cta')}
-              </Link>
+                {profileGateCta}
+              </button>
             </div>
           </div>
         ) : null}

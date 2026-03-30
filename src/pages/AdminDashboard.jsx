@@ -1,9 +1,9 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { auth } from '../config/firebaseAuth';
 import { db } from '../config/firebaseDb';
 import { signOut } from 'firebase/auth';
 import { useNavigate } from 'react-router-dom';
-import { LogOut, Edit2, Upload } from 'lucide-react';
+import { LogOut, Edit2 } from 'lucide-react';
 import { collection, getDocs, doc, setDoc, getDoc, limit, onSnapshot, orderBy, query, where } from 'firebase/firestore';
 import MatchmakingTab from '../components/admin/MatchmakingTab';
 import WeddingMediaTab from '../components/admin/WeddingMediaTab';
@@ -133,7 +133,7 @@ export default function AdminDashboard() {
     'https://youtube.com/shorts/nfxlrWqq5HI?si=sM09lqmFWjJmuP6E',
     'https://youtube.com/shorts/LNOCVMd2Ndc?si=QgMChHopi8BvN2Ne',
   ]);
-  const [uploading, setUploading] = useState(false);
+  const [, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState({});
   const [toursSettings, setToursSettings] = useState([]);
   const [toursLoading, setToursLoading] = useState(false);
@@ -146,9 +146,9 @@ export default function AdminDashboard() {
   const [matchmakingNewCount, setMatchmakingNewCount] = useState(0);
   const [geminiAlertItems, setGeminiAlertItems] = useState([]);
   const [geminiAlertNewCount, setGeminiAlertNewCount] = useState(0);
-  const [identityPendingCount, setIdentityPendingCount] = useState(0);
-  const [paymentsPendingCount, setPaymentsPendingCount] = useState(0);
-  const [photoUpdatesPendingCount, setPhotoUpdatesPendingCount] = useState(0);
+  const [, setIdentityPendingCount] = useState(0);
+  const [, setPaymentsPendingCount] = useState(0);
+  const [, setPhotoUpdatesPendingCount] = useState(0);
   const [activeMatchesCount, setActiveMatchesCount] = useState(0);
   const matchmakingInitializedRef = useRef(false);
   const lastNotifiedAtRef = useRef(0);
@@ -187,7 +187,7 @@ export default function AdminDashboard() {
             setFirestoreBlockedReason('');
           }
         }
-      } catch (e) {
+      } catch {
         if (!cancelled) {
           setAuthDebug({
             loading: false,
@@ -212,7 +212,7 @@ export default function AdminDashboard() {
     return code === 'permission-denied' || msg.includes('Missing or insufficient permissions');
   };
 
-  const blockFirestoreIfNeeded = (err) => {
+  const blockFirestoreIfNeeded = useCallback((err) => {
     if (!isFirestorePermissionDenied(err)) return false;
     const u = auth?.currentUser || null;
     const email = u?.email ? String(u.email) : '';
@@ -224,13 +224,13 @@ export default function AdminDashboard() {
       `Firestore erişim izni yok (Missing or insufficient permissions). Kullanıcı: ${email || '(email yok)'}${anon ? ' (anonymous)' : ''}. Hata: ${code} ${msg}`
     );
     return true;
-  };
+  }, []);
 
   const markMatchmakingAllRead = () => {
     const now = Date.now();
     try {
       localStorage.setItem('matchmakingLastSeenAt', String(now));
-    } catch (e) {
+    } catch {
       // ignore
     }
     setMatchmakingNewCount(0);
@@ -242,7 +242,7 @@ export default function AdminDashboard() {
       if (!('Notification' in window)) return;
       if (Notification.permission !== 'granted') return;
       new Notification(title, { body });
-    } catch (e) {
+    } catch {
       // ignore
     }
   };
@@ -282,7 +282,7 @@ export default function AdminDashboard() {
     };
 
     fetchImageUrls();
-  }, [firestoreBlocked, weddingOnly]);
+  }, [blockFirestoreIfNeeded, firestoreBlocked, weddingOnly]);
 
   // localStorage + Firestore'dan YouTube Shorts URL'lerini yükle
   useEffect(() => {
@@ -334,7 +334,7 @@ export default function AdminDashboard() {
     };
 
     fetchShorts();
-  }, [firestoreBlocked, weddingOnly]);
+  }, [blockFirestoreIfNeeded, firestoreBlocked, weddingOnly]);
 
   // Matchmaking başvurularını dinle (sadece admin okuyabilir) + yeni başvuru bildirimi
   useEffect(() => {
@@ -352,7 +352,7 @@ export default function AdminDashboard() {
         let lastSeen = 0;
         try {
           lastSeen = Number(localStorage.getItem('matchmakingLastSeenAt') || '0') || 0;
-        } catch (e) {
+        } catch {
           lastSeen = 0;
         }
 
@@ -390,7 +390,7 @@ export default function AdminDashboard() {
     );
 
     return () => unsub();
-  }, [firestoreBlocked]);
+  }, [blockFirestoreIfNeeded, firestoreBlocked]);
 
   // Sistem uyarıları: Gemini çeviri RPM limit aşımları (admin-only read)
   useEffect(() => {
@@ -415,7 +415,7 @@ export default function AdminDashboard() {
     );
 
     return () => unsub();
-  }, [firestoreBlocked]);
+  }, [blockFirestoreIfNeeded, firestoreBlocked]);
 
   // Wedding-only admin sayaçları (tab badge)
   useEffect(() => {
@@ -438,7 +438,7 @@ export default function AdminDashboard() {
     );
 
     return () => unsub();
-  }, [firestoreBlocked, weddingOnly]);
+  }, [blockFirestoreIfNeeded, firestoreBlocked, weddingOnly]);
 
   useEffect(() => {
     if (firestoreBlocked) return;
@@ -456,7 +456,7 @@ export default function AdminDashboard() {
     );
 
     return () => unsub();
-  }, [firestoreBlocked, weddingOnly]);
+  }, [blockFirestoreIfNeeded, firestoreBlocked, weddingOnly]);
 
   useEffect(() => {
     if (firestoreBlocked) return;
@@ -474,7 +474,7 @@ export default function AdminDashboard() {
     );
 
     return () => unsub();
-  }, [firestoreBlocked, weddingOnly]);
+  }, [blockFirestoreIfNeeded, firestoreBlocked, weddingOnly]);
 
   useEffect(() => {
     if (firestoreBlocked) return;
@@ -496,7 +496,7 @@ export default function AdminDashboard() {
     );
 
     return () => unsub();
-  }, [firestoreBlocked, weddingOnly]);
+  }, [blockFirestoreIfNeeded, firestoreBlocked, weddingOnly]);
 
   // Firestore'dan tur tarih ve fiyatlarını yükle
   useEffect(() => {
@@ -567,7 +567,7 @@ export default function AdminDashboard() {
     };
 
     fetchTours();
-  }, [firestoreBlocked, weddingOnly]);
+  }, [blockFirestoreIfNeeded, firestoreBlocked, weddingOnly]);
 
   const formatBytes = (bytes) => {
     if (!Number.isFinite(bytes)) return '';
@@ -603,7 +603,6 @@ export default function AdminDashboard() {
 
         // APP1
         if (marker === 0xffe1) {
-          const length = view.getUint16(offset, false);
           const exifOffset = offset + 2;
 
           // "Exif\0\0"
@@ -721,10 +720,10 @@ export default function AdminDashboard() {
             width: bitmap.width,
             height: bitmap.height,
             cleanup: () => {
-              try { bitmap.close(); } catch (e) {}
+              bitmap.close?.();
             }
           };
-        } catch (e) {
+        } catch {
           // fallback: HTMLImageElement
         }
       }
@@ -749,7 +748,7 @@ export default function AdminDashboard() {
         const dataUrl = canvas.toDataURL(type, q);
         const res = await fetch(dataUrl);
         return await res.blob();
-      } catch (e) {
+      } catch {
         return null;
       }
     };
@@ -759,7 +758,7 @@ export default function AdminDashboard() {
     let drawable;
     try {
       drawable = await loadDrawableSource(inputFile);
-    } catch (e) {
+    } catch {
       throw new Error(
         'Bu görsel tarayıcıda işlenemiyor (bozuk/CMYK olabilir). Lütfen görseli JPG (sRGB) olarak yeniden dışa aktarın ve tekrar deneyin.'
       );
@@ -912,7 +911,7 @@ export default function AdminDashboard() {
                 return;
               }
               reject(new Error(`Cloudinary upload başarısız (${xhr.status}): ${parsed?.error?.message || xhr.responseText}`));
-            } catch (parseErr) {
+            } catch {
               reject(new Error(`Cloudinary upload başarısız (${xhr.status}): ${xhr.responseText}`));
             }
           };
@@ -1139,7 +1138,7 @@ export default function AdminDashboard() {
     if (activeTab === 'islands') {
       return (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {Object.entries(ISLANDS_DATA).map(([key, island]) => (
+          {Object.entries(ISLANDS_DATA).map(([, island]) => (
             <ImageCard
               key={island.heroId}
               imageId={island.heroId}
@@ -1181,7 +1180,7 @@ export default function AdminDashboard() {
     if (activeTab === 'destHero') {
       return (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {Object.entries(ISLANDS_DATA).map(([key, island]) => (
+          {Object.entries(ISLANDS_DATA).map(([, island]) => (
             <ImageCard
               key={`${island.heroId}-dest-hero`}
               imageId={`${island.heroId}-dest-hero`}
@@ -1357,7 +1356,7 @@ export default function AdminDashboard() {
                 {tour.name} - Turdan Kareler Galerisi
               </h3>
               <p className="text-xs text-gray-500">
-                Buradan tur detay sayfasındaki "Turdan Kareler" bölümünde görünen görselleri yönetebilirsiniz.
+                Buradan tur detay sayfasındaki &quot;Turdan Kareler&quot; bölümünde görünen görselleri yönetebilirsiniz.
                 Bu tur için hiç resim eklemezseniz, varsayılan galeri görselleri kullanılmaya devam eder.
               </p>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -1587,7 +1586,7 @@ export default function AdminDashboard() {
         <div className="bg-white rounded-xl shadow p-6">
           <h2 className="text-lg font-semibold text-gray-800 mb-2">Tur Sayfası – YouTube Shorts (4 video)</h2>
           <p className="text-sm text-gray-600 mb-4">
-            Bu alana gireceğiniz URL\'ler tur kartlarının altında 2x2 olarak gözükecek ve video site içinde oynatılacaktır (YouTube\'a yönlendirme yok).
+            Bu alana gireceğiniz URL&apos;ler tur kartlarının altında 2x2 olarak gözükecek ve video site içinde oynatılacaktır (YouTube&apos;a yönlendirme yok).
           </p>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1640,7 +1639,7 @@ export default function AdminDashboard() {
               {authDebug.email ? ` • ${authDebug.email}` : ''}
             </p>
             <p className="text-xs text-amber-800 mt-1">
-              Not: Görsel yükleme (Cloudinary) çalışır; fakat Firestore yazma/okuma kapalıysa "Kaydet" sadece bu tarayıcıda (localStorage) etkili olur.
+              Not: Görsel yükleme (Cloudinary) çalışır; fakat Firestore yazma/okuma kapalıysa &quot;Kaydet&quot; sadece bu tarayıcıda (localStorage) etkili olur.
             </p>
           </div>
         )}
@@ -1892,7 +1891,7 @@ export default function AdminDashboard() {
       {!weddingOnly && (
         <div className="bg-blue-50 border-l-4 border-blue-500 p-4 max-w-7xl mx-auto mb-8">
           <p className="text-sm text-blue-800">
-            <strong>Dosya Yükleme:</strong> Resim dosyasını seç veya URL gir. Bu projede dosyalar Cloudinary'ye yüklenip URL Firestore'a kaydedilir. 10MB üzeri görseller otomatik sıkıştırılır ve yeni boyut gösterilir.
+            <strong>Dosya Yükleme:</strong> Resim dosyasını seç veya URL gir. Bu projede dosyalar Cloudinary&apos;ye yüklenip URL Firestore&apos;a kaydedilir. 10MB üzeri görseller otomatik sıkıştırılır ve yeni boyut gösterilir.
           </p>
           <p className="text-xs text-blue-700 mt-2">
             <strong>Cloudinary durum:</strong> upload preset {cloudinaryUploadPreset ? 'OK' : 'EKSİK'} | cloud name: {cloudinaryCloudName}

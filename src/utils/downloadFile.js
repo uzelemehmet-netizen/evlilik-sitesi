@@ -25,8 +25,8 @@ export function downloadJson({ filename, data }) {
 
 function escapeCsvValue(v) {
   const s = String(v ?? "");
-  const mustQuote = /[\n\r\t,\"]/g.test(s);
-  const escaped = s.replace(/\"/g, '""');
+  const mustQuote = /[\n\r\t,"]/g.test(s);
+  const escaped = s.replace(/"/g, '""');
   return mustQuote ? `"${escaped}"` : escaped;
 }
 

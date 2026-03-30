@@ -100,6 +100,7 @@ export default function MatchmakingLeadNoAuth() {
   });
 
   const disabled = sending || photoState.uploading || !!successId;
+  const sectionCardClass = 'rounded-[24px] border border-slate-200/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(248,250,252,0.92))] p-4 shadow-[0_14px_40px_rgba(15,23,42,0.06)]';
 
   useEffect(() => {
     if (!successId) return;
@@ -204,7 +205,6 @@ export default function MatchmakingLeadNoAuth() {
     try {
       for (const file of list) {
         // read current count from latest state by functional update
-        // eslint-disable-next-line no-await-in-loop
         const res = await uploadImageToCloudinaryAuto(file, {
           folder: 'uniqah/matchmakingLeads',
           tags: ['matchmaking', 'lead'],
@@ -335,12 +335,16 @@ export default function MatchmakingLeadNoAuth() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="relative min-h-screen overflow-hidden bg-[linear-gradient(180deg,#fffaf3_0%,#fffdf8_30%,#f8fafc_100%)]">
+      <div aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden">
+        <div className="absolute -top-20 right-[-40px] h-56 w-56 rounded-full bg-[radial-gradient(circle_at_center,rgba(251,191,36,0.18),rgba(251,191,36,0)_68%)] blur-3xl" />
+        <div className="absolute top-56 left-[-60px] h-64 w-64 rounded-full bg-[radial-gradient(circle_at_center,rgba(244,114,182,0.10),rgba(244,114,182,0)_70%)] blur-3xl" />
+      </div>
       <Navigation />
 
-      <div className="max-w-3xl mx-auto px-4 py-10">
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
-          <div className="mb-4 rounded-xl border border-slate-200 bg-slate-50 p-4">
+      <div className="relative mx-auto max-w-4xl px-4 py-8 md:py-10">
+        <div className="rounded-[30px] border border-white/80 bg-white/86 p-5 shadow-[0_30px_90px_rgba(148,163,184,0.16)] backdrop-blur-xl md:p-8">
+          <div className="mb-5 rounded-[24px] border border-amber-200/80 bg-[linear-gradient(135deg,#fff9e8,#fff2d2)] p-4 shadow-[0_16px_44px_rgba(245,158,11,0.12)]">
             <div className="text-sm font-semibold text-slate-900">{t('leadNoAuth.info.title')}</div>
             <ul className="mt-2 list-disc pl-5 text-sm text-slate-700 space-y-1">
               <li>{t('leadNoAuth.info.b1')}</li>
@@ -352,10 +356,12 @@ export default function MatchmakingLeadNoAuth() {
             </ul>
           </div>
 
-          <h1 className="text-xl md:text-2xl font-bold text-slate-900">{t('leadNoAuth.title')}</h1>
-          <p className="mt-2 text-sm text-slate-600">{t('leadNoAuth.subtitle')}</p>
+          <div className="rounded-[24px] border border-slate-200/80 bg-white/72 p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.95),0_14px_34px_rgba(148,163,184,0.08)]">
+            <h1 className="text-xl font-bold text-slate-900 md:text-2xl">{t('leadNoAuth.title')}</h1>
+            <p className="mt-2 max-w-2xl text-sm leading-relaxed text-slate-600">{t('leadNoAuth.subtitle')}</p>
+          </div>
 
-          <div className="mt-6 grid grid-cols-1 gap-4">
+          <div className="mt-6 grid grid-cols-1 gap-4 rounded-[26px] border border-slate-200/80 bg-white/72 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.95),0_20px_60px_rgba(148,163,184,0.12)] backdrop-blur-sm md:p-5">
             <div>
               <label className="text-sm font-semibold text-slate-900">{t('leadNoAuth.fields.gender')} *</label>
               <select
@@ -408,8 +414,8 @@ export default function MatchmakingLeadNoAuth() {
               </div>
             </div>
 
-            <div className="flex flex-wrap items-end gap-4">
-              <div className="w-32">
+            <div className="grid grid-cols-2 items-end gap-4 sm:flex sm:flex-wrap">
+              <div className="w-full sm:w-32">
                 <label className="text-sm font-semibold text-slate-900">{t('leadNoAuth.fields.heightCm')}</label>
                 <input
                   type="number"
@@ -423,7 +429,7 @@ export default function MatchmakingLeadNoAuth() {
                   placeholder={t('leadNoAuth.placeholders.heightCm')}
                 />
               </div>
-              <div className="w-32">
+              <div className="w-full sm:w-32">
                 <label className="text-sm font-semibold text-slate-900">{t('leadNoAuth.fields.weightKg')}</label>
                 <input
                   type="number"
@@ -483,7 +489,7 @@ export default function MatchmakingLeadNoAuth() {
             </div>
 
             {form.hasChildren === 'yes' ? (
-              <div className="rounded-xl border border-slate-200 p-4">
+              <div className={sectionCardClass}>
                 <div className="text-sm font-semibold text-slate-900">{t('leadNoAuth.children.title')}</div>
                 <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
@@ -583,7 +589,7 @@ export default function MatchmakingLeadNoAuth() {
               </select>
             </div>
 
-            <div className="rounded-xl border border-slate-200 p-4">
+            <div className={sectionCardClass}>
               <div className="text-sm font-semibold text-slate-900">{t('leadNoAuth.religious.title')}</div>
               <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-2 text-sm text-slate-800">
                 <label className="flex items-start gap-2">
@@ -696,7 +702,7 @@ export default function MatchmakingLeadNoAuth() {
               ) : null}
             </div>
 
-            <div id="lead_photos" tabIndex={-1} className="rounded-xl border border-slate-200 p-4">
+            <div id="lead_photos" tabIndex={-1} className={sectionCardClass}>
               <div className="flex items-center justify-between gap-3">
                 <div>
                   <div className="text-sm font-semibold text-slate-900">{t('leadNoAuth.fields.photo')} *</div>
@@ -753,7 +759,7 @@ export default function MatchmakingLeadNoAuth() {
               ) : null}
             </div>
 
-            <div className="mt-2">
+            <div className={`${sectionCardClass} mt-2`}>
               <h2 className="text-base font-bold text-slate-900">{t('leadNoAuth.partner.title')}</h2>
               <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
@@ -887,7 +893,7 @@ export default function MatchmakingLeadNoAuth() {
               </div>
             </div>
 
-            <div className="rounded-xl border border-slate-200 p-4">
+            <div className={sectionCardClass}>
               <div className="text-sm font-semibold text-slate-900">{t('leadNoAuth.checklist.title')} *</div>
               <label className="mt-3 flex items-start gap-2 text-sm text-slate-800">
                 <input
@@ -913,16 +919,18 @@ export default function MatchmakingLeadNoAuth() {
               </label>
             </div>
 
-            <button
-              type="button"
-              disabled={disabled}
-              onClick={submit}
-              className="px-4 py-3 rounded-lg bg-rose-600 text-white text-sm font-semibold hover:bg-rose-700 disabled:opacity-60"
-            >
-              {sending ? t('leadNoAuth.actions.sending') : t('leadNoAuth.actions.submit')}
-            </button>
+            <div className="rounded-[24px] border border-slate-200/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.96),rgba(248,250,252,0.92))] p-3 shadow-[0_14px_40px_rgba(15,23,42,0.06)]">
+              <button
+                type="button"
+                disabled={disabled}
+                onClick={submit}
+                className="w-full rounded-xl bg-gradient-to-r from-rose-500 to-rose-600 px-4 py-3 text-sm font-semibold text-white shadow-[0_16px_40px_rgba(225,29,72,0.22)] hover:brightness-105 disabled:opacity-60"
+              >
+                {sending ? t('leadNoAuth.actions.sending') : t('leadNoAuth.actions.submit')}
+              </button>
 
-            {error ? <div className="text-sm text-rose-700">{error}</div> : null}
+              {error ? <div className="mt-3 text-sm text-rose-700">{error}</div> : null}
+            </div>
           </div>
         </div>
       </div>

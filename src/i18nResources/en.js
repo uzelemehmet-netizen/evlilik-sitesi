@@ -45,6 +45,7 @@ export default {
         ios: {
           title: 'For iPhone/iPad (Safari)',
           step1: 'Open the site in Safari.',
+          step2: 'Tap Share (the square with the upward arrow).',
           matchmakingHub: 'Find a match',
           matchmakingHint: "Don't have a match yet? Join our matchmaking system and find match candidates here.",
           step3: 'Choose “Add to Home Screen” and confirm.',
@@ -353,6 +354,20 @@ export default {
       contact: 'Contact',
       social: 'Social',
       showEmailFallback: 'Having trouble? Continue with email',
+      preview: {
+        matches: {
+          title: 'My Profile: Matches',
+          body: 'Matches, requests and chats are managed from the My Profile screen.',
+        },
+        pool: {
+          title: 'Pool: Candidates',
+          body: 'You can browse candidates and send requests or likes.',
+        },
+        request: {
+          title: 'Send a match request',
+          body: 'These buttons are a preview. To perform real actions, you must sign up and complete the application form first.',
+        },
+      },
     },
     links: {
       membership: 'Membership',
@@ -364,9 +379,19 @@ export default {
       kvkkNotice: 'Personal Data Notice (KVKK)',
       siteRules: 'Site Rules',
       refundPolicy: 'Cancellation & Refund Policy',
+      privacyPolicy: 'Privacy Policy',
         confirmError: 'Confirmation failed: {{error}}',
         contactRequestError: 'Contact request failed: {{error}}',
         contactApproveError: 'Contact approval failed: {{error}}',
+      title: 'Company Information',
+      labels: {
+        legalName: 'Legal name',
+        address: 'Address',
+        tax: 'Tax',
+        nib: 'NIB',
+      },
+    },
+    companyInfo: {
       title: 'Company Information',
       labels: {
         legalName: 'Legal name',
@@ -409,6 +434,20 @@ export default {
       step2: {
         title: 'Guidance process (2/2)',
         body: 'We run our guidance service on the ground in Indonesia as a Turkish team living here. We support friends coming to Indonesia for marriage at every step—from airport pickup to taking you and your spouse to the airport on your return.',
+      },
+    },
+    preview: {
+      matches: {
+        title: 'My Profile: Matches',
+        body: 'Matches, requests and chats are managed from the My Profile screen.',
+      },
+      pool: {
+        title: 'Pool: Candidates',
+        body: 'You can browse candidates and send requests or likes.',
+      },
+      request: {
+        title: 'Send a match request',
+        body: 'These buttons are a preview. To perform real actions, you must sign up and complete the application form first.',
       },
     },
     onboarding: {
@@ -493,10 +532,6 @@ export default {
       lastSeenHours_other: 'Last active: {{count}} hours ago',
       lastSeenDays_one: 'Last active: {{count}} day ago',
       lastSeenDays_other: 'Last active: {{count}} days ago',
-    },
-
-    errors: {
-      generic: 'Error',
     },
 
     referral: {
@@ -633,6 +668,14 @@ export default {
       actionsSoon: 'Coming soon: short message',
       notInTheirRange: 'To interact, you must be within their age range.',
       notInTheirRangeShort: 'Age range mismatch',
+      optionalDetailsRecommendation: {
+        title: 'You can finish the remaining details later',
+        body: 'Your required fields are complete. If you want, you can now fill the remaining profile and preference details for better match suggestions. If you choose later, you can keep using Explore.',
+        actions: {
+          ok: 'OK',
+          later: 'Later',
+        },
+      },
     },
 
     waitingNote: {
@@ -651,8 +694,10 @@ export default {
     profileGate: {
       important: 'IMPORTANT',
       title: 'Complete your profile',
-      body: 'Because this system brings together people who intend to marry, you need to fill out the profile form to interact with other users.',
-      cta: 'Fill the profile form',
+      body: 'You can browse pages, but to interact with other users you need to complete the profile form and finish creating your profile.',
+      photoBody: 'You have already filled the form. To interact now, you need to upload at least 1 photo. Please add it from the My Photos section.',
+      cta: 'Fill the form',
+      photoCta: 'Upload photo',
       badge: 'Unknown user',
     },
 
@@ -1022,6 +1067,16 @@ export default {
       membershipActive: 'Active',
       membershipPassive: 'Inactive',
       endsAt: 'Ends',
+      completeProfileTutorial: {
+        title: 'Complete your profile',
+        body: 'To interact, please complete the profile form and finish creating your profile (including at least 1 photo).',
+        photoBody: 'Your form is already saved. To interact now, you need to upload at least 1 photo. Go to My Photos and add a photo.',
+        actions: {
+          ok: 'Fill the form',
+          uploadPhoto: 'Upload photo',
+          later: 'Not now',
+        },
+      },
       editProfile: 'Edit profile',
       myMatches: 'My matches',
       logout: 'Logout',
@@ -1128,6 +1183,10 @@ export default {
         points: {
           optional: 'It is not mandatory; it is an optional trust badge.',
           privacy: 'Verification details are not shared outside verification purposes.',
+          matchmakingHub: 'Matchmaking hub',
+          matchmakingHint: 'You can join the matchmaking flow if you do not have a spouse candidate yet.',
+          verifyMethodUpload: 'Upload ID photos',
+          verifyMethodWhatsApp: 'WhatsApp video call',
           destroy: 'After verification is completed, submitted verification files/data are not kept permanently.',
           deleteAccount: 'You can delete your account anytime to remove your profile and match data.',
           sorting: 'Verified profiles are shown at the top in Explore.',
@@ -1297,6 +1356,8 @@ export default {
       prompts: {
         blockReason: 'Block reason (optional):',
         noteOptional: 'Note (optional):',
+        matchmakingHub: 'Open matchmaking hub?',
+        matchmakingHint: 'Open the user-facing matchmaking hub in a new tab if you need to inspect the public flow.',
       },
       defaults: {
         whatsappVerificationNote: 'WhatsApp verification',
@@ -1681,7 +1742,7 @@ export default {
         { title: 'They review and approve', desc: 'If approved, both sides can see each other in “My Matches”.' },
         { title: 'Interact on the match card', desc: 'Likes, short messages and detailed profile review become available at this stage.' },
         { title: 'Active match (48 hours)', desc: 'When likes are mutual, an active match starts: translation-assisted chat opens and other profiles are locked.' },
-        { title: 'Contact sharing & support', desc: 'After 48 hours, contact sharing can be approved; you can request interpreter video call or background checks via support.' },
+        { title: 'Contact sharing & support', desc: 'After 48 hours, contact sharing can be approved; you can request interpreter calls and optional extra review support via WhatsApp.' },
       ],
     },
 
@@ -1759,7 +1820,7 @@ export default {
 
     trust: {
       title: 'Designed for trust',
-      subtitle: 'The system progresses with privacy, moderation, and controlled communication steps.',
+      subtitle: 'Designed for serious marriage intent. The system progresses with privacy, moderation, and controlled communication steps; policy violations/bad intent may lead to restrictions after review.',
       badge: 'Privacy • Moderation • Controlled communication',
       cards: {
         privacy: {
@@ -1767,12 +1828,12 @@ export default {
           desc: 'Your profile is not publicly published; it is shown only in-process via your panel.',
         },
         review: {
-          title: 'Control & moderation',
-          desc: 'Reporting and review flows help prevent and stop bad actors quickly.',
+          title: 'Serious intent & moderation',
+          desc: 'Reporting and review flows help restrict scams and inappropriate behavior quickly.',
         },
         support: {
           title: 'Support',
-          desc: 'If you get stuck, you can reach us via WhatsApp.',
+          desc: 'If you get stuck, you can reach us via WhatsApp (including optional extra review requests).',
         },
       },
     },
@@ -1825,6 +1886,7 @@ export default {
       actions: {
         openForm: "Open the Wedding Plan Form",
         matchmakingHub: "Matchmaking",
+        matchmakingHint: 'Don’t have a match yet? Join the matchmaking flow and browse candidate profiles here.',
         matchmakingApply: 'Apply for matchmaking',
         quickChat: "Quick chat on WhatsApp",
         enableNotifications: 'Enable notifications',
@@ -2021,6 +2083,9 @@ export default {
       quiz: {
         introTitle: 'Step-by-step Wedding Plan Quiz',
         introText: 'Complete it in 2–3 minutes, then send your answers to us on WhatsApp.',
+        introItems: [
+          'If you do not have a spouse candidate yet, use the matchmaking flow first so the system can suggest candidates and notify you when suitable profiles appear.',
+        ],
         start: 'Start planning',
         back: 'Back',
         next: 'Next',
@@ -2228,6 +2293,13 @@ export default {
           hint:
             "You can select multiple options. If you're not sure, you can leave them blank.",
           options: {
+            consulting: 'Consulting',
+            paperworkTracking: 'Paperwork tracking',
+            familyCommunication: 'Family communication',
+            transport: 'Transport',
+            interpretation: 'Interpretation',
+            ongoingGuidance: 'Ongoing guidance',
+            honeymoon: 'Honeymoon',
             accommodation: "Accommodation",
             communicationInterpretation: 'Communication interpretation (partner and/or family)',
             research: 'Research',
@@ -2569,8 +2641,8 @@ export default {
           description: 'WhatsApp-based support; multi-language help when needed.',
         },
         {
-          title: "Legal structure",
-          description: "Uniqah is a brand operated under PT MoonStar Global Indonesia.",
+          title: 'Founders & legal',
+          description: 'Uniqah was founded by a Turkish–Indonesian couple and is operated under PT MoonStar Global Indonesia.',
         },
       ],
     },
@@ -2995,6 +3067,8 @@ export default {
       editOnce: {
         usernameLocked: 'In edit mode, the username cannot be changed (one-time fix).',
         photosLocked: 'In edit mode, photo updates are disabled. You can only fix form fields.',
+        oneTimeWarning:
+          'Warning: This correction right is limited to one use only. Review everything carefully before submitting.',
       },
     },
     partnerAgeMin: 'Min age',
@@ -3019,12 +3093,17 @@ export default {
     infos: {
       startingGoogle: 'Opening Google sign-in…',
       inAppBrowserGoogleRedirect: 'Your browser may block popups. Redirecting to Google sign-in…',
+      accountExistsTryLogin: 'You already have an account. Please try signing in with your email and password.',
     },
     redirectScreen: {
       title: 'Redirecting…',
       body: 'Opening your profile. If this takes too long, you can continue using the button below.',
       goProfile: 'Go to my profile',
       refresh: 'Refresh',
+    },
+    trustNote: {
+      title: 'Designed for serious marriage intent',
+      body: 'Uniqah is a marriage-oriented system founded by a Turkish-Indonesian couple. Accounts may be restricted after review for policy violations or bad intent; if you request it through our WhatsApp line, we can conduct more detailed research about the marriage candidate you met and help you build trust between you.',
     },
     signupGuide: 'To sign up, continue with Google, then complete the matchmaking form.',
     signupExistingAccountHint: 'If you already have an account, sign in with Google.',
@@ -3198,11 +3277,6 @@ export default {
       privacy: 'Privacy Policy',
     },
     resetSent: 'A password reset link has been sent to your email.',
-    infos: {
-      accountExistsTryLogin: 'You already have an account. Please try signing in with your email and password.',
-      inAppBrowserGoogleRedirect:
-        'Google sign-in may not work inside in-app browsers. We’re opening Google sign-in using redirect…',
-    },
     errors: {
       noAccountFoundSignupRequired:
         "We couldn't find an account for this Google login. You need to sign up first. We've switched you to sign-up—please choose gender/nationality, enter your age, and try again.",
@@ -3221,6 +3295,10 @@ export default {
         'Firebase Auth configuration is invalid. Check `VITE_FIREBASE_*` values in `.env.local` (and Vercel env).',
       googleInAppBlocked:
         'Google sign-in may be blocked inside this in-app browser. Please use “Open in browser” (Chrome/Safari) and try again, or continue with email.',
+      googlePopupBlocked:
+        'Your browser blocked the Google popup. Please allow popups and try again. If it still fails, open the page in Chrome/Safari or continue with email.',
+      googlePopupClosed:
+        'The Google window was closed before sign-in completed. Please try again.',
       googleRedirectNoResult:
         'Google sign-in did not complete after returning from Google. Please try again, or continue with email/password.',
       googleFailed: 'Google sign-in failed.',
@@ -3413,7 +3491,7 @@ export default {
     profileForm: {
       loading: 'Loading form…',
       empty: 'No matchmaking application form found yet. Please fill the form first.',
-      openOriginalEditOnce: 'Open original form (edit once)',
+      openOriginalEditOnce: 'Open application form',
       detailsToggle: 'Show application details',
       applicationId: 'Application ID',
       applicantNationality: 'Your nationality',
@@ -3422,14 +3500,13 @@ export default {
       partnerGender: "The person you're looking for: gender",
       moreDetailsTitle: 'More details',
       partnerPrefsTitle: 'Partner preferences',
-      editOnceTitle: 'Fix the form (one-time)',
-      editOnceLead:
-        'If you left fields empty or entered something wrong, you can update it here. This can be used only once (cannot be changed again after saving).',
-      editOnceCta: 'Save changes (one-time)',
+      editOnceTitle: 'Update the form',
+      editOnceLead: 'You can update your application information and save changes anytime.',
+      editOnceCta: 'Save changes',
       editOnceSaving: 'Saving…',
       editOnceSuccess: 'Update received. Your form has been updated.',
-      editOnceUsed: 'Profile information can be updated only once. Your request failed because you have no edits left.',
-      editOnceWarning: 'Warning: this is a one-time edit. Please make sure your information is correct before submitting.',
+      editOnceUsed: 'Form update request failed.',
+      editOnceWarning: 'Note: You can update the form anytime.',
       editOnceErrors: {
         failed: 'Update failed. Please try again.',
         empty: 'You cannot submit an empty update. Please fill at least one field.',
@@ -4314,19 +4391,21 @@ export default {
         step: 'Step {{current}} / {{total}}',
         back: 'Back',
         backPage: 'Back to previous page',
-        next: 'Next',
+        next: 'Continue',
+        finish: 'Finish',
+        completeCta: 'Complete',
         steps: {
           basic: {
-            title: 'Contact & basics',
-            desc: 'Let’s start with your core info and contact details.',
+            title: 'Required information',
+            desc: 'Enter the core details needed to complete your application.',
           },
           details: {
-            title: 'Details',
-            desc: 'Let’s clarify lifestyle and communication preferences.',
+            title: 'Optional details',
+            desc: 'Add extra information if you want us to know you better.',
           },
           identity: {
-            title: 'Me & who I’m looking for',
-            desc: 'Select your nationality, gender and preferences.',
+            title: 'Who you are looking for',
+            desc: 'In the last step, you can describe the qualities you want in a partner.',
           },
           photos: {
             title: 'Photos & intro',
@@ -4337,10 +4416,23 @@ export default {
             desc: 'Choose preferences and complete your application.',
           },
         },
+        checkpoints: {
+          basic: {
+            body: 'You can finish the form here, or continue to step 2 to help us find the most accurate candidate for you.',
+          },
+          details: {
+            body: 'You can finish the form here, or continue to the last step to describe the qualities you want in a partner.',
+          },
+        },
+        complete: {
+          body: 'Thank you for filling in all the details. You made the right decision to help us find the right person for you.',
+        },
       },
       editOnce: {
         usernameLocked: 'In edit mode, the username cannot be changed (one-time fix).',
         photosLocked: 'In edit mode, photo updates are disabled. You can only fix form fields.',
+        oneTimeWarning:
+          'Warning: This form correction right is limited to one use only. Review everything carefully before submitting.',
       },
       photo: {
         choose: 'Choose file',
@@ -4422,7 +4514,7 @@ export default {
         partnerSmokingPreference: 'Partner smoking preference',
         partnerAlcoholPreference: 'Partner alcohol preference',
         photo: 'Photo',
-        photos: 'Photos (3)',
+        photos: 'Photos (1 required, up to 5)',
         photo1: 'Photo 1',
         photo2: 'Photo 2',
         photo3: 'Photo 3',
@@ -4576,7 +4668,7 @@ export default {
           'Note: After selecting your native language, it may not appear below. If you don’t know any, choose “I don’t speak any foreign languages”.',
       },
       photoHint:
-        'Upload image files only. The system compresses and uploads automatically (tip: clear, recent and showing your face).',
+        'At least 1 photo is required, and you can upload up to 5 photos if you want. Upload image files only; the system compresses and uploads automatically (tip: clear, recent and showing your face).',
       consents: {
         age: 'I confirm that I am older than {{minAge}}.',
         privacy:
@@ -4600,6 +4692,7 @@ export default {
         consent18Plus: 'To continue, you must confirm that you are {{minAge}}+.',
         consentPrivacy: 'To continue, you must accept the privacy policy.',
         consentPhotoShare: 'To continue, you must accept the photo consent.',
+        editOnceUsed: 'Your one-time form correction right has already been used.',
         permissionDenied:
           'Could not submit the application (permission error). Please sign in with the correct account or check Firestore rules.',
         honeypotTriggered:

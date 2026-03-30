@@ -5,11 +5,21 @@ function safeStr(v) {
 }
 
 function normalizeEventKey(raw) {
-  const s = safeStr(raw).toLowerCase();
+  // IMPORTANT:
+  // - Event keys are stored as map keys under clickStats.events.{eventKey}.
+  // - Firestore rejects certain characters in field names/paths and can throw during merges.
+  // - Firebase Auth error codes often contain '/', e.g. 'auth/popup-blocked'.
+  // To avoid silent loss of the most important diagnostics, sanitize aggressively.
+  const s0 = safeStr(raw).toLowerCase();
+  if (!s0) return '';
+
+  const s = s0
+    .replace(/[^a-z0-9:_-]+/g, '_') // includes '/', '.', spaces, etc.
+    .replace(/_+/g, '_')
+    .replace(/^_+|_+$/g, '');
+
   if (!s) return '';
-  if (s.length > 120) return '';
-  // allow: a-z 0-9 : _ - / .
-  if (!/^[a-z0-9:_\-/\.]+$/.test(s)) return '';
+  if (s.length > 120) return s.slice(0, 120);
   return s;
 }
 
@@ -34,6 +44,8 @@ function normalizeCountryCode(raw) {
   const s = safeStr(raw).toUpperCase();
   if (!s) return 'UN';
   if (s === 'XX' || s === 'ZZ') return 'UN';
+  // Some upstream systems incorrectly use 'TL' for Turkey; normalize it.
+  if (s === 'TL') return 'TR';
   if (!/^[A-Z]{2}$/.test(s)) return 'UN';
   return s;
 }
@@ -63,6 +75,14 @@ function normalizeTzOffsetMin(raw) {
   // JS getTimezoneOffset range is typically [-840, 840]
   if (v < -900 || v > 900) return null;
   return v;
+}
+
+function normalizeUaHint(raw) {
+  const s = safeStr(raw).toLowerCase();
+  if (!s) return '';
+  if (s.length > 40) return '';
+  if (!/^[a-z0-9:_-]+$/.test(s)) return '';
+  return s;
 }
 
 function detectCountryFromHeaders(headers) {
@@ -106,6 +126,7 @@ export default async function handler(req, res) {
     const lang = normalizeLang(body?.lang);
     const tz = normalizeTimezone(body?.tz);
     const tzOffsetMin = normalizeTzOffsetMin(body?.tzOffsetMin);
+    const uaHint = normalizeUaHint(body?.uaHint);
 
     if (!eventKey || !anonId) {
       res.statusCode = 400;
@@ -152,6 +173,7 @@ export default async function handler(req, res) {
           country,
           ...(lang ? { lang } : {}),
           ...(tz ? { tz } : {}),
+          ...(uaHint ? { uaHint } : {}),
           ...(typeof tzOffsetMin === 'number' ? { tzOffsetMin } : {}),
           createdAt: FieldValue.serverTimestamp(),
           createdAtMs: nowMs,
@@ -174,6 +196,7 @@ export default async function handler(req, res) {
         country,
         ...(lang ? { lang } : {}),
         ...(tz ? { tz } : {}),
+        ...(uaHint ? { uaHint } : {}),
         ...(typeof tzOffsetMin === 'number' ? { tzOffsetMin } : {}),
         createdAt: FieldValue.serverTimestamp(),
         createdAtMs: nowMs,

@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Menu } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { isFeatureEnabled } from "../config/siteVariant";
@@ -28,12 +28,12 @@ export default function Navigation({ variant = 'default' } = {}) {
   const currentLang = (i18n.language || "tr").split("-")[0];
 
   // Aktif sayfayı kontrol et
-  const isActive = (path) => {
+  const isActive = useCallback((path) => {
     if (path === "/") {
       return location.pathname === "/";
     }
     return location.pathname.startsWith(path);
-  };
+  }, [location.pathname]);
 
   const trackNav = (to) => {
     try {
@@ -74,7 +74,7 @@ export default function Navigation({ variant = 'default' } = {}) {
         : []),
       { to: "/contact", label: t("navigation.contact"), active: isActive("/contact") },
     ],
-    [location.pathname, showWedding, t]
+    [isActive, showWedding, t]
   );
 
   return (

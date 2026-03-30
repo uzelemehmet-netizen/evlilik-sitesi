@@ -275,7 +275,6 @@ async function bootI18n() {
   } catch (e) {
     // i18n init should not block the app boot.
     try {
-      // eslint-disable-next-line no-console
       console.error('i18n_init_failed', e);
     } catch {
       // ignore
@@ -397,7 +396,6 @@ try {
         navHint: detectFromNavigator(),
         documentLang: typeof document !== 'undefined' ? document.documentElement?.lang : null,
       };
-      // eslint-disable-next-line no-console
       console.log('[i18n debug]', snapshot);
       return snapshot;
     };
@@ -412,7 +410,6 @@ try {
       // ignore
     }
 
-    // eslint-disable-next-line no-console
     console.log('[i18n debug] helpers installed', {
       isDev,
       isLocalhost,

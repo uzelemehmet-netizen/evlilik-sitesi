@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { fetchSignInMethodsForEmail, sendPasswordResetEmail, signInWithEmailAndPassword, signOut } from 'firebase/auth';
 import { auth } from '../config/firebaseAuth';
 import { useNavigate } from 'react-router-dom';
@@ -164,7 +164,7 @@ export default function AdminLogin() {
             } else {
               setDebug((p) => (p ? `${p}\nmethods=${list || '-'}` : `methods=${list || '-'}`));
             }
-          } catch (e2) {
+          } catch {
             // ignore
           }
         }

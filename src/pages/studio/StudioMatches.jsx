@@ -16,79 +16,14 @@ import { openPreviewGate } from '../../utils/previewGate';
 import { buildPreviewMatches } from '../../utils/studioPreviewData';
 import StudioBottomNav from '../../components/studio/StudioBottomNav';
 import { isTutorialActive } from '../../utils/tutorialState.js';
+import { hasMinimumMatchmakingProfileInUserDoc } from '../../utils/matchmakingProfileCompletion';
 
 function safeStr(v) {
   return typeof v === 'string' ? v.trim() : '';
 }
 
-function asNum(v) {
-  if (v === null || v === undefined) return null;
-  if (typeof v === 'string') {
-    const t = v.trim();
-    if (!t) return null;
-    const n = Number(t);
-    return Number.isFinite(n) ? n : null;
-  }
-  const n = typeof v === 'number' ? v : Number(v);
-  return Number.isFinite(n) ? n : null;
-}
-
-function normalizeGenderValue(v) {
-  const s = safeStr(v).toLowerCase();
-  if (s === 'male' || s === 'm' || s === 'man' || s === 'erkek') return 'male';
-  if (s === 'female' || s === 'f' || s === 'woman' || s === 'kadin' || s === 'kadın') return 'female';
-  return '';
-}
-
-function normalizeMaritalStatus(v) {
-  return safeStr(v).toLowerCase();
-}
-
 function isMinimumProfileCompleteFromUserDoc(d) {
-  const userDoc = d && typeof d === 'object' ? d : {};
-  const appFromUser = userDoc?.application && typeof userDoc.application === 'object' ? userDoc.application : null;
-  const publicProfile = userDoc?.publicProfile && typeof userDoc.publicProfile === 'object' ? userDoc.publicProfile : null;
-  const merged = {
-    ...(publicProfile || {}),
-    ...(appFromUser || {}),
-    ...(userDoc || {}),
-    details: {
-      ...((publicProfile && typeof publicProfile.details === 'object' ? publicProfile.details : {}) || {}),
-      ...((appFromUser && typeof appFromUser.details === 'object' ? appFromUser.details : {}) || {}),
-      ...((userDoc?.details && typeof userDoc.details === 'object' ? userDoc.details : {}) || {}),
-    },
-  };
-
-  const details = merged?.details && typeof merged.details === 'object' ? merged.details : {};
-
-  const fullName = safeStr(merged?.fullName);
-  const age = asNum(merged?.age);
-  const gender = normalizeGenderValue(merged?.gender);
-  const city = safeStr(merged?.city);
-  const country = safeStr(merged?.country);
-  const nationality = safeStr(merged?.nationality);
-  const occupation = safeStr(details?.occupation) || safeStr(merged?.occupation);
-  const maritalStatus = normalizeMaritalStatus(details?.maritalStatus || merged?.maritalStatus);
-
-  if (!fullName) return false;
-  if (!(typeof age === 'number' && Number.isFinite(age) && age >= 18 && age <= 99)) return false;
-  if (!gender) return false;
-  if (!city) return false;
-  if (!country) return false;
-  if (!nationality) return false;
-  if (!occupation) return false;
-  if (!maritalStatus) return false;
-
-  if (maritalStatus === 'widowed' || maritalStatus === 'divorced') {
-    const hasChildren = safeStr(details?.hasChildren || merged?.hasChildren).toLowerCase();
-    if (!hasChildren) return false;
-    if (hasChildren === 'yes') {
-      const cnt = asNum(details?.childrenCount);
-      if (!(typeof cnt === 'number' && Number.isFinite(cnt) && cnt >= 1 && cnt <= 20)) return false;
-    }
-  }
-
-  return true;
+  return hasMinimumMatchmakingProfileInUserDoc(d);
 }
 
 export default function StudioMatches() {
@@ -145,6 +80,8 @@ export default function StudioMatches() {
   }, [location.hash, location.pathname, location.search, location.state, navigate]);
 
   const [inboxLoad, setInboxLoad] = useState({ loading: false, error: '', lastSource: '' });
+  const inboxLoadRef = useRef({ loading: false, error: '', lastSource: '' });
+  const inboxSenderLiveCacheRef = useRef(new Map());
   const clientProjectId = useMemo(() => {
     try {
       return db?.app?.options?.projectId || '';
@@ -163,6 +100,7 @@ export default function StudioMatches() {
   const [translateState, setTranslateState] = useState({ loadingId: '', error: '' });
 
   const activateMembershipRef = useRef(false);
+  const paywallAutoActivateRef = useRef(false);
 
   const [myLock, setMyLock] = useState({ active: false, matchId: '' });
   const [myMembership, setMyMembership] = useState({ active: false });
@@ -174,8 +112,32 @@ export default function StudioMatches() {
 
   const [completeProfileGateOpen, setCompleteProfileGateOpen] = useState(false);
 
+  const profileGateMode = useMemo(() => {
+    if (myHasAnyApplication === false) return 'application';
+    if (myHasAnyApplication === true) {
+      if (myHasAnyPhoto === false) return 'photo';
+      if (myHasAnyPhoto === null && myProfileComplete === false) return '';
+      if (myProfileComplete === false) return 'application';
+    }
+    return '';
+  }, [myHasAnyApplication, myHasAnyPhoto, myProfileComplete]);
+
+  const profileGateBody = useMemo(() => {
+    if (profileGateMode === 'photo') return t('studio.profileGate.photoBody');
+    return t('studio.profileGate.body');
+  }, [profileGateMode, t]);
+
+  const profileGateCta = useMemo(() => {
+    if (profileGateMode === 'photo') return t('studio.profileGate.photoCta');
+    return t('studio.profileGate.cta');
+  }, [profileGateMode, t]);
+
   const [presenceByUid, setPresenceByUid] = useState({});
   const presenceUiEnabled = false;
+
+  useEffect(() => {
+    inboxLoadRef.current = inboxLoad;
+  }, [inboxLoad]);
 
   useEffect(() => {
     if (!isPreview) return;
@@ -221,6 +183,94 @@ export default function StudioMatches() {
       })
       .slice(0, 50);
   };
+
+  const filterItemsByLiveSender = useCallback(async (rawItems) => {
+    const list = Array.isArray(rawItems) ? rawItems : [];
+    const now = Date.now();
+    const cacheTtlMs = 60 * 1000;
+    const senderUids = Array.from(
+      new Set(
+        list
+          .map((item) => safeStr(item?.fromUid))
+          .filter(Boolean)
+      )
+    );
+
+    const toCheck = senderUids.filter((senderUid) => {
+      const cached = inboxSenderLiveCacheRef.current.get(senderUid);
+      return !(cached && typeof cached.checkedAtMs === 'number' && now - cached.checkedAtMs < cacheTtlMs);
+    });
+
+    if (toCheck.length) {
+      const liveUids = new Set();
+
+      await Promise.all(
+        toCheck.map(async (senderUid) => {
+          try {
+            const snap = await getDoc(doc(db, 'matchmakingUsers', senderUid));
+            if (snap.exists()) liveUids.add(senderUid);
+          } catch {
+            // ignore
+          }
+        })
+      );
+
+      const missingUids = toCheck.filter((senderUid) => !liveUids.has(senderUid));
+      for (let i = 0; i < missingUids.length; i += 10) {
+        const chunk = missingUids.slice(i, i + 10);
+        try {
+          const snap = await getDocs(query(collection(db, 'matchmakingApplications'), where('userId', 'in', chunk)));
+          snap.forEach((appDoc) => {
+            const data = appDoc.data() || {};
+            const senderUid = safeStr(data?.userId);
+            if (senderUid) liveUids.add(senderUid);
+          });
+        } catch {
+          // ignore
+        }
+      }
+
+      toCheck.forEach((senderUid) => {
+        inboxSenderLiveCacheRef.current.set(senderUid, {
+          live: liveUids.has(senderUid),
+          checkedAtMs: now,
+        });
+      });
+    }
+
+    return list.filter((item) => {
+      const senderUid = safeStr(item?.fromUid);
+      if (!senderUid) return true;
+      const cached = inboxSenderLiveCacheRef.current.get(senderUid);
+      return cached ? cached.live !== false : true;
+    });
+  }, []);
+
+  const refreshInboxViaApi = useCallback(async () => {
+    if (isPreview) return;
+    const uid = effectiveUid;
+    const prev = inboxLoadRef.current;
+    if (!uid || prev.loading) return;
+    setInboxLoad({ loading: true, error: '', lastSource: prev.lastSource || '' });
+    try {
+      const data = await authFetch('/api/matchmaking-inbox-summary', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ limit: 60 }),
+      });
+      const likes = filterInboxLikes(Array.isArray(data?.inboxLikes) ? data.inboxLikes : [], uid, resetAtMs);
+      const preMatch = Array.isArray(data?.inboxPreMatchRequests) ? data.inboxPreMatchRequests : [];
+      const profileAccess = Array.isArray(data?.inboxAccessRequests) ? data.inboxAccessRequests : [];
+      setInboxLikes(await filterItemsByLiveSender(likes));
+      setInboxAccess(await filterItemsByLiveSender(preMatch));
+      setInboxProfileAccess(await filterItemsByLiveSender(profileAccess));
+      setInboxMessages(Array.isArray(data?.inboxMessages) ? data.inboxMessages : []);
+      setInboxLoad({ loading: false, error: '', lastSource: 'api' });
+    } catch (e) {
+      const msg = String(e?.message || '').trim() || 'inbox_refresh_failed';
+      setInboxLoad({ loading: false, error: translateStudioApiError(t, msg) || msg, lastSource: 'api' });
+    }
+  }, [effectiveUid, filterItemsByLiveSender, isPreview, resetAtMs, t]);
 
   useEffect(() => {
     const uid = effectiveUid;
@@ -297,7 +347,7 @@ export default function StudioMatches() {
   }, [effectiveUid]);
 
   const requireProfile = () => {
-    setProfileGateNotice(t('studio.profileGate.body'));
+    setProfileGateNotice(profileGateBody);
     try {
       if (typeof window !== 'undefined') window.scrollTo({ top: 0, behavior: 'smooth' });
     } catch {
@@ -382,37 +432,32 @@ export default function StudioMatches() {
 
   const dismissCompleteProfileGate = () => setCompleteProfileGateOpen(false);
 
-  const startCompleteProfileGate = () => {
-    dismissCompleteProfileGate();
-
-    const hasApp = myHasAnyApplication === true;
-    const to = hasApp ? '/evlilik/eslestirme-basvurusu?editOnce=1&w=1' : '/evlilik/eslestirme-basvuru?w=1';
-    const state = hasApp
-      ? {
-          returnTo: '/profilim',
-          afterSaveOpenPhotoManager: true,
-        }
-      : { afterSubmitOpenPhotoManager: true };
+  const goToProfileCompletionTarget = () => {
+    if (profileGateMode === 'photo') {
+      try {
+        navigate('/profilim', { replace: false, state: { openPhotoManager: true, profileGate: 'photo_required' } });
+      } catch {
+        // noop
+      }
+      return;
+    }
 
     try {
-      navigate(to, { replace: false, state });
+      navigate('/evlilik/eslestirme-basvuru?w=1', {
+        replace: false,
+        state: { returnTo: `${location.pathname || '/app/matches'}${location.search || ''}` },
+      });
     } catch {
       // noop
     }
   };
 
+  const startCompleteProfileGate = () => {
+    dismissCompleteProfileGate();
+    goToProfileCompletionTarget();
+  };
+
   const activateFreeMembershipNow = useCallback(async () => {
-      const paywallAutoActivateRef = useRef(false);
-      useEffect(() => {
-        if (!paywallNotice) {
-          paywallAutoActivateRef.current = false;
-          return;
-        }
-        if (paywallAutoActivateRef.current) return;
-        paywallAutoActivateRef.current = true;
-        // Üyelik artık otomatik veriliyor; paywall görünürse best-effort arkada düzelt.
-        activateFreeMembershipNow();
-      }, [paywallNotice, activateFreeMembershipNow]);
     const uid = effectiveUid;
     if (!uid) return;
     if (activateMembershipRef.current) return;
@@ -433,6 +478,16 @@ export default function StudioMatches() {
       activateMembershipRef.current = false;
     }
   }, [effectiveUid, t]);
+
+  useEffect(() => {
+    if (!paywallNotice) {
+      paywallAutoActivateRef.current = false;
+      return;
+    }
+    if (paywallAutoActivateRef.current) return;
+    paywallAutoActivateRef.current = true;
+    void activateFreeMembershipNow();
+  }, [activateFreeMembershipNow, paywallNotice]);
 
   const buildMatchesQuery = ({ uid, preferUpdatedAt }) => {
     const base = [collection(db, 'matchmakingMatches'), where('userIds', 'array-contains', uid)];
@@ -461,9 +516,14 @@ export default function StudioMatches() {
       (snap) => {
         const items = [];
         snap.forEach((d) => items.push({ id: d.id, ...d.data() }));
-        // Sadece bekleyen + bana gelen beğeniler görünmeli; aksi halde kart "takılı" kalıyor.
-        setInboxLikes(filterInboxLikes(items, uid, resetAtMs));
-        setInboxLoad((s) => (s.lastSource === 'api' ? s : { ...s, error: '', lastSource: 'firestore' }));
+        // Sadece bekleyen + bana gelen beğeniler görünmeli; ayrıca canlı kaydı kalmamış
+        // göndericilerin eski snapshot'ları gösterilmemeli.
+        void (async () => {
+          const filtered = filterInboxLikes(items, uid, resetAtMs);
+          const safeItems = await filterItemsByLiveSender(filtered);
+          setInboxLikes(safeItems);
+          setInboxLoad((s) => (s.lastSource === 'api' ? s : { ...s, error: '', lastSource: 'firestore' }));
+        })();
       },
       (e) => {
         setInboxLikes([]);
@@ -489,7 +549,7 @@ export default function StudioMatches() {
         // noop
       }
     };
-  }, [clientProjectId, effectiveUid, resetAtMs, t]);
+  }, [clientProjectId, effectiveUid, filterItemsByLiveSender, refreshInboxViaApi, resetAtMs, t]);
 
   // Gelen ön eşleşme istekleri
   useEffect(() => {
@@ -510,8 +570,11 @@ export default function StudioMatches() {
       (snap) => {
         const items = [];
         snap.forEach((d) => items.push({ id: d.id, ...d.data() }));
-        setInboxAccess(items);
-        setInboxLoad((s) => (s.lastSource === 'api' ? s : { ...s, error: '', lastSource: 'firestore' }));
+        void (async () => {
+          const safeItems = await filterItemsByLiveSender(items);
+          setInboxAccess(safeItems);
+          setInboxLoad((s) => (s.lastSource === 'api' ? s : { ...s, error: '', lastSource: 'firestore' }));
+        })();
       },
       (e) => {
         setInboxAccess([]);
@@ -537,7 +600,7 @@ export default function StudioMatches() {
         // noop
       }
     };
-  }, [clientProjectId, effectiveUid, t]);
+  }, [clientProjectId, effectiveUid, filterItemsByLiveSender, refreshInboxViaApi, t]);
 
   // Gelen profil erişim istekleri
   useEffect(() => {
@@ -558,8 +621,11 @@ export default function StudioMatches() {
       (snap) => {
         const items = [];
         snap.forEach((d) => items.push({ id: d.id, ...d.data() }));
-        setInboxProfileAccess(items);
-        setInboxLoad((s) => (s.lastSource === 'api' ? s : { ...s, error: '', lastSource: 'firestore' }));
+        void (async () => {
+          const safeItems = await filterItemsByLiveSender(items);
+          setInboxProfileAccess(safeItems);
+          setInboxLoad((s) => (s.lastSource === 'api' ? s : { ...s, error: '', lastSource: 'firestore' }));
+        })();
       },
       (e) => {
         setInboxProfileAccess([]);
@@ -585,7 +651,7 @@ export default function StudioMatches() {
         // noop
       }
     };
-  }, [clientProjectId, effectiveUid, t]);
+  }, [clientProjectId, effectiveUid, filterItemsByLiveSender, refreshInboxViaApi, t]);
 
   // Gelen direkt mesajlar (inbox)
   useEffect(() => {
@@ -633,7 +699,7 @@ export default function StudioMatches() {
         // noop
       }
     };
-  }, [clientProjectId, effectiveUid, t]);
+  }, [clientProjectId, effectiveUid, refreshInboxViaApi, t]);
 
   const respondInboxLike = async ({ matchId, decision }) => {
     if (isPreview) {
@@ -983,28 +1049,6 @@ export default function StudioMatches() {
     }
   };
 
-  const refreshInboxViaApi = async () => {
-    if (isPreview) return;
-    const uid = effectiveUid;
-    if (!uid || inboxLoad.loading) return;
-    setInboxLoad({ loading: true, error: '', lastSource: inboxLoad.lastSource || '' });
-    try {
-      const data = await authFetch('/api/matchmaking-inbox-summary', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ limit: 60 }),
-      });
-      setInboxLikes(filterInboxLikes(Array.isArray(data?.inboxLikes) ? data.inboxLikes : [], uid, resetAtMs));
-      setInboxAccess(Array.isArray(data?.inboxPreMatchRequests) ? data.inboxPreMatchRequests : []);
-      setInboxProfileAccess(Array.isArray(data?.inboxAccessRequests) ? data.inboxAccessRequests : []);
-      setInboxMessages(Array.isArray(data?.inboxMessages) ? data.inboxMessages : []);
-      setInboxLoad({ loading: false, error: '', lastSource: 'api' });
-    } catch (e) {
-      const msg = String(e?.message || '').trim() || 'inbox_refresh_failed';
-      setInboxLoad({ loading: false, error: translateStudioApiError(t, msg) || msg, lastSource: 'api' });
-    }
-  };
-
   const requirePaid = () => {
     setPaywallNotice(t('studio.paywall.upgradeToInteract'));
     try {
@@ -1076,7 +1120,7 @@ export default function StudioMatches() {
     } catch {
       // best-effort
     }
-  }, [effectiveUid, isPreview, matches]);
+  }, [effectiveUid, isPreview, matches, presenceUiEnabled]);
 
   useEffect(() => {
     if (!presenceUiEnabled) return;
@@ -1453,19 +1497,18 @@ export default function StudioMatches() {
               </button>
             </div>
             <p className="mt-1 text-sm text-amber-900/80">
-              {t('studio.profile.completeProfileTutorial.body', {
-                defaultValue:
-                  targetLang === 'tr'
-                    ? 'Ön eşleşme için profilini tamamlayıp en az 1 fotoğraf yüklemelisin.'
-                    : 'To use pre-match, please complete your profile and upload at least 1 photo.',
-              })}
+              {profileGateMode === 'photo'
+                ? t('studio.profile.completeProfileTutorial.photoBody')
+                : t('studio.profile.completeProfileTutorial.body')}
             </p>
             <div className="mt-3 flex flex-wrap gap-2">
               <button type="button" onClick={startCompleteProfileGate} className="app-btn app-btn-primary">
-                {t('studio.profile.completeProfileTutorial.actions.ok', { defaultValue: targetLang === 'tr' ? 'Tamam' : 'Continue' })}
+                {profileGateMode === 'photo'
+                  ? t('studio.profile.completeProfileTutorial.actions.uploadPhoto')
+                  : t('studio.profile.completeProfileTutorial.actions.ok')}
               </button>
               <button type="button" onClick={dismissCompleteProfileGate} className="app-btn app-btn-outline">
-                {t('studio.profile.completeProfileTutorial.actions.later', { defaultValue: targetLang === 'tr' ? 'Daha sonra' : 'Not now' })}
+                {t('studio.profile.completeProfileTutorial.actions.later')}
               </button>
             </div>
           </div>
@@ -1485,9 +1528,9 @@ export default function StudioMatches() {
             </div>
             <p className="mt-1 text-sm text-amber-900/80">{profileGateNotice}</p>
             <div className="mt-3">
-              <Link to="/evlilik/eslestirme-basvuru?w=1" className="text-sm font-semibold underline">
-                {t('studio.profileGate.cta')}
-              </Link>
+              <button type="button" onClick={goToProfileCompletionTarget} className="app-btn app-btn-primary h-10 px-4">
+                {profileGateCta}
+              </button>
             </div>
           </div>
         ) : null}

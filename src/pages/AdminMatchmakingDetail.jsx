@@ -1,11 +1,12 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { deleteDoc, doc, getDoc, serverTimestamp, setDoc } from 'firebase/firestore';
+import { doc, getDoc, serverTimestamp, setDoc } from 'firebase/firestore';
 import { getDownloadURL, ref } from 'firebase/storage';
 import { auth } from '../config/firebaseAuth';
 import { db } from '../config/firebaseDb';
 import { storage } from '../config/firebaseStorage';
 import { formatProfileCode } from '../utils/profileCode';
+import { authFetch } from '../utils/authFetch';
 
 function labelForGender(v) {
   if (v === 'female') return 'Kadın';
@@ -315,7 +316,11 @@ export default function AdminMatchmakingDetail() {
     setActionErr('');
     setActionMsg('');
     try {
-      await deleteDoc(doc(db, 'matchmakingApplications', id));
+      await authFetch('/api/admin-matchmaking-application-delete', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ applicationId: id }),
+      });
       setActionMsg('Başvuru silindi.');
       navigate('/admin/dashboard');
     } catch (e) {
@@ -348,31 +353,30 @@ export default function AdminMatchmakingDetail() {
     (typeof details?.foreignLanguageOther === 'string' && details.foreignLanguageOther.trim()) ||
     '';
 
-  const foreignLangLabel = useMemo(() => {
-    const codes = Array.isArray(foreignLang?.codes)
-      ? foreignLang.codes
-      : (Array.isArray(details?.foreignLanguages) ? details.foreignLanguages : []);
-    if (codes.includes('none')) return 'Yabancı dil bilmiyor';
-    const filtered = codes.filter((c) => c && c !== 'other');
+  const foreignLangCodes = Array.isArray(foreignLang?.codes)
+    ? foreignLang.codes
+    : (Array.isArray(details?.foreignLanguages) ? details.foreignLanguages : []);
+  const foreignLangLabel = (() => {
+    if (foreignLangCodes.includes('none')) return 'Yabancı dil bilmiyor';
+    const filtered = foreignLangCodes.filter((c) => c && c !== 'other');
     const base = filtered.map((c) => labelForLanguageCode(c)).filter(Boolean);
-    if (codes.includes('other')) {
+    if (foreignLangCodes.includes('other')) {
       base.push(foreignOtherText ? `Diğer: ${foreignOtherText}` : 'Diğer');
     }
     return base.length ? base.join(', ') : '-';
-  }, [foreignLang, details, foreignOtherText]);
+  })();
 
-  const partnerAgeSummary = useMemo(() => {
+  const partnerAgeSummary = (() => {
     const min = typeof partner?.ageMin === 'number' ? partner.ageMin : null;
     const max = typeof partner?.ageMax === 'number' ? partner.ageMax : null;
     const older = typeof partner?.ageMaxOlderYears === 'number' ? partner.ageMaxOlderYears : null;
     const younger = typeof partner?.ageMaxYoungerYears === 'number' ? partner.ageMaxYoungerYears : null;
 
     const range = min !== null || max !== null ? `${min ?? '-'}–${max ?? '-'}` : '';
-    const diff =
-      older !== null || younger !== null ? `(+${older ?? 0} / -${younger ?? 0})` : '';
+    const diff = older !== null || younger !== null ? `(+${older ?? 0} / -${younger ?? 0})` : '';
 
     return (range || diff) ? `${range}${range && diff ? ' ' : ''}${diff}`.trim() : '-';
-  }, [partner]);
+  })();
 
   return (
     <div className="min-h-screen bg-slate-50">

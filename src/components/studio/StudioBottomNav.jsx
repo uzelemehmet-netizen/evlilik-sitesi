@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Compass, HelpCircle, LogOut, MessageCircle, User, Users } from 'lucide-react';
 import { signOut } from 'firebase/auth';
@@ -116,7 +116,7 @@ export default function StudioBottomNav({ className = '' } = {}) {
   }, [isAuthed, uid]);
 
   const pathname = String(location.pathname || '');
-  const isActive = (prefix) => (prefix ? pathname.startsWith(prefix) : false);
+  const isActive = useCallback((prefix) => (prefix ? pathname.startsWith(prefix) : false), [pathname]);
 
   const logoutNow = useCallback(async () => {
     if (!isAuthed) {
@@ -131,78 +131,68 @@ export default function StudioBottomNav({ className = '' } = {}) {
     navigate('/login');
   }, [isAuthed, navigate]);
 
-  const items = useMemo(
-    () => [
-      {
-        key: 'discover',
-        to: '/app/pool',
-        label: t('studio.pool.title'),
-        icon: Compass,
-        active: isActive('/app/pool'),
-        badge: 0,
+  const items = [
+    {
+      key: 'discover',
+      to: '/app/pool',
+      label: t('studio.pool.title'),
+      icon: Compass,
+      active: isActive('/app/pool'),
+      badge: 0,
+    },
+    {
+      key: 'matches',
+      to: '/app/matches',
+      label: t('studio.matches.title'),
+      icon: Users,
+      active: isActive('/app/matches') || isActive('/app/match'),
+      badge: 0,
+    },
+    {
+      key: 'chat',
+      to: '/app/matches',
+      label: t('studio.inbox.modalTitleMessages'),
+      icon: MessageCircle,
+      active: isActive('/app/chat'),
+      badge: unreadInboxMessagesCount,
+      onClick: (e) => {
+        e.preventDefault();
+        navigate('/app/matches', { state: { openInbox: 'messages' } });
       },
-      {
-        key: 'matches',
-        to: '/app/matches',
-        label: t('studio.matches.title'),
-        icon: Users,
-        active: isActive('/app/matches') || isActive('/app/match'),
-        badge: 0,
+    },
+    {
+      key: 'inbox',
+      to: '/app/matches',
+      label: t('studio.inbox.titleShort', { defaultValue: '' }) || t('studio.inbox.modalTitleRequests'),
+      icon: HelpCircle,
+      active: false,
+      badge: pendingRequestsCount,
+      onClick: (e) => {
+        e.preventDefault();
+        navigate('/app/matches', { state: { openInbox: 'requests' } });
       },
-      {
-        key: 'chat',
-        to: '/app/matches',
-        label: t('studio.inbox.modalTitleMessages'),
-        icon: MessageCircle,
-        active: isActive('/app/chat'),
-        badge: unreadInboxMessagesCount,
-        onClick: (e) => {
-          e.preventDefault();
-          navigate('/app/matches', { state: { openInbox: 'messages' } });
-        },
+    },
+    {
+      key: 'profile',
+      to: '/profilim',
+      label: t('studio.common.profile'),
+      icon: User,
+      active: isActive('/profilim'),
+      badge: 0,
+    },
+    {
+      key: 'logout',
+      to: '/login',
+      label: t('studio.profile.logout') || 'Çıkış',
+      icon: LogOut,
+      active: false,
+      badge: 0,
+      onClick: (e) => {
+        e.preventDefault();
+        logoutNow();
       },
-      {
-        key: 'inbox',
-        to: '/app/matches',
-        label: t('studio.inbox.titleShort', { defaultValue: '' }) || t('studio.inbox.modalTitleRequests'),
-        icon: HelpCircle,
-        active: false,
-        badge: pendingRequestsCount,
-        onClick: (e) => {
-          e.preventDefault();
-          navigate('/app/matches', { state: { openInbox: 'requests' } });
-        },
-      },
-      {
-        key: 'profile',
-        to: '/profilim',
-        label: t('studio.common.profile'),
-        icon: User,
-        active: isActive('/profilim'),
-        badge: 0,
-      },
-      {
-        key: 'logout',
-        to: '/login',
-        label: t('studio.profile.logout') || 'Çıkış',
-        icon: LogOut,
-        active: false,
-        badge: 0,
-        onClick: (e) => {
-          e.preventDefault();
-          logoutNow();
-        },
-      },
-    ],
-    [
-      navigate,
-      pendingRequestsCount,
-      logoutNow,
-      pathname,
-      t,
-      unreadInboxMessagesCount,
-    ]
-  );
+    },
+  ];
 
   return (
     <div

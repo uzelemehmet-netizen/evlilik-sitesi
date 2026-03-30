@@ -7,7 +7,7 @@ import { useTranslation } from 'react-i18next';
 import { staticAssetUrl } from '../utils/staticAssetUrl';
 
 export default function Corporate() {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const brand = 'Uniqah';
   const dameTurk = 'https://www.dameturk.com';
 

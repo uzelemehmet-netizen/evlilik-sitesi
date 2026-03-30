@@ -1379,7 +1379,7 @@ export default function Wedding() {
   const faqItems = useMemo(() => {
     const items = t('weddingPage.faq.items', { returnObjects: true });
     return Array.isArray(items) ? items : [];
-  }, [t, i18n.language]);
+  }, [t]);
 
   const faqSchema = useMemo(() => {
     return {
@@ -1453,7 +1453,7 @@ export default function Wedding() {
       id,
       label: t(`weddingPage.plan.form.services.options.${id}`),
     }));
-  }, [serviceOptionIds, t, i18n.language]);
+  }, [serviceOptionIds, t]);
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -1480,7 +1480,7 @@ export default function Wedding() {
       <section
         className="-mt-[72px] pt-[72px] md:mt-0 md:pt-20 pb-16 px-4 relative overflow-hidden min-h-[420px] sm:min-h-[480px] md:min-h-96 bg-slate-900 bg-none md:bg-[image:var(--hero-bg)] bg-scroll md:bg-fixed bg-[position:center] md:bg-[position:center_35%] bg-no-repeat md:bg-cover"
         style={{
-		  '--hero-bg': heroBackgroundUrl ? `url(\"${heroBackgroundUrl}\")` : 'none',
+      '--hero-bg': heroBackgroundUrl ? `url("${heroBackgroundUrl}")` : 'none',
         }}
       >
         {heroBackgroundUrl && (

@@ -14,7 +14,6 @@ export default class ErrorBoundary extends React.Component {
   }
 
   componentDidCatch(error, info) {
-    // eslint-disable-next-line no-console
     console.error('[app] Uncaught render error', error, info);
     try {
       this.setState({ info });

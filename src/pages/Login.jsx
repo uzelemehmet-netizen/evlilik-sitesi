@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import {
@@ -21,7 +21,7 @@ import { trackClick } from "../utils/clickTracker";
 import { getAnonBrowserId } from "../utils/clickTracker";
 import { markFunnelSignupCompleted } from "../utils/funnelTracker";
 import { tiktokPage, tiktokTrack } from "../utils/tiktokPixel";
-import { buildSupportReport, openSupportReport, storeSupportReport } from "../utils/supportReport";
+import { buildSupportReport, storeSupportReport } from "../utils/supportReport";
 import { uploadImageToCloudinaryAuto } from '../utils/cloudinaryUpload';
 import { buildWhatsAppUrl } from '../utils/whatsapp';
 import { useSupportLine } from '../hooks/useSupportLine';
@@ -41,24 +41,156 @@ async function loadFirestoreApi() {
   return firestoreApiPromise;
 }
 
+function resolveAuthLanguage(lang) {
+  const key = String(lang || '').toLowerCase();
+  if (key.startsWith('tr')) return 'tr';
+  if (key.startsWith('id')) return 'id';
+  return 'en';
+}
+
+function getAuthSupportUi(lang) {
+  const copy = {
+    tr: {
+      quickFacts: [
+        {
+          title: '1-3 dk ilk kayit',
+          body: 'Kayit ve ilk yonlendirme kisa surer; sistem sizi dogru akisa alir.',
+        },
+        {
+          title: 'Profiliniz herkese acik degil',
+          body: 'Bilgileriniz rastgele listelenmez; surec panel uzerinden kontrollu ilerler.',
+        },
+        {
+          title: 'Takilirsaniz destek var',
+          body: 'Giris veya kayit sirasinda sorun yasarsaniz WhatsApp hattindan yardim alabilirsiniz.',
+        },
+      ],
+      stepsTitle: 'Kayittan hemen sonra ne olur?',
+      steps: [
+        {
+          title: 'Hesabiniz acilir',
+          body: 'Google veya e-posta ile hesabiniz olusturulur ya da mevcut hesabiniza girersiniz.',
+        },
+        {
+          title: 'Basvuru akisina gecersiniz',
+          body: 'Yeni kullaniciysaniz sistem sizi dogru form ve panel akisina yonlendirir.',
+        },
+        {
+          title: 'Kontrollu surec baslar',
+          body: 'Profil herkese acik olmaz; eslesme ve iletisim adimlari kontrollu ilerler.',
+        },
+      ],
+      ctaNote: 'Ucretsiz kayit • Profil herkese acik degil • Takilirsaniz WhatsApptan yazabilirsiniz',
+      whatsappLabel: 'WhatsApptan once size uygun mu sorun',
+      whatsappMessage: 'Merhaba, kayit olmadan once sistemin benim durumuma uygun olup olmadigini ogrenmek istiyorum.',
+    },
+    en: {
+      quickFacts: [
+        {
+          title: '1-3 minute first sign-up',
+          body: 'Registration and the first redirect are short; the system takes you into the correct flow.',
+        },
+        {
+          title: 'Your profile is not public',
+          body: 'Your details are not randomly listed; the process moves in a controlled way through the panel.',
+        },
+        {
+          title: 'Help is available if you get stuck',
+          body: 'If you face a sign-in or sign-up issue, you can ask for help through WhatsApp.',
+        },
+      ],
+      stepsTitle: 'What happens right after sign-up?',
+      steps: [
+        {
+          title: 'Your account opens',
+          body: 'You create an account with Google/email or sign in to your existing account.',
+        },
+        {
+          title: 'You move into the application flow',
+          body: 'If you are new, the system routes you into the right form and panel flow.',
+        },
+        {
+          title: 'A controlled process begins',
+          body: 'Your profile is not public; matching and contact steps stay controlled.',
+        },
+      ],
+      ctaNote: 'Free sign-up • No public profile • If you get stuck, you can message us on WhatsApp',
+      whatsappLabel: 'Ask on WhatsApp if it fits you first',
+      whatsappMessage: 'Hello, before signing up I want to know whether this system fits my situation.',
+    },
+    id: {
+      quickFacts: [
+        {
+          title: 'Pendaftaran awal 1-3 menit',
+          body: 'Registrasi dan pengalihan awal singkat; sistem membawa Anda ke alur yang tepat.',
+        },
+        {
+          title: 'Profil Anda tidak publik',
+          body: 'Data Anda tidak ditampilkan sembarangan; proses berjalan terkontrol melalui panel.',
+        },
+        {
+          title: 'Ada bantuan jika Anda terhambat',
+          body: 'Jika ada masalah saat masuk atau daftar, Anda bisa minta bantuan lewat WhatsApp.',
+        },
+      ],
+      stepsTitle: 'Apa yang terjadi tepat setelah daftar?',
+      steps: [
+        {
+          title: 'Akun Anda terbuka',
+          body: 'Anda membuat akun dengan Google/email atau masuk ke akun yang sudah ada.',
+        },
+        {
+          title: 'Masuk ke alur pengajuan',
+          body: 'Jika Anda pengguna baru, sistem mengarahkan Anda ke form dan panel yang sesuai.',
+        },
+        {
+          title: 'Proses terkontrol dimulai',
+          body: 'Profil Anda tidak publik; langkah match dan kontak berjalan terkontrol.',
+        },
+      ],
+      ctaNote: 'Daftar gratis • Profil tidak publik • Jika ada kendala, Anda bisa menulis lewat WhatsApp',
+      whatsappLabel: 'Tanya dulu via WhatsApp apakah ini cocok untuk Anda',
+      whatsappMessage: 'Halo, sebelum mendaftar saya ingin tahu apakah sistem ini cocok untuk situasi saya.',
+    },
+  };
+
+  return copy[lang] || copy.tr;
+}
+
 export default function Login() {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
   const { user, loading: authLoading } = useAuth();
   const supportLine = useSupportLine(String(i18n?.language || 'tr'));
+  const authSupportUi = getAuthSupportUi(resolveAuthLanguage(i18n?.language));
+  const authSupportWhatsappHref = buildWhatsAppUrl(authSupportUi.whatsappMessage, {
+    lang: String(i18n?.language || 'tr'),
+    prefer: String(supportLine?.prefer || '').trim() || undefined,
+    context: 'auth_trust_help',
+  });
 
-  const isLikelyIdTraffic = useMemo(() => {
+  const trafficCountryHint = useMemo(() => {
     try {
       const c = String(getSupportCountrySync({ lang: '' }) || '').toUpperCase();
-      if (c === 'ID') return true;
+      if (c === 'ID' || c === 'TR') return c;
       const tz = String(Intl.DateTimeFormat().resolvedOptions().timeZone || '').toLowerCase();
-      if (tz.includes('jakarta') || tz.includes('makassar') || tz.includes('jayapura')) return true;
-      return false;
+      if (tz.includes('jakarta') || tz.includes('makassar') || tz.includes('jayapura')) return 'ID';
+      if (tz.includes('istanbul')) return 'TR';
+      const nav = String(navigator?.language || '').toLowerCase();
+      if (nav.startsWith('id') || nav.startsWith('in')) return 'ID';
+      if (nav.startsWith('tr')) return 'TR';
+      const lang = String(i18n?.language || '').toLowerCase();
+      if (lang.startsWith('id') || lang.startsWith('in')) return 'ID';
+      if (lang.startsWith('tr')) return 'TR';
+      return '';
     } catch {
-      return false;
+      return '';
     }
-  }, []);
+  }, [i18n?.language]);
+
+  const isLikelyIdTraffic = trafficCountryHint === 'ID';
+  const isTrOrIdTraffic = trafficCountryHint === 'TR' || trafficCountryHint === 'ID';
 
   useEffect(() => {
     // If the user is likely in Indonesia, ensure UI language is Indonesian.
@@ -160,11 +292,32 @@ export default function Login() {
     writeAuthProvider('google');
     writeRedirectStartMarker({ provider: 'google', intent: mode });
 
+    try {
+      if (mode === 'signup') {
+        void trackClick('signup_redirect_start:google');
+      } else {
+        void trackClick('login_redirect_start:google');
+      }
+    } catch {
+      // ignore
+    }
+
     // Do not await: preserve user-gesture context.
     void signInWithRedirect(auth, provider).catch((e) => {
       try {
         const code = String(e?.code || '').trim();
         const msg = String(e?.message || '').trim();
+
+        try {
+          if (mode === 'signup') {
+            void trackClick(`signup_error:google_redirect_start:${code || 'unknown'}`, { trace: true });
+          } else {
+            void trackClick(`login_error:google_redirect_start:${code || 'unknown'}`, { trace: true });
+          }
+        } catch {
+          // ignore
+        }
+
         void reportAuthIssue({
           kind: 'auth_redirect_start_failed',
           flow,
@@ -335,7 +488,6 @@ export default function Login() {
   }, []);
 
   const [mode, setMode] = useState("login"); // login | signup
-  const [signupGender, setSignupGender] = useState('');
 
   const HAS_SIGNED_UP_KEY = 'mk_has_signed_up_v1';
   const readHasSignedUpBefore = () => {
@@ -479,15 +631,6 @@ export default function Login() {
       // ignore
     }
   };
-  const readGoogleDecisionDebug = () => {
-    try {
-      const raw = sessionStorage.getItem(GOOGLE_DECISION_KEY);
-      if (!raw) return null;
-      return JSON.parse(raw);
-    } catch {
-      return null;
-    }
-  };
 
   const QUICK_PROFILE_DRAFT_KEY = 'mk_quick_profile_draft_v1';
   const readQuickProfileDraft = () => {
@@ -515,7 +658,6 @@ export default function Login() {
     }
   };
 
-  const [quickProfileStage, setQuickProfileStage] = useState('form'); // form | tutorial
   const [quickProfile, setQuickProfile] = useState({
     fullName: '',
     age: '',
@@ -602,6 +744,15 @@ export default function Login() {
     return buildWhatsAppUrl(idSignupHelpText, { lang: i18n?.language, prefer: 'id', context: 'auth_id_signup_help' });
   }, [idSignupHelpCanSend, idSignupHelpText, i18n?.language]);
 
+  const genderOptions = useMemo(
+    () => [
+      { id: '', label: t('authPage.quickProfile.errors.genderRequired').replace(/\.$/, '') },
+      { id: 'male', label: t('authPage.signup.genderMale') },
+      { id: 'female', label: t('authPage.signup.genderFemale') },
+    ],
+    [t]
+  );
+
   useEffect(() => {
     if (!needsQuickProfile) return;
     const uid = safeStr(user?.uid || auth?.currentUser?.uid);
@@ -630,9 +781,6 @@ export default function Login() {
       photoUrl: safeStr(d.photoUrl),
     }));
 
-    const g = safeStr(d.gender);
-    if (g) setSignupGender(g);
-    if (d.completed) setQuickProfileStage('tutorial');
   }, [needsQuickProfile, user?.uid]);
 
   const validateQuickProfile = (p) => {
@@ -693,7 +841,6 @@ export default function Login() {
     } catch {
       // ignore
     }
-    setSignupGender(draft.gender);
   };
 
   const handleQuickPhotoSelect = async (file) => {
@@ -744,7 +891,6 @@ export default function Login() {
       const res = await applyQuickProfileAfterAuthIfAny('post_auth_form');
       if (res?.applied) {
         setNeedsQuickProfile(false);
-        setQuickProfileStage('form');
         navigate('/profilim', { replace: true });
         return;
       }
@@ -757,51 +903,13 @@ export default function Login() {
   };
 
   const applyQuickProfileAfterAuthIfAny = async (flow) => {
-    const draft = readQuickProfileDraft();
-    if (!draft || !draft.completed) return { applied: false };
-
-    const currentUid = safeStr(user?.uid || auth?.currentUser?.uid);
-    const ownerUid = safeStr(draft?.ownerUid);
-    if (!currentUid) return { applied: false };
-    if (!ownerUid || ownerUid !== currentUid) return { applied: false };
-
     try {
-      const profile = {
-        fullName: safeStr(draft.fullName),
-        age: draft.age,
-        gender: safeStr(draft.gender),
-        city: safeStr(draft.city),
-        countryCode: safeStr(draft.countryCode),
-        maritalStatus: safeStr(draft.maritalStatus),
-        hasChildren: safeStr(draft.hasChildren),
-        childrenCount: draft.childrenCount,
-        occupation: safeStr(draft.occupation),
-        photoUrl: safeStr(draft.photoUrl),
-      };
-
-      const data = await authFetch('/api/matchmaking-quick-profile-save', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ profile }),
-      });
-
-      if (data && data.ok) {
-        clearQuickProfileDraft();
-        return { applied: true };
-      }
-      return { applied: false };
-    } catch (e) {
-      const msg = String(e?.message || 'quick_profile_save_failed');
-      storeSupportReport(
-        buildSupportReport({
-          kind: 'quick_profile_save_failed',
-          flow,
-          message: msg,
-          extra: { mode, hasDraft: true },
-        })
-      );
-      return { applied: false, error: msg };
+      clearQuickProfileDraft();
+    } catch {
+      // ignore
     }
+
+    return { applied: false, retired: true, flow };
   };
 
   const normalizePathOnly = (p) => {
@@ -842,6 +950,128 @@ export default function Login() {
 
     const normalizeMaritalStatus = (v) => safeStr(v).toLowerCase();
 
+    const ageFromBirthYearMaybe = (v) => {
+      const year = asNum(v);
+      if (!(typeof year === 'number' && Number.isFinite(year) && year >= 1900 && year <= 2100)) return null;
+      const now = new Date();
+      const age = now.getFullYear() - Math.trunc(year);
+      return age >= 18 && age <= 99 ? age : null;
+    };
+
+    const ageFromDateMaybe = (v) => {
+      let d = null;
+
+      if (typeof v === 'number' && Number.isFinite(v)) {
+        d = new Date(v);
+      } else if (typeof v === 'string') {
+        const s = v.trim();
+        if (!s) return null;
+        const parsed = Date.parse(s);
+        if (Number.isFinite(parsed)) d = new Date(parsed);
+      } else if (typeof v?.toDate === 'function') {
+        try {
+          d = v.toDate();
+        } catch {
+          d = null;
+        }
+      }
+
+      if (!d || Number.isNaN(d.getTime())) return null;
+      const now = new Date();
+      let age = now.getFullYear() - d.getFullYear();
+      const m = now.getMonth() - d.getMonth();
+      if (m < 0 || (m === 0 && now.getDate() < d.getDate())) age -= 1;
+      return age >= 18 && age <= 99 ? age : null;
+    };
+
+    const getAge = (obj) => {
+      const it = obj && typeof obj === 'object' ? obj : {};
+      const details = it?.details && typeof it.details === 'object' ? it.details : {};
+
+      const direct = asNum(it?.age);
+      if (typeof direct === 'number' && Number.isFinite(direct) && direct >= 18 && direct <= 99) return direct;
+
+      const nested = asNum(details?.age);
+      if (typeof nested === 'number' && Number.isFinite(nested) && nested >= 18 && nested <= 99) return nested;
+
+      const byYear = ageFromBirthYearMaybe(details?.birthYear ?? it?.birthYear);
+      if (byYear !== null) return byYear;
+
+      const byDate =
+        ageFromDateMaybe(details?.birthDateMs ?? it?.birthDateMs) ??
+        ageFromDateMaybe(details?.birthDate ?? it?.birthDate) ??
+        ageFromDateMaybe(details?.dob ?? it?.dob);
+      if (byDate !== null) return byDate;
+
+      return null;
+    };
+
+    const pickOccupation = (details, obj) => {
+      const d = details && typeof details === 'object' ? details : {};
+      const a = obj && typeof obj === 'object' ? obj : {};
+      return (
+        safeStr(d?.occupationTr) ||
+        safeStr(d?.occupation) ||
+        safeStr(d?.occupationId) ||
+        safeStr(a?.occupation) ||
+        safeStr(d?.job) ||
+        safeStr(d?.jobTitle) ||
+        safeStr(d?.profession) ||
+        safeStr(a?.job) ||
+        safeStr(a?.jobTitle) ||
+        safeStr(a?.profession) ||
+        ''
+      );
+    };
+
+    const pickMaritalStatus = (details, obj) => {
+      const d = details && typeof details === 'object' ? details : {};
+      const a = obj && typeof obj === 'object' ? obj : {};
+      return (
+        safeStr(d?.maritalStatus) ||
+        safeStr(a?.maritalStatus) ||
+        safeStr(d?.marital) ||
+        safeStr(a?.marital) ||
+        safeStr(d?.medeniDurum) ||
+        safeStr(a?.medeniDurum) ||
+        safeStr(d?.marital_status) ||
+        safeStr(a?.marital_status) ||
+        ''
+      );
+    };
+
+    const pickHasChildren = (details, obj) => {
+      const d = details && typeof details === 'object' ? details : {};
+      const a = obj && typeof obj === 'object' ? obj : {};
+
+      const raw =
+        safeStr(d?.hasChildren) ||
+        safeStr(a?.hasChildren) ||
+        safeStr(d?.children) ||
+        safeStr(a?.children) ||
+        safeStr(d?.childStatus) ||
+        safeStr(a?.childStatus) ||
+        safeStr(d?.has_children) ||
+        safeStr(a?.has_children);
+      if (raw) return raw;
+
+      if (typeof d?.hasChildren === 'boolean') return d.hasChildren ? 'yes' : 'no';
+      if (typeof a?.hasChildren === 'boolean') return a.hasChildren ? 'yes' : 'no';
+
+      return '';
+    };
+
+    const pickChildrenCount = (details, obj) => {
+      const d = details && typeof details === 'object' ? details : {};
+      const a = obj && typeof obj === 'object' ? obj : {};
+      const raw = d?.childrenCount ?? d?.childCount ?? d?.children_count ?? d?.child_count ?? a?.childrenCount ?? a?.childCount;
+      const n = asNum(raw);
+      if (!(typeof n === 'number' && Number.isFinite(n))) return null;
+      const i = Math.trunc(n);
+      if (i < 0 || i > 20) return null;
+      return i;
+    };
+
     const isStubApplication = (a) => {
       const source = safeStr(a?.source).toLowerCase();
       if (source === 'auto_stub') return true;
@@ -868,13 +1098,13 @@ export default function Login() {
       const details = merged?.details && typeof merged.details === 'object' ? merged.details : {};
 
       const fullName = safeStr(merged?.fullName);
-      const age = asNum(merged?.age);
+      const age = getAge(merged);
       const gender = normalizeGender(merged?.gender);
       const city = safeStr(merged?.city);
       const country = safeStr(merged?.country);
       const nationality = safeStr(merged?.nationality);
-      const occupation = safeStr(details?.occupation) || safeStr(merged?.occupation);
-      const maritalStatus = normalizeMaritalStatus(details?.maritalStatus || merged?.maritalStatus);
+      const occupation = pickOccupation(details, merged);
+      const maritalStatus = normalizeMaritalStatus(pickMaritalStatus(details, merged));
 
       if (!fullName) return false;
       if (!(typeof age === 'number' && Number.isFinite(age) && age >= 18 && age <= 99)) return false;
@@ -886,10 +1116,10 @@ export default function Login() {
       if (!maritalStatus) return false;
 
       if (maritalStatus === 'widowed' || maritalStatus === 'divorced') {
-        const hasChildren = safeStr(details?.hasChildren || merged?.hasChildren).toLowerCase();
+        const hasChildren = safeStr(pickHasChildren(details, merged)).toLowerCase();
         if (!hasChildren) return false;
         if (hasChildren === 'yes') {
-          const cnt = asNum(details?.childrenCount);
+          const cnt = pickChildrenCount(details, merged);
           if (!(typeof cnt === 'number' && Number.isFinite(cnt) && cnt >= 1 && cnt <= 20)) return false;
         }
       }
@@ -903,13 +1133,13 @@ export default function Login() {
       const details = app?.details && typeof app.details === 'object' ? app.details : {};
 
       const fullName = safeStr(app?.fullName);
-      const age = asNum(app?.age);
+      const age = getAge(app);
       const gender = normalizeGender(app?.gender);
       const city = safeStr(app?.city);
       const country = safeStr(app?.country);
       const nationality = safeStr(app?.nationality);
-      const occupation = safeStr(details?.occupation) || safeStr(app?.occupation);
-      const maritalStatus = normalizeMaritalStatus(details?.maritalStatus || app?.maritalStatus);
+      const occupation = pickOccupation(details, app);
+      const maritalStatus = normalizeMaritalStatus(pickMaritalStatus(details, app));
 
       if (!fullName) return false;
       if (!(typeof age === 'number' && Number.isFinite(age) && age >= 18 && age <= 99)) return false;
@@ -921,10 +1151,10 @@ export default function Login() {
       if (!maritalStatus) return false;
 
       if (maritalStatus === 'widowed' || maritalStatus === 'divorced') {
-        const hasChildren = safeStr(details?.hasChildren || app?.hasChildren).toLowerCase();
+        const hasChildren = safeStr(pickHasChildren(details, app)).toLowerCase();
         if (!hasChildren) return false;
         if (hasChildren === 'yes') {
-          const cnt = asNum(details?.childrenCount);
+          const cnt = pickChildrenCount(details, app);
           if (!(typeof cnt === 'number' && Number.isFinite(cnt) && cnt >= 1 && cnt <= 20)) return false;
         }
       }
@@ -948,18 +1178,26 @@ export default function Login() {
       }
 
       // Fallback: matchmakingApplications, non-stub ve minimum alanlar dolu.
-      const q = query(collection(db, 'matchmakingApplications'), where('userId', '==', userId), limit(10));
-      const snap = await getDocs(q);
-      if (snap.empty) return false;
+      const q1 = query(collection(db, 'matchmakingApplications'), where('userId', '==', userId), limit(10));
+      const q2 = query(collection(db, 'matchmakingApplications'), where('uid', '==', userId), limit(10));
+      const q3 = query(collection(db, 'matchmakingApplications'), where('userUid', '==', userId), limit(10));
 
-      for (const d of snap.docs) {
+      const [s1, s2, s3] = await Promise.all([getDocs(q1), getDocs(q2), getDocs(q3)]);
+      const docs = [...(s1?.docs || []), ...(s2?.docs || []), ...(s3?.docs || [])];
+      if (!docs.length) return false;
+
+      const seen = new Set();
+      for (const d of docs) {
+        const id = safeStr(d?.id);
+        if (id && seen.has(id)) continue;
+        if (id) seen.add(id);
         const a = d.data() || {};
         if (hasMinimumProfileInApplicationDoc(a)) return true;
       }
       return false;
-    } catch (e) {
-      // Hata olursa kullanıcıyı bloklamayalım; varsayılan akış devam etsin.
-      return true;
+    } catch {
+      // Hata olursa kullanıcıyı bloklamayalım; guard hedefi zorla değiştirmesin.
+      return null;
     }
   };
 
@@ -983,48 +1221,9 @@ export default function Login() {
       return;
     }
 
-    // Signup sonrası kullanıcı mutlaka başvuru formuna gitsin.
-    // Google redirect/popup akışlarında yeni kullanıcı bazen mode=login ile dönebiliyor;
-    // bu yüzden pending target başvuru formuysa quick profile ekranına düşürmeyelim.
-    try {
-      const pending = readPendingPostAuthNav();
-      const pendingTarget = String(pending?.target || '').trim();
-      if (mode === 'signup' || (pendingTarget && isMatchmakingApplyPath(pendingTarget))) {
-        setNeedsQuickProfile(false);
-        setQuickProfileCheckDone(true);
-        return;
-      }
-    } catch {
-      // ignore
-    }
-
-    let cancelled = false;
-    setQuickProfileCheckDone(false);
-
-    (async () => {
-      try {
-        const completed = await Promise.race([
-          Promise.resolve(hasCompletedApplication(uid)),
-          new Promise((resolve) => setTimeout(() => resolve(null), 8000)),
-        ]);
-        if (cancelled) return;
-        // completed: true/false; null => timeout/unknown (bloklama)
-        if (completed === true) setNeedsQuickProfile(false);
-        else if (completed === false) setNeedsQuickProfile(true);
-        else setNeedsQuickProfile(false);
-      } catch {
-        if (cancelled) return;
-        setNeedsQuickProfile(false);
-      } finally {
-        if (cancelled) return;
-        setQuickProfileCheckDone(true);
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // Ürün kararı: hızlı profil akışı kaldırıldı, tüm kullanıcılar tek birleşik başvuru formuna gider.
+    setNeedsQuickProfile(false);
+    setQuickProfileCheckDone(true);
   }, [user?.uid, redirectCheckDone]);
 
 
@@ -1033,7 +1232,7 @@ export default function Login() {
       const raw = sessionStorage.getItem('auth_redirect_target');
       if (!raw) return null;
       return JSON.parse(raw);
-    } catch (e) {
+    } catch {
       return null;
     }
   };
@@ -1190,7 +1389,7 @@ export default function Login() {
   const writeStoredRedirect = () => {
     try {
       sessionStorage.setItem('auth_redirect_target', JSON.stringify(redirectTarget));
-    } catch (e) {
+    } catch {
       // ignore
     }
   };
@@ -1198,7 +1397,7 @@ export default function Login() {
   const readForcedTarget = () => {
     try {
       return sessionStorage.getItem('auth_force_target') || '';
-    } catch (e) {
+    } catch {
       return '';
     }
   };
@@ -1210,7 +1409,7 @@ export default function Login() {
       } else {
         sessionStorage.removeItem('auth_force_target');
       }
-    } catch (e) {
+    } catch {
       // ignore
     }
   };
@@ -1218,38 +1417,59 @@ export default function Login() {
   const clearStoredRedirect = () => {
     try {
       sessionStorage.removeItem('auth_redirect_target');
-    } catch (e) {
+    } catch {
+      // ignore
+    }
+  };
+
+  const AUTO_GOOGLE_KEY = 'uniqah:auto_google_v1';
+
+  const writeAutoGoogleFlag = (value) => {
+    try {
+      if (value) sessionStorage.setItem(AUTO_GOOGLE_KEY, '1');
+      else sessionStorage.removeItem(AUTO_GOOGLE_KEY);
+    } catch {
+      // ignore
+    }
+  };
+
+  const readAutoGoogleFlag = () => {
+    try {
+      return sessionStorage.getItem(AUTO_GOOGLE_KEY) === '1';
+    } catch {
+      return false;
+    }
+  };
+
+  const clearAutoGoogleFlag = () => writeAutoGoogleFlag(false);
+
+  const consumeAutoGoogleQueryParam = () => {
+    try {
+      if (typeof window === 'undefined') return;
+      const url = new URL(window.location.href);
+      if (String(url.searchParams.get('auto') || '').trim().toLowerCase() !== 'google') return;
+      url.searchParams.delete('auto');
+      const next = `${url.pathname}${url.search}${url.hash}`;
+      window.history.replaceState(window.history.state, '', next);
+    } catch {
       // ignore
     }
   };
 
   const resolvePostAuthTarget = (isNewUser, intent) => {
-    const quickCompleted = (() => {
-      try {
-        const d = readQuickProfileDraft();
-        return !!d?.completed;
-      } catch {
-        return false;
-      }
-    })();
-
-    // Ürün kararı (2026-02-23): Başvuru formu kayıt sonrası zorunlu.
-    // Signup niyeti veya yeni kullanıcı ise, ilk adım form olsun.
-    if (isFeatureEnabled('wedding') && intent === 'signup' && !quickCompleted) return '/evlilik/eslestirme-basvuru?w=1';
-
     const forced = readForcedTarget();
     if (forced) return forced;
     const stored = readStoredRedirect();
     const candidate = stored?.from || redirectTarget.from || '';
 
-    // Yeni kayıt: ilk adım başvuru formu.
-    if (isFeatureEnabled('wedding') && isNewUser && !quickCompleted) return '/evlilik/eslestirme-basvuru?w=1';
+    // Yeni kayıt olan kullanıcıları başvuru wizard'ına al.
+    // Mevcut kullanıcı signup ekranına yanlışlıkla düşmüş olsa bile yeniden forma zorlama; Profilim'e yönlendir.
+    if (isFeatureEnabled('wedding') && isNewUser) return '/evlilik/eslestirme-basvuru?w=1';
 
-    // Kullanıcı "başvuru" sayfasına gitmek istediyse onu koru.
+    // Mevcut kullanıcı "başvuru" sayfasına gitmek istediyse onu koru.
     if (isMatchmakingApplyPath(candidate)) return candidate;
 
-    // Mevcut kullanıcıyı (ve yeni kullanıcıyı) her zaman profil sayfasına götür.
-    // Böylece Google login sonrası anasayfaya dönüp "form yükleniyor" gibi geçişler yaşanmaz.
+    // Mevcut kullanıcıyı her zaman Profilim'e götür.
     return '/profilim';
   };
 
@@ -1260,13 +1480,13 @@ export default function Login() {
 
   // Not: 2026-02 ürün kararındaki "signup sonrası forma zorlamama" akışı geri alındı.
 
-  const navigateNext = (target, state) => {
+  const navigateNext = useCallback((target, state) => {
     if (hasNavigatedRef.current) return;
     hasNavigatedRef.current = true;
     const finalTarget = target || redirectTarget.from || '/profilim';
     const finalState = typeof state === 'undefined' ? redirectTarget.fromState : state;
     navigate(finalTarget, { replace: true, state: finalState });
-  };
+  }, [navigate, redirectTarget.from, redirectTarget.fromState]);
 
   const withTimeout = (promise, timeoutMs) => {
     return Promise.race([
@@ -1326,10 +1546,19 @@ export default function Login() {
         state = null;
       }
 
-      // Başka bir yere gidiyor ama profili eksikse formu zorunlu aç.
+      // Profili eksikse çoğu yerde formu zorunlu aç,
+      // ama Keşfet (pool) gibi "göster, etkileşimi kilitle" sayfalarına izin ver.
       if (completed === false && !isMatchmakingApplyPath(next)) {
-        next = '/evlilik/eslestirme-basvuru?w=1';
-        state = null;
+        const pathOnly = normalizePathOnly(next);
+        const allowIncomplete =
+          pathOnly === '/app/pool' ||
+          pathOnly === '/app/matches' ||
+          pathOnly === '/profilim' ||
+          pathOnly === '/eslestirme';
+        if (!allowIncomplete) {
+          next = '/evlilik/eslestirme-basvuru?w=1';
+          state = null;
+        }
       }
     }
 
@@ -1364,13 +1593,6 @@ export default function Login() {
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authLoading, user?.uid]);
-  const resolveAuthLanguage = (lang) => {
-    const key = String(lang || '').toLowerCase();
-    if (key.startsWith('tr')) return 'tr';
-    if (key.startsWith('id')) return 'id';
-    return 'en';
-  };
-
   const ensureProfileSaved = async (uid, profileOrAge) => {
     if (!uid) return;
 
@@ -1422,13 +1644,13 @@ export default function Login() {
     const nextGenderRaw = String(profile?.gender || '').trim().toLowerCase();
     const nextGender = nextGenderRaw === 'male' || nextGenderRaw === 'female' ? nextGenderRaw : null;
 
-    const nextLookingForRaw = String(profile?.lookingForGender || '').trim().toLowerCase();
-    const nextLookingFor = nextLookingForRaw === 'male' || nextLookingForRaw === 'female' ? nextLookingForRaw : null;
+    // IMPORTANT (firestore.rules): Client-side writes to matchmakingUsers are intentionally restricted
+    // to a small whitelist. Do NOT attempt to write extra fields here (e.g. lookingForGender),
+    // otherwise a permission-denied can break onboarding flows.
 
     const payload = {
       ...(typeof existingAge === 'number' ? {} : nextAge !== null ? { age: nextAge } : {}),
       ...(hasGender ? {} : nextGender ? { gender: nextGender } : {}),
-      ...(String(data?.lookingForGender || '').trim() ? {} : nextLookingFor ? { lookingForGender: nextLookingFor } : {}),
       updatedAt: serverTimestamp(),
     };
 
@@ -1470,6 +1692,17 @@ export default function Login() {
       // best-effort
     }
   };
+
+  const syncedAuthIdentityUidRef = useRef('');
+  useEffect(() => {
+    if (authLoading) return;
+    if (!redirectCheckDone) return;
+    if (!user || user.isAnonymous || !user?.uid) return;
+    if (syncedAuthIdentityUidRef.current === user.uid) return;
+
+    syncedAuthIdentityUidRef.current = user.uid;
+    void ensureProfileSaved(user.uid, {});
+  }, [authLoading, redirectCheckDone, user?.uid, user?.isAnonymous]);
 
   const contextMessage = useMemo(() => {
     const from = redirectTarget.from || "/profilim";
@@ -1521,7 +1754,6 @@ export default function Login() {
 
     const force = params.get("force");
     setForceLogin(force === "1");
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location.search]);
 
   useEffect(() => {
@@ -1540,11 +1772,199 @@ export default function Login() {
     signOut(auth).catch(() => {
       // ignore
     });
-  }, [forceLogin, user]);
+  }, [forceLogin, t, user]);
 
   useEffect(() => {
     if (redirectFinalizeOnceRef.current) return;
     redirectFinalizeOnceRef.current = true;
+
+    let salvageStarted = false;
+    let salvageCancelled = false;
+
+    const parseTimeMs = (s) => {
+      try {
+        const ms = Date.parse(String(s || ''));
+        return Number.isFinite(ms) ? ms : null;
+      } catch {
+        return null;
+      }
+    };
+
+    const isLikelyNewUserByMetadata = (firebaseUser) => {
+      try {
+        const created = parseTimeMs(firebaseUser?.metadata?.creationTime);
+        if (created === null) return false;
+        const ageMs = Date.now() - created;
+        return Number.isFinite(ageMs) && ageMs >= 0 && ageMs <= 10 * 60 * 1000;
+      } catch {
+        return false;
+      }
+    };
+
+    const tryGetRedirectResultWithTimeout = async (timeoutMs) => {
+      const r = await Promise.race([
+        Promise.resolve(getRedirectResult(auth)).then((result) => ({ timeout: false, result })),
+        new Promise((resolve) => setTimeout(() => resolve({ timeout: true, result: null }), timeoutMs)),
+      ]);
+      return r;
+    };
+
+    const salvageRedirectAfterTimeout = async ({ providerLabel, initialIntent } = {}) => {
+      if (salvageStarted) return;
+      salvageStarted = true;
+
+      // If the redirect result is just slow (not hung), retry a few times.
+      const delays = import.meta.env.DEV ? [400, 900, 1400] : [700, 1500, 3000, 5500];
+
+      for (const d of delays) {
+        if (salvageCancelled) return;
+        await new Promise((r) => setTimeout(r, d));
+        if (salvageCancelled) return;
+
+        try {
+          const rr = await tryGetRedirectResultWithTimeout(import.meta.env.DEV ? 900 : 2500);
+          if (rr?.timeout) continue;
+          const result = rr?.result;
+          if (result?.user) {
+            // Let the main finalize logic handle it on the next tick by reloading state.
+            // But since we are already inside the same effect, we can do a minimal finalize here.
+            try {
+              const info2 = getAdditionalUserInfo(result);
+              const isNewUser = !!info2?.isNewUser;
+
+              clearAutoGoogleFlag();
+              clearAuthProvider();
+              clearRedirectStartMarker();
+
+              const intent = readAuthIntent() || initialIntent || 'login';
+              clearAuthIntent();
+
+              if (isNewUser) {
+                markHasSignedUpBefore();
+                const p = readSignupProfile() || {};
+                clearSignupProfile();
+                await trackClick(`signup_success:${providerLabel}_redirect`, { trace: true });
+                markFunnelSignupCompleted(`${providerLabel}_redirect`);
+                tiktokTrack('CompleteRegistration');
+                forceTour('onboarding-main');
+                try {
+                  await ensureProfileSaved(result?.user?.uid, p);
+                  await acceptReferralIfAny();
+                } catch {
+                  // best-effort
+                }
+                try {
+                  await applyQuickProfileAfterAuthIfAny(`${providerLabel}_redirect`);
+                } catch {
+                  // ignore
+                }
+                try {
+                  await bootstrapMatchmakingApplication(result?.user, p);
+                } catch {
+                  // ignore
+                }
+                markJustSignedUp();
+              } else {
+                clearSignupProfile();
+                try {
+                  void trackClick(`signin_success:${providerLabel}_redirect`);
+                } catch {
+                  // ignore
+                }
+              }
+
+              const target = resolvePostAuthTarget(isNewUser, isNewUser ? 'signup' : intent);
+              const state = isNewUser ? null : resolvePostAuthState();
+              writePendingPostAuthNav(target, state);
+              clearStoredRedirect();
+              writeForcedTarget('');
+              try {
+                await navigateNextWithApplyGuard(result?.user?.uid, target, state);
+                clearPendingPostAuthNav();
+              } catch {
+                // ignore
+              }
+            } catch {
+              // If this fails, fall back to auth.currentUser salvage below.
+            }
+            return;
+          }
+        } catch {
+          // ignore and keep retrying
+        }
+      }
+
+      // Hard salvage: getRedirectResult appears hung. If Firebase Auth state is already set,
+      // complete the flow based on currentUser + a conservative new-user heuristic.
+      try {
+        const u = auth?.currentUser;
+        if (!u || !u.uid) return;
+
+        const marker = readRedirectStartMarker();
+        const intent = readAuthIntent() || initialIntent || marker?.intent || 'login';
+
+        const isNewUser = intent === 'signup' ? true : isLikelyNewUserByMetadata(u);
+
+        clearAutoGoogleFlag();
+        clearAuthProvider();
+        clearRedirectStartMarker();
+        clearAuthIntent();
+
+        if (isNewUser) {
+          markHasSignedUpBefore();
+          const p = readSignupProfile() || {};
+          clearSignupProfile();
+          await trackClick(`signup_success:${providerLabel}_redirect`, { trace: true });
+          markFunnelSignupCompleted(`${providerLabel}_redirect`);
+          tiktokTrack('CompleteRegistration');
+          forceTour('onboarding-main');
+          try {
+            await ensureProfileSaved(u?.uid, p);
+            await acceptReferralIfAny();
+          } catch {
+            // ignore
+          }
+          try {
+            await applyQuickProfileAfterAuthIfAny(`${providerLabel}_redirect`);
+          } catch {
+            // ignore
+          }
+          try {
+            await bootstrapMatchmakingApplication(u, p);
+          } catch {
+            // ignore
+          }
+          markJustSignedUp();
+        } else {
+          clearSignupProfile();
+          try {
+            void trackClick(`signin_success:${providerLabel}_redirect`);
+          } catch {
+            // ignore
+          }
+        }
+
+        const target = resolvePostAuthTarget(isNewUser, isNewUser ? 'signup' : intent);
+        const state = isNewUser ? null : resolvePostAuthState();
+        writePendingPostAuthNav(target, state);
+        clearStoredRedirect();
+        writeForcedTarget('');
+        try {
+          await navigateNextWithApplyGuard(u?.uid, target, state);
+          clearPendingPostAuthNav();
+        } catch {
+          // ignore
+        }
+
+        try {
+          void trackClick(`auth_redirect_salvaged:${providerLabel}`, { trace: true });
+        } catch {
+          // ignore
+        }
+      } catch {
+        // ignore
+      }
+    };
 
     let isActive = true;
 
@@ -1553,30 +1973,27 @@ export default function Login() {
       const provider = readAuthProvider() || 'google';
       const providerLabel = provider === 'google' ? 'google' : 'google';
       try {
-        const r = await Promise.race([
-          Promise.resolve(getRedirectResult(auth)).then((result) => ({ timeout: false, result })),
-          new Promise((resolve) =>
-            setTimeout(
-              () => resolve({ timeout: true, result: null }),
-              import.meta.env.DEV ? 1500 : 8000
-            )
-          ),
-        ]);
+        const r = await tryGetRedirectResultWithTimeout(import.meta.env.DEV ? 1500 : 8000);
 
         // Bazı in-app tarayıcılarda getRedirectResult hiç resolve olmayabiliyor.
         // Timeout durumunda sessizce devam edip diğer effect'lerin yönlendirmesine izin veriyoruz.
         if (r?.timeout) {
           try {
             const intent = readAuthIntent() || 'login';
-            void trackClick(`${intent}_redirect_result_timeout:${providerLabel}`);
+            void trackClick(`${intent}_redirect_result_timeout:${providerLabel}`, { trace: true });
           } catch {
             // ignore
           }
+          clearAutoGoogleFlag();
+          // IMPORTANT: In some environments, redirect actually succeeds but getRedirectResult hangs.
+          // If we don't salvage, we lose signups and skip onboarding/bootstrap.
+          void salvageRedirectAfterTimeout({ providerLabel, initialIntent: readAuthIntent() || 'login' });
           return;
         }
 
         const result = r?.result;
         if (result?.user && isActive) {
+          clearAutoGoogleFlag();
           clearAuthProvider();
           clearRedirectStartMarker();
 
@@ -1587,7 +2004,7 @@ export default function Login() {
           // keep whether user is new so we can route existing users to /profilim.
           try {
             const params = new URLSearchParams(location.search || '');
-            const isAutoGoogle = String(params.get('auto') || '').toLowerCase() === 'google';
+            const isAutoGoogle = String(params.get('auto') || '').toLowerCase() === 'google' || readAutoGoogleFlag();
             if (isAutoGoogle) {
               sessionStorage.setItem('uniqah:last_auth_new_user_v1', isNewUser ? '1' : '0');
               if (!isNewUser) {
@@ -1603,6 +2020,14 @@ export default function Login() {
           // Bu yüzden intent'i (login/signup) sessionStorage üzerinden okuyoruz.
           const intent = readAuthIntent() || 'login';
           clearAuthIntent();
+
+          if (!isNewUser) {
+            try {
+              void trackClick(`signin_success:${providerLabel}_redirect`);
+            } catch {
+              // ignore
+            }
+          }
 
           // Dönüşüm hedefi: Google ile ilk girişte (yeni kullanıcı) login/signup niyetinden bağımsız
           // akışı bloklama; kullanıcıyı profil ekranına alıp formu orada tamamlat.
@@ -1620,7 +2045,7 @@ export default function Login() {
             clearSignupProfile();
 
             // Account created: count this as signup success even if profile save fails.
-            await trackClick(`signup_success:${providerLabel}_redirect`);
+            await trackClick(`signup_success:${providerLabel}_redirect`, { trace: true });
             markFunnelSignupCompleted(`${providerLabel}_redirect`);
             try {
               if (typeof window !== 'undefined' && typeof window.gtag === 'function') {
@@ -1640,7 +2065,7 @@ export default function Login() {
             } catch (eProfile) {
               // Best-effort: profil kaydı başarısız olsa bile kullanıcıyı kilitleme.
               const code = String(eProfile?.code || '').trim();
-              void trackClick(`signup_error:google_redirect:${code || 'profile_save_failed'}`);
+              void trackClick(`signup_error:google_redirect:${code || 'profile_save_failed'}`, { trace: true });
 
               storeSupportReport(
                 buildSupportReport({
@@ -1685,7 +2110,14 @@ export default function Login() {
           // and store a support report for diagnosis (host mismatch, storage restrictions, etc.).
           const marker = readRedirectStartMarker();
           if (marker) {
+            clearAutoGoogleFlag();
             clearRedirectStartMarker();
+
+            try {
+              void trackClick(`auth_redirect_no_result:${providerLabel}`, { trace: true });
+            } catch {
+              // ignore
+            }
 
             try {
               const hostNow = (() => {
@@ -1737,15 +2169,16 @@ export default function Login() {
       } catch (e) {
         const code = String(e?.code || '').trim();
         const msg = String(e?.message || '').trim();
+        clearAutoGoogleFlag();
 
         // Redirect flow'da hata olursa eskiden tamamen yutuluyordu.
         // Bu da “kayıt olmuyorlar ama sebep göremiyoruz” sorununa yol açıyor.
         const intent = readAuthIntent() || 'login';
 
         if (intent === 'signup') {
-          void trackClick(`signup_error:${providerLabel}_redirect:${code || 'unknown'}`);
+          void trackClick(`signup_error:${providerLabel}_redirect:${code || 'unknown'}`, { trace: true });
         } else {
-          void trackClick(`login_error:${providerLabel}_redirect:${code || 'unknown'}`);
+          void trackClick(`login_error:${providerLabel}_redirect:${code || 'unknown'}`, { trace: true });
         }
 
         void reportAuthIssue({
@@ -1811,7 +2244,11 @@ export default function Login() {
     finalizeRedirect();
     return () => {
       isActive = false;
+      salvageCancelled = true;
     };
+  // Redirect finalizer is intentionally one-shot; ref guards keep it idempotent while
+  // allowing the latest closures during the first mount after the redirect round-trip.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [navigateNext]);
 
   useEffect(() => {
@@ -1852,6 +2289,22 @@ export default function Login() {
   const autoGoogleOnceRef = useRef(false);
   useEffect(() => {
     try {
+      const params = new URLSearchParams(location.search || '');
+      const rawMode = String(params.get('mode') || mode || '').toLowerCase();
+      const auto = String(params.get('auto') || '').toLowerCase();
+      if (rawMode !== 'signup') return;
+      if (auto !== 'google') return;
+      if (!isTrOrIdTraffic) return;
+
+      clearAutoGoogleFlag();
+      consumeAutoGoogleQueryParam();
+    } catch {
+      // ignore
+    }
+  }, [location.search, mode, isTrOrIdTraffic]);
+
+  useEffect(() => {
+    try {
       if (autoGoogleOnceRef.current) return;
       if (!redirectCheckDone) return;
       if (authFlowBusyRef.current) return;
@@ -1862,6 +2315,12 @@ export default function Login() {
       const params = new URLSearchParams(location.search || '');
       const auto = String(params.get('auto') || '').toLowerCase();
       if (auto !== 'google') return;
+
+      if (isTrOrIdTraffic) {
+        autoGoogleOnceRef.current = true;
+        consumeAutoGoogleQueryParam();
+        return;
+      }
 
       const isInAppBrowser = (() => {
         try {
@@ -1892,7 +2351,7 @@ export default function Login() {
       // ignore
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [location.search, redirectCheckDone, mode, user, busy]);
+  }, [location.search, redirectCheckDone, mode, user, busy, isTrOrIdTraffic]);
 
   if (user && !needsQuickProfile) {
     // Kullanıcı login olduysa bu sayfada form göstermeyelim.
@@ -1941,6 +2400,7 @@ export default function Login() {
     setError('');
     setInfo('');
     authFlowBusyRef.current = true;
+    let redirectStarted = false;
 
     // UI signal: confirm the click handler executed.
     try {
@@ -1949,15 +2409,14 @@ export default function Login() {
       // ignore
     }
 
-    const AUTO_GOOGLE_KEY = 'uniqah:auto_google_v1';
     const LAST_AUTH_NEW_USER_KEY = 'uniqah:last_auth_new_user_v1';
 
     const isAutoGoogle = (() => {
       try {
         const params = new URLSearchParams(location.search || '');
-        return String(params.get('auto') || '').toLowerCase() === 'google';
+        return String(params.get('auto') || '').toLowerCase() === 'google' || readAutoGoogleFlag();
       } catch {
-        return false;
+        return readAutoGoogleFlag();
       }
     })();
 
@@ -1982,7 +2441,7 @@ export default function Login() {
       const isTikTokInApp = (() => {
         try {
           const ua = typeof navigator !== 'undefined' ? String(navigator.userAgent || '') : '';
-          return /trill[_\s/\-]?|tiktok/i.test(ua);
+          return /trill[_\s/-]?|tiktok/i.test(ua);
         } catch {
           return false;
         }
@@ -2016,9 +2475,23 @@ export default function Login() {
         }
       })();
 
-      // Prefer popup when possible; use redirect only for environments known to block popups
-      // (or when explicitly requested via auto=google).
-      let willRedirect = isTikTokInApp || isOtherInApp || isMiuiOrLite || isIOS || isAutoGoogle;
+      const isAndroid = (() => {
+        try {
+          const ua = typeof navigator !== 'undefined' ? String(navigator.userAgent || '') : '';
+          return /android/i.test(ua);
+        } catch {
+          return false;
+        }
+      })();
+
+      const isInAppBrowser = isTikTokInApp || isOtherInApp;
+
+      // Prefer popup on almost all real browsers, including iOS Safari.
+      // Redirect round-trips are the main source of "Google'a gidip geri attı" complaints.
+      // Keep redirect only for explicit auto-google flows or known problematic browsers.
+      const preferPopup = !isAutoGoogle && !isMiuiOrLite;
+      let willRedirect = isMiuiOrLite || isAutoGoogle;
+      if (preferPopup) willRedirect = false;
 
       // Debug override: allow forcing the transport via query param.
       // Example: /login?mode=signup&transport=popup
@@ -2033,6 +2506,8 @@ export default function Login() {
         isOtherInApp: isOtherInApp ? '1' : '0',
         isMiuiOrLite: isMiuiOrLite ? '1' : '0',
         isIOS: isIOS ? '1' : '0',
+        isAndroid: isAndroid ? '1' : '0',
+        trafficCountryHint: trafficCountryHint || '',
         willRedirect: willRedirect ? '1' : '0',
         ua: (() => {
           try {
@@ -2043,12 +2518,19 @@ export default function Login() {
         })(),
       });
 
-      if (isAutoGoogle) {
+      if (isInAppBrowser) {
         try {
-          sessionStorage.setItem(AUTO_GOOGLE_KEY, '1');
+          void trackClick(mode === 'signup' ? 'signup_blocked:google_inapp' : 'login_blocked:google_inapp');
         } catch {
           // ignore
         }
+        setEmailFallbackVisible(true);
+        setError(t('authPage.errors.googleInAppBlocked'));
+        return;
+      }
+
+      if (isAutoGoogle) {
+        writeAutoGoogleFlag(true);
         try {
           void trackClick('signup_auto_trigger:google');
         } catch {
@@ -2067,7 +2549,7 @@ export default function Login() {
         }
       } else {
         try {
-          void trackClick('login_start:google');
+          void trackClick('signin_start:google');
         } catch {
           // ignore
         }
@@ -2076,14 +2558,14 @@ export default function Login() {
       writeAuthIntent(mode);
       writeForcedTarget('');
 
-      // In-app / OEM browsers frequently break popup auth. For CTA auto=google,
-      // prefer redirect to reduce friction (esp. common in ID traffic).
+      // Stable browsers use popup here to avoid redirect round-trip failures.
       if (willRedirect) {
         try {
           setInfo(t('authPage.infos.inAppBrowserGoogleRedirect'));
         } catch {
           // ignore
         }
+        redirectStarted = true;
         startGoogleRedirect(provider, { flow: 'google_redirect_start' });
         return;
       }
@@ -2119,7 +2601,7 @@ export default function Login() {
 
       if (isNewUser) {
         markHasSignedUpBefore();
-        await trackClick('signup_success:google');
+        await trackClick('signup_success:google', { trace: true });
         markFunnelSignupCompleted('google_popup');
         try {
           if (typeof window !== 'undefined' && typeof window.gtag === 'function') {
@@ -2139,7 +2621,7 @@ export default function Login() {
           await acceptReferralIfAny();
         } catch (eProfile) {
           const code = String(eProfile?.code || '').trim();
-          void trackClick(`signup_error:google_popup:${code || 'profile_save_failed'}`);
+          void trackClick(`signup_error:google_popup:${code || 'profile_save_failed'}`, { trace: true });
 
           storeSupportReport(
             buildSupportReport({
@@ -2157,6 +2639,11 @@ export default function Login() {
         markJustSignedUp();
       } else {
         clearSignupProfile();
+        try {
+          void trackClick('signin_success:google');
+        } catch {
+          // ignore
+        }
       }
 
       // Popup akışında da post-auth hedefi sakla (özellikle yeni kullanıcı mode=login'den gelirse).
@@ -2176,6 +2663,8 @@ export default function Login() {
       } catch {
         // ignore
       }
+
+      clearAutoGoogleFlag();
     } catch (e) {
       const code = String(e?.code || '').trim();
       const msg = String(e?.message || '').trim();
@@ -2186,16 +2675,45 @@ export default function Login() {
       });
 
       if (mode === 'signup') {
-        void trackClick(`signup_error:google_popup:${code || 'unknown'}`);
+        void trackClick(`signup_error:google_popup:${code || 'unknown'}`, { trace: true });
       } else {
-        void trackClick(`login_error:google_popup:${code || 'unknown'}`);
+        void trackClick(`login_error:google_popup:${code || 'unknown'}`, { trace: true });
+      }
+
+      if (code === 'auth/popup-blocked') {
+        try {
+          if (mode === 'signup') {
+            void trackClick('signup_popup_blocked:google', { trace: true });
+          } else {
+            void trackClick('login_popup_blocked:google', { trace: true });
+          }
+        } catch {
+          // ignore
+        }
+        setEmailFallbackVisible(true);
+        setError(t('authPage.errors.googlePopupBlocked'));
+        return;
       }
 
       if (
-        code === 'auth/popup-blocked' ||
         code === 'auth/popup-closed-by-user' ||
         code === 'auth/cancelled-popup-request' ||
-        code === 'auth/argument-error' ||
+        code === 'auth/user-cancelled'
+      ) {
+        try {
+          if (mode === 'signup') {
+            void trackClick('signup_popup_closed:google', { trace: true });
+          } else {
+            void trackClick('login_popup_closed:google', { trace: true });
+          }
+        } catch {
+          // ignore
+        }
+        setError(t('authPage.errors.googlePopupClosed'));
+        return;
+      }
+
+      if (
         code === 'auth/operation-not-supported-in-this-environment' ||
         code === 'auth/web-storage-unsupported'
       ) {
@@ -2204,6 +2722,16 @@ export default function Login() {
           configureGoogleProviderLocale(provider2);
           writeForcedTarget('');
           writeAuthIntent(mode);
+          try {
+            if (mode === 'signup') {
+              void trackClick('signup_popup_fallback_to_redirect:google', { trace: true });
+            } else {
+              void trackClick('login_popup_fallback_to_redirect:google', { trace: true });
+            }
+          } catch {
+            // ignore
+          }
+          redirectStarted = true;
           startGoogleRedirect(provider2, { flow: 'google_popup_fallback_redirect_start' });
           return;
         } catch (e2) {
@@ -2217,6 +2745,11 @@ export default function Login() {
           );
           return;
         }
+      }
+
+      if (code === 'auth/argument-error') {
+        setError(t('authPage.errors.googleFailed'));
+        return;
       }
 
       if (code === 'auth/unauthorized-domain') {
@@ -2270,6 +2803,7 @@ export default function Login() {
 
       setError(msg || t('authPage.errors.googleFailed'));
     } finally {
+      if (!redirectStarted) clearAutoGoogleFlag();
       authFlowBusyRef.current = false;
       setBusy(false);
     }
@@ -2295,19 +2829,29 @@ export default function Login() {
       writeAuthIntent(mode);
       writeForcedTarget('');
 
+      const isSignupMode = mode === 'signup';
+      const optimisticTarget = resolvePostAuthTarget(isSignupMode, isSignupMode ? 'signup' : 'login');
+      const optimisticState = isSignupMode ? null : resolvePostAuthState();
+
+      // Email/password auth updates Firebase user state immediately. Persist the intended
+      // post-auth target before the auth call so the generic authenticated-user effect
+      // cannot race and send fresh signups to Profilim.
+      writePendingPostAuthNav(optimisticTarget, optimisticState);
+
       if (mode === 'signup') {
         if (pass !== pass2) {
+          clearPendingPostAuthNav();
           setError(t('authPage.errors.passwordsDoNotMatch'));
           return;
         }
 
-        void trackClick('signup_start:email_password');
+        void trackClick('signup_start:email');
         const cred = await createUserWithEmailAndPassword(auth, normalizedEmail, pass);
         markHasSignedUpBefore();
 
         try {
-          await trackClick('signup_success:email_password');
-          markFunnelSignupCompleted('email_password');
+          await trackClick('signup_success:email', { trace: true });
+          markFunnelSignupCompleted('email');
         } catch {
           // ignore
         }
@@ -2317,14 +2861,51 @@ export default function Login() {
 
         void bootstrapMatchmakingApplication(cred?.user, readSignupProfile() || {});
         clearSignupProfile();
+
+        // E-posta ile kayıt sonrası yeni kullanıcıyı başvuru formuna gönder.
+        try {
+          const target = optimisticTarget;
+          const state = optimisticState;
+          clearStoredRedirect();
+          try {
+            await navigateNextWithApplyGuard(cred?.user?.uid, target, state);
+            clearPendingPostAuthNav();
+          } catch {
+            // ignore
+          }
+        } catch {
+          // ignore
+        }
       } else {
-        void trackClick('login_start:email_password');
+        void trackClick('signin_start:email');
         await signInWithEmailAndPassword(auth, normalizedEmail, pass);
-        void trackClick('login_success:email_password');
+
+        try {
+          void trackClick('signin_success:email', { trace: true });
+        } catch {
+          // ignore
+        }
+
+        // E-posta ile giriş sonrası mevcut kullanıcıyı Profilim'e yönlendir.
+        try {
+          const target = optimisticTarget;
+          const state = optimisticState;
+          clearStoredRedirect();
+          try {
+            await navigateNextWithApplyGuard(auth?.currentUser?.uid, target, state);
+            clearPendingPostAuthNav();
+          } catch {
+            // ignore
+          }
+        } catch {
+          // ignore
+        }
       }
     } catch (e2) {
       const code = String(e2?.code || '').trim();
       const msg = String(e2?.message || '').trim();
+
+      clearPendingPostAuthNav();
 
       if (code === 'auth/invalid-email') {
         setError(t('authPage.errors.invalidEmail'));
@@ -2571,108 +3152,64 @@ export default function Login() {
     }
   };
 
-  const devAuthState = (() => {
-    // Important: do NOT use hooks here. This component has an early return path
-    // (user && !needsQuickProfile) and hooks after that would break hook order.
-    if (!import.meta.env.DEV) return null;
-    try {
-      const marker = readRedirectStartMarker();
-      const pending = readPendingPostAuthNav();
-
-      const hostNow = (() => {
-        try {
-          return String(window.location?.hostname || '');
-        } catch {
-          return '';
-        }
-      })();
-      const originNow = (() => {
-        try {
-          return String(window.location?.origin || '');
-        } catch {
-          return '';
-        }
-      })();
-      const pathNow = (() => {
-        try {
-          return String(window.location?.pathname || '');
-        } catch {
-          return '';
-        }
-      })();
-      const searchNow = (() => {
-        try {
-          return String(window.location?.search || '');
-        } catch {
-          return '';
-        }
-      })();
-
-      const ss = (key) => {
-        try {
-          return String(sessionStorage.getItem(key) || '');
-        } catch {
-          return '';
-        }
-      };
-
-      return {
-        env: {
-          mode: String(import.meta.env.MODE || ''),
-          dev: import.meta.env.DEV ? '1' : '0',
-          authPersistence: String(import.meta.env.VITE_AUTH_PERSISTENCE || ''),
-        },
-        url: {
-          origin: originNow,
-          host: hostNow,
-          path: pathNow,
-          search: searchNow,
-        },
-        page: {
-          mode: String(mode || ''),
-          forceLogin: forceLogin ? '1' : '0',
-          busy: busy ? '1' : '0',
-          authLoading: authLoading ? '1' : '0',
-          redirectCheckDone: redirectCheckDone ? '1' : '0',
-          quickProfile: {
-            needs: needsQuickProfile ? '1' : '0',
-            checkDone: quickProfileCheckDone ? '1' : '0',
-            stage: String(quickProfileStage || ''),
-          },
-        },
-        auth: {
-          contextUserUid: safeStr(user?.uid),
-          currentUserUid: safeStr(auth?.currentUser?.uid),
-          isAnon: user?.isAnonymous ? '1' : '0',
-          languageCode: safeStr(auth?.languageCode),
-        },
-        flow: {
-          authProvider: safeStr(readAuthProvider()),
-          authIntent: safeStr(readAuthIntent()),
-          forcedTarget: safeStr(readForcedTarget()),
-          pendingPostAuthTarget: safeStr(pending?.target),
-          pendingPostAuthAgeMs: pending?.atMs ? String(Date.now() - Number(pending.atMs || 0)) : '',
-          redirectMarker: marker,
-          googleDecision: readGoogleDecisionDebug(),
-          autoGoogle: ss('uniqah:auto_google_v1'),
-          lastAuthNewUser: ss('uniqah:last_auth_new_user_v1'),
-        },
-      };
-    } catch {
-      return { failed: '1' };
-    }
-  })();
-
   return (
-    <div className="min-h-screen bg-gradient-to-b from-white via-slate-50 to-emerald-50/40">
+    <div className="min-h-screen bg-[linear-gradient(180deg,#f8fbfa_0%,#ffffff_32%,#eef7f4_100%)]">
       <Navigation />
 
-      <section className="max-w-lg mx-auto px-4 py-16">
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-5 md:p-6">
+      <section className="relative max-w-4xl mx-auto px-4 py-16">
+        <div aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden">
+          <div className="absolute left-0 top-8 h-52 w-52 rounded-full bg-[radial-gradient(circle_at_center,rgba(16,185,129,0.14),rgba(16,185,129,0)_62%)] blur-3xl" />
+          <div className="absolute right-0 top-16 h-56 w-56 rounded-full bg-[radial-gradient(circle_at_center,rgba(251,191,36,0.16),rgba(251,191,36,0)_62%)] blur-3xl" />
+        </div>
+        <div className="relative overflow-hidden rounded-[30px] border border-white bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(248,250,252,0.94))] p-5 shadow-[0_28px_90px_rgba(15,23,42,0.10)] md:p-7">
+          <div aria-hidden="true" className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-emerald-300 to-transparent" />
           <h1 className="text-2xl md:text-3xl font-bold text-gray-900">{t("authPage.title")}</h1>
           <p className="text-sm text-gray-600 mt-2">
             {contextMessage}
           </p>
+
+          <div className="mt-5 rounded-[24px] border border-emerald-200 bg-[linear-gradient(135deg,rgba(236,253,245,0.98),rgba(255,255,255,0.96))] p-4 shadow-[0_16px_40px_rgba(16,185,129,0.08)]">
+            <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-emerald-950">{t('authPage.trustNote.title')}</div>
+            <div className="mt-2 text-sm text-emerald-950/80 leading-relaxed">{t('authPage.trustNote.body')}</div>
+          </div>
+
+          <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-3">
+            {authSupportUi.quickFacts.map((item) => (
+              <div key={item.title} className="rounded-[22px] border border-slate-200 bg-white p-4 shadow-[0_12px_30px_rgba(148,163,184,0.08)]">
+                <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-900">{item.title}</div>
+                <div className="mt-2 text-xs text-slate-600 leading-relaxed">{item.body}</div>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-4 rounded-[24px] border border-slate-200 bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(248,250,252,0.92))] p-4 shadow-[0_14px_38px_rgba(148,163,184,0.10)]">
+            <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-emerald-800">{authSupportUi.stepsTitle}</div>
+            <div className="mt-3 space-y-2">
+              {authSupportUi.steps.map((step, idx) => (
+                <div key={step.title} className="flex items-start gap-3 rounded-[18px] border border-slate-200 bg-white p-3 shadow-[0_10px_24px_rgba(148,163,184,0.08)]">
+                  <div className="mt-0.5 inline-flex h-6 w-6 items-center justify-center rounded-full border border-emerald-200 bg-emerald-50 text-[11px] font-semibold text-emerald-900">
+                    {idx + 1}
+                  </div>
+                  <div>
+                    <div className="text-sm font-semibold text-slate-900">{step.title}</div>
+                    <div className="mt-1 text-xs text-slate-600 leading-relaxed">{step.body}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <div className="text-[11px] text-slate-500">{authSupportUi.ctaNote}</div>
+              <a
+                href={authSupportWhatsappHref}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center justify-center rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2 text-xs font-semibold text-emerald-900 hover:bg-emerald-100"
+              >
+                {authSupportUi.whatsappLabel}
+              </a>
+            </div>
+          </div>
 
 
           {error && (
@@ -2724,7 +3261,6 @@ export default function Login() {
                     onChange={(e) => {
                       const next = { ...quickProfile, fullName: e.target.value };
                       setQuickProfile(next);
-                      setQuickProfileStage('form');
                       persistQuickDraft(next, { completed: false });
                     }}
                     className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
@@ -2740,7 +3276,6 @@ export default function Login() {
                     onChange={(e) => {
                       const next = { ...quickProfile, age: e.target.value };
                       setQuickProfile(next);
-                      setQuickProfileStage('form');
                       persistQuickDraft(next, { completed: false });
                     }}
                     className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
@@ -2757,7 +3292,6 @@ export default function Login() {
                     onChange={(e) => {
                       const next = { ...quickProfile, gender: String(e.target.value || '').trim() };
                       setQuickProfile(next);
-                      setQuickProfileStage('form');
                       persistQuickDraft(next, { completed: false });
                     }}
                     className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
@@ -2777,7 +3311,6 @@ export default function Login() {
                     onChange={(e) => {
                       const next = { ...quickProfile, city: e.target.value };
                       setQuickProfile(next);
-                      setQuickProfileStage('form');
                       persistQuickDraft(next, { completed: false });
                     }}
                     className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
@@ -2793,7 +3326,6 @@ export default function Login() {
                     onChange={(e) => {
                       const next = { ...quickProfile, countryCode: String(e.target.value || '').trim() || 'tr' };
                       setQuickProfile(next);
-                      setQuickProfileStage('form');
                       persistQuickDraft(next, { completed: false });
                     }}
                     className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
@@ -2811,7 +3343,6 @@ export default function Login() {
                     onChange={(e) => {
                       const next = { ...quickProfile, maritalStatus: String(e.target.value || '').trim() };
                       setQuickProfile(next);
-                      setQuickProfileStage('form');
                       persistQuickDraft(next, { completed: false });
                     }}
                     className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
@@ -2832,7 +3363,6 @@ export default function Login() {
                       const v = String(e.target.value || '').trim();
                       const next = { ...quickProfile, hasChildren: v, childrenCount: v === 'yes' ? quickProfile.childrenCount : '' };
                       setQuickProfile(next);
-                      setQuickProfileStage('form');
                       persistQuickDraft(next, { completed: false });
                     }}
                     className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
@@ -2851,7 +3381,6 @@ export default function Login() {
                       onChange={(e) => {
                         const next = { ...quickProfile, childrenCount: e.target.value };
                         setQuickProfile(next);
-                        setQuickProfileStage('form');
                         persistQuickDraft(next, { completed: false });
                       }}
                       className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
@@ -2869,7 +3398,6 @@ export default function Login() {
                     onChange={(e) => {
                       const next = { ...quickProfile, occupation: e.target.value };
                       setQuickProfile(next);
-                      setQuickProfileStage('form');
                       persistQuickDraft(next, { completed: false });
                     }}
                     className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
@@ -2916,12 +3444,12 @@ export default function Login() {
           ) : null}
 
           {!user ? (
-            <div className="mt-5 grid grid-cols-1 gap-2">
+            <div className="mt-6 grid grid-cols-1 gap-3 rounded-[24px] border border-slate-200 bg-white/88 p-4 shadow-[0_16px_40px_rgba(148,163,184,0.10)]">
               <button
                 type="button"
                 onClick={handleGoogle}
                 disabled={busy}
-                className="w-full px-5 py-3 rounded-2xl bg-slate-900 text-white text-sm font-semibold hover:bg-slate-800 disabled:opacity-60"
+                className="w-full px-5 py-3 rounded-2xl bg-slate-900 text-white text-sm font-semibold shadow-[0_18px_40px_rgba(15,23,42,0.18)] hover:bg-slate-800 disabled:opacity-60"
               >
                 {mode === 'signup' ? t('authPage.googleSignupCta') : t('authPage.googleCta')}
               </button>
@@ -2937,7 +3465,7 @@ export default function Login() {
                   }
                 }}
                 disabled={busy}
-                className="w-full px-5 py-3 rounded-2xl border border-slate-300 bg-white text-slate-900 text-sm font-semibold hover:bg-slate-50 disabled:opacity-60"
+                className="w-full px-5 py-3 rounded-2xl border border-slate-300 bg-white text-slate-900 text-sm font-semibold shadow-[0_10px_28px_rgba(148,163,184,0.08)] hover:bg-slate-50 disabled:opacity-60"
               >
                 {mode === 'signup' ? t('authPage.emailSignupCta') : t('authPage.emailLoginCta')}
               </button>
@@ -2947,7 +3475,7 @@ export default function Login() {
               ) : null}
 
               {emailFallbackVisible ? (
-                <div className="mt-2 rounded-2xl border border-slate-200 bg-white p-4">
+                <div className="mt-2 rounded-[22px] border border-slate-200 bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(248,250,252,0.92))] p-4 shadow-[0_12px_30px_rgba(148,163,184,0.08)]">
                   <div className="text-xs text-slate-500">{t('authPage.or')}</div>
 
                   <form onSubmit={handleEmailPassword} className="mt-3 grid grid-cols-1 gap-3">
@@ -3006,6 +3534,8 @@ export default function Login() {
               {mode === 'signup' ? (
                 <div className="text-xs text-slate-600">{t('authPage.signupGuide')}</div>
               ) : null}
+
+              <div className="text-[11px] text-slate-500">{authSupportUi.ctaNote}</div>
             </div>
           ) : null}
 

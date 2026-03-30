@@ -24,11 +24,21 @@ export default async function adminLeadDelete(req, res) {
     }
 
     const { db } = getAdmin();
-    await db.collection('matchmakingLeads').doc(id).delete();
+    const ref = db.collection('matchmakingLeads').doc(id);
+    const snap = await ref.get();
+
+    if (!snap.exists) {
+      res.statusCode = 200;
+      res.setHeader('content-type', 'application/json');
+      res.end(JSON.stringify({ ok: true, alreadyDeleted: true }));
+      return;
+    }
+
+    await ref.delete();
 
     res.statusCode = 200;
     res.setHeader('content-type', 'application/json');
-    res.end(JSON.stringify({ ok: true }));
+    res.end(JSON.stringify({ ok: true, deleted: true }));
   } catch (e) {
     res.statusCode = e?.statusCode || 500;
     res.setHeader('content-type', 'application/json');

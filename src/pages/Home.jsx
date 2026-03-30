@@ -7,12 +7,146 @@ import { isFeatureEnabled } from '../config/siteVariant';
 import { buildWhatsAppUrl } from '../utils/whatsapp';
 import { trackClick } from '../utils/clickTracker';
 
+function getBaseLang(raw) {
+  const base = String(raw || '').trim().toLowerCase().split(/[-_]/)[0];
+  if (base === 'in') return 'id';
+  if (base === 'tr' || base === 'en' || base === 'id') return base;
+  return 'tr';
+}
+
+function getHomeSupportUi(lang) {
+  const copy = {
+    tr: {
+      heroPanelEyebrow: 'Ilk temas',
+      heroPanelTitle: 'Burada baskili bir akis yok',
+      heroPanelBody: 'Once durumunuzu, uygunlugu ve en dogru yolu netlestiriyoruz. Sonraki adimlar kontrollu ilerler.',
+      heroPanelPoints: ['Kisa on degerlendirme', 'Net geri donus', 'WhatsApp ile insan destegi'],
+      quickFacts: [
+        {
+          title: 'Ucretsiz ilk adim',
+          body: 'Baslangic ucretsizdir. Once durumunuzu netlestirir, sonra size en dogru yolu soyleriz.',
+        },
+        {
+          title: 'Profil herkese acik degil',
+          body: 'Bilgileriniz rastgele dolasima acilmaz; surec kontrollu ve saygili sekilde ilerler.',
+        },
+        {
+          title: 'WhatsApptan gercek destek',
+          body: 'Takildiginiz anda bize yazabilir, surec ve uygunluk hakkinda net cevap alabilirsiniz.',
+        },
+      ],
+      nextStepsEyebrow: 'Ilk adimda ne olur?',
+      nextStepsTitle: 'Basladiktan sonra sizi belirsizlikte birakmiyoruz',
+      nextSteps: [
+        {
+          title: '1. Kisa basvuru',
+          body: '1-3 dakikada temel durumunuzu anlatirsiniz.',
+        },
+        {
+          title: '2. En dogru yol netlesir',
+          body: 'Size uygun akisin eslestirme mi rehberlik mi oldugunu acikca soyleriz.',
+        },
+        {
+          title: '3. Kontrollu ilerleme',
+          body: 'Uygun akista form, panel ve WhatsApp destegiyle devam edersiniz.',
+        },
+      ],
+      ctaNote: 'Ucretsiz ilk adim • Profil herkese acik degil • Uygun degilse acikca soyleriz',
+      whatsappLabel: 'WhatsApptan durumunuza uygun mu sorun',
+      whatsappMessage: 'Merhaba, baslamadan once Uniqahin benim durumuma uygun olup olmadigini ogrenmek istiyorum.',
+    },
+    en: {
+      heroPanelEyebrow: 'First contact',
+      heroPanelTitle: 'There is no pressure-led flow here',
+      heroPanelBody: 'We first clarify your situation, fit and the right path. Only then do the next steps move forward in a controlled way.',
+      heroPanelPoints: ['Short pre-check', 'Clear outcome', 'Human support on WhatsApp'],
+      quickFacts: [
+        {
+          title: 'Free first step',
+          body: 'Getting started is free. We first clarify your situation, then tell you the most suitable path.',
+        },
+        {
+          title: 'Your profile is not public',
+          body: 'Your details are not exposed for random browsing; the process stays controlled and respectful.',
+        },
+        {
+          title: 'Real WhatsApp support',
+          body: 'If you get stuck, you can message us and get a direct answer about fit and process.',
+        },
+      ],
+      nextStepsEyebrow: 'What happens first?',
+      nextStepsTitle: 'We do not leave you in uncertainty after you start',
+      nextSteps: [
+        {
+          title: '1. Short application',
+          body: 'You explain your basic situation in about 1-3 minutes.',
+        },
+        {
+          title: '2. Best path becomes clear',
+          body: 'We tell you clearly whether matchmaking or guidance fits your case better.',
+        },
+        {
+          title: '3. Controlled progress',
+          body: 'If suitable, you continue with forms, panel flow and WhatsApp support.',
+        },
+      ],
+      ctaNote: 'Free first step • No public profile • We tell you clearly if the path is not a fit',
+      whatsappLabel: 'Ask on WhatsApp if it fits your situation',
+      whatsappMessage: 'Hello, before I start I want to understand whether Uniqah is suitable for my situation.',
+    },
+    id: {
+      heroPanelEyebrow: 'Kontak awal',
+      heroPanelTitle: 'Tidak ada alur yang menekan Anda di sini',
+      heroPanelBody: 'Kami pahami dulu situasi, kecocokan, dan jalur yang paling tepat. Setelah itu proses berjalan terkontrol.',
+      heroPanelPoints: ['Pemeriksaan awal singkat', 'Hasil yang jelas', 'Dukungan manusia lewat WhatsApp'],
+      quickFacts: [
+        {
+          title: 'Langkah awal gratis',
+          body: 'Memulai gratis. Kami pahami dulu situasi Anda, lalu jelaskan jalur yang paling cocok.',
+        },
+        {
+          title: 'Profil tidak dipublikasikan',
+          body: 'Data Anda tidak dibuka untuk dilihat sembarang orang; prosesnya tetap terkontrol dan sopan.',
+        },
+        {
+          title: 'Dukungan WhatsApp nyata',
+          body: 'Jika Anda ragu, Anda bisa langsung bertanya dan mendapat jawaban jelas tentang kecocokan proses.',
+        },
+      ],
+      nextStepsEyebrow: 'Apa yang terjadi di awal?',
+      nextStepsTitle: 'Setelah mulai, kami tidak membiarkan Anda bingung',
+      nextSteps: [
+        {
+          title: '1. Pengajuan singkat',
+          body: 'Anda menjelaskan situasi dasar Anda dalam sekitar 1-3 menit.',
+        },
+        {
+          title: '2. Jalur paling cocok jadi jelas',
+          body: 'Kami jelaskan dengan jujur apakah yang cocok untuk Anda adalah matchmaking atau pendampingan.',
+        },
+        {
+          title: '3. Lanjut dengan terkontrol',
+          body: 'Jika cocok, Anda melanjutkan dengan form, panel, dan dukungan WhatsApp.',
+        },
+      ],
+      ctaNote: 'Langkah awal gratis • Profil tidak publik • Jika tidak cocok, kami sampaikan dengan jelas',
+      whatsappLabel: 'Tanya via WhatsApp apakah ini cocok untuk Anda',
+      whatsappMessage: 'Halo, sebelum mulai saya ingin tahu apakah Uniqah cocok untuk situasi saya.',
+    },
+  };
+
+  return copy[lang] || copy.tr;
+}
+
 export default function Home() {
   const { t, i18n } = useTranslation();
   const trustItems = t('home.trust.items', { returnObjects: true });
   const howSteps = t('home.howItWorks.steps', { returnObjects: true });
   const featureItems = t('home.features.items', { returnObjects: true });
   const faqItems = t('home.faq.items', { returnObjects: true });
+  const langBase = getBaseLang(i18n?.language);
+  const homeSupportUi = getHomeSupportUi(langBase);
+  const homeWhatsappHref = buildWhatsAppUrl(homeSupportUi.whatsappMessage, { lang: String(i18n?.language || 'tr') });
 
   const showWedding = isFeatureEnabled('wedding');
 
@@ -37,10 +171,15 @@ export default function Home() {
 
       {/* Hero Section */}
       <section className="home-hero-bg pt-24 pb-16 px-4 relative overflow-hidden min-h-96">
+        <div aria-hidden="true" className="absolute inset-0">
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.10),rgba(255,255,255,0)_36%)]" />
+          <div className="absolute -right-24 top-12 h-72 w-72 rounded-full bg-[radial-gradient(circle_at_center,rgba(251,191,36,0.22),rgba(251,191,36,0)_62%)] blur-3xl" />
+          <div className="absolute -left-24 bottom-0 h-80 w-80 rounded-full bg-[radial-gradient(circle_at_center,rgba(16,185,129,0.26),rgba(16,185,129,0)_64%)] blur-3xl" />
+        </div>
         <div className="max-w-7xl mx-auto relative z-10">
-          <div className="grid grid-cols-1 lg:grid-cols-1 gap-10 items-center text-center">
-            <div className="max-w-4xl mx-auto">
-              <div className="flex flex-wrap justify-center gap-2 mb-4">
+          <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1.12fr)_minmax(320px,0.88fr)] gap-8 lg:gap-10 items-start text-center lg:text-left">
+            <div className="max-w-4xl mx-auto lg:mx-0">
+              <div className="flex flex-wrap justify-center lg:justify-start gap-2 mb-4">
                 <span className="inline-flex items-center rounded-full bg-white/10 text-white px-3 py-1 text-xs font-semibold border border-white/20" style={{ textShadow: '0 2px 8px rgba(0,0,0,0.6)' }}>
                   {t('home.hero.badgeCompany')}
                 </span>
@@ -60,25 +199,38 @@ export default function Home() {
               >
                 {t('home.hero.subtitle')}
               </p>
+              <div className="mb-7 inline-flex max-w-full items-center justify-center lg:justify-start gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-2 text-[11px] md:text-xs font-semibold uppercase tracking-[0.18em] text-white/90 shadow-[0_14px_40px_rgba(15,23,42,0.22)] backdrop-blur-sm">
+                <span>{homeSupportUi.ctaNote}</span>
+              </div>
+
               <p
-	                className="text-base md:text-lg text-white mb-7 max-w-4xl mx-auto"
+	                className="text-base md:text-lg text-white mb-7 max-w-4xl mx-auto lg:mx-0"
                 style={{ textShadow: '0 2px 8px rgba(0,0,0,0.6)' }}
               >
 	                {t('home.hero.description')}
               </p>
           <p
-            className="text-[11px] md:text-xs text-white/85 max-w-4xl mx-auto"
+            className="text-[11px] md:text-xs text-white/85 max-w-4xl mx-auto lg:mx-0"
             style={{ textShadow: '0 2px 8px rgba(0,0,0,0.6)' }}
           >
             {t('home.hero.note')}
           </p>
 
           <p
-            className="mt-2 text-[11px] md:text-xs text-white/85 max-w-4xl mx-auto"
+            className="mt-2 text-[11px] md:text-xs text-white/85 max-w-4xl mx-auto lg:mx-0"
             style={{ textShadow: '0 2px 8px rgba(0,0,0,0.6)' }}
           >
             {t('home.hero.freeNote')}
           </p>
+
+          <div className="mt-6 grid grid-cols-1 sm:grid-cols-3 gap-3 max-w-5xl mx-auto lg:mx-0 text-left">
+            {homeSupportUi.quickFacts.map((item) => (
+              <div key={item.title} className="rounded-[24px] border border-white/15 bg-[linear-gradient(180deg,rgba(255,255,255,0.14),rgba(255,255,255,0.08))] p-4 shadow-[0_18px_50px_rgba(15,23,42,0.18)] backdrop-blur-md">
+                <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-emerald-100">{item.title}</div>
+                <div className="mt-2 text-sm text-white/90">{item.body}</div>
+              </div>
+            ))}
+          </div>
 
           {showWedding ? (
             <>
@@ -150,7 +302,7 @@ export default function Home() {
                 </a>
               </div>
 
-              <div className="mt-3 flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-2">
+              <div className="mt-5 flex flex-col sm:flex-row items-stretch sm:items-center justify-center lg:justify-start gap-2">
                 <button
                   type="button"
                   onClick={() => scrollToSection('how-it-works')}
@@ -162,7 +314,7 @@ export default function Home() {
               </div>
             </>
           ) : (
-            <div className="mt-6 flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-2">
+            <div className="mt-6 flex flex-col sm:flex-row items-stretch sm:items-center justify-center lg:justify-start gap-2">
               <a
                 href={primaryCtaHref}
                 className="w-full sm:w-auto app-btn app-btn-primary h-12 px-6"
@@ -183,7 +335,7 @@ export default function Home() {
             </div>
           )}
 
-          <div className="mt-4 flex flex-wrap items-center justify-center gap-3 text-sm">
+          <div className="mt-4 flex flex-wrap items-center justify-center lg:justify-start gap-3 text-sm">
             <a
               href="/kurumsal"
               className="inline-flex items-center gap-2 text-white/90 hover:text-white transition"
@@ -192,15 +344,52 @@ export default function Home() {
               <BadgeCheck size={16} /> {t('home.hero.ctaTrust')}
             </a>
             <a
-              href={buildWhatsAppUrl(t('floatingWhatsapp.messages.home'), { lang: String(i18n?.language || 'tr') })}
+              href={homeWhatsappHref}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-2 text-white/90 hover:text-white transition"
               onClick={() => trackClick('cta_whatsapp_home_hero', { page: '/' })}
             >
-              <MessageCircle size={16} /> {t('home.cta.ctaWhatsapp')}
+              <MessageCircle size={16} /> {homeSupportUi.whatsappLabel}
             </a>
           </div>
+            </div>
+
+            <div className="hidden lg:block">
+              <div className="relative overflow-hidden rounded-[30px] border border-white/15 bg-[linear-gradient(180deg,rgba(255,255,255,0.16),rgba(255,255,255,0.08))] p-6 text-left shadow-[0_30px_90px_rgba(2,6,23,0.26)] backdrop-blur-xl">
+                <div aria-hidden="true" className="absolute inset-0">
+                  <div className="absolute -top-16 right-0 h-44 w-44 rounded-full bg-[radial-gradient(circle_at_center,rgba(251,191,36,0.30),rgba(251,191,36,0)_62%)] blur-2xl" />
+                  <div className="absolute -bottom-16 -left-10 h-52 w-52 rounded-full bg-[radial-gradient(circle_at_center,rgba(16,185,129,0.22),rgba(16,185,129,0)_60%)] blur-2xl" />
+                </div>
+                <div className="relative">
+                  <div className="inline-flex items-center rounded-full border border-white/15 bg-white/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-white/80">
+                    {homeSupportUi.heroPanelEyebrow}
+                  </div>
+                  <h2 className="mt-4 text-[1.45rem] font-semibold leading-tight text-white">
+                    {homeSupportUi.heroPanelTitle}
+                  </h2>
+                  <p className="mt-3 text-sm leading-relaxed text-white/80">
+                    {homeSupportUi.heroPanelBody}
+                  </p>
+
+                  <div className="mt-5 space-y-3">
+                    {homeSupportUi.heroPanelPoints.map((point, index) => (
+                      <div key={point} className="flex items-start gap-3 rounded-2xl border border-white/12 bg-black/10 px-4 py-3">
+                        <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-white/15 bg-white/10 text-xs font-semibold text-white">
+                          {index + 1}
+                        </div>
+                        <div className="text-sm text-white/90">{point}</div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="mt-5 rounded-[24px] border border-emerald-200/20 bg-emerald-500/10 p-4">
+                    <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-emerald-100">{homeSupportUi.nextStepsEyebrow}</div>
+                    <div className="mt-2 text-sm text-white">{homeSupportUi.nextSteps[0]?.title}</div>
+                    <div className="mt-1 text-xs leading-relaxed text-white/75">{homeSupportUi.nextSteps[0]?.body}</div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -210,14 +399,40 @@ export default function Home() {
       {/* Trust strip */}
       <section className="px-4 -mt-8 relative z-10">
         <div className="max-w-7xl mx-auto">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {Array.isArray(trustItems) &&
               trustItems.map((item, idx) => (
-                <div key={idx} className="rounded-2xl bg-white border border-slate-200 shadow-sm p-4">
-                  <p className="text-xs uppercase tracking-wide text-emerald-800 mb-1">{item.title}</p>
-                  <p className="text-sm text-slate-700">{item.description}</p>
+                <div key={idx} className="relative overflow-hidden rounded-[26px] border border-white bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(248,250,252,0.92))] p-5 shadow-[0_18px_60px_rgba(15,23,42,0.08)]">
+                  <div aria-hidden="true" className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-emerald-400 via-amber-300 to-slate-200" />
+                  <p className="text-[11px] uppercase tracking-[0.18em] text-emerald-800 mb-2">{item.title}</p>
+                  <p className="text-sm leading-relaxed text-slate-700">{item.description}</p>
                 </div>
               ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="px-4 pt-6">
+        <div className="max-w-7xl mx-auto">
+          <div className="overflow-hidden rounded-[30px] border border-slate-200 bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(248,250,252,0.94))] p-6 md:p-8 shadow-[0_24px_80px_rgba(15,23,42,0.08)]">
+            <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,0.86fr)_minmax(0,1.14fr)] gap-6 items-start">
+              <div>
+                <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-emerald-800">{homeSupportUi.nextStepsEyebrow}</div>
+                <h2 className="mt-2 text-xl md:text-2xl font-semibold text-slate-900">{homeSupportUi.nextStepsTitle}</h2>
+                <p className="mt-3 max-w-md text-sm leading-relaxed text-slate-600">{homeSupportUi.ctaNote}</p>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {homeSupportUi.nextSteps.map((step, idx) => (
+                <div key={step.title} className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-[0_14px_40px_rgba(148,163,184,0.10)]">
+                  <div className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-emerald-200 bg-emerald-50 text-sm font-semibold text-emerald-900">
+                    {idx + 1}
+                  </div>
+                  <div className="mt-3 text-sm font-semibold text-slate-900">{step.title}</div>
+                  <div className="mt-1 text-sm leading-relaxed text-slate-600">{step.body}</div>
+                </div>
+              ))}
+              </div>
+            </div>
           </div>
         </div>
       </section>
@@ -430,16 +645,18 @@ export default function Home() {
                 {t('home.cta.ctaContact')}
               </a>
               <a
-                href={buildWhatsAppUrl(t('floatingWhatsapp.messages.home'), { lang: String(i18n?.language || 'tr') })}
+                href={homeWhatsappHref}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="app-btn app-btn-soft"
                 onClick={() => trackClick('cta_whatsapp_home_bottom', { page: '/' })}
               >
                 <MessageCircle size={18} />
-                {t('home.cta.ctaWhatsapp')}
+                {homeSupportUi.whatsappLabel}
               </a>
             </div>
+
+            <div className="mt-4 text-xs text-emerald-100/90">{homeSupportUi.ctaNote}</div>
           </div>
         </div>
       </section>
@@ -474,11 +691,11 @@ export default function Home() {
             </a>
           )}
           <a
-            href={buildWhatsAppUrl(t('floatingWhatsapp.messages.home'), { lang: String(i18n?.language || 'tr') })}
+            href={homeWhatsappHref}
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-emerald-500 text-white shadow-md hover:bg-emerald-600 transition"
-            aria-label={t('home.cta.ctaWhatsapp')}
+            aria-label={homeSupportUi.whatsappLabel}
             onClick={() => trackClick('cta_whatsapp_home_sticky', { page: '/' })}
           >
             <MessageCircle size={18} />

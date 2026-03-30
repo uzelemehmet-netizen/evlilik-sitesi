@@ -88,8 +88,6 @@ export default function StudioMatchCard({
   onOpenShort,
   activeLockMatchId,
   canSeeFullProfiles = true,
-  profileComplete = true,
-  membershipActive = true,
   onRequireProfile,
   onRequirePaid,
   presenceByUid,
@@ -300,7 +298,9 @@ export default function StudioMatchCard({
     }
   };
 
-  const decisions = match?.decisions && typeof match.decisions === 'object' ? match.decisions : {};
+  const decisions = useMemo(() => {
+    return match?.decisions && typeof match.decisions === 'object' ? match.decisions : {};
+  }, [match?.decisions]);
   const myDecision = mySide ? safeStr(decisions?.[mySide]) : '';
   const isLiked = myDecision === 'accept';
 
@@ -314,7 +314,9 @@ export default function StudioMatchCard({
   const isLikeSent = myDecision === 'accept' && otherDecision !== 'accept';
   const mutualLiked = myDecision === 'accept' && otherDecision === 'accept';
 
-  const activeStartByUid = match?.activeStartByUid && typeof match.activeStartByUid === 'object' ? match.activeStartByUid : {};
+  const activeStartByUid = useMemo(() => {
+    return match?.activeStartByUid && typeof match.activeStartByUid === 'object' ? match.activeStartByUid : {};
+  }, [match?.activeStartByUid]);
   const iStartedActive = !!(currentUid && activeStartByUid?.[String(currentUid).trim()]);
   const otherStartedActive = useMemo(() => {
     const ids = Array.isArray(match?.userIds) ? match.userIds.map(safeStr).filter(Boolean) : [];

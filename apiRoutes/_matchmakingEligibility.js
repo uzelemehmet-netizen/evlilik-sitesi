@@ -1,3 +1,9 @@
+import { fetchMatchmakingApplicationsByUid } from './_matchmakingApplications.js';
+import {
+  getMinimumMatchmakingProfileMissingFromApp,
+  hasMinimumMatchmakingProfileInApplicationDoc,
+} from '../src/utils/matchmakingProfileCompletion.js';
+
 function normalizeGender(v) {
   const s = String(v || '').toLowerCase().trim();
   if (s === 'male' || s === 'm' || s === 'man' || s === 'erkek') return 'male';
@@ -7,6 +13,14 @@ function normalizeGender(v) {
 
 function safeStr(v) {
   return typeof v === 'string' ? v.trim() : '';
+}
+
+function pickFirstNonEmptyStr(...vals) {
+  for (const v of vals) {
+    const s = safeStr(v);
+    if (s) return s;
+  }
+  return '';
 }
 
 function toNumOrNull(v, { min = -Infinity, max = Infinity } = {}) {
@@ -19,44 +33,215 @@ function toNumOrNull(v, { min = -Infinity, max = Infinity } = {}) {
   return n;
 }
 
+function ageFromBirthYearMaybe(v) {
+  const year = toNumOrNull(v, { min: 1900, max: 2100 });
+  if (year === null) return null;
+  const now = new Date();
+  const age = now.getFullYear() - year;
+  return age >= 18 && age <= 99 ? age : null;
+}
+
+function ageFromDateMaybe(v) {
+  let d = null;
+  if (typeof v === 'number' && Number.isFinite(v)) {
+    d = new Date(v);
+  } else if (typeof v === 'string') {
+    const s = v.trim();
+    if (!s) return null;
+    const parsed = Date.parse(s);
+    if (Number.isFinite(parsed)) d = new Date(parsed);
+  } else if (typeof v?.toDate === 'function') {
+    try {
+      d = v.toDate();
+    } catch {
+      d = null;
+    }
+  }
+
+  if (!d || Number.isNaN(d.getTime())) return null;
+  const now = new Date();
+  let age = now.getFullYear() - d.getFullYear();
+  const m = now.getMonth() - d.getMonth();
+  if (m < 0 || (m === 0 && now.getDate() < d.getDate())) age -= 1;
+  return age >= 18 && age <= 99 ? age : null;
+}
+
+function getAge(app) {
+  const a = app && typeof app === 'object' ? app : {};
+  const details = a?.details && typeof a.details === 'object' ? a.details : {};
+
+  const direct = toNumOrNull(a?.age, { min: 18, max: 99 });
+  if (direct !== null) return direct;
+
+  const nested = toNumOrNull(details?.age, { min: 18, max: 99 });
+  if (nested !== null) return nested;
+
+  const byYear = ageFromBirthYearMaybe(details?.birthYear ?? a?.birthYear);
+  if (byYear !== null) return byYear;
+
+  const byDate =
+    ageFromDateMaybe(details?.birthDateMs ?? a?.birthDateMs) ??
+    ageFromDateMaybe(details?.birthDate ?? a?.birthDate) ??
+    ageFromDateMaybe(details?.dob ?? a?.dob);
+  if (byDate !== null) return byDate;
+
+  return null;
+}
+
 function normalizeMaritalStatus(v) {
   return safeStr(v).toLowerCase();
 }
 
-function isMinimumMatchmakingProfileCompleteFromApp(app) {
+function pickFullName(app, details) {
   const a = app && typeof app === 'object' ? app : {};
-  const details = a?.details && typeof a.details === 'object' ? a.details : {};
+  const d = details && typeof details === 'object' ? details : {};
+  return pickFirstNonEmptyStr(
+    a?.fullName,
+    d?.fullName,
+    // Backward/alternate keys
+    a?.adSoyad,
+    d?.adSoyad,
+    a?.ad_soyad,
+    d?.ad_soyad,
+    a?.isimSoyisim,
+    d?.isimSoyisim,
+    a?.nameSurname,
+    d?.nameSurname,
+    a?.full_name,
+    d?.full_name,
+    a?.name
+  );
+}
 
-  const fullName = safeStr(a?.fullName);
-  const age = toNumOrNull(a?.age, { min: 18, max: 99 });
-  const gender = normalizeGender(a?.gender);
-  const city = safeStr(a?.city);
-  const country = safeStr(a?.country);
-  const nationality = safeStr(a?.nationality);
+function pickCity(app, details) {
+  const a = app && typeof app === 'object' ? app : {};
+  const d = details && typeof details === 'object' ? details : {};
+  return pickFirstNonEmptyStr(
+    a?.city,
+    d?.city,
+    // Backward/alternate keys
+    a?.sehir,
+    d?.sehir,
+    a?.şehir,
+    d?.şehir,
+    a?.il,
+    d?.il,
+    a?.cityName,
+    d?.cityName
+  );
+}
 
-  const occupation = safeStr(details?.occupation) || safeStr(a?.occupation);
-  const maritalStatus = normalizeMaritalStatus(details?.maritalStatus || a?.maritalStatus);
+function pickCountry(app, details) {
+  const a = app && typeof app === 'object' ? app : {};
+  const d = details && typeof details === 'object' ? details : {};
+  return pickFirstNonEmptyStr(
+    a?.country,
+    d?.country,
+    // Backward/alternate keys
+    a?.ulke,
+    d?.ulke,
+    a?.ülke,
+    d?.ülke,
+    a?.countryName,
+    d?.countryName,
+    a?.yasadigiUlke,
+    d?.yasadigiUlke
+  );
+}
 
-  if (!fullName) return false;
-  if (age === null) return false;
-  if (!gender) return false;
-  if (!city) return false;
-  if (!country) return false;
-  if (!nationality) return false;
-  if (!occupation) return false;
-  if (!maritalStatus) return false;
+function pickNationality(app, details) {
+  const a = app && typeof app === 'object' ? app : {};
+  const d = details && typeof details === 'object' ? details : {};
+  return pickFirstNonEmptyStr(
+    a?.nationality,
+    d?.nationality,
+    // Backward/alternate keys
+    a?.uyruk,
+    d?.uyruk,
+    a?.milliyet,
+    d?.milliyet,
+    a?.vatandaslik,
+    d?.vatandaslik,
+    a?.vatandaşlık,
+    d?.vatandaşlık
+  );
+}
 
-  // Ürün kararı (2026-03): Çocuk sorusu sadece dul/boşanmış için zorunlu.
-  if (maritalStatus === 'widowed' || maritalStatus === 'divorced') {
-    const hasChildren = safeStr(details?.hasChildren || a?.hasChildren).toLowerCase();
-    if (!hasChildren) return false;
-    if (hasChildren === 'yes') {
-      const cnt = toNumOrNull(details?.childrenCount, { min: 1, max: 20 });
-      if (cnt === null) return false;
-    }
-  }
+function pickOccupation(details, app) {
+  const d = details && typeof details === 'object' ? details : {};
+  const a = app && typeof app === 'object' ? app : {};
+  return (
+    safeStr(d?.occupationTr) ||
+    safeStr(d?.occupation) ||
+    safeStr(d?.occupationId) ||
+    safeStr(a?.occupation) ||
+    // Backward/alternate keys
+    safeStr(d?.job) ||
+    safeStr(d?.jobTitle) ||
+    safeStr(d?.profession) ||
+    safeStr(a?.job) ||
+    safeStr(a?.jobTitle) ||
+    safeStr(a?.profession) ||
+    ''
+  );
+}
 
-  return true;
+function pickMaritalStatus(details, app) {
+  const d = details && typeof details === 'object' ? details : {};
+  const a = app && typeof app === 'object' ? app : {};
+  return (
+    safeStr(d?.maritalStatus) ||
+    safeStr(a?.maritalStatus) ||
+    // Backward/alternate keys
+    safeStr(d?.marital) ||
+    safeStr(a?.marital) ||
+    safeStr(d?.medeniDurum) ||
+    safeStr(a?.medeniDurum) ||
+    safeStr(d?.marital_status) ||
+    safeStr(a?.marital_status) ||
+    ''
+  );
+}
+
+function pickHasChildren(details, app) {
+  const d = details && typeof details === 'object' ? details : {};
+  const a = app && typeof app === 'object' ? app : {};
+
+  const raw =
+    safeStr(d?.hasChildren) ||
+    safeStr(a?.hasChildren) ||
+    // Backward/alternate keys
+    safeStr(d?.children) ||
+    safeStr(a?.children) ||
+    safeStr(d?.childStatus) ||
+    safeStr(a?.childStatus) ||
+    safeStr(d?.has_children) ||
+    safeStr(a?.has_children);
+  if (raw) return raw;
+
+  if (typeof d?.hasChildren === 'boolean') return d.hasChildren ? 'yes' : 'no';
+  if (typeof a?.hasChildren === 'boolean') return a.hasChildren ? 'yes' : 'no';
+
+  return '';
+}
+
+function pickChildrenCount(details, app) {
+  const d = details && typeof details === 'object' ? details : {};
+  const a = app && typeof app === 'object' ? app : {};
+  const raw = d?.childrenCount ?? d?.childCount ?? d?.children_count ?? d?.child_count ?? a?.childrenCount ?? a?.childCount;
+  const n = typeof raw === 'number' ? raw : Number(String(raw ?? '').trim());
+  if (!Number.isFinite(n)) return null;
+  const i = Math.trunc(n);
+  if (i < 0 || i > 20) return null;
+  return i;
+}
+
+function isMinimumMatchmakingProfileCompleteFromApp(app) {
+  return hasMinimumMatchmakingProfileInApplicationDoc(app);
+}
+
+function explainMinimumMatchmakingProfileMissing(app) {
+  return getMinimumMatchmakingProfileMissingFromApp(app);
 }
 
 function isStubApplication(a) {
@@ -150,6 +335,18 @@ async function ensureProfileCompleteOrThrow(db, uid) {
     throw err;
   }
 
+  const isProd = String(process.env.NODE_ENV || '').toLowerCase().trim() === 'production';
+
+  const attachDebug = (err, debug) => {
+    if (!err || typeof err !== 'object') return;
+    if (isProd) return;
+    try {
+      err.debug = debug;
+    } catch {
+      // ignore
+    }
+  };
+
   // Fast path: matchmakingUsers cache (bazı akışlarda uygulama dokümanı eksik olabilir).
   try {
     const uSnap = await db.collection('matchmakingUsers').doc(userId).get();
@@ -169,30 +366,89 @@ async function ensureProfileCompleteOrThrow(db, uid) {
     };
 
     if (isMinimumMatchmakingProfileCompleteFromApp(merged)) return;
+
+    // DEV debug: hangi alanlar eksik görünüyor?
+    try {
+      const missing = explainMinimumMatchmakingProfileMissing(merged);
+      if (missing.length) {
+        // Keep best-effort debug; do not throw here.
+        merged.__debugMissing = missing;
+      }
+    } catch {
+      // ignore
+    }
   } catch {
     // ignore and fall back to applications
   }
 
-  const snap = await db.collection('matchmakingApplications').where('userId', '==', userId).limit(10).get();
-  if (snap.empty) {
+  const apps = await fetchMatchmakingApplicationsByUid(db, userId, { limit: 10 });
+  if (!apps.length) {
     const err = new Error('profile_incomplete');
     err.statusCode = 428;
+    attachDebug(err, { reason: 'no_applications', uid: userId });
     throw err;
   }
 
   let ok = false;
-  for (const d of snap.docs) {
-    const a = d.data() || {};
+  const debugChecked = [];
+  const debugMissingByApp = [];
+  for (const a of apps) {
     if (isStubApplication(a)) continue;
+    const appId = safeStr(a?.id) || '';
+    if (appId) debugChecked.push(appId);
+
     if (isMinimumMatchmakingProfileCompleteFromApp(a)) {
       ok = true;
       break;
+    }
+
+    try {
+      const miss = explainMinimumMatchmakingProfileMissing(a);
+      if (miss.length) {
+        debugMissingByApp.push({ id: appId || null, missing: miss });
+      }
+    } catch {
+      // ignore
     }
   }
 
   if (!ok) {
     const err = new Error('profile_incomplete');
     err.statusCode = 428;
+
+    // DEV debug payload: include merged missing if available.
+    let mergedMissing = null;
+    try {
+      const uSnap = await db.collection('matchmakingUsers').doc(userId).get();
+      if (uSnap && uSnap.exists) {
+        const u = uSnap.data() || {};
+        const appFromUser = u?.application && typeof u.application === 'object' ? u.application : null;
+        const publicProfile = u?.publicProfile && typeof u.publicProfile === 'object' ? u.publicProfile : null;
+        const merged = {
+          ...(publicProfile || {}),
+          ...(appFromUser || {}),
+          ...(u || {}),
+          details: {
+            ...((publicProfile && typeof publicProfile.details === 'object' ? publicProfile.details : {}) || {}),
+            ...((appFromUser && typeof appFromUser.details === 'object' ? appFromUser.details : {}) || {}),
+            ...((u?.details && typeof u.details === 'object' ? u.details : {}) || {}),
+          },
+        };
+
+        const miss = explainMinimumMatchmakingProfileMissing(merged);
+        mergedMissing = miss.length ? miss : null;
+      }
+    } catch {
+      mergedMissing = null;
+    }
+
+    attachDebug(err, {
+      reason: 'applications_not_complete',
+      uid: userId,
+      checkedAppIds: debugChecked,
+      mergedMissing,
+      missingByApplication: debugMissingByApp.slice(0, 10),
+    });
     throw err;
   }
 }

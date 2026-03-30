@@ -1,6 +1,7 @@
 import { getAdmin, normalizeBody, requireIdToken } from './_firebaseAdmin.js';
 import { ensureEligibleOrThrow, ensureProfileCompleteOrThrow } from './_matchmakingEligibility.js';
 import { sendPushToUid } from './_push.js';
+import { fetchMatchmakingApplicationsByUid } from './_matchmakingApplications.js';
 
 function safeStr(v) {
   return typeof v === 'string' ? v.trim() : '';
@@ -251,13 +252,10 @@ export default async function handler(req, res) {
 
     const { db, FieldValue } = getAdmin();
 
-    const [myAppsSnap, targetAppsSnap] = await Promise.all([
-      db.collection('matchmakingApplications').where('userId', '==', uid).limit(10).get(),
-      db.collection('matchmakingApplications').where('userId', '==', targetUid).limit(10).get(),
+    const [myApps, targetApps] = await Promise.all([
+      fetchMatchmakingApplicationsByUid(db, uid, { limit: 10 }),
+      fetchMatchmakingApplicationsByUid(db, targetUid, { limit: 10 }),
     ]);
-
-    const myApps = myAppsSnap.docs.map((d) => ({ id: d.id, ...(d.data() || {}) }));
-    const targetApps = targetAppsSnap.docs.map((d) => ({ id: d.id, ...(d.data() || {}) }));
 
     const myApp = pickBestNonStubApplication(myApps);
     const targetApp = pickBestNonStubApplication(targetApps);

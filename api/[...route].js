@@ -52,6 +52,7 @@ function defaultLoader(fileName) {
 // Bu, Vercel'de FUNCTION_INVOCATION_FAILED (özellikle cold-start / timeout) riskini ciddi azaltır.
 const handlers = {
   'admin-push-incomplete-application-once': defaultLoader('admin-push-incomplete-application-once.js'),
+  'admin-lead-delete': defaultLoader('admin-lead-delete.js'),
   'admin-leads-list': defaultLoader('admin-leads-list.js'),
   'admin-leads-update': defaultLoader('admin-leads-update.js'),
   'admin-translate-text': defaultLoader('admin-translate-text.js'),
@@ -59,6 +60,7 @@ const handlers = {
   'admin-user-action': defaultLoader('admin-user-action.js'),
   'admin-users-list': defaultLoader('admin-users-list.js'),
   'admin-user-application-get': defaultLoader('admin-user-application-get.js'),
+  'admin-matchmaking-application-delete': defaultLoader('admin-matchmaking-application-delete.js'),
   'admin-users-mark-system': defaultLoader('admin-users-mark-system.js'),
   'admin-payments-list': defaultLoader('admin-payments-list.js'),
   'admin-audit-logs-list': defaultLoader('admin-audit-logs-list.js'),
@@ -227,6 +229,7 @@ export default async function handler(req, res) {
       JSON.stringify({
         ok: false,
         error: String(e?.message || 'server_error'),
+        ...(!isProd && e && typeof e === 'object' && e.debug ? { debug: e.debug } : {}),
         ...(!isProd && e?.stack ? { stack: String(e.stack) } : {}),
       })
     );

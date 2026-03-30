@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import { useMemo } from 'react';
 import { Trans, useTranslation } from 'react-i18next';
 
 function toNumberOrNull(value) {
@@ -26,14 +26,14 @@ export default function MatchmakingEditOnceFullForm({
   consents,
   disableConsents = true,
 }) {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
 
   const genderOptions = useMemo(
     () => [
       { id: 'male', label: t('matchmakingPage.form.options.gender.male') },
       { id: 'female', label: t('matchmakingPage.form.options.gender.female') },
     ],
-    [t, i18n.language]
+    [t]
   );
 
   const yesNoMaybeOptions = useMemo(
@@ -43,7 +43,7 @@ export default function MatchmakingEditOnceFullForm({
       { id: 'no', label: t('matchmakingPage.form.options.common.no') },
       { id: 'unsure', label: t('matchmakingPage.form.options.common.unsure') },
     ],
-    [t, i18n.language]
+    [t]
   );
 
   const yesNoOptions = useMemo(
@@ -52,7 +52,7 @@ export default function MatchmakingEditOnceFullForm({
       { id: 'yes', label: t('matchmakingPage.form.options.common.yes') },
       { id: 'no', label: t('matchmakingPage.form.options.common.no') },
     ],
-    [t, i18n.language]
+    [t]
   );
 
   const childrenLivingSituationOptions = useMemo(
@@ -61,7 +61,7 @@ export default function MatchmakingEditOnceFullForm({
       { id: 'with_children', label: t('matchmakingPage.form.options.childrenLivingSituation.withChildren') },
       { id: 'separate', label: t('matchmakingPage.form.options.childrenLivingSituation.separate') },
     ],
-    [t, i18n.language]
+    [t]
   );
 
   const maritalStatusOptions = useMemo(
@@ -72,7 +72,7 @@ export default function MatchmakingEditOnceFullForm({
       { id: 'divorced', label: t('matchmakingPage.form.options.maritalStatus.divorced') },
       { id: 'other', label: t('matchmakingPage.form.options.maritalStatus.other') },
     ],
-    [t, i18n.language]
+    [t]
   );
 
   const partnerMaritalStatusOptions = useMemo(
@@ -83,7 +83,7 @@ export default function MatchmakingEditOnceFullForm({
       { id: 'divorced', label: t('matchmakingPage.form.options.maritalStatus.divorced') },
       { id: 'doesnt_matter', label: t('matchmakingPage.form.options.maritalStatus.doesnt_matter') },
     ],
-    [t, i18n.language]
+    [t]
   );
 
   const religiousValuesOptions = useMemo(
@@ -93,7 +93,7 @@ export default function MatchmakingEditOnceFullForm({
       { id: 'medium', label: t('matchmakingPage.form.options.religiousValues.medium') },
       { id: 'conservative', label: t('matchmakingPage.form.options.religiousValues.conservative') },
     ],
-    [t, i18n.language]
+    [t]
   );
 
   const partnerCommunicationMethodOptions = useMemo(
@@ -102,7 +102,7 @@ export default function MatchmakingEditOnceFullForm({
       { id: 'foreign_language', label: t('matchmakingPage.form.options.partnerCommunicationMethods.foreignLanguage') },
       { id: 'translation_app', label: t('matchmakingPage.form.options.partnerCommunicationMethods.translationApp') },
     ],
-    [t, i18n.language]
+    [t]
   );
 
   const educationOptions = useMemo(
@@ -114,19 +114,7 @@ export default function MatchmakingEditOnceFullForm({
       { id: 'phd', label: t('matchmakingPage.form.options.education.phd') },
       { id: 'other', label: t('matchmakingPage.form.options.education.other') },
     ],
-    [t, i18n.language]
-  );
-
-  const occupationOptions = useMemo(
-    () => [
-      { id: '', label: t('matchmakingPage.form.options.common.select') },
-      { id: 'civil_servant', label: t('matchmakingPage.form.options.occupation.civilServant') },
-      { id: 'employee', label: t('matchmakingPage.form.options.occupation.employee') },
-      { id: 'retired', label: t('matchmakingPage.form.options.occupation.retired') },
-      { id: 'business_owner', label: t('matchmakingPage.form.options.occupation.businessOwner') },
-      { id: 'other', label: t('matchmakingPage.form.options.occupation.other') },
-    ],
-    [t, i18n.language]
+    [t]
   );
 
   const incomeOptions = useMemo(
@@ -138,7 +126,7 @@ export default function MatchmakingEditOnceFullForm({
       { id: 'very_good', label: t('matchmakingPage.form.options.income.veryGood') },
       { id: 'prefer_not_to_say', label: t('matchmakingPage.form.options.income.preferNot') },
     ],
-    [t, i18n.language]
+    [t]
   );
 
   const partnerChildrenPreferenceOptions = useMemo(
@@ -147,7 +135,7 @@ export default function MatchmakingEditOnceFullForm({
       { id: 'no_children', label: t('matchmakingPage.form.options.partnerChildren.noChildren') },
       { id: 'doesnt_matter', label: t('matchmakingPage.form.options.common.doesntMatter') },
     ],
-    [t, i18n.language]
+    [t]
   );
 
   const partnerEducationPreferenceOptions = useMemo(
@@ -158,7 +146,7 @@ export default function MatchmakingEditOnceFullForm({
       { id: 'phd', label: t('matchmakingPage.form.options.education.phd') },
       { id: 'doesnt_matter', label: t('matchmakingPage.form.options.common.doesntMatter') },
     ],
-    [t, i18n.language]
+    [t]
   );
 
   const partnerOccupationPreferenceOptions = useMemo(
@@ -169,7 +157,7 @@ export default function MatchmakingEditOnceFullForm({
       { id: 'business_owner', label: t('matchmakingPage.form.options.occupation.businessOwner') },
       { id: 'doesnt_matter', label: t('matchmakingPage.form.options.common.doesntMatter') },
     ],
-    [t, i18n.language]
+    [t]
   );
 
   const partnerFamilyValuesPreferenceOptions = useMemo(
@@ -178,7 +166,7 @@ export default function MatchmakingEditOnceFullForm({
       { id: 'liberal', label: t('matchmakingPage.form.options.familyValues.liberal') },
       { id: 'doesnt_matter', label: t('matchmakingPage.form.options.common.doesntMatter') },
     ],
-    [t, i18n.language]
+    [t]
   );
 
   const partnerAgeDiffOptions = useMemo(() => {
@@ -191,7 +179,7 @@ export default function MatchmakingEditOnceFullForm({
       }
     }
     return opts;
-  }, [t, i18n.language]);
+  }, [t]);
 
   const religionOptions = useMemo(
     () => [
@@ -202,7 +190,7 @@ export default function MatchmakingEditOnceFullForm({
       { id: 'buddhist', label: t('matchmakingPage.form.options.religion.buddhist') },
       { id: 'other', label: t('matchmakingPage.form.options.religion.other') },
     ],
-    [t, i18n.language]
+    [t]
   );
 
   const communicationLanguageOptions = useMemo(
@@ -213,7 +201,7 @@ export default function MatchmakingEditOnceFullForm({
       { id: 'translation_app', label: t('matchmakingPage.form.options.commLanguage.translationApp') },
       { id: 'other', label: t('matchmakingPage.form.options.commLanguage.other') },
     ],
-    [t, i18n.language]
+    [t]
   );
 
   const livingCountryOptions = useMemo(
@@ -223,7 +211,7 @@ export default function MatchmakingEditOnceFullForm({
       { id: 'id', label: t('matchmakingPage.form.options.livingCountry.id') },
       { id: 'doesnt_matter', label: t('matchmakingPage.form.options.common.doesntMatter') },
     ],
-    [t, i18n.language]
+    [t]
   );
 
   const marriageTimelineOptions = useMemo(
@@ -234,7 +222,7 @@ export default function MatchmakingEditOnceFullForm({
       { id: '6_12', label: t('matchmakingPage.form.options.timeline.6_12') },
       { id: '1_plus', label: t('matchmakingPage.form.options.timeline.1_plus') },
     ],
-    [t, i18n.language]
+    [t]
   );
 
   const yesNoDoesntMatterOptions = useMemo(
@@ -244,7 +232,7 @@ export default function MatchmakingEditOnceFullForm({
       { id: 'no', label: t('matchmakingPage.form.options.common.no') },
       { id: 'doesnt_matter', label: t('matchmakingPage.form.options.common.doesntMatter') },
     ],
-    [t, i18n.language]
+    [t]
   );
 
   const heightRangeOptions = useMemo(() => {

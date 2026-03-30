@@ -49,8 +49,11 @@ export default defineConfig(({ mode }) => {
           name: 'Uniqah',
           short_name: 'Uniqah',
           description: 'Uniqah eşleştirme ve profil paneli',
-          start_url: '/panel',
-          scope: '/',
+          // IMPORTANT: Keep PWA scope limited to the authenticated app area.
+          // Broad scope ('/') can cause browsers/OS to show “open in app?” prompts
+          // even on marketing/login pages, hurting conversion.
+          start_url: '/app/matches',
+          scope: '/app/',
           display: 'standalone',
           background_color: '#0b1220',
           theme_color: '#0b1220',

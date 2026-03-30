@@ -9,6 +9,61 @@ function pickDoc(d) {
   return { id: safeStr(raw.id), ...(raw || {}) };
 }
 
+async function filterItemsByLiveSender({ db, items }) {
+  const list = Array.isArray(items) ? items : [];
+  const senderUids = Array.from(
+    new Set(
+      list
+        .map((item) => safeStr(item?.fromUid))
+        .filter(Boolean)
+    )
+  );
+
+  if (!senderUids.length) return list;
+
+  const liveUids = new Set();
+
+  try {
+    const refs = senderUids.map((senderUid) => db.collection('matchmakingUsers').doc(senderUid));
+    let snaps = [];
+    try {
+      snaps = refs.length ? await db.getAll(...refs) : [];
+    } catch {
+      snaps = await Promise.all(refs.map((ref) => ref.get()));
+    }
+
+    for (let i = 0; i < senderUids.length; i += 1) {
+      const snap = snaps[i];
+      if (snap?.exists) liveUids.add(senderUids[i]);
+    }
+  } catch {
+    // ignore
+  }
+
+  const missingUids = senderUids.filter((senderUid) => !liveUids.has(senderUid));
+  if (missingUids.length) {
+    for (let i = 0; i < missingUids.length; i += 10) {
+      const chunk = missingUids.slice(i, i + 10);
+      try {
+        const snap = await db.collection('matchmakingApplications').where('userId', 'in', chunk).get();
+        snap.forEach((doc) => {
+          const data = doc.data() || {};
+          const senderUid = safeStr(data?.userId);
+          if (senderUid) liveUids.add(senderUid);
+        });
+      } catch {
+        // ignore
+      }
+    }
+  }
+
+  return list.filter((item) => {
+    const senderUid = safeStr(item?.fromUid);
+    if (!senderUid) return true;
+    return liveUids.has(senderUid);
+  });
+}
+
 async function listSubcol({ db, uid, name, limitN }) {
   try {
     const snap = await db
@@ -63,6 +118,12 @@ export default async function handler(req, res) {
       listSubcol({ db, uid, name: 'outboxMessages', limitN }),
     ]);
 
+    const [safeInboxLikes, safeInboxAccessRequests, safeInboxPreMatchRequests] = await Promise.all([
+      filterItemsByLiveSender({ db, items: inboxLikes }),
+      filterItemsByLiveSender({ db, items: inboxAccessRequests }),
+      filterItemsByLiveSender({ db, items: inboxPreMatchRequests }),
+    ]);
+
     res.statusCode = 200;
     res.setHeader('content-type', 'application/json');
     res.end(
@@ -71,9 +132,9 @@ export default async function handler(req, res) {
         firebaseProjectId: projectId || null,
         uid,
         limit: limitN,
-        inboxLikes: inboxLikes.map(pickDoc),
-        inboxAccessRequests: inboxAccessRequests.map(pickDoc),
-        inboxPreMatchRequests: inboxPreMatchRequests.map(pickDoc),
+        inboxLikes: safeInboxLikes.map(pickDoc),
+        inboxAccessRequests: safeInboxAccessRequests.map(pickDoc),
+        inboxPreMatchRequests: safeInboxPreMatchRequests.map(pickDoc),
         inboxMessages: inboxMessages.map(pickDoc),
         outboxAccessRequests: outboxAccessRequests.map(pickDoc),
         outboxPreMatchRequests: outboxPreMatchRequests.map(pickDoc),

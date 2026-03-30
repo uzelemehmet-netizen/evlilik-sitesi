@@ -41,6 +41,8 @@ export default async function adminFeedbackList(req, res) {
   const status = safeStr(body?.status).toLowerCase();
   const qText = safeStr(body?.q);
   const limit = Math.min(200, Math.max(1, safeInt(body?.limit, 50)));
+  const sinceMs = Math.max(0, safeInt(body?.sinceMs, 0));
+  const untilMs = Math.max(0, safeInt(body?.untilMs, 0));
 
   const { db } = getAdmin();
 
@@ -65,6 +67,9 @@ export default async function adminFeedbackList(req, res) {
 
   const qLower = qText ? qText.toLowerCase() : '';
   const itemsFiltered = itemsRaw.filter((x) => {
+    const createdAtMs = safeInt(x?.createdAt, 0);
+    if (sinceMs && (!createdAtMs || createdAtMs < sinceMs)) return false;
+    if (untilMs && createdAtMs > untilMs) return false;
     if (kind && safeStr(x?.kind).toLowerCase() !== kind) return false;
     if (status && safeStr(x?.status).toLowerCase() !== status) return false;
     if (qLower) {

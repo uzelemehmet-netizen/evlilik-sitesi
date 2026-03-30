@@ -1,6 +1,6 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import App from './App.jsx';
+import BootstrapApp from './BootstrapApp.jsx';
 
 // Fonts: self-host via @fontsource (avoid runtime Google Fonts requests)
 // Limit to latin/latin-ext subsets to avoid huge mobile payload (cyrillic/greek/devanagari/vietnamese, etc.)
@@ -33,8 +33,7 @@ import '@fontsource/plus-jakarta-sans/latin-ext-700.css';
 
 import './index.css';
 import './i18n';
-import { i18nReady } from './i18n';
-import { AuthProvider } from './auth/AuthProvider.jsx';
+import AuthProvider from './auth/AuthProviderRoot.jsx';
 import ErrorBoundary from './components/ErrorBoundary.jsx';
 import { registerSW } from 'virtual:pwa-register';
 import { detectInstalledRelatedAppsAndMark, markPwaInstalled, reportPwaInstalledToServerBestEffort } from './utils/pwaInstalled.js';
@@ -393,7 +392,7 @@ if (typeof window !== 'undefined') {
               const host = String(u.host || '').trim();
               const path = String(u.pathname || '').trim();
               const hint = host ? `${host}${path}` : '';
-              if (!hint || hint.includes('://') || /[\s\?#@]/.test(hint)) return '';
+              if (!hint || hint.includes('://') || /[\s?#@]/.test(hint)) return '';
               return hint.slice(0, 420);
             } catch {
               return '';
@@ -416,7 +415,7 @@ if (typeof window !== 'undefined') {
                   const host = String(u.host || '').trim();
                   const path = String(u.pathname || '').trim();
                   const hint = host ? `${host}${path}` : '';
-                  if (!hint || hint.includes('://') || /[\s\?#@]/.test(hint)) continue;
+                  if (!hint || hint.includes('://') || /[\s?#@]/.test(hint)) continue;
                   const key = hint.toLowerCase();
                   if (seen.has(key)) continue;
                   seen.add(key);
@@ -456,7 +455,7 @@ if (typeof window !== 'undefined') {
               const path = String(u.pathname || '').trim();
               const hint = host ? `${host}${path}` : '';
               // Must be scheme-less and query/hash free.
-              if (!hint || hint.includes('://') || /[\s\?#@]/.test(hint)) return '';
+              if (!hint || hint.includes('://') || /[\s?#@]/.test(hint)) return '';
               return hint.slice(0, 420);
             } catch {
               return '';
@@ -572,7 +571,7 @@ if (typeof window !== 'undefined') {
                         const host = String(u.host || '').trim();
                         const path = String(u.pathname || '').trim();
                         const v = host ? `${host}${path}` : '';
-                        if (!v || v.includes('://') || /[\s\?#@]/.test(v)) return '';
+                        if (!v || v.includes('://') || /[\s?#@]/.test(v)) return '';
                         return v.slice(0, 420);
                       } catch {
                         return '';
@@ -611,6 +610,77 @@ if (typeof window !== 'undefined') {
             }
           })();
 
+          // Recovery: If a same-origin Vite chunk fails to preload, the page may stay blank
+          // (stale cached HTML referencing an old hashed asset, flaky networks, or aggressive caches).
+          // Try a single cache-busted reload to recover.
+          try {
+            if (code === 'resource_load_error' && tagName === 'link' && linkRel === 'modulepreload' && linkAs === 'script') {
+              const hint = String(resourceUrlHint || '').trim();
+              const hintLow = hint.toLowerCase();
+              const currentHost = (() => {
+                try {
+                  return String(window.location?.host || '').trim().toLowerCase();
+                } catch {
+                  return '';
+                }
+              })();
+
+              const isSameHostAsset = !!currentHost && hintLow.startsWith(`${currentHost}/assets/`) && hintLow.endsWith('.js');
+              // Vite output is typically `/assets/<name>-<hash>.js`.
+              // We intentionally avoid being too strict about the hash charset/length.
+              const isLikelyViteHashedChunk = /\/assets\/[a-z0-9_-]+-[a-z0-9_-]+\.js$/i.test(hintLow);
+
+              // Reduce annoyance: only auto-reload if this happens very early in the page lifecycle.
+              const isEarlyLoad = (() => {
+                try {
+                  if (typeof eventTimeStamp === 'number' && Number.isFinite(eventTimeStamp)) {
+                    return eventTimeStamp >= 0 && eventTimeStamp < 15_000;
+                  }
+                  return false;
+                } catch {
+                  return false;
+                }
+              })();
+
+              if (isSameHostAsset && isLikelyViteHashedChunk && isEarlyLoad) {
+                const KEY = 'mk_preload_recover_v1';
+                const now = Date.now();
+                const last = (() => {
+                  try {
+                    return Number(sessionStorage.getItem(KEY) || '0');
+                  } catch {
+                    return 0;
+                  }
+                })();
+
+                // Avoid loops: at most once per 10 minutes per tab.
+                if (!Number.isFinite(last) || now - last > 10 * 60 * 1000) {
+                  try {
+                    sessionStorage.setItem(KEY, String(now));
+                  } catch {
+                    // ignore
+                  }
+
+                  try {
+                    const u = new URL(String(window.location?.href || 'https://uniqah.com/'));
+                    u.searchParams.set('__reload', String(now));
+                    // replace() prevents back-button loops.
+                    window.location.replace(u.toString());
+                  } catch {
+                    // Fallback: basic reload.
+                    try {
+                      window.location.reload();
+                    } catch {
+                      // ignore
+                    }
+                  }
+                }
+              }
+            }
+          } catch {
+            // ignore
+          }
+
           const scriptInventory = (() => {
             try {
               if (!isOpaqueScriptError) return null;
@@ -640,7 +710,7 @@ if (typeof window !== 'undefined') {
                     const host = String(u.host || '').trim();
                     const path = String(u.pathname || '').trim();
                     const v = host ? `${host}${path}` : '';
-                    if (!v || v.includes('://') || /[\s\?#@]/.test(v)) return '';
+                    if (!v || v.includes('://') || /[\s?#@]/.test(v)) return '';
                     return v.slice(0, 420);
                   } catch {
                     return '';
@@ -862,6 +932,27 @@ if (typeof window !== 'undefined') {
 // Service worker dev ortamında (Vite) çok sık cache/refresh sorunlarına ve "beyaz sayfa"ya neden olabiliyor.
 // Bu yüzden sadece production build'lerde register ediyoruz.
 // Not: `load` event'ini beklemek bazı cihazlarda bildirim/push açma akışını geciktirebiliyor.
+if (import.meta.env.DEV && typeof window !== 'undefined') {
+  // Best-effort: geçmişte PROD build/PWA açıldıysa aynı origin'de SW kayıtlı kalmış olabilir.
+  // DEV'de HMR ile çakışıp eski bundle'ı servis etmesin diye temizle.
+  try {
+    if ('serviceWorker' in navigator && typeof navigator.serviceWorker?.getRegistrations === 'function') {
+      navigator.serviceWorker
+        .getRegistrations()
+        .then((regs) => Promise.allSettled((regs || []).map((r) => r.unregister())))
+        .catch(() => null);
+    }
+
+    if (typeof window.caches?.keys === 'function') {
+      window.caches
+        .keys()
+        .then((keys) => Promise.allSettled((keys || []).map((k) => window.caches.delete(k))))
+        .catch(() => null);
+    }
+  } catch {
+    // ignore
+  }
+}
 if (import.meta.env.PROD && typeof window !== 'undefined') {
   // Defer SW registration to avoid competing with first-load resources on slow networks (mobile/VPN).
   try {
@@ -964,54 +1055,3 @@ root.render(
     </ErrorBoundary>
   </React.StrictMode>
 );
-
-function BootstrapApp() {
-  const [ready, setReady] = React.useState(false);
-
-  React.useEffect(() => {
-    let alive = true;
-    Promise.resolve(i18nReady)
-      .catch(() => null)
-      .then(() => {
-        if (alive) setReady(true);
-      });
-
-    // Safety: never get stuck on a blank screen.
-    // If i18n fails to init for any reason, render the app anyway after a short timeout.
-    const t = window.setTimeout(() => {
-      try {
-        if (alive) setReady(true);
-      } catch {
-        // ignore
-      }
-    }, 3000);
-    return () => {
-      alive = false;
-      try {
-        window.clearTimeout(t);
-      } catch {
-        // ignore
-      }
-    };
-  }, []);
-
-  if (!ready) {
-    return (
-      <div className="min-h-[60vh] flex items-center justify-center text-white/80">
-        Yükleniyor…
-      </div>
-    );
-  }
-
-  return (
-    <React.Suspense
-      fallback={
-        <div className="min-h-[60vh] flex items-center justify-center text-white/80">
-          Yükleniyor…
-        </div>
-      }
-    >
-      <App />
-    </React.Suspense>
-  );
-}

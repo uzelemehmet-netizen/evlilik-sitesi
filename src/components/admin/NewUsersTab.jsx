@@ -5,6 +5,14 @@ import { collection, doc, getDoc, limit, onSnapshot, orderBy, query, Timestamp, 
 import { db } from '../../config/firebaseDb';
 import { storage } from '../../config/firebaseStorage';
 import { formatProfileCode } from '../../utils/profileCode';
+import {
+  dedupeAdminNewUsers,
+  getAnyAbout,
+  hasKnownAccountIdentity,
+  pickAccountDisplayName,
+  pickAccountEmail,
+  safeStr,
+} from '../../utils/adminNewUsers';
 
 const LS_NOTIFY_KEY = 'admin_new_users_notify_v1';
 const LS_SOUND_KEY = 'admin_new_users_sound_v1';
@@ -51,11 +59,6 @@ function normalizeForJson(value) {
   return value;
 }
 
-function safeStr(v) {
-  const s = typeof v === 'string' ? v.trim() : '';
-  return s;
-}
-
 function getUcCodeFromUserDoc(userDoc) {
   const uc = safeStr(userDoc?.userCode) || safeStr(userDoc?.publicProfile?.userCode);
   return uc;
@@ -64,37 +67,6 @@ function getUcCodeFromUserDoc(userDoc) {
 function getUcCodeFromApplicationDoc(appDoc) {
   const uc = safeStr(appDoc?.userCode) || safeStr(appDoc?.publicProfile?.userCode);
   return uc;
-}
-
-function getAnyAbout(app) {
-  const it = app && typeof app === 'object' ? app : null;
-  if (!it) return '';
-
-  const legacyBio = safeStr(it?.bio);
-  if (legacyBio) return legacyBio;
-
-  const direct = safeStr(it?.about) || safeStr(it?.aboutTr) || safeStr(it?.aboutId);
-  if (direct) return direct;
-
-  const details = it?.details && typeof it.details === 'object' ? it.details : null;
-  const detailsAbout =
-    safeStr(details?.about) ||
-    safeStr(details?.bio) ||
-    safeStr(details?.aboutTr) ||
-    safeStr(details?.aboutId) ||
-    safeStr(details?.bioTr) ||
-    safeStr(details?.bioId);
-  if (detailsAbout) return detailsAbout;
-
-  const pp = it?.publicProfile && typeof it.publicProfile === 'object' ? it.publicProfile : null;
-  const ppAbout =
-    safeStr(pp?.about) ||
-    safeStr(pp?.bio) ||
-    safeStr(pp?.aboutTr) ||
-    safeStr(pp?.aboutId) ||
-    safeStr(pp?.bioTr) ||
-    safeStr(pp?.bioId);
-  return ppAbout;
 }
 
 function isStubAndIncomplete(it) {
@@ -243,14 +215,20 @@ async function testNotify() {
   return { ok: true, perm };
 }
 
-function displayUserLabel(it) {
-  if (isStubAndIncomplete(it)) return 'Bilinmeyen kullanıcı';
-
-  const username = typeof it?.username === 'string' ? it.username.trim() : '';
+function displayUserLabel(it, userDoc = null) {
+  const username = safeStr(it?.username) || safeStr(userDoc?.username);
   if (username) return `@${username}`;
 
-  const fullName = typeof it?.fullName === 'string' ? it.fullName.trim() : '';
+  const fullName = safeStr(it?.fullName) || safeStr(userDoc?.fullName) || safeStr(userDoc?.publicProfile?.fullName);
   if (fullName) return fullName;
+
+  const displayName = pickAccountDisplayName(it, userDoc);
+  if (displayName) return displayName;
+
+  const accountEmail = pickAccountEmail(it, userDoc);
+  if (accountEmail) return accountEmail;
+
+  if (isStubAndIncomplete(it) && !hasKnownAccountIdentity(it, userDoc)) return 'Bilinmeyen kullanıcı';
 
   const profile = formatProfileCode(it);
   if (profile) return profile;
@@ -347,7 +325,7 @@ function Modal({ open, onClose, item }) {
   const safe = normalizeForJson(item);
   const safeUser = normalizeForJson(userDoc);
   const ucCode = getUcCodeFromApplicationDoc(item) || getUcCodeFromUserDoc(userDoc);
-  const hideSensitive = isStubAndIncomplete(item);
+  const hideSensitive = isStubAndIncomplete(item) && !hasKnownAccountIdentity(item, userDoc);
 
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center p-4 pt-6 overflow-y-auto">
@@ -357,7 +335,7 @@ function Modal({ open, onClose, item }) {
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
-                <h3 className="text-base font-bold text-slate-900 truncate">{displayUserLabel(item)}</h3>
+                <h3 className="text-base font-bold text-slate-900 truncate">{displayUserLabel(item, userDoc)}</h3>
                 <GenderPill gender={item.gender} />
                 {ucCode ? (
                   <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold border border-emerald-200 bg-emerald-50 text-emerald-900">
@@ -536,7 +514,7 @@ export default function NewUsersTab() {
     );
 
     return () => unsub();
-  }, [todayStart]);
+  }, [notifyEnabled, soundEnabled, todayStart]);
 
   useEffect(() => {
     saveBool(LS_NOTIFY_KEY, notifyEnabled);
@@ -606,21 +584,23 @@ export default function NewUsersTab() {
     };
   }, [items, userInfoByUid, userLoadingByUid]);
 
+  const normalizedItems = useMemo(() => dedupeAdminNewUsers(items, userInfoByUid), [items, userInfoByUid]);
+
   const counts = useMemo(() => {
-    const list = Array.isArray(items) ? items : [];
+    const list = Array.isArray(normalizedItems) ? normalizedItems : [];
     return {
       female: list.filter((it) => it?.gender === 'female').length,
       male: list.filter((it) => it?.gender === 'male').length,
       other: list.filter((it) => it?.gender !== 'female' && it?.gender !== 'male').length,
       total: list.length,
     };
-  }, [items]);
+  }, [normalizedItems]);
 
   const filtered = useMemo(() => {
-    const list = Array.isArray(items) ? items : [];
+    const list = Array.isArray(normalizedItems) ? normalizedItems : [];
     if (activeGender === 'all') return list;
     return list.filter((it) => (activeGender === 'other' ? (it?.gender !== 'female' && it?.gender !== 'male') : it?.gender === activeGender));
-  }, [items, activeGender]);
+  }, [normalizedItems, activeGender]);
 
   const openModal = (it) => {
     setActiveItem(it);
@@ -639,7 +619,7 @@ export default function NewUsersTab() {
           <div>
             <h2 className="text-lg font-bold text-slate-900">Yeni Kullanıcılar (Bugün)</h2>
             <p className="text-sm text-slate-600">
-              Bugün saat 00:00’dan itibaren başvuru oluşturan kullanıcılar. Toplam: <span className="font-semibold text-slate-900">{counts.total}</span>
+              Bugün saat 00:00'dan itibaren benzersiz kullanıcılar. Toplam: <span className="font-semibold text-slate-900">{counts.total}</span>
             </p>
           </div>
           <div className="flex flex-col items-start md:items-end gap-2">
@@ -804,18 +784,19 @@ export default function NewUsersTab() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {filtered.map((it) => (
+                {filtered.map((it) => {
+                  const uid = safeStr(it?.userId);
+                  const u = uid ? userInfoByUid[uid] : null;
+                  return (
                   <tr key={it.id} className="text-slate-800">
                     <td className="px-3 py-2">
                       <div className="flex items-center gap-2">
-                        <div className="font-semibold text-slate-900">{displayUserLabel(it)}</div>
+                        <div className="font-semibold text-slate-900">{displayUserLabel(it, u)}</div>
                         <GenderPill gender={it.gender} />
                       </div>
                     </td>
                     <td className="px-3 py-2">
                       {(() => {
-                        const uid = safeStr(it?.userId);
-                        const u = uid ? userInfoByUid[uid] : null;
                         const uc = getUcCodeFromApplicationDoc(it) || getUcCodeFromUserDoc(u);
                         if (userLoadingByUid[uid]) return <span className="text-slate-500">Yükleniyor…</span>;
                         return <span className="font-semibold">{uc || '-'}</span>;
@@ -836,7 +817,7 @@ export default function NewUsersTab() {
                       </button>
                     </td>
                   </tr>
-                ))}
+                )})}
               </tbody>
             </table>
           </div>

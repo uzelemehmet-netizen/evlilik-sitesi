@@ -1,21 +1,35 @@
 import { test, expect } from 'playwright/test';
 
-test('matchmaking panel loads (seed user)', async ({ page }) => {
+async function loginWithEmailPassword(page, email, password) {
+  await page.goto(`/login?mode=login&next=${encodeURIComponent('/profilim')}`);
+
+  await page.getByRole('button', {
+    name: /masuk dengan email\/kata sandi|email\/şifre ile giriş yap|log in with email|email\/password/i,
+  }).click();
+
+  const emailInput = page.locator('input[type="email"]').first();
+  const passwordInput = page.locator('input[type="password"]').first();
+
+  await expect(emailInput).toBeVisible();
+  await expect(passwordInput).toBeVisible();
+
+  await emailInput.fill(email);
+  await passwordInput.fill(password);
+  await page.getByRole('button', { name: /masuk|giriş yap|log in/i }).last().click();
+}
+
+test('matchmaking matches page loads for authenticated user', async ({ page }) => {
   const email = (process.env.E2E_EMAIL || '').trim();
   const password = (process.env.E2E_PASSWORD || '').trim();
-  test.skip(!email || !password, 'E2E_EMAIL/E2E_PASSWORD not set; skipping seeded matchmaking smoke test.');
+  test.skip(!email || !password, 'E2E_EMAIL/E2E_PASSWORD not set; skipping authenticated matchmaking smoke test.');
 
-  await page.goto('/login');
-
-  await page.getByTestId('login-email').fill(email);
-  await page.getByTestId('login-password').fill(password);
-  await page.getByTestId('login-submit').click();
+  await loginWithEmailPassword(page, email, password);
 
   await expect(page).toHaveURL(/\/profilim(\?|$)/);
-  await expect(page.getByTestId('matchmaking-panel')).toBeVisible();
+  await page.goto('/app/matches');
 
-  // Matches list should exist (seed creates at least one proposed match)
-  await expect(page.getByTestId('matches-list')).toBeVisible();
-  const cards = page.locator('[data-testid^="match-card-"]');
-  await expect(cards.first()).toBeVisible();
+  await expect(page).toHaveURL(/\/app\/matches(\?|$)/);
+  await expect(page.getByRole('heading', { name: /pencocokan saya|eşleşmelerim|my matches/i })).toBeVisible();
+  await expect(page.getByRole('button', { name: /permintaan|istekler|requests/i })).toBeVisible();
+  await expect(page.getByText(/bagaimana cara kerja|nasıl çalışır|how it works/i).first()).toBeVisible();
 });

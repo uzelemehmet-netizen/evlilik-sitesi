@@ -21,8 +21,31 @@ function fmtTs(v) {
 
 const STATUS_OPTIONS = ['new', 'in_progress', 'done', 'rejected'];
 
+function statusLabel(value) {
+  const key = safeStr(value);
+  const labels = {
+    new: 'Yeni',
+    in_progress: 'İşlemde',
+    done: 'Tamamlandı',
+    rejected: 'Reddedildi',
+  };
+  return labels[key] || key || '-';
+}
+
+function kindLabel(value) {
+  const key = safeStr(value);
+  const labels = {
+    bug: 'Hata',
+    suggestion: 'Öneri',
+    complaint: 'Şikayet',
+    other: 'Diğer',
+  };
+  return labels[key] || key || 'Diğer';
+}
+
 export default function AdminFeedback() {
   const [filters, setFilters] = useState({ kind: '', status: 'new', q: '' });
+  const [todayOnly, setTodayOnly] = useState(false);
   const [state, setState] = useState({ loading: true, error: '', items: [] });
   const [updatingId, setUpdatingId] = useState('');
   const [noteDraftById, setNoteDraftById] = useState({});
@@ -32,9 +55,20 @@ export default function AdminFeedback() {
       kind: safeStr(filters.kind),
       status: safeStr(filters.status),
       q: safeStr(filters.q),
+      ...(todayOnly
+        ? (() => {
+          try {
+            const d = new Date();
+            d.setHours(0, 0, 0, 0);
+            return { sinceMs: d.getTime() };
+          } catch {
+            return {};
+          }
+        })()
+        : {}),
       limit: 80,
     }),
-    [filters.kind, filters.q, filters.status]
+    [filters.kind, filters.q, filters.status, todayOnly]
   );
 
   const load = async () => {
@@ -48,14 +82,14 @@ export default function AdminFeedback() {
       const items = Array.isArray(data?.items) ? data.items : [];
       setState({ loading: false, error: '', items });
     } catch (e) {
-      setState({ loading: false, error: String(e?.message || 'load_failed'), items: [] });
+      setState({ loading: false, error: String(e?.message || 'veriler_yuklenemedi'), items: [] });
     }
   };
 
   useEffect(() => {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [queryPayload.kind, queryPayload.status]);
+  }, [queryPayload.kind, queryPayload.status, queryPayload.sinceMs]);
 
   const updateStatus = async (id, status) => {
     setUpdatingId(id);
@@ -69,7 +103,7 @@ export default function AdminFeedback() {
       setNoteDraftById((p) => ({ ...p, [id]: '' }));
       await load();
     } catch (e) {
-      alert(String(e?.message || 'update_failed'));
+      alert(String(e?.message || 'guncelleme_basarisiz'));
     } finally {
       setUpdatingId('');
     }
@@ -82,7 +116,7 @@ export default function AdminFeedback() {
           <div className="flex items-center gap-3">
             <Link to="/admin/dashboard" className="inline-flex items-center gap-2 text-sm font-semibold text-slate-700 hover:text-slate-900">
               <ArrowLeft className="h-4 w-4" />
-              Admin dashboard
+              Admin paneli
             </Link>
             <h1 className="text-xl font-bold">Gelen bildirimler</h1>
           </div>
@@ -106,10 +140,10 @@ export default function AdminFeedback() {
               className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm"
             >
               <option value="">(hepsi)</option>
-              <option value="bug">bug</option>
-              <option value="suggestion">suggestion</option>
-              <option value="complaint">complaint</option>
-              <option value="other">other</option>
+              <option value="bug">Hata</option>
+              <option value="suggestion">Öneri</option>
+              <option value="complaint">Şikayet</option>
+              <option value="other">Diğer</option>
             </select>
           </label>
 
@@ -123,10 +157,15 @@ export default function AdminFeedback() {
               <option value="">(hepsi)</option>
               {STATUS_OPTIONS.map((s) => (
                 <option key={s} value={s}>
-                  {s}
+                      {statusLabel(s)}
                 </option>
               ))}
             </select>
+          </label>
+
+          <label className="flex items-center gap-2 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm">
+            <input type="checkbox" checked={todayOnly} onChange={(e) => setTodayOnly(e.target.checked)} />
+            Bugün
           </label>
 
           <label className="grid gap-1">
@@ -169,7 +208,7 @@ export default function AdminFeedback() {
                   <div key={x.id} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <div className="text-sm font-semibold text-slate-900">
-                        {safeStr(x?.kind) || 'other'} • {safeStr(x?.status) || '-'}
+                        {kindLabel(x?.kind)} • {statusLabel(x?.status)}
                       </div>
                       <div className="text-xs text-slate-500">
                         <span className="font-semibold">Gönderim:</span> {createdAt || '-'}
@@ -182,12 +221,12 @@ export default function AdminFeedback() {
                     </div>
 
                     <div className="mt-2 text-xs text-slate-600">
-                      <div>id: {x.id}</div>
+                      <div>Kimlik: {x.id}</div>
                       {x?.matchId ? <div>matchId: {x.matchId}</div> : null}
-                      {x?.step ? <div>step: {x.step}</div> : null}
-                      {x?.userEmail ? <div>user: {x.userEmail}</div> : x?.userId ? <div>userId: {x.userId}</div> : null}
+                      {x?.step ? <div>Adım: {x.step}</div> : null}
+                      {x?.userEmail ? <div>Kullanıcı: {x.userEmail}</div> : x?.userId ? <div>Kullanıcı kimliği: {x.userId}</div> : null}
                       {safeStr(x?.contact) || safeStr(x?.context?.contact) ? (
-                        <div>contact: {safeStr(x?.contact) || safeStr(x?.context?.contact)}</div>
+                        <div>İletişim: {safeStr(x?.contact) || safeStr(x?.context?.contact)}</div>
                       ) : null}
                     </div>
 
@@ -201,7 +240,7 @@ export default function AdminFeedback() {
                           <a key={idx} href={a?.secureUrl} target="_blank" rel="noreferrer" className="block">
                             <img
                               src={a?.secureUrl}
-                              alt={a?.originalFilename || 'attachment'}
+                              alt={a?.originalFilename || 'ek'}
                               className="h-28 w-full rounded-lg object-cover border border-slate-200"
                               loading="lazy"
                               decoding="async"
@@ -232,7 +271,7 @@ export default function AdminFeedback() {
                         >
                           {STATUS_OPTIONS.map((s) => (
                             <option key={s} value={s}>
-                              {s}
+                              {statusLabel(s)}
                             </option>
                           ))}
                         </select>

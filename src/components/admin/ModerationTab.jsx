@@ -30,6 +30,7 @@ export default function ModerationTab() {
   const [kind, setKind] = useState('');
   const [q, setQ] = useState('');
   const [limit, setLimit] = useState(80);
+  const [todayOnly, setTodayOnly] = useState(false);
 
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -45,8 +46,13 @@ export default function ModerationTab() {
     if (safeStr(status)) next.status = safeStr(status);
     if (safeStr(kind)) next.kind = safeStr(kind);
     if (safeStr(q)) next.q = safeStr(q);
+    if (todayOnly) {
+      const d = new Date();
+      d.setHours(0, 0, 0, 0);
+      next.sinceMs = d.getTime();
+    }
     return next;
-  }, [status, kind, q, limit]);
+  }, [status, kind, q, limit, todayOnly]);
 
   const load = async () => {
     setLoading(true);
@@ -123,6 +129,15 @@ export default function ModerationTab() {
               <option key={x.id || 'all'} value={x.id}>{x.label}</option>
             ))}
           </select>
+          <label className="flex items-center gap-2 px-3 py-2 border rounded text-sm bg-white">
+            <input
+              type="checkbox"
+              checked={todayOnly}
+              onChange={(e) => setTodayOnly(e.target.checked)}
+              disabled={loading || acting}
+            />
+            Bugün
+          </label>
           <input
             value={kind}
             onChange={(e) => setKind(e.target.value)}
