@@ -211,6 +211,11 @@ export default function PwaInstallCard({ variant = 'light', flat = false }) {
         case 'service_worker_not_ready':
           setNotifyStatus(t('pwa.install.notifications.serviceWorkerNotReady'));
           break;
+        case 'permission_timeout':
+        case 'messaging_load_timeout':
+        case 'token_timeout':
+          setNotifyStatus(t('pwa.install.notifications.timeout'));
+          break;
         case 'missing_vapid_key':
           setNotifyStatus(t('pwa.install.notifications.missingSetup'));
           break;
@@ -297,7 +302,7 @@ export default function PwaInstallCard({ variant = 'light', flat = false }) {
       ) : null}
 
       {notifyStatus ? (
-        <p className={`mt-3 text-xs ${subtleClass}`}>{notifyStatus}</p>
+        <p className={`mt-3 whitespace-pre-line text-xs ${subtleClass}`}>{notifyStatus}</p>
       ) : notificationPermission === 'granted' ? (
         <p className={`mt-3 text-xs ${subtleClass}`}>{t('pwa.install.notifications.alreadyEnabled')}</p>
       ) : null}

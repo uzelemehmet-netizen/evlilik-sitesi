@@ -100,6 +100,12 @@ function buildFallbackAppFromUserDoc({ uid, userDoc }) {
   };
 }
 
+function isTwoStepActiveStartEnabled() {
+  const mode = safeStr(process.env.MATCHMAKING_ACTIVE_START_MODE || '').toLowerCase();
+  if (!mode) return true;
+  return mode !== 'legacy';
+}
+
 function isIdentityVerifiedUserDoc(userDoc) {
   if (userDoc?.identityVerified === true) return true;
   const st = String(userDoc?.identityVerification?.status || '').toLowerCase().trim();
@@ -293,14 +299,18 @@ export default async function handler(req, res) {
         decidedByUid: uid,
       };
 
+      const userIdsSorted = [uid, fromUid].slice().sort();
+      const aUserId = userIdsSorted[0];
+      const bUserId = userIdsSorted[1];
+      matchId = `${aUserId}__${bUserId}`;
+      const legacyMatchRef = db.collection('matchmakingMatches').doc(matchId);
+      const existingLegacySnap = await tx.get(legacyMatchRef);
+      const existingLegacy = existingLegacySnap.exists ? (existingLegacySnap.data() || {}) : {};
+      const existingLegacyStatus = safeStr(existingLegacy?.status);
+
       // Match oluşturma (approve)
       if (decision === 'approve' && myApp && otherApp) {
-        const userIdsSorted = [uid, fromUid].slice().sort();
-        const aUserId = userIdsSorted[0];
-        const bUserId = userIdsSorted[1];
-        matchId = `${aUserId}__${bUserId}`;
-
-        const matchRef = db.collection('matchmakingMatches').doc(matchId);
+        const matchRef = legacyMatchRef;
 
         const [aUserSnap, bUserSnap] = await Promise.all([
           tx.get(db.collection('matchmakingUsers').doc(aUserId)),
@@ -311,44 +321,92 @@ export default async function handler(req, res) {
 
         const existing = await tx.get(matchRef);
         const existingData = existing.exists ? (existing.data() || {}) : {};
+        const existingStatus = safeStr(existingData?.status);
 
-        // App taraflarını a/b userId’ye hizala.
-        const aApp = safeStr(myApp?.userId) === aUserId ? myApp : otherApp;
-        const bApp = safeStr(myApp?.userId) === bUserId ? myApp : otherApp;
+        if (existingStatus === 'mutual_interest' || existingStatus === 'mutual_accepted' || existingStatus === 'contact_unlocked') {
+          patch.matchId = matchId;
+        } else {
+          const approverSide = uid === aUserId ? 'a' : 'b';
+          const requesterSide = fromUid === aUserId ? 'a' : 'b';
+          const nextDecisions = {
+            a: safeStr(existingData?.decisions?.a) || null,
+            b: safeStr(existingData?.decisions?.b) || null,
+          };
+          nextDecisions[requesterSide] = 'accept';
+          nextDecisions[approverSide] = 'accept';
 
-        const baseDoc = {
-          userIds: userIdsSorted,
-          aUserId,
-          bUserId,
-          aApplicationId: safeStr(aApp?.id),
-          bApplicationId: safeStr(bApp?.id),
-          scoreAtoB: null,
-          scoreBtoA: null,
-          score: null,
-          matchTier: 'pre_match',
-          createdBy: 'pre_match_request',
-          status: 'proposed',
-          decisions: { a: null, b: null },
-          profiles: {
-            a: buildMatchProfile(aApp, aUserDoc),
-            b: buildMatchProfile(bApp, bUserDoc),
-          },
-          createdAt: existing.exists ? existingData?.createdAt || FieldValue.serverTimestamp() : FieldValue.serverTimestamp(),
-          createdAtMs: existing.exists ? (typeof existingData?.createdAtMs === 'number' ? existingData.createdAtMs : nowMs) : nowMs,
-          updatedAt: FieldValue.serverTimestamp(),
-        };
+          const nextMatchStatus = isTwoStepActiveStartEnabled() ? 'mutual_interest' : 'mutual_accepted';
 
-        // Eğer match daha önce cancelled ise tekrar aç.
-        if (safeStr(existingData?.status) === 'cancelled') {
-          baseDoc.cancelledAt = FieldValue.delete();
-          baseDoc.cancelledAtMs = FieldValue.delete();
-          baseDoc.cancelledByUserId = FieldValue.delete();
-          baseDoc.cancelledReason = FieldValue.delete();
+          // App taraflarını a/b userId’ye hizala.
+          const aApp = safeStr(myApp?.userId) === aUserId ? myApp : otherApp;
+          const bApp = safeStr(myApp?.userId) === bUserId ? myApp : otherApp;
+
+          const baseDoc = {
+            userIds: userIdsSorted,
+            aUserId,
+            bUserId,
+            aApplicationId: safeStr(aApp?.id),
+            bApplicationId: safeStr(bApp?.id),
+            scoreAtoB: null,
+            scoreBtoA: null,
+            score: null,
+            matchTier: 'pre_match',
+            createdBy: 'pre_match_request',
+            status: nextMatchStatus,
+            decisions: nextDecisions,
+            profiles: {
+              a: buildMatchProfile(aApp, aUserDoc),
+              b: buildMatchProfile(bApp, bUserDoc),
+            },
+            createdAt: existing.exists ? existingData?.createdAt || FieldValue.serverTimestamp() : FieldValue.serverTimestamp(),
+            createdAtMs: existing.exists ? (typeof existingData?.createdAtMs === 'number' ? existingData.createdAtMs : nowMs) : nowMs,
+            updatedAt: FieldValue.serverTimestamp(),
+            updatedAtMs: nowMs,
+          };
+
+          if (nextMatchStatus === 'mutual_interest') {
+            baseDoc.mutualInterestAtMs = nowMs;
+            baseDoc.mutualInterestAt = FieldValue.serverTimestamp();
+          } else {
+            baseDoc.mutualAcceptedAtMs = nowMs;
+            if (!existingData?.everMutualAcceptedAtMs) {
+              baseDoc.everMutualAcceptedAtMs = nowMs;
+              baseDoc.everMutualAcceptedAt = FieldValue.serverTimestamp();
+            }
+            baseDoc.interactionMode = existingData?.interactionMode || 'chat';
+            baseDoc.interactionChosenAt = existingData?.interactionChosenAt || FieldValue.serverTimestamp();
+            baseDoc.chatEnabledAt = existingData?.chatEnabledAt || FieldValue.serverTimestamp();
+            baseDoc.chatEnabledAtMs = typeof existingData?.chatEnabledAtMs === 'number' ? existingData.chatEnabledAtMs : nowMs;
+          }
+
+          // Eğer match daha önce cancelled ise tekrar aç.
+          if (safeStr(existingData?.status) === 'cancelled') {
+            baseDoc.cancelledAt = FieldValue.delete();
+            baseDoc.cancelledAtMs = FieldValue.delete();
+            baseDoc.cancelledByUserId = FieldValue.delete();
+            baseDoc.cancelledReason = FieldValue.delete();
+          }
+
+          tx.set(matchRef, baseDoc, { merge: true });
+
+          patch.matchId = matchId;
         }
+      }
 
-        tx.set(matchRef, baseDoc, { merge: true });
-
-        patch.matchId = matchId;
+      if (decision === 'reject' && existingLegacySnap.exists && existingLegacyStatus === 'proposed') {
+        tx.set(
+          legacyMatchRef,
+          {
+            status: 'cancelled',
+            cancelledAt: FieldValue.serverTimestamp(),
+            cancelledAtMs: nowMs,
+            cancelledByUserId: uid,
+            cancelledReason: 'pre_match_rejected',
+            updatedAt: FieldValue.serverTimestamp(),
+            updatedAtMs: nowMs,
+          },
+          { merge: true }
+        );
       }
 
       tx.set(inboxRef, patch, { merge: true });

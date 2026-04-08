@@ -217,7 +217,7 @@ export default async function handler(req, res) {
       // Ürün kararı: pasif/online filtresi eşleşmeyi etkilemez.
       // Admin havuz ekranında pasiflik sadece bilgi amaçlı gösterilir.
       const eligibleOpen = !blocked;
-      const hasFreeSlot = eligibleOpen && !lockActive && cooldownUntilMs <= nowMs;
+      const hasFreeSlot = eligibleOpen && cooldownUntilMs <= nowMs;
 
       rows.push({
         userId: uid,
@@ -250,7 +250,7 @@ export default async function handler(req, res) {
       blocked: rows.filter((r) => r.blocked),
       inactive: rows.filter((r) => r.inactive),
       cooldown: rows.filter((r) => r.cooldownUntilMs > nowMs),
-      locked: rows.filter((r) => r.lockActive),
+      locked: [],
       rejectedAll: rows.filter((r) => r.rejectedAllAtMs > 0),
       renewed: rows.filter((r) => r.requestedNewMatchAtMs > 0 || r.newUserSlotActive || (r.replacementCredits || 0) > 0),
     };

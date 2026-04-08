@@ -1,6 +1,8 @@
-import { getAdmin, normalizeBody, requireIdToken } from './_firebaseAdmin.js';
+import { getAdmin, isAdminEmail, normalizeBody, requireIdToken } from './_firebaseAdmin.js';
 import { normalizeGender } from './_matchmakingEligibility.js';
 import { getMatchmakingResetAtMs } from './_matchmakingReset.js';
+import { getBlockedUserIds } from './_matchmakingBlocks.js';
+import { isStubMatchmakingApplication } from '../src/utils/matchmakingProfileCompletion.js';
 import {
   decideAgeGroupExpandCount,
   getAgeGroupMaxExpandFromEnv,
@@ -113,10 +115,7 @@ function isSeedApplication(app) {
 }
 
 function isAutoStubApplication(app) {
-  const source = safeStr(app?.source).toLowerCase();
-  if (source === 'auto_stub') return true;
-  if (app?.details?.autoBootstrap === true) return true;
-  return false;
+  return isStubMatchmakingApplication(app);
 }
 
 function pickBestNonStubApplication(apps) {
@@ -225,6 +224,16 @@ function normalizeNatCode(v) {
 
 function setHas(list, v) {
   return Array.isArray(list) && v ? list.includes(v) : false;
+}
+
+function isPairBlockedByUsers({ seekerUid, candidateUid, seekerStatus, candidateStatus }) {
+  const a = String(seekerUid || '').trim();
+  const b = String(candidateUid || '').trim();
+  if (!a || !b) return false;
+
+  const seekerBlocked = seekerStatus?.blockedUserIds instanceof Set ? seekerStatus.blockedUserIds : new Set();
+  const candidateBlocked = candidateStatus?.blockedUserIds instanceof Set ? candidateStatus.blockedUserIds : new Set();
+  return seekerBlocked.has(b) || candidateBlocked.has(a);
 }
 
 function ageCompatibleOneWay(seeker, candidate) {
@@ -736,6 +745,13 @@ export default async function handler(req, res) {
         const userSnap = await db.collection('matchmakingUsers').doc(uid).get();
         const userDoc = userSnap.exists ? (userSnap.data() || {}) : {};
 
+        if (isAdminEmail(userDoc?.authEmailLower || userDoc?.authEmail)) {
+          res.statusCode = 200;
+          res.setHeader('content-type', 'application/json');
+          res.end(JSON.stringify({ ok: true, ...result, created: 0, noMatchReason: 'admin_only_account' }));
+          return;
+        }
+
         const resetAtMs = await getMatchmakingResetAtMs(db);
 
         // newUserSlot / slot limiti kaldırıldı.
@@ -745,6 +761,7 @@ export default async function handler(req, res) {
         const requesterIdentityVerified =
           !!userDoc?.identityVerified ||
           ['verified', 'approved'].includes(String(userDoc?.identityVerification?.status || '').toLowerCase().trim());
+        const seekerBlockedUserIds = new Set(getBlockedUserIds(userDoc));
 
         // Bu endpoint bir "yenileme" aksiyonu: her çağrıda sınırlı sayıda yeni eşleşme üret.
         // UI varsayılanı 1; debug/test için body.maxMatches ile artırılabilir (cap'li).
@@ -1027,11 +1044,9 @@ export default async function handler(req, res) {
               (typeof data?.requestedNewMatchAtMs === 'number' && Number.isFinite(data.requestedNewMatchAtMs) ? data.requestedNewMatchAtMs : 0) ||
               tsToMs(data?.requestedNewMatchAt);
 
-            const lock = data?.matchmakingLock && typeof data.matchmakingLock === 'object' ? data.matchmakingLock : null;
-            const lockActive = !!lock?.active;
-
             userStatusById.set(d.id, {
-              blocked: !!data.blocked,
+              blocked: !!data.blocked || isAdminEmail(data?.authEmailLower || data?.authEmail),
+              blockedUserIds: new Set(getBlockedUserIds(data)),
               lastSeenAtMs: lastSeenMsFromUserDoc(data),
               identityVerified: !!data?.identityVerified || ['verified', 'approved'].includes(String(data?.identityVerification?.status || '').toLowerCase().trim()),
               membershipActive: isMembershipActiveUserDoc(data, now),
@@ -1047,7 +1062,6 @@ export default async function handler(req, res) {
               maxActiveMatches,
               hasFreeSlot: activeCount < maxActiveMatches,
               requestedNewMatchAtMs: requestedAtMs,
-              lockActive,
             });
           });
         }
@@ -1061,6 +1075,7 @@ export default async function handler(req, res) {
         const poolStrict = poolStrictScoped.filter((cand) => {
           const st = userStatusById.get(String(cand.userId)) || { blocked: false };
           if (st.blocked) return false;
+          if (isPairBlockedByUsers({ seekerUid: uid, candidateUid: cand.userId, seekerStatus: { blockedUserIds: seekerBlockedUserIds }, candidateStatus: st })) return false;
 
           // Karşı taraf opt-in değilse eşleşme üretme.
           const reqMs = typeof st?.requestedNewMatchAtMs === 'number' ? st.requestedNewMatchAtMs : 0;
@@ -1068,9 +1083,6 @@ export default async function handler(req, res) {
 
           // Karşı tarafın slotu doluysa, daha fazla proposed üretme.
           if (st.hasFreeSlot === false) return false;
-
-          // Aktif lock'u olan kullanıcıya yeni match düşürme (1 aktif eşleşme kuralı ile uyumlu).
-          if (st.lockActive) return false;
 
           const seen = typeof st?.lastSeenAtMs === 'number' ? st.lastSeenAtMs : 0;
           const createdMs = appCreatedAtMs(cand);
@@ -1083,11 +1095,11 @@ export default async function handler(req, res) {
         const poolRelax = poolRelaxScoped.filter((cand) => {
           const st = userStatusById.get(String(cand.userId)) || { blocked: false };
           if (st.blocked) return false;
+          if (isPairBlockedByUsers({ seekerUid: uid, candidateUid: cand.userId, seekerStatus: { blockedUserIds: seekerBlockedUserIds }, candidateStatus: st })) return false;
 
           const reqMs = typeof st?.requestedNewMatchAtMs === 'number' ? st.requestedNewMatchAtMs : 0;
           if (!(reqMs > 0 && reqMs >= optInCutoffMs)) return false;
           if (st.hasFreeSlot === false) return false;
-          if (st.lockActive) return false;
 
           const seen = typeof st?.lastSeenAtMs === 'number' ? st.lastSeenAtMs : 0;
           const createdMs = appCreatedAtMs(cand);
@@ -1105,6 +1117,7 @@ export default async function handler(req, res) {
           ? poolStrictRaw.filter((cand) => {
               const st = userStatusById.get(String(cand.userId)) || { blocked: false };
               if (st.blocked) return false;
+              if (isPairBlockedByUsers({ seekerUid: uid, candidateUid: cand.userId, seekerStatus: { blockedUserIds: seekerBlockedUserIds }, candidateStatus: st })) return false;
               return true;
             })
           : poolStrict;
@@ -1113,6 +1126,7 @@ export default async function handler(req, res) {
           ? poolRelaxRaw.filter((cand) => {
               const st = userStatusById.get(String(cand.userId)) || { blocked: false };
               if (st.blocked) return false;
+              if (isPairBlockedByUsers({ seekerUid: uid, candidateUid: cand.userId, seekerStatus: { blockedUserIds: seekerBlockedUserIds }, candidateStatus: st })) return false;
               return true;
             })
           : poolRelax;
@@ -1225,7 +1239,6 @@ export default async function handler(req, res) {
               if (!(reqMs > 0 && reqMs >= optInCutoffMs)) continue;
             }
             if (otherSt.hasFreeSlot === false) continue;
-            if (otherSt.lockActive) continue;
           }
 
           const userIdsSorted = [uid, otherUid].sort();

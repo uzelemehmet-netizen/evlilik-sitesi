@@ -3,16 +3,17 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import {
   GoogleAuthProvider,
-  createUserWithEmailAndPassword,
+  fetchSignInMethodsForEmail,
   getAdditionalUserInfo,
   getRedirectResult,
   signOut,
-  signInWithEmailAndPassword,
+  signInWithCustomToken,
   signInWithPopup,
   signInWithRedirect,
 } from "firebase/auth";
 import Navigation from "../components/Navigation";
 import Footer from "../components/Footer";
+import FoundersShowcase from '../components/FoundersShowcase';
 import { auth } from "../config/firebaseAuth";
 import { useAuth } from "../auth/AuthProvider";
 import { isFeatureEnabled } from "../config/siteVariant";
@@ -23,9 +24,12 @@ import { markFunnelSignupCompleted } from "../utils/funnelTracker";
 import { tiktokPage, tiktokTrack } from "../utils/tiktokPixel";
 import { buildSupportReport, storeSupportReport } from "../utils/supportReport";
 import { uploadImageToCloudinaryAuto } from '../utils/cloudinaryUpload';
+import { Download } from 'lucide-react';
 import { buildWhatsAppUrl } from '../utils/whatsapp';
 import { useSupportLine } from '../hooks/useSupportLine';
+import { APP_INSTALL_PATH, getAppInstallLinkUi } from '../utils/appInstallLink';
 import { getClientCountry, getSupportCountrySync } from '../utils/supportLine';
+import { normalizePathOnly, sanitizePostAuthTarget, shouldIgnorePostAuthState } from '../utils/postAuthRedirect';
 
 let firestoreApiPromise = null;
 async function loadFirestoreApi() {
@@ -51,18 +55,19 @@ function resolveAuthLanguage(lang) {
 function getAuthSupportUi(lang) {
   const copy = {
     tr: {
+      decisionSummaryLabel: 'Hizli karar ozeti',
       quickFacts: [
         {
-          title: '1-3 dk ilk kayit',
-          body: 'Kayit ve ilk yonlendirme kisa surer; sistem sizi dogru akisa alir.',
+          title: 'Simdilik tamamen ucretsiz',
+          body: 'Kayit, panel ve aktif eslesme akisi su an tamamen ucretsizdir; once sistemi gorur, size uygunsa devam edersiniz.',
         },
         {
-          title: 'Profiliniz herkese acik degil',
-          body: 'Bilgileriniz rastgele listelenmez; surec panel uzerinden kontrollu ilerler.',
+          title: 'Karsilikli begeniyle aktif eslesme',
+          body: 'Karsilikli begeni oldugunda aktif eslesme adimina gecersiniz; boylece surec daha net ve ciddi ilerler.',
         },
         {
-          title: 'Takilirsaniz destek var',
-          body: 'Giris veya kayit sirasinda sorun yasarsaniz WhatsApp hattindan yardim alabilirsiniz.',
+          title: 'Ceviri destekli ozel sohbet',
+          body: 'Iki taraf aktif eslesmeyi baslattiginda, aktif eslesme devam ettigi surece ozel pencerede ceviri destegiyle sinirsiz konusabilirsiniz.',
         },
       ],
       stepsTitle: 'Kayittan hemen sonra ne olur?',
@@ -73,30 +78,31 @@ function getAuthSupportUi(lang) {
         },
         {
           title: 'Basvuru akisina gecersiniz',
-          body: 'Yeni kullaniciysaniz sistem sizi dogru form ve panel akisina yonlendirir.',
+          body: 'Yeni kullaniciysaniz sistem sizi dogru form ve panel akisina yonlendirir; karsilikli begeni sonrasi aktif eslesme adimina gecilir.',
         },
         {
           title: 'Kontrollu surec baslar',
-          body: 'Profil herkese acik olmaz; eslesme ve iletisim adimlari kontrollu ilerler.',
+          body: 'Profil herkese acik olmaz; aktif eslesme devam ettigi surece taraflar ceviri destekli ozel pencerede sinirsiz konusabilir.',
         },
       ],
-      ctaNote: 'Ucretsiz kayit • Profil herkese acik degil • Takilirsaniz WhatsApptan yazabilirsiniz',
-      whatsappLabel: 'WhatsApptan once size uygun mu sorun',
+      ctaNote: 'Simdilik tamamen ucretsiz • Karsilikli begeni aktif eslesme adimini baslatir • Aktif eslesmede ceviri destekli sinirsiz sohbet',
+      whatsappLabel: 'Once WhatsApptan size uygun mu sorun',
       whatsappMessage: 'Merhaba, kayit olmadan once sistemin benim durumuma uygun olup olmadigini ogrenmek istiyorum.',
     },
     en: {
+      decisionSummaryLabel: 'Quick decision summary',
       quickFacts: [
         {
-          title: '1-3 minute first sign-up',
-          body: 'Registration and the first redirect are short; the system takes you into the correct flow.',
+          title: 'Completely free for now',
+          body: 'Registration, the panel, and the active-match flow are fully free right now, so you can see the system first and continue only if it fits you.',
         },
         {
-          title: 'Your profile is not public',
-          body: 'Your details are not randomly listed; the process moves in a controlled way through the panel.',
+          title: 'Mutual like leads into active match',
+          body: 'When the like becomes mutual, you move into the active-match step so the process stays clearer and more serious.',
         },
         {
-          title: 'Help is available if you get stuck',
-          body: 'If you face a sign-in or sign-up issue, you can ask for help through WhatsApp.',
+          title: 'Private chat with translation support',
+          body: 'Once both sides start the active match, they can keep talking in a private window with translation support and unlimited messaging while that active match continues.',
         },
       ],
       stepsTitle: 'What happens right after sign-up?',
@@ -107,30 +113,31 @@ function getAuthSupportUi(lang) {
         },
         {
           title: 'You move into the application flow',
-          body: 'If you are new, the system routes you into the right form and panel flow.',
+          body: 'If you are new, the system routes you into the right form and panel flow, and mutual likes move you toward the active-match step.',
         },
         {
           title: 'A controlled process begins',
-          body: 'Your profile is not public; matching and contact steps stay controlled.',
+          body: 'Your profile is not public; while an active match continues, both sides can talk in a private chat with translation support and unlimited messaging.',
         },
       ],
-      ctaNote: 'Free sign-up • No public profile • If you get stuck, you can message us on WhatsApp',
+      ctaNote: 'Completely free for now • Mutual likes lead into active match • Translation-supported unlimited private chat while active',
       whatsappLabel: 'Ask on WhatsApp if it fits you first',
       whatsappMessage: 'Hello, before signing up I want to know whether this system fits my situation.',
     },
     id: {
+      decisionSummaryLabel: 'Ringkasan keputusan cepat',
       quickFacts: [
         {
-          title: 'Pendaftaran awal 1-3 menit',
-          body: 'Registrasi dan pengalihan awal singkat; sistem membawa Anda ke alur yang tepat.',
+          title: 'Saat ini sepenuhnya gratis',
+          body: 'Pendaftaran, panel, dan alur pencocokan aktif saat ini gratis sepenuhnya; Anda bisa melihat sistemnya dulu lalu lanjut hanya jika cocok.',
         },
         {
-          title: 'Profil Anda tidak publik',
-          body: 'Data Anda tidak ditampilkan sembarangan; proses berjalan terkontrol melalui panel.',
+          title: 'Suka timbal balik menuju pencocokan aktif',
+          body: 'Saat like menjadi timbal balik, Anda masuk ke tahap pencocokan aktif agar proses berjalan lebih jelas dan serius.',
         },
         {
-          title: 'Ada bantuan jika Anda terhambat',
-          body: 'Jika ada masalah saat masuk atau daftar, Anda bisa minta bantuan lewat WhatsApp.',
+          title: 'Chat privat dengan dukungan terjemahan',
+          body: 'Setelah kedua pihak memulai pencocokan aktif, mereka bisa berbicara di jendela privat dengan dukungan terjemahan dan pesan tanpa batas selama pencocokan aktif berlangsung.',
         },
       ],
       stepsTitle: 'Apa yang terjadi tepat setelah daftar?',
@@ -141,14 +148,14 @@ function getAuthSupportUi(lang) {
         },
         {
           title: 'Masuk ke alur pengajuan',
-          body: 'Jika Anda pengguna baru, sistem mengarahkan Anda ke form dan panel yang sesuai.',
+          body: 'Jika Anda pengguna baru, sistem mengarahkan Anda ke form dan panel yang sesuai; suka timbal balik membawa Anda ke tahap pencocokan aktif.',
         },
         {
           title: 'Proses terkontrol dimulai',
-          body: 'Profil Anda tidak publik; langkah match dan kontak berjalan terkontrol.',
+          body: 'Profil Anda tidak publik; selama pencocokan aktif berlangsung, kedua pihak bisa berbicara di chat privat dengan dukungan terjemahan dan pesan tanpa batas.',
         },
       ],
-      ctaNote: 'Daftar gratis • Profil tidak publik • Jika ada kendala, Anda bisa menulis lewat WhatsApp',
+      ctaNote: 'Saat ini sepenuhnya gratis • Suka timbal balik membawa ke pencocokan aktif • Chat privat tanpa batas dengan dukungan terjemahan',
       whatsappLabel: 'Tanya dulu via WhatsApp apakah ini cocok untuk Anda',
       whatsappMessage: 'Halo, sebelum mendaftar saya ingin tahu apakah sistem ini cocok untuk situasi saya.',
     },
@@ -164,11 +171,22 @@ export default function Login() {
   const { user, loading: authLoading } = useAuth();
   const supportLine = useSupportLine(String(i18n?.language || 'tr'));
   const authSupportUi = getAuthSupportUi(resolveAuthLanguage(i18n?.language));
+  const installLinkUi = useMemo(() => getAppInstallLinkUi(i18n?.language), [i18n?.language]);
   const authSupportWhatsappHref = buildWhatsAppUrl(authSupportUi.whatsappMessage, {
     lang: String(i18n?.language || 'tr'),
     prefer: String(supportLine?.prefer || '').trim() || undefined,
     context: 'auth_trust_help',
   });
+  
+  const directEmailAuthRequested = useMemo(() => {
+    try {
+      const params = new URLSearchParams(location.search || '');
+      const method = String(params.get('method') || '').toLowerCase();
+      return method === 'email';
+    } catch {
+      return false;
+    }
+  }, [location.search]);
 
   const trafficCountryHint = useMemo(() => {
     try {
@@ -307,6 +325,7 @@ export default function Login() {
       try {
         const code = String(e?.code || '').trim();
         const msg = String(e?.message || '').trim();
+        setEmailFallbackVisible(true);
 
         try {
           if (mode === 'signup') {
@@ -339,6 +358,8 @@ export default function Login() {
               host: host || t('authPage.errors.domainNotFound'),
             })
           );
+        } else if (code === 'auth/account-exists-with-different-credential') {
+          setError(t('authPage.errors.accountExistsWithDifferentCredential'));
         } else if (code === 'auth/operation-not-allowed') {
           setError(t('authPage.errors.googleOperationNotAllowed'));
         } else if (code === 'auth/invalid-api-key' || code === 'auth/configuration-not-found') {
@@ -477,9 +498,10 @@ export default function Login() {
 
   const redirectTarget = useMemo(() => {
     const state = location.state || {};
+    const from = sanitizePostAuthTarget(state.from || '/profilim', '/profilim');
     return {
-      from: state.from || "/profilim",
-      fromState: state.fromState || null,
+      from,
+      fromState: shouldIgnorePostAuthState(state.from) ? null : state.fromState || null,
     };
   }, [location.state]);
 
@@ -488,6 +510,7 @@ export default function Login() {
   }, []);
 
   const [mode, setMode] = useState("login"); // login | signup
+  const [authTour, setAuthTour] = useState({ open: false, step: 0 });
 
   const HAS_SIGNED_UP_KEY = 'mk_has_signed_up_v1';
   const readHasSignedUpBefore = () => {
@@ -509,14 +532,208 @@ export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const mobileAuthCtaRef = useRef(null);
+  const desktopAuthCtaRef = useRef(null);
+  const landingPrimaryActionTakenRef = useRef(false);
+  const landingDropoffSentRef = useRef(false);
+  const landingCtaImpressionSentRef = useRef(false);
+
+  const isSignupLanding = useMemo(() => location.pathname === '/login' && mode === 'signup', [location.pathname, mode]);
+  const landingSupportFacts = useMemo(() => {
+    const facts = Array.isArray(authSupportUi?.quickFacts) ? authSupportUi.quickFacts : [];
+    return facts.slice(0, 3);
+  }, [authSupportUi]);
+
+  const trackLandingPrimaryCtaImpression = useCallback(() => {
+    if (!isSignupLanding || user) return false;
+    if (landingCtaImpressionSentRef.current) return false;
+    landingCtaImpressionSentRef.current = true;
+    try {
+      void trackClick('landing_primary_cta_impression');
+    } catch {
+      // ignore
+    }
+    return true;
+  }, [isSignupLanding, user]);
+
+  const isLandingCtaVisible = useCallback((node) => {
+    if (!node || typeof window === 'undefined' || typeof node.getBoundingClientRect !== 'function') return false;
+
+    const rect = node.getBoundingClientRect();
+    if (!rect || rect.width <= 0 || rect.height <= 0) return false;
+
+    const viewportWidth = window.innerWidth || document.documentElement?.clientWidth || 0;
+    const viewportHeight = window.innerHeight || document.documentElement?.clientHeight || 0;
+    if (!viewportWidth || !viewportHeight) return false;
+
+    const visibleWidth = Math.max(0, Math.min(rect.right, viewportWidth) - Math.max(rect.left, 0));
+    const visibleHeight = Math.max(0, Math.min(rect.bottom, viewportHeight) - Math.max(rect.top, 0));
+    if (!visibleWidth || !visibleHeight) return false;
+
+    const visibleArea = visibleWidth * visibleHeight;
+    const totalArea = Math.max(1, rect.width * rect.height);
+    return visibleArea / totalArea >= 0.12;
+  }, []);
+
+  const markLandingPrimaryAction = useCallback(() => {
+    landingPrimaryActionTakenRef.current = true;
+  }, []);
+
+  const getGoogleInAppBrowserHint = () => {
+    try {
+      const ua = typeof navigator !== 'undefined' ? String(navigator.userAgent || '') : '';
+      if (!ua) return '';
+      if (/trill[_\s/-]?|tiktok/i.test(ua)) return 'tiktok';
+      if (/fbav|fban/i.test(ua)) return 'facebook';
+      if (/instagram/i.test(ua)) return 'instagram';
+      if (/line\//i.test(ua)) return 'line';
+      if (/micromessenger|wechat/i.test(ua)) return 'wechat';
+      return '';
+    } catch {
+      return '';
+    }
+  };
+
+  const googleInAppBrowserHint = getGoogleInAppBrowserHint();
+  const isGoogleInAppBrowser = !!googleInAppBrowserHint;
+
+  const handleLandingWhatsAppClick = useCallback(() => {
+    markLandingPrimaryAction();
+    try {
+      void trackClick('landing_whatsapp_prequalify_click');
+    } catch {
+      // ignore
+    }
+  }, [markLandingPrimaryAction]);
+
+  const handleEmailMethodClick = useCallback(() => {
+    trackLandingPrimaryCtaImpression();
+    markLandingPrimaryAction();
+    setEmailFallbackVisible(true);
+    try {
+      void trackClick(mode === 'signup' ? 'signup_click_email_password' : 'login_click_email_password');
+    } catch {
+      // ignore
+    }
+  }, [markLandingPrimaryAction, mode, trackLandingPrimaryCtaImpression]);
+
+  const handleOpenInBrowserClick = useCallback(() => {
+    trackLandingPrimaryCtaImpression();
+    markLandingPrimaryAction();
+    setEmailFallbackVisible(true);
+    openAuthInExternalBrowser();
+  }, [markLandingPrimaryAction, trackLandingPrimaryCtaImpression]);
 
   useEffect(() => {
-    // Email/password adımı varsayılan kapalı (kullanıcı butonla açar).
-    setEmailFallbackVisible(false);
+    // Signup modunda email/password seçeneğini üstte hazır tut.
+    // Google hata verdiğinde kullanıcı ikinci yöntemi aramak zorunda kalmasın.
+    setEmailFallbackVisible(mode === 'signup' || isGoogleInAppBrowser);
     setEmail('');
     setPassword('');
     setConfirmPassword('');
-  }, [mode]);
+  }, [isGoogleInAppBrowser, mode]);
+  
+  useEffect(() => {
+    if (!directEmailAuthRequested) return;
+    if (!emailFallbackVisible) return;
+    if (typeof document === 'undefined') return;
+
+    const focusVisibleEmailInput = () => {
+      const inputs = Array.from(document.querySelectorAll('input[type="email"]'));
+      const target = inputs.find((input) => {
+        if (!input || input.disabled) return false;
+        const style = window.getComputedStyle(input);
+        return style.display !== 'none' && style.visibility !== 'hidden' && input.offsetParent !== null;
+      });
+
+      if (!target) return;
+      target.focus();
+      target.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    };
+
+    const timeoutId = window.setTimeout(focusVisibleEmailInput, 0);
+    return () => window.clearTimeout(timeoutId);
+  }, [directEmailAuthRequested, emailFallbackVisible]);
+
+  useEffect(() => {
+    landingPrimaryActionTakenRef.current = false;
+    landingDropoffSentRef.current = false;
+    landingCtaImpressionSentRef.current = false;
+  }, [location.pathname, location.search, mode]);
+
+  useEffect(() => {
+    if (!isSignupLanding || user) return undefined;
+    if (typeof window === 'undefined') return undefined;
+
+    const nodes = [mobileAuthCtaRef.current, desktopAuthCtaRef.current].filter(Boolean);
+    if (!nodes.length) return undefined;
+
+    const markIfVisible = () => {
+      if (landingCtaImpressionSentRef.current) return;
+      if (nodes.some((node) => isLandingCtaVisible(node))) {
+        trackLandingPrimaryCtaImpression();
+      }
+    };
+
+    markIfVisible();
+
+    const rafId = typeof window.requestAnimationFrame === 'function' ? window.requestAnimationFrame(markIfVisible) : 0;
+    const timeoutId = window.setTimeout(markIfVisible, 1200);
+
+    if (typeof IntersectionObserver === 'undefined') {
+      const handleViewportChange = () => {
+        markIfVisible();
+      };
+
+      window.addEventListener('scroll', handleViewportChange, { passive: true });
+      window.addEventListener('resize', handleViewportChange);
+
+      return () => {
+        if (rafId) window.cancelAnimationFrame(rafId);
+        window.clearTimeout(timeoutId);
+        window.removeEventListener('scroll', handleViewportChange);
+        window.removeEventListener('resize', handleViewportChange);
+      };
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (landingCtaImpressionSentRef.current) return;
+        const visible = entries.some(
+          (entry) => (entry.isIntersecting && entry.intersectionRatio >= 0.15) || isLandingCtaVisible(entry.target)
+        );
+        if (!visible) return;
+        trackLandingPrimaryCtaImpression();
+        observer.disconnect();
+      },
+      { threshold: [0, 0.15, 0.35] }
+    );
+
+    nodes.forEach((node) => observer.observe(node));
+    return () => {
+      if (rafId) window.cancelAnimationFrame(rafId);
+      window.clearTimeout(timeoutId);
+      observer.disconnect();
+    };
+  }, [isLandingCtaVisible, isSignupLanding, trackLandingPrimaryCtaImpression, user]);
+
+  useEffect(() => {
+    if (!isSignupLanding || user) return undefined;
+
+    const reportDropoff = () => {
+      if (landingDropoffSentRef.current) return;
+      if (landingPrimaryActionTakenRef.current) return;
+      landingDropoffSentRef.current = true;
+      try {
+        void trackClick('landing_dropoff_before_primary_action', { page: '/login' });
+      } catch {
+        // ignore
+      }
+    };
+
+    window.addEventListener('pagehide', reportDropoff);
+    return () => window.removeEventListener('pagehide', reportDropoff);
+  }, [isSignupLanding, user]);
 
   // Post-auth navigation: redirect/popup akışlarında hedef sayfa bilgisi
   // URL state kaybolabildiği için sessionStorage'da saklanır.
@@ -667,6 +884,7 @@ export default function Login() {
     maritalStatus: '',
     hasChildren: '',
     childrenCount: '',
+    childrenLivingSituation: '',
     occupation: '',
     photoUrl: '',
   });
@@ -694,6 +912,7 @@ export default function Login() {
     maritalStatus: '',
     hasChildren: '',
     childrenCount: '',
+    childrenLivingSituation: '',
     job: '',
     criteriaNote: '',
   });
@@ -716,6 +935,13 @@ export default function Login() {
         return '-';
       })();
 
+      const childrenLivingSituationLabel = (() => {
+        const v = pick(idSignupHelp.childrenLivingSituation);
+        if (v === 'with_children') return t('matchmakingPage.form.options.childrenLivingSituation.withChildren');
+        if (v === 'separate') return t('matchmakingPage.form.options.childrenLivingSituation.separate');
+        return '-';
+      })();
+
       const lines = [
         t('authPage.idSignupHelp.messageTitle'),
         `${t('authPage.idSignupHelp.messageFields.name')}: ${pick(idSignupHelp.name) || '-'}`,
@@ -723,6 +949,7 @@ export default function Login() {
         `${t('authPage.idSignupHelp.messageFields.maritalStatus')}: ${pick(idSignupHelp.maritalStatus) || '-'}`,
         `${t('authPage.idSignupHelp.messageFields.hasChildren')}: ${hasChildrenLabel}`,
         `${t('authPage.idSignupHelp.messageFields.childrenCount')}: ${pick(idSignupHelp.childrenCount) || '-'}`,
+        `${t('matchmakingPage.form.labels.childrenLivingSituation')}: ${childrenLivingSituationLabel}`,
         `${t('authPage.idSignupHelp.messageFields.job')}: ${pick(idSignupHelp.job) || '-'}`,
         `${t('authPage.idSignupHelp.messageFields.criteriaNote')}: ${pick(idSignupHelp.criteriaNote) || '-'}`,
       ];
@@ -743,6 +970,72 @@ export default function Login() {
     if (!idSignupHelpCanSend) return '#';
     return buildWhatsAppUrl(idSignupHelpText, { lang: i18n?.language, prefer: 'id', context: 'auth_id_signup_help' });
   }, [idSignupHelpCanSend, idSignupHelpText, i18n?.language]);
+
+  const showGoogleInAppFallback = () => {
+    setEmailFallbackVisible(true);
+    setError('');
+    setInfo(t('authPage.infos.googleInAppHelp'));
+  };
+
+  const getExternalBrowserAuthUrl = () => {
+    try {
+      if (typeof window === 'undefined') return '';
+      const url = new URL(window.location.href);
+      url.searchParams.set('mode', mode === 'login' ? 'login' : 'signup');
+      url.searchParams.delete('auto');
+      url.searchParams.delete('transport');
+      return url.toString();
+    } catch {
+      return '';
+    }
+  };
+
+  const openAuthInExternalBrowser = () => {
+    const targetUrl = getExternalBrowserAuthUrl();
+    if (!targetUrl || typeof window === 'undefined') return false;
+
+    try {
+      void trackClick('auth_open_external_browser', { trace: true });
+    } catch {
+      // ignore
+    }
+
+    try {
+      setInfo(t('authPage.infos.openingExternalBrowser'));
+    } catch {
+      // ignore
+    }
+
+    let attempted = false;
+    const ua = typeof navigator !== 'undefined' ? String(navigator.userAgent || '').toLowerCase() : '';
+
+    if (/android/i.test(ua)) {
+      try {
+        const u = new URL(targetUrl);
+        const fallbackUrl = encodeURIComponent(targetUrl);
+        const path = `${u.pathname}${u.search}${u.hash}`;
+        const intentUrl = `intent://${u.host}${path}#Intent;scheme=${u.protocol.replace(':', '')};package=com.android.chrome;S.browser_fallback_url=${fallbackUrl};end`;
+        window.location.assign(intentUrl);
+        attempted = true;
+      } catch {
+        // ignore
+      }
+    }
+
+    if (!attempted) {
+      try {
+        const popup = window.open(targetUrl, '_blank', 'noopener,noreferrer');
+        if (popup) {
+          popup.opener = null;
+          attempted = true;
+        }
+      } catch {
+        // ignore
+      }
+    }
+
+    return attempted;
+  };
 
   const genderOptions = useMemo(
     () => [
@@ -777,6 +1070,7 @@ export default function Login() {
       maritalStatus: safeStr(d.maritalStatus),
       hasChildren: safeStr(d.hasChildren),
       childrenCount: String(d.childrenCount ?? ''),
+      childrenLivingSituation: safeStr(d.childrenLivingSituation),
       occupation: safeStr(d.occupation),
       photoUrl: safeStr(d.photoUrl),
     }));
@@ -809,6 +1103,7 @@ export default function Login() {
       const c = Number(String(p?.childrenCount ?? '').trim());
       const ok = Number.isFinite(c) && Number.isInteger(c) && c >= 1 && c <= 20;
       if (!ok) return t('authPage.quickProfile.errors.childrenCountRequired');
+      if (!safeStr(p?.childrenLivingSituation)) return t('matchmakingPage.form.errors.childrenLivingSituation');
     }
 
     if (!photoUrl) return t('authPage.quickProfile.errors.photoRequired');
@@ -828,6 +1123,7 @@ export default function Login() {
       maritalStatus: safeStr(next?.maritalStatus),
       hasChildren: safeStr(next?.hasChildren),
       childrenCount: Number(String(next?.childrenCount ?? '').trim()) || 0,
+      childrenLivingSituation: safeStr(next?.childrenLivingSituation),
       occupation: safeStr(next?.occupation),
       photoUrl: safeStr(next?.photoUrl),
       completed: !!completed,
@@ -910,12 +1206,6 @@ export default function Login() {
     }
 
     return { applied: false, retired: true, flow };
-  };
-
-  const normalizePathOnly = (p) => {
-    const raw = String(p || '').trim();
-    // Query/hash gibi eklentileri yok say (örn: /evlilik/eslestirme-basvuru?w=1)
-    return raw.split(/[?#]/)[0];
   };
 
   const isMatchmakingApplyPath = (p) => {
@@ -1101,8 +1391,6 @@ export default function Login() {
       const age = getAge(merged);
       const gender = normalizeGender(merged?.gender);
       const city = safeStr(merged?.city);
-      const country = safeStr(merged?.country);
-      const nationality = safeStr(merged?.nationality);
       const occupation = pickOccupation(details, merged);
       const maritalStatus = normalizeMaritalStatus(pickMaritalStatus(details, merged));
 
@@ -1110,8 +1398,6 @@ export default function Login() {
       if (!(typeof age === 'number' && Number.isFinite(age) && age >= 18 && age <= 99)) return false;
       if (!gender) return false;
       if (!city) return false;
-      if (!country) return false;
-      if (!nationality) return false;
       if (!occupation) return false;
       if (!maritalStatus) return false;
 
@@ -1136,8 +1422,6 @@ export default function Login() {
       const age = getAge(app);
       const gender = normalizeGender(app?.gender);
       const city = safeStr(app?.city);
-      const country = safeStr(app?.country);
-      const nationality = safeStr(app?.nationality);
       const occupation = pickOccupation(details, app);
       const maritalStatus = normalizeMaritalStatus(pickMaritalStatus(details, app));
 
@@ -1145,8 +1429,6 @@ export default function Login() {
       if (!(typeof age === 'number' && Number.isFinite(age) && age >= 18 && age <= 99)) return false;
       if (!gender) return false;
       if (!city) return false;
-      if (!country) return false;
-      if (!nationality) return false;
       if (!occupation) return false;
       if (!maritalStatus) return false;
 
@@ -1231,7 +1513,12 @@ export default function Login() {
     try {
       const raw = sessionStorage.getItem('auth_redirect_target');
       if (!raw) return null;
-      return JSON.parse(raw);
+      const parsed = JSON.parse(raw);
+      return {
+        ...parsed,
+        from: sanitizePostAuthTarget(parsed?.from || '/profilim', '/profilim'),
+        fromState: shouldIgnorePostAuthState(parsed?.from) ? null : parsed?.fromState || null,
+      };
     } catch {
       return null;
     }
@@ -1253,6 +1540,23 @@ export default function Login() {
     } catch {
       // ignore
     }
+  };
+
+  const clearForcedTour = () => {
+    try {
+      if (typeof window === 'undefined') return;
+      window.sessionStorage.removeItem(TOUR_FORCE_KEY);
+    } catch {
+      // ignore
+    }
+  };
+
+  const queueOnboardingTourForTarget = (target) => {
+    if (isMatchmakingApplyPath(target)) {
+      clearForcedTour();
+      return;
+    }
+    forceTour('onboarding-main');
   };
 
   const writeReferralCode = (value) => {
@@ -1356,6 +1660,18 @@ export default function Login() {
     }
   };
 
+  const hasRecentJustSignedUp = () => {
+    try {
+      const raw = String(sessionStorage.getItem(JUST_SIGNED_UP_KEY) || '').trim();
+      const atMs = Number(raw);
+      if (!(Number.isFinite(atMs) && atMs > 0)) return false;
+      const ageMs = Date.now() - atMs;
+      return ageMs >= 0 && ageMs <= 15 * 60 * 1000;
+    } catch {
+      return false;
+    }
+  };
+
   const writeSignupProfile = (payload) => {
     try {
       if (!payload) {
@@ -1388,7 +1704,13 @@ export default function Login() {
 
   const writeStoredRedirect = () => {
     try {
-      sessionStorage.setItem('auth_redirect_target', JSON.stringify(redirectTarget));
+      sessionStorage.setItem(
+        'auth_redirect_target',
+        JSON.stringify({
+          from: sanitizePostAuthTarget(redirectTarget.from, '/profilim'),
+          fromState: shouldIgnorePostAuthState(redirectTarget.from) ? null : redirectTarget.fromState || null,
+        })
+      );
     } catch {
       // ignore
     }
@@ -1443,6 +1765,38 @@ export default function Login() {
 
   const clearAutoGoogleFlag = () => writeAutoGoogleFlag(false);
 
+  const DEFAULT_EXISTING_USER_POST_AUTH_TARGET = '/profilim';
+
+  const parseAuthMetadataTimeMs = (value) => {
+    try {
+      const ms = Date.parse(String(value || ''));
+      return Number.isFinite(ms) ? ms : null;
+    } catch {
+      return null;
+    }
+  };
+
+  const isLikelyFreshAuthCreation = (firebaseUser) => {
+    try {
+      const createdAtMs = parseAuthMetadataTimeMs(firebaseUser?.metadata?.creationTime);
+      if (createdAtMs === null) return false;
+      const ageMs = Date.now() - createdAtMs;
+      return Number.isFinite(ageMs) && ageMs >= 0 && ageMs <= 10 * 60 * 1000;
+    } catch {
+      return false;
+    }
+  };
+
+  const shouldTreatAuthenticatedUserAsFreshSignup = (firebaseUser) => {
+    if (!firebaseUser?.uid) return false;
+    if (hasRecentJustSignedUp()) return true;
+
+    const marker = readRedirectStartMarker();
+    if (!marker) return false;
+
+    return isLikelyFreshAuthCreation(firebaseUser);
+  };
+
   const consumeAutoGoogleQueryParam = () => {
     try {
       if (typeof window === 'undefined') return;
@@ -1459,18 +1813,13 @@ export default function Login() {
   const resolvePostAuthTarget = (isNewUser, intent) => {
     const forced = readForcedTarget();
     if (forced) return forced;
-    const stored = readStoredRedirect();
-    const candidate = stored?.from || redirectTarget.from || '';
 
-    // Yeni kayıt olan kullanıcıları başvuru wizard'ına al.
-    // Mevcut kullanıcı signup ekranına yanlışlıkla düşmüş olsa bile yeniden forma zorlama; Profilim'e yönlendir.
-    if (isFeatureEnabled('wedding') && isNewUser) return '/evlilik/eslestirme-basvuru?w=1';
+    // Signup niyetiyle gelen kullanıcıları her durumda başvuru formuna al.
+    // Böylece metadata/new-user tespiti şaşsa bile profil yerine zorunlu başvuru açılır.
+    if (isFeatureEnabled('wedding') && (isNewUser || intent === 'signup')) return '/evlilik/eslestirme-basvuru?w=1';
 
-    // Mevcut kullanıcı "başvuru" sayfasına gitmek istediyse onu koru.
-    if (isMatchmakingApplyPath(candidate)) return candidate;
-
-    // Mevcut kullanıcıyı her zaman Profilim'e götür.
-    return '/profilim';
+    // Mevcut kullanıcılar login sonrası her zaman Profilim'e gider.
+    return DEFAULT_EXISTING_USER_POST_AUTH_TARGET;
   };
 
   const resolvePostAuthState = () => {
@@ -1478,12 +1827,34 @@ export default function Login() {
     return stored?.fromState || redirectTarget.fromState || null;
   };
 
+  const resolveAuthenticatedUserExit = () => {
+    const pending = readPendingPostAuthNav();
+    const pendingTarget = String(pending?.target || '').trim();
+    if (pendingTarget) {
+      return {
+        target: pendingTarget,
+        state: pending?.state,
+        usedPending: true,
+      };
+    }
+
+    const freshSignup = shouldTreatAuthenticatedUserAsFreshSignup(user);
+    return {
+      target: resolvePostAuthTarget(freshSignup, freshSignup ? 'signup' : mode),
+      state: freshSignup ? null : resolvePostAuthState(),
+      usedPending: false,
+    };
+  };
+
   // Not: 2026-02 ürün kararındaki "signup sonrası forma zorlamama" akışı geri alındı.
 
   const navigateNext = useCallback((target, state) => {
     if (hasNavigatedRef.current) return;
     hasNavigatedRef.current = true;
-    const finalTarget = target || redirectTarget.from || '/profilim';
+    const finalTarget = sanitizePostAuthTarget(
+      target || redirectTarget.from || DEFAULT_EXISTING_USER_POST_AUTH_TARGET,
+      DEFAULT_EXISTING_USER_POST_AUTH_TARGET,
+    );
     const finalState = typeof state === 'undefined' ? redirectTarget.fromState : state;
     navigate(finalTarget, { replace: true, state: finalState });
   }, [navigate, redirectTarget.from, redirectTarget.fromState]);
@@ -1540,9 +1911,9 @@ export default function Login() {
         }
       }
 
-      // Başvuru sayfasına gitmek istiyor ama zaten tamamladıysa profilime al.
+      // Başvuru sayfasına gitmek istiyor ama zaten tamamladıysa varsayılan hedefe al.
       if (completed === true && isMatchmakingApplyPath(next)) {
-        next = '/profilim';
+        next = DEFAULT_EXISTING_USER_POST_AUTH_TARGET;
         state = null;
       }
 
@@ -1594,7 +1965,7 @@ export default function Login() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authLoading, user?.uid]);
   const ensureProfileSaved = async (uid, profileOrAge) => {
-    if (!uid) return;
+    if (!uid) return { ok: false, skipped: true, reason: 'missing_uid' };
 
     const profile =
       typeof profileOrAge === 'number'
@@ -1620,7 +1991,14 @@ export default function Login() {
           }),
         });
         const data = await res.json().catch(() => null);
-        if (data && data.ok) return;
+        if (data && data.ok) {
+          return {
+            ok: true,
+            ensured: data.ensured !== false,
+            created: data.created === true,
+            via: 'server',
+          };
+        }
       }
     } catch {
       // Fall back to client Firestore.
@@ -1636,7 +2014,9 @@ export default function Login() {
     const existingGender = String(data?.gender || '').trim().toLowerCase();
     const hasGender = existingGender === 'male' || existingGender === 'female';
 
-    if (typeof existingAge === 'number' && hasGender) return;
+    if (typeof existingAge === 'number' && hasGender) {
+      return { ok: true, ensured: true, created: false, via: 'client', unchanged: true };
+    }
 
     const parsedAge = Number(String(profile?.age ?? '').trim());
     const nextAge = Number.isFinite(parsedAge) && Number.isInteger(parsedAge) ? parsedAge : null;
@@ -1660,20 +2040,21 @@ export default function Login() {
     }
 
     await setDoc(ref, payload, { merge: true });
+    return { ok: true, ensured: true, created: !snap.exists(), via: 'client' };
   };
 
   const bootstrapMatchmakingApplication = async (userOrUid, profile) => {
     try {
       const uid = typeof userOrUid === 'string' ? userOrUid : String(userOrUid?.uid || '').trim();
-      if (!uid) return;
+      if (!uid) return { ok: false, skipped: true, reason: 'missing_uid' };
 
       // Token: mümkünse ilgili user objesinden; yoksa auth.currentUser'dan.
       const token =
         (typeof userOrUid?.getIdToken === 'function' ? await userOrUid.getIdToken() : '') ||
         (typeof auth?.currentUser?.getIdToken === 'function' ? await auth.currentUser.getIdToken() : '');
-      if (!token) return;
+      if (!token) return { ok: false, skipped: true, reason: 'missing_token' };
 
-      await fetch('/api/matchmaking-application-bootstrap', {
+      const res = await fetch('/api/matchmaking-application-bootstrap', {
         method: 'POST',
         headers: {
           'content-type': 'application/json',
@@ -1688,9 +2069,98 @@ export default function Login() {
         }),
         keepalive: true,
       });
-    } catch {
-      // best-effort
+      const data = await res.json().catch(() => null);
+      if (res.ok && data?.ok) {
+        return {
+          ok: true,
+          ensured: data.ensured !== false,
+          created: data.created === true,
+          reason: String(data?.reason || '').trim(),
+          via: 'server',
+        };
+      }
+
+      return {
+        ok: false,
+        skipped: false,
+        reason: String(data?.error || '').trim() || `http_${res.status}`,
+      };
+    } catch (e) {
+      return {
+        ok: false,
+        skipped: false,
+        reason: String(e?.code || e?.message || 'request_failed').trim() || 'request_failed',
+      };
     }
+  };
+
+  const traceSignupProvisioningEvent = (eventKey) => {
+    const key = String(eventKey || '').trim();
+    if (!key) return;
+    try {
+      void trackClick(key, { trace: true });
+    } catch {
+      // ignore
+    }
+  };
+
+  const reportSignupProvisioningProfileError = (flowKey, errorLike, uid) => {
+    const code = String(errorLike?.code || errorLike?.reason || '').trim() || 'profile_save_failed';
+
+    traceSignupProvisioningEvent(`signup_error:${flowKey}:${code}`);
+
+    storeSupportReport(
+      buildSupportReport({
+        kind: 'signup_profile_save_failed',
+        flow: flowKey,
+        code,
+        message: String(errorLike?.message || errorLike?.error || '').trim(),
+        extra: { uid: safeStr(uid) },
+      })
+    );
+  };
+
+  const finalizeSignupProvisioning = async ({ flowKey, userRef, profile } = {}) => {
+    const flow = String(flowKey || '').trim();
+    const uid = typeof userRef === 'string' ? userRef : String(userRef?.uid || '').trim();
+    const nextProfile = profile && typeof profile === 'object' ? profile : {};
+
+    let profileResult = { ok: false, skipped: true, reason: 'not_started' };
+    try {
+      profileResult = await ensureProfileSaved(uid, nextProfile);
+      if (profileResult?.ok) {
+        traceSignupProvisioningEvent(`signup_profile_ready:${flow}`);
+        if (profileResult?.created) {
+          traceSignupProvisioningEvent(`signup_profile_created:${flow}`);
+        }
+      }
+    } catch (eProfile) {
+      reportSignupProvisioningProfileError(flow, eProfile, uid);
+    }
+
+    try {
+      await acceptReferralIfAny();
+    } catch {
+      // ignore
+    }
+
+    try {
+      await applyQuickProfileAfterAuthIfAny(flow);
+    } catch {
+      // ignore
+    }
+
+    const bootstrapResult = await bootstrapMatchmakingApplication(userRef, nextProfile);
+    if (bootstrapResult?.ok) {
+      traceSignupProvisioningEvent(`signup_apply_bootstrap_ready:${flow}`);
+      if (bootstrapResult?.created) {
+        traceSignupProvisioningEvent(`signup_apply_bootstrap_created:${flow}`);
+      }
+    } else if (!bootstrapResult?.skipped) {
+      traceSignupProvisioningEvent(`signup_apply_bootstrap_failed:${flow}`);
+    }
+
+    return { profileResult, bootstrapResult };
   };
 
   const syncedAuthIdentityUidRef = useRef('');
@@ -1701,7 +2171,19 @@ export default function Login() {
     if (syncedAuthIdentityUidRef.current === user.uid) return;
 
     syncedAuthIdentityUidRef.current = user.uid;
-    void ensureProfileSaved(user.uid, {});
+    void (async () => {
+      try {
+        await ensureProfileSaved(user.uid, {});
+      } catch {
+        // ignore
+      }
+
+      try {
+        await bootstrapMatchmakingApplication(user, {});
+      } catch {
+        // ignore
+      }
+    })();
   }, [authLoading, redirectCheckDone, user?.uid, user?.isAnonymous]);
 
   const contextMessage = useMemo(() => {
@@ -1713,6 +2195,180 @@ export default function Login() {
 
     return t("authPage.context.generic");
   }, [redirectTarget.from, t]);
+
+  const authTourSteps = useMemo(() => {
+    const raw = t('authPage.tour.steps', { returnObjects: true });
+    return Array.isArray(raw) ? raw : [];
+  }, [t, i18n?.language]);
+
+  const authTourCurrent = authTourSteps?.[authTour.step] || null;
+
+  const openAuthTour = useCallback(() => {
+    markLandingPrimaryAction();
+    try {
+      void trackClick('landing_tour_open');
+    } catch {
+      // ignore
+    }
+    setAuthTour({ open: true, step: 0 });
+  }, [markLandingPrimaryAction]);
+
+  const closeAuthTour = useCallback(() => {
+    setAuthTour((current) => ({ ...current, open: false }));
+  }, []);
+
+  const goAuthTourStep = useCallback((delta) => {
+    setAuthTour((current) => {
+      const maxIndex = Math.max(0, authTourSteps.length - 1);
+      const nextStep = Math.max(0, Math.min(maxIndex, current.step + delta));
+      return { open: true, step: nextStep };
+    });
+  }, [authTourSteps.length]);
+
+  const switchAuthMode = useCallback((nextMode) => {
+    if (nextMode !== 'login' && nextMode !== 'signup') return;
+    if (nextMode === mode) return;
+
+    if (nextMode === 'signup') {
+      tiktokTrack('SignupIntent', { source: 'login_switch' });
+      void trackClick('auth_switch_to_signup');
+    } else {
+      void trackClick('auth_switch_to_login');
+    }
+
+    setMode(nextMode);
+  }, [mode]);
+
+  const jumpFromTourToAuth = useCallback((nextMode) => {
+    closeAuthTour();
+    switchAuthMode(nextMode);
+  }, [closeAuthTour, switchAuthMode]);
+
+  const lookupSignInMethodsForEmail = useCallback(async (rawEmail) => {
+    const normalized = String(rawEmail || '').trim().toLowerCase();
+    if (!normalized) return [];
+    try {
+      const methods = await fetchSignInMethodsForEmail(auth, normalized);
+      return Array.isArray(methods) ? methods.filter(Boolean) : [];
+    } catch {
+      return [];
+    }
+  }, []);
+
+  const signUpWithEmailOnServer = useCallback(async ({ email: rawEmail, password: rawPassword, profile }) => {
+    const normalizedEmail = String(rawEmail || '').trim().toLowerCase();
+    const password = typeof rawPassword === 'string' ? rawPassword : String(rawPassword ?? '');
+    const displayName = String(
+      profile?.displayName || profile?.fullName || profile?.firstName || profile?.name || ''
+    ).trim();
+
+    let response;
+    try {
+      response = await fetch('/api/public-email-signup', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          email: normalizedEmail,
+          password,
+          ...(displayName ? { displayName } : {}),
+        }),
+      });
+    } catch {
+      const err = new Error('auth/network-request-failed');
+      err.code = 'auth/network-request-failed';
+      throw err;
+    }
+
+    let data = null;
+    try {
+      data = await response.json();
+    } catch {
+      data = null;
+    }
+
+    if (!response.ok || !data?.ok || !data?.customToken) {
+      const apiError = String(data?.error || `request_failed_${response.status || 0}`);
+      const errorCode = (() => {
+        if (apiError === 'invalid_email') return 'auth/invalid-email';
+        if (apiError === 'email_already_in_use') return 'auth/email-already-in-use';
+        if (apiError === 'weak_password') return 'auth/weak-password';
+        if (apiError === 'rate_limited') return 'auth/too-many-requests';
+        if (apiError === 'signup_unavailable') return 'auth/internal-error';
+        return 'auth/internal-error';
+      })();
+
+      const err = new Error(apiError);
+      err.code = errorCode;
+      err.details = data;
+      throw err;
+    }
+
+    return signInWithCustomToken(auth, data.customToken);
+  }, []);
+
+  const signInWithEmailOnServer = useCallback(async ({ email: rawEmail, password: rawPassword }) => {
+    const normalizedEmail = String(rawEmail || '').trim().toLowerCase();
+    const password = typeof rawPassword === 'string' ? rawPassword : String(rawPassword ?? '');
+
+    let response;
+    try {
+      response = await fetch('/api/public-email-login', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          email: normalizedEmail,
+          password,
+        }),
+      });
+    } catch {
+      const err = new Error('auth/network-request-failed');
+      err.code = 'auth/network-request-failed';
+      throw err;
+    }
+
+    let data = null;
+    try {
+      data = await response.json();
+    } catch {
+      data = null;
+    }
+
+    if (!response.ok || !data?.ok || !data?.customToken) {
+      const apiError = String(data?.error || `request_failed_${response.status || 0}`);
+      const errorCode = (() => {
+        if (apiError === 'invalid_credentials') return 'auth/invalid-credential';
+        if (apiError === 'rate_limited') return 'auth/too-many-requests';
+        if (apiError === 'user_disabled') return 'auth/user-disabled';
+        if (apiError === 'login_unavailable') return 'auth/internal-error';
+        return 'auth/internal-error';
+      })();
+
+      const err = new Error(apiError);
+      err.code = errorCode;
+      err.details = data;
+      throw err;
+    }
+
+    return signInWithCustomToken(auth, data.customToken);
+  }, []);
+
+  const routeExistingAccountToLogin = useCallback(async (rawEmail) => {
+    const normalized = String(rawEmail || '').trim().toLowerCase();
+    if (normalized) setEmail(normalized);
+    setPassword('');
+    setConfirmPassword('');
+    setEmailFallbackVisible(true);
+
+    const methods = await lookupSignInMethodsForEmail(normalized);
+    const hasGoogle = methods.includes('google.com');
+    const hasPassword = methods.includes('password');
+
+    switchAuthMode('login');
+    setError('');
+    setInfo(hasGoogle && !hasPassword ? t('authPage.infos.existingAccountUseGoogle') : t('authPage.infos.existingAccountSwitchedToLogin'));
+
+    return methods;
+  }, [lookupSignInMethodsForEmail, switchAuthMode, t]);
 
   useEffect(() => {
     const params = new URLSearchParams(location.search || "");
@@ -1773,6 +2429,17 @@ export default function Login() {
       // ignore
     });
   }, [forceLogin, t, user]);
+
+  const autoGoogleSignupRequested = useMemo(() => {
+    try {
+      const params = new URLSearchParams(location.search || '');
+      const rawMode = String(params.get('mode') || mode || '').toLowerCase();
+      const auto = String(params.get('auto') || '').toLowerCase();
+      return rawMode === 'signup' && auto === 'google';
+    } catch {
+      return false;
+    }
+  }, [location.search, mode]);
 
   useEffect(() => {
     if (redirectFinalizeOnceRef.current) return;
@@ -1846,23 +2513,12 @@ export default function Login() {
                 await trackClick(`signup_success:${providerLabel}_redirect`, { trace: true });
                 markFunnelSignupCompleted(`${providerLabel}_redirect`);
                 tiktokTrack('CompleteRegistration');
-                forceTour('onboarding-main');
-                try {
-                  await ensureProfileSaved(result?.user?.uid, p);
-                  await acceptReferralIfAny();
-                } catch {
-                  // best-effort
-                }
-                try {
-                  await applyQuickProfileAfterAuthIfAny(`${providerLabel}_redirect`);
-                } catch {
-                  // ignore
-                }
-                try {
-                  await bootstrapMatchmakingApplication(result?.user, p);
-                } catch {
-                  // ignore
-                }
+                queueOnboardingTourForTarget(resolvePostAuthTarget(true, 'signup'));
+                await finalizeSignupProvisioning({
+                  flowKey: `${providerLabel}_redirect`,
+                  userRef: result?.user,
+                  profile: p,
+                });
                 markJustSignedUp();
               } else {
                 clearSignupProfile();
@@ -1917,23 +2573,12 @@ export default function Login() {
           await trackClick(`signup_success:${providerLabel}_redirect`, { trace: true });
           markFunnelSignupCompleted(`${providerLabel}_redirect`);
           tiktokTrack('CompleteRegistration');
-          forceTour('onboarding-main');
-          try {
-            await ensureProfileSaved(u?.uid, p);
-            await acceptReferralIfAny();
-          } catch {
-            // ignore
-          }
-          try {
-            await applyQuickProfileAfterAuthIfAny(`${providerLabel}_redirect`);
-          } catch {
-            // ignore
-          }
-          try {
-            await bootstrapMatchmakingApplication(u, p);
-          } catch {
-            // ignore
-          }
+          queueOnboardingTourForTarget(resolvePostAuthTarget(true, 'signup'));
+          await finalizeSignupProvisioning({
+            flowKey: `${providerLabel}_redirect`,
+            userRef: u,
+            profile: p,
+          });
           markJustSignedUp();
         } else {
           clearSignupProfile();
@@ -1973,6 +2618,16 @@ export default function Login() {
       const provider = readAuthProvider() || 'google';
       const providerLabel = provider === 'google' ? 'google' : 'google';
       try {
+        const shouldSkipInitialRedirectProbe =
+          autoGoogleSignupRequested &&
+          !readRedirectStartMarker() &&
+          !readAuthProvider() &&
+          !auth?.currentUser?.uid;
+
+        if (shouldSkipInitialRedirectProbe) {
+          return;
+        }
+
         const r = await tryGetRedirectResultWithTimeout(import.meta.env.DEV ? 1500 : 8000);
 
         // Bazı in-app tarayıcılarda getRedirectResult hiç resolve olmayabiliyor.
@@ -2001,7 +2656,7 @@ export default function Login() {
           const isNewUser = !!info2?.isNewUser;
 
           // CTA-driven auto signup (/login?mode=signup&auto=google): after redirect,
-          // keep whether user is new so we can route existing users to /profilim.
+          // mevcut kullanıcıları da tutarlı biçimde Profilim'e indir.
           try {
             const params = new URLSearchParams(location.search || '');
             const isAutoGoogle = String(params.get('auto') || '').toLowerCase() === 'google' || readAutoGoogleFlag();
@@ -2009,7 +2664,7 @@ export default function Login() {
               sessionStorage.setItem('uniqah:last_auth_new_user_v1', isNewUser ? '1' : '0');
               if (!isNewUser) {
                 // Force post-auth target for existing users.
-                writeForcedTarget('/profilim');
+                writeForcedTarget(DEFAULT_EXISTING_USER_POST_AUTH_TARGET);
               }
             }
           } catch {
@@ -2057,35 +2712,15 @@ export default function Login() {
             tiktokTrack('CompleteRegistration');
 
             // Kayıt sonrası onboarding turunu tetikle (formu zorunlu açma).
-            forceTour('onboarding-main');
+            queueOnboardingTourForTarget(resolvePostAuthTarget(true, 'signup'));
 
-            try {
-              await ensureProfileSaved(result?.user?.uid, p);
-              await acceptReferralIfAny();
-            } catch (eProfile) {
-              // Best-effort: profil kaydı başarısız olsa bile kullanıcıyı kilitleme.
-              const code = String(eProfile?.code || '').trim();
-              void trackClick(`signup_error:google_redirect:${code || 'profile_save_failed'}`, { trace: true });
+            await finalizeSignupProvisioning({
+              flowKey: `${providerLabel}_redirect`,
+              userRef: result?.user,
+              profile: p,
+            });
 
-              storeSupportReport(
-                buildSupportReport({
-                  kind: 'signup_profile_save_failed',
-                  flow: `${providerLabel}_redirect`,
-                  code: code || 'profile_save_failed',
-                  message: String(eProfile?.message || ''),
-                  extra: { uid: safeStr(result?.user?.uid) },
-                })
-              );
-            }
-
-            // Hızlı profil alanlarını server-side kaydet (Firestore client rules kısıtlı).
-            await applyQuickProfileAfterAuthIfAny(`${providerLabel}_redirect`);
-
-            // Admin "Yeni Kullanıcılar" tab'ı `matchmakingApplications` okuyor.
-            // Yeni kayıt olur olmaz auto_stub başvuru dokümanı oluştur (profil eksik olsa bile).
-            await bootstrapMatchmakingApplication(result?.user, p);
-
-            // Redirect sonrası /profilim'e geldikten sonra formu otomatik açma.
+            // Redirect sonrası varsayılan app hedefine geldikten sonra formu otomatik açma.
             markJustSignedUp();
           } else {
             clearSignupProfile();
@@ -2160,6 +2795,7 @@ export default function Login() {
             }
 
             try {
+              setEmailFallbackVisible(true);
               setError(t('authPage.errors.googleRedirectNoResult'));
             } catch {
               // ignore
@@ -2170,6 +2806,7 @@ export default function Login() {
         const code = String(e?.code || '').trim();
         const msg = String(e?.message || '').trim();
         clearAutoGoogleFlag();
+        setEmailFallbackVisible(true);
 
         // Redirect flow'da hata olursa eskiden tamamen yutuluyordu.
         // Bu da “kayıt olmuyorlar ama sebep göremiyoruz” sorununa yol açıyor.
@@ -2199,6 +2836,12 @@ export default function Login() {
           return;
         }
 
+        if (code === 'auth/account-exists-with-different-credential') {
+          await routeExistingAccountToLogin(String(err?.customData?.email || email || '').trim().toLowerCase());
+          setError(t('authPage.errors.accountExistsWithDifferentCredential'));
+          return;
+        }
+
         if (code === 'auth/operation-not-allowed') {
           setError(t('authPage.errors.googleOperationNotAllowed'));
           return;
@@ -2215,19 +2858,12 @@ export default function Login() {
         }
 
         if (code === 'auth/internal-error') {
-          const isInAppBrowser = (() => {
-            try {
-              const ua = typeof navigator !== 'undefined' ? String(navigator.userAgent || '') : '';
-              return /fbav|fban|instagram|line\//i.test(ua) || /micromessenger|wechat/i.test(ua) || /tiktok|trill/i.test(ua);
-            } catch {
-              return false;
-            }
-          })();
+          const isInAppBrowser = !!getGoogleInAppBrowserHint();
 
           // Firebase Auth sometimes loads https://apis.google.com/js/api.js during Google sign-in.
           // In some in-app browsers this can fail in opaque ways; fail open with email fallback.
           if (providerLabel === 'google' && isInAppBrowser) {
-            setError(t('authPage.errors.googleInAppBlocked'));
+            showGoogleInAppFallback();
             return;
           }
         }
@@ -2249,7 +2885,7 @@ export default function Login() {
   // Redirect finalizer is intentionally one-shot; ref guards keep it idempotent while
   // allowing the latest closures during the first mount after the redirect round-trip.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [navigateNext]);
+  }, [navigateNext, autoGoogleSignupRequested]);
 
   useEffect(() => {
     auth.languageCode = resolveAuthLanguage(i18n?.language);
@@ -2269,8 +2905,9 @@ export default function Login() {
           // onu "yeni kullanıcı" gibi değerlendirmemeli. Aksi halde CTA'lar kullanıcıyı
           // signup ekranını göstermeden direkt başvuru formuna itebiliyor.
           const pending = readPendingPostAuthNav();
-          const target = String(pending?.target || '').trim() || resolvePostAuthTarget(false, mode);
-          const state = pending ? pending.state : resolvePostAuthState();
+          const freshSignup = shouldTreatAuthenticatedUserAsFreshSignup(user);
+          const target = String(pending?.target || '').trim() || resolvePostAuthTarget(freshSignup, freshSignup ? 'signup' : mode);
+          const state = pending ? pending.state : freshSignup ? null : resolvePostAuthState();
           clearPendingPostAuthNav();
           clearStoredRedirect();
           writeForcedTarget('');
@@ -2283,25 +2920,44 @@ export default function Login() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, redirectCheckDone, mode, needsQuickProfile, quickProfileCheckDone]);
 
+  useEffect(() => {
+    if (hasNavigatedRef.current) return;
+    if (authLoading) return;
+    if (!user || user.isAnonymous) return;
+    if (authFlowBusyRef.current) return;
+    if (needsQuickProfile) return;
+    if (location.pathname !== '/login') return;
+
+    const delayMs = redirectCheckDone && quickProfileCheckDone ? 1200 : 2500;
+    const timeoutId = window.setTimeout(() => {
+      if (hasNavigatedRef.current) return;
+
+      const exit = resolveAuthenticatedUserExit();
+      const target = String(exit?.target || '').trim();
+      if (!target) return;
+
+      (async () => {
+        try {
+          await navigateNextWithApplyGuard(user?.uid, target, exit?.state);
+          if (exit?.usedPending) clearPendingPostAuthNav();
+        } catch {
+          try {
+            window.location.replace(target);
+          } catch {
+            // ignore
+          }
+        }
+      })();
+    }, delayMs);
+
+    return () => window.clearTimeout(timeoutId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authLoading, user?.uid, user?.isAnonymous, needsQuickProfile, location.pathname, redirectCheckDone, quickProfileCheckDone, mode]);
+
   // CTA-driven signup: /login?mode=signup&auto=google
   // Auto-start Google auth once, after redirect-result check is done.
   // NOTE: Must stay above any early-return branches to keep hook order stable.
   const autoGoogleOnceRef = useRef(false);
-  useEffect(() => {
-    try {
-      const params = new URLSearchParams(location.search || '');
-      const rawMode = String(params.get('mode') || mode || '').toLowerCase();
-      const auto = String(params.get('auto') || '').toLowerCase();
-      if (rawMode !== 'signup') return;
-      if (auto !== 'google') return;
-      if (!isTrOrIdTraffic) return;
-
-      clearAutoGoogleFlag();
-      consumeAutoGoogleQueryParam();
-    } catch {
-      // ignore
-    }
-  }, [location.search, mode, isTrOrIdTraffic]);
 
   useEffect(() => {
     try {
@@ -2310,32 +2966,17 @@ export default function Login() {
       if (authFlowBusyRef.current) return;
       if (busy) return;
       if (user) return;
-      if (mode !== 'signup') return;
+      if (!autoGoogleSignupRequested) return;
 
-      const params = new URLSearchParams(location.search || '');
-      const auto = String(params.get('auto') || '').toLowerCase();
-      if (auto !== 'google') return;
-
-      if (isTrOrIdTraffic) {
-        autoGoogleOnceRef.current = true;
-        consumeAutoGoogleQueryParam();
-        return;
-      }
-
-      const isInAppBrowser = (() => {
-        try {
-          const ua = typeof navigator !== 'undefined' ? String(navigator.userAgent || '') : '';
-          // Facebook/Instagram/Line/WeChat/etc in-app browsers often break OAuth flows.
-          return /fbav|fban|instagram|line\//i.test(ua) || /micromessenger|wechat/i.test(ua);
-        } catch {
-          return false;
-        }
-      })();
+      const isInAppBrowser = !!getGoogleInAppBrowserHint();
 
       // Safety: do NOT auto-trigger Google auth inside in-app browsers.
       // Keep the user on the page so they can pick email fallback or open in a real browser.
       if (isInAppBrowser) {
         autoGoogleOnceRef.current = true;
+        setEmailFallbackVisible(true);
+        setInfo(t('authPage.infos.googleInAppHelp'));
+        consumeAutoGoogleQueryParam();
         try {
           void trackClick('signup_auto_skipped:inapp');
         } catch {
@@ -2351,7 +2992,22 @@ export default function Login() {
       // ignore
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [location.search, redirectCheckDone, mode, user, busy, isTrOrIdTraffic]);
+  }, [redirectCheckDone, user, busy, isTrOrIdTraffic, autoGoogleSignupRequested]);
+
+  if (autoGoogleSignupRequested && !redirectCheckDone && !user) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-white via-slate-50 to-emerald-50/40">
+        <Navigation />
+        <section className="max-w-lg mx-auto px-4 py-16">
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-5 md:p-6">
+            <h1 className="text-xl md:text-2xl font-bold text-gray-900">{t('authPage.googleSignupCta')}</h1>
+            <p className="text-sm text-gray-600 mt-2">{t('authPage.redirecting')}</p>
+          </div>
+        </section>
+        <Footer />
+      </div>
+    );
+  }
 
   if (user && !needsQuickProfile) {
     // Kullanıcı login olduysa bu sayfada form göstermeyelim.
@@ -2369,7 +3025,11 @@ export default function Login() {
             <div className="mt-5 flex gap-2">
               <button
                 type="button"
-                onClick={() => navigate('/profilim', { replace: true })}
+                onClick={() => {
+                  const exit = resolveAuthenticatedUserExit();
+                  const target = String(exit?.target || '').trim() || DEFAULT_EXISTING_USER_POST_AUTH_TARGET;
+                  navigate(target, { replace: true, state: exit?.state ?? null });
+                }}
                 className="px-4 py-2 rounded-xl bg-emerald-500 text-white text-sm font-semibold hover:bg-emerald-600"
               >
                 {t('authPage.redirectScreen.goProfile')}
@@ -2395,11 +3055,87 @@ export default function Login() {
     );
   }
 
+  const finalizeGoogleAuthSuccess = async ({ result, flowKey = 'google', intent = mode } = {}) => {
+    const authResult = result && typeof result === 'object' ? result : null;
+    const userRef = authResult?.user;
+    if (!userRef?.uid) throw new Error('google_auth_missing_user');
+
+    const info2 = getAdditionalUserInfo(authResult);
+    const isNewUser = !!info2?.isNewUser;
+
+    clearAutoGoogleFlag();
+    clearAuthProvider();
+    clearRedirectStartMarker();
+    clearAuthIntent();
+
+    if (isNewUser) {
+      markHasSignedUpBefore();
+      const p = readSignupProfile() || {};
+      clearSignupProfile();
+
+      await trackClick('signup_success:google', { trace: true });
+      if (flowKey !== 'google') {
+        try {
+          await trackClick(`signup_success:${flowKey}`, { trace: true });
+        } catch {
+          // ignore
+        }
+      }
+
+      markFunnelSignupCompleted(flowKey);
+      try {
+        if (typeof window !== 'undefined' && typeof window.gtag === 'function') {
+          window.gtag('event', 'sign_up', { method: flowKey });
+        }
+      } catch {
+        // ignore
+      }
+      tiktokTrack('CompleteRegistration');
+      queueOnboardingTourForTarget(resolvePostAuthTarget(true, 'signup'));
+
+      await finalizeSignupProvisioning({
+        flowKey,
+        userRef,
+        profile: p,
+      });
+
+      markJustSignedUp();
+    } else {
+      clearSignupProfile();
+      try {
+        void trackClick('signin_success:google');
+        if (flowKey !== 'google') {
+          void trackClick(`signin_success:${flowKey}`);
+        }
+      } catch {
+        // ignore
+      }
+    }
+
+    const target = resolvePostAuthTarget(isNewUser, isNewUser ? 'signup' : intent);
+    const state = isNewUser ? null : resolvePostAuthState();
+
+    writePendingPostAuthNav(target, state);
+    clearStoredRedirect();
+    writeForcedTarget('');
+
+    try {
+      await navigateNextWithApplyGuard(userRef?.uid, target, state);
+      clearPendingPostAuthNav();
+    } catch {
+      // Best-effort; generic auth effect can still consume pending target.
+    }
+
+    return { isNewUser, target };
+  };
+
   const handleGoogle = async () => {
     setBusy(true);
     setError('');
     setInfo('');
     authFlowBusyRef.current = true;
+    trackLandingPrimaryCtaImpression();
+    markLandingPrimaryAction();
     let redirectStarted = false;
 
     // UI signal: confirm the click handler executed.
@@ -2420,42 +3156,15 @@ export default function Login() {
       }
     })();
 
-    const forcedTransport = (() => {
-      try {
-        const params = new URLSearchParams(location.search || '');
-        const v = String(params.get('transport') || '').trim().toLowerCase();
-        if (v === 'popup' || v === 'redirect') return v;
-        return '';
-      } catch {
-        return '';
-      }
-    })();
-
-
     try {
       clearSignupProfile();
 
       const provider = new GoogleAuthProvider();
       configureGoogleProviderLocale(provider);
 
-      const isTikTokInApp = (() => {
-        try {
-          const ua = typeof navigator !== 'undefined' ? String(navigator.userAgent || '') : '';
-          return /trill[_\s/-]?|tiktok/i.test(ua);
-        } catch {
-          return false;
-        }
-      })();
-
-      const isOtherInApp = (() => {
-        try {
-          const ua = typeof navigator !== 'undefined' ? String(navigator.userAgent || '') : '';
-          // Facebook/Instagram/Line/WeChat/etc in-app browsers often block popups.
-          return /fbav|fban|instagram|line\//i.test(ua) || /micromessenger|wechat/i.test(ua);
-        } catch {
-          return false;
-        }
-      })();
+      const inAppBrowserHint = getGoogleInAppBrowserHint();
+      const isTikTokInApp = inAppBrowserHint === 'tiktok';
+      const isOtherInApp = !!inAppBrowserHint && !isTikTokInApp;
 
       const isMiuiOrLite = (() => {
         try {
@@ -2486,29 +3195,17 @@ export default function Login() {
 
       const isInAppBrowser = isTikTokInApp || isOtherInApp;
 
-      // Prefer popup on almost all real browsers, including iOS Safari.
-      // Redirect round-trips are the main source of "Google'a gidip geri attı" complaints.
-      // Keep redirect only for explicit auto-google flows or known problematic browsers.
-      const preferPopup = !isAutoGoogle && !isMiuiOrLite;
-      let willRedirect = isMiuiOrLite || isAutoGoogle;
-      if (preferPopup) willRedirect = false;
-
-      // Debug override: allow forcing the transport via query param.
-      // Example: /login?mode=signup&transport=popup
-      if (forcedTransport === 'popup') willRedirect = false;
-      if (forcedTransport === 'redirect') willRedirect = true;
-
       writeGoogleDecisionDebug({
         intent: String(mode || ''),
         isAutoGoogle: isAutoGoogle ? '1' : '0',
-        forcedTransport: forcedTransport || '',
+        forcedTransport: 'redirect_only',
         isTikTokInApp: isTikTokInApp ? '1' : '0',
         isOtherInApp: isOtherInApp ? '1' : '0',
         isMiuiOrLite: isMiuiOrLite ? '1' : '0',
         isIOS: isIOS ? '1' : '0',
         isAndroid: isAndroid ? '1' : '0',
         trafficCountryHint: trafficCountryHint || '',
-        willRedirect: willRedirect ? '1' : '0',
+        willRedirect: '1',
         ua: (() => {
           try {
             return String(navigator.userAgent || '').slice(0, 220);
@@ -2524,8 +3221,8 @@ export default function Login() {
         } catch {
           // ignore
         }
-        setEmailFallbackVisible(true);
-        setError(t('authPage.errors.googleInAppBlocked'));
+        openAuthInExternalBrowser();
+        showGoogleInAppFallback();
         return;
       }
 
@@ -2535,6 +3232,101 @@ export default function Login() {
           void trackClick('signup_auto_trigger:google');
         } catch {
           // ignore
+        }
+      }
+
+      if (!isAutoGoogle && !isInAppBrowser) {
+        try {
+          if (mode === 'signup') {
+            void trackClick('signup_popup_start:google');
+          } else {
+            void trackClick('login_popup_start:google');
+          }
+        } catch {
+          // ignore
+        }
+
+        try {
+          const popupResult = await signInWithPopup(auth, provider);
+          await finalizeGoogleAuthSuccess({
+            result: popupResult,
+            flowKey: 'google_popup',
+            intent: mode,
+          });
+          return;
+        } catch (popupError) {
+          const popupCode = String(popupError?.code || '').trim();
+          const popupMessage = String(popupError?.message || '').trim();
+          setEmailFallbackVisible(true);
+
+          if (
+            popupCode === 'auth/popup-blocked' ||
+            popupCode === 'auth/cancelled-popup-request' ||
+            popupCode === 'auth/operation-not-supported-in-this-environment' ||
+            popupCode === 'auth/web-storage-unsupported'
+          ) {
+            try {
+              void trackClick(
+                mode === 'signup' ? 'signup_popup_fallback_to_redirect:google' : 'login_popup_fallback_to_redirect:google',
+                { trace: true }
+              );
+            } catch {
+              // ignore
+            }
+
+            writeAuthIntent(mode);
+            writeForcedTarget('');
+            redirectStarted = true;
+            startGoogleRedirect(provider, { flow: 'google_popup_fallback_redirect_start' });
+            return;
+          }
+
+          if (popupCode === 'auth/popup-closed-by-user' || popupCode === 'auth/user-cancelled') {
+            setError(t('authPage.errors.googlePopupClosed'));
+            return;
+          }
+
+          if (popupCode === 'auth/account-exists-with-different-credential') {
+            await routeExistingAccountToLogin(String(popupError?.customData?.email || email || '').trim().toLowerCase());
+            setError(t('authPage.errors.accountExistsWithDifferentCredential'));
+            return;
+          }
+
+          if (popupCode === 'auth/unauthorized-domain') {
+            const host = typeof window !== 'undefined' ? String(window.location.hostname || '') : '';
+            setError(
+              t('authPage.errors.googleUnauthorizedDomain', {
+                host: host || t('authPage.errors.domainNotFound'),
+              })
+            );
+            return;
+          }
+
+          if (popupCode === 'auth/operation-not-allowed') {
+            setError(t('authPage.errors.googleOperationNotAllowed'));
+            return;
+          }
+
+          if (popupCode === 'auth/invalid-api-key' || popupCode === 'auth/configuration-not-found') {
+            setError(t('authPage.errors.firebaseAuthInvalidConfig'));
+            return;
+          }
+
+          if (popupCode === 'auth/network-request-failed') {
+            setError(t('authPage.errors.networkFailed'));
+            return;
+          }
+
+          void reportAuthIssue({
+            kind: 'auth_google_popup_failed',
+            flow: 'google_popup',
+            code: popupCode || 'unknown',
+            message: popupMessage,
+            intent: mode,
+          });
+
+          setError(popupMessage || t('authPage.errors.googleFailed'));
+          return;
         }
       }
 
@@ -2557,117 +3349,18 @@ export default function Login() {
 
       writeAuthIntent(mode);
       writeForcedTarget('');
-
-      // Stable browsers use popup here to avoid redirect round-trip failures.
-      if (willRedirect) {
-        try {
-          setInfo(t('authPage.infos.inAppBrowserGoogleRedirect'));
-        } catch {
-          // ignore
-        }
-        redirectStarted = true;
-        startGoogleRedirect(provider, { flow: 'google_redirect_start' });
-        return;
-      }
-
-      // Popup: call immediately (no awaits before this).
-      const result = await signInWithPopup(auth, provider);
-      const info2 = getAdditionalUserInfo(result);
-      const isNewUser = !!info2?.isNewUser;
-
-      if (isAutoGoogle) {
-        try {
-          sessionStorage.setItem(LAST_AUTH_NEW_USER_KEY, isNewUser ? '1' : '0');
-        } catch {
-          // ignore
-        }
-        // If user is NOT new, CTA should land on profile instead of forcing the apply form.
-        if (!isNewUser) {
-          try {
-            writeForcedTarget('/profilim');
-          } catch {
-            // ignore
-          }
-        }
-      }
-
-      if (isNewUser && mode !== 'signup') {
-        try {
-          void trackClick('signup_auto:google_popup_from_login_intent');
-        } catch {
-          // ignore
-        }
-      }
-
-      if (isNewUser) {
-        markHasSignedUpBefore();
-        await trackClick('signup_success:google', { trace: true });
-        markFunnelSignupCompleted('google_popup');
-        try {
-          if (typeof window !== 'undefined' && typeof window.gtag === 'function') {
-            window.gtag('event', 'sign_up', { method: 'google' });
-          }
-        } catch {
-          // ignore
-        }
-        tiktokTrack('CompleteRegistration');
-        forceTour('onboarding-main');
-
-        const p = readSignupProfile() || {};
-        clearSignupProfile();
-
-        try {
-          await ensureProfileSaved(result?.user?.uid, p);
-          await acceptReferralIfAny();
-        } catch (eProfile) {
-          const code = String(eProfile?.code || '').trim();
-          void trackClick(`signup_error:google_popup:${code || 'profile_save_failed'}`, { trace: true });
-
-          storeSupportReport(
-            buildSupportReport({
-              kind: 'signup_profile_save_failed',
-              flow: 'google_popup',
-              code: code || 'profile_save_failed',
-              message: String(eProfile?.message || ''),
-              extra: { uid: safeStr(result?.user?.uid) },
-            })
-          );
-        }
-
-        void applyQuickProfileAfterAuthIfAny('google_popup');
-        void bootstrapMatchmakingApplication(result?.user, p);
-        markJustSignedUp();
-      } else {
-        clearSignupProfile();
-        try {
-          void trackClick('signin_success:google');
-        } catch {
-          // ignore
-        }
-      }
-
-      // Popup akışında da post-auth hedefi sakla (özellikle yeni kullanıcı mode=login'den gelirse).
       try {
-        const intent = mode;
-        const target = resolvePostAuthTarget(isNewUser, isNewUser ? 'signup' : intent);
-        const state = isNewUser ? null : resolvePostAuthState();
-        writePendingPostAuthNav(target, state);
-
-        // Popup sonucu geldi: elimizde user varken hemen yönlendir.
-        try {
-          await navigateNextWithApplyGuard(result?.user?.uid, target, state);
-          clearPendingPostAuthNav();
-        } catch {
-          // ignore
-        }
+        setInfo(t('authPage.redirecting'));
       } catch {
         // ignore
       }
-
-      clearAutoGoogleFlag();
+      redirectStarted = true;
+      startGoogleRedirect(provider, { flow: isAutoGoogle ? 'google_auto_redirect_start' : 'google_redirect_start' });
+      return;
     } catch (e) {
       const code = String(e?.code || '').trim();
       const msg = String(e?.message || '').trim();
+      setEmailFallbackVisible(true);
 
       writeGoogleDecisionDebug({
         lastErrorCode: code || 'unknown',
@@ -2675,42 +3368,9 @@ export default function Login() {
       });
 
       if (mode === 'signup') {
-        void trackClick(`signup_error:google_popup:${code || 'unknown'}`, { trace: true });
+        void trackClick(`signup_error:google_redirect_prep:${code || 'unknown'}`, { trace: true });
       } else {
-        void trackClick(`login_error:google_popup:${code || 'unknown'}`, { trace: true });
-      }
-
-      if (code === 'auth/popup-blocked') {
-        try {
-          if (mode === 'signup') {
-            void trackClick('signup_popup_blocked:google', { trace: true });
-          } else {
-            void trackClick('login_popup_blocked:google', { trace: true });
-          }
-        } catch {
-          // ignore
-        }
-        setEmailFallbackVisible(true);
-        setError(t('authPage.errors.googlePopupBlocked'));
-        return;
-      }
-
-      if (
-        code === 'auth/popup-closed-by-user' ||
-        code === 'auth/cancelled-popup-request' ||
-        code === 'auth/user-cancelled'
-      ) {
-        try {
-          if (mode === 'signup') {
-            void trackClick('signup_popup_closed:google', { trace: true });
-          } else {
-            void trackClick('login_popup_closed:google', { trace: true });
-          }
-        } catch {
-          // ignore
-        }
-        setError(t('authPage.errors.googlePopupClosed'));
-        return;
+        void trackClick(`login_error:google_redirect_prep:${code || 'unknown'}`, { trace: true });
       }
 
       if (
@@ -2724,15 +3384,15 @@ export default function Login() {
           writeAuthIntent(mode);
           try {
             if (mode === 'signup') {
-              void trackClick('signup_popup_fallback_to_redirect:google', { trace: true });
+              void trackClick('signup_redirect_retry:google', { trace: true });
             } else {
-              void trackClick('login_popup_fallback_to_redirect:google', { trace: true });
+              void trackClick('login_redirect_retry:google', { trace: true });
             }
           } catch {
             // ignore
           }
           redirectStarted = true;
-          startGoogleRedirect(provider2, { flow: 'google_popup_fallback_redirect_start' });
+          startGoogleRedirect(provider2, { flow: 'google_environment_redirect_start' });
           return;
         } catch (e2) {
           const host = typeof window !== 'undefined' ? String(window.location.hostname || '') : '';
@@ -2752,8 +3412,14 @@ export default function Login() {
         return;
       }
 
+      if (code === 'auth/account-exists-with-different-credential') {
+        await routeExistingAccountToLogin(String(e?.customData?.email || email || '').trim().toLowerCase());
+        setError(t('authPage.errors.accountExistsWithDifferentCredential'));
+        return;
+      }
+
       if (code === 'auth/unauthorized-domain') {
-        void reportAuthIssue({ kind: 'auth_google_unauthorized_domain', flow: 'google_popup', code, message: msg, intent: mode });
+        void reportAuthIssue({ kind: 'auth_google_unauthorized_domain', flow: 'google_redirect_prep', code, message: msg, intent: mode });
         const host = typeof window !== 'undefined' ? String(window.location.hostname || '') : '';
         setError(
           t('authPage.errors.googleUnauthorizedDomain', {
@@ -2764,13 +3430,13 @@ export default function Login() {
       }
 
       if (code === 'auth/operation-not-allowed') {
-        void reportAuthIssue({ kind: 'auth_google_operation_not_allowed', flow: 'google_popup', code, message: msg, intent: mode });
+        void reportAuthIssue({ kind: 'auth_google_operation_not_allowed', flow: 'google_redirect_prep', code, message: msg, intent: mode });
         setError(t('authPage.errors.googleOperationNotAllowed'));
         return;
       }
 
       if (code === 'auth/invalid-api-key' || code === 'auth/configuration-not-found') {
-        void reportAuthIssue({ kind: 'auth_invalid_firebase_config', flow: 'google_popup', code, message: msg, intent: mode });
+        void reportAuthIssue({ kind: 'auth_invalid_firebase_config', flow: 'google_redirect_prep', code, message: msg, intent: mode });
         setError(t('authPage.errors.firebaseAuthInvalidConfig'));
         return;
       }
@@ -2781,17 +3447,10 @@ export default function Login() {
       }
 
       if (code === 'auth/internal-error') {
-        const isInAppBrowser = (() => {
-          try {
-            const ua = typeof navigator !== 'undefined' ? String(navigator.userAgent || '') : '';
-            return /fbav|fban|instagram|line\//i.test(ua) || /micromessenger|wechat/i.test(ua) || /tiktok|trill/i.test(ua);
-          } catch {
-            return false;
-          }
-        })();
+        const isInAppBrowser = !!getGoogleInAppBrowserHint();
 
         if (isInAppBrowser) {
-          setError(t('authPage.errors.googleInAppBlocked'));
+          showGoogleInAppFallback();
           return;
         }
       }
@@ -2815,6 +3474,7 @@ export default function Login() {
     setError('');
     setInfo('');
     authFlowBusyRef.current = true;
+    markLandingPrimaryAction();
 
     try {
       const normalizedEmail = String(email || '').trim().toLowerCase();
@@ -2846,8 +3506,14 @@ export default function Login() {
         }
 
         void trackClick('signup_start:email');
-        const cred = await createUserWithEmailAndPassword(auth, normalizedEmail, pass);
+        const signupProfile = readSignupProfile() || {};
+        const cred = await signUpWithEmailOnServer({
+          email: normalizedEmail,
+          password: pass,
+          profile: signupProfile,
+        });
         markHasSignedUpBefore();
+        clearSignupProfile();
 
         try {
           await trackClick('signup_success:email', { trace: true });
@@ -2856,11 +3522,13 @@ export default function Login() {
           // ignore
         }
         tiktokTrack('CompleteRegistration');
-        forceTour('onboarding-main');
+        queueOnboardingTourForTarget(resolvePostAuthTarget(true, 'signup'));
+        await finalizeSignupProvisioning({
+          flowKey: 'email',
+          userRef: cred?.user,
+          profile: signupProfile,
+        });
         markJustSignedUp();
-
-        void bootstrapMatchmakingApplication(cred?.user, readSignupProfile() || {});
-        clearSignupProfile();
 
         // E-posta ile kayıt sonrası yeni kullanıcıyı başvuru formuna gönder.
         try {
@@ -2878,7 +3546,7 @@ export default function Login() {
         }
       } else {
         void trackClick('signin_start:email');
-        await signInWithEmailAndPassword(auth, normalizedEmail, pass);
+        await signInWithEmailOnServer({ email: normalizedEmail, password: pass });
 
         try {
           void trackClick('signin_success:email', { trace: true });
@@ -2886,7 +3554,7 @@ export default function Login() {
           // ignore
         }
 
-        // E-posta ile giriş sonrası mevcut kullanıcıyı Profilim'e yönlendir.
+        // E-posta ile giriş sonrası mevcut kullanıcıyı varsayılan app hedefine yönlendir.
         try {
           const target = optimisticTarget;
           const state = optimisticState;
@@ -2913,7 +3581,7 @@ export default function Login() {
       }
 
       if (code === 'auth/email-already-in-use') {
-        setError(t('authPage.errors.emailAlreadyInUse'));
+        await routeExistingAccountToLogin(String(email || '').trim().toLowerCase());
         return;
       }
 
@@ -2933,6 +3601,25 @@ export default function Login() {
       }
 
       if (code === 'auth/invalid-credential' || code === 'auth/wrong-password' || code === 'auth/user-not-found') {
+        const methods = await lookupSignInMethodsForEmail(String(email || '').trim().toLowerCase());
+        const hasGoogle = methods.includes('google.com');
+        const hasPassword = methods.includes('password');
+
+        if (hasGoogle && !hasPassword) {
+          switchAuthMode('login');
+          setEmailFallbackVisible(true);
+          setPassword('');
+          setConfirmPassword('');
+          setError('');
+          setInfo(t('authPage.infos.existingAccountUseGoogle'));
+          return;
+        }
+
+        if (mode === 'signup' && hasPassword) {
+          await routeExistingAccountToLogin(String(email || '').trim().toLowerCase());
+          return;
+        }
+
         setError(t('authPage.errors.invalidCredential'));
         return;
       }
@@ -3038,9 +3725,6 @@ export default function Login() {
         tz,
         ref,
         anonId,
-        host,
-        path: pagePath,
-        search,
         hash,
         mode: String(mode || '').trim(),
         forceLogin: forceLogin ? '1' : '0',
@@ -3156,98 +3840,610 @@ export default function Login() {
     <div className="min-h-screen bg-[linear-gradient(180deg,#f8fbfa_0%,#ffffff_32%,#eef7f4_100%)]">
       <Navigation />
 
-      <section className="relative max-w-4xl mx-auto px-4 py-16">
+      <section className="relative mx-auto max-w-6xl px-4 py-10 md:py-14">
         <div aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden">
-          <div className="absolute left-0 top-8 h-52 w-52 rounded-full bg-[radial-gradient(circle_at_center,rgba(16,185,129,0.14),rgba(16,185,129,0)_62%)] blur-3xl" />
-          <div className="absolute right-0 top-16 h-56 w-56 rounded-full bg-[radial-gradient(circle_at_center,rgba(251,191,36,0.16),rgba(251,191,36,0)_62%)] blur-3xl" />
+          <div className="absolute left-[-80px] top-0 h-72 w-72 rounded-full bg-[radial-gradient(circle_at_center,rgba(244,114,182,0.16),rgba(244,114,182,0)_68%)] blur-3xl" />
+          <div className="absolute right-[-40px] top-20 h-80 w-80 rounded-full bg-[radial-gradient(circle_at_center,rgba(56,189,248,0.16),rgba(56,189,248,0)_70%)] blur-3xl" />
+          <div className="absolute left-1/3 bottom-0 h-72 w-72 rounded-full bg-[radial-gradient(circle_at_center,rgba(251,191,36,0.14),rgba(251,191,36,0)_68%)] blur-3xl" />
         </div>
-        <div className="relative overflow-hidden rounded-[30px] border border-white bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(248,250,252,0.94))] p-5 shadow-[0_28px_90px_rgba(15,23,42,0.10)] md:p-7">
-          <div aria-hidden="true" className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-emerald-300 to-transparent" />
-          <h1 className="text-2xl md:text-3xl font-bold text-gray-900">{t("authPage.title")}</h1>
-          <p className="text-sm text-gray-600 mt-2">
-            {contextMessage}
-          </p>
 
-          <div className="mt-5 rounded-[24px] border border-emerald-200 bg-[linear-gradient(135deg,rgba(236,253,245,0.98),rgba(255,255,255,0.96))] p-4 shadow-[0_16px_40px_rgba(16,185,129,0.08)]">
-            <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-emerald-950">{t('authPage.trustNote.title')}</div>
-            <div className="mt-2 text-sm text-emerald-950/80 leading-relaxed">{t('authPage.trustNote.body')}</div>
-          </div>
-
-          <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-3">
-            {authSupportUi.quickFacts.map((item) => (
-              <div key={item.title} className="rounded-[22px] border border-slate-200 bg-white p-4 shadow-[0_12px_30px_rgba(148,163,184,0.08)]">
-                <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-900">{item.title}</div>
-                <div className="mt-2 text-xs text-slate-600 leading-relaxed">{item.body}</div>
+        <div className="relative grid gap-6 lg:grid-cols-[minmax(0,1.08fr)_minmax(340px,0.92fr)] lg:items-start">
+          <div className="overflow-hidden rounded-[34px] border border-white/20 bg-[linear-gradient(145deg,#0f172a_0%,#102337_38%,#15404c_100%)] p-6 text-white shadow-[0_34px_110px_rgba(15,23,42,0.26)] md:p-8">
+            <div aria-hidden="true" className="absolute inset-0 opacity-60" />
+            <div className="relative">
+              <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-white/90">
+                <span>{t('navigation.matchmaking')}</span>
+                <span className="text-white/35">•</span>
+                <span>{mode === 'signup' ? t('authPage.actions.signup') : t('authPage.actions.login')}</span>
               </div>
-            ))}
-          </div>
 
-          <div className="mt-4 rounded-[24px] border border-slate-200 bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(248,250,252,0.92))] p-4 shadow-[0_14px_38px_rgba(148,163,184,0.10)]">
-            <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-emerald-800">{authSupportUi.stepsTitle}</div>
-            <div className="mt-3 space-y-2">
-              {authSupportUi.steps.map((step, idx) => (
-                <div key={step.title} className="flex items-start gap-3 rounded-[18px] border border-slate-200 bg-white p-3 shadow-[0_10px_24px_rgba(148,163,184,0.08)]">
-                  <div className="mt-0.5 inline-flex h-6 w-6 items-center justify-center rounded-full border border-emerald-200 bg-emerald-50 text-[11px] font-semibold text-emerald-900">
-                    {idx + 1}
+              <h1 className="mt-5 max-w-2xl text-3xl font-semibold leading-tight text-white lg:hidden">
+                {t("authPage.title")}
+              </h1>
+              <p className="mt-3 max-w-2xl text-sm leading-relaxed text-white/72 lg:hidden">
+                {contextMessage}
+              </p>
+
+              {!user ? (
+                <div className="mt-5 space-y-3 rounded-[28px] border border-white/10 bg-slate-950/28 p-4 shadow-[0_18px_40px_rgba(2,6,23,0.20)] backdrop-blur-sm lg:hidden">
+                  <div className="inline-flex rounded-2xl border border-white/10 bg-white/8 p-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]">
+                    <button
+                      type="button"
+                      onClick={() => switchAuthMode('signup')}
+                      className={[
+                        'rounded-[14px] px-4 py-2 text-xs font-semibold transition',
+                        mode === 'signup'
+                          ? 'bg-white text-slate-900 shadow-[0_10px_24px_rgba(15,23,42,0.16)]'
+                          : 'text-white/65 hover:text-white',
+                      ].join(' ')}
+                    >
+                      {t('authPage.actions.signup')}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => switchAuthMode('login')}
+                      className={[
+                        'rounded-[14px] px-4 py-2 text-xs font-semibold transition',
+                        mode === 'login'
+                          ? 'bg-white text-slate-900 shadow-[0_10px_24px_rgba(15,23,42,0.16)]'
+                          : 'text-white/65 hover:text-white',
+                      ].join(' ')}
+                    >
+                      {t('authPage.actions.login')}
+                    </button>
                   </div>
+
                   <div>
-                    <div className="text-sm font-semibold text-slate-900">{step.title}</div>
-                    <div className="mt-1 text-xs text-slate-600 leading-relaxed">{step.body}</div>
+                    <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/55">
+                      {mode === 'signup' ? t('authPage.actions.signup') : t('authPage.actions.login')}
+                    </div>
+                    <div className="mt-2 text-xl font-semibold text-white">
+                      {mode === 'signup' ? t('authPage.googleSignupCta') : t('authPage.googleCta')}
+                    </div>
+                  </div>
+
+                  {error ? (
+                    <div className="rounded-2xl border border-rose-300/30 bg-rose-300/10 p-3 text-sm text-rose-50">
+                      <div>{error}</div>
+                      <button
+                        type="button"
+                        onClick={prefillFeedbackFromError}
+                        className="mt-2 text-xs font-semibold text-amber-100 hover:underline"
+                      >
+                        {t('authPage.feedback.reportCta')}
+                      </button>
+                    </div>
+                  ) : null}
+
+                  {info ? (
+                    <div className="rounded-2xl border border-emerald-300/25 bg-emerald-300/10 p-3 text-sm text-emerald-50">{info}</div>
+                  ) : null}
+
+                  <button
+                    type="button"
+                    onClick={handleGoogle}
+                    disabled={busy}
+                    className="w-full rounded-2xl bg-white px-5 py-4 text-sm font-semibold text-slate-950 shadow-[0_18px_40px_rgba(255,255,255,0.16)] transition hover:bg-white/92 disabled:opacity-60"
+                  >
+                    {mode === 'signup' ? t('authPage.googleSignupCta') : t('authPage.googleCta')}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleEmailMethodClick}
+                    disabled={busy}
+                    className="w-full rounded-2xl border border-white/15 bg-white/8 px-5 py-4 text-sm font-semibold text-white shadow-[0_12px_32px_rgba(2,6,23,0.16)] transition hover:bg-white/12 disabled:opacity-60"
+                  >
+                    {mode === 'signup' ? t('authPage.emailSignupCta') : t('authPage.emailLoginCta')}
+                  </button>
+
+                  <div className="rounded-2xl border border-white/10 bg-white/8 px-4 py-3 text-xs leading-relaxed text-white/72">
+                    {mode === 'signup' ? t('authPage.signupExistingAccountHint') : t('authPage.trustNote.title')}
+                  </div>
+
+                  {isGoogleInAppBrowser ? (
+                    <button
+                      type="button"
+                      onClick={handleOpenInBrowserClick}
+                      disabled={busy}
+                      className="w-full rounded-2xl border border-amber-200/40 bg-amber-200/12 px-5 py-3 text-sm font-semibold text-amber-50 shadow-[0_12px_32px_rgba(2,6,23,0.16)] transition hover:bg-amber-200/18 disabled:opacity-60"
+                    >
+                      {t('authPage.actions.openInBrowser')}
+                    </button>
+                  ) : null}
+                </div>
+              ) : null}
+
+              <h1 className="mt-5 hidden max-w-2xl text-3xl font-semibold leading-tight text-white lg:block md:text-5xl">
+                {t("authPage.title")}
+              </h1>
+              <p className="mt-4 hidden max-w-2xl text-sm leading-relaxed text-white/72 lg:block md:text-base">
+                {contextMessage}
+              </p>
+
+              <FoundersShowcase compact className="mt-6" />
+
+              <div className="mt-6 rounded-[30px] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.10),rgba(255,255,255,0.05))] p-5 shadow-[0_20px_60px_rgba(2,6,23,0.24)] backdrop-blur-sm md:p-6">
+                <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                  <div className="min-w-0 max-w-2xl">
+                    <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/60">{t('authPage.tour.eyebrow')}</div>
+                    <div className="mt-3 text-2xl font-semibold leading-tight text-white md:text-3xl">
+                      {t('authPage.tour.teaserTitle')}
+                    </div>
+                    <div className="mt-3 text-sm leading-relaxed text-white/72 md:text-base">
+                      {t('authPage.tour.teaserBody')}
+                    </div>
+                  </div>
+
+                  <div className="w-full rounded-[24px] border border-white/10 bg-white/9 p-4 md:max-w-[220px]">
+                    <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/55">{t('authPage.tour.durationLabel')}</div>
+                    <div className="mt-2 text-lg font-semibold text-white">{t('authPage.tour.durationValue')}</div>
+                    <div className="mt-2 text-xs leading-relaxed text-white/65">{t('authPage.tour.durationBody')}</div>
                   </div>
                 </div>
-              ))}
-            </div>
 
-            <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-              <div className="text-[11px] text-slate-500">{authSupportUi.ctaNote}</div>
-              <a
-                href={authSupportWhatsappHref}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center justify-center rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2 text-xs font-semibold text-emerald-900 hover:bg-emerald-100"
-              >
-                {authSupportUi.whatsappLabel}
-              </a>
+                <div className="mt-5 hidden flex-wrap gap-2 lg:flex">
+                  {authSupportUi.quickFacts.map((item) => (
+                    <div
+                      key={item.title}
+                      className="inline-flex items-center rounded-full border border-white/10 bg-white/8 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-white/82"
+                    >
+                      {item.title}
+                    </div>
+                  ))}
+                </div>
+
+                <div className="mt-5 flex flex-col gap-3 border-t border-white/10 pt-4 md:flex-row md:items-center md:justify-between">
+                  <div className="flex flex-col gap-2 md:max-w-[58%]">
+                    <div className="text-xs leading-relaxed text-white/60">{t('authPage.tour.exitHint')}</div>
+                    <div className="text-[11px] leading-relaxed text-white/45">{authSupportUi.ctaNote}</div>
+                  </div>
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                    <button
+                      type="button"
+                      onClick={openAuthTour}
+                      className="inline-flex items-center justify-center rounded-2xl bg-[linear-gradient(135deg,#fb7185,#fb923c)] px-4 py-2.5 text-xs font-semibold text-slate-950 shadow-[0_14px_34px_rgba(251,146,60,0.24)] transition hover:brightness-105"
+                    >
+                      {t('authPage.tour.open')}
+                    </button>
+                    <a
+                      href={authSupportWhatsappHref}
+                      onClick={handleLandingWhatsAppClick}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="hidden items-center justify-center rounded-2xl border border-emerald-300/35 bg-emerald-300/12 px-4 py-2.5 text-xs font-semibold text-emerald-50 transition hover:bg-emerald-300/18 sm:inline-flex"
+                    >
+                      {authSupportUi.whatsappLabel}
+                    </a>
+                  </div>
+                </div>
+
+                {!user ? (
+                  <div ref={mobileAuthCtaRef} className="mt-5 space-y-3 rounded-[28px] border border-white/10 bg-slate-950/28 p-4 shadow-[0_18px_40px_rgba(2,6,23,0.20)] backdrop-blur-sm lg:hidden">
+                    <div className="inline-flex rounded-2xl border border-white/10 bg-white/8 p-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]">
+                      <button
+                        type="button"
+                        onClick={() => switchAuthMode('signup')}
+                        className={[
+                          'rounded-[14px] px-4 py-2 text-xs font-semibold transition',
+                          mode === 'signup'
+                            ? 'bg-white text-slate-900 shadow-[0_10px_24px_rgba(15,23,42,0.16)]'
+                            : 'text-white/65 hover:text-white',
+                        ].join(' ')}
+                      >
+                        {t('authPage.actions.signup')}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => switchAuthMode('login')}
+                        className={[
+                          'rounded-[14px] px-4 py-2 text-xs font-semibold transition',
+                          mode === 'login'
+                            ? 'bg-white text-slate-900 shadow-[0_10px_24px_rgba(15,23,42,0.16)]'
+                            : 'text-white/65 hover:text-white',
+                        ].join(' ')}
+                      >
+                        {t('authPage.actions.login')}
+                      </button>
+                    </div>
+
+                    <div>
+                      <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/55">
+                        {mode === 'signup' ? t('authPage.actions.signup') : t('authPage.actions.login')}
+                      </div>
+                      <div className="mt-2 text-xl font-semibold text-white">
+                        {mode === 'signup' ? t('authPage.googleSignupCta') : t('authPage.googleCta')}
+                      </div>
+                    </div>
+
+                      <Link
+                        to={APP_INSTALL_PATH}
+                        onClick={() => trackClick('auth_install_cta_mobile')}
+                        className="flex items-start gap-3 rounded-[24px] border border-emerald-300/30 bg-emerald-300/12 p-4 text-left text-white shadow-[0_16px_36px_rgba(2,6,23,0.18)] transition hover:bg-emerald-300/18"
+                      >
+                        <div className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-white text-emerald-700 shadow-[0_12px_28px_rgba(255,255,255,0.16)]">
+                          <Download size={18} />
+                        </div>
+                        <div className="flex-1">
+                          <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-emerald-100/90">{installLinkUi.eyebrow}</div>
+                          <div className="mt-1 text-sm font-semibold text-white">{installLinkUi.title}</div>
+                          <div className="mt-1 text-xs leading-relaxed text-white/72">{installLinkUi.loginBody}</div>
+                        </div>
+                      </Link>
+
+                    {mode === 'signup' ? (
+                      <div className="rounded-2xl border border-white/10 bg-white/8 p-3">
+                        <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/55">{authSupportUi.decisionSummaryLabel}</div>
+                        <div className="mt-3 space-y-2">
+                          {landingSupportFacts.map((item) => (
+                            <div key={item.title} className="rounded-2xl border border-white/8 bg-black/10 px-3 py-2.5">
+                              <div className="text-xs font-semibold text-white">{item.title}</div>
+                              <div className="mt-1 text-[11px] leading-relaxed text-white/68">{item.body}</div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ) : null}
+
+                    {error ? (
+                      <div className="rounded-2xl border border-rose-300/30 bg-rose-300/10 p-3 text-sm text-rose-50">
+                        <div>{error}</div>
+                        <button
+                          type="button"
+                          onClick={prefillFeedbackFromError}
+                          className="mt-2 text-xs font-semibold text-amber-100 hover:underline"
+                        >
+                          {t('authPage.feedback.reportCta')}
+                        </button>
+                      </div>
+                    ) : null}
+                    {info ? (
+                      <div className="rounded-2xl border border-emerald-300/25 bg-emerald-300/10 p-3 text-sm text-emerald-50">{info}</div>
+                    ) : null}
+
+                    {import.meta.env.DEV && debugAuth ? (
+                      <div className="rounded-2xl border border-white/10 bg-white/8 p-3">
+                        <div className="text-[11px] font-semibold text-white/88">DEV: Firebase Auth debug</div>
+                        <div className="mt-1 text-[11px] text-white/72"><span className="font-semibold">code:</span> {debugAuth.code || '-'}</div>
+                        <div className="text-[11px] text-white/72"><span className="font-semibold">message:</span> {debugAuth.message || '-'}</div>
+                        {debugAuth.email ? <div className="text-[11px] text-white/72"><span className="font-semibold">email:</span> {debugAuth.email}</div> : null}
+                      </div>
+                    ) : null}
+
+                    <button
+                      type="button"
+                      onClick={handleGoogle}
+                      disabled={busy}
+                      className="w-full rounded-2xl bg-white px-5 py-4 text-sm font-semibold text-slate-950 shadow-[0_18px_40px_rgba(255,255,255,0.16)] transition hover:bg-white/92 disabled:opacity-60"
+                    >
+                      {mode === 'signup' ? t('authPage.googleSignupCta') : t('authPage.googleCta')}
+                    </button>
+
+                    {isGoogleInAppBrowser ? (
+                      <button
+                        type="button"
+                        onClick={handleOpenInBrowserClick}
+                        disabled={busy}
+                        className="w-full rounded-2xl border border-amber-200/40 bg-amber-200/12 px-5 py-3 text-sm font-semibold text-amber-50 shadow-[0_12px_32px_rgba(2,6,23,0.16)] transition hover:bg-amber-200/18 disabled:opacity-60"
+                      >
+                        {t('authPage.actions.openInBrowser')}
+                      </button>
+                    ) : null}
+
+                    <button
+                      type="button"
+                      onClick={handleEmailMethodClick}
+                      disabled={busy}
+                      className="w-full rounded-2xl border border-white/15 bg-white/8 px-5 py-4 text-sm font-semibold text-white shadow-[0_12px_32px_rgba(2,6,23,0.16)] transition hover:bg-white/12 disabled:opacity-60"
+                    >
+                      {mode === 'signup' ? t('authPage.emailSignupCta') : t('authPage.emailLoginCta')}
+                    </button>
+
+                    {mode === 'signup' ? (
+                      <a
+                        href={authSupportWhatsappHref}
+                        onClick={handleLandingWhatsAppClick}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex w-full items-center justify-center rounded-2xl border border-emerald-300/30 bg-emerald-300/12 px-5 py-3 text-xs font-semibold text-emerald-50 transition hover:bg-emerald-300/18"
+                      >
+                        {authSupportUi.whatsappLabel}
+                      </a>
+                    ) : null}
+
+                    {mode === 'signup' ? (
+                      <div className="rounded-2xl border border-amber-300/20 bg-amber-300/10 px-4 py-3 text-xs leading-relaxed text-amber-50">
+                        {t('authPage.signupExistingAccountHint')}
+                      </div>
+                    ) : null}
+
+                    {emailFallbackVisible ? (
+                      <div className="rounded-[24px] border border-white/10 bg-white/8 p-4 shadow-[0_12px_30px_rgba(2,6,23,0.18)]">
+                        <div className="text-xs text-white/60">{t('authPage.or')}</div>
+
+                        <form onSubmit={handleEmailPassword} className="mt-3 grid grid-cols-1 gap-3">
+                          <div>
+                            <label className="block text-xs font-semibold text-white/80">{t('authPage.labels.email')}</label>
+                            <input
+                              type="email"
+                              value={email}
+                              onChange={(e) => setEmail(e.target.value)}
+                              className="mt-1 w-full rounded-2xl border border-white/15 bg-white px-4 py-3 text-sm text-slate-950 shadow-sm"
+                              placeholder={t('authPage.placeholders.email')}
+                              autoComplete="email"
+                              disabled={busy}
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-xs font-semibold text-white/80">{t('authPage.labels.password')}</label>
+                            <input
+                              type="password"
+                              value={password}
+                              onChange={(e) => setPassword(e.target.value)}
+                              className="mt-1 w-full rounded-2xl border border-white/15 bg-white px-4 py-3 text-sm text-slate-950 shadow-sm"
+                              placeholder={t('authPage.placeholders.password')}
+                              autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
+                              disabled={busy}
+                            />
+                          </div>
+
+                          {mode === 'signup' ? (
+                            <div>
+                              <label className="block text-xs font-semibold text-white/80">{t('authPage.labels.confirmPassword')}</label>
+                              <input
+                                type="password"
+                                value={confirmPassword}
+                                onChange={(e) => setConfirmPassword(e.target.value)}
+                                className="mt-1 w-full rounded-2xl border border-white/15 bg-white px-4 py-3 text-sm text-slate-950 shadow-sm"
+                                placeholder={t('authPage.placeholders.confirmPassword')}
+                                autoComplete="new-password"
+                                disabled={busy}
+                              />
+                            </div>
+                          ) : null}
+
+                          <button
+                            type="submit"
+                            disabled={busy}
+                            className="w-full rounded-2xl bg-[linear-gradient(135deg,#fb7185,#fb923c)] px-5 py-3 text-sm font-semibold text-slate-950 shadow-[0_18px_38px_rgba(249,115,22,0.18)] transition hover:brightness-105 disabled:opacity-60"
+                          >
+                            {mode === 'signup' ? t('authPage.actions.signup') : t('authPage.actions.login')}
+                          </button>
+                        </form>
+                      </div>
+                    ) : null}
+                  </div>
+                ) : null}
+              </div>
             </div>
           </div>
 
+          <div className="hidden space-y-4 lg:sticky lg:top-24 lg:block">
+            <div className="overflow-hidden rounded-[34px] border border-white/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(248,250,252,0.92))] p-5 shadow-[0_28px_90px_rgba(15,23,42,0.14)] backdrop-blur-xl md:p-6">
+              <div className="inline-flex rounded-2xl border border-slate-200 bg-slate-100/90 p-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.9)]">
+                <button
+                  type="button"
+                  onClick={() => switchAuthMode('signup')}
+                  className={[
+                    'rounded-[14px] px-4 py-2 text-xs font-semibold transition',
+                    mode === 'signup'
+                      ? 'bg-white text-slate-900 shadow-[0_10px_24px_rgba(15,23,42,0.10)]'
+                      : 'text-slate-500 hover:text-slate-700',
+                  ].join(' ')}
+                >
+                  {t('authPage.actions.signup')}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => switchAuthMode('login')}
+                  className={[
+                    'rounded-[14px] px-4 py-2 text-xs font-semibold transition',
+                    mode === 'login'
+                      ? 'bg-white text-slate-900 shadow-[0_10px_24px_rgba(15,23,42,0.10)]'
+                      : 'text-slate-500 hover:text-slate-700',
+                  ].join(' ')}
+                >
+                  {t('authPage.actions.login')}
+                </button>
+              </div>
 
-          {error && (
-            <div className="mt-4 rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-800">
-              <div>{error}</div>
-              <button
-                type="button"
-                onClick={prefillFeedbackFromError}
-                className="mt-2 text-xs font-semibold text-sky-700 hover:underline"
+              <div className="mt-5">
+                <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                  {mode === 'signup' ? t('authPage.actions.signup') : t('authPage.actions.login')}
+                </div>
+                <div className="mt-2 text-2xl font-semibold text-slate-950">
+                  {mode === 'signup' ? t('authPage.googleSignupCta') : t('authPage.googleCta')}
+                </div>
+                <div className="mt-2 text-sm leading-relaxed text-slate-600">
+                  {mode === 'signup' ? t('authPage.signupGuide') : t('authPage.trustNote.title')}
+                </div>
+              </div>
+
+              <Link
+                to={APP_INSTALL_PATH}
+                onClick={() => trackClick('auth_install_cta_desktop')}
+                className="mt-4 flex items-start gap-4 rounded-[24px] border border-emerald-200 bg-[linear-gradient(135deg,#ecfdf5,#f0fdf4)] p-4 text-left shadow-[0_16px_36px_rgba(16,185,129,0.10)] transition hover:brightness-105"
               >
-                {t('authPage.feedback.reportCta')}
-              </button>
-            </div>
-          )}
-          {info && (
-            <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">{info}</div>
-          )}
+                <div className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-emerald-600 text-white shadow-[0_14px_30px_rgba(5,150,105,0.20)]">
+                  <Download size={18} />
+                </div>
+                <div className="flex-1">
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-emerald-700">{installLinkUi.eyebrow}</div>
+                  <div className="mt-1 text-sm font-semibold text-slate-950">{installLinkUi.title}</div>
+                  <div className="mt-1 text-xs leading-relaxed text-slate-600">{installLinkUi.loginBody}</div>
+                </div>
+              </Link>
 
-          {import.meta.env.DEV && debugAuth ? (
-            <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
-              <div className="text-[11px] font-semibold text-slate-800">DEV: Firebase Auth debug</div>
-              <div className="mt-1 text-[11px] text-slate-700">
-                <span className="font-semibold">code:</span> {debugAuth.code || '-'}
+              <div className="mt-4 flex flex-col gap-3 rounded-[24px] border border-slate-200 bg-[linear-gradient(180deg,#ffffff,#f8fafc)] p-4 shadow-[0_12px_30px_rgba(148,163,184,0.10)] sm:flex-row sm:items-center sm:justify-between">
+                <div className="min-w-0">
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">{t('authPage.tour.eyebrow')}</div>
+                  <div className="mt-1 text-sm font-semibold text-slate-950">{t('authPage.tour.teaserTitle')}</div>
+                  <div className="mt-1 text-xs leading-relaxed text-slate-600">
+                    {t('authPage.tour.durationValue')} • {t('authPage.tour.durationBody')}
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={openAuthTour}
+                  className="inline-flex items-center justify-center rounded-2xl border border-slate-300 bg-white px-4 py-2.5 text-xs font-semibold text-slate-900 shadow-[0_10px_24px_rgba(15,23,42,0.08)] transition hover:bg-slate-50"
+                >
+                  {t('authPage.tour.open')}
+                </button>
               </div>
-              <div className="text-[11px] text-slate-700">
-                <span className="font-semibold">message:</span> {debugAuth.message || '-'}
-              </div>
-              {debugAuth.email ? (
-                <div className="text-[11px] text-slate-700">
-                  <span className="font-semibold">email:</span> {debugAuth.email}
+
+              {error ? (
+                <div className="mt-4 rounded-2xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-800">
+                  <div>{error}</div>
+                  <button
+                    type="button"
+                    onClick={prefillFeedbackFromError}
+                    className="mt-2 text-xs font-semibold text-sky-700 hover:underline"
+                  >
+                    {t('authPage.feedback.reportCta')}
+                  </button>
+                </div>
+              ) : null}
+              {info ? (
+                <div className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">{info}</div>
+              ) : null}
+
+              {import.meta.env.DEV && debugAuth ? (
+                <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-3">
+                  <div className="text-[11px] font-semibold text-slate-800">DEV: Firebase Auth debug</div>
+                  <div className="mt-1 text-[11px] text-slate-700"><span className="font-semibold">code:</span> {debugAuth.code || '-'}</div>
+                  <div className="text-[11px] text-slate-700"><span className="font-semibold">message:</span> {debugAuth.message || '-'}</div>
+                  {debugAuth.email ? <div className="text-[11px] text-slate-700"><span className="font-semibold">email:</span> {debugAuth.email}</div> : null}
+                </div>
+              ) : null}
+
+              {!user ? (
+                <div ref={desktopAuthCtaRef} className="mt-5 space-y-3 rounded-[28px] border border-slate-200 bg-white/90 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_16px_40px_rgba(148,163,184,0.10)]">
+                  {mode === 'signup' ? (
+                    <div className="rounded-[24px] border border-slate-200 bg-[linear-gradient(180deg,#ffffff,#f8fafc)] p-4 shadow-[0_12px_30px_rgba(148,163,184,0.08)]">
+                      <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">{authSupportUi.decisionSummaryLabel}</div>
+                      <div className="mt-3 space-y-2">
+                        {landingSupportFacts.map((item) => (
+                          <div key={item.title} className="rounded-2xl border border-slate-200 bg-white px-3 py-2.5">
+                            <div className="text-xs font-semibold text-slate-900">{item.title}</div>
+                            <div className="mt-1 text-[11px] leading-relaxed text-slate-600">{item.body}</div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null}
+
+                  <button
+                    type="button"
+                    onClick={handleGoogle}
+                    disabled={busy}
+                    className="w-full rounded-2xl bg-[linear-gradient(135deg,#0f172a,#1e293b)] px-5 py-4 text-sm font-semibold text-white shadow-[0_18px_40px_rgba(15,23,42,0.20)] transition hover:brightness-105 disabled:opacity-60"
+                  >
+                    {mode === 'signup' ? t('authPage.googleSignupCta') : t('authPage.googleCta')}
+                  </button>
+
+                  {isGoogleInAppBrowser ? (
+                    <button
+                      type="button"
+                      onClick={handleOpenInBrowserClick}
+                      disabled={busy}
+                      className="w-full rounded-2xl border border-amber-300 bg-amber-50 px-5 py-3 text-sm font-semibold text-amber-900 shadow-[0_12px_32px_rgba(245,158,11,0.12)] transition hover:bg-amber-100 disabled:opacity-60"
+                    >
+                      {t('authPage.actions.openInBrowser')}
+                    </button>
+                  ) : null}
+
+                  <button
+                    type="button"
+                    onClick={handleEmailMethodClick}
+                    disabled={busy}
+                    className="w-full rounded-2xl border border-slate-300 bg-[linear-gradient(180deg,#ffffff,#f8fafc)] px-5 py-4 text-sm font-semibold text-slate-900 shadow-[0_12px_32px_rgba(148,163,184,0.10)] transition hover:bg-slate-50 disabled:opacity-60"
+                  >
+                    {mode === 'signup' ? t('authPage.emailSignupCta') : t('authPage.emailLoginCta')}
+                  </button>
+
+                  {mode === 'signup' ? (
+                    <a
+                      href={authSupportWhatsappHref}
+                      onClick={handleLandingWhatsAppClick}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex w-full items-center justify-center rounded-2xl border border-emerald-300 bg-emerald-50 px-5 py-3 text-xs font-semibold text-emerald-900 transition hover:bg-emerald-100"
+                    >
+                      {authSupportUi.whatsappLabel}
+                    </a>
+                  ) : null}
+
+                  {mode === 'signup' ? (
+                    <div className="rounded-2xl border border-amber-100 bg-[linear-gradient(135deg,#fff8e7,#fffdf7)] px-4 py-3 text-xs leading-relaxed text-slate-600 shadow-[0_10px_24px_rgba(251,191,36,0.08)]">
+                      {t('authPage.signupExistingAccountHint')}
+                    </div>
+                  ) : null}
+
+                  {emailFallbackVisible ? (
+                    <div className="rounded-[24px] border border-slate-200 bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(248,250,252,0.92))] p-4 shadow-[0_12px_30px_rgba(148,163,184,0.08)]">
+                      <div className="text-xs text-slate-500">{t('authPage.or')}</div>
+
+                      <form onSubmit={handleEmailPassword} className="mt-3 grid grid-cols-1 gap-3">
+                        <div>
+                          <label className="block text-xs font-semibold text-slate-700">{t('authPage.labels.email')}</label>
+                          <input
+                            type="email"
+                            value={email}
+                            onChange={(e) => setEmail(e.target.value)}
+                            className="mt-1 w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm shadow-sm"
+                            placeholder={t('authPage.placeholders.email')}
+                            autoComplete="email"
+                            disabled={busy}
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-semibold text-slate-700">{t('authPage.labels.password')}</label>
+                          <input
+                            type="password"
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                            className="mt-1 w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm shadow-sm"
+                            placeholder={t('authPage.placeholders.password')}
+                            autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
+                            disabled={busy}
+                          />
+                        </div>
+
+                        {mode === 'signup' ? (
+                          <div>
+                            <label className="block text-xs font-semibold text-slate-700">{t('authPage.labels.confirmPassword')}</label>
+                            <input
+                              type="password"
+                              value={confirmPassword}
+                              onChange={(e) => setConfirmPassword(e.target.value)}
+                              className="mt-1 w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm shadow-sm"
+                              placeholder={t('authPage.placeholders.confirmPassword')}
+                              autoComplete="new-password"
+                              disabled={busy}
+                            />
+                          </div>
+                        ) : null}
+
+                        <button
+                          type="submit"
+                          disabled={busy}
+                          className="w-full rounded-2xl bg-[linear-gradient(135deg,#ef4444,#f97316)] px-5 py-3 text-sm font-semibold text-white shadow-[0_18px_38px_rgba(249,115,22,0.18)] transition hover:brightness-105 disabled:opacity-60"
+                        >
+                          {mode === 'signup' ? t('authPage.actions.signup') : t('authPage.actions.login')}
+                        </button>
+                      </form>
+                    </div>
+                  ) : null}
+
+                  <div className="text-[11px] leading-relaxed text-slate-500">{authSupportUi.ctaNote}</div>
                 </div>
               ) : null}
             </div>
-          ) : null}
 
-
-          {needsQuickProfile ? (
-            <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+            {needsQuickProfile ? (
+              <div className="rounded-[30px] border border-slate-200 bg-white/92 p-5 shadow-[0_24px_70px_rgba(15,23,42,0.10)] backdrop-blur-xl">
               <div className="text-sm font-semibold text-slate-900">{t('authPage.quickProfile.title')}</div>
               <div className="mt-1 text-xs text-slate-600">
                 {t('authPage.quickProfile.lead')}
@@ -3361,7 +4557,12 @@ export default function Login() {
                     value={quickProfile.hasChildren}
                     onChange={(e) => {
                       const v = String(e.target.value || '').trim();
-                      const next = { ...quickProfile, hasChildren: v, childrenCount: v === 'yes' ? quickProfile.childrenCount : '' };
+                      const next = {
+                        ...quickProfile,
+                        hasChildren: v,
+                        childrenCount: v === 'yes' ? quickProfile.childrenCount : '',
+                        childrenLivingSituation: v === 'yes' ? quickProfile.childrenLivingSituation : '',
+                      };
                       setQuickProfile(next);
                       persistQuickDraft(next, { completed: false });
                     }}
@@ -3388,6 +4589,25 @@ export default function Login() {
                       inputMode="numeric"
                       autoComplete="off"
                     />
+                  </div>
+                ) : null}
+
+                {quickProfile.hasChildren === 'yes' ? (
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700">{t('matchmakingPage.form.labels.childrenLivingSituation')}</label>
+                    <select
+                      value={quickProfile.childrenLivingSituation}
+                      onChange={(e) => {
+                        const next = { ...quickProfile, childrenLivingSituation: e.target.value };
+                        setQuickProfile(next);
+                        persistQuickDraft(next, { completed: false });
+                      }}
+                      className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
+                    >
+                      <option value="">{t('authPage.quickProfile.options.select')}</option>
+                      <option value="with_children">{t('matchmakingPage.form.options.childrenLivingSituation.withChildren')}</option>
+                      <option value="separate">{t('matchmakingPage.form.options.childrenLivingSituation.separate')}</option>
+                    </select>
                   </div>
                 ) : null}
 
@@ -3441,108 +4661,12 @@ export default function Login() {
                 </button>
               </div>
             </div>
-          ) : null}
-
-          {!user ? (
-            <div className="mt-6 grid grid-cols-1 gap-3 rounded-[24px] border border-slate-200 bg-white/88 p-4 shadow-[0_16px_40px_rgba(148,163,184,0.10)]">
-              <button
-                type="button"
-                onClick={handleGoogle}
-                disabled={busy}
-                className="w-full px-5 py-3 rounded-2xl bg-slate-900 text-white text-sm font-semibold shadow-[0_18px_40px_rgba(15,23,42,0.18)] hover:bg-slate-800 disabled:opacity-60"
-              >
-                {mode === 'signup' ? t('authPage.googleSignupCta') : t('authPage.googleCta')}
-              </button>
-
-              <button
-                type="button"
-                onClick={() => {
-                  setEmailFallbackVisible(true);
-                  try {
-                    void trackClick(mode === 'signup' ? 'signup_click_email_password' : 'login_click_email_password');
-                  } catch {
-                    // ignore
-                  }
-                }}
-                disabled={busy}
-                className="w-full px-5 py-3 rounded-2xl border border-slate-300 bg-white text-slate-900 text-sm font-semibold shadow-[0_10px_28px_rgba(148,163,184,0.08)] hover:bg-slate-50 disabled:opacity-60"
-              >
-                {mode === 'signup' ? t('authPage.emailSignupCta') : t('authPage.emailLoginCta')}
-              </button>
-
-              {mode === 'signup' ? (
-                <div className="text-xs text-slate-600">{t('authPage.signupExistingAccountHint')}</div>
-              ) : null}
-
-              {emailFallbackVisible ? (
-                <div className="mt-2 rounded-[22px] border border-slate-200 bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(248,250,252,0.92))] p-4 shadow-[0_12px_30px_rgba(148,163,184,0.08)]">
-                  <div className="text-xs text-slate-500">{t('authPage.or')}</div>
-
-                  <form onSubmit={handleEmailPassword} className="mt-3 grid grid-cols-1 gap-3">
-                    <div>
-                      <label className="block text-xs font-semibold text-slate-700">{t('authPage.labels.email')}</label>
-                      <input
-                        type="email"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
-                        placeholder={t('authPage.placeholders.email')}
-                        autoComplete="email"
-                        disabled={busy}
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-semibold text-slate-700">{t('authPage.labels.password')}</label>
-                      <input
-                        type="password"
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
-                        placeholder={t('authPage.placeholders.password')}
-                        autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
-                        disabled={busy}
-                      />
-                    </div>
-
-                    {mode === 'signup' ? (
-                      <div>
-                        <label className="block text-xs font-semibold text-slate-700">{t('authPage.labels.confirmPassword')}</label>
-                        <input
-                          type="password"
-                          value={confirmPassword}
-                          onChange={(e) => setConfirmPassword(e.target.value)}
-                          className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
-                          placeholder={t('authPage.placeholders.confirmPassword')}
-                          autoComplete="new-password"
-                          disabled={busy}
-                        />
-                      </div>
-                    ) : null}
-
-                    <button
-                      type="submit"
-                      disabled={busy}
-                      className="w-full px-5 py-3 rounded-2xl bg-slate-900 text-white text-sm font-semibold hover:bg-slate-800 disabled:opacity-60"
-                    >
-                      {mode === 'signup' ? t('authPage.actions.signup') : t('authPage.actions.login')}
-                    </button>
-                  </form>
-                </div>
-              ) : null}
-
-              {mode === 'signup' ? (
-                <div className="text-xs text-slate-600">{t('authPage.signupGuide')}</div>
-              ) : null}
-
-              <div className="text-[11px] text-slate-500">{authSupportUi.ctaNote}</div>
-            </div>
-          ) : null}
+            ) : null}
 
 
 
-          {showIdSignupHelp ? (
-              <details className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50/60 p-3">
+            {showIdSignupHelp ? (
+              <details className="rounded-[28px] border border-emerald-200 bg-emerald-50/70 p-4 shadow-[0_16px_40px_rgba(16,185,129,0.08)]">
                 <summary className="cursor-pointer select-none text-xs font-semibold text-emerald-900">
                   {t('authPage.idSignupHelp.summary')}
                 </summary>
@@ -3584,7 +4708,15 @@ export default function Login() {
                     <label className="block text-xs font-semibold text-slate-700">{t('authPage.idSignupHelp.labels.hasChildren')}</label>
                     <select
                       value={idSignupHelp.hasChildren}
-                      onChange={(e) => setIdSignupHelp((p) => ({ ...p, hasChildren: e.target.value }))}
+                      onChange={(e) => {
+                        const value = String(e.target.value || '').trim();
+                        setIdSignupHelp((p) => ({
+                          ...p,
+                          hasChildren: value,
+                          childrenCount: value === 'yes' ? p.childrenCount : '',
+                          childrenLivingSituation: value === 'yes' ? p.childrenLivingSituation : '',
+                        }));
+                      }}
                       className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
                     >
                       <option value="">{t('authPage.idSignupHelp.options.select')}</option>
@@ -3604,6 +4736,20 @@ export default function Login() {
                       autoComplete="off"
                       disabled={String(idSignupHelp.hasChildren || '') !== 'yes'}
                     />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700">{t('matchmakingPage.form.labels.childrenLivingSituation')}</label>
+                    <select
+                      value={idSignupHelp.childrenLivingSituation}
+                      onChange={(e) => setIdSignupHelp((p) => ({ ...p, childrenLivingSituation: e.target.value }))}
+                      className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
+                      disabled={String(idSignupHelp.hasChildren || '') !== 'yes'}
+                    >
+                      <option value="">{t('authPage.idSignupHelp.options.select')}</option>
+                      <option value="with_children">{t('matchmakingPage.form.options.childrenLivingSituation.withChildren')}</option>
+                      <option value="separate">{t('matchmakingPage.form.options.childrenLivingSituation.separate')}</option>
+                    </select>
                   </div>
 
                   <div>
@@ -3648,28 +4794,21 @@ export default function Login() {
               </details>
             ) : null}
 
-            <div className="flex items-center justify-between gap-3">
+            <div className="rounded-[28px] border border-slate-200 bg-white/88 p-4 shadow-[0_16px_44px_rgba(148,163,184,0.10)]">
+              <div className="flex items-center justify-between gap-3">
               <button
                 type="button"
-                onClick={() => {
-                  setMode((m) => {
-                    const next = m === 'login' ? 'signup' : 'login';
-                    if (next === 'signup') {
-                      tiktokTrack('SignupIntent', { source: 'login_switch' });
-                      void trackClick('auth_switch_to_signup');
-                    } else {
-                      void trackClick('auth_switch_to_login');
-                    }
-                    return next;
-                  });
-                }}
+                onClick={() => switchAuthMode(mode === 'login' ? 'signup' : 'login')}
                 className="text-xs font-semibold text-sky-700 hover:underline"
               >
                 {mode === "login" ? t("authPage.actions.switchToSignup") : t("authPage.actions.switchToLogin")}
               </button>
             </div>
+            </div>
+          </div>
+        </div>
 
-          <div ref={feedbackSectionRef} className="mt-4 rounded-xl border border-slate-200 bg-white p-4">
+        <div ref={feedbackSectionRef} className="relative mt-6 overflow-hidden rounded-[32px] border border-white/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(248,250,252,0.92))] p-5 shadow-[0_26px_80px_rgba(15,23,42,0.10)] md:p-6">
             <div className="text-sm font-semibold text-slate-900">{t('authPage.feedback.title')}</div>
             <div className="mt-1 text-xs text-slate-600">{t('authPage.feedback.lead')}</div>
             <div className="mt-3">
@@ -3711,7 +4850,7 @@ export default function Login() {
             </div>
           </div>
 
-          <p className="mt-6 text-xs text-slate-500">
+          <p className="mt-5 text-xs leading-relaxed text-slate-500">
             {t("authPage.legal.prefix")}{' '}
             <span>
               <a href="/docs/matchmaking-kullanim-sozlesmesi.html" target="_blank" rel="noopener noreferrer" className="text-sky-700 hover:underline">
@@ -3739,7 +4878,143 @@ export default function Login() {
               </a>
             </span>
           </p>
-        </div>
+
+          {authTour.open && authTourCurrent ? (
+            <div className="fixed inset-0 z-[80] flex items-start justify-center overflow-y-auto bg-slate-950/70 p-4 pt-6 backdrop-blur-sm md:items-center md:pt-4">
+              <button
+                type="button"
+                onClick={closeAuthTour}
+                className="absolute inset-0"
+                aria-label={t('authPage.tour.close')}
+              />
+
+              <div className="relative my-auto w-full max-w-4xl overflow-y-auto rounded-[34px] border border-white/20 bg-[linear-gradient(145deg,#0f172a_0%,#102337_38%,#15404c_100%)] p-5 text-white shadow-[0_34px_110px_rgba(15,23,42,0.38)] max-h-[calc(100dvh-2rem)] md:p-7">
+                <div className="flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
+                  <div>
+                    <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-white/88">
+                      <span>{t('authPage.tour.eyebrow')}</span>
+                      <span className="text-white/35">•</span>
+                      <span>{t('authPage.tour.progress', { current: authTour.step + 1, total: authTourSteps.length })}</span>
+                    </div>
+                    <div className="mt-4 text-2xl font-semibold leading-tight text-white md:text-3xl">{authTourCurrent.title}</div>
+                    <div className="mt-3 max-w-2xl text-sm leading-relaxed text-white/72 md:text-base">{authTourCurrent.body}</div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={closeAuthTour}
+                    className="hidden items-center justify-center rounded-2xl border border-white/15 bg-white/8 px-4 py-2 text-xs font-semibold text-white/88 transition hover:bg-white/14 md:inline-flex"
+                  >
+                    {t('authPage.tour.close')}
+                  </button>
+                </div>
+
+                <div className="mt-6 grid gap-4 md:grid-cols-[minmax(220px,0.78fr)_minmax(0,1.22fr)]">
+                  <div className="rounded-[28px] border border-white/10 bg-slate-950/28 p-4 shadow-[0_18px_40px_rgba(2,6,23,0.20)]">
+                    <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/55">{t('authPage.tour.flowTitle')}</div>
+                    <div className="mt-3 grid gap-2.5">
+                      {authTourSteps.map((step, index) => {
+                        const isCurrent = index === authTour.step;
+                        const isPassed = index < authTour.step;
+                        return (
+                          <div
+                            key={step?.title || index}
+                            className={
+                              'rounded-2xl border px-4 py-3 transition ' +
+                              (isCurrent
+                                ? 'border-amber-300/50 bg-amber-300/16 shadow-[0_14px_34px_rgba(251,146,60,0.16)]'
+                                : isPassed
+                                  ? 'border-emerald-300/35 bg-emerald-300/10'
+                                  : 'border-white/10 bg-white/5')
+                            }
+                          >
+                            <div className="flex items-center gap-3">
+                              <div className={
+                                'flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold ' +
+                                (isCurrent
+                                  ? 'bg-[linear-gradient(135deg,#fb7185,#fb923c)] text-slate-950'
+                                  : isPassed
+                                    ? 'bg-emerald-300 text-slate-950'
+                                    : 'bg-white/10 text-white/70')
+                              }>
+                                {index + 1}
+                              </div>
+                              <div className="min-w-0 text-sm font-semibold text-white/90">{step?.title || ''}</div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  <div className="rounded-[28px] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.12),rgba(255,255,255,0.05))] p-5 shadow-[0_22px_60px_rgba(2,6,23,0.24)] backdrop-blur-sm">
+                    <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-amber-100">{authTourCurrent.eyebrow || t('authPage.tour.cardEyebrow')}</div>
+                    <div className="mt-4 grid gap-3">
+                      {(Array.isArray(authTourCurrent.points) ? authTourCurrent.points : []).map((point, index) => (
+                        <div key={`${authTour.step}-${index}`} className="rounded-[22px] border border-white/10 bg-slate-950/30 p-4 shadow-[0_14px_32px_rgba(2,6,23,0.18)]">
+                          <div className="text-sm leading-relaxed text-white/80">{point}</div>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="mt-5 rounded-[24px] border border-white/10 bg-white/7 p-4 text-sm leading-relaxed text-white/70">
+                      {t('authPage.tour.exitHint')}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-6 flex flex-col gap-3 border-t border-white/10 pt-5 md:flex-row md:items-center md:justify-between">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => goAuthTourStep(-1)}
+                      disabled={authTour.step <= 0}
+                      className="inline-flex items-center justify-center rounded-2xl border border-white/15 bg-white/8 px-4 py-2 text-xs font-semibold text-white/88 transition hover:bg-white/14 disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                      {t('authPage.tour.back')}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={closeAuthTour}
+                      className="inline-flex items-center justify-center rounded-2xl border border-white/15 bg-white/8 px-4 py-2 text-xs font-semibold text-white/88 transition hover:bg-white/14"
+                    >
+                      {t('authPage.tour.close')}
+                    </button>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-2 md:justify-end">
+                    <button
+                      type="button"
+                      onClick={() => jumpFromTourToAuth('login')}
+                      className="inline-flex items-center justify-center rounded-2xl border border-white/15 bg-white/8 px-4 py-2 text-xs font-semibold text-white/88 transition hover:bg-white/14"
+                    >
+                      {t('authPage.tour.loginNow')}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => jumpFromTourToAuth('signup')}
+                      className="inline-flex items-center justify-center rounded-2xl bg-white px-4 py-2 text-xs font-semibold text-slate-950 shadow-[0_14px_34px_rgba(255,255,255,0.14)] transition hover:bg-white/90"
+                    >
+                      {t('authPage.tour.signupNow')}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (authTour.step >= authTourSteps.length - 1) {
+                          jumpFromTourToAuth('signup');
+                          return;
+                        }
+                        goAuthTourStep(1);
+                      }}
+                      className="inline-flex items-center justify-center rounded-2xl bg-[linear-gradient(135deg,#fb7185,#fb923c)] px-4 py-2 text-xs font-semibold text-slate-950 shadow-[0_14px_34px_rgba(251,146,60,0.24)] transition hover:brightness-105"
+                    >
+                      {authTour.step >= authTourSteps.length - 1 ? t('authPage.tour.finish') : t('authPage.tour.next')}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : null}
       </section>
 
       <Footer />

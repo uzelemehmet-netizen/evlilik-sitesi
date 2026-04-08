@@ -53,6 +53,16 @@ function parseAdminEmails() {
   return ['uzelemehmet@gmail.com'];
 }
 
+export function getAdminEmails() {
+  return [...parseAdminEmails()];
+}
+
+export function isAdminEmail(email) {
+  const normalized = String(email || '').toLowerCase().trim();
+  if (!normalized) return false;
+  return parseAdminEmails().includes(normalized);
+}
+
 function normalizeBody(req) {
   const b = req?.body;
   if (!b) return {};

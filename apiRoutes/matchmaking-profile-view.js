@@ -14,6 +14,15 @@ function asObj(v) {
   return v && typeof v === 'object' ? v : {};
 }
 
+function hasDirectPeopleListAccess(item) {
+  const data = item && typeof item === 'object' ? item : {};
+  const type = safeStr(data?.type);
+  const status = safeStr(data?.status);
+  if (type !== 'people_list') return false;
+  if (!status) return true;
+  return status !== 'rejected' && status !== 'cancelled';
+}
+
 function tsToMs(v) {
   if (!v) return 0;
   if (typeof v === 'number' && Number.isFinite(v)) return v;
@@ -75,14 +84,15 @@ export default async function handler(req, res) {
     const { db, admin } = getAdmin();
     const { FieldValue } = admin.firestore;
 
-    const grantSnap = await db
-      .collection('matchmakingUsers')
-      .doc(targetUid)
-      .collection('profileAccessGranted')
-      .doc(uid)
-      .get();
+    const requestId = `${uid}__${targetUid}`;
+    const [grantSnap, peopleListSnap] = await Promise.all([
+      db.collection('matchmakingUsers').doc(targetUid).collection('profileAccessGranted').doc(uid).get(),
+      db.collection('matchmakingUsers').doc(uid).collection('outboxPreMatchRequests').doc(requestId).get(),
+    ]);
 
-    if (!grantSnap.exists) {
+    const hasAccess = grantSnap.exists || (peopleListSnap.exists && hasDirectPeopleListAccess(peopleListSnap.data() || {}));
+
+    if (!hasAccess) {
       res.statusCode = 403;
       res.setHeader('content-type', 'application/json');
       res.end(JSON.stringify({ ok: false, error: 'no_access' }));
@@ -100,6 +110,7 @@ export default async function handler(req, res) {
     }
 
     const details = asObj(app?.details);
+    const partnerPreferences = asObj(app?.partnerPreferences);
 
     let userCode = '';
     let userCodeNo = null;
@@ -126,7 +137,9 @@ export default async function handler(req, res) {
       age: asNum(app?.age),
       city: safeStr(app?.city),
       country: safeStr(app?.country),
+      nationality: safeStr(app?.nationality),
       gender: safeStr(app?.gender),
+      lookingForNationality: safeStr(app?.lookingForNationality),
       lookingForGender: safeStr(app?.lookingForGender),
       photoUrls: Array.isArray(app?.photoUrls) ? app.photoUrls.filter((u) => typeof u === 'string' && u.trim()).slice(0, 8) : [],
       about: safeStr(app?.about),
@@ -135,14 +148,8 @@ export default async function handler(req, res) {
       expectations: safeStr(app?.expectations),
       expectationsTr: safeStr(app?.expectationsTr),
       expectationsId: safeStr(app?.expectationsId),
-      details: {
-        maritalStatus: safeStr(details?.maritalStatus),
-        occupation: safeStr(details?.occupation),
-        hasChildren: safeStr(details?.hasChildren),
-        childrenCount: asNum(details?.childrenCount),
-        childrenLivingSituation: safeStr(details?.childrenLivingSituation),
-        heightCm: asNum(details?.heightCm),
-      },
+      details,
+      partnerPreferences,
     };
 
     // Profile view notify (best-effort, throttled per viewer->target).

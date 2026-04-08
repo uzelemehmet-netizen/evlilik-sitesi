@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Heart } from 'lucide-react';
 
 export default function FavoriteButton({ itemId, itemType = 'destination' }) {
+  const { t } = useTranslation();
   const [isFavorite, setIsFavorite] = useState(false);
 
   useEffect(() => {
@@ -38,8 +40,8 @@ export default function FavoriteButton({ itemId, itemType = 'destination' }) {
           ? 'bg-red-500 text-white hover:bg-red-600'
           : 'bg-white/80 text-gray-700 hover:bg-white hover:text-red-500'
       } shadow-lg hover:shadow-xl`}
-      title={isFavorite ? 'Favorilerden çıkar' : 'Favorilere ekle'}
-      aria-label={isFavorite ? 'Favorilerden çıkar' : 'Favorilere ekle'}
+      title={isFavorite ? t('ui.favorite.remove') : t('ui.favorite.add')}
+      aria-label={isFavorite ? t('ui.favorite.remove') : t('ui.favorite.add')}
     >
       <Heart size={20} className={isFavorite ? 'fill-current' : ''} />
     </button>

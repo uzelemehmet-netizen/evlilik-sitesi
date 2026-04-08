@@ -21,7 +21,7 @@ export default {
       install: {
         title: 'Install the app',
         lead:
-          'Add to your home screen for faster access. Enable notifications to get instant alerts for messages, likes, and match requests.',
+          'Add it to your home screen for faster access. After you sign up and start seeing other profiles, we recommend enabling notifications so you do not miss messages and matches.',
         installButton: 'Install app',
         installed: 'Installed',
       preview: {
@@ -38,10 +38,25 @@ export default {
           body: 'These buttons are a preview. To perform real actions, you must sign up and complete the application form first.',
         },
       },
-        installedHint: 'The app is on your home screen. You can also enable notifications.',
+        installedHint: 'The app is on your home screen. Once you are inside, you can enable notifications whenever you want.',
         installAvailableHint: 'Your browser supports installation. Click to install.',
         installNotAvailableHint:
           'If you don’t see an install button: use your browser menu and choose “Add to Home Screen / Install app” (on some devices it appears after the first visit over HTTPS). If you opened the link inside an in-app browser (WhatsApp/Instagram), use the menu to “Open in Safari/Chrome”, then try again.',
+        actions: {
+          waitingForPrompt: 'Preparing the install option…',
+          localDevButton: 'Install is disabled locally',
+          localDevTitle: 'This is a local development environment',
+          localDevBody: 'On the local Vite development server, the native PWA install prompt will not open, whether you are on Windows or macOS. In this project, the service worker is only registered in production builds. Test real install behavior on an HTTPS production/preview environment.',
+          localDevNotInstallable: 'The native PWA install prompt is disabled in this local development environment. Use a production build or HTTPS preview to test installation.',
+          openInBrowser: 'Open in browser to install',
+          copyLink: 'Copy link',
+          inAppBrowserTitle: 'This page appears to be opened inside an in-app browser',
+          inAppBrowserBody: 'Install prompts usually do not open inside WhatsApp, Instagram, and similar in-app browsers. Open this page in Safari/Chrome first, then install from there.',
+          copiedIos: 'Link copied. Open it in Safari and continue with Share → “Add to Home Screen”.',
+          copiedAndroid: 'Link copied. Open it in Chrome and choose “Add to Home screen” or “Install app” from the menu.',
+          copiedDesktop: 'Link copied. Open it in your desktop browser and use the “Install app” option from the menu.',
+          copyFailed: 'Could not copy the link. Open this page manually in Chrome/Safari.',
+        },
         ios: {
           title: 'For iPhone/iPad (Safari)',
           step1: 'Open the site in Safari.',
@@ -65,16 +80,18 @@ export default {
           enabled: 'Notifications enabled.',
           enabledButNotSaved:
             'Notifications are enabled, but we could not save your push token to the server. Please log in and try again (or refresh).',
-          denied: 'Notification permission was not granted. You can allow it in your browser settings.',
+          denied:
+            'The browser did not grant notification permission right now.\n1) If a permission prompt is visible, tap “Allow”.\n2) If you denied it earlier, open the lock icon in the address bar or your browser site settings and switch Notifications to Allow for this site.\n3) Then tap “Enable notifications” again.',
           notSupported: 'Notifications are not supported on this browser/device.',
           notSecureContext: 'Notifications require HTTPS. Please open the site over https.',
           serviceWorkerNotReady: 'Notification system is not ready yet. Refresh and try again.',
+          timeout: 'The notification permission or setup step did not complete in time. Check the browser permission prompt and try again.',
           missingSetup: 'Push setup missing: VAPID key is not configured.',
           invalidVapidKey: 'Push setup is invalid: VAPID key is not valid. Copy the correct Public key from Firebase Console.',
           notLoggedIn: 'You need to be logged in to enable notifications.',
           error: 'Could not enable notifications. Please try again.',
           note:
-            'Note: On some devices you must add the app to the home screen first. Background push notifications may require additional setup.',
+            'This is a recommendation: first sign up and look around, then tap Enable notifications so you do not miss new messages and matches. On supported browsers this button opens the permission prompt automatically.',
           items: {
             newMessage: 'New message in the active match',
             newLike: 'Like / interaction',
@@ -103,6 +120,39 @@ export default {
             actions: {
               requested: 'Request sent',
               granted: 'Access granted',
+            },
+          },
+        },
+        tutorial: {
+          eyebrow: 'App setup',
+          badge: 'Tutorial flow opened from a link',
+          title: 'Install the app, then sign up and explore',
+          body: 'This page helps you add the app to your home screen and get started quickly. Open the app, create your account, complete the short application form, and see the experience first. We recommend enabling notifications later from inside the app, after you have already seen other profiles.',
+          backHome: 'Home',
+          stepLabel: 'Step {{step}}',
+          note: 'After installation, the app appears on the home screen. You can sign up and explore first; the notification recommendation will be shown later inside the app at a better moment.',
+          installEyebrow: 'Step 1',
+          notificationsEyebrow: 'Step 2',
+          readyEyebrow: 'Step 2',
+          readyTitle: 'Installation is done, now open the app',
+          readyBody: 'You can now open the app and sign up. If you are a new user, the startup flow will take you to the application form. After you start seeing other profiles, you can enable notifications from inside the app.',
+          readyBodyWeb: 'Even if the app cannot be installed on this device, you can continue on the website. Sign up and complete your application first, then try the app and notifications later when it suits you.',
+          readyBodyNoPush: 'You can now open the app and sign up. You can enable notifications later from inside the app or from browser settings.',
+          openApp: 'Open app',
+          continueOnWeb: 'Continue on the website',
+          continueWithoutNotifications: 'Continue and set notifications later',
+          standaloneHint: 'The app already seems to be opened in installed mode. Continue to go directly into the app sign-in flow.',
+          browserHint: 'On some devices this button may still open a browser tab. If that happens, tap the Uniqah icon on the home screen and continue from there.',
+          linkBody: 'One link to send to the user: install first, then notifications, then app sign-in.',
+          linkCta: 'Open install flow',
+          steps: {
+            install: {
+              title: 'Install the app',
+              body: 'Add the app to the phone first so the next steps feel like a natural in-app flow.',
+            },
+            open: {
+              title: 'Enter the app',
+              body: 'Open the app and sign up with Google or email. The notification recommendation will appear later inside the app, when it makes more sense.',
             },
           },
         },
@@ -219,6 +269,7 @@ export default {
     },
     actions: {
       pickPhoto: 'Choose photo',
+      remove: 'Remove',
       submit: 'Submit application',
       sending: 'Sending…',
       done: 'Done',
@@ -294,6 +345,9 @@ export default {
       count: 'How many children?',
       ages: 'How old are they?',
       livingWith: 'Who do they live with?',
+    },
+    photo: {
+      uploadedAlt: 'Uploaded photo {{index}}',
     },
     photoNote: 'You can upload 1 to 5 photos.',
     partner: {
@@ -466,11 +520,11 @@ export default {
     },
     like: {
       title: 'Like',
-      body: 'Use Like to show interest. You can undo it later.',
+      body: 'Use Like to show interest. If the other person likes you back, the active-match step begins; then you can start the active match and talk in a private window with translation support.',
     },
     activeStart: {
       title: 'Active match',
-      body: 'After mutual like, start the active match to open chat.',
+      body: 'After mutual like, start the active match to open a private chat with translation support. While the active match continues, you can keep talking without limit.',
     },
     chat: {
       input: {
@@ -492,6 +546,26 @@ export default {
       body: 'Install the app and enable notifications so you don’t miss messages, requests, and approvals.',
       primary: 'One click: Install + Enable',
       later: 'Later',
+      installAndNotify: {
+        title: 'Install the app so you do not miss messages',
+        body: 'We recommend installing the app and enabling notifications so you are informed immediately when a new message, request, or suitable candidate arrives.',
+        primary: 'Done, install and enable',
+      },
+      installOnly: {
+        title: 'Install the app',
+        body: 'Your notifications already look enabled. We still recommend installing the app for a more stable experience and fewer loading or sign-in issues.',
+        primary: 'Install the app',
+      },
+      notifyOnly: {
+        title: 'Enable notifications',
+        body: 'The app already seems installed. Turn on notifications now so messages, requests, and approvals reach you immediately.',
+        primary: 'Enable notifications',
+      },
+      success: {
+        install: 'Done. The app install step completed successfully.',
+        notify: 'Done. Notifications are now enabled.',
+        installAndNotify: 'Done. The app and notifications are now ready.',
+      },
     },
   },
 
@@ -501,6 +575,10 @@ export default {
       prev: 'Previous',
       next: 'Next',
       imageAlt: 'Image {{index}}',
+    },
+    favorite: {
+      add: 'Add to favorites',
+      remove: 'Remove from favorites',
     },
   },
 
@@ -536,11 +614,14 @@ export default {
 
     referral: {
       title: 'Invite a Friend',
-      description: 'Invite a friend. Once both of you complete identity verification, you both get free membership.',
+      description: 'You can recommend Uniqah with a short clean message and share the app install flow.',
+      spotlightEyebrow: 'Friend invite',
+      spotlightBody: 'If you know someone who may be a good fit, share Uniqah on WhatsApp with a short message and the app install flow.',
+      spotlightCta: 'Invite a friend',
       myCodeLabel: 'Your invite code',
       shareButton: 'Share on WhatsApp',
       shareMessage:
-        '{{url}}\n\nMarriage-focused dating app invite code: {{code}}. Add this code to the signup form to get 1 month of free membership.',
+        'This app is very good, I recommend it. You can install the app first, enable notifications, then sign up for free and meet new people on Uniqah.\n\n{{url}}',
       copy: 'Copy',
       copied: 'Copied.',
       enterCodeLabel: 'Invite code',
@@ -610,9 +691,9 @@ export default {
       viewProfile: 'View profile',
       accept: 'Like back',
       reject: 'Reject',
-      titleShort: 'Requests',
+      titleShort: 'Notifications',
       modalTitleMessages: 'Messages',
-      modalTitleRequests: 'Requests',
+      modalTitleRequests: 'Notifications',
     },
 
     accessInbox: {
@@ -639,29 +720,123 @@ export default {
       photoAlt: 'Photo',
       wantChildren: 'Wants children',
       requestText: {
+        peopleList: 'Added you to their people list.',
         preMatch: 'Sent a pre-match request.',
         photoAccess: 'Requests permission to view your photos.',
         profileAccess: 'Requests permission to view your profile.',
       },
     },
 
+    messagesHub: {
+      title: 'Message center',
+      subtitle: 'New messages are now much more visible in one place.',
+      totalActivity: '{{count}} unread messages',
+      summaryMessages: 'Unread messages',
+      summaryLikes: 'New likes',
+      summaryRequests: 'Pending requests',
+      emptyTitle: 'No new messages right now.',
+      emptyBody: 'New messages will appear here immediately.',
+      sectionMessages: 'Messages',
+      sectionMessagesHint: 'People who message you land here. Tap once to open the conversation.',
+      sectionLikes: 'Likes',
+      sectionLikesHint: 'Incoming likes are highlighted here so they do not get missed.',
+      sectionRequests: 'Requests',
+      sectionRequestsHint: 'Profile and pre-match requests are summarized here.',
+      openChat: 'Open chat',
+      openRequests: 'Open requests',
+      unread: '{{count}} new',
+      noPreview: 'A new conversation with this person is waiting for you.',
+      requestApproved: 'Request approved.',
+      requestRejected: 'Request rejected.',
+    },
+
+    notificationsHub: {
+      title: 'Notifications',
+      subtitle: 'Likes and request notifications are collected on this screen.',
+      totalActivity: '{{count}} new notifications',
+      summaryLikes: 'New likes',
+      summaryRequests: 'Pending requests',
+      emptyTitle: 'No new notifications right now.',
+      emptyBody: 'New likes or requests will appear here immediately.',
+      sectionLikes: 'Likes',
+      sectionLikesHint: 'Incoming likes are highlighted here so they do not get missed.',
+      sectionRequests: 'Requests',
+      sectionRequestsHint: 'Profile and pre-match requests are summarized here.',
+      requestApproved: 'Request approved.',
+      requestRejected: 'Request rejected.',
+    },
+
     pool: {
       title: 'Explore',
-      backToMatches: '← Back to matches',
+      backToMatches: '← Back to My Favorites',
       refresh: 'Refresh',
       lastUpdated: 'Auto-refreshes (20s).',
       countHint: 'Total: {{total}} • Shown: {{shown}}',
+      retrying: 'There was a connection problem while loading the pool. Retrying automatically…',
+      cachedResults: 'Showing the last available candidates until the connection recovers.',
+      loadMore: 'Show {{count}} more candidates',
       filtersHint: 'Age range: {{min}} – {{max}}',
+      myPeoplePrompt: {
+        title: 'Go to My Favorites for other actions and interactions with your connections',
+        body: 'Manage like statuses, active matches, and your other connection-related steps from the My Favorites page.',
+        cta: 'Go to My Favorites',
+      },
       trust: {
         title: 'Trust & verification',
         body:
           'This system is marriage-focused and follows a controlled flow. Identity verification is optional; it is a trust badge for users who choose to do it.\n\nInformation submitted for verification is used only for verification purposes and is not kept permanently after verification is completed. You can delete your account at any time; after deletion, your profile and match data are removed from the system.',
         sortNote: 'Note: Verified profiles are shown at the top of Explore.',
       },
+      importantNotice: {
+        eyebrow: 'Important notice',
+        tapSticker: 'Tap',
+        openButton: 'Important: please read',
+        title: 'Important: please read',
+        summary: 'Before continuing, read how the platform works, where the trust boundaries are, and which cases should be reported immediately.',
+        intro: 'Everyone who registers on our website signs up individually through Facebook, Instagram, and TikTok ads and creates their own profile.',
+        body1: 'None of the users who join the system are people we personally know closely. For this reason, you should test, research, and carefully consider the character, personality, and intent of the person you meet.',
+        body2: 'Uniqah.com only provides a platform for people to meet for marriage purposes. It does not take responsibility for the information users provide or for their character, personality, or intentions.',
+        analysisTitle: 'Please keep these in mind',
+        analysisItems: [
+          'Good and bad people can exist anywhere in the world. As you move toward marriage, we strongly recommend that you analyze the people you meet carefully.',
+          'Do not trust someone too quickly only because they are on this platform; observe consistency over time.',
+          'Respect, honesty, and clear intention are extremely important in this system.',
+        ],
+        positiveTitle: 'Signs that may help you recognize the right person',
+        positiveLead: 'These signs do not guarantee anything on their own, but while getting to know someone they can point to a healthier and more serious intention:',
+        positiveItems: [
+          'They try to know your character, values, and mindset before focusing on your physical or financial traits.',
+          'As the relationship progresses, they are willing to talk about families.',
+          'They are willing to introduce you to their family.',
+          'They can speak honestly about some difficult or sensitive parts of their own life.',
+          'They can openly discuss love, boundaries, and what they do not want in marriage.',
+          'They seem genuinely ready to take concrete steps toward marriage.',
+        ],
+        reportTitle: 'In these signs, keep your distance, block, and report',
+        reportLead: 'The behaviors below are serious red flags. If you see them, do not continue the conversation; block the user and report them to us with screenshots if possible:',
+        reportItems: [
+          'If they become overly familiar from the very beginning.',
+          'If they keep probing your income, finances, or material situation.',
+          'If they try to steer the conversation toward sexual topics or inappropriate intimacy.',
+          'If they invite you to different links, websites, or messaging apps.',
+          'If they try to gain sympathy about their financial situation and ask for money or support.',
+          'If they seem to chase personal benefit through lies or manipulation.',
+          'If what they say and the information they provide do not stay consistent.',
+        ],
+        reportOutro: 'Stay away from such people. Block them and report them to us through the Complaint / Request area.',
+        guidanceTitle: 'Additional guidance and consulting option',
+        guidanceBody1: 'If you want research to be done about the person you meet, their family, or the place they live, you can request guidance and consulting from us for a fee so that mutual trust can be built before making a marriage decision.',
+        guidanceBody2: 'If you make a final decision about marriage, you can also request paid guidance and consulting from us for all legal marriage procedures.',
+        closing1: 'Our goal on this site is to help people who truly want marriage find each other.',
+        closing2: 'Because the system is still very new, there may be some issues or missing parts. In such cases, please do not forget to report the situation to us through the Complaint / Request button.',
+        closing3: 'New people will continue joining the system every day. Please install the app on your phone and enable notifications so you can instantly see new messages and likes.',
+        footer: 'Thank you for reading this far. We hope you find the happy marriage you are looking for.',
+        closeButton: 'Close',
+      },
       empty: 'No profiles to show right now.',
-      requestProfileNow: 'Send match request',
-      requesting: 'Requesting…',
-      requestSent: 'Request sent',
+      requestProfileNow: 'Add to my people',
+      requesting: 'Adding…',
+      requestSent: 'Added to my people',
       openProfile: 'Open profile',
       goToMatchCard: 'Go to match card',
       profileModalTitle: 'Profile',
@@ -839,13 +1014,13 @@ export default {
         locked: 'You have an active match — others are locked',
         newMessage: 'New message',
         incomingLikeNote: 'This person sent you a like',
-        activeChatStarted: 'Your active match has started. Tap the Message button to begin unlimited messaging.',
+        activeChatStarted: 'Your active match has started. Tap the Message button to begin unlimited messaging with translation support.',
       },
     },
     matches: {
-      title: 'My matches',
-      showingCount: 'Showing {{count}} matches.',
-      emptyHint: 'Your matches will appear here.',
+      title: 'My Favorites',
+      showingCount: 'Showing {{count}} people.',
+      emptyHint: 'Saved people and active matches appear here.',
       backToProfile: '← Back to profile',
       findNew: 'Find new match',
       finding: 'Searching…',
@@ -853,30 +1028,34 @@ export default {
       howReadMore: 'Read more',
       howReadLess: 'Show less',
       howItems: [
-        'Suitable profiles are reviewed in Explore.',
-        'A pre-match request is sent to the profiles that are desired in the match list.',
-        'The request appears on the other person’s approval screen; if approved, both sides see each other in the match list.',
-        'At this stage, match cards become interactive: likes, short messages, and detailed profile review.',
-        'If a like is mutual, the system starts the active match step.',
-        'When the active match starts, messaging begins with translation support.',
-        'After this step begins, interactions with other profiles are disabled for both sides.',
-        'Until the active match is mutually cancelled, matching/likes/short messages and other profile detail review are disabled.',
-        'To prevent abuse, the active match cannot be cancelled during the first 2 hours after it starts; and another active match cannot be started while one is active.',
-        'After the 48-hour active match period, both sides gain the right to share contact details.',
-        'Contact details become visible in profile details only to each other.',
-        'After that, conversation can continue either inside the site or via personal contact channels.',
-        'After 48 hours, an interpreter-assisted video call can be requested via support.',
-        'Background checks / detailed research can also be requested via support.',
+        'Review suitable profiles in Explore and add them directly to My Favorites.',
+        'The other person does not approve this step; they only receive a notification.',
+        'Cards in My Favorites offer like, short message, and detailed profile actions.',
+        'The detailed profile button opens the completed form fields and partner preferences directly.',
+        'When you like someone, the existing match system sends that like through a match document.',
+        'If the like becomes mutual, the active match step can begin.',
+        'Once an active match starts, interactions with other profiles are locked and a private long chat with translation support opens.',
+        'After the 48-hour active match period, contact sharing can be unlocked.',
       ],
       activeLockTitle: 'You have an active match',
       activeLockBody: 'Interactions with other profiles are locked. Go to the <link>active match page</link> to manage it.',
       requestFailed: 'Request failed: {{error}}',
-      requestOk: 'Request sent. It may appear in your list within seconds.',
+      requestOk: 'Added to My Favorites.',
       loading: 'Loading…',
       loadFailed: 'Matches could not be loaded: {{error}}',
-      noneTitle: 'No matches yet.',
+      noneTitle: 'You have not added anyone yet.',
       noneBody:
-        'If you have just created a new profile, you can interact in your match list by sending requests from the Explore page to suitable profiles, or by approving incoming requests to add them to your match list. Once you match, you can use likes, short messages, and detailed profile viewing. If you couldn’t find a suitable match, install the app on your phone and enable notifications so you can be informed instantly about updates. If your goal is marriage, finding the right person can take time; we recommend being patient.',
+        'From Explore, you can add suitable profiles directly to My Favorites. They will appear on this page, where you can like them, send a short message, or open their full profile directly. If you cannot find a suitable profile yet, install the app and enable notifications so you can catch updates instantly.',
+      people: {
+        savedLabel: 'Saved',
+        grantedLabel: 'Profile access granted',
+        inspect: 'Detailed profile',
+        profileRequested: 'A profile review request was sent for {{name}}.',
+        messageModalSubtitle: 'Send a short message',
+        messagePlaceholder: 'Write a short message…',
+        messageSent: 'Short message sent.',
+        profileModalTitle: 'Profile details',
+      },
       shortModal: {
         subtitle: 'Short message (limit 5) • for quick, profile-external info',
         remaining: 'Remaining: {{remaining}} / {{limit}}',
@@ -934,15 +1113,17 @@ export default {
       remainingTime: '{{hours}}h {{minutes}}m',
       lock48h: {
         title: '48-hour private chat + contact sharing',
-        subtitle: 'Contact unlocks after confirmation + time.',
+        subtitle: 'After 48 hours, mutual confirmation, conversation on at least two different days, and at least 5 messages per side, you can share your number.',
         lockedRemaining: 'Locked. Left: {{time}}',
         confirming: 'Confirming…',
         confirmed: 'Confirmed',
         confirm: 'Confirm 48 hours',
-        requesting: 'Sending request…',
-        requestContact: 'Request contact sharing',
+        requesting: 'Sharing your number…',
+        requestContact: 'Share my contact number',
         approving: 'Approving…',
         approveContact: 'Approve contact sharing',
+        keepChat: 'Keep chatting on-site',
+        keepChatSaving: 'Saving your choice…',
         confirmStatusLabel: 'Confirmation status:',
         confirmStatus: {
           both: 'Mutually confirmed',
@@ -952,16 +1133,31 @@ export default {
         },
         contactStatusLabel: 'Contact sharing:',
         contactStatus: {
-          approved: 'Shared',
+          approved: 'Contact opened',
+          bothShared: 'Both sides shared their number',
+          mineShared: 'You shared your number',
+          otherShared: 'The other side shared their number',
+          continueChat: 'Continuing on-site for now',
           pendingMine: 'Request sent (waiting for approval)',
           pendingOther: 'Other side requested (you can approve)',
           closed: 'Closed',
         },
         confirmError: 'Confirmation failed: {{error}}',
-        contactRequestError: 'Contact request failed: {{error}}',
+        contactRequestError: 'Sharing failed: {{error}}',
         contactApproveError: 'Contact approval failed: {{error}}',
+        keepChatError: 'Could not save your choice: {{error}}',
         whatsappTitle: 'WhatsApp',
         openInWhatsApp: 'Open in WhatsApp',
+        sharedMineHint: 'You shared your number. The other side can contact you on this number at any time.',
+        keepChatHint: 'Your choice is saved. For now you are continuing the conversation inside the site.',
+        otherSharedHint: 'The other side shared their number. You can contact them on WhatsApp whenever you want.',
+        activityRuleTitle: 'Extra conversation requirement for contact sharing',
+        activityRuleBody: 'To unlock contact sharing, both sides must have talked on at least {{minDays}} different days and each side must send at least {{minMessages}} messages. Current status: days {{days}}/{{minDays}}, you {{yourCount}}/{{minMessages}}, other side {{otherCount}}/{{minMessages}}.',
+        reportCta: 'Report',
+        blockCta: 'Block',
+        blocking: 'Blocking…',
+        blockConfirm: 'Are you sure you want to block this user? The active match will be closed and this person will not be shown to you again.',
+        blockError: 'Blocking failed: {{error}}',
       },
     },
 
@@ -1005,7 +1201,7 @@ export default {
       rules: {
         generic: 'Error',
         likeFirst: 'If the like is mutual, “Mutual like” is created.',
-        startActive: 'Long chat opens after both sides confirm “Start active match”.',
+        startActive: 'A translation-supported long chat opens after both sides confirm “Start active match”.',
         onlyOneActive: 'Only 1 active match can exist; while active, likes/messaging with other profiles are locked.',
         unlockAfterCancel: 'Other profiles re-open only after the active match is mutually cancelled.',
       },
@@ -1013,8 +1209,8 @@ export default {
         starting: 'Starting…',
         waiting: 'Waiting for confirmation',
         start: 'Start active match',
-        activatedNotice: 'Active match started — long chat is now open.',
-        waitingNotice: 'Your confirmation was sent. Long chat will open once the other person confirms.',
+        activatedNotice: 'Active match started — the translation-supported long chat is now open.',
+        waitingNotice: 'Your confirmation was sent. The translation-supported long chat will open once the other person confirms.',
         confirmPrompt:
           'You are about to start the active match.\n\n- You can have only 1 active match (other profiles will be locked).\n- After activation, you cannot cancel for the first 2 hours.\n\nDo you confirm?',
       },
@@ -1030,7 +1226,7 @@ export default {
       },
       mutualLike: {
         title: 'You have a mutual like',
-        body: 'Long chat opens only after both sides confirm “Start active match”.',
+        body: 'A mutual like begins the active-match step. Once both sides confirm, a private chat with translation support opens and you can talk without limit while the active match continues.',
       },
       longChatClosedTitle: 'Long chat is closed',
       longChatClosedBody: 'Long chat is available only after starting the active match. At this stage you can only use short messages.',
@@ -1078,7 +1274,7 @@ export default {
         },
       },
       editProfile: 'Edit profile',
-      myMatches: 'My matches',
+      myMatches: 'My people',
       logout: 'Logout',
       bannerAlt: 'Profile banner',
       aboutTitle: 'About',
@@ -1178,6 +1374,12 @@ export default {
           cta: 'I read it, logout',
         },
       },
+      discoverPrompt: {
+        eyebrow: 'Next step',
+        title: 'Go to Explore to see candidate profiles',
+        body: 'Many users stay on the profile page and assume nobody is visible. Open Explore now to see suitable candidates and review new profiles.',
+        cta: 'Go to Explore',
+      },
       identityTrust: {
         title: 'What is this for?',
         points: {
@@ -1257,6 +1459,17 @@ export default {
         },
         cooldownError: 'There is a waiting period for this action. Remaining: {{time}}',
       },
+      photoManager: {
+        maxFive: 'You can add up to 5 images.',
+        manageButton: 'Add/Change Photos',
+        modalIntro: 'View your current photos and update them any time. Up to 5 images.',
+        slotLabel: 'Photo {{index}}',
+        remove: 'Remove',
+        empty: 'Empty',
+        replace: 'Replace',
+        add: 'Add',
+        save: 'Save',
+      },
 
       userCode: {
         label: 'User Code',
@@ -1328,6 +1541,7 @@ export default {
         ],
         applicationIdLabel: 'Application ID',
         ctas: {
+          install: 'Install app',
           pool: 'Go to pool',
           matches: 'My matches',
           learn: 'How it works',
@@ -1347,6 +1561,10 @@ export default {
       ageRequired: 'Your age information is missing. Please complete your profile and try again.',
       notAvailable: 'This action is not available at this stage.',
       forbidden: 'You are not allowed to perform this action.',
+      contactShareMissingNumber: 'No WhatsApp number was found to share. Please check your contact info in your profile.',
+      contactActivityRequired: 'Contact sharing requires conversation on at least two different days and at least 5 messages from each side.',
+      contactNotShared: 'The other person has not shared their contact number yet.',
+      blockedUserPair: 'Interaction with this user is closed. One side has blocked the other.',
       cancelCooldown: 'To prevent abuse, cancellation is temporarily disabled. Remaining: {{time}}',
     },
   },
@@ -1633,7 +1851,7 @@ export default {
     title: 'Marriage matchmaking system',
     liveJoinToast: 'New participant joined',
     description:
-      'The system is new—please be patient. Matches usually arrive within 1–3 days. Install the app and enable notifications so you don’t miss updates.',
+      'This system does not serve the same purpose as typical dating apps. We do not make room here for people seeking entertainment, scams, or sexual gratification instead of real marriage. The system is completely free; today it connects people between Turkey and Indonesia, and soon it will expand toward a structure that helps people across many more countries find each other and, when needed, receive guidance on the road to marriage.',
     preview: {
       title: "What will you see in 'My Profile' after signing up?",
       subtitle:
@@ -1642,7 +1860,7 @@ export default {
       cards: {
         matches: {
           title: 'Matches & statuses',
-          body: 'Mutual interest, activation, and communication steps progress here—each step is controlled.',
+          body: 'Mutual likes, active-match steps, and private chat progress here. During an active match, both sides can talk with translation support.',
           mockTitle: 'Example',
           mockItem1: 'Suggested match',
           mockItem1Sub: 'Status: mutual interest (example)',
@@ -1661,12 +1879,12 @@ export default {
         },
         chat: {
           title: 'Safer messaging',
-          body: 'Messages are filtered; early-stage phone/email/link sharing is blocked.',
+          body: 'Messages are filtered; during an active match, both sides can talk in a private window with translation support and less language anxiety.',
           mockTitle: 'Example',
           mockSystem: 'System: Safer communication enabled',
           mockMsg1: 'Hi, how are you? (example)',
           mockMsg2: 'Chat first, then approval steps (example)',
-          mockHint: 'Note: Contact sharing unlocks after 48 hours + mutual approval.',
+          mockHint: 'Note: While the active match continues, you can talk without limit in the private window; contact sharing unlocks after 48 hours + mutual approval.',
         },
       },
     },
@@ -1956,37 +2174,37 @@ export default {
       {
         title: 'First step: planning form',
         description:
-          'To get to know you and plan the process in the best way, you need to fill out the 15-question form in the Planning section and send it to us. This step is completely free and takes only a few minutes.',
+          'To understand you and your current situation better, you fill out the 15-question form in the Planning section and send it to us. This step is completely free and takes only a few minutes.',
       },
       {
         title: 'We plan together',
         description:
-          'After reviewing the form you sent, we get back to you and prepare a clear plan for the process together.',
+          'After reviewing the information you send, we get back to you and prepare a clear roadmap tailored to your marriage process.',
       },
       {
         title: 'Agreement & guidance contract',
         description:
-          'After you confirm that you want our guidance service, you pay 40% of the calculated total budget. For mutual trust, we receive the remaining 60% after you arrive in Indonesia.',
+          'When you decide to use our guidance service, you pay 40% of the calculated total budget. For mutual trust, we receive the remaining 60% after you arrive in Indonesia.',
       },
       {
         title: 'Marriage paperwork process',
         description:
-          'We prepare the required documents together and start the marriage procedures. We handle the full follow-up and tracking of the process.',
+          'We submit the official marriage application to the KUA office responsible for your partner and start the process. We help you collect the required documents step by step and translate the documents you send through WhatsApp.',
       },
       {
         title: 'Indonesia phase',
         description:
-          'We plan flights, hotel reservations, and local transport. Throughout the marriage procedures, we stay with you, interpret for communication with your partner and their family, and support you until the marriage is completed.',
+          'If you request it, we plan your flights, hotel stay, and local transportation in Indonesia on your behalf. From airport pickup to seeing you off with your spouse on your return to Turkey, we stay by your side in every step, including interpretation for communication with your partner, their family, and their circle. If you prefer, we can only start the marriage procedures and create a more flexible plan for you to complete the remaining steps together with your partner.',
       },
       {
         title: 'Post-marriage procedures',
         description:
-          'After the marriage, we ensure it is approved/registered by the official authorities. If you will live in Turkey, we handle visa procedures for your spouse; if you will live in Indonesia, we handle residence/permit procedures. If requested, we also organize your honeymoon in Indonesia.',
+          'After the marriage is completed, we follow the required steps so that the marriage is recognized by the official authorities. If you will live in Turkey, we handle your spouse’s visa procedures; if you will live in Indonesia, we manage the residence procedures. If requested, we can also support your honeymoon planning.',
       },
       {
         title: 'Completion of the guidance service',
         description:
-          'Once we make sure all procedures are completed properly, we close the process—helping you marry in the easiest and best way, and start your marriage with peace and happiness.',
+          'Once all procedures are completed properly, we close the process and complete the final checks with you so that you can begin your marriage in the most organized and comfortable way possible.',
       },
     ],
     images: {
@@ -2084,7 +2302,7 @@ export default {
         introTitle: 'Step-by-step Wedding Plan Quiz',
         introText: 'Complete it in 2–3 minutes, then send your answers to us on WhatsApp.',
         introItems: [
-          'If you do not have a spouse candidate yet, use the matchmaking flow first so the system can suggest candidates and notify you when suitable profiles appear.',
+          'If you do not have a spouse candidate yet, use the separate matchmaking flow first and follow that process there.',
         ],
         start: 'Start planning',
         back: 'Back',
@@ -2464,6 +2682,41 @@ export default {
         common: {
           yes: 'Yes',
           no: 'No',
+        },
+      },
+      tutorial: {
+        eyebrow: 'App setup',
+        badge: 'Tutorial flow opened from a link',
+        title: 'Install the app first, then enable notifications',
+        body: 'You can send this page as a direct link to users. They first install the app, then enable notifications, then move into the app, sign up with Google or email, and complete the application form.',
+        backHome: 'Home',
+        stepLabel: 'Step {{step}}',
+        note: 'After installation the app appears on the home screen. After the notification step, try the Open app button; if the device keeps it in the browser, continue from the Uniqah icon on the home screen.',
+        installEyebrow: 'Step 1',
+        notificationsEyebrow: 'Step 2',
+        readyEyebrow: 'Step 3',
+        readyTitle: 'The app and notification step are ready',
+        readyBody: 'You can now move into the app and sign up. If you are a new user, the app opening flow will route you to the application form.',
+        readyBodyNoPush: 'You can now move into the app and sign up. You can enable notifications later from the app flow or your browser settings.',
+        openApp: 'Open app',
+        continueWithoutNotifications: 'Continue and set notifications later',
+        standaloneHint: 'The app already seems to be open in installed mode. Continue to move directly into the app entry flow.',
+        browserHint: 'On some devices the button may still open a browser tab. If that happens, tap the Uniqah icon on the home screen and continue from there.',
+        linkBody: 'One link to send users: first installation, then notifications, then app entry.',
+        linkCta: 'Open setup flow',
+        steps: {
+          install: {
+            title: 'Install the app',
+            body: 'Add the app to the phone first so the next steps feel like a real app flow.',
+          },
+          notifications: {
+            title: 'Enable notifications',
+            body: 'Once installation is complete, allow notifications so new matches, messages and requests can reach the user immediately.',
+          },
+          open: {
+            title: 'Move into the app',
+            body: 'In the final step, go to the app opening screen and sign up with Google or email.',
+          },
         },
       },
     },
@@ -3092,21 +3345,115 @@ export default {
     redirecting: 'Redirecting to sign-in…',
     infos: {
       startingGoogle: 'Opening Google sign-in…',
-      inAppBrowserGoogleRedirect: 'Your browser may block popups. Redirecting to Google sign-in…',
+      inAppBrowserGoogleRedirect: 'Opening Google sign-in… This step can take a few seconds in an in-app browser.',
+      googleInAppHelp:
+        'Google sign-in can sometimes stall in an in-app browser. You can continue with email, or use “Open in browser” and try again.',
+      openingExternalBrowser: 'Opening your browser… Continue with Google in the new tab or browser.',
       accountExistsTryLogin: 'You already have an account. Please try signing in with your email and password.',
+      existingAccountSwitchedToLogin: 'This email already looks registered. We switched you to sign-in so you can continue with your account.',
+      existingAccountUseGoogle: 'This email looks registered with Google. Please sign in with Google.',
     },
     redirectScreen: {
       title: 'Redirecting…',
-      body: 'Opening your profile. If this takes too long, you can continue using the button below.',
-      goProfile: 'Go to my profile',
+      body: 'Opening My Profile. If this takes too long, you can continue using the button below.',
+      goProfile: 'Go to My Profile',
       refresh: 'Refresh',
     },
     trustNote: {
-      title: 'Designed for serious marriage intent',
-      body: 'Uniqah is a marriage-oriented system founded by a Turkish-Indonesian couple. Accounts may be restricted after review for policy violations or bad intent; if you request it through our WhatsApp line, we can conduct more detailed research about the marriage candidate you met and help you build trust between you.',
+      title: 'Free, serious, and built for Islamic marriage intent',
+      body: 'Uniqah is a marriage-oriented system founded by a Turkish-Indonesian couple. This is not a typical dating app; we do not give room to people whose goal is not marriage. Registration is currently fully free. After a mutual like, users move into the active-match step, and while the active match continues they can talk without limit in a private window with translation support.',
     },
-    signupGuide: 'To sign up, continue with Google, then complete the matchmaking form.',
+    tour: {
+      eyebrow: 'Trust tour',
+      teaserTitle: 'Why should I register on Uniqah.com before I sign up?',
+      teaserBody: 'If you want, join our short tour. It explains why people choose us, that the system is currently fully free, how the active-match flow works, and how translation-supported chat stays controlled.',
+      durationLabel: 'Short tour',
+      durationValue: 'Under 1 minute',
+      durationBody: 'After each card, you can stop the tour and move directly into sign-up or sign-in.',
+      inviteLead: 'Instead of leaving trust content buried on the page, we present it as an optional guided flow for users who need reassurance.',
+      open: 'Join the tour',
+      close: 'Close tour',
+      back: 'Back',
+      next: 'Continue',
+      finish: 'Go to sign up',
+      signupNow: 'Sign up',
+      loginNow: 'Sign in',
+      progress: 'Step {{current}} / {{total}}',
+      flowTitle: 'Flow',
+      cardEyebrow: 'Why people choose us',
+      previewStep: 'Step {{number}}',
+      exitHint: 'This tour is optional. You can leave it at any point and continue immediately with Google or email/password.',
+      steps: [
+        {
+          eyebrow: 'Founders',
+          title: 'Uniqah was built by a real Turkish-Indonesian couple for serious marriage intent',
+          body: 'This website is one of the business lines of PT Moonstar Global Indonesia, owned by a Turkish-Indonesian couple, and it was created specifically to serve people who are genuinely looking for marriage.',
+          points: [
+            'It is not a random listing site with an unclear owner behind it.',
+            'The goal is not casual chatting; it is to connect serious people on a safer ground.',
+            'If you want, we can later add a photo of the founder couple together in this step.'
+          ]
+        },
+        {
+          eyebrow: 'Controlled process',
+          title: 'Even if I meet someone, how will I trust them?',
+          body: 'You do not have to build trust alone after a match; if you want, we can actively support that process.',
+          points: [
+            'Before making a marriage decision, if you want, we can research everything about the person you met.',
+            'If you request it, we can contact the person and their family.',
+            'We can plan a WhatsApp meeting and interpret for you, or for you together with your family, during the conversation with that person.'
+          ]
+        },
+        {
+          eyebrow: 'Trust',
+          title: 'This system is not for entertainment seekers, but for people who genuinely want marriage',
+          body: 'The matching structure was designed not for people looking for casual fun or passing time, but for people carrying real marriage intent.',
+          points: [
+            'Everyone can send a short message to each other, but full chat only opens between people who start an active match.',
+            'When a like becomes mutual, the active-match step begins; once both sides confirm, the private chat opens.',
+            'While the active match continues, translation support helps each person speak in their own language in a more comfortable way.'
+          ]
+        },
+        {
+          eyebrow: 'Free start',
+          title: 'You lose nothing by trying: registration is free, the space is serious, and the network is growing',
+          body: 'You can register for free and see the system first. Today we are focused on users between Turkey and Indonesia with serious Islamic marriage intent, and we plan to add more countries in a controlled way soon.',
+          points: [
+            'This works differently from classic dating apps; we do not allow people whose purpose is outside marriage.',
+            'You start with a free registration, then continue into the form and panel flow only if it feels right for you.',
+            'Once a mutual like becomes an active match, you can immediately use the private chat with translation support.',
+            'The goal is not noisy scale, but safe growth with the right intent.'
+          ]
+        }
+      ]
+    },
+    signupGuide: 'Registration is currently fully free. Continue with Google, then complete the Islamic marriage-focused matchmaking form. When a like becomes mutual, you move into the active-match step and can talk without limit in a private window with translation support.',
     signupExistingAccountHint: 'If you already have an account, sign in with Google.',
+    appEntry: {
+      eyebrow: 'App entry',
+      badge: 'Full app flow',
+      title: 'Welcome to the Uniqah app',
+      subtitle: 'This opening screen is structured like an app flow: first you open your account, then you complete the application form, and then you move into the in-app matchmaking area.',
+      stepsTitle: 'Opening flow',
+      ctaEyebrow: 'Start',
+      ctaTitle: 'Open your account and enter the app',
+      ctaBody: 'If you are new, you will be routed to the application form right after sign-up. If you already have an account, you can sign in and continue from where you left off.',
+      footerNote: 'This gives the PWA a more natural app-style entry and creates an onboarding base that will be useful later if you move toward a Google Play release.',
+      steps: {
+        account: {
+          title: 'Open your account',
+          body: 'Sign up with Google or email, or sign in with your existing account.',
+        },
+        form: {
+          title: 'Complete your application',
+          body: 'If you are new, the system automatically routes you to the matchmaking application form.',
+        },
+        notify: {
+          title: 'Enable notifications',
+          body: 'After you start seeing other profiles, you can enable notifications inside the app and receive updates immediately.',
+        },
+      },
+    },
     quickProfile: {
       title: 'Quick Profile',
       lead: 'Complete your short profile, then continue.',
@@ -3132,6 +3479,7 @@ export default {
       options: {
         select: 'Select',
         countryTr: 'Turkey',
+        openInBrowser: 'Open in browser and continue',
         countryId: 'Indonesia',
         countryOther: 'Other',
         maritalSingle: 'Single',
@@ -3294,7 +3642,7 @@ export default {
       firebaseAuthInvalidConfig:
         'Firebase Auth configuration is invalid. Check `VITE_FIREBASE_*` values in `.env.local` (and Vercel env).',
       googleInAppBlocked:
-        'Google sign-in may be blocked inside this in-app browser. Please use “Open in browser” (Chrome/Safari) and try again, or continue with email.',
+          'Google sign-in can sometimes stall in this in-app browser. You can continue with email, or use “Open in browser” and try again in Chrome/Safari.',
       googlePopupBlocked:
         'Your browser blocked the Google popup. Please allow popups and try again. If it still fails, open the page in Chrome/Safari or continue with email.',
       googlePopupClosed:
@@ -3996,6 +4344,10 @@ export default {
             approveHint: 'Once you approve, phone numbers will appear in messages.',
           },
           contactShared: 'Contact details shared:\n{{aWhatsapp}}\n{{bWhatsapp}}',
+          contactSharedMineTitle: 'Your contact number was shared',
+          contactSharedMineBody: 'The other side can now reach you through this number.',
+          contactSharedOtherTitle: '{{name}} shared their contact number',
+          contactSharedOtherBody: 'You can reach this person through this number whenever you want.',
         },
         translate: {
           title: 'Translate message',
@@ -4463,11 +4815,11 @@ export default {
         inviteCode: 'Invite code (optional)',
         age: 'Age',
         city: 'City',
-        country: 'Country',
+        country: 'Which country do you live in?',
         whatsapp: 'Contact number',
         email: 'Email',
         instagram: 'Instagram',
-        nationality: 'Nationality',
+        nationality: 'What is your nationality?',
         gender: 'Gender',
         lookingForNationality: 'Looking for: nationality',
         lookingForGender: 'Looking for: gender',
@@ -4528,6 +4880,7 @@ export default {
         age: 'e.g., 29',
         city: 'e.g., Istanbul',
         country: 'e.g., Turkey',
+        nationality: 'e.g., Turkish / Indonesian',
         whatsapp: 'e.g., +90 5xx xxx xx xx',
         email: 'e.g., example@mail.com',
         instagram: 'e.g., @username',
@@ -4661,6 +5014,7 @@ export default {
       },
       hints: {
         lookingForGenderAuto: 'The gender you are looking for is set automatically based on your gender.',
+        countryNationality: 'Your living country and your nationality can be different. One asks where you live, the other asks your citizenship/background.',
         partnerAgeComputed: 'Estimated range: {{min}}–{{max}}',
         partnerAgeNeedsYourAge: 'Note: Please enter your correct age to compute the range.',
         multiSelect: 'You can select more than one option.',
@@ -4680,6 +5034,7 @@ export default {
       submitting: 'Submitting…',
       success: 'Your application was received. Matches will appear on your panel.',
       successNoAuth: 'Your application was received. Our team will contact you as soon as possible.',
+      installAppCta: 'Install the app and enable notifications',
       errors: {
         blocked: 'This account is blocked from submitting matchmaking applications. Please contact support if you think this is a mistake.',
         mustLogin: 'You must be signed in to submit the application.',

@@ -9,6 +9,7 @@ import 'firebase-admin/app';
 import 'firebase-admin/auth';
 import 'firebase-admin/firestore';
 import 'firebase-admin/messaging';
+import '../src/utils/matchmakingProfileCompletion.js';
 
 function findApiRoutesRootDir() {
   const selfFile = fileURLToPath(import.meta.url);
@@ -33,6 +34,29 @@ function findApiRoutesRootDir() {
 }
 
 const apiRoutesRootDir = findApiRoutesRootDir();
+
+const FAIL_OPEN_ROUTES = new Set([
+  'public-signal',
+  'public-track-click',
+  'matchmaking-heartbeat',
+]);
+
+function sendFailOpenJson(res, route, error, extra = {}) {
+  if (!res.headersSent) {
+    res.statusCode = 200;
+    res.setHeader('content-type', 'application/json');
+    res.setHeader('cache-control', 'no-store');
+  }
+  res.end(
+    JSON.stringify({
+      ok: true,
+      route,
+      status: 'noop',
+      suppressedError: String(error || 'server_error'),
+      ...extra,
+    })
+  );
+}
 
 function defaultLoader(fileName) {
   return async () => {
@@ -64,6 +88,7 @@ const handlers = {
   'admin-users-mark-system': defaultLoader('admin-users-mark-system.js'),
   'admin-payments-list': defaultLoader('admin-payments-list.js'),
   'admin-audit-logs-list': defaultLoader('admin-audit-logs-list.js'),
+  'admin-daily-activity-summary': defaultLoader('admin-daily-activity-summary.js'),
   'admin-click-stats': defaultLoader('admin-click-stats.js'),
   'admin-click-trace-list': defaultLoader('admin-click-trace-list.js'),
   'admin-signups-count': defaultLoader('admin-signups-count.js'),
@@ -89,6 +114,7 @@ const handlers = {
   'matchmaking-admin-debug-by-email': defaultLoader('matchmaking-admin-debug-by-email.js'),
   'matchmaking-allocate-profile-no': defaultLoader('matchmaking-allocate-profile-no.js'),
   'matchmaking-application-submit': defaultLoader('matchmaking-application-submit.js'),
+  'matchmaking-application-draft': defaultLoader('matchmaking-application-draft.js'),
   'matchmaking-application-normalize': defaultLoader('matchmaking-application-normalize.js'),
   'matchmaking-application-edit-once': defaultLoader('matchmaking-application-edit-once.js'),
   'matchmaking-partner-preferences-update': defaultLoader('matchmaking-partner-preferences-update.js'),
@@ -105,6 +131,7 @@ const handlers = {
   'matchmaking-match-cancel': defaultLoader('matchmaking-match-cancel.js'),
   'matchmaking-contact': defaultLoader('matchmaking-contact.js'),
   'matchmaking-contact-request': defaultLoader('matchmaking-contact-request.js'),
+  'matchmaking-contact-keep-chat': defaultLoader('matchmaking-contact-keep-chat.js'),
   'matchmaking-contact-approve': defaultLoader('matchmaking-contact-approve.js'),
   'matchmaking-decision': defaultLoader('matchmaking-decision.js'),
   'matchmaking-dismiss': defaultLoader('matchmaking-dismiss.js'),
@@ -120,7 +147,9 @@ const handlers = {
   'matchmaking-referral-claim': defaultLoader('matchmaking-referral-claim.js'),
   'matchmaking-account-delete': defaultLoader('matchmaking-account-delete.js'),
   'matchmaking-browse': defaultLoader('matchmaking-browse.js'),
+  'matchmaking-block-user': defaultLoader('matchmaking-block-user.js'),
   'matchmaking-profile-access-request': defaultLoader('matchmaking-profile-access-request.js'),
+  'matchmaking-people-match-ensure': defaultLoader('matchmaking-people-match-ensure.js'),
   'matchmaking-profile-access-respond': defaultLoader('matchmaking-profile-access-respond.js'),
   'matchmaking-pre-match-request': defaultLoader('matchmaking-pre-match-request.js'),
   'matchmaking-pre-match-respond': defaultLoader('matchmaking-pre-match-respond.js'),
@@ -137,6 +166,8 @@ const handlers = {
   'public-join-ping': defaultLoader('public-join-ping.js'),
   'public-error-report': defaultLoader('public-error-report.js'),
   'public-feedback-submit': defaultLoader('public-feedback-submit.js'),
+  'public-email-login': defaultLoader('public-email-login.js'),
+  'public-email-signup': defaultLoader('public-email-signup.js'),
   'public-lead-submit': defaultLoader('public-lead-submit.js'),
   'public-signal': defaultLoader('public-signal.js'),
   'public-track-click': defaultLoader('public-track-click.js'),
@@ -193,6 +224,12 @@ export default async function handler(req, res) {
       message: String(e?.message || e),
       hasApiRoutesRoot: Boolean(apiRoutesRootDir),
     });
+    if (FAIL_OPEN_ROUTES.has(route)) {
+      sendFailOpenJson(res, route, 'route_loader_failed', {
+        loaderMessage: String(e?.message || e || ''),
+      });
+      return;
+    }
     if (!res.headersSent) {
       res.statusCode = 500;
       res.setHeader('content-type', 'application/json');
@@ -220,8 +257,19 @@ export default async function handler(req, res) {
   try {
     await fn(req, res);
   } catch (e) {
+    const status = e?.statusCode || 500;
+    if (FAIL_OPEN_ROUTES.has(route) && status >= 500) {
+      // eslint-disable-next-line no-console
+      console.error('[api] fail_open', {
+        route,
+        status,
+        message: String(e?.message || e),
+      });
+      sendFailOpenJson(res, route, String(e?.message || 'server_error'));
+      return;
+    }
     if (!res.headersSent) {
-      res.statusCode = e?.statusCode || 500;
+      res.statusCode = status;
       res.setHeader('content-type', 'application/json');
     }
     const isProd = String(process.env.NODE_ENV || '').toLowerCase().trim() === 'production';

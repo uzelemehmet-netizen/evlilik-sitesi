@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { fetchSignInMethodsForEmail, sendPasswordResetEmail, signInWithEmailAndPassword, signOut } from 'firebase/auth';
+import { useEffect, useState } from 'react';
+import { fetchSignInMethodsForEmail, onAuthStateChanged, sendPasswordResetEmail, signInWithCustomToken, signOut } from 'firebase/auth';
 import { auth } from '../config/firebaseAuth';
 import { useNavigate } from 'react-router-dom';
 import { Lock, Mail } from 'lucide-react';
@@ -67,19 +67,69 @@ export default function AdminLogin() {
     return !!e && e === ADMIN_EMAIL;
   };
 
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      const email = normalizeEmail(user?.email);
+      if (email && isAdminEmail(email)) {
+        navigate('/admin/dashboard', { replace: true });
+      }
+    });
+
+    return unsubscribe;
+  }, [navigate]);
+
   const getIsAdminStrict = async (user) => {
     if (!user) return false;
     try {
       const email = normalizeEmail(user.email);
-      const providers = Array.isArray(user?.providerData)
-        ? user.providerData.map((p) => String(p?.providerId || ''))
-        : [];
-      const hasPasswordProvider = providers.includes('password');
-      if (!hasPasswordProvider) return false;
       return !!email && isAdminEmail(email);
     } catch {
       return false;
     }
+  };
+
+  const signInWithEmailOnServer = async ({ email: rawEmail, password: rawPassword }) => {
+    const normalizedEmail = normalizeEmail(rawEmail);
+    const normalizedPassword = typeof rawPassword === 'string' ? rawPassword : String(rawPassword ?? '');
+
+    let response;
+    try {
+      response = await fetch('/api/public-email-login', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          email: normalizedEmail,
+          password: normalizedPassword,
+        }),
+      });
+    } catch {
+      const err = new Error('auth/network-request-failed');
+      err.code = 'auth/network-request-failed';
+      throw err;
+    }
+
+    let data = null;
+    try {
+      data = await response.json();
+    } catch {
+      data = null;
+    }
+
+    if (!response.ok || !data?.ok || !data?.customToken) {
+      const apiError = String(data?.error || `request_failed_${response.status || 0}`);
+      const err = new Error(apiError);
+      err.code = (() => {
+        if (apiError === 'invalid_credentials') return 'auth/invalid-credential';
+        if (apiError === 'rate_limited') return 'auth/too-many-requests';
+        if (apiError === 'user_disabled') return 'auth/user-disabled';
+        if (apiError === 'login_unavailable') return 'auth/internal-error';
+        return 'auth/internal-error';
+      })();
+      err.details = data;
+      throw err;
+    }
+
+    return signInWithCustomToken(auth, data.customToken);
   };
 
   const handleLogin = async (e) => {
@@ -107,7 +157,7 @@ export default function AdminLogin() {
         return;
       }
 
-      const cred = await signInWithEmailAndPassword(auth, normalized, password);
+      const cred = await signInWithEmailOnServer({ email: normalized, password });
 
       // Login başarılı olsa bile admin yetkisi yoksa kullanıcı hemen /admin'e düşer.
       // Bu, kullanıcı tarafında "yanlış şifre" gibi algılanabiliyor. Netleştirelim.

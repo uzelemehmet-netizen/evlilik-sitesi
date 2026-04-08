@@ -34,27 +34,6 @@ function lastSeenMsFromUserDoc(userDoc) {
   return ts > 0 ? ts : 0;
 }
 
-function clearUserLockIfMatch(userDoc, matchId) {
-  const lock = userDoc?.matchmakingLock || null;
-  const choice = userDoc?.matchmakingChoice || null;
-
-  const lockMatchId = safeStr(lock?.matchId);
-  const choiceMatchId = safeStr(choice?.matchId);
-
-  const patch = {};
-  if (lockMatchId === matchId) patch.matchmakingLock = { active: false, matchId: '', matchCode: '' };
-  if (choiceMatchId === matchId) patch.matchmakingChoice = { active: false, matchId: '', matchCode: '' };
-  return patch;
-}
-
-function clearUserPendingIfMatch(userDoc, matchId) {
-  const pending = userDoc?.matchmakingPendingContinue || null;
-  const active = !!pending?.active;
-  const pendingMatchId = safeStr(pending?.matchId);
-  if (active && pendingMatchId === matchId) return { matchmakingPendingContinue: { active: false, matchId: '' } };
-  return {};
-}
-
 function baseMsFromMatch(match) {
   const base =
     (typeof match?.chatEnabledAtMs === 'number' ? match.chatEnabledAtMs : 0) ||
@@ -97,6 +76,15 @@ function formatUcNo(n) {
   return `UC-${Math.floor(v)}`;
 }
 
+function doesUserCodeMatchGender(no, gender) {
+  const numeric = typeof no === 'number' ? no : Number(no);
+  const genderNorm = normalizeGender(gender);
+  if (!Number.isFinite(numeric) || numeric <= 0) return true;
+  if (genderNorm === 'female') return numeric >= 1001 && numeric < 2000;
+  if (genderNorm === 'male') return numeric >= 2001;
+  return true;
+}
+
 function normalizeNat(v) {
   const s = safeStr(v).toLowerCase();
   if (s === 'tr' || s === 'turkey' || s === 'türkiye') return 'tr';
@@ -118,20 +106,34 @@ function defaultLookingForNationality(nat) {
   return 'other';
 }
 
-async function ensureAutoStubApplicationIfMissing({ db, FieldValue, uid, userDoc, nowMs }) {
+async function ensureAutoStubApplicationIfMissing({ db, FieldValue, uid, userDoc, nowMs, authEmail = '', displayName = '', authProvider = '' }) {
   try {
     const existing = await db.collection('matchmakingApplications').where('userId', '==', uid).limit(1).get();
-    if (existing && !existing.empty) return { ensured: true, created: false, reason: 'already_exists' };
+    if (existing && !existing.empty) {
+      try {
+        const firstDoc = existing.docs?.[0];
+        if (firstDoc?.ref && (authEmail || displayName || authProvider)) {
+          await firstDoc.ref.set(
+            {
+              ...(authEmail ? { authEmail, email: authEmail } : {}),
+              ...(displayName ? { displayName } : {}),
+              ...(authProvider ? { authProvider } : {}),
+              updatedAt: FieldValue.serverTimestamp(),
+            },
+            { merge: true }
+          );
+        }
+      } catch {
+        // ignore
+      }
+      return { ensured: true, created: false, reason: 'already_exists' };
+    }
 
     const gender = normalizeGender(userDoc?.gender);
     const nationality = normalizeNat(userDoc?.nationality) || 'other';
     const nationalityOther = safeStr(userDoc?.nationalityOther);
     const age = typeof userDoc?.age === 'number' ? userDoc.age : null;
-    if (!gender) return { ensured: false, created: false, reason: 'missing_profile' };
-
     const lookingForGender = oppositeGender(gender);
-    if (!lookingForGender) return { ensured: false, created: false, reason: 'bad_gender' };
-
     const lookingForNationality = 'other';
     const applicationId = `auto_${uid}`;
     const ref = db.collection('matchmakingApplications').doc(applicationId);
@@ -145,19 +147,25 @@ async function ensureAutoStubApplicationIfMissing({ db, FieldValue, uid, userDoc
         createdAt: FieldValue.serverTimestamp(),
         createdAtMs: nowMs,
         updatedAt: FieldValue.serverTimestamp(),
+        ...(authEmail ? { authEmail, email: authEmail } : {}),
+        ...(displayName ? { displayName } : {}),
+        ...(authProvider ? { authProvider } : {}),
 
-        gender,
-        lookingForGender,
+        ...(gender ? { gender } : {}),
+        ...(lookingForGender ? { lookingForGender } : {}),
 
-        nationality,
-        nationalityOther: nationality === 'other' ? nationalityOther : '',
-        lookingForNationality,
-        lookingForNationalityOther: '',
+        ...(nationality ? {
+          nationality,
+          nationalityOther: nationality === 'other' ? nationalityOther : '',
+          lookingForNationality,
+          lookingForNationalityOther: '',
+        } : {}),
 
         ...(typeof age === 'number' ? { age } : {}),
 
         details: {
           autoBootstrap: true,
+          missingProfile: !gender,
         },
 
         // Firestore rules create'da bu alanlar zorunlu olabilir.
@@ -330,6 +338,9 @@ export default async function handler(req, res) {
 
     const decoded = await requireIdToken(req);
     const uid = decoded.uid;
+    const authEmail = safeStr(decoded?.email).toLowerCase();
+    const displayName = safeStr(decoded?.name);
+    const authProvider = safeStr(decoded?.firebase?.sign_in_provider).toLowerCase();
 
     const { db, FieldValue } = getAdmin();
     const ref = db.collection('matchmakingUsers').doc(uid);
@@ -345,6 +356,9 @@ export default async function handler(req, res) {
     const seenPatch = {
       lastSeenAt: FieldValue.serverTimestamp(),
       lastSeenAtMs: now,
+      ...(authEmail ? { authEmail, authEmailLower: authEmail } : {}),
+      ...(displayName ? { displayName } : {}),
+      ...(authProvider ? { authProvider } : {}),
     };
 
     let result = { status: 'noop', blocked: false, windowHours: 0 };
@@ -355,12 +369,21 @@ export default async function handler(req, res) {
 
       // Kullanıcı kodu (UC-1000/2000 serisi): gender'a göre otomatik atama.
       // Not: Transaction içinde monotonic sayaç kullanıyoruz.
-      const existingUserCode = safeStr(user?.userCode);
-      const existingUserCodeNo = typeof user?.userCodeNo === 'number' ? user.userCodeNo : 0;
+      const existingUserCode = safeStr(user?.userCode) || safeStr(user?.publicProfile?.userCode);
+      const existingUserCodeNo =
+        (typeof user?.userCodeNo === 'number' ? user.userCodeNo : 0) ||
+        (typeof user?.publicProfile?.userCodeNo === 'number' ? user.publicProfile.userCodeNo : 0) ||
+        parseUcNo(existingUserCode);
       const genderNorm = normalizeGender(user?.gender);
+      const storedUserCodeGender = normalizeGender(user?.userCodeGender);
+      const hasBandMismatch =
+        !!existingUserCode &&
+        existingUserCodeNo > 0 &&
+        (genderNorm === 'female' || genderNorm === 'male') &&
+        !doesUserCodeMatchGender(existingUserCodeNo, genderNorm);
       let userCodePatch = {};
 
-      if (!existingUserCode && !(existingUserCodeNo > 0) && (genderNorm === 'female' || genderNorm === 'male')) {
+      if ((genderNorm === 'female' || genderNorm === 'male') && (hasBandMismatch || (!existingUserCode && !(existingUserCodeNo > 0)))) {
         const countersRef = db.collection('matchmakingMeta').doc('userCodeCounters');
         const countersSnap = await tx.get(countersRef);
         const counters = countersSnap.exists ? (countersSnap.data() || {}) : {};
@@ -385,6 +408,9 @@ export default async function handler(req, res) {
             'publicProfile.userCodeNo': assignedNo,
             userCodeGender: genderNorm,
             userCodeAssignedAtMs: now,
+            ...(hasBandMismatch && existingUserCode ? { previousUserCode: existingUserCode } : {}),
+            ...(hasBandMismatch && existingUserCodeNo > 0 ? { previousUserCodeNo: existingUserCodeNo } : {}),
+            ...(hasBandMismatch ? { userCodeReassignedAtMs: now } : {}),
           };
 
           tx.set(
@@ -398,6 +424,12 @@ export default async function handler(req, res) {
             { merge: true }
           );
         }
+      } else if (existingUserCode || existingUserCodeNo > 0) {
+        userCodePatch = {
+          ...(existingUserCode && safeStr(user?.publicProfile?.userCode) !== existingUserCode ? { 'publicProfile.userCode': existingUserCode } : {}),
+          ...(existingUserCodeNo > 0 && user?.publicProfile?.userCodeNo !== existingUserCodeNo ? { 'publicProfile.userCodeNo': existingUserCodeNo } : {}),
+          ...((genderNorm === 'female' || genderNorm === 'male') && storedUserCodeGender !== genderNorm ? { userCodeGender: genderNorm } : {}),
+        };
       }
 
       // Promo ücretsiz üyelik süresi normalize:
@@ -591,175 +623,16 @@ export default async function handler(req, res) {
       // Otomatik havuza alma: kullanıcı matchmakingApplications'a düşmemişse (edge-case),
       // profil bilgisi varsa auto_stub başvurusu oluştur.
       // Not: Bu, cron/manual akıştan bağımsız şekilde "yeni kullanıcı havuza girmiyor" problemini kapatır.
-      const bootstrap = await ensureAutoStubApplicationIfMissing({ db, FieldValue, uid, userDoc: me, nowMs: now });
-      const lock = me?.matchmakingLock || null;
-      const matchId = safeStr(lock?.matchId);
-      const lockActive = !!lock?.active && !!matchId;
-
-      if (lockActive) {
-        const matchRef = db.collection('matchmakingMatches').doc(matchId);
-        const matchSnap = await matchRef.get();
-        if (matchSnap.exists) {
-          const match = matchSnap.data() || {};
-          const status = safeStr(match?.status);
-          const confirmedAtMs = typeof match?.confirmedAtMs === 'number' ? match.confirmedAtMs : 0;
-
-          if (status === 'mutual_accepted' && !(confirmedAtMs > 0)) {
-            const userIds = Array.isArray(match.userIds) ? match.userIds.map(String).filter(Boolean) : [];
-            if (userIds.length === 2 && userIds.includes(uid)) {
-              const otherUid = userIds.find((x) => x && x !== uid) || '';
-              const baseMs = baseMsFromMatch(match);
-
-              if (otherUid) {
-                const otherRef = db.collection('matchmakingUsers').doc(otherUid);
-                const otherSnap = await otherRef.get();
-                const other = otherSnap.exists ? (otherSnap.data() || {}) : {};
-                const otherSeen = lastSeenMsFromUserDoc(other);
-
-                const otherInactive = otherSeen > 0 ? otherSeen <= cutoffMs : baseMs > 0 && baseMs <= cutoffMs;
-
-                if (otherInactive) {
-                  await db.runTransaction(async (tx) => {
-                    const mSnap = await tx.get(matchRef);
-                    if (!mSnap.exists) return;
-                    const m = mSnap.data() || {};
-                    if (safeStr(m?.status) !== 'mutual_accepted') return;
-                    if (typeof m?.confirmedAtMs === 'number' && m.confirmedAtMs > 0) return;
-
-                    const meSnap2 = await tx.get(ref);
-                    const otherSnap2 = await tx.get(otherRef);
-                    const me2 = meSnap2.exists ? (meSnap2.data() || {}) : {};
-                    const other2 = otherSnap2.exists ? (otherSnap2.data() || {}) : {};
-
-                    const mePatch = clearUserLockIfMatch(me2, matchId);
-                    const otherPatch = clearUserLockIfMatch(other2, matchId);
-
-                    // Aktif kullanıcı mağdur olmasın: 1 telafi kredisi.
-                    mePatch.newMatchReplacementCredits = FieldValue.increment(1);
-
-                    tx.set(
-                      matchRef,
-                      {
-                        status: 'cancelled',
-                        cancelledAt: FieldValue.serverTimestamp(),
-                        cancelledAtMs: now,
-                        cancelledByUserId: 'system',
-                        cancelledReason: 'inactive_24h',
-                        inactiveCutoffMs: cutoffMs,
-                        updatedAt: FieldValue.serverTimestamp(),
-                      },
-                      { merge: true }
-                    );
-
-                    if (Object.keys(mePatch).length) tx.set(ref, { ...mePatch, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
-                    if (Object.keys(otherPatch).length) tx.set(otherRef, { ...otherPatch, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
-                  });
-                }
-              }
-            }
-          }
-        }
-
-        // Bir eşleşme aktif olunca diğer proposed eşleşmeleri "beklemede"ye al:
-        // - Diğer taraf incinmesin (iptal/ret gibi görünmesin)
-        // - Suistimal kapansın (aktif eşleşmedeki kişi bu sohbetleri görmesin)
-        try {
-          const othersSnap = await db
-            .collection('matchmakingMatches')
-            .where('userIds', 'array-contains', uid)
-            .limit(25)
-            .get();
-
-          const now2 = Date.now();
-
-          for (const doc of othersSnap.docs) {
-            const otherMatchId = doc.id;
-            if (!otherMatchId || otherMatchId === matchId) continue;
-
-            const m = doc.data() || {};
-            if (safeStr(m?.status) !== 'proposed') continue;
-
-            const pause = m?.proposedChatPause && typeof m.proposedChatPause === 'object' ? m.proposedChatPause : null;
-            const already = !!pause?.active && safeStr(pause?.focusUid) === uid && safeStr(pause?.focusMatchId) === matchId;
-            if (already) continue;
-
-            await db.runTransaction(async (tx) => {
-              const mRef = db.collection('matchmakingMatches').doc(otherMatchId);
-              const mSnap = await tx.get(mRef);
-              if (!mSnap.exists) return;
-              const cur = mSnap.data() || {};
-              if (safeStr(cur?.status) !== 'proposed') return;
-
-              tx.set(
-                mRef,
-                {
-                  proposedChatPause: {
-                    active: true,
-                    reason: 'focus_active',
-                    focusUid: uid,
-                    focusMatchId: matchId,
-                    startedAtMs: now2,
-                    startedAt: FieldValue.serverTimestamp(),
-                  },
-                  updatedAt: FieldValue.serverTimestamp(),
-                },
-                { merge: true }
-              );
-            });
-          }
-        } catch {
-          // Sessiz geç
-        }
-      }
-
-      // Kilit yoksa: daha önce beklemeye alınan sohbetleri otomatik aç.
-      if (!lockActive) {
-        try {
-          const snap = await db
-            .collection('matchmakingMatches')
-            .where('userIds', 'array-contains', uid)
-            .limit(25)
-            .get();
-
-          const now2 = Date.now();
-
-          for (const doc of snap.docs) {
-            const mid = doc.id;
-            if (!mid) continue;
-            const m = doc.data() || {};
-            if (safeStr(m?.status) !== 'proposed') continue;
-            const pause = m?.proposedChatPause && typeof m.proposedChatPause === 'object' ? m.proposedChatPause : null;
-            if (!pause?.active) continue;
-            if (safeStr(pause?.focusUid) !== uid) continue;
-
-            await db.runTransaction(async (tx) => {
-              const mRef = db.collection('matchmakingMatches').doc(mid);
-              const mSnap = await tx.get(mRef);
-              if (!mSnap.exists) return;
-              const cur = mSnap.data() || {};
-              const curPause = cur?.proposedChatPause && typeof cur.proposedChatPause === 'object' ? cur.proposedChatPause : null;
-              if (!(curPause?.active && safeStr(curPause?.focusUid) === uid)) return;
-
-              tx.set(
-                mRef,
-                {
-                  proposedChatPause: {
-                    ...(curPause || {}),
-                    active: false,
-                    endedAtMs: now2,
-                    endedAt: FieldValue.serverTimestamp(),
-                  },
-                  updatedAt: FieldValue.serverTimestamp(),
-                },
-                { merge: true }
-              );
-            });
-          }
-        } catch {
-          // Sessiz geç
-        }
-      }
-
+      const bootstrap = await ensureAutoStubApplicationIfMissing({
+        db,
+        FieldValue,
+        uid,
+        userDoc: me,
+        nowMs: now,
+        authEmail,
+        displayName,
+        authProvider,
+      });
       // İç otomasyon: trafik oldukça 5 dakikada bir matchmaking-run tetikle.
       // Böylece dış cron sağlayıcıya bağımlılık azalır; sistem "kendi kendine" eşleşme üretir.
       const automation = await maybeRunMatchmakingFromHeartbeat({ db, FieldValue, uid });
@@ -774,7 +647,18 @@ export default async function handler(req, res) {
     res.setHeader('content-type', 'application/json');
     res.end(JSON.stringify({ ok: true, ...result, promo }));
   } catch (e) {
-    res.statusCode = e?.statusCode || 500;
+    const status = typeof e?.statusCode === 'number' ? e.statusCode : 500;
+    if (status >= 500) {
+      // Heartbeat kullanıcı deneyimini bozmamalı; iç hata olsa da fail-open dön.
+      // eslint-disable-next-line no-console
+      console.error('[matchmaking-heartbeat] suppressed error:', e);
+      res.statusCode = 200;
+      res.setHeader('content-type', 'application/json');
+      res.end(JSON.stringify({ ok: true, status: 'noop', suppressedError: String(e?.message || 'server_error') }));
+      return;
+    }
+
+    res.statusCode = status;
     res.setHeader('content-type', 'application/json');
     res.end(JSON.stringify({ ok: false, error: String(e?.message || 'server_error') }));
   }

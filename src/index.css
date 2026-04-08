@@ -159,6 +159,46 @@ h3 {
   -webkit-line-clamp: 4;
 }
 
+@keyframes studio-bottom-nav-glow {
+  0%,
+  100% {
+    transform: translateY(0) scale(1);
+    box-shadow: 0 10px 24px rgba(225, 29, 72, 0.18);
+  }
+  50% {
+    transform: translateY(-1px) scale(1.04);
+    box-shadow: 0 14px 30px rgba(225, 29, 72, 0.28);
+  }
+}
+
+.studio-bottom-nav-alert {
+  background: linear-gradient(180deg, #fff1f2 0%, #ffe4e6 100%);
+  color: #be123c;
+  box-shadow: inset 0 0 0 1px rgba(244, 63, 94, 0.14);
+}
+
+.studio-bottom-nav-alert-icon {
+  color: #be123c;
+}
+
+.studio-bottom-nav-alert-badge {
+  position: absolute;
+  right: -10px;
+  top: -6px;
+  display: inline-flex;
+  min-width: 24px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  background: linear-gradient(135deg, #ef4444 0%, #be123c 100%);
+  padding: 3px 7px;
+  font-size: 10px;
+  font-weight: 800;
+  color: #fff;
+  box-shadow: 0 0 0 2px #fff;
+  animation: studio-bottom-nav-glow 1.7s ease-in-out infinite;
+}
+
 @layer components {
   .app-btn {
     /* Default button style across the app: match action-menu buttons (flat + solid) */

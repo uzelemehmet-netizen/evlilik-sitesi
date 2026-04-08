@@ -75,6 +75,19 @@ async function collectAll(query, { maxPages = 200 } = {}) {
   return docs;
 }
 
+async function listAllAuthUsers(auth) {
+  const out = [];
+  let pageToken;
+  do {
+    // eslint-disable-next-line no-await-in-loop
+    const result = await auth.listUsers(1000, pageToken);
+    const users = Array.isArray(result?.users) ? result.users : [];
+    out.push(...users);
+    pageToken = result?.pageToken;
+  } while (pageToken);
+  return out;
+}
+
 async function commitDeletes(db, refs, { apply, label }) {
   const batches = chunk(refs, 450);
   let deleted = 0;
@@ -99,7 +112,7 @@ async function main() {
   const prefix = getArg('--prefix', 'seed_');
   const keepTest = true; // explicit: do not delete test* accounts
 
-  const { db } = getAdmin();
+  const { db, auth } = getAdmin();
 
   const prefixStart = prefix;
   const prefixEnd = `${prefix}\uf8ff`;
@@ -122,6 +135,21 @@ async function main() {
     });
 
   const seedUserIdSet = new Set(seedUserIds);
+
+  const authUsers = await listAllAuthUsers(auth).catch(() => []);
+  const authSeedUids = authUsers
+    .map((user) => {
+      const uid = String(user?.uid || '');
+      const email = String(user?.email || '').toLowerCase().trim();
+      const seedByUid = uid.startsWith(prefix);
+      const seedByEmail = email.endsWith('@example.test') && email.startsWith('seed.');
+      if (!seedByUid && !seedByEmail) return '';
+      if (keepTest && uid.toLowerCase().includes('test')) return '';
+      return uid;
+    })
+    .filter(Boolean);
+
+  authSeedUids.forEach((uid) => seedUserIdSet.add(uid));
 
   // 2) Collect matchmakingApplications where userId has prefix OR seedTag==mk_seed
   const appsByUserIdQuery = db
@@ -192,7 +220,8 @@ async function main() {
   }
 
   // 4) Delete the seed matchmakingUsers themselves
-  const userRefs = seedUserIds.map((uid) => db.collection('matchmakingUsers').doc(uid));
+  const allSeedUserIds = Array.from(seedUserIdSet);
+  const userRefs = allSeedUserIds.map((uid) => db.collection('matchmakingUsers').doc(uid));
 
   const report = {
     ok: true,
@@ -203,11 +232,13 @@ async function main() {
       matchmakingUsers: userRefs.length,
       matchmakingApplications: appRefs.size,
       matchmakingMatches: matchRefs.size,
+      authUsers: authSeedUids.length,
     },
     sample: {
-      userIds: seedUserIds.slice(0, 12),
+      userIds: allSeedUserIds.slice(0, 12),
       applicationDocPaths: Array.from(appRefs.keys()).slice(0, 8),
       matchDocPaths: Array.from(matchRefs.keys()).slice(0, 8),
+      authUids: authSeedUids.slice(0, 12),
     },
   };
 
@@ -221,7 +252,28 @@ async function main() {
   results.push(await commitDeletes(db, Array.from(appRefs.values()), { apply, label: 'matchmakingApplications' }));
   results.push(await commitDeletes(db, userRefs, { apply, label: 'matchmakingUsers' }));
 
-  console.log(JSON.stringify({ ...report, deleted: results }, null, 2));
+  let authDeleted = 0;
+  let authErrors = [];
+  for (const uid of authSeedUids) {
+    if (!apply) {
+      authDeleted += 1;
+      continue;
+    }
+    try {
+      // eslint-disable-next-line no-await-in-loop
+      await auth.deleteUser(uid);
+      authDeleted += 1;
+    } catch (e) {
+      const code = String(e?.code || '');
+      if (code === 'auth/user-not-found') {
+        authDeleted += 1;
+        continue;
+      }
+      authErrors.push({ uid, error: String(e?.message || e) });
+    }
+  }
+
+  console.log(JSON.stringify({ ...report, deleted: results, authDeleted, authErrors }, null, 2));
 }
 
 main().catch((e) => {

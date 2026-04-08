@@ -136,11 +136,24 @@ function eventLabelTr(eventKey) {
     return labels[key] || value;
   };
 
+  const signupFlowLabelTr = (value) => {
+    const flow = String(value || '').trim();
+    if (flow === 'google') return 'Google';
+    if (flow === 'google_popup') return 'Google popup';
+    if (flow === 'google_redirect') return 'Google yönlendirme';
+    if (flow === 'email' || flow === 'email_password') return 'E-posta';
+    return flow ? flow.replace(/_/g, ' ') : 'bilinmeyen akış';
+  };
+
   // Exact keys
   const exact = {
     session_start: 'Oturum başlangıcı',
     landing_login_signup: 'Login açıldı (kayıt modu)',
     landing_login_auto_signup: 'Login açıldı (otomatik kayıt modu)',
+    landing_primary_cta_impression: 'Ana kayıt kartı görüntülendi',
+    landing_dropoff_before_primary_action: 'Landingden ana aksiyon almadan çıktı',
+    landing_whatsapp_prequalify_click: 'Landing WhatsApp ön bilgi tıkı',
+    landing_tour_open: 'Landing güven turu açıldı',
     auth_switch_to_signup: 'Kayıt moduna geçiş (tık)',
     auth_switch_to_login: 'Giriş moduna geçiş (tık)',
     'signup_auto_skipped:inapp': 'Otomatik kayıt atlandı (uygulama içi tarayıcı)',
@@ -167,6 +180,7 @@ function eventLabelTr(eventKey) {
     'signin_success:email': 'Giriş başarılı (E-posta)',
 
     // Transport / fallback diagnostics
+    'signup_popup_start:google': 'Google ile kayıt (popup başlatıldı)',
     'signup_redirect_start:google': 'Google ile kayıt (yönlendirme başlatıldı)',
     'login_redirect_start:google': 'Google ile giriş (yönlendirme başlatıldı)',
     'signup_popup_fallback_to_redirect:google': 'Google popup engellendi (yönlendirme denendi)',
@@ -206,6 +220,26 @@ function eventLabelTr(eventKey) {
 
     const kindLabel = kind.startsWith('signup_') ? 'Kayıt hatası' : kind.startsWith('signin_') || kind.startsWith('login_') ? 'Giriş hatası' : 'Hata';
     return flowLabel ? `${kindLabel} (${flowLabel}): ${codeLabel}` : `${kindLabel}: ${codeLabel}`;
+  }
+
+  if (raw.startsWith('signup_profile_ready:')) {
+    return `Signup profili hazır: ${signupFlowLabelTr(raw.slice('signup_profile_ready:'.length))}`;
+  }
+
+  if (raw.startsWith('signup_profile_created:')) {
+    return `Signup profil dokümanı oluşturuldu: ${signupFlowLabelTr(raw.slice('signup_profile_created:'.length))}`;
+  }
+
+  if (raw.startsWith('signup_apply_bootstrap_ready:')) {
+    return `Signup başvuru bootstrap hazır: ${signupFlowLabelTr(raw.slice('signup_apply_bootstrap_ready:'.length))}`;
+  }
+
+  if (raw.startsWith('signup_apply_bootstrap_created:')) {
+    return `Signup başvuru stub oluşturuldu: ${signupFlowLabelTr(raw.slice('signup_apply_bootstrap_created:'.length))}`;
+  }
+
+  if (raw.startsWith('signup_apply_bootstrap_failed:')) {
+    return `Signup başvuru bootstrap başarısız: ${signupFlowLabelTr(raw.slice('signup_apply_bootstrap_failed:'.length))}`;
   }
 
   // Prefixed / pattern keys
@@ -268,17 +302,34 @@ export default function ClickLogsTab() {
     setActiveDayKey((prev) => (prev && dayKeys.includes(prev) ? prev : dayKeys[0]));
   }, [dayKeys]);
 
-  const signupEventKeys = useMemo(
+  const passiveSignupLandingKeys = useMemo(
     () => [
-      // Primary funnel signals for “signup intent”.
-      // NOTE: totals are per-event unique; the same anonId can contribute to multiple keys.
-      'auth_switch_to_signup',
       'landing_login_signup',
       'landing_login_auto_signup',
+    ],
+    []
+  );
+
+  const activeSignupIntentKeys = useMemo(
+    () => [
+      // Gerçek kullanıcı aksiyonu gerektiren kayıt başlangıç sinyalleri.
+      // NOTE: totals are per-event unique; the same anonId can contribute to multiple keys.
+      // Email/password yöntemini sadece açmak, gerçek kayıt başlangıcı değildir.
       'signup_auto_trigger:google',
       'signup_start:google',
       'signup_start:email',
       'signup_start:email_password',
+    ],
+    []
+  );
+
+  const signupSuccessFunnelKeys = useMemo(
+    () => [
+      'funnel_signup_completed:google',
+      'funnel_signup_completed:google_redirect',
+      'funnel_signup_completed:google_popup',
+      'funnel_signup_completed:email',
+      'funnel_signup_completed:email_password',
     ],
     []
   );
@@ -293,15 +344,92 @@ export default function ClickLogsTab() {
     []
   );
 
-  const selectedSignupClicks = useMemo(() => sumEventTotalsForKeys(selectedDoc, signupEventKeys), [selectedDoc, signupEventKeys]);
+  const signupProfileReadyKeys = useMemo(
+    () => [
+      'signup_profile_ready:google',
+      'signup_profile_ready:google_popup',
+      'signup_profile_ready:google_redirect',
+      'signup_profile_ready:email',
+      'signup_profile_ready:email_password',
+    ],
+    []
+  );
+
+  const signupApplyBootstrapReadyKeys = useMemo(
+    () => [
+      'signup_apply_bootstrap_ready:google',
+      'signup_apply_bootstrap_ready:google_popup',
+      'signup_apply_bootstrap_ready:google_redirect',
+      'signup_apply_bootstrap_ready:email',
+      'signup_apply_bootstrap_ready:email_password',
+    ],
+    []
+  );
+
+  const selectedPassiveSignupLandings = useMemo(
+    () => sumEventTotalsForKeys(selectedDoc, passiveSignupLandingKeys),
+    [selectedDoc, passiveSignupLandingKeys]
+  );
+  const selectedSignupStarts = useMemo(() => sumEventTotalsForKeys(selectedDoc, activeSignupIntentKeys), [selectedDoc, activeSignupIntentKeys]);
   const selectedSignupSuccess = useMemo(
     () => sumEventTotalsForKeys(selectedDoc, signupSuccessEventKeys),
     [selectedDoc, signupSuccessEventKeys]
+  );
+  const selectedFunnelSignupCompleted = useMemo(
+    () => sumEventTotalsForKeys(selectedDoc, signupSuccessFunnelKeys),
+    [selectedDoc, signupSuccessFunnelKeys]
+  );
+  const selectedUpperFunnelFriction = useMemo(
+    () => Math.max(0, selectedPassiveSignupLandings - selectedSignupStarts),
+    [selectedPassiveSignupLandings, selectedSignupStarts]
+  );
+  const selectedClientAccountCreated = useMemo(
+    () => Math.max(selectedSignupSuccess, selectedFunnelSignupCompleted),
+    [selectedFunnelSignupCompleted, selectedSignupSuccess]
+  );
+  const selectedSignupProfileReady = useMemo(
+    () => sumEventTotalsForKeys(selectedDoc, signupProfileReadyKeys),
+    [selectedDoc, signupProfileReadyKeys]
+  );
+  const selectedSignupApplyBootstrapReady = useMemo(
+    () => sumEventTotalsForKeys(selectedDoc, signupApplyBootstrapReadyKeys),
+    [selectedDoc, signupApplyBootstrapReadyKeys]
+  );
+  const selectedLandingCtaImpressions = useMemo(() => getEventTotal(selectedDoc, 'landing_primary_cta_impression'), [selectedDoc]);
+  const selectedLandingDropoff = useMemo(() => getEventTotal(selectedDoc, 'landing_dropoff_before_primary_action'), [selectedDoc]);
+  const selectedLandingHelpActions = useMemo(
+    () => getEventTotal(selectedDoc, 'landing_whatsapp_prequalify_click') + getEventTotal(selectedDoc, 'landing_tour_open'),
+    [selectedDoc]
+  );
+  const selectedEmailPasswordMethodClicks = useMemo(
+    () => getEventTotal(selectedDoc, 'signup_click_email_password'),
+    [selectedDoc]
+  );
+  const selectedSignupClassification = useMemo(
+    () => (signups?.classificationByDay && typeof signups.classificationByDay === 'object' ? signups.classificationByDay[selectedKey] || null : null),
+    [selectedKey, signups]
+  );
+  const selectedSubmittedSignupCount = useMemo(
+    () => safeNum(selectedSignupClassification?.submitted),
+    [selectedSignupClassification]
+  );
+  const selectedUnknownSignupCount = useMemo(
+    () => safeNum(selectedSignupClassification?.unknown),
+    [selectedSignupClassification]
+  );
+  const selectedStubSignupCount = useMemo(
+    () => safeNum(selectedSignupClassification?.byState?.stub),
+    [selectedSignupClassification]
+  );
+  const selectedPartialSignupCount = useMemo(
+    () => safeNum(selectedSignupClassification?.byState?.partial),
+    [selectedSignupClassification]
   );
 
   const googleSignupDiagnostics = useMemo(() => {
     const success = getEventTotal(selectedDoc, 'signup_success:google') + getEventTotal(selectedDoc, 'signup_success:google_redirect');
     const start = getEventTotal(selectedDoc, 'signup_start:google');
+    const popupStart = getEventTotal(selectedDoc, 'signup_popup_start:google');
     const redirectStart = getEventTotal(selectedDoc, 'signup_redirect_start:google');
     const timeout = getEventTotal(selectedDoc, 'signup_redirect_result_timeout:google');
     const noResult = getEventTotal(selectedDoc, 'auth_redirect_no_result:google');
@@ -319,6 +447,7 @@ export default function ClickLogsTab() {
 
     return {
       start,
+      popupStart,
       redirectStart,
       success,
       timeout,
@@ -335,6 +464,19 @@ export default function ClickLogsTab() {
     if (!selectedKey) return 0;
     return safeNum(signups?.countsByDay?.[selectedKey]);
   }, [signups, selectedKey]);
+  const selectedClientAuthGap = useMemo(
+    () => Math.max(0, selectedClientAccountCreated - selectedSignups),
+    [selectedClientAccountCreated, selectedSignups]
+  );
+  const selectedProvisioningGap = useMemo(
+    () => Math.max(
+      0,
+      selectedClientAccountCreated - selectedSignupProfileReady,
+      selectedClientAccountCreated - selectedSignupApplyBootstrapReady
+    ),
+    [selectedClientAccountCreated, selectedSignupApplyBootstrapReady, selectedSignupProfileReady]
+  );
+  const selectedPostStartLoss = useMemo(() => Math.max(0, selectedSignupStarts - selectedSignups), [selectedSignupStarts, selectedSignups]);
 
   const firebaseProjectInfo = useMemo(() => {
     const apiProjectId = String(signups?.projectId || '').trim();
@@ -507,7 +649,7 @@ export default function ClickLogsTab() {
         </div>
       ) : null}
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
         <div className="rounded-2xl border border-slate-200 bg-white p-4">
           <div className="text-xs uppercase tracking-wide text-slate-500">Seçili gün</div>
           <div className="text-lg font-bold text-slate-900">{fmtDateKey(selectedKey)}</div>
@@ -535,29 +677,71 @@ export default function ClickLogsTab() {
         </div>
 
         <div className="rounded-2xl border border-slate-200 bg-white p-4">
-          <div className="text-xs uppercase tracking-wide text-slate-500">Yaklaşık kayıt niyeti</div>
-          <div className="text-lg font-bold text-slate-900">{selectedSignupClicks}</div>
+          <div className="text-xs uppercase tracking-wide text-slate-500">Signup modunda açılış</div>
+          <div className="text-lg font-bold text-slate-900">{selectedPassiveSignupLandings}</div>
           <div className="mt-2 text-sm text-slate-700">
-            Kayıt olan: <span className="font-bold">{selectedSignups}</span>
+            Landing→aksiyon sürtünmesi: <span className="font-bold">{selectedUpperFunnelFriction}</span>
           </div>
-          <div className="mt-1 text-sm text-slate-700">
-            Kayıt başarılı olayı: <span className="font-bold">{selectedSignupSuccess}</span>
-          </div>
+          <div className="mt-1 text-sm text-slate-700">CTA görünümü: <span className="font-bold">{selectedLandingCtaImpressions}</span></div>
+          <div className="mt-1 text-sm text-slate-700">Aksiyonsuz çıkış: <span className="font-bold">{selectedLandingDropoff}</span></div>
         </div>
 
         <div className="rounded-2xl border border-slate-200 bg-white p-4">
-          <div className="text-xs uppercase tracking-wide text-slate-500">Tahmini kayıpsızlık</div>
-          <div className="text-lg font-bold text-slate-900">
-            {selectedSignupClicks > 0 ? Math.max(0, selectedSignupClicks - selectedSignups) : 0}
+          <div className="text-xs uppercase tracking-wide text-slate-500">Gerçek kayıt başlangıcı</div>
+          <div className="text-lg font-bold text-slate-900">{selectedSignupStarts}</div>
+          <div className="mt-2 text-sm text-slate-700">
+            Email/Şifre seçildi: <span className="font-bold">{selectedEmailPasswordMethodClicks}</span>
           </div>
-          <div className="mt-2 text-sm text-slate-700">(Yaklaşık: kayıt niyeti olup kayda dönüşmeyenler)</div>
+          <div className="mt-1 text-sm text-slate-700">
+            Auth kaydı: <span className="font-bold">{selectedSignups}</span>
+          </div>
+          <div className="mt-1 text-sm text-slate-700">
+            Hesap oluştu (istemci): <span className="font-bold">{selectedClientAccountCreated}</span>
+          </div>
+          <div className="mt-1 text-sm text-slate-700">Profil hazır (event): <span className="font-bold">{selectedSignupProfileReady}</span></div>
+          <div className="mt-1 text-sm text-slate-700">Başvuru stub hazır (event): <span className="font-bold">{selectedSignupApplyBootstrapReady}</span></div>
+          <div className="mt-1 text-sm text-slate-700">Backend gerçek form: <span className="font-bold">{selectedSubmittedSignupCount}</span></div>
+          <div className="mt-1 text-sm text-slate-700">Backend bilinmeyen/stub: <span className="font-bold">{selectedUnknownSignupCount}</span></div>
+          <div className="mt-1 text-sm text-slate-700">WhatsApp/Tur yardımı: <span className="font-bold">{selectedLandingHelpActions}</span></div>
+        </div>
+
+        <div className="rounded-2xl border border-slate-200 bg-white p-4">
+          <div className="text-xs uppercase tracking-wide text-slate-500">Başlangıç sonrası kayıp</div>
+          <div className="text-lg font-bold text-slate-900">{selectedPostStartLoss}</div>
+          <div className="mt-2 text-sm text-slate-700">Sadece gerçek kayıt başlatan kullanıcılar baz alınır.</div>
+          <div className="mt-1 text-sm text-slate-700">Pasif landing sayıları bu metriğe dahil edilmez.</div>
         </div>
       </div>
+
+      {(firebaseProjectInfo.mismatch || selectedClientAuthGap > 0 || selectedProvisioningGap > 0) ? (
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-amber-950">
+          <div className="font-bold">Signup teşhis özeti</div>
+          <div className="mt-2 text-sm">
+            Hesap oluştu (istemci): <span className="font-semibold">{selectedClientAccountCreated}</span> · Auth kaydı: <span className="font-semibold">{selectedSignups}</span> · Profil hazır: <span className="font-semibold">{selectedSignupProfileReady}</span> · Başvuru stub hazır: <span className="font-semibold">{selectedSignupApplyBootstrapReady}</span>
+          </div>
+          <div className="mt-1 text-sm text-amber-900">
+            Backend snapshot: gerçek form <span className="font-semibold">{selectedSubmittedSignupCount}</span> · bilinmeyen/stub <span className="font-semibold">{selectedUnknownSignupCount}</span>
+            {selectedStubSignupCount > 0 ? <> · stub <span className="font-semibold">{selectedStubSignupCount}</span></> : null}
+            {selectedPartialSignupCount > 0 ? <> · on kayıt <span className="font-semibold">{selectedPartialSignupCount}</span></> : null}
+          </div>
+          {selectedClientAuthGap > 0 ? (
+            <div className="mt-1 text-sm text-amber-900">
+              İstemci tarafında hesap oluştu sinyali Auth sayısından <span className="font-semibold">{selectedClientAuthGap}</span> fazla. Proje uyuşmazlığı veya auth tamamlanmadan kalan akış ihtimali var.
+            </div>
+          ) : null}
+          {selectedProvisioningGap > 0 ? (
+            <div className="mt-1 text-sm text-amber-900">
+              Signup provisioning adımlarında en az <span className="font-semibold">{selectedProvisioningGap}</span> kullanıcı profili veya başvuru stub'ı hazır olmadan kalmış görünüyor.
+            </div>
+          ) : null}
+        </div>
+      ) : null}
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
         <div className="rounded-2xl border border-slate-200 bg-white p-4">
           <div className="text-xs uppercase tracking-wide text-slate-500">Google kayıt başlangıcı</div>
           <div className="text-lg font-bold text-slate-900">{googleSignupDiagnostics.start}</div>
+          <div className="mt-2 text-sm text-slate-700">Popup başlangıcı: <span className="font-bold">{googleSignupDiagnostics.popupStart}</span></div>
           <div className="mt-2 text-sm text-slate-700">Yönlendirme başlangıcı: <span className="font-bold">{googleSignupDiagnostics.redirectStart}</span></div>
         </div>
 
@@ -801,16 +985,20 @@ export default function ClickLogsTab() {
               <tr className="text-left text-xs uppercase tracking-wide text-slate-500 border-b">
                 <th className="py-2 pr-3">Gün</th>
                 <th className="py-2 pr-3">Tekil olay</th>
-                <th className="py-2 pr-3">Kayıt ol tık</th>
-                <th className="py-2">Kayıt</th>
+                <th className="py-2 pr-3">Gerçek kayıt başlangıcı</th>
+                <th className="py-2 pr-3">Email/Şifre seçildi</th>
+                <th className="py-2 pr-3">Kayıt</th>
+                <th className="py-2">Bilinmeyen/Stub</th>
               </tr>
             </thead>
             <tbody>
               {dayKeys.map((k) => {
                 const doc = clickStats?.byDay?.[k] || null;
                 const totalUnique = safeNum(doc?.totalUnique);
-                const signupClicks = sumEventTotalsForKeys(doc, signupEventKeys);
+                const signupStarts = sumEventTotalsForKeys(doc, activeSignupIntentKeys);
+                const emailMethodClicks = getEventTotal(doc, 'signup_click_email_password');
                 const signupCount = safeNum(signups?.countsByDay?.[k]);
+                const unknownCount = safeNum(signups?.classificationByDay?.[k]?.unknown);
                 const isActive = k === selectedKey;
                 return (
                   <tr key={k} className={`border-b last:border-b-0 ${isActive ? 'bg-emerald-50/70' : ''}`}>
@@ -824,8 +1012,10 @@ export default function ClickLogsTab() {
                       </button>
                     </td>
                     <td className="py-2 pr-3 font-bold">{totalUnique}</td>
-                    <td className="py-2 pr-3 font-bold">{signupClicks}</td>
-                    <td className="py-2 font-bold">{signupCount}</td>
+                    <td className="py-2 pr-3 font-bold">{signupStarts}</td>
+                    <td className="py-2 pr-3 font-bold">{emailMethodClicks}</td>
+                    <td className="py-2 pr-3 font-bold">{signupCount}</td>
+                    <td className="py-2 font-bold">{unknownCount}</td>
                   </tr>
                 );
               })}

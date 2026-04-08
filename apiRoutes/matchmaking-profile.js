@@ -74,6 +74,13 @@ function lastSeenMsFromUserDoc(userDoc) {
   return ts > 0 ? ts : 0;
 }
 
+function isDirectPeopleListMatch(match) {
+  const data = match && typeof match === 'object' ? match : {};
+  const tier = safeStr(data?.matchTier).toLowerCase();
+  const createdBy = safeStr(data?.createdBy).toLowerCase();
+  return tier === 'pre_match' || createdBy === 'pre_match_request';
+}
+
 // Eligibility kontrolü artık ortak helper üzerinden.
 
 export default async function handler(req, res) {
@@ -125,6 +132,7 @@ export default async function handler(req, res) {
 
     const matchStatus = safeStr(match?.status);
     const isMatchedCouple = matchStatus === 'mutual_accepted' || matchStatus === 'contact_unlocked';
+    const allowDirectPeopleListProfile = isDirectPeopleListMatch(match);
 
     const aUserId = safeStr(match.aUserId);
     const bUserId = safeStr(match.bUserId);
@@ -136,7 +144,7 @@ export default async function handler(req, res) {
 
     // Ön aşama (proposed/pre_match vb.) için: detay profil, karşı tarafın verdiği profileAccessGranted iznine bağlı.
     // Eşleşmiş çiftlerde (mutual_accepted/contact_unlocked) iki taraf da birbirini görür.
-    if (!isMatchedCouple) {
+    if (!isMatchedCouple && !allowDirectPeopleListProfile) {
       const grantSnap = await db
         .collection('matchmakingUsers')
         .doc(otherUserId)

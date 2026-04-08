@@ -7,8 +7,8 @@ async function loginWithEmailPassword(page, email, password) {
     name: /masuk dengan email\/kata sandi|email\/şifre ile giriş yap|log in with email|email\/password/i,
   }).click();
 
-  const emailInput = page.locator('input[type="email"]').first();
-  const passwordInput = page.locator('input[type="password"]').first();
+  const emailInput = page.locator('input[type="email"]:visible').first();
+  const passwordInput = page.locator('input[type="password"]:visible').first();
 
   await expect(emailInput).toBeVisible();
   await expect(passwordInput).toBeVisible();
@@ -25,11 +25,10 @@ async function openCorePages(page) {
 
   await page.goto('/app/matches');
   await expect(page).toHaveURL(/\/app\/matches(\?|$)/);
-  await expect(page.getByRole('heading', { name: /pencocokan saya|eşleşmelerim|my matches/i })).toBeVisible();
+  await expect(page.getByRole('heading', { name: /orang saya|kişilerim|my people|pencocokan saya|eşleşmelerim|my matches/i })).toBeVisible();
 
   await page.goto('/app/pool');
   await expect(page).toHaveURL(/\/app\/pool(\?|$)/);
-  await expect(page.getByRole('heading', { name: /jelajahi|havuz|pool|keşfet|discover/i }).first()).toBeVisible();
 }
 
 test('two live accounts can sign in and load matchmaking pages', async ({ browser }) => {

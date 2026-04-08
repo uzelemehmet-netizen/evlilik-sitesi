@@ -1,7 +1,10 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { authFetch } from '../../utils/authFetch';
 import { getDownloadURL, ref } from 'firebase/storage';
 import { storage } from '../../config/firebaseStorage';
+import { getDraftFieldLabel, getDraftProgressInfo } from '../../utils/adminDraftProgress';
+
+const ADMIN_USERS_PAGE_SIZE = 200;
 
 function fmtDate(ms) {
   try {
@@ -24,6 +27,13 @@ function shortUid(uid) {
   return `${s.slice(0, 6)}…${s.slice(-4)}`;
 }
 
+function parseUserCodeOrderValue(userCode) {
+  const match = String(userCode || '').trim().match(/^UC-(\d+)$/i);
+  if (!match) return 0;
+  const value = Number(match[1]);
+  return Number.isFinite(value) ? value : 0;
+}
+
 function genderLabel(g) {
   const s = String(g || '').toLowerCase();
   if (s === 'female') return 'Kadın';
@@ -33,9 +43,11 @@ function genderLabel(g) {
 
 function statusLabel(code) {
   const c = String(code || '').toUpperCase();
+  if (c === 'UNKNOWN') return 'BİLİNMEYEN';
   if (c === 'DISABLED') return 'DEVRE DIŞI';
   if (c === 'BLOCKED') return 'ENGELLİ';
   if (c === 'FORM') return 'FORM';
+  if (c === 'PARTIAL') return 'ÖN KAYIT';
   if (c === 'CACHE') return 'FORM CACHE';
   if (c === 'STUB') return 'STUB';
   if (c === 'PROFILE') return 'PROFİL';
@@ -47,8 +59,10 @@ function statusLabel(code) {
 
 function statusPillClass(code) {
   const c = String(code || '').toUpperCase();
+  if (c === 'UNKNOWN') return 'bg-rose-100 text-rose-800';
   if (c === 'BLOCKED' || c === 'DISABLED') return 'bg-rose-100 text-rose-800';
   if (c === 'FORM') return 'bg-emerald-100 text-emerald-800';
+  if (c === 'PARTIAL') return 'bg-amber-100 text-amber-800';
   if (c === 'CACHE') return 'bg-teal-100 text-teal-800';
   if (c === 'STUB') return 'bg-amber-100 text-amber-800';
   if (c === 'PROFILE') return 'bg-sky-100 text-sky-800';
@@ -60,10 +74,19 @@ function statusPillClass(code) {
 function applicationStateLabel(state) {
   const s = String(state || '').toLowerCase();
   if (s === 'real') return 'Gerçek form';
+  if (s === 'partial') return 'Ön kayıt tamam, form eksik';
   if (s === 'cache') return 'Cache form';
   if (s === 'stub' || s === 'stub_cache') return 'Stub';
   if (s === 'profile') return 'Profil cache';
   return 'Yok';
+}
+
+function hasSubmittedAdminProfile(user) {
+  return user?.hasSubmittedProfile === true;
+}
+
+function isUnknownAdminUser(user) {
+  return !hasSubmittedAdminProfile(user);
 }
 
 function pill(color) {
@@ -75,10 +98,26 @@ function pill(color) {
   return `${base} border-gray-200 bg-gray-50 text-gray-800`;
 }
 
+function draftUpdatedAtLabel(ms) {
+  if (!ms || typeof ms !== 'number') return '-';
+  try {
+    return new Intl.DateTimeFormat('tr-TR', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+    }).format(new Date(ms));
+  } catch {
+    return '-';
+  }
+}
+
 export default function AllUsersTab() {
   const [query, setQuery] = useState('');
   const [users, setUsers] = useState([]);
-  const [sortMode, setSortMode] = useState('created_desc');
+  const [sortMode, setSortMode] = useState('user_code_desc');
+  const [viewTab, setViewTab] = useState('defined_female');
   const [nextPageToken, setNextPageToken] = useState(null);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState('');
@@ -111,45 +150,102 @@ export default function AllUsersTab() {
   const [deleteFinal, setDeleteFinal] = useState(false);
 
   const [campaignState, setCampaignState] = useState({ loading: false, error: '', msg: '', details: null });
+  const loadRef = useRef(null);
 
   const trimmedQuery = useMemo(() => String(query || '').trim(), [query]);
 
   const visibleUsers = useMemo(() => {
     const list = Array.isArray(users) ? [...users] : [];
-    const dir = sortMode === 'created_asc' ? 1 : -1;
+    const dir = sortMode === 'user_code_asc' ? 1 : -1;
     list.sort((a, b) => {
+      const ac = parseUserCodeOrderValue(a?.userCode);
+      const bc = parseUserCodeOrderValue(b?.userCode);
+      const aHasCode = ac > 0;
+      const bHasCode = bc > 0;
+      if (aHasCode !== bHasCode) return aHasCode ? -1 : 1;
+      if (ac !== bc) return (ac - bc) * dir;
       const am = typeof a?.createdAtMs === 'number' && Number.isFinite(a.createdAtMs) ? a.createdAtMs : 0;
       const bm = typeof b?.createdAtMs === 'number' && Number.isFinite(b.createdAtMs) ? b.createdAtMs : 0;
-      if (am !== bm) return (am - bm) * dir;
+      if (am !== bm) return bm - am;
       const au = String(a?.uid || '');
       const bu = String(b?.uid || '');
       return au.localeCompare(bu);
     });
-    return list;
-  }, [users, sortMode]);
+    if (trimmedQuery) return list;
+    return list.filter((item) => {
+      if (viewTab === 'unknown') return isUnknownAdminUser(item);
+      if (!hasSubmittedAdminProfile(item)) return false;
+      const gender = String(item?.gender || '').toLowerCase();
+      if (viewTab === 'defined_male') return gender === 'male';
+      return gender === 'female';
+    });
+  }, [users, sortMode, trimmedQuery, viewTab]);
+
+  const definedCount = useMemo(() => users.filter((item) => hasSubmittedAdminProfile(item)).length, [users]);
+  const unknownCount = useMemo(() => users.filter((item) => isUnknownAdminUser(item)).length, [users]);
+  const definedGenderCounts = useMemo(() => {
+    const counts = { female: 0, male: 0 };
+    for (const item of users) {
+      if (!hasSubmittedAdminProfile(item)) continue;
+      const gender = String(item?.gender || '').toLowerCase();
+      if (gender === 'female') counts.female += 1;
+      if (gender === 'male') counts.male += 1;
+    }
+    return counts;
+  }, [users]);
 
   const load = async ({ mode }) => {
     setLoading(true);
     setErr('');
     try {
-      const payload = {
-        pageSize: 50,
+      const fetchPage = async (pageTokenValue = null) => {
+        const payload = {
+          pageSize: ADMIN_USERS_PAGE_SIZE,
+        };
+
+        if (mode === 'search' && trimmedQuery) {
+          payload.query = trimmedQuery;
+        } else if (pageTokenValue) {
+          payload.pageToken = pageTokenValue;
+        }
+
+        return authFetch('/api/admin-users-list', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
       };
 
-      if (mode === 'search' && trimmedQuery) {
-        payload.query = trimmedQuery;
-      } else if (mode === 'more' && nextPageToken) {
-        payload.pageToken = nextPageToken;
+      let list = [];
+      let token = null;
+
+      if (mode === 'first' && !trimmedQuery) {
+        const merged = [];
+        let cursor = null;
+        let pageCount = 0;
+
+        do {
+          // eslint-disable-next-line no-await-in-loop
+          const data = await fetchPage(cursor);
+          const pageUsers = Array.isArray(data?.users) ? data.users : [];
+          merged.push(...pageUsers);
+          cursor = data?.nextPageToken || null;
+          pageCount += 1;
+        } while (cursor && pageCount < 50);
+
+        const seen = new Set();
+        list = merged.filter((item) => {
+          const uid = String(item?.uid || '');
+          if (!uid || seen.has(uid)) return false;
+          seen.add(uid);
+          return true;
+        });
+        token = cursor;
+      } else {
+        const data = await fetchPage(mode === 'more' ? nextPageToken : null);
+        list = Array.isArray(data?.users) ? data.users : [];
+        token = data?.nextPageToken || null;
       }
-
-      const data = await authFetch('/api/admin-users-list', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-
-      const list = Array.isArray(data?.users) ? data.users : [];
-      const token = data?.nextPageToken || null;
 
       if (mode === 'more') {
         setUsers((prev) => [...prev, ...list]);
@@ -172,6 +268,10 @@ export default function AllUsersTab() {
     }
   };
 
+  useEffect(() => {
+    loadRef.current = load;
+  }, [load]);
+
   const loadFirst = async () => {
     await load({ mode: trimmedQuery ? 'search' : 'first' });
   };
@@ -186,6 +286,59 @@ export default function AllUsersTab() {
     load({ mode: 'first' });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const refreshList = async () => {
+      if (cancelled) return;
+      if (document.visibilityState !== 'visible') return;
+      if (loading) return;
+      const runner = loadRef.current;
+      if (typeof runner !== 'function') return;
+      await runner({ mode: trimmedQuery ? 'search' : 'first' });
+    };
+
+    const intervalId = window.setInterval(() => {
+      refreshList().catch(() => {});
+    }, 15000);
+
+    const handleFocus = () => {
+      refreshList().catch(() => {});
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState !== 'visible') return;
+      refreshList().catch(() => {});
+    };
+
+    window.addEventListener('focus', handleFocus);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(intervalId);
+      window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [loading, trimmedQuery]);
+
+  useEffect(() => {
+    if (!selected?.uid) return;
+    const selectedUid = String(selected.uid || '');
+    const stillVisible = visibleUsers.some((item) => item?.uid === selectedUid);
+    if (stillVisible) return;
+
+    const latest = users.find((item) => item?.uid === selectedUid) || null;
+    if (!latest) {
+      setSelected(null);
+      return;
+    }
+
+    // Kullanıcı filtreyi bilerek değiştirdiyse mevcut sekmeyi koru.
+    // Eski seçimi görünmeyen bir kategoriden taşımak, sekmenin anında geri dönmesine yol açıyordu.
+    setSelected(null);
+  }, [selected, users, visibleUsers]);
 
   const selectUser = (u) => {
     setSelected(u || null);
@@ -282,7 +435,8 @@ export default function AllUsersTab() {
     try {
       const isDryRun = dryRun !== false;
       const totalWanted = 200;
-      const chunkLimit = 60;
+      const chunkLimit = 10;
+      const maxRequests = 30;
 
       let cursorUid = '';
       let totalCandidates = 0;
@@ -293,7 +447,7 @@ export default function AllUsersTab() {
 
       let lastData = null;
 
-      for (let i = 0; i < 20; i++) {
+      for (let i = 0; i < maxRequests; i++) {
         const data = await authFetch('/api/admin-push-incomplete-application-once', {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
@@ -341,6 +495,41 @@ export default function AllUsersTab() {
 
   function safeStr(v) {
     return typeof v === 'string' ? v.trim() : '';
+  }
+
+  function buildModalUserFallback(entry) {
+    const item = entry && typeof entry === 'object' ? entry : null;
+    if (!item) return null;
+
+    const hasAnyValue = [
+      item?.userCode,
+      item?.fullName,
+      item?.gender,
+      item?.whatsapp,
+      item?.occupation,
+      item?.maritalStatus,
+      item?.hasChildren,
+      item?.childrenCount,
+      item?.applicationId,
+    ].some((value) => value !== null && value !== undefined && String(value).trim?.() !== '');
+
+    if (!hasAnyValue && !(typeof item?.age === 'number' && Number.isFinite(item.age))) return null;
+
+    const details = {};
+    if (safeStr(item?.occupation)) details.occupation = safeStr(item.occupation);
+    if (safeStr(item?.maritalStatus)) details.maritalStatus = safeStr(item.maritalStatus);
+    if (item?.hasChildren !== null && item?.hasChildren !== undefined && item?.hasChildren !== '') details.hasChildren = item.hasChildren;
+    if (typeof item?.childrenCount === 'number' && Number.isFinite(item.childrenCount)) details.childrenCount = item.childrenCount;
+    if (safeStr(item?.whatsapp)) details.whatsapp = safeStr(item.whatsapp);
+
+    return {
+      userCode: safeStr(item?.userCode) || null,
+      fullName: safeStr(item?.fullName) || null,
+      age: typeof item?.age === 'number' && Number.isFinite(item.age) ? item.age : null,
+      gender: safeStr(item?.gender) || null,
+      applicationId: safeStr(item?.applicationId) || null,
+      details: Object.keys(details).length ? details : null,
+    };
   }
 
   function isPrimitive(v) {
@@ -541,6 +730,21 @@ export default function AllUsersTab() {
     return /\.(png|jpe?g|webp|gif)(\?|#|$)/i.test(s);
   }
 
+  function isRenderablePhotoSource(value) {
+    const s = safeStr(value);
+    if (!s) return false;
+    const low = s.toLowerCase();
+    return low.startsWith('http://') || low.startsWith('https://') || low.startsWith('data:image/') || low.startsWith('blob:');
+  }
+
+  function normalizeStoragePhotoRef(value) {
+    const s = safeStr(value);
+    if (!s) return '';
+    if (isRenderablePhotoSource(s)) return '';
+    if (s.startsWith('/')) return s.replace(/^\/+/, '');
+    return s;
+  }
+
   function normalizeForJson(value, depth = 0) {
     if (depth > 15) return '[max_depth]';
     if (value == null) return value;
@@ -566,17 +770,18 @@ export default function AllUsersTab() {
     return String(value);
   }
 
-  const openFormModal = async (uidOverride) => {
+  const openFormModal = async (uidOverride, fallbackEntry = null) => {
     // Not: onClick handler'larında bu fonksiyon direkt verilirse React event objesini parametre diye geçirir.
     // UID yerine "[object PointerEvent]" gibi değerler gitmesin diye sadece string uid kabul ediyoruz.
     const uidToLoad = typeof uidOverride === 'string' && uidOverride.trim()
       ? uidOverride.trim()
       : String(selectedUid ?? '').trim();
     if (!uidToLoad) return;
+    const fallbackUser = buildModalUserFallback(fallbackEntry);
     setShowRawJson(false);
     setFormLightbox({ open: false, urls: [], index: 0, title: '' });
     setFormPhotoState({ loading: false, urls: [], error: '' });
-    setFormModal({ open: true, uid: uidToLoad, loading: true, error: '', application: null, user: null, count: 0 });
+    setFormModal({ open: true, uid: uidToLoad, loading: true, error: '', application: null, user: fallbackUser, count: 0 });
     try {
       const data = await authFetch('/api/admin-user-application-get', {
         method: 'POST',
@@ -590,7 +795,7 @@ export default function AllUsersTab() {
         loading: false,
         error: '',
         application: data?.application || null,
-        user: data?.user || null,
+        user: data?.user || fallbackUser,
         count: typeof data?.count === 'number' ? data.count : 0,
       });
     } catch (e) {
@@ -600,7 +805,7 @@ export default function AllUsersTab() {
         loading: false,
         error: String(e?.message || 'form_yuklenemedi'),
         application: null,
-        user: null,
+        user: fallbackUser,
         count: 0,
       });
     }
@@ -625,13 +830,18 @@ export default function AllUsersTab() {
       const user = formModal.user && typeof formModal.user === 'object' ? formModal.user : null;
 
       const direct = [];
+      const pathRefs = [];
       const pushDirect = (arr) => {
         const list = Array.isArray(arr) ? arr : [];
         for (const u of list) {
           const s = safeStr(u);
           if (!s) continue;
-          if (direct.includes(s)) continue;
-          direct.push(s);
+          if (isRenderablePhotoSource(s)) {
+            if (!direct.includes(s)) direct.push(s);
+            continue;
+          }
+          const refValue = normalizeStoragePhotoRef(s);
+          if (refValue && !pathRefs.includes(refValue)) pathRefs.push(refValue);
         }
       };
 
@@ -648,20 +858,18 @@ export default function AllUsersTab() {
       pushDirect(userDetails?.photoUrls);
       pushDirect(userDetails?.photos);
 
-      // Eğer direkt URL varsa önce onları göster.
-      if (direct.length) {
-        if (!cancelled) setFormPhotoState({ loading: false, urls: direct, error: '' });
-        return;
-      }
-
-      const paths = [];
       const pushPaths = (arr) => {
         const list = Array.isArray(arr) ? arr : [];
         for (const p of list) {
           const s = safeStr(p);
           if (!s) continue;
-          if (paths.includes(s)) continue;
-          paths.push(s);
+          if (isRenderablePhotoSource(s)) {
+            if (!direct.includes(s)) direct.push(s);
+            continue;
+          }
+          const refValue = normalizeStoragePhotoRef(s);
+          if (!refValue || pathRefs.includes(refValue)) continue;
+          pathRefs.push(refValue);
         }
       };
 
@@ -671,22 +879,24 @@ export default function AllUsersTab() {
       pushPaths(user?.photoPaths);
       pushPaths(user?.publicProfile?.photoPaths);
       pushPaths(userDetails?.photoPaths);
-      if (safeStr(user?.photoPath)) paths.push(safeStr(user.photoPath));
-      if (safeStr(app?.photoPath)) paths.push(safeStr(app.photoPath));
-      if (safeStr(appDetails?.photoPath)) paths.push(safeStr(appDetails.photoPath));
-      if (safeStr(userDetails?.photoPath)) paths.push(safeStr(userDetails.photoPath));
+      pushPaths([user?.photoPath]);
+      pushPaths([user?.publicProfile?.photoPath]);
+      pushPaths([app?.photoPath]);
+      pushPaths([app?.publicProfile?.photoPath]);
+      pushPaths([appDetails?.photoPath]);
+      pushPaths([userDetails?.photoPath]);
 
-      if (!paths.length) {
+      if (!direct.length && !pathRefs.length) {
         if (!cancelled) setFormPhotoState({ loading: false, urls: [], error: '' });
         return;
       }
 
       if (!cancelled) setFormPhotoState({ loading: true, urls: [], error: '' });
 
-      const resolved = [];
-      for (const p of paths.slice(0, 24)) {
+      const resolved = [...direct];
+      for (const p of pathRefs.slice(0, 24)) {
         try {
-          // Firebase Storage path (ör: users/uid/...) -> download URL
+          // Firebase Storage path / gs:// ref -> download URL
           const url = await getDownloadURL(ref(storage, p));
           if (url && !resolved.includes(url)) resolved.push(url);
         } catch {
@@ -903,6 +1113,39 @@ export default function AllUsersTab() {
       <div className="mt-4 space-y-4">
         <div>
           <div className="mb-3 flex flex-col md:flex-row md:items-center gap-2">
+            <div className="inline-flex w-full overflow-hidden rounded-lg border border-slate-200 bg-white md:w-auto">
+              <button
+                type="button"
+                onClick={() => setViewTab('defined_female')}
+                className={
+                  'px-3 py-2 text-sm font-semibold ' +
+                  (viewTab === 'defined_female' ? 'bg-fuchsia-600 text-white' : 'bg-white text-slate-700 hover:bg-slate-50')
+                }
+              >
+                Tanımlı Kadınlar ({definedGenderCounts.female})
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewTab('defined_male')}
+                className={
+                  'border-l border-slate-200 px-3 py-2 text-sm font-semibold ' +
+                  (viewTab === 'defined_male' ? 'bg-sky-600 border-sky-600 text-white' : 'bg-white text-slate-700 hover:bg-slate-50')
+                }
+              >
+                Tanımlı Erkekler ({definedGenderCounts.male})
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewTab('unknown')}
+                className={
+                  'border-l border-slate-200 px-3 py-2 text-sm font-semibold ' +
+                  (viewTab === 'unknown' ? 'bg-rose-600 border-rose-600 text-white' : 'bg-white text-slate-700 hover:bg-slate-50')
+                }
+              >
+                Bilinmeyen Kullanıcılar ({unknownCount})
+              </button>
+            </div>
+
             <button
               type="button"
               className="px-3 py-2 rounded-lg bg-slate-700 text-white text-sm hover:bg-slate-800 disabled:opacity-60"
@@ -942,6 +1185,11 @@ export default function AllUsersTab() {
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key !== 'Enter') return;
+                e.preventDefault();
+                loadFirst().catch(() => {});
+              }}
               placeholder="Ara: UC-..., email veya uid"
               className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-indigo-600"
             />
@@ -950,10 +1198,10 @@ export default function AllUsersTab() {
               value={sortMode}
               onChange={(e) => setSortMode(e.target.value)}
               className="w-full md:w-64 px-3 py-2 border border-gray-300 rounded text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-600"
-              aria-label="Kayıt tarihine göre sırala"
+              aria-label="UC koduna göre sırala"
             >
-              <option value="created_desc">Kayıt: En yeni → En eski</option>
-              <option value="created_asc">Kayıt: En eski → En yeni</option>
+              <option value="user_code_desc">UC: En yeni → En eski</option>
+              <option value="user_code_asc">UC: En eski → En yeni</option>
             </select>
 
             <button
@@ -996,6 +1244,10 @@ export default function AllUsersTab() {
                     const applicationStatusCode =
                       u?.applicationState === 'real'
                         ? 'FORM'
+                        : isUnknownAdminUser(u)
+                          ? 'UNKNOWN'
+                        : u?.applicationState === 'partial'
+                          ? 'PARTIAL'
                         : u?.applicationState === 'cache'
                           ? 'CACHE'
                           : u?.applicationState === 'stub' || u?.applicationState === 'stub_cache'
@@ -1050,7 +1302,7 @@ export default function AllUsersTab() {
                           selectUser(u);
                           // İstenen UX: Kullanıcıya tıklayınca (fotoğrafı varsa) fotoğrafları görebilmeliyiz.
                           // Form modalı zaten fotoğrafları çözüp gösteriyor; tıklamada otomatik açıyoruz.
-                          openFormModal(u?.uid);
+                          openFormModal(u?.uid, u);
                         }}
                       >
                         <td className="px-3 py-2 font-mono">{u?.userCode || '-'}</td>
@@ -1114,9 +1366,9 @@ export default function AllUsersTab() {
                     );
                   })}
 
-                  {!users.length && !loading ? (
+                  {!visibleUsers.length && !loading ? (
                     <tr>
-                      <td colSpan={14} className="px-3 py-6 text-center text-gray-500">
+                      <td colSpan={15} className="px-3 py-6 text-center text-gray-500">
                         Kayıt bulunamadı.
                       </td>
                     </tr>
@@ -1126,7 +1378,13 @@ export default function AllUsersTab() {
             </div>
 
             <div className="p-3 bg-gray-50 flex items-center justify-between">
-              <div className="text-xs text-gray-600">Toplam gösterilen: {users.length}</div>
+              <div className="text-xs text-gray-600">
+                {viewTab === 'unknown'
+                  ? `Bilinmeyen kullanıcılar: ${visibleUsers.length}`
+                  : viewTab === 'defined_male'
+                    ? `Tanımlı erkek kullanıcılar: ${visibleUsers.length}`
+                    : `Tanımlı kadın kullanıcılar: ${visibleUsers.length}`}
+              </div>
               <button
                 type="button"
                 className="px-3 py-2 rounded-lg bg-white border text-sm hover:bg-gray-100 disabled:opacity-60"
@@ -1175,7 +1433,7 @@ export default function AllUsersTab() {
               <div className="flex flex-col items-start md:items-end gap-2">
                 <button
                   type="button"
-                  onClick={() => openFormModal(selectedUid)}
+                  onClick={() => openFormModal(selectedUid, selected)}
                   disabled={!selectedUid}
                   className="px-3 py-2 rounded-lg bg-white border text-sm hover:bg-gray-100 disabled:opacity-60"
                   title="Seçili kullanıcının form/başvuru detaylarını ve fotoğraflarını göster"
@@ -1424,7 +1682,7 @@ export default function AllUsersTab() {
                 <button
                   type="button"
                   className="px-3 py-2 rounded-lg bg-white border text-sm hover:bg-gray-100"
-                  onClick={() => openFormModal(formModal.uid)}
+                  onClick={() => openFormModal(formModal.uid, selected?.uid === formModal.uid ? selected : formModal.user)}
                   disabled={formModal.loading}
                 >
                   Yenile
@@ -1455,6 +1713,34 @@ export default function AllUsersTab() {
                 <p className="text-sm text-slate-700">Yükleniyor…</p>
               ) : (
                 <>
+                  {(() => {
+                    const draftInfo = getDraftProgressInfo(formModal.application);
+                    if (!draftInfo) return null;
+                    return (
+                      <section className="mb-4 rounded-xl border border-indigo-200 bg-indigo-50 p-4">
+                        <h4 className="text-sm font-bold text-indigo-950">Form Drop-off Özeti</h4>
+                        <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3 text-sm text-indigo-950">
+                          <div><span className="text-indigo-700">İlerleme:</span> {draftInfo.totalRequiredCount > 0 ? `${draftInfo.completedRequiredCount}/${draftInfo.totalRequiredCount}` : '-'}</div>
+                          <div><span className="text-indigo-700">Takıldığı alan:</span> {draftInfo.firstMissingRequiredLabel}</div>
+                          <div><span className="text-indigo-700">Son dokunduğu alan:</span> {draftInfo.lastInputKey ? draftInfo.lastInputLabel : '-'}</div>
+                          <div><span className="text-indigo-700">Son taslak kaydı:</span> {draftUpdatedAtLabel(draftInfo.draftUpdatedAtMs)}</div>
+                        </div>
+                        {draftInfo.missingRequiredKeys.length > 0 ? (
+                          <div className="mt-3">
+                            <div className="text-xs font-semibold uppercase tracking-wide text-indigo-700">Eksik zorunlu alanlar</div>
+                            <div className="mt-2 flex flex-wrap gap-2">
+                              {draftInfo.missingRequiredKeys.map((key) => (
+                                <span key={key} className="inline-flex items-center rounded-full border border-indigo-200 bg-white px-2 py-1 text-[11px] font-semibold text-indigo-900">
+                                  {getDraftFieldLabel(key)}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        ) : null}
+                      </section>
+                    );
+                  })()}
+
                   <section className="rounded-xl border border-slate-200 bg-slate-50 p-4">
                     <h4 className="text-sm font-bold text-slate-900">Fotoğraflar</h4>
                     <p className="mt-1 text-xs text-slate-600">Başvuru ve kullanıcı dokümanındaki foto alanlarından çözülür.</p>
@@ -1492,6 +1778,9 @@ export default function AllUsersTab() {
                       formModal.user?.gender ||
                       (Array.isArray(formModal.user?.photoUrls) && formModal.user.photoUrls.length) ||
                       (Array.isArray(formModal.user?.photoPaths) && formModal.user.photoPaths.length) ||
+                      formModal.user?.publicProfile?.photoPath ||
+                      (Array.isArray(formModal.user?.publicProfile?.photoPaths) && formModal.user.publicProfile.photoPaths.length) ||
+                      (Array.isArray(formModal.user?.publicProfile?.photoUrls) && formModal.user.publicProfile.photoUrls.length) ||
                       formModal.user?.photoPath ||
                       formModal.user?.details ||
                       formModal.user?.publicProfile ||
@@ -1519,9 +1808,9 @@ export default function AllUsersTab() {
 
                   {formModal.application && String(formModal.application?.source || '').trim().toLowerCase() === 'auto_stub' ? (
                     <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
-                      <p className="font-semibold">Bu kullanıcıda sadece otomatik stub başvuru var.</p>
+                      <p className="font-semibold">Bu kullanıcıda otomatik oluşturulmuş ön kayıt var.</p>
                       <p className="mt-1 text-amber-800">
-                        Kullanıcı başvuru formunu tamamlamamış olabilir. Bu yüzden meslek/medeni durum/çocuk gibi alanlar boş görünebilir.
+                        Zorunlu kayıt alanları dolmuş olsa bile tam başvuru tamamlanmadıysa kayıt burada ön kayıt olarak görünür. Bu yüzden meslek/medeni durum/çocuk gibi alanlar boş olabilir.
                       </p>
                     </div>
                   ) : null}
@@ -1629,6 +1918,14 @@ export default function AllUsersTab() {
                         <div className="mt-2 space-y-1">
                           <div className="text-sm"><span className="text-slate-600">Kaynak:</span> {safeStr(formModal.application?.source) || '-'}</div>
                           <div className="text-sm"><span className="text-slate-600">Durum:</span> {formatPrimitive(formModal.application?.status, 'status')}</div>
+                          <div className="text-sm"><span className="text-slate-600">Taslak ilerleme:</span> {(() => {
+                            const draftInfo = getDraftProgressInfo(formModal.application);
+                            return draftInfo?.totalRequiredCount > 0 ? `${draftInfo.completedRequiredCount}/${draftInfo.totalRequiredCount}` : '-';
+                          })()}</div>
+                          <div className="text-sm"><span className="text-slate-600">Takıldığı alan:</span> {(() => {
+                            const draftInfo = getDraftProgressInfo(formModal.application);
+                            return draftInfo?.firstMissingRequiredLabel || '-';
+                          })()}</div>
                           <div className="text-sm"><span className="text-slate-600">Şehir:</span> {safeStr(formModal.application?.city) || '-'}</div>
                           <div className="text-sm"><span className="text-slate-600">Ülke:</span> {safeStr(formModal.application?.country) || '-'}</div>
                           <div className="text-sm"><span className="text-slate-600">Oluştu:</span> {typeof formModal.application?.createdAtMs === 'number' ? fmtDate(formModal.application.createdAtMs) : (formModal.application?.createdAt?.ms ? fmtDate(formModal.application.createdAt.ms) : '-')}</div>

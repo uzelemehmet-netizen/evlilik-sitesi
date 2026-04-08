@@ -94,33 +94,6 @@ export default async function handler(req, res) {
 
       otherUidForPush = otherUid;
 
-      // Yeni kural: sadece 1 aktif eşleşme.
-      // İki tarafın da başka bir aktif lock'u olmamalı.
-      const meRef = db.collection('matchmakingUsers').doc(uid);
-      const otherRef = db.collection('matchmakingUsers').doc(otherUid);
-      const [meSnap, otherSnap] = await Promise.all([tx.get(meRef), tx.get(otherRef)]);
-      const me = meSnap.exists ? (meSnap.data() || {}) : {};
-      const other = otherSnap.exists ? (otherSnap.data() || {}) : {};
-
-      const myLock = me?.matchmakingLock && typeof me.matchmakingLock === 'object' ? me.matchmakingLock : null;
-      const otherLock = other?.matchmakingLock && typeof other.matchmakingLock === 'object' ? other.matchmakingLock : null;
-
-      const myLockActive = !!myLock?.active;
-      const otherLockActive = !!otherLock?.active;
-      const myLockMatchId = safeStr(myLock?.matchId);
-      const otherLockMatchId = safeStr(otherLock?.matchId);
-
-      if (myLockActive && myLockMatchId && myLockMatchId !== matchId) {
-        const err = new Error('active_match_exists');
-        err.statusCode = 409;
-        throw err;
-      }
-      if (otherLockActive && otherLockMatchId && otherLockMatchId !== matchId) {
-        const err = new Error('other_user_active_match_exists');
-        err.statusCode = 409;
-        throw err;
-      }
-
       const startedByUid = match?.activeStartByUid && typeof match.activeStartByUid === 'object' ? { ...match.activeStartByUid } : {};
 
       const prevMe = !!startedByUid[uid];
@@ -178,14 +151,6 @@ export default async function handler(req, res) {
           if (matchCode) patch.matchCode = matchCode;
         }
 
-        const lockPatch = {
-          matchmakingLock: { active: true, matchId, matchCode: matchCode || '' },
-          matchmakingChoice: { active: true, matchId, matchCode: matchCode || '' },
-          updatedAt: FieldValue.serverTimestamp(),
-        };
-
-        tx.set(meRef, lockPatch, { merge: true });
-        tx.set(otherRef, lockPatch, { merge: true });
       }
 
       tx.set(matchRef, patch, { merge: true });

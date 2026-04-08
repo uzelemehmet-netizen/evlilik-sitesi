@@ -2,7 +2,11 @@ import { useEffect, useMemo, useState } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from './AuthProvider';
 import {
-  getMatchmakingProfileGateStateFromApp,
+  hasAnyMatchmakingPhotoInApplicationDoc,
+  hasAnyStoredMatchmakingPhotoInApplicationDoc,
+  hasAnyMatchmakingPhotoInUserDoc,
+  hasAnyMatchmakingProfileInApplicationDoc,
+  hasAnyMatchmakingProfileInUserDoc,
   hasMinimumMatchmakingProfileInApplicationDoc,
   hasMinimumMatchmakingProfileInUserDoc,
   isStubMatchmakingApplication,
@@ -44,6 +48,8 @@ async function getProfileCompletionState(uid) {
   if (!userId) return { ok: false, reason: 'application_required' };
 
   const { db, collection, doc, getDoc, getDocs, limit, query, where } = await loadFirestoreApi();
+  let userDocHasProfile = false;
+  let userDocHasPhoto = false;
 
   // Fast path: matchmakingUsers minimum profile fields.
   try {
@@ -51,7 +57,11 @@ async function getProfileCompletionState(uid) {
     const uSnap = await getDoc(uRef);
     if (uSnap.exists()) {
       const d = uSnap.data() || {};
+      userDocHasProfile = hasAnyMatchmakingProfileInUserDoc(d);
+      userDocHasPhoto = hasAnyMatchmakingPhotoInUserDoc(d);
       if (hasMinimumProfileInUserDoc(d)) return { ok: true, reason: 'complete' };
+      if (userDocHasProfile && userDocHasPhoto) return { ok: true, reason: 'legacy_complete' };
+      if (userDocHasProfile && !userDocHasPhoto) return { ok: false, reason: 'photo_required' };
     }
   } catch {
     // ignore and fall back
@@ -60,35 +70,36 @@ async function getProfileCompletionState(uid) {
   // Fallback: matchmakingApplications, non-stub.
   try {
     const q1 = query(collection(db, 'matchmakingApplications'), where('userId', '==', userId), limit(10));
-    const q2 = query(collection(db, 'matchmakingApplications'), where('uid', '==', userId), limit(10));
-    const q3 = query(collection(db, 'matchmakingApplications'), where('userUid', '==', userId), limit(10));
 
-    const [s1, s2, s3] = await Promise.all([getDocs(q1), getDocs(q2), getDocs(q3)]);
-    const docs = [...(s1?.docs || []), ...(s2?.docs || []), ...(s3?.docs || [])];
-    if (!docs.length) return { ok: false, reason: 'application_required' };
+    const s1 = await getDocs(q1);
+    const docs = [...(s1?.docs || [])];
+    if (!docs.length) {
+      if (userDocHasProfile && userDocHasPhoto) return { ok: true, reason: 'legacy_complete' };
+      if (userDocHasProfile && !userDocHasPhoto) return { ok: false, reason: 'photo_required' };
+      return { ok: false, reason: 'application_required' };
+    }
 
     const seen = new Set();
-    let hasNonStubApplication = false;
-    let hasPhotoOnlyMissing = false;
+    let hasAnyProfile = userDocHasProfile;
+    let hasAnyPhoto = userDocHasPhoto;
     for (const d of docs) {
       const id = safeStr(d?.id);
       if (id && seen.has(id)) continue;
       if (id) seen.add(id);
       const a = d.data() || {};
       if (isStubMatchmakingApplication(a)) continue;
-      hasNonStubApplication = true;
+      if (hasAnyMatchmakingProfileInApplicationDoc(a)) hasAnyProfile = true;
+      if (hasAnyStoredMatchmakingPhotoInApplicationDoc(a)) hasAnyPhoto = true;
       if (hasMinimumProfileInApplicationDoc(a)) return { ok: true, reason: 'complete' };
-
-      const gateState = getMatchmakingProfileGateStateFromApp(a);
-      if (gateState.onlyPhotoMissing) hasPhotoOnlyMissing = true;
     }
 
-    if (!hasNonStubApplication) return { ok: false, reason: 'application_required' };
-    if (hasPhotoOnlyMissing) return { ok: false, reason: 'photo_required' };
-    return { ok: false, reason: 'profile_incomplete' };
+    if (!hasAnyProfile) return { ok: false, reason: 'application_required' };
+    if (!hasAnyPhoto) return { ok: false, reason: 'photo_required' };
+    return { ok: true, reason: 'legacy_complete' };
   } catch {
-    // Rules/index/config issue: be conservative and allow the app.
-    return { ok: true, reason: 'unknown' };
+    if (userDocHasProfile && userDocHasPhoto) return { ok: true, reason: 'legacy_complete' };
+    if (userDocHasProfile && !userDocHasPhoto) return { ok: false, reason: 'photo_required' };
+    return { ok: false, reason: 'application_required' };
   }
 }
 

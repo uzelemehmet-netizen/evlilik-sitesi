@@ -21,6 +21,41 @@ function safeUpperCountry(raw) {
   return s && /^[A-Z]{2}$/.test(s) ? s : '';
 }
 
+function parseCountryFromAcceptLanguage(raw) {
+  const value = String(raw || '').trim().toLowerCase();
+  if (!value) return '';
+
+  const parts = value
+    .split(',')
+    .map((entry) => entry.split(';')[0].trim())
+    .filter(Boolean);
+
+  for (const part of parts) {
+    const base = normalizeLangBase(part);
+    if (base === 'id') return 'ID';
+    if (base === 'tr') return 'TR';
+  }
+
+  return '';
+}
+
+function parseCountryHintFromApiPayload(payload) {
+  const directCountry = safeUpperCountry(payload?.country);
+  if (directCountry) return directCountry;
+
+  const acceptLanguageCountry = parseCountryFromAcceptLanguage(payload?.acceptLanguage || payload?.accept_language);
+  if (acceptLanguageCountry) return acceptLanguageCountry;
+
+  const region = String(payload?.region || '').trim().toLowerCase();
+  const city = String(payload?.city || '').trim().toLowerCase();
+  const placeHint = `${region} ${city}`;
+
+  if (/(jakarta|makassar|jayapura|surabaya|bandung|medan|bali|yogyakarta)/i.test(placeHint)) return 'ID';
+  if (/(istanbul|ankara|izmir|bursa)/i.test(placeHint)) return 'TR';
+
+  return '';
+}
+
 function pickCountryFromNavigatorLanguage() {
   try {
     const lang = normalizeLangBase(typeof navigator !== 'undefined' ? navigator.language : '');
@@ -71,19 +106,48 @@ export function getSupportLineFallback(opts = {}) {
 const CACHE_KEY = 'uniqah:client_country_v1';
 const CACHE_TTL_MS = 12 * 60 * 60 * 1000;
 
+function readCachedCountryFrom(storageLike) {
+  try {
+    const raw = storageLike?.getItem?.(CACHE_KEY);
+    if (!raw) return '';
+    const parsed = JSON.parse(raw);
+    const ts = typeof parsed?.ts === 'number' ? parsed.ts : 0;
+    const country = safeUpperCountry(parsed?.country);
+    if (!country || !ts) return '';
+    if (Date.now() - ts >= CACHE_TTL_MS) return '';
+    return country;
+  } catch {
+    return '';
+  }
+}
+
+function writeCachedCountry(country) {
+  const normalized = safeUpperCountry(country);
+  const payload = JSON.stringify({ country: normalized || '', ts: Date.now() });
+
+  try {
+    sessionStorage.setItem(CACHE_KEY, payload);
+  } catch {
+    // ignore
+  }
+
+  try {
+    localStorage.setItem(CACHE_KEY, payload);
+  } catch {
+    // ignore
+  }
+}
+
 export async function getClientCountry() {
   if (typeof window === 'undefined') return '';
 
-  try {
-    const raw = sessionStorage.getItem(CACHE_KEY);
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      const ts = typeof parsed?.ts === 'number' ? parsed.ts : 0;
-      const country = safeUpperCountry(parsed?.country);
-      if (country && ts && Date.now() - ts < CACHE_TTL_MS) return country;
-    }
-  } catch {
-    // ignore
+  const cachedSession = readCachedCountryFrom(typeof sessionStorage !== 'undefined' ? sessionStorage : null);
+  if (cachedSession) return cachedSession;
+
+  const cachedLocal = readCachedCountryFrom(typeof localStorage !== 'undefined' ? localStorage : null);
+  if (cachedLocal) {
+    writeCachedCountry(cachedLocal);
+    return cachedLocal;
   }
 
   try {
@@ -117,13 +181,9 @@ export async function getClientCountry() {
     if (!res || !res.ok) throw new Error('client_ip_bad_status');
 
     const json = await res.json().catch(() => null);
-    const country = safeUpperCountry(json?.country);
+    const country = parseCountryHintFromApiPayload(json);
 
-    try {
-      sessionStorage.setItem(CACHE_KEY, JSON.stringify({ country: country || '', ts: Date.now() }));
-    } catch {
-      // ignore
-    }
+    writeCachedCountry(country);
 
     return country;
   } catch {
@@ -143,16 +203,11 @@ export function getSupportCountrySync(opts = {}) {
   // Best-effort: prefer cached country if present, else quick heuristics.
   if (typeof window === 'undefined') return '';
 
-  try {
-    const raw = sessionStorage.getItem(CACHE_KEY);
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      const country = safeUpperCountry(parsed?.country);
-      if (country) return country;
-    }
-  } catch {
-    // ignore
-  }
+  const cachedSession = readCachedCountryFrom(typeof sessionStorage !== 'undefined' ? sessionStorage : null);
+  if (cachedSession) return cachedSession;
+
+  const cachedLocal = readCachedCountryFrom(typeof localStorage !== 'undefined' ? localStorage : null);
+  if (cachedLocal) return cachedLocal;
 
   const navGuess = pickCountryFromNavigatorLanguage();
   if (navGuess) return navGuess;

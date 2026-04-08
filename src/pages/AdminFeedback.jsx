@@ -118,7 +118,10 @@ export default function AdminFeedback() {
               <ArrowLeft className="h-4 w-4" />
               Admin paneli
             </Link>
-            <h1 className="text-xl font-bold">Gelen bildirimler</h1>
+            <div>
+              <h1 className="text-xl font-bold">Dönüşüm riski bildirimleri</h1>
+              <p className="text-xs text-slate-500">Düşük sinyal tarayıcı gürültüleri varsayılan olarak gizlenir.</p>
+            </div>
           </div>
 
           <button

@@ -1,6 +1,7 @@
 import { getAdmin, normalizeBody, requireIdToken } from './_firebaseAdmin.js';
 import { emitMemberFeedEvent } from './_memberFeed.js';
 import { getMinAgeFromEnv } from './_matchmakingAgePolicy.js';
+import { ensureUserCodeAssigned } from './_matchmakingUserCode.js';
 
 function safeStr(v) {
   return typeof v === 'string' ? v.trim() : '';
@@ -44,6 +45,10 @@ function defaultLookingForNationality(nat) {
   return 'other';
 }
 
+function hasCoreSignupProfile(age, gender) {
+  return typeof age === 'number' && Number.isFinite(age) && age >= 18 && age <= 99 && !!gender;
+}
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     res.statusCode = 405;
@@ -55,6 +60,9 @@ export default async function handler(req, res) {
   try {
     const decoded = await requireIdToken(req);
     const uid = safeStr(decoded?.uid);
+    const authEmail = safeStr(decoded?.email).toLowerCase();
+    const displayName = safeStr(decoded?.name);
+    const authProvider = safeStr(decoded?.firebase?.sign_in_provider).toLowerCase();
     if (!uid) {
       res.statusCode = 401;
       res.setHeader('content-type', 'application/json');
@@ -70,15 +78,6 @@ export default async function handler(req, res) {
     const legacyAgeConfirmed = body?.ageConfirmed === true;
 
     const { db, FieldValue } = getAdmin();
-
-    // Eğer kullanıcıda zaten bir başvuru varsa tekrar yaratma.
-    const existingSnap = await db.collection('matchmakingApplications').where('userId', '==', uid).limit(1).get();
-    if (!existingSnap.empty) {
-      res.statusCode = 200;
-      res.setHeader('content-type', 'application/json');
-      res.end(JSON.stringify({ ok: true, ensured: true, created: false, reason: 'already_exists' }));
-      return;
-    }
 
     // Fallback: matchmakingUsers içinden çek.
     // Not: Yeni signup'ta bazı alanlar henüz yok olabilir. Bu durumda da auto_stub dokümanı üretmek istiyoruz
@@ -100,8 +99,70 @@ export default async function handler(req, res) {
       // ignore
     }
 
+    // Eğer kullanıcıda zaten bir başvuru varsa tekrar yaratma.
+    const existingSnap = await db.collection('matchmakingApplications').where('userId', '==', uid).limit(1).get();
+    if (!existingSnap.empty) {
+      let ensuredUserCode = '';
+      try {
+        const ensured = await ensureUserCodeAssigned({ db, FieldValue, uid, gender, nowMs: Date.now() });
+        ensuredUserCode = safeStr(ensured?.userCode);
+      } catch {
+        // ignore
+      }
+
+      const signupCoreComplete = hasCoreSignupProfile(age, gender);
+      const lookingForGender = gender ? oppositeGender(gender) : '';
+      const lookingForNationality = nationality ? defaultLookingForNationality(nationality) : '';
+
+      try {
+        const firstDoc = existingSnap.docs?.[0];
+        if (firstDoc?.ref) {
+          await firstDoc.ref.set(
+            {
+              ...(ensuredUserCode ? { userCode: ensuredUserCode } : {}),
+              ...(authEmail ? { authEmail, email: authEmail } : {}),
+              ...(displayName ? { displayName } : {}),
+              ...(authProvider ? { authProvider } : {}),
+              ...(typeof age === 'number' ? { age } : {}),
+              ...(gender ? { gender, lookingForGender } : {}),
+              ...(nationality
+                ? {
+                    nationality,
+                    nationalityOther: nationality === 'other' ? nationalityOther : '',
+                    lookingForNationality,
+                    lookingForNationalityOther: '',
+                  }
+                : {}),
+              details: {
+                ...(firstDoc.data()?.details && typeof firstDoc.data().details === 'object' ? firstDoc.data().details : {}),
+                autoBootstrap: true,
+                signupAge: typeof age === 'number' ? age : null,
+                signupAgeConfirmed: typeof age === 'number',
+                signupCoreComplete,
+                missingProfile: !signupCoreComplete,
+              },
+              updatedAt: FieldValue.serverTimestamp(),
+            },
+            { merge: true }
+          );
+        }
+      } catch {
+        // ignore
+      }
+
+      res.statusCode = 200;
+      res.setHeader('content-type', 'application/json');
+      res.end(JSON.stringify({ ok: true, ensured: true, created: false, reason: 'already_exists' }));
+      return;
+    }
+
+    const nowMs = Date.now();
+    const ensuredCode = await ensureUserCodeAssigned({ db, FieldValue, uid, gender, nowMs });
+    if (!userCode) userCode = safeStr(ensuredCode?.userCode);
+
     const hasGender = !!gender;
     const hasNationality = !!nationality;
+    const signupCoreComplete = hasCoreSignupProfile(age, gender);
 
     const minAge = hasNationality ? minAgeForNat(nationality) : getMinAgeFromEnv();
     const ageConfirmed = (typeof age === 'number' && age >= minAge) || legacyAgeConfirmed === true;
@@ -109,7 +170,6 @@ export default async function handler(req, res) {
     const lookingForGender = hasGender ? oppositeGender(gender) : '';
     const lookingForNationality = hasNationality ? defaultLookingForNationality(nationality) : '';
 
-    const nowMs = Date.now();
     const applicationId = `auto_${uid}`;
     const appRef = db.collection('matchmakingApplications').doc(applicationId);
 
@@ -127,6 +187,9 @@ export default async function handler(req, res) {
       createdAt: FieldValue.serverTimestamp(),
       createdAtMs: nowMs,
       updatedAt: FieldValue.serverTimestamp(),
+      ...(authEmail ? { authEmail, email: authEmail } : {}),
+      ...(displayName ? { displayName } : {}),
+      ...(authProvider ? { authProvider } : {}),
 
       // Kullanıcı kayıt olurken zaten verilen UC-... kodunu başvuruya da kopyala.
       // Böylece admin ekranı `matchmakingUsers` dokümanını okuyamasa bile UC kodunu gösterebilir.
@@ -150,7 +213,8 @@ export default async function handler(req, res) {
         autoBootstrap: true,
         signupAge: typeof age === 'number' ? age : null,
         signupAgeConfirmed: ageConfirmed,
-        missingProfile: !(hasGender && hasNationality),
+        signupCoreComplete,
+        missingProfile: !signupCoreComplete,
       },
 
       // Firestore rules create'da bu alanlar zorunlu; admin yazdığı için rules bypass.

@@ -272,7 +272,6 @@ export default async function handler(req, res) {
         for (const uid of [aUserId, bUserId]) {
           await db.collection('matchmakingUsers').doc(uid).set(
             {
-              matchmakingLock: { active: true, matchId, matchCode },
               matchmakingChoice: { active: true, matchId, matchCode },
               updatedAt: FieldValue.serverTimestamp(),
             },

@@ -87,6 +87,15 @@ function formatUcNo(n) {
   return `UC-${Math.floor(v)}`;
 }
 
+function doesUserCodeMatchGender(no, gender) {
+  const numeric = typeof no === 'number' ? no : Number(no);
+  const genderNorm = normalizeGender(gender);
+  if (!Number.isFinite(numeric) || numeric <= 0) return true;
+  if (genderNorm === 'female') return numeric >= 1001 && numeric < 2000;
+  if (genderNorm === 'male') return numeric >= 2001;
+  return true;
+}
+
 loadEnvLocal();
 
 if (hasFlag('--help') || hasFlag('-h')) usage(0);
@@ -119,6 +128,7 @@ let scanned = 0;
 let writes = 0;
 let assigned = 0;
 let normalized = 0;
+let reassigned = 0;
 let skippedNoGender = 0;
 let lastDocId = startAfter || '';
 
@@ -129,11 +139,15 @@ async function processUserDoc(docSnap) {
     const freshSnap = await tx.get(usersCol.doc(uid));
     const user = freshSnap.exists ? (freshSnap.data() || {}) : {};
 
-    const existingUserCode = safeStr(user?.userCode);
-    const existingUserCodeNo = typeof user?.userCodeNo === 'number' ? user.userCodeNo : 0;
+    const existingUserCode = safeStr(user?.userCode) || safeStr(user?.publicProfile?.userCode);
+    const existingUserCodeNo =
+      (typeof user?.userCodeNo === 'number' ? user.userCodeNo : 0) ||
+      (typeof user?.publicProfile?.userCodeNo === 'number' ? user.publicProfile.userCodeNo : 0);
 
     const genderNorm = normalizeGender(user?.gender);
     const patch = {};
+    let normalizedUserCode = existingUserCode;
+    let normalizedUserCodeNo = existingUserCodeNo;
 
     // Normalize already-existing fields first (does not touch counters).
     if (existingUserCode && !(existingUserCodeNo > 0)) {
@@ -143,6 +157,7 @@ async function processUserDoc(docSnap) {
         patch['publicProfile.userCode'] = existingUserCode;
         patch['publicProfile.userCodeNo'] = parsed;
         patch.userCodeGender = normalizeGender(user?.userCodeGender) || genderNorm || user?.userCodeGender || '';
+        normalizedUserCodeNo = parsed;
       }
     }
 
@@ -153,11 +168,18 @@ async function processUserDoc(docSnap) {
         patch['publicProfile.userCode'] = formatted;
         patch['publicProfile.userCodeNo'] = existingUserCodeNo;
         patch.userCodeGender = normalizeGender(user?.userCodeGender) || genderNorm || user?.userCodeGender || '';
+        normalizedUserCode = formatted;
       }
     }
 
+    const hasBandMismatch =
+      !!normalizedUserCode &&
+      normalizedUserCodeNo > 0 &&
+      (genderNorm === 'female' || genderNorm === 'male') &&
+      !doesUserCodeMatchGender(normalizedUserCodeNo, genderNorm);
+
     // Allocate a brand-new UC code if missing.
-    if (!existingUserCode && !(existingUserCodeNo > 0)) {
+    if ((!normalizedUserCode && !(normalizedUserCodeNo > 0)) || hasBandMismatch) {
       if (!(genderNorm === 'female' || genderNorm === 'male')) {
         return { ok: true, action: 'skip_no_gender' };
       }
@@ -188,6 +210,11 @@ async function processUserDoc(docSnap) {
       patch.userCodeGender = genderNorm;
       patch.userCodeAssignedAtMs = Date.now();
       patch.userCodeBackfilledAtMs = Date.now();
+      if (hasBandMismatch) {
+        patch.previousUserCode = normalizedUserCode;
+        patch.previousUserCodeNo = normalizedUserCodeNo;
+        patch.userCodeReassignedAtMs = Date.now();
+      }
 
       tx.set(
         countersRef,
@@ -210,7 +237,7 @@ async function processUserDoc(docSnap) {
         { merge: true }
       );
 
-      return { ok: true, action: 'assigned', code: assignedCode };
+      return { ok: true, action: hasBandMismatch ? 'reassigned' : 'assigned', code: assignedCode };
     }
 
     if (!Object.keys(patch).length) {
@@ -276,6 +303,9 @@ try {
       if (r.action === 'assigned') {
         assigned += 1;
         writes += 1;
+      } else if (r.action === 'reassigned') {
+        reassigned += 1;
+        writes += 1;
       } else if (r.action === 'normalized') {
         normalized += 1;
         writes += 1;
@@ -296,6 +326,7 @@ try {
         scanned,
         writes,
         assigned,
+        reassigned,
         normalized,
         skippedNoGender,
         resumeHint: lastDocId ? `--startAfter ${lastDocId}` : null,

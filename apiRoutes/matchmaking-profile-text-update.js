@@ -1,78 +1,11 @@
 import { getAdmin, normalizeBody, requireIdToken } from './_firebaseAdmin.js';
-import { detectPII } from './_pii.js';
-import { isTranslateConfigured, translateTextProfile } from './_translate.js';
+import { buildBilingualProfileText, detectForbiddenContactPII, normalizeProfileLang } from './_matchmakingProfileText.js';
 
 const MAX_TEXT_LEN = 1800;
-const TRANSLATE_CHARS = 400;
-const MIN_TRANSLATE_CHARS = 30;
-
 function safeStr(value, maxLen) {
   const s = String(value ?? '').trim();
   if (!s) return '';
   return typeof maxLen === 'number' && maxLen > 0 && s.length > maxLen ? s.slice(0, maxLen) : s;
-}
-
-function normalizeProfileLang(v) {
-  const s = safeStr(v).toLowerCase();
-  if (s === 'tr' || s === 'id') return s;
-  return '';
-}
-
-function oppositeLang(lang) {
-  return lang === 'tr' ? 'id' : 'tr';
-}
-
-function detectForbiddenContactPII(text) {
-  const pii = detectPII(text);
-  const reasons = Array.isArray(pii?.reasons) ? pii.reasons : [];
-  const forbidden = reasons.filter((r) => r && r !== 'name');
-  return {
-    hasForbidden: forbidden.length > 0,
-    reasons: forbidden,
-  };
-}
-
-async function buildBilingualText(text, sourceLang) {
-  const original = safeStr(text, MAX_TEXT_LEN);
-  const src = normalizeProfileLang(sourceLang) || 'tr';
-  const target = oppositeLang(src);
-
-  const out = {
-    sourceLang: src,
-    targetLang: target,
-    original,
-    tr: src === 'tr' ? original : '',
-    id: src === 'id' ? original : '',
-    translated: false,
-    skipped: false,
-    truncated: false,
-    translateConfigured: isTranslateConfigured(),
-  };
-
-  if (!original) {
-    out.skipped = true;
-    return out;
-  }
-
-  if (original.length < MIN_TRANSLATE_CHARS) {
-    out.skipped = true;
-    return out;
-  }
-
-  if (!out.translateConfigured) {
-    out.skipped = true;
-    return out;
-  }
-
-  const chunk = original.slice(0, TRANSLATE_CHARS);
-  out.truncated = original.length > TRANSLATE_CHARS;
-  const translated = await translateTextProfile({ text: chunk, targetLang: target });
-  const finalText = out.truncated && translated ? `${translated}…` : translated;
-
-  if (target === 'tr') out.tr = finalText;
-  if (target === 'id') out.id = finalText;
-  out.translated = !!safeStr(finalText);
-  return out;
 }
 
 function asMs(v) {
@@ -174,8 +107,8 @@ export default async function handler(req, res) {
   const best = pickBestNonStubApplication(apps);
 
   const [aboutBi, expBi] = await Promise.all([
-    buildBilingualText(about, sourceLang),
-    buildBilingualText(expectations, sourceLang),
+    buildBilingualProfileText(about, sourceLang, { fallbackSourceLang: 'tr' }),
+    buildBilingualProfileText(expectations, sourceLang, { fallbackSourceLang: 'tr' }),
   ]);
 
   const batch = db.batch();

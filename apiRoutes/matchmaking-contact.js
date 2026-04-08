@@ -75,11 +75,11 @@ export default async function handler(req, res) {
       return;
     }
 
-    // Yeni model: 48 saat + karşı taraf onayı olmadan iletişim bilgisi dönme.
-    // Backward-compat: Eski eşleşmelerde status=contact_unlocked ise onaylanmış kabul edilir.
+    // Yeni model: 48 saat sonunda karşı taraf kendi numarasını paylaştıysa iletişim bilgisi döner.
+    // Backward-compat: Eski eşleşmelerde status=contact_unlocked / approved ise açık kabul edilir.
     const cs = match?.contactShare && typeof match.contactShare === 'object' ? match.contactShare : null;
     const csStatus = safeStr(cs?.status);
-    const approved = st === 'contact_unlocked' || csStatus === 'approved';
+    const sharedByUid = cs?.sharedByUid && typeof cs.sharedByUid === 'object' ? cs.sharedByUid : null;
 
     const userIds = Array.isArray(match.userIds) ? match.userIds.map(String) : [];
     if (!userIds.includes(uid) || userIds.length !== 2) {
@@ -151,10 +151,30 @@ export default async function handler(req, res) {
       }
     }
 
+    const otherShared = sharedByUid?.[otherUserId] && typeof sharedByUid[otherUserId] === 'object'
+      ? sharedByUid[otherUserId]
+      : null;
+
+    if (safeStr(otherShared?.whatsapp)) {
+      res.statusCode = 200;
+      res.setHeader('content-type', 'application/json');
+      res.end(
+        JSON.stringify({
+          ok: true,
+          contact: {
+            whatsapp: safeStr(otherShared.whatsapp),
+          },
+        })
+      );
+      return;
+    }
+
+    const hasExplicitSharedMap = !!(sharedByUid && Object.keys(sharedByUid).length);
+    const approved = !hasExplicitSharedMap && (st === 'contact_unlocked' || csStatus === 'approved');
     if (!approved) {
       res.statusCode = 403;
       res.setHeader('content-type', 'application/json');
-      res.end(JSON.stringify({ ok: false, error: 'contact_not_approved' }));
+      res.end(JSON.stringify({ ok: false, error: 'contact_not_shared' }));
       return;
     }
 

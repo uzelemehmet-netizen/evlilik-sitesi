@@ -1,12 +1,10 @@
 import { getAdmin, normalizeBody, requireIdToken } from './_firebaseAdmin.js';
-import { detectPII } from './_pii.js';
-import { isTranslateConfigured, translateTextProfile } from './_translate.js';
 import { emitMemberFeedEvent } from './_memberFeed.js';
+import { ensureUserCodeAssigned } from './_matchmakingUserCode.js';
+import { normalizeGender, resolveLookingForGender } from './_matchmakingEligibility.js';
+import { buildBilingualProfileText, detectForbiddenContactPII, normalizeProfileLang } from './_matchmakingProfileText.js';
 
 const MAX_TEXT_LEN = 1800;
-const TRANSLATE_CHARS = 400;
-const MIN_TRANSLATE_CHARS = 30;
-
 function safeStr(value, maxLen) {
   const s = String(value ?? '').trim();
   if (!s) return '';
@@ -15,69 +13,6 @@ function safeStr(value, maxLen) {
 
 function normalizeUsernameLower(value) {
   return safeStr(value, 80).toLowerCase();
-}
-
-function normalizeProfileLang(v) {
-  const s = safeStr(v, 10).toLowerCase();
-  if (s === 'tr' || s === 'id') return s;
-  return '';
-}
-
-function oppositeLang(lang) {
-  return lang === 'tr' ? 'id' : 'tr';
-}
-
-function detectForbiddenContactPII(text) {
-  const pii = detectPII(text);
-  const reasons = Array.isArray(pii?.reasons) ? pii.reasons : [];
-  const forbidden = reasons.filter((r) => r && r !== 'name');
-  return {
-    hasForbidden: forbidden.length > 0,
-    reasons: forbidden,
-  };
-}
-
-async function buildBilingualText(text, sourceLang) {
-  const original = safeStr(text, MAX_TEXT_LEN);
-  const src = normalizeProfileLang(sourceLang) || 'tr';
-  const target = oppositeLang(src);
-
-  const out = {
-    sourceLang: src,
-    targetLang: target,
-    original,
-    tr: src === 'tr' ? original : '',
-    id: src === 'id' ? original : '',
-    translated: false,
-    skipped: false,
-    truncated: false,
-    translateConfigured: isTranslateConfigured(),
-  };
-
-  if (!original) {
-    out.skipped = true;
-    return out;
-  }
-
-  if (original.length < MIN_TRANSLATE_CHARS) {
-    out.skipped = true;
-    return out;
-  }
-
-  if (!out.translateConfigured) {
-    out.skipped = true;
-    return out;
-  }
-
-  const chunk = original.slice(0, TRANSLATE_CHARS);
-  out.truncated = original.length > TRANSLATE_CHARS;
-  const translated = await translateTextProfile({ text: chunk, targetLang: target });
-  const finalText = out.truncated && translated ? `${translated}…` : translated;
-
-  if (target === 'tr') out.tr = finalText;
-  if (target === 'id') out.id = finalText;
-  out.translated = !!safeStr(finalText, 5000);
-  return out;
 }
 
 function toNumOrNull(value, { min = -Infinity, max = Infinity } = {}) {
@@ -199,9 +134,9 @@ export default async function handler(req, res) {
     whatsapp: safeStr(payload?.whatsapp, 60),
     instagram: safeStr(payload?.instagram, 80),
     nationality: safeStr(payload?.nationality, 30),
-    gender: safeStr(payload?.gender, 30),
+    gender: normalizeGender(payload?.gender),
     lookingForNationality: safeStr(payload?.lookingForNationality, 30),
-    lookingForGender: safeStr(payload?.lookingForGender, 30),
+    lookingForGender: '',
     about: safeStr(payload?.about, MAX_TEXT_LEN),
     expectations: safeStr(payload?.expectations, MAX_TEXT_LEN),
     details: {
@@ -264,6 +199,8 @@ export default async function handler(req, res) {
       familyValuesPreference: safeStr(partner?.familyValuesPreference, 40),
     },
   };
+
+  updates.lookingForGender = resolveLookingForGender(updates.gender, payload?.lookingForGender);
 
   if (photoUrls) {
     updates.photoUrls = toStringArray(photoUrls, { maxItems: 6, maxLen: 400 });
@@ -348,8 +285,8 @@ export default async function handler(req, res) {
 
     const sourceLang = normalizeProfileLang(payload?.lang) || 'tr';
     const [aboutBi, expBi] = await Promise.all([
-      writingAboutNow ? buildBilingualText(updates.about, sourceLang) : Promise.resolve(null),
-      writingExpectationsNow ? buildBilingualText(updates.expectations, sourceLang) : Promise.resolve(null),
+      writingAboutNow ? buildBilingualProfileText(updates.about, sourceLang, { fallbackSourceLang: 'tr' }) : Promise.resolve(null),
+      writingExpectationsNow ? buildBilingualProfileText(updates.expectations, sourceLang, { fallbackSourceLang: 'tr' }) : Promise.resolve(null),
     ]);
 
     updates.profileTextLang = sourceLang;
@@ -529,6 +466,18 @@ export default async function handler(req, res) {
     };
 
     await db.collection('matchmakingUsers').doc(uid).set(userPatch, { merge: true });
+
+    const ensuredCode = await ensureUserCodeAssigned({ db, FieldValue, uid, gender: patchCore.gender, nowMs: Date.now() });
+    const ensuredUserCode = safeStr(ensuredCode?.userCode, 40);
+    if (ensuredUserCode && finalApplicationId) {
+      await db.collection('matchmakingApplications').doc(finalApplicationId).set(
+        {
+          userCode: ensuredUserCode,
+          updatedAt: FieldValue.serverTimestamp(),
+        },
+        { merge: true },
+      );
+    }
   } catch {
     // best-effort
   }

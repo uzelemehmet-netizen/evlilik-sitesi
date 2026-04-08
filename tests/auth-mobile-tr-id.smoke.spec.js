@@ -45,8 +45,8 @@ async function loginWithEmailPassword(page, email, password, locale) {
 
   await page.getByRole('button', { name: emailAuthButtonName }).click();
 
-  const emailInput = page.locator('input[type="email"]').first();
-  const passwordInput = page.locator('input[type="password"]').first();
+  const emailInput = page.locator('input[type="email"]:visible').first();
+  const passwordInput = page.locator('input[type="password"]:visible').first();
 
   await expect(emailInput).toBeVisible();
   await expect(passwordInput).toBeVisible();
@@ -66,8 +66,8 @@ async function signupWithEmailPassword(page, locale) {
   await page.goto(`/login?mode=signup&lang=${locale}`);
   await page.getByRole('button', { name: emailAuthButtonName }).click();
 
-  const emailInput = page.locator('input[type="email"]').first();
-  const passwordInput = page.locator('input[type="password"]').first();
+  const emailInput = page.locator('input[type="email"]:visible').first();
+  const passwordInput = page.locator('input[type="password"]:visible').first();
   const confirmPasswordInput = page.locator('input[type="password"]').nth(1);
 
   await expect(emailInput).toBeVisible();

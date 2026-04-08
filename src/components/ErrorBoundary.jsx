@@ -2,6 +2,7 @@ import React from 'react';
 import i18n from '../i18n.js';
 import { buildSupportReport, storeSupportReport } from '../utils/supportReport.js';
 import { getAnonBrowserId } from '../utils/clickTracker.js';
+import { isLikelyChunkLoadError, recoverFromChunkLoadError } from '../utils/chunkLoadRecovery.js';
 
 export default class ErrorBoundary extends React.Component {
   constructor(props) {
@@ -47,11 +48,11 @@ export default class ErrorBoundary extends React.Component {
     if (!prevState?.hasError && this.state.hasError) {
       try {
         const msg = this.getErrorMessage();
-        if (this.isLikelyChunkLoadError(msg)) {
+        if (isLikelyChunkLoadError(msg)) {
           const key = '__uniqah_auto_repair_attempted__';
           const attempted = (() => {
             try {
-              return sessionStorage.getItem(key) === '1';
+              return !!sessionStorage.getItem(key);
             } catch {
               return false;
             }
@@ -62,7 +63,7 @@ export default class ErrorBoundary extends React.Component {
             } catch {
               // ignore
             }
-            this.hardReload({ reason: 'chunk_load_error_auto' });
+            recoverFromChunkLoadError({ reason: 'chunk_load_error_auto', storageKey: key }).catch(() => null);
           }
         }
       } catch {
@@ -91,78 +92,8 @@ export default class ErrorBoundary extends React.Component {
     }
   };
 
-  isLikelyChunkLoadError = (msg) => {
-    const s = String(msg || '').toLowerCase();
-    if (!s) return false;
-    return (
-      s.includes('loading chunk') ||
-      s.includes('chunkloaderror') ||
-      s.includes('failed to fetch dynamically imported module') ||
-      s.includes('importing a module script failed') ||
-      s.includes('dynamically imported module') ||
-      s.includes('cannot find module') ||
-      s.includes('unexpected token <')
-    );
-  };
-
   hardReload = async ({ reason } = {}) => {
-    try {
-      // Service worker unregister (PWA cache mismatch'i çözmek için)
-      if (typeof navigator !== 'undefined' && navigator.serviceWorker?.getRegistrations) {
-        try {
-          const regs = await navigator.serviceWorker.getRegistrations();
-          await Promise.all(
-            regs.map((r) => {
-              try {
-                return r.unregister();
-              } catch {
-                return false;
-              }
-            })
-          );
-        } catch {
-          // ignore
-        }
-      }
-
-      // Cache API temizle
-      if (typeof caches !== 'undefined' && caches?.keys) {
-        try {
-          const keys = await caches.keys();
-          await Promise.all(
-            keys.map((k) => {
-              try {
-                return caches.delete(k);
-              } catch {
-                return false;
-              }
-            })
-          );
-        } catch {
-          // ignore
-        }
-      }
-
-      // Cache-buster ile yeniden yükle (CDN/HTTP cache'in eski index'i servis etmesini azaltır)
-      try {
-        const url = new URL(window.location.href);
-        url.searchParams.set('__reload', String(Date.now()));
-        if (reason) url.searchParams.set('__reason', String(reason));
-        window.location.replace(url.toString());
-        return;
-      } catch {
-        // ignore
-      }
-    } catch {
-      // ignore
-    }
-
-    // Son çare
-    try {
-      window.location.reload();
-    } catch {
-      // ignore
-    }
+    await recoverFromChunkLoadError({ reason: reason || 'user_clicked_reload', storageKey: '__uniqah_manual_repair_attempted__' });
   };
 
   handleReload = () => {

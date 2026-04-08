@@ -4,13 +4,14 @@ import { Link } from 'react-router-dom';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { CheckCircle, MessageCircle, ShieldCheck, UserCheck, Sparkles, Lock, Crown, ArrowRight, LogIn } from 'lucide-react';
-import { buildWhatsAppUrl } from '../utils/whatsapp';
 import { useAuth } from '../auth/AuthProvider';
 import GeminiFAQ from '../components/gemini/GeminiFAQ';
+import FoundersShowcase from '../components/FoundersShowcase';
 import { staticAssetUrl } from '../utils/staticAssetUrl';
 import { tiktokTrack } from '../utils/tiktokPixel';
 import { trackClick } from '../utils/clickTracker';
 import { getSupportCountrySync } from '../utils/supportLine';
+import { getPwaTutorialCopy } from '../utils/pwaTutorialCopy';
 
 let firestoreApiPromise = null;
 async function loadFirestoreApi() {
@@ -64,16 +65,16 @@ function getMatchmakingTrustUi(lang) {
       heroPanelStats: ['Kapali profil akisi', '48 saat + karsilikli onay', 'Insan destekli geri donus'],
       quickFacts: [
         {
-          title: '1-3 dk basvuru',
-          body: 'On basvuru kisa surer; once temel uygunluk ve beklenti netlesir.',
+          title: 'Simdilik tamamen ucretsiz',
+          body: 'Kayit, panel ve aktif eslesme akisi su an tamamen ucretsizdir; once sistemi gorur, size uygunsa devam edersiniz.',
         },
         {
-          title: 'Profil herkese acik degil',
-          body: 'Fotograflar ve detaylar kapali sistem icinde, kontrollu sekilde gorunur.',
+          title: 'Karsilikli begeniyle aktif eslesme',
+          body: 'Iki taraf birbirini begendiginde aktif eslesme adimina gecilir ve surec daha ciddi, daha kontrollu ilerler.',
         },
         {
-          title: 'Net geri donus',
-          body: 'Durumunuz bu akis icin uygun degilse bunu acikca soyleriz.',
+          title: 'Ceviri destekli sohbet avantaji',
+          body: 'Aktif eslesme devam ederken taraflar ozel pencerede ceviri destegiyle kendi dilinde sinirsiz konusabilir.',
         },
       ],
       stepsTitle: 'Kayittan sonra ne olur?',
@@ -92,10 +93,10 @@ function getMatchmakingTrustUi(lang) {
         },
         {
           title: '4. Iletisim kilitli baslar',
-          body: 'Iletisim hemen acilmaz; once site ici surec, sonra 48 saat ve karsilikli onay gerekir.',
+          body: 'Iletisim hemen acilmaz; once aktif eslesme adimi, sonra ceviri destekli ozel sohbet ve surec sonunda 48 saat + karsilikli onay gerekir.',
         },
       ],
-      ctaNote: 'Ucretsiz kayit • Profil herkese acik degil • Iletisim 48 saat + onay sonrasi acilir',
+      ctaNote: 'Simdilik tamamen ucretsiz • Karsilikli begeni aktif eslesme adimini baslatir • Aktif eslesmede ceviri destekli sinirsiz sohbet',
       whatsappLabel: 'WhatsApptan sistem size uygun mu sorun',
       whatsappMessage:
         'Merhaba, kayit olmadan once Uniqah eslestirme sisteminin benim durumuma uygun olup olmadigini ogrenmek istiyorum.',
@@ -107,16 +108,16 @@ function getMatchmakingTrustUi(lang) {
       heroPanelStats: ['Closed-profile flow', '48h + mutual approval', 'Human-reviewed feedback'],
       quickFacts: [
         {
-          title: '1-3 minute application',
-          body: 'The first application is short; we first clarify fit and expectations.',
+          title: 'Completely free for now',
+          body: 'Registration, the panel, and the active-match flow are fully free right now, so users can see the system first and continue only if it fits.',
         },
         {
-          title: 'No public profile',
-          body: 'Photos and details are shown only inside the controlled system flow.',
+          title: 'Mutual like leads into active match',
+          body: 'When both sides like each other, the process moves into the active-match step and becomes more focused and serious.',
         },
         {
-          title: 'Clear outcome',
-          body: 'If this flow is not suitable for your situation, we tell you openly.',
+          title: 'Translation-supported private chat',
+          body: 'While the active match continues, both sides can keep talking in a private window with translation support and unlimited messaging.',
         },
       ],
       stepsTitle: 'What happens after you sign up?',
@@ -135,10 +136,10 @@ function getMatchmakingTrustUi(lang) {
         },
         {
           title: '4. Contact starts locked',
-          body: 'Contact does not open immediately; first comes in-site flow, then 48 hours and mutual approval.',
+          body: 'Contact does not open immediately; first comes the active-match step, then private chat with translation support, then 48 hours and mutual approval.',
         },
       ],
-      ctaNote: 'Free sign-up • No public profile • Contact unlocks only after 48h + approval',
+      ctaNote: 'Completely free for now • Mutual likes lead into active match • Translation-supported unlimited private chat while active',
       whatsappLabel: 'Ask on WhatsApp if this system fits you',
       whatsappMessage: 'Hello, before I register I want to know whether the Uniqah matchmaking system fits my situation.',
     },
@@ -149,16 +150,16 @@ function getMatchmakingTrustUi(lang) {
       heroPanelStats: ['Alur profil tertutup', '48 jam + persetujuan dua pihak', 'Umpan balik dengan dukungan manusia'],
       quickFacts: [
         {
-          title: 'Pengajuan 1-3 menit',
-          body: 'Pengajuan awal singkat; kami pahami dulu kecocokan dan ekspektasi Anda.',
+          title: 'Saat ini sepenuhnya gratis',
+          body: 'Pendaftaran, panel, dan alur pencocokan aktif saat ini gratis sepenuhnya; Anda bisa melihat sistemnya dulu lalu lanjut jika cocok.',
         },
         {
-          title: 'Profil tidak publik',
-          body: 'Foto dan detail Anda hanya tampil di alur sistem yang terkontrol.',
+          title: 'Suka timbal balik menuju pencocokan aktif',
+          body: 'Saat kedua pihak saling menyukai, proses masuk ke tahap pencocokan aktif dan berjalan lebih fokus serta serius.',
         },
         {
-          title: 'Hasilnya jelas',
-          body: 'Jika alur ini tidak cocok untuk kondisi Anda, kami akan menyampaikannya secara jujur.',
+          title: 'Chat privat dengan dukungan terjemahan',
+          body: 'Selama pencocokan aktif berlangsung, kedua pihak dapat berbicara di jendela privat dengan dukungan terjemahan dan pesan tanpa batas.',
         },
       ],
       stepsTitle: 'Apa yang terjadi setelah daftar?',
@@ -177,10 +178,10 @@ function getMatchmakingTrustUi(lang) {
         },
         {
           title: '4. Kontak tetap terkunci dulu',
-          body: 'Kontak tidak langsung dibuka; ada proses di dalam situs, lalu 48 jam dan persetujuan kedua pihak.',
+          body: 'Kontak tidak langsung dibuka; pertama ada tahap pencocokan aktif, lalu chat privat dengan dukungan terjemahan, kemudian 48 jam dan persetujuan dua pihak.',
         },
       ],
-      ctaNote: 'Daftar gratis • Profil tidak publik • Kontak terbuka hanya setelah 48 jam + persetujuan',
+      ctaNote: 'Saat ini sepenuhnya gratis • Suka timbal balik menuju pencocokan aktif • Chat privat tanpa batas dengan dukungan terjemahan',
       whatsappLabel: 'Tanya via WhatsApp apakah sistem ini cocok untuk Anda',
       whatsappMessage: 'Halo, sebelum mendaftar saya ingin tahu apakah sistem matchmaking Uniqah cocok untuk situasi saya.',
     },
@@ -195,7 +196,7 @@ export default function MatchmakingHub() {
   const BRAND_LOGO_SRC = staticAssetUrl('/brand-logo.webp');
   const langBase = getBaseLang(i18n?.language);
   const trustUi = getMatchmakingTrustUi(langBase);
-  const whatsappSupportHref = buildWhatsAppUrl(trustUi.whatsappMessage, { lang: String(i18n?.language || 'tr') });
+  const pwaTutorialUi = getPwaTutorialCopy(t, i18n?.language);
 
   const trafficCountryHint = (() => {
     try {
@@ -216,8 +217,7 @@ export default function MatchmakingHub() {
     }
   })();
 
-  const isTrOrIdTraffic = trafficCountryHint === 'TR' || trafficCountryHint === 'ID';
-  const applyTo = isTrOrIdTraffic ? '/login?mode=signup' : '/login?mode=signup&auto=google';
+  const applyTo = '/login?mode=signup';
 
   const youtubeVideos = [
     // YouTube video önizlemeleri (thumbnail + tıklayınca lazy iframe)
@@ -526,6 +526,8 @@ export default function MatchmakingHub() {
                     {t('matchmakingHub.description')}
                   </p>
 
+                  <FoundersShowcase compact className="mt-6" />
+
                   <div className="mt-5 inline-flex max-w-full items-center gap-2 rounded-full border border-slate-200 bg-white/90 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-700 shadow-[0_12px_30px_rgba(148,163,184,0.12)]">
                     {trustUi.ctaNote}
                   </div>
@@ -590,15 +592,6 @@ export default function MatchmakingHub() {
                       </Link>
                     )}
 
-                    <a
-                      href={whatsappSupportHref}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="app-btn app-btn-primary h-10 px-5"
-                    >
-                      <MessageCircle size={18} />
-                      {trustUi.whatsappLabel}
-                    </a>
                   </div>
 
                   <div className="mt-3">
@@ -1036,9 +1029,17 @@ export default function MatchmakingHub() {
                 <div className="text-sm font-semibold text-slate-900">{t('matchmakingHub.cta.title')}</div>
                 <div className="mt-1 text-sm text-slate-600">{t('matchmakingHub.cta.subtitle')}</div>
                 <div className="mt-2 text-xs text-slate-500">{trustUi.ctaNote}</div>
+                <div className="mt-2 text-xs text-emerald-700">{pwaTutorialUi.linkBody}</div>
               </div>
 
               <div className="flex flex-col sm:flex-row gap-3">
+                <Link
+                  to="/uygulama"
+                  className="app-btn app-btn-soft h-10 px-5"
+                >
+                  <Sparkles size={18} />
+                  {pwaTutorialUi.linkCta}
+                </Link>
                 {canShowApply && (
                   <>
                     <Link

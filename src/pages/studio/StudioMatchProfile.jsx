@@ -20,6 +20,8 @@ function safeStr(v) {
   return typeof v === 'string' ? v.trim() : '';
 }
 
+const OPEN_CHAT_MODEL = true;
+
 function asNumber(v) {
   return typeof v === 'number' && Number.isFinite(v) ? v : null;
 }
@@ -119,6 +121,20 @@ function isDebugApiEnabled() {
   }
 }
 
+function readProfileDeepLink(locationLike) {
+  const state = locationLike?.state && typeof locationLike.state === 'object' ? locationLike.state : null;
+  const searchParams = new URLSearchParams(String(locationLike?.search || ''));
+  const openFromQuery = searchParams.get('openProfile') === '1';
+  const openFromState = !!state?.openProfile;
+  const tabFromQuery = safeStr(searchParams.get('profileTab'));
+  const tabFromState = safeStr(state?.profileTab);
+
+  return {
+    openProfile: openFromQuery || openFromState,
+    profileTab: tabFromQuery || tabFromState || 'preview',
+  };
+}
+
 export default function StudioMatchProfile() {
   const { matchId } = useParams();
   const location = useLocation();
@@ -169,8 +185,6 @@ export default function StudioMatchProfile() {
 
   const [match, setMatch] = useState(null);
   const [matchLoading, setMatchLoading] = useState(true);
-  const [myLock, setMyLock] = useState({ active: false, matchId: '' });
-
   const [, setMyProfileComplete] = useState(true);
 
   const [myMembership, setMyMembership] = useState({ active: false });
@@ -199,8 +213,10 @@ export default function StudioMatchProfile() {
   const [activeStartNotice, setActiveStartNotice] = useState('');
   const [translateState, setTranslateState] = useState({ loadingId: '', error: '' });
 
-  const [profileOpen, setProfileOpen] = useState(false);
-  const [profileTab, setProfileTab] = useState('preview'); // preview | details
+  const initialProfileDeepLink = readProfileDeepLink(location);
+
+  const [profileOpen, setProfileOpen] = useState(() => !!initialProfileDeepLink.openProfile);
+  const [profileTab, setProfileTab] = useState(() => (initialProfileDeepLink.profileTab === 'details' ? 'details' : 'preview')); // preview | details
   const [profilePhotoIndex, setProfilePhotoIndex] = useState(0);
   const [profileReloadKey, setProfileReloadKey] = useState(0);
 
@@ -229,7 +245,6 @@ export default function StudioMatchProfile() {
       setMessagesLoading(false);
       setPaywallNotice('');
       setProfileGateNotice('');
-      setMyLock({ active: false, matchId: '' });
       setMyMembership({ active: false });
       setMyProfileComplete(false);
       return;
@@ -274,11 +289,6 @@ export default function StudioMatchProfile() {
         if (cancelled) return;
         const d = snap?.exists?.() ? snap.data() || {} : {};
 
-        const lock = d?.matchmakingLock && typeof d.matchmakingLock === 'object' ? d.matchmakingLock : null;
-        const active = !!lock?.active;
-        const matchId2 = typeof lock?.matchId === 'string' ? safeStr(lock.matchId) : '';
-        setMyLock({ active, matchId: matchId2 });
-
         const membershipObj = d?.membership && typeof d.membership === 'object' ? d.membership : null;
         const membershipValidUntilMs = asMs(membershipObj?.validUntilMs);
         const now = Date.now();
@@ -306,11 +316,6 @@ export default function StudioMatchProfile() {
       ref,
       (snap) => {
         const d = snap.exists() ? snap.data() || {} : {};
-        const lock = d?.matchmakingLock && typeof d.matchmakingLock === 'object' ? d.matchmakingLock : null;
-        const active = !!lock?.active;
-        const matchId2 = typeof lock?.matchId === 'string' ? safeStr(lock.matchId) : '';
-        setMyLock({ active, matchId: matchId2 });
-
         const membershipObj = d?.membership && typeof d.membership === 'object' ? d.membership : null;
         const membershipValidUntilMs = asMs(membershipObj?.validUntilMs);
         const now = Date.now();
@@ -332,7 +337,6 @@ export default function StudioMatchProfile() {
         setMyCommLanguage(safeStr(d?.details?.communicationLanguage));
       },
       () => {
-        setMyLock({ active: false, matchId: '' });
         setMyMembership({ active: false });
         setMyProfileComplete(true);
         setMyCommLanguage('');
@@ -545,6 +549,8 @@ export default function StudioMatchProfile() {
   const otherVerified = !!otherMerged?.identityVerified;
 
   const otherOccupation = safeStr(otherMerged?.details?.occupation || otherMerged?.occupation);
+  const localizedOccupation = safeStr(getLocalizedProfileText(otherMerged?.details, 'occupation', i18n.language))
+    || safeStr(getLocalizedProfileText(otherMerged, 'occupation', i18n.language));
   const otherHasChildrenRaw = safeStr(otherMerged?.details?.hasChildren);
   const otherChildrenCount = typeof otherMerged?.details?.childrenCount === 'number' ? otherMerged.details.childrenCount : null;
   const otherChildrenLiving = safeStr(otherMerged?.details?.childrenLivingSituation);
@@ -584,9 +590,10 @@ export default function StudioMatchProfile() {
     setProfilePhotoIndex(0);
   }, [mid]);
 
-  const isActiveMatchForMe = !!myLock?.active && !!myLock?.matchId && myLock.matchId === mid;
-  const lockedByOtherActiveMatch = !!myLock?.active && !!myLock?.matchId && myLock.matchId !== mid;
-  const longChatAllowed = isParticipant && isActiveMatchForMe && (matchStatus === 'mutual_accepted' || matchStatus === 'contact_unlocked');
+  const isActiveMatchForMe = isParticipant && (matchStatus === 'mutual_accepted' || matchStatus === 'contact_unlocked');
+  const longChatAllowed = OPEN_CHAT_MODEL
+    ? isParticipant && (matchStatus === 'proposed' || matchStatus === 'mutual_interest' || matchStatus === 'mutual_accepted' || matchStatus === 'contact_unlocked')
+    : isActiveMatchForMe;
 
   useEffect(() => {
     if (!longChatAllowed) return;
@@ -648,7 +655,7 @@ export default function StudioMatchProfile() {
   const genderLabel = tOption('gender', otherMerged?.gender);
   const nationalityLabel = tOption('nationality', otherMerged?.nationality);
   const educationLabel = tOption('education', otherMerged?.details?.education || otherMerged?.education);
-  const occupationLabel = tOption('occupation', otherMerged?.details?.occupation || otherMerged?.occupation);
+  const occupationLabel = localizedOccupation || tOption('occupation', otherMerged?.details?.occupation || otherMerged?.occupation);
   const religionLabel = tOption('religion', otherMerged?.details?.religion || otherMerged?.religion);
   const incomeLabel = tOption('income', otherMerged?.details?.incomeLevel);
   const timelineLabel = tOption('timeline', otherMerged?.details?.marriageTimeline);
@@ -826,17 +833,24 @@ export default function StudioMatchProfile() {
     if (!profileOpen) setProfileTab('preview');
   }, [profileOpen]);
 
-  const deepLinkAppliedRef = useRef(false);
   useEffect(() => {
-    if (deepLinkAppliedRef.current) return;
-    const st = location?.state && typeof location.state === 'object' ? location.state : null;
-    if (!st) return;
-    if (st.openProfile) {
-      setProfileOpen(true);
-      if (st.profileTab === 'details') setProfileTab('details');
-      deepLinkAppliedRef.current = true;
+    const deepLink = readProfileDeepLink(location);
+    if (!deepLink.openProfile) return;
+    setProfileOpen(true);
+    if (deepLink.profileTab === 'details') setProfileTab('details');
+  }, [location?.search, location?.state]);
+
+  useEffect(() => {
+    const searchParams = new URLSearchParams(String(location?.search || ''));
+    if (searchParams.get('openProfile') !== '1') return;
+    if (!profileOpen) return;
+    if (profileTab !== 'details') return;
+    try {
+      profileRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    } catch {
+      // noop
     }
-  }, [location?.state]);
+  }, [location?.search, profileOpen, profileTab]);
 
   const requestProfileAccess = async () => {
     if (isPreview) {
@@ -1155,11 +1169,6 @@ export default function StudioMatchProfile() {
       return;
     }
     if (!uid || !mid) return;
-    if (lockedByOtherActiveMatch) {
-      setActiveStartState({ loading: false, error: t('studio.matchProfile.errors.activeStartLocked') });
-      return;
-    }
-
     if (!canInteract) return;
     if (activeStartState.loading) return;
 
@@ -1177,10 +1186,9 @@ export default function StudioMatchProfile() {
 
       const activated = !!data?.activated;
 
-      // activated=true => backend match status + lock set etti. UI’da anında uzun sohbet alanını aç.
+      // activated=true => backend match status döndü. UI’da anında uzun sohbet alanını aç.
       if (activated) {
         const ts = Date.now();
-        setMyLock({ active: true, matchId: mid });
         setMatch((m) => {
           if (!m || typeof m !== 'object') return m;
           return {
@@ -1358,7 +1366,7 @@ export default function StudioMatchProfile() {
                 <div className="mt-3 grid grid-cols-1 gap-2 sm:flex sm:flex-wrap sm:items-center">
                   <button
                     type="button"
-                    disabled={lockedByOtherActiveMatch}
+                    onClick={() => navigate(`/app/chat/${mid}`)}
                     className="app-btn w-full sm:w-auto"
                   >
                     <MessageCircle className="mr-2 h-4 w-4" />
@@ -1387,7 +1395,7 @@ export default function StudioMatchProfile() {
                     {profileOpen ? t('studio.matchProfile.hideProfile') : t('studio.matchProfile.viewProfile')}
                   </button>
 
-                  {matchStatus === 'mutual_interest' && mutualLiked ? (
+                  {!OPEN_CHAT_MODEL && matchStatus === 'mutual_interest' && mutualLiked ? (
                     <button
                       type="button"
                       onClick={startActive}
@@ -1412,15 +1420,16 @@ export default function StudioMatchProfile() {
               </div>
             </div>
 
-            <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
-              <p className="font-semibold">{t('studio.matchProfile.rulesTitle')}</p>
-              <ul className="mt-2 list-disc space-y-1 pl-5">
-                <li>{t('studio.matchProfile.rules.likeFirst')}</li>
-                <li>{t('studio.matchProfile.rules.startActive')}</li>
-                <li>{t('studio.matchProfile.rules.onlyOneActive')}</li>
-                <li>{t('studio.matchProfile.rules.unlockAfterCancel')}</li>
-              </ul>
-            </div>
+            {!OPEN_CHAT_MODEL ? (
+              <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
+                <p className="font-semibold">{t('studio.matchProfile.rulesTitle')}</p>
+                <ul className="mt-2 list-disc space-y-1 pl-5">
+                  <li>{t('studio.matchProfile.rules.likeFirst')}</li>
+                  <li>{t('studio.matchProfile.rules.startActive')}</li>
+                  <li>{t('studio.matchProfile.rules.unlockAfterCancel')}</li>
+                </ul>
+              </div>
+            ) : null}
 
             {profileOpen ? (
               <div ref={profileRef} className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-3">
@@ -1751,7 +1760,7 @@ export default function StudioMatchProfile() {
                   ) : null}
 
                   {profileTab === 'details' && canSeeFullProfiles ? (
-                    <>
+                    <div data-testid="match-profile-full-details" className="contents">
                       <InfoRow label={t('studio.myInfo.fields.gender')} value={safeStr(genderLabel) || safeStr(otherMerged?.gender)} />
                       <InfoRow label={t('studio.myInfo.fields.nationality')} value={safeStr(nationalityLabel) || safeStr(otherMerged?.nationality)} />
 
@@ -1898,13 +1907,13 @@ export default function StudioMatchProfile() {
                         }
                       />
                       {/* about/expectations artık önizleme alanında gösteriliyor; burada tekrar etmiyoruz */}
-                    </>
+                    </div>
                   ) : null}
                 </div>
               </div>
             ) : null}
 
-            {isActiveMatchForMe && (matchStatus === 'mutual_accepted' || matchStatus === 'contact_unlocked') ? (
+            {!OPEN_CHAT_MODEL && isActiveMatchForMe && (matchStatus === 'mutual_accepted' || matchStatus === 'contact_unlocked') ? (
               <div className="mt-4 rounded-lg border border-rose-200 bg-rose-50 p-3">
                 <p className="font-semibold text-rose-900">{t('studio.matchProfile.cancel.title')}</p>
                 <p className="mt-1 text-sm text-rose-900/80">{t('studio.matchProfile.cancel.desc')}</p>
@@ -1932,7 +1941,7 @@ export default function StudioMatchProfile() {
               </div>
             ) : null}
 
-            {matchStatus === 'mutual_interest' && mutualLiked ? (
+            {!OPEN_CHAT_MODEL && matchStatus === 'mutual_interest' && mutualLiked ? (
               <div className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-900">
                 <p className="font-semibold">{t('studio.matchProfile.mutualLike.title')}</p>
                 <p className="mt-1 text-emerald-900/80">{t('studio.matchProfile.mutualLike.body')}</p>

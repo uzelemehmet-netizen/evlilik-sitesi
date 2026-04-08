@@ -1,7 +1,9 @@
-import { getAdmin, normalizeBody, requireAdmin } from './_firebaseAdmin.js';
+import { getAdmin, isAdminEmail, normalizeBody, requireAdmin } from './_firebaseAdmin.js';
+import { hasSubmittedMatchmakingProfileInUserDoc } from './_matchmakingEligibility.js';
 import {
+  hasMeaningfulApplicationCache,
+  hasMeaningfulProfileCache,
   loadApplicationsForUid,
-  loadBestAppsByUidBatch,
   normalizeGender,
   parseAge,
   pickBestApp,
@@ -114,6 +116,75 @@ function parseIntSafe(v, fallback) {
   return Math.trunc(n);
 }
 
+function chunkArray(values, size) {
+  const out = [];
+  const list = Array.isArray(values) ? values : [];
+  const chunkSize = Math.max(1, parseIntSafe(size, 200) || 200);
+  for (let i = 0; i < list.length; i += chunkSize) out.push(list.slice(i, i + chunkSize));
+  return out;
+}
+
+function parseOffsetPageToken(pageToken) {
+  const raw = safeStr(pageToken);
+  if (!raw) return 0;
+  if (!raw.startsWith('offset:')) return 0;
+  const n = parseIntSafe(raw.slice('offset:'.length), 0);
+  return Math.max(0, n || 0);
+}
+
+function encodeOffsetPageToken(offset) {
+  const n = parseIntSafe(offset, 0);
+  if (!n || n <= 0) return null;
+  return `offset:${n}`;
+}
+
+async function listAllAuthUsers(auth) {
+  const records = [];
+  let nextPageToken;
+
+  do {
+    const result = await auth.listUsers(1000, nextPageToken);
+    const users = Array.isArray(result?.users) ? result.users : [];
+    records.push(...users);
+    nextPageToken = safeStr(result?.pageToken) || '';
+  } while (nextPageToken);
+
+  return records;
+}
+
+async function loadDocDataMap(db, collectionName, ids, chunkSize = 200) {
+  const result = new Map();
+  const chunks = chunkArray(ids, chunkSize);
+
+  for (const chunk of chunks) {
+    const refs = chunk.map((id) => db.collection(collectionName).doc(id));
+    let snaps = [];
+    try {
+      snaps = refs.length ? await db.getAll(...refs) : [];
+    } catch {
+      snaps = await Promise.all(refs.map((ref) => ref.get()));
+    }
+
+    for (let i = 0; i < chunk.length; i += 1) {
+      const snap = snaps[i];
+      result.set(chunk[i], snap && snap.exists ? (snap.data() || {}) : null);
+    }
+  }
+
+  return result;
+}
+
+function sortAdminUsersByCreatedDesc(users) {
+  const list = Array.isArray(users) ? [...users] : [];
+  list.sort((a, b) => {
+    const am = typeof a?.createdAtMs === 'number' && Number.isFinite(a.createdAtMs) ? a.createdAtMs : 0;
+    const bm = typeof b?.createdAtMs === 'number' && Number.isFinite(b.createdAtMs) ? b.createdAtMs : 0;
+    if (am !== bm) return bm - am;
+    return String(a?.uid || '').localeCompare(String(b?.uid || ''));
+  });
+  return list;
+}
+
 function isMembershipActive(userDoc, now = Date.now()) {
   const m = userDoc?.membership || null;
   if (!m || !m.active) return false;
@@ -143,6 +214,77 @@ function looksLikeUserCode(q) {
   const s = safeStr(q);
   if (!s) return false;
   return s.toUpperCase().startsWith('UC-');
+}
+
+function getUserDocEmail(userDoc) {
+  return safeStr(userDoc?.authEmailLower || userDoc?.authEmail).toLowerCase();
+}
+
+function hasEndUserProfileSignals(userDoc) {
+  const d = userDoc && typeof userDoc === 'object' ? userDoc : null;
+  if (!d) return false;
+  if (safeStr(d?.userCode) || safeStr(d?.fullName) || safeStr(d?.applicationId)) return true;
+  if (hasMeaningfulApplicationCache(d) || hasMeaningfulProfileCache(d)) return true;
+  if (d?.membership && typeof d.membership === 'object') return true;
+  return false;
+}
+
+function isAdminOnlyAccount({ userRecord = null, userDoc = null, entry = null } = {}) {
+  const email = entry?.email || userRecord?.email || getUserDocEmail(userDoc);
+  if (!isAdminEmail(email)) return false;
+  return !hasEndUserProfileSignals(userDoc);
+}
+
+function buildCachedBestApp(userDoc) {
+  const d = userDoc && typeof userDoc === 'object' ? userDoc : null;
+  if (!d || !hasMeaningfulApplicationCache(d)) return null;
+
+  const applicationId = typeof d?.applicationId === 'string' ? safeStr(d.applicationId) : '';
+  const application = d?.application && typeof d.application === 'object' ? d.application : null;
+  if (!applicationId || !application) return null;
+
+  return {
+    id: applicationId,
+    ...application,
+  };
+}
+
+function shouldLoadLiveBestApp(userDoc, cachedBestApp = null) {
+  const d = userDoc && typeof userDoc === 'object' ? userDoc : null;
+  if (!d) return true;
+  const cached = cachedBestApp || buildCachedBestApp(d);
+  if (cached) {
+    return resolveAdminApplicationState(d, cached) !== 'real';
+  }
+  if (!hasMeaningfulProfileCache(d)) return true;
+  return !!safeStr(d?.applicationId);
+}
+
+async function loadBestAppsFromApplicationIds(db, usersByUid) {
+  const entries = Array.isArray(usersByUid) ? usersByUid : [];
+  const pairs = entries
+    .map(({ uid, userDoc }) => ({
+      uid: safeStr(uid),
+      applicationId: safeStr(userDoc?.applicationId),
+    }))
+    .filter((item) => item.uid && item.applicationId);
+
+  const refs = pairs.map((item) => db.collection('matchmakingApplications').doc(item.applicationId));
+  let snaps = [];
+  try {
+    snaps = refs.length ? await db.getAll(...refs) : [];
+  } catch {
+    snaps = await Promise.all(refs.map((ref) => ref.get()));
+  }
+
+  const result = new Map();
+  for (let i = 0; i < pairs.length; i += 1) {
+    const pair = pairs[i];
+    const snap = snaps[i];
+    if (!pair?.uid || !snap?.exists) continue;
+    result.set(pair.uid, { id: snap.id, ...(snap.data() || {}) });
+  }
+  return result;
 }
 
 async function buildAdminUserEntry({ auth, db, uid, userRecord = null, userDoc = undefined, bestApp = undefined }) {
@@ -175,16 +317,23 @@ async function buildAdminUserEntry({ auth, db, uid, userRecord = null, userDoc =
     flags = flagSnap.exists ? (flagSnap.data() || {}) : null;
   }
 
+  if (isAdminOnlyAccount({ userRecord: resolvedUserRecord, userDoc: resolvedUserDoc })) return null;
+
+  const cachedBestApp = buildCachedBestApp(resolvedUserDoc);
   let resolvedBestApp = typeof bestApp === 'undefined' ? undefined : bestApp;
   if (typeof resolvedBestApp === 'undefined') {
-    try {
-      const apps = await loadApplicationsForUid(db, resolvedUid, {
-        applicationId: resolvedUserDoc?.applicationId,
-        limitPerField: 25,
-      });
-      resolvedBestApp = pickBestApp(apps);
-    } catch {
-      resolvedBestApp = null;
+    if (shouldLoadLiveBestApp(resolvedUserDoc, cachedBestApp)) {
+      try {
+        const apps = await loadApplicationsForUid(db, resolvedUid, {
+          applicationId: resolvedUserDoc?.applicationId,
+          limitPerField: 25,
+        });
+        resolvedBestApp = pickBestApp(apps) || cachedBestApp || null;
+      } catch {
+        resolvedBestApp = cachedBestApp || null;
+      }
+    } else {
+      resolvedBestApp = cachedBestApp || null;
     }
   }
 
@@ -198,7 +347,8 @@ async function buildAdminUserEntry({ auth, db, uid, userRecord = null, userDoc =
   const applicationId = resolvedUserDoc && typeof resolvedUserDoc?.applicationId === 'string' ? safeStr(resolvedUserDoc.applicationId) : '';
   const effectiveApplicationId = applicationId || (resolvedBestApp?.id ? String(resolvedBestApp.id) : '');
   const applicationState = resolveAdminApplicationState(resolvedUserDoc, resolvedBestApp);
-  const hasApplication = applicationState === 'real' || applicationState === 'stub' || applicationState === 'cache' || applicationState === 'stub_cache';
+  const hasSubmittedProfile = !!(resolvedBestApp && applicationState === 'real') || hasSubmittedMatchmakingProfileInUserDoc(resolvedUserDoc);
+  const hasApplication = applicationState === 'real' || applicationState === 'partial' || applicationState === 'stub' || applicationState === 'cache' || applicationState === 'stub_cache';
   const hasProfileData = applicationState !== 'none';
 
   const details = pickDetailsFromUserDocOrApp(resolvedUserDoc, resolvedBestApp);
@@ -229,6 +379,7 @@ async function buildAdminUserEntry({ auth, db, uid, userRecord = null, userDoc =
     hasUserDoc: !!resolvedUserDoc,
     hasApplication,
     hasProfileData,
+    hasSubmittedProfile,
     applicationState,
     applicationId: effectiveApplicationId || null,
     userCode: typeof resolvedUserDoc?.userCode === 'string' ? resolvedUserDoc.userCode : null,
@@ -279,6 +430,7 @@ export default async function handler(req, res) {
     const pageSize = Math.min(Math.max(pageSizeRaw || 50, 1), 200);
     const pageToken = safeStr(body?.pageToken) || undefined;
     const q = safeStr(body?.query);
+    const includeNonAuth = body?.includeNonAuth === true || body?.includeNonAuth === 'true';
 
     const { auth, db } = getAdmin();
 
@@ -405,46 +557,33 @@ export default async function handler(req, res) {
       return;
     }
 
-    const result = await auth.listUsers(pageSize, pageToken);
-    const records = Array.isArray(result?.users) ? result.users : [];
+    const offset = parseOffsetPageToken(pageToken);
+    const records = await listAllAuthUsers(auth);
     const uids = records.map((u) => String(u.uid));
-
-    const userRefs = uids.map((uid) => db.collection('matchmakingUsers').doc(uid));
-    const flagRefs = uids.map((uid) => db.collection('adminUserFlags').doc(uid));
-
-    let userSnaps = [];
-    let flagSnaps = [];
-    try {
-      // getAll is available in firebase-admin Firestore
-      userSnaps = uids.length ? await db.getAll(...userRefs) : [];
-    } catch {
-      userSnaps = await Promise.all(userRefs.map((r) => r.get()));
-    }
-
-    try {
-      flagSnaps = uids.length ? await db.getAll(...flagRefs) : [];
-    } catch {
-      flagSnaps = await Promise.all(flagRefs.map((r) => r.get()));
-    }
-
-    const userDocByUid = new Map();
-    for (let i = 0; i < uids.length; i += 1) {
-      const snap = userSnaps[i];
-      const uid = uids[i];
-      userDocByUid.set(uid, snap && snap.exists ? (snap.data() || {}) : null);
-    }
-
-    const flagByUid = new Map();
-    for (let i = 0; i < uids.length; i += 1) {
-      const snap = flagSnaps[i];
-      const uid = uids[i];
-      flagByUid.set(uid, snap && snap.exists ? (snap.data() || {}) : null);
-    }
+    const userDocByUid = await loadDocDataMap(db, 'matchmakingUsers', uids);
+    const flagByUid = await loadDocDataMap(db, 'adminUserFlags', uids);
+    const visibleRecords = records.filter((u) => !isAdminOnlyAccount({ userRecord: u, userDoc: userDocByUid.get(String(u.uid)) || null }));
 
     const now = Date.now();
-    const bestAppByUid = await loadBestAppsByUidBatch(db, uids, { limitPerField: 25 });
+    const cachedBestAppByUid = new Map();
+    const directApplicationDocCandidates = [];
+    for (const uid of visibleRecords.map((u) => String(u.uid))) {
+      const userDoc = userDocByUid.get(uid) || null;
+      const cachedBestApp = buildCachedBestApp(userDoc);
+      if (cachedBestApp) {
+        cachedBestAppByUid.set(uid, cachedBestApp);
+      }
+      if (!shouldLoadLiveBestApp(userDoc, cachedBestApp)) continue;
+      if (safeStr(userDoc?.applicationId)) {
+        directApplicationDocCandidates.push({ uid, userDoc });
+      }
+    }
 
-    const users = records.map((u) => {
+    const liveBestAppByUid = directApplicationDocCandidates.length
+      ? await loadBestAppsFromApplicationIds(db, directApplicationDocCandidates)
+      : new Map();
+
+    const users = visibleRecords.map((u) => {
       const uid = String(u.uid);
       const userDoc = userDocByUid.get(uid) || null;
       const flags = flagByUid.get(uid) || null;
@@ -452,10 +591,11 @@ export default async function handler(req, res) {
       const untilMs = userDoc && typeof userDoc?.membership?.validUntilMs === 'number' ? userDoc.membership.validUntilMs : 0;
       const plan = userDoc && typeof userDoc?.membership?.plan === 'string' ? userDoc.membership.plan : '';
       const applicationId = userDoc && typeof userDoc?.applicationId === 'string' ? safeStr(userDoc.applicationId) : '';
-      const bestApp = bestAppByUid.get(uid) || null;
+      const bestApp = liveBestAppByUid.get(uid) || cachedBestAppByUid.get(uid) || null;
       const effectiveApplicationId = applicationId || (bestApp?.id ? String(bestApp.id) : '');
       const applicationState = resolveAdminApplicationState(userDoc, bestApp);
-      const hasApplication = applicationState === 'real' || applicationState === 'stub' || applicationState === 'cache' || applicationState === 'stub_cache';
+      const hasSubmittedProfile = !!(bestApp && applicationState === 'real') || hasSubmittedMatchmakingProfileInUserDoc(userDoc);
+      const hasApplication = applicationState === 'real' || applicationState === 'partial' || applicationState === 'stub' || applicationState === 'cache' || applicationState === 'stub_cache';
       const hasProfileData = applicationState !== 'none';
 
       const details = pickDetailsFromUserDocOrApp(userDoc, bestApp);
@@ -480,6 +620,7 @@ export default async function handler(req, res) {
         hasUserDoc: !!userDoc,
         hasApplication,
         hasProfileData,
+        hasSubmittedProfile,
         applicationState,
         applicationId: effectiveApplicationId || null,
         userCode: typeof userDoc?.userCode === 'string' ? userDoc.userCode : null,
@@ -515,7 +656,11 @@ export default async function handler(req, res) {
       };
     });
 
-    if (!pageToken) {
+    const sortedUsers = sortAdminUsersByCreatedDesc(users);
+    const pagedUsers = sortedUsers.slice(offset, offset + pageSize);
+    const nextOffset = offset + pageSize < sortedUsers.length ? offset + pageSize : 0;
+
+    if (!pageToken && includeNonAuth) {
       const extraCandidates = new Set();
       const collectUid = (candidate) => {
         const uid = safeStr(candidate);
@@ -543,19 +688,21 @@ export default async function handler(req, res) {
         // ignore
       }
 
-      const extras = [];
-      for (const uid of Array.from(extraCandidates).slice(0, pageSize)) {
-        try {
-          const entry = await buildAdminUserEntry({ auth, db, uid, userRecord: undefined });
-          if (entry && !entry.hasAuthRecord && !users.some((user) => user.uid === entry.uid)) {
-            extras.push(entry);
-          }
-        } catch {
-          // ignore
-        }
-      }
+      const extras = (
+        await Promise.all(
+          Array.from(extraCandidates)
+            .slice(0, Math.min(pageSize, 10))
+            .map(async (uid) => {
+              try {
+                return await buildAdminUserEntry({ auth, db, uid, userRecord: undefined });
+              } catch {
+                return null;
+              }
+            })
+        )
+      ).filter((entry) => entry && !entry.hasAuthRecord && !pagedUsers.some((user) => user.uid === entry.uid));
 
-      if (extras.length) users.push(...extras);
+      if (extras.length) pagedUsers.push(...extras);
     }
 
     res.statusCode = 200;
@@ -563,8 +710,8 @@ export default async function handler(req, res) {
     res.end(
       JSON.stringify({
         ok: true,
-        users,
-        nextPageToken: result?.pageToken || null,
+        users: sortAdminUsersByCreatedDesc(pagedUsers),
+        nextPageToken: encodeOffsetPageToken(nextOffset),
       })
     );
   } catch (e) {

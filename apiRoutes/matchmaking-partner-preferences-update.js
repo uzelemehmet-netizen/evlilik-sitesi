@@ -1,4 +1,5 @@
 import { getAdmin, normalizeBody, requireIdToken } from './_firebaseAdmin.js';
+import { resolveLookingForGender } from './_matchmakingEligibility.js';
 
 function safeStr(value, maxLen) {
   const s = String(value ?? '').trim();
@@ -130,6 +131,7 @@ export default async function handler(req, res) {
 
   const cur = bestDoc.data && typeof bestDoc.data === 'function' ? (bestDoc.data() || {}) : {};
   const curPartner = cur?.partnerPreferences && typeof cur.partnerPreferences === 'object' ? cur.partnerPreferences : {};
+  const resolvedLookingForGender = resolveLookingForGender(cur?.gender, payload?.lookingForGender ?? cur?.lookingForGender);
 
   const partnerCommunicationMethods = (() => {
     if (!wantsPartnerPrefs) return null;
@@ -209,7 +211,7 @@ export default async function handler(req, res) {
     ...(Object.prototype.hasOwnProperty.call(payload, 'lookingForNationality')
       ? { lookingForNationality: safeStr(payload?.lookingForNationality, 30) }
       : {}),
-    ...(Object.prototype.hasOwnProperty.call(payload, 'lookingForGender') ? { lookingForGender: safeStr(payload?.lookingForGender, 30) } : {}),
+    ...(Object.prototype.hasOwnProperty.call(payload, 'lookingForGender') ? { lookingForGender: resolvedLookingForGender } : {}),
     ...(nextPartner ? { partnerPreferences: nextPartner } : {}),
   };
 

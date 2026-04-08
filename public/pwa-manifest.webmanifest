@@ -2,7 +2,7 @@
   "name": "Uniqah",
   "short_name": "Uniqah",
   "description": "Uniqah eşleştirme ve profil paneli",
-  "start_url": "/app/matches",
+  "start_url": "/app/welcome",
   "scope": "/app/",
   "display": "standalone",
   "background_color": "#0b1220",

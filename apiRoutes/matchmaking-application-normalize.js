@@ -1,4 +1,6 @@
 import { getAdmin, requireIdToken } from './_firebaseAdmin.js';
+import { ensureUserCodeAssigned } from './_matchmakingUserCode.js';
+import { isStubMatchmakingApplication } from '../src/utils/matchmakingProfileCompletion.js';
 
 function safeStr(v) {
   return typeof v === 'string' ? v.trim() : '';
@@ -28,10 +30,7 @@ function appCreatedAtMs(app) {
 }
 
 function isStub(app) {
-  const source = safeStr(app?.source).toLowerCase();
-  if (source === 'auto_stub') return true;
-  if (app?.details?.autoBootstrap === true) return true;
-  return false;
+  return isStubMatchmakingApplication(app);
 }
 
 function getAnyAbout(app) {
@@ -223,6 +222,23 @@ export default async function handler(req, res) {
     );
 
     await batch.commit();
+
+    try {
+      const ensuredCode = await ensureUserCodeAssigned({ db, FieldValue, uid, gender, nowMs: Date.now() });
+      const userCode = safeStr(ensuredCode?.userCode);
+      if (userCode) {
+        await appRef.set(
+          {
+            userCode,
+            updatedAt: FieldValue.serverTimestamp(),
+            updatedAtMs: Date.now(),
+          },
+          { merge: true },
+        );
+      }
+    } catch {
+      // best-effort
+    }
 
     res.statusCode = 200;
     res.setHeader('content-type', 'application/json');

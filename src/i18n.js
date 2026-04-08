@@ -198,6 +198,37 @@ function detectInitialLanguage() {
   }
 }
 
+async function detectInitialLanguageAsync() {
+  const syncDetected = detectInitialLanguage();
+
+  try {
+    const query = detectFromQuerystring();
+    if (query) return query;
+
+    const source = detectFromStorageSource();
+    if (source === 'selector' || source === 'signup') return syncDetected;
+
+    const cachedCountry = detectFromCachedCountry();
+    if (cachedCountry === 'id') return 'id';
+
+    const currentAuto = detectFromTimeZone() || detectFromNavigator();
+    if (currentAuto === 'id') return 'id';
+
+    const timeoutMs = 1200;
+    const country = await Promise.race([
+      Promise.resolve(getClientCountry()).catch(() => ''),
+      new Promise((resolve) => setTimeout(() => resolve(''), timeoutMs)),
+    ]);
+
+    const normalizedCountry = String(country || '').trim().toUpperCase();
+    if (normalizedCountry === 'ID') return 'id';
+  } catch {
+    // ignore
+  }
+
+  return syncDetected;
+}
+
 // Patch changeLanguage to lazy-load bundles when needed.
 try {
   const _origChangeLanguage = i18n.changeLanguage.bind(i18n);
@@ -214,9 +245,6 @@ try {
   // ignore
 }
 
-// Preload only detected language (+ TR fallback) to keep the initial JS payload small.
-const __initialLang = detectInitialLanguage();
-const __initialResourceLangs = Array.from(new Set([__initialLang, 'tr'])).filter(Boolean);
 const __initialResources = {};
 
 let __resolveI18nReady = null;
@@ -239,7 +267,10 @@ function resolveI18nReadyBestEffort() {
 }
 
 async function bootI18n() {
-  for (const lng of __initialResourceLangs) {
+  const initialLang = await detectInitialLanguageAsync();
+  const initialResourceLangs = Array.from(new Set([initialLang, 'tr'])).filter(Boolean);
+
+  for (const lng of initialResourceLangs) {
     try {
       const bundle = await _loadTranslationBundle(lng);
       if (bundle) {
@@ -260,7 +291,7 @@ async function bootI18n() {
         supportedLngs: SUPPORTED_LANGS,
         nonExplicitSupportedLngs: true,
         load: 'languageOnly',
-        lng: __initialLang,
+        lng: initialLang,
         fallbackLng: {
           id: ['id', 'tr'],
           en: ['en', 'tr'],

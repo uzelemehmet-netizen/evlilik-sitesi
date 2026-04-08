@@ -3,12 +3,15 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Heart, MessageCircle, ShieldCheck, Sparkles, User } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { authFetch } from '../../utils/authFetch';
+import { getLocalizedProfileText } from '../../utils/profileText';
 import { translateStudioApiError } from '../../utils/studioErrorI18n';
 import ImageLightbox from '../ImageLightbox';
 
 function safeStr(v) {
   return typeof v === 'string' ? v.trim() : '';
 }
+
+const OPEN_CHAT_MODEL = true;
 
 function genderLabel(t, raw) {
   const s = safeStr(raw).toLowerCase();
@@ -86,7 +89,6 @@ export default function StudioMatchCard({
   match,
   currentUid,
   onOpenShort,
-  activeLockMatchId,
   canSeeFullProfiles = true,
   onRequireProfile,
   onRequirePaid,
@@ -94,7 +96,7 @@ export default function StudioMatchCard({
   interactionsDisabled = false,
   onInteractDisabled,
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const [likeState, setLikeState] = useState({ loading: false, error: '' });
   const [activeStartState, setActiveStartState] = useState({ loading: false, error: '', notice: '' });
@@ -177,8 +179,8 @@ export default function StudioMatchCard({
       ? t('studio.common.unknown')
       : '';
 
-  const aboutFull = safeStr(other?.about || other?.details?.about || other?.bio || other?.details?.bio);
-  const expectationsFull = safeStr(other?.expectations || other?.details?.expectations);
+  const aboutFull = getLocalizedProfileText(other, 'about', i18n.language) || safeStr(other?.about || other?.details?.about || other?.bio || other?.details?.bio);
+  const expectationsFull = getLocalizedProfileText(other, 'expectations', i18n.language) || safeStr(other?.expectations || other?.details?.expectations);
   const aboutCollapsed = clipText(aboutFull, 180);
   const expectationsCollapsed = clipText(expectationsFull, 180);
   const photos = useMemo(() => {
@@ -336,16 +338,12 @@ export default function StudioMatchCard({
     return unreadCount > 99 ? '99+' : String(unreadCount);
   }, [unreadCount]);
 
-  const isActiveMatchForMe = useMemo(() => {
-    const lockId = safeStr(activeLockMatchId);
-    const id = safeStr(match?.id);
-    return !!lockId && !!id && lockId === id;
-  }, [activeLockMatchId, match?.id]);
-
   const longChatAllowedHere = useMemo(() => {
-    if (!isActiveMatchForMe) return false;
+    if (OPEN_CHAT_MODEL) {
+      return status === 'proposed' || status === 'mutual_interest' || status === 'mutual_accepted' || status === 'contact_unlocked';
+    }
     return status === 'mutual_accepted' || status === 'contact_unlocked';
-  }, [isActiveMatchForMe, status]);
+  }, [status]);
 
   const activeChatNoticeKey = useMemo(() => {
     const id = safeStr(match?.id);
@@ -367,18 +365,12 @@ export default function StudioMatchCard({
     }
   }, [activeChatNoticeKey]);
 
-  const lockedByActiveMatch = !!activeLockMatchId && safeStr(activeLockMatchId) !== safeStr(match?.id);
-
   const startActive = async () => {
     if (interactionsDisabled) {
       blockInteraction();
       return;
     }
     if (!match?.id || !currentUid) return;
-    if (lockedByActiveMatch) {
-      setActiveStartState({ loading: false, error: t('studio.errors.activeLocked'), notice: '' });
-      return;
-    }
     if (activeStartState.loading) return;
 
     const ok = typeof window !== 'undefined' ? window.confirm(t('studio.matchProfile.activeStart.confirmPrompt')) : true;
@@ -422,10 +414,6 @@ export default function StudioMatchCard({
       return;
     }
     if (!match?.id || !currentUid) return;
-    if (lockedByActiveMatch) {
-      setLikeState({ loading: false, error: t('studio.errors.activeLocked') });
-      return;
-    }
     if (likeState.loading) return;
     setLikeState({ loading: true, error: '' });
     try {
@@ -458,10 +446,6 @@ export default function StudioMatchCard({
       return;
     }
     if (!match?.id || !currentUid) return;
-    if (lockedByActiveMatch) {
-      setLikeState({ loading: false, error: t('studio.errors.activeLocked') });
-      return;
-    }
     if (likeState.loading) return;
     setLikeState({ loading: true, error: '' });
     try {
@@ -486,7 +470,6 @@ export default function StudioMatchCard({
       return;
     }
     if (typeof onOpenShort !== 'function') return;
-    if (lockedByActiveMatch) return;
     onOpenShort({ matchId: match?.id, displayName });
   };
 
@@ -495,7 +478,6 @@ export default function StudioMatchCard({
       blockInteraction();
       return;
     }
-    if (lockedByActiveMatch) return;
     if (!match?.id) return;
 
     if (longChatAllowedHere) {
@@ -514,8 +496,7 @@ export default function StudioMatchCard({
 
   const openProfileDetails = () => {
     if (!match?.id) return;
-    if (lockedByActiveMatch) return;
-    navigate(`/app/match/${match.id}`, { state: { openProfile: true, profileTab: 'details' } });
+    navigate(`/app/match/${match.id}?openProfile=1&profileTab=details`, { state: { openProfile: true, profileTab: 'details' } });
   };
 
   const canOpenLightbox = !!photoUrl && canSeeOtherPhotos;
@@ -526,8 +507,8 @@ export default function StudioMatchCard({
 
   return (
     <>
-    <div className="relative flex flex-col overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm transition-all hover:shadow-md">
-      <div className={lockedByActiveMatch ? 'pointer-events-none blur-[1px] opacity-70' : ''}>
+    <div className="relative flex flex-col overflow-hidden rounded-lg border border-slate-200 bg-white text-slate-900 shadow-sm transition-all hover:shadow-md">
+      <div>
         <div className="relative">
           <div
             className={`pointer-events-none absolute left-3 top-3 rounded-full border px-2 py-1 text-xs font-semibold ${statusMeta.cls}`}
@@ -558,7 +539,7 @@ export default function StudioMatchCard({
             </div>
           ) : null}
 
-          {status === 'mutual_interest' && mutualLiked && otherStartedActive && !iStartedActive ? (
+          {!OPEN_CHAT_MODEL && status === 'mutual_interest' && mutualLiked && otherStartedActive && !iStartedActive ? (
             <div className="pointer-events-none absolute left-3 top-[4.25rem]">
               <span
                 className="inline-flex items-center rounded-full bg-amber-950/70 px-2 py-1 text-[11px] font-semibold text-amber-50 ring-2 ring-amber-300/70 shadow-[0_0_18px_rgba(251,191,36,0.45)]"
@@ -613,7 +594,7 @@ export default function StudioMatchCard({
               <div className="h-full w-full bg-slate-100" />
             )}
 
-            {status === 'mutual_interest' && mutualLiked ? (
+            {!OPEN_CHAT_MODEL && status === 'mutual_interest' && mutualLiked ? (
               <div className="pointer-events-none absolute inset-x-3 bottom-3 flex items-center justify-center">
                 <button
                   type="button"
@@ -623,7 +604,7 @@ export default function StudioMatchCard({
                     e.stopPropagation();
                     startActive();
                   }}
-                  disabled={activeStartState.loading || lockedByActiveMatch}
+                  disabled={activeStartState.loading}
                   className="pointer-events-auto app-btn app-btn-primary w-full disabled:opacity-60"
                   title={t('studio.matchProfile.activeStart.start')}
                 >
@@ -712,7 +693,7 @@ export default function StudioMatchCard({
           ) : null}
         </div>
 
-        <div className="p-4 flex-1">
+        <div className="p-4 flex-1 text-slate-900">
           <div className="flex items-start justify-between gap-2">
             <h3 className="text-lg font-semibold text-slate-900 leading-tight">
               <Link to={`/app/match/${match?.id}`} className="hover:underline">
@@ -817,7 +798,7 @@ export default function StudioMatchCard({
             <button
               type="button"
               onClick={requestOtherPhotoAccess}
-              disabled={photoRequestState.loading || photoRequestState.status === 'pending' || photoRequestState.status === 'approved' || lockedByActiveMatch}
+              disabled={photoRequestState.loading || photoRequestState.status === 'pending' || photoRequestState.status === 'approved'}
               className="app-btn app-btn-primary w-full disabled:opacity-60"
             >
               {photoRequestState.loading
@@ -849,7 +830,7 @@ export default function StudioMatchCard({
                 }
                 setMyPhotoAccessForThisMatch(next);
               }}
-              disabled={photoAccessState.loading || lockedByActiveMatch}
+              disabled={photoAccessState.loading}
               className={
                 'app-btn w-full disabled:opacity-60 ' +
                 (myToOtherAllowed ? 'app-btn-soft' : 'app-btn-primary')
@@ -872,7 +853,7 @@ export default function StudioMatchCard({
                   type="button"
                   data-tutorial-id="match-like"
                   onClick={like}
-                  disabled={likeState.loading || lockedByActiveMatch}
+                  disabled={likeState.loading}
                   className="app-btn app-btn-primary w-full disabled:opacity-60"
                 >
                   <span className="relative mr-2 inline-flex">
@@ -893,7 +874,7 @@ export default function StudioMatchCard({
                 <button
                   type="button"
                   onClick={reject}
-                  disabled={likeState.loading || lockedByActiveMatch}
+                  disabled={likeState.loading}
                   className="app-btn app-btn-danger w-full disabled:opacity-60"
                   title={t('studio.inbox.reject')}
                 >
@@ -903,8 +884,8 @@ export default function StudioMatchCard({
                 <div className="grid grid-cols-2 gap-2">
                   <button
                     type="button"
+                    data-testid={match?.id ? `match-card-profile-details-${match.id}` : 'match-card-profile-details'}
                     onClick={openProfileDetails}
-                    disabled={lockedByActiveMatch}
                     className="app-btn w-full disabled:opacity-60"
                     title={t('studio.match.actions.profileDetails')}
                   >
@@ -916,7 +897,6 @@ export default function StudioMatchCard({
                     type="button"
                     data-tutorial-id="match-open-message"
                     onClick={openMessage}
-                    disabled={lockedByActiveMatch}
                     className="app-btn app-btn-soft relative w-full disabled:opacity-60"
                   >
                     <MessageCircle className="mr-2 h-5 w-5" />
@@ -933,7 +913,6 @@ export default function StudioMatchCard({
                   type="button"
                   data-tutorial-id="match-open-message"
                   onClick={openMessage}
-                  disabled={lockedByActiveMatch}
                   className="app-btn app-btn-primary relative w-full disabled:opacity-60"
                 >
                   <MessageCircle className="mr-2 h-5 w-5" />
@@ -948,7 +927,7 @@ export default function StudioMatchCard({
                     type="button"
                     data-tutorial-id="match-like"
                     onClick={like}
-                    disabled={likeState.loading || lockedByActiveMatch}
+                    disabled={likeState.loading}
                     className={'app-btn w-full disabled:opacity-60 ' + (isLiked ? 'app-btn-primary' : 'app-btn')}
                   >
                     <span className="relative mr-2 inline-flex">
@@ -968,8 +947,8 @@ export default function StudioMatchCard({
 
                   <button
                     type="button"
+                    data-testid={match?.id ? `match-card-profile-details-${match.id}` : 'match-card-profile-details'}
                     onClick={openProfileDetails}
-                    disabled={lockedByActiveMatch}
                     className="app-btn w-full disabled:opacity-60"
                     title={t('studio.match.actions.profileDetails')}
                   >
@@ -981,21 +960,13 @@ export default function StudioMatchCard({
             )}
           </div>
 
-          {longChatAllowedHere && !activeChatNoticeSeen ? (
+          {!OPEN_CHAT_MODEL && longChatAllowedHere && !activeChatNoticeSeen ? (
             <div className="rounded-md border border-emerald-200 bg-emerald-50 p-2 text-xs font-semibold text-emerald-900">
               {t('studio.match.banners.activeChatStarted')}
             </div>
           ) : null}
         </div>
       </div>
-
-      {lockedByActiveMatch ? (
-        <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/40 p-3">
-          <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-center text-xs font-semibold text-emerald-900 shadow-sm">
-            {t('studio.match.banners.locked')}
-          </div>
-        </div>
-      ) : null}
 
       {likeState.error ? <div className="px-4 pb-4 text-sm text-rose-700">{likeState.error}</div> : null}
       {activeStartState.error ? <div className="px-4 pb-4 text-sm text-rose-700">{activeStartState.error}</div> : null}

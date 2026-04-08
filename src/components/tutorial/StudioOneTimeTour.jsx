@@ -1,13 +1,68 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../auth/AuthProvider.jsx';
 import { setTutorialActive } from '../../utils/tutorialState.js';
 import { enablePushForCurrentUser, hasSavedPushToken } from '../../utils/pushNotifications.js';
-import { isPwaInstalled } from '../../utils/pwaInstalled.js';
+import { isPwaInstalled, markPwaInstalled } from '../../utils/pwaInstalled.js';
+import { isLeadApplyPath } from '../../utils/postAuthRedirect.js';
+import { getPwaActionSuccessMessageKey, PWA_ACTION_FEEDBACK_TTL_MS, shouldEnableNotificationsAfterInstallAction } from './pwaNudgeFeedback.js';
 
 const LS_PREFIX = 'uniqah:tour';
 const SS_FORCE_KEY = 'uniqah:tour:force';
+const SS_PWA_ENTRY_UID_KEY = 'uniqah:pwa-nudge:entry:uid';
+const SS_PWA_ENTRY_ID_KEY = 'uniqah:pwa-nudge:entry:id';
+const LS_PWA_NUDGE_SUPPRESSED_PREFIX = 'uniqah:pwa-nudge:suppressed';
+
+function safeSessionGet(key) {
+  try {
+    return String(window.sessionStorage.getItem(key) || '');
+  } catch {
+    return '';
+  }
+}
+
+function safeSessionSet(key, value) {
+  try {
+    window.sessionStorage.setItem(String(key), String(value));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function safeSessionRemove(key) {
+  try {
+    window.sessionStorage.removeItem(String(key));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function ensurePwaEntryId(uid) {
+  if (!uid) return '';
+  const storedUid = safeSessionGet(SS_PWA_ENTRY_UID_KEY);
+  const storedEntryId = safeSessionGet(SS_PWA_ENTRY_ID_KEY);
+  if (storedUid === uid && storedEntryId) return storedEntryId;
+  const next = String(Date.now());
+  safeSessionSet(SS_PWA_ENTRY_UID_KEY, uid);
+  safeSessionSet(SS_PWA_ENTRY_ID_KEY, next);
+  return next;
+}
+
+function clearPwaEntryId() {
+  safeSessionRemove(SS_PWA_ENTRY_UID_KEY);
+  safeSessionRemove(SS_PWA_ENTRY_ID_KEY);
+}
+
+function pwaEntryShownKey(uid, entryId) {
+  return `${LS_PREFIX}:pwa-install-nudge:${uid}:${entryId}:shown`;
+}
+
+function pwaNudgeSuppressedKey(uid) {
+  return `${LS_PWA_NUDGE_SUPPRESSED_PREFIX}:${uid}`;
+}
 
 function safeUid(user) {
   const uid = String(user?.uid || '').trim();
@@ -53,6 +108,24 @@ function incrementShownCount(uid, tourId) {
   }
 }
 
+function isPwaNudgeSuppressed(uid) {
+  if (!uid) return false;
+  try {
+    return window.localStorage.getItem(pwaNudgeSuppressedKey(uid)) === '1';
+  } catch {
+    return false;
+  }
+}
+
+function markPwaNudgeSuppressed(uid) {
+  if (!uid) return;
+  try {
+    window.localStorage.setItem(pwaNudgeSuppressedKey(uid), '1');
+  } catch {
+    // ignore
+  }
+}
+
 function consumeForcedTourId() {
   try {
     const raw = window.sessionStorage.getItem(SS_FORCE_KEY);
@@ -65,6 +138,7 @@ function consumeForcedTourId() {
 }
 
 function matchesPath(step, pathname) {
+  if (!step?.path && !step?.pathPrefix) return true;
   const p = String(pathname || '');
   if (step?.path && p === step.path) return true;
   if (step?.pathPrefix && p.startsWith(step.pathPrefix)) return true;
@@ -99,7 +173,7 @@ function computeTooltipPosition(rect, tooltipW = 340, tooltipH = 160) {
   return { top, left, arrow };
 }
 
-function TourOverlay({ uid, tourId, step, stepIndex, totalSteps, labels, onSkip, onNext, onPrimaryAction, primaryBusy }) {
+function TourOverlay({ uid, tourId, step, stepIndex, totalSteps, labels, actionFeedback, onSkip, onNext, onPrimaryAction, primaryBusy }) {
   const selector = step?.selector || '';
   const [rect, setRect] = useState(null);
   const missingSinceRef = useRef(0);
@@ -222,6 +296,12 @@ function TourOverlay({ uid, tourId, step, stepIndex, totalSteps, labels, onSkip,
             </div>
           ) : null}
 
+          {actionFeedback ? (
+            <div className="mt-4 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-900" role="status" aria-live="polite">
+              {actionFeedback}
+            </div>
+          ) : null}
+
           <div className="mt-4 flex items-center justify-end gap-2">
             {typeof onPrimaryAction === 'function' ? (
               <button type="button" onClick={onPrimaryAction} className="app-btn app-btn-primary" disabled={!!primaryBusy}>
@@ -258,20 +338,65 @@ function isPushEnabledInBrowser() {
   }
 }
 
+function getPwaNudgeStep(t, mode) {
+  if (!mode || mode === 'complete') return null;
+
+  const base = {
+    nextLabel: t('tour.pwaNudge.later'),
+    skipLabel: t('tour.common.skip'),
+    missingHint: t('tour.common.missingHint'),
+  };
+
+  if (mode === 'install_only') {
+    return {
+      ...base,
+      title: t('tour.pwaNudge.installOnly.title'),
+      body: t('tour.pwaNudge.installOnly.body'),
+      primaryLabel: t('tour.pwaNudge.installOnly.primary'),
+      actionKey: 'install_only',
+    };
+  }
+
+  if (mode === 'notify_only') {
+    return {
+      ...base,
+      title: t('tour.pwaNudge.notifyOnly.title'),
+      body: t('tour.pwaNudge.notifyOnly.body'),
+      primaryLabel: t('tour.pwaNudge.notifyOnly.primary'),
+      actionKey: 'notify_only',
+    };
+  }
+
+  return {
+    ...base,
+    title: t('tour.pwaNudge.installAndNotify.title'),
+    body: t('tour.pwaNudge.installAndNotify.body'),
+    primaryLabel: t('tour.pwaNudge.installAndNotify.primary'),
+    actionKey: 'install_and_notify',
+  };
+}
+
 export default function StudioOneTimeTour() {
   const { user, loading } = useAuth();
   const { t } = useTranslation();
   const location = useLocation();
   const navigate = useNavigate();
 
-  const pwaNudgeDismissedRef = useRef(false);
   const forcedTourJustStartedRef = useRef(false);
-  const pwaNudgeWentOfflineRef = useRef(false);
-  const [pwaNudgeOnlineSeq, setPwaNudgeOnlineSeq] = useState(0);
 
   const pathname = String(location?.pathname || '');
 
   const uid = safeUid(user);
+  const [entryId, setEntryId] = useState('');
+  const [pwaNudgeShownForEntry, setPwaNudgeShownForEntry] = useState(false);
+  const [isOnline, setIsOnline] = useState(() => {
+    try {
+      return typeof window === 'undefined' ? true : window.navigator?.onLine !== false;
+    } catch {
+      return true;
+    }
+  });
+  const [pwaStatusSeq, setPwaStatusSeq] = useState(0);
 
   const labels = useMemo(() => {
     return {
@@ -284,23 +409,19 @@ export default function StudioOneTimeTour() {
   }, [t]);
 
   const tours = useMemo(() => {
+    const pwaNudgeStep = getPwaNudgeStep(t, (() => {
+      const installed = isPwaInstalled();
+      const pushEnabled = isPushEnabledInBrowser();
+      if (installed && pushEnabled) return 'complete';
+      if (installed && !pushEnabled) return 'notify_only';
+      if (!installed && pushEnabled) return 'install_only';
+      return 'install_and_notify';
+    })());
+
     return [
       {
         id: 'pwa-install-nudge',
-        startOnPath: '/profilim',
-        steps: [
-          {
-            path: '/profilim',
-            selector: '[data-tutorial-id="pwa-install-card"]',
-            title: t('tour.pwaNudge.title'),
-            body: t('tour.pwaNudge.body'),
-            primaryLabel: t('tour.pwaNudge.primary'),
-            nextLabel: t('tour.pwaNudge.later'),
-            skipLabel: t('tour.common.skip'),
-            missingHint: t('tour.common.missingHint'),
-            actionKey: 'install_and_notify',
-          },
-        ],
+        steps: pwaNudgeStep ? [pwaNudgeStep] : [],
       },
       {
         id: 'onboarding-preview',
@@ -434,43 +555,106 @@ export default function StudioOneTimeTour() {
         ],
       },
     ];
-  }, [t]);
+  }, [pwaStatusSeq, t]);
 
-  // Track offline→online transitions so PWA nudge can be shown once when coming back online.
+  const refreshPwaStatus = useCallback(() => {
+    setPwaStatusSeq((n) => n + 1);
+    try {
+      setIsOnline(window.navigator?.onLine !== false);
+    } catch {
+      setIsOnline(true);
+    }
+  }, []);
+
+  const pwaNudgeMode = useMemo(() => {
+    if (isPwaNudgeSuppressed(uid)) return 'complete';
+    const installed = isPwaInstalled();
+    const pushEnabled = isPushEnabledInBrowser();
+    if (installed && pushEnabled) return 'complete';
+    if (installed && !pushEnabled) return 'notify_only';
+    if (!installed && pushEnabled) return 'install_only';
+    return 'install_and_notify';
+  }, [pwaStatusSeq, uid]);
+
+  useEffect(() => {
+    if (!uid) {
+      clearPwaEntryId();
+      setEntryId('');
+      setPwaNudgeShownForEntry(false);
+      return;
+    }
+
+    const nextEntryId = ensurePwaEntryId(uid);
+    setEntryId(nextEntryId);
+    setPwaNudgeShownForEntry(safeSessionGet(pwaEntryShownKey(uid, nextEntryId)) === '1');
+  }, [uid]);
+
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
-    try {
-      pwaNudgeWentOfflineRef.current = !window.navigator?.onLine;
-    } catch {
-      pwaNudgeWentOfflineRef.current = false;
-    }
-
+    const onOnline = () => refreshPwaStatus();
     const onOffline = () => {
-      pwaNudgeWentOfflineRef.current = true;
-      // Allow showing again after a new offline→online cycle.
-      pwaNudgeDismissedRef.current = false;
+      if (uid && entryId && pwaNudgeMode !== 'complete') {
+        safeSessionRemove(pwaEntryShownKey(uid, entryId));
+        setPwaNudgeShownForEntry(false);
+      }
+      refreshPwaStatus();
+    };
+    const onAppInstalled = () => refreshPwaStatus();
+    const onFocus = () => refreshPwaStatus();
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') refreshPwaStatus();
     };
 
-    const onOnline = () => {
-      setPwaNudgeOnlineSeq((n) => n + 1);
-    };
-
-    window.addEventListener('offline', onOffline);
     window.addEventListener('online', onOnline);
+    window.addEventListener('offline', onOffline);
+    window.addEventListener('appinstalled', onAppInstalled);
+    window.addEventListener('focus', onFocus);
+    document.addEventListener('visibilitychange', onVisibility);
 
     return () => {
       try {
-        window.removeEventListener('offline', onOffline);
         window.removeEventListener('online', onOnline);
+        window.removeEventListener('offline', onOffline);
+        window.removeEventListener('appinstalled', onAppInstalled);
+        window.removeEventListener('focus', onFocus);
+        document.removeEventListener('visibilitychange', onVisibility);
       } catch {
         // noop
       }
     };
-  }, []);
+  }, [entryId, pwaNudgeMode, refreshPwaStatus, uid]);
+
+  const markPwaNudgeShownThisEntry = useCallback(() => {
+    if (!uid || !entryId) return;
+    safeSessionSet(pwaEntryShownKey(uid, entryId), '1');
+    setPwaNudgeShownForEntry(true);
+  }, [entryId, uid]);
 
   const [active, setActive] = useState(null); // { tourId, stepIndex }
   const [primaryBusy, setPrimaryBusy] = useState(false);
+  const [actionFeedback, setActionFeedback] = useState('');
+  const actionFeedbackTimeoutRef = useRef(0);
+
+  const clearActionFeedbackTimeout = useCallback(() => {
+    try {
+      if (actionFeedbackTimeoutRef.current) window.clearTimeout(actionFeedbackTimeoutRef.current);
+    } catch {
+      // ignore
+    }
+    actionFeedbackTimeoutRef.current = 0;
+  }, []);
+
+  const clearActionFeedback = useCallback(() => {
+    clearActionFeedbackTimeout();
+    setActionFeedback('');
+  }, [clearActionFeedbackTimeout]);
+
+  useEffect(() => {
+    return () => {
+      clearActionFeedbackTimeout();
+    };
+  }, [clearActionFeedbackTimeout]);
 
   useEffect(() => {
     setTutorialActive(!!active?.tourId);
@@ -489,7 +673,7 @@ export default function StudioOneTimeTour() {
     if (active) return;
 
     // Do not run tours on non-app routes.
-    if (pathname.startsWith('/admin') || pathname === '/login' || pathname === '/documents' || pathname === '/privacy') return;
+    if (pathname.startsWith('/admin') || pathname === '/login' || pathname === '/documents' || pathname === '/privacy' || isLeadApplyPath(pathname)) return;
 
     const forcedId = consumeForcedTourId();
     if (!forcedId) return;
@@ -497,34 +681,25 @@ export default function StudioOneTimeTour() {
     const tour = tours.find((x) => x.id === forcedId) || null;
     if (!tour || !Array.isArray(tour.steps) || tour.steps.length === 0) return;
 
+    if (forcedId === 'pwa-install-nudge') {
+      markPwaNudgeShownThisEntry();
+    }
+
     forcedTourJustStartedRef.current = true;
     setActive({ tourId: tour.id, stepIndex: 0 });
     if (tour.startOnPath && pathname !== tour.startOnPath) {
       navigate(tour.startOnPath);
     }
-  }, [active, loading, navigate, pathname, tours, uid]);
+  }, [active, loading, markPwaNudgeShownThisEntry, navigate, pathname, tours, uid]);
 
-  // Auto nudge: show once after offline→online (non-mandatory).
+  // Auto nudge: show at most once per auth entry/session, only when online.
   useEffect(() => {
     if (loading) return;
     if (!uid) return;
     if (active) return;
-
-    // Only react to an online event (avoid showing on normal navigation).
-    if (!pwaNudgeOnlineSeq) return;
-
-    // Only show if we previously went offline.
-    if (!pwaNudgeWentOfflineRef.current) return;
-
-    // If we're still offline, do nothing (wait for real online).
-    try {
-      if (typeof window !== 'undefined' && window.navigator?.onLine === false) return;
-    } catch {
-      // ignore
-    }
-
-    // Disarm immediately so this online event triggers at most once.
-    pwaNudgeWentOfflineRef.current = false;
+    if (!entryId) return;
+    if (pwaNudgeShownForEntry) return;
+    if (!isOnline) return;
 
     // If a forced tour was started in this cycle, don't override it.
     if (forcedTourJustStartedRef.current) {
@@ -532,34 +707,17 @@ export default function StudioOneTimeTour() {
       return;
     }
 
-    if (pwaNudgeDismissedRef.current) return;
-
     // Do not run tours on non-app routes.
-    if (pathname.startsWith('/admin') || pathname === '/login' || pathname === '/documents' || pathname === '/privacy') return;
+    if (pathname.startsWith('/admin') || pathname === '/login' || pathname === '/documents' || pathname === '/privacy' || isLeadApplyPath(pathname)) return;
 
-    // If the user already installed the app, don't show the "install" tutorial again.
-    // Notifications can still be enabled from the UI without this tour.
-    const installed = isPwaInstalled();
-    if (installed) return;
-
-    // Show at most 2 times per user (persistent).
-    const maxAutoShows = 2;
-    if (getShownCount(uid, 'pwa-install-nudge') >= maxAutoShows) return;
-
-    const needsInstall = !installed;
-    const needsPush = !isPushEnabledInBrowser();
-    if (!needsInstall && !needsPush) return;
+    if (pwaNudgeMode === 'complete') return;
 
     const tour = tours.find((x) => x.id === 'pwa-install-nudge') || null;
     if (!tour || !Array.isArray(tour.steps) || tour.steps.length === 0) return;
 
-    // Count immediately to avoid re-showing on every Profile visit.
-    incrementShownCount(uid, 'pwa-install-nudge');
+    markPwaNudgeShownThisEntry();
     setActive({ tourId: tour.id, stepIndex: 0 });
-    if (tour.startOnPath && pathname !== tour.startOnPath) {
-      navigate(tour.startOnPath);
-    }
-  }, [active, loading, navigate, pathname, pwaNudgeOnlineSeq, tours, uid]);
+  }, [active, entryId, isOnline, loading, markPwaNudgeShownThisEntry, pathname, pwaNudgeMode, pwaNudgeShownForEntry, tours, uid]);
 
   const activeTour = useMemo(() => {
     if (!active?.tourId) return null;
@@ -579,16 +737,16 @@ export default function StudioOneTimeTour() {
   const stepIndex = typeof active?.stepIndex === 'number' ? active.stepIndex : 0;
 
   const onSkip = () => {
+    clearActionFeedback();
     // This tour should re-appear every entry until completed.
     if (activeTour.id !== 'pwa-install-nudge') markShown(uid, activeTour.id);
-    else pwaNudgeDismissedRef.current = true;
     setActive(null);
   };
 
   const onNext = () => {
+    clearActionFeedback();
     if (stepIndex + 1 >= totalSteps) {
       if (activeTour.id !== 'pwa-install-nudge') markShown(uid, activeTour.id);
-      else pwaNudgeDismissedRef.current = true;
       setActive(null);
       return;
     }
@@ -605,33 +763,100 @@ export default function StudioOneTimeTour() {
   const onPrimaryAction = async () => {
     if (!step?.actionKey) return;
     if (primaryBusy) return;
-    if (step.actionKey !== 'install_and_notify') return;
 
+    clearActionFeedbackTimeout();
     setPrimaryBusy(true);
     try {
-      // 1) Trigger PWA install prompt synchronously (gesture-sensitive; best-effort)
-      let installChoicePromise = null;
-      try {
+      const runInstallPrompt = async () => {
         const dp = typeof window !== 'undefined' ? window.__uniqahDeferredPrompt : null;
-        if (dp && typeof dp.prompt === 'function') {
-          dp.prompt();
-          installChoicePromise = dp.userChoice?.catch?.(() => null) || null;
+        if (!dp || typeof dp.prompt !== 'function') {
+          return { available: false, accepted: false, outcome: 'unavailable' };
         }
-      } catch {
-        installChoicePromise = null;
-      }
 
-      // 2) Enable notifications (permission + token upsert)
-      await enablePushForCurrentUser().catch(() => null);
+        try {
+          await dp.prompt();
+          const choice = await (dp.userChoice?.catch?.(() => null) || null);
+          const outcome = String(choice?.outcome || '').toLowerCase();
+          const accepted = outcome === 'accepted';
+          if (accepted) markPwaInstalled();
+          return { available: true, accepted, outcome: outcome || 'unknown' };
+        } catch {
+          return { available: true, accepted: false, outcome: 'error' };
+        } finally {
+          try {
+            if (typeof window !== 'undefined') window.__uniqahDeferredPrompt = null;
+          } catch {
+            // ignore
+          }
+        }
+      };
 
-      // Wait install choice if we started it (best-effort)
-      if (installChoicePromise) {
-        await installChoicePromise;
+      if (step.actionKey === 'install_only') {
+        const installResult = await runInstallPrompt();
+        const successKey = getPwaActionSuccessMessageKey({
+          actionKey: step.actionKey,
+          installDone: installResult.accepted,
+          pushEnabled: false,
+        });
+        refreshPwaStatus();
+        if (successKey) {
+          setActionFeedback(t(successKey));
+          actionFeedbackTimeoutRef.current = window.setTimeout(() => {
+            setActionFeedback('');
+            onNext();
+          }, PWA_ACTION_FEEDBACK_TTL_MS);
+          return;
+        }
+      } else if (step.actionKey === 'notify_only') {
+        const pushResult = await enablePushForCurrentUser().catch(() => null);
+        markPwaNudgeSuppressed(uid);
+        const successKey = getPwaActionSuccessMessageKey({
+          actionKey: step.actionKey,
+          installDone: false,
+          pushEnabled: !!pushResult?.ok,
+        });
+        refreshPwaStatus();
+        if (successKey) {
+          setActionFeedback(t(successKey));
+          actionFeedbackTimeoutRef.current = window.setTimeout(() => {
+            setActionFeedback('');
+            onNext();
+          }, PWA_ACTION_FEEDBACK_TTL_MS);
+          return;
+        }
+      } else if (step.actionKey === 'install_and_notify') {
+        const alreadyInstalled = isPwaInstalled();
+        const installResult = alreadyInstalled ? { available: true, accepted: true, outcome: 'already_installed' } : await runInstallPrompt();
+        const shouldEnableNotifications = shouldEnableNotificationsAfterInstallAction({
+          alreadyInstalled,
+          installAvailable: installResult.available,
+          installAccepted: installResult.accepted,
+        });
+        let pushResult = null;
+        if (shouldEnableNotifications) {
+          pushResult = await enablePushForCurrentUser().catch(() => null);
+          markPwaNudgeSuppressed(uid);
+        }
+        const successKey = getPwaActionSuccessMessageKey({
+          actionKey: step.actionKey,
+          installDone: alreadyInstalled || installResult.accepted,
+          pushEnabled: !!pushResult?.ok,
+        });
+        refreshPwaStatus();
+        if (successKey) {
+          setActionFeedback(t(successKey));
+          actionFeedbackTimeoutRef.current = window.setTimeout(() => {
+            setActionFeedback('');
+            onNext();
+          }, PWA_ACTION_FEEDBACK_TTL_MS);
+          return;
+        }
       }
     } finally {
       setPrimaryBusy(false);
-      onNext();
     }
+
+    onNext();
   };
 
   // Only show overlay when we're on the expected route for current step.
@@ -645,6 +870,7 @@ export default function StudioOneTimeTour() {
       stepIndex={stepIndex}
       totalSteps={totalSteps}
       labels={labels}
+      actionFeedback={actionFeedback}
       onSkip={onSkip}
       onNext={onNext}
       onPrimaryAction={step?.actionKey ? onPrimaryAction : null}

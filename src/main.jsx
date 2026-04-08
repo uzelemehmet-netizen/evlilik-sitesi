@@ -18,6 +18,7 @@ import '@fontsource/inter/latin-ext-700.css';
 import '@fontsource/orbitron/latin-400.css';
 import '@fontsource/orbitron/latin-500.css';
 import '@fontsource/orbitron/latin-600.css';
+import '@fontsource/oregano/400.css';
 import '@fontsource/orbitron/latin-700.css';
 
 import '@fontsource/poppins/latin-ext-300.css';
@@ -40,6 +41,7 @@ import { detectInstalledRelatedAppsAndMark, markPwaInstalled, reportPwaInstalled
 import { buildSupportReport } from './utils/supportReport.js';
 import { getClientCountry } from './utils/supportLine.js';
 import { getAnonBrowserId } from './utils/clickTracker.js';
+import { isRecoverableModulePreloadError, recoverFromChunkLoadError } from './utils/chunkLoadRecovery.js';
 
 // Bazı kullanıcılar (özellikle TR dışı) siteyi Google Translate proxy domain'i üzerinden açabiliyor
 // (örn: *.translate.goog). Bu host Firebase Auth (Google login) için authorized domain değildir
@@ -70,23 +72,6 @@ if (typeof window !== 'undefined') {
 // Vite bu durumda `vite:preloadError` event'i tetikler. En pratik çözüm: kontrollü reload.
 if (typeof window !== 'undefined') {
   try {
-    const KEY = 'uniqah:vite_preload_recover_v1';
-    const getCount = () => {
-      try {
-        const n = Number(sessionStorage.getItem(KEY) || '0');
-        return Number.isFinite(n) && n >= 0 ? n : 0;
-      } catch {
-        return 0;
-      }
-    };
-    const incCount = () => {
-      try {
-        sessionStorage.setItem(KEY, String(getCount() + 1));
-      } catch {
-        // ignore
-      }
-    };
-
     window.addEventListener('vite:preloadError', (event) => {
       try {
         // Prevent default console noise / potential error overlay behavior.
@@ -94,58 +79,7 @@ if (typeof window !== 'undefined') {
       } catch {
         // ignore
       }
-
-      const count = getCount();
-      incCount();
-
-      // 1) First time: simple reload (usually fetches fresh index.html and fixes stale chunk refs).
-      if (count < 1) {
-        try {
-          window.location.reload();
-          return;
-        } catch {
-          // ignore
-        }
-      }
-
-      // 2) If it keeps happening in the same session: best-effort SW + Cache Storage cleanup.
-      (async () => {
-        try {
-          if ('serviceWorker' in navigator) {
-            const regs = await navigator.serviceWorker.getRegistrations().catch(() => []);
-            for (const reg of regs || []) {
-              try {
-                await reg.unregister();
-              } catch {
-                // ignore
-              }
-            }
-          }
-        } catch {
-          // ignore
-        }
-
-        try {
-          if (typeof caches !== 'undefined' && caches && typeof caches.keys === 'function') {
-            const keys = await caches.keys().catch(() => []);
-            for (const k of keys || []) {
-              try {
-                await caches.delete(k);
-              } catch {
-                // ignore
-              }
-            }
-          }
-        } catch {
-          // ignore
-        }
-
-        try {
-          window.location.reload();
-        } catch {
-          // ignore
-        }
-      })();
+      void recoverFromChunkLoadError({ reason: 'vite_preload_error', storageKey: 'uniqah:vite_preload_recover_v2' });
     });
   } catch {
     // ignore
@@ -610,72 +544,29 @@ if (typeof window !== 'undefined') {
             }
           })();
 
+          const shouldIgnoreFacebookWebViewBridgeError = (() => {
+            try {
+              if (inAppBrowserHint !== 'facebook') return false;
+              const haystack = [msgRaw, message, errorMessage, stack].filter(Boolean).join(' | ').toLowerCase();
+              if (!haystack || !haystack.includes('java object is gone')) return false;
+              return /error invoking enable[a-z]+logging/.test(haystack);
+            } catch {
+              return false;
+            }
+          })();
+
+          if (shouldIgnoreFacebookWebViewBridgeError) return;
+
           // Recovery: If a same-origin Vite chunk fails to preload, the page may stay blank
           // (stale cached HTML referencing an old hashed asset, flaky networks, or aggressive caches).
           // Try a single cache-busted reload to recover.
           try {
-            if (code === 'resource_load_error' && tagName === 'link' && linkRel === 'modulepreload' && linkAs === 'script') {
-              const hint = String(resourceUrlHint || '').trim();
-              const hintLow = hint.toLowerCase();
-              const currentHost = (() => {
-                try {
-                  return String(window.location?.host || '').trim().toLowerCase();
-                } catch {
-                  return '';
-                }
-              })();
-
-              const isSameHostAsset = !!currentHost && hintLow.startsWith(`${currentHost}/assets/`) && hintLow.endsWith('.js');
-              // Vite output is typically `/assets/<name>-<hash>.js`.
-              // We intentionally avoid being too strict about the hash charset/length.
-              const isLikelyViteHashedChunk = /\/assets\/[a-z0-9_-]+-[a-z0-9_-]+\.js$/i.test(hintLow);
-
-              // Reduce annoyance: only auto-reload if this happens very early in the page lifecycle.
-              const isEarlyLoad = (() => {
-                try {
-                  if (typeof eventTimeStamp === 'number' && Number.isFinite(eventTimeStamp)) {
-                    return eventTimeStamp >= 0 && eventTimeStamp < 15_000;
-                  }
-                  return false;
-                } catch {
-                  return false;
-                }
-              })();
-
-              if (isSameHostAsset && isLikelyViteHashedChunk && isEarlyLoad) {
-                const KEY = 'mk_preload_recover_v1';
-                const now = Date.now();
-                const last = (() => {
-                  try {
-                    return Number(sessionStorage.getItem(KEY) || '0');
-                  } catch {
-                    return 0;
-                  }
-                })();
-
-                // Avoid loops: at most once per 10 minutes per tab.
-                if (!Number.isFinite(last) || now - last > 10 * 60 * 1000) {
-                  try {
-                    sessionStorage.setItem(KEY, String(now));
-                  } catch {
-                    // ignore
-                  }
-
-                  try {
-                    const u = new URL(String(window.location?.href || 'https://uniqah.com/'));
-                    u.searchParams.set('__reload', String(now));
-                    // replace() prevents back-button loops.
-                    window.location.replace(u.toString());
-                  } catch {
-                    // Fallback: basic reload.
-                    try {
-                      window.location.reload();
-                    } catch {
-                      // ignore
-                    }
-                  }
-                }
-              }
+            if (isRecoverableModulePreloadError({ code, tagName, linkRel, linkAs, resourceUrlHint })) {
+              void recoverFromChunkLoadError({
+                reason: 'modulepreload_resource_error',
+                storageKey: 'uniqah:modulepreload_recover_v2',
+              });
+              return;
             }
           } catch {
             // ignore

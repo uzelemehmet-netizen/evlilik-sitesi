@@ -47,6 +47,10 @@ export function translateStudioApiError(t, raw) {
 
   if (s === 'not_available') return t('studio.errors.notAvailable');
   if (s === 'forbidden') return t('studio.errors.forbidden');
+  if (s === 'contact_share_missing_number') return t('studio.errors.contactShareMissingNumber');
+  if (s === 'contact_not_shared') return t('studio.errors.contactNotShared');
+  if (s === 'contact_activity_required') return t('studio.errors.contactActivityRequired');
+  if (s === 'blocked_user_pair') return t('studio.errors.blockedUserPair');
 
   // Referral
   if (s === 'referral_disabled') return t('studio.referral.errors.referralDisabled');

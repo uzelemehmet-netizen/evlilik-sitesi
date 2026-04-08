@@ -1,6 +1,7 @@
-import { getAdmin, normalizeBody, requireIdToken } from './_firebaseAdmin.js';
-import { normalizeGender } from './_matchmakingEligibility.js';
-import { getMatchmakingResetAtMs, matchCreatedAtMs } from './_matchmakingReset.js';
+import { getAdmin, getAdminEmails, isAdminEmail, normalizeBody, requireIdToken } from './_firebaseAdmin.js';
+import { hasSubmittedMatchmakingProfileInUserDoc, normalizeGender, resolveLookingForGender } from './_matchmakingEligibility.js';
+import { hasAnyMatchmakingProfileInUserDoc, hasMinimumMatchmakingProfileInApplicationDoc, isStubMatchmakingApplication } from '../src/utils/matchmakingProfileCompletion.js';
+import { getBlockedUserIds, hasBlockedUser } from './_matchmakingBlocks.js';
 
 function safeStr(v) {
   return typeof v === 'string' ? v.trim() : '';
@@ -16,44 +17,6 @@ function asNum(v) {
   }
   const n = typeof v === 'number' ? v : Number(v);
   return Number.isFinite(n) ? n : null;
-}
-
-function normalizeMaritalStatus(v) {
-  return safeStr(v).toLowerCase();
-}
-
-function isMinimumMatchmakingProfileCompleteFromApp(app) {
-  const a = app && typeof app === 'object' ? app : {};
-  const details = a?.details && typeof a.details === 'object' ? a.details : {};
-
-  const fullName = safeStr(a?.fullName);
-  const age = asNum(a?.age);
-  const gender = normalizeGender(a?.gender);
-  const city = safeStr(a?.city);
-  const country = safeStr(a?.country);
-  const nationality = safeStr(a?.nationality);
-  const occupation = safeStr(details?.occupation) || safeStr(a?.occupation);
-  const maritalStatus = normalizeMaritalStatus(details?.maritalStatus || a?.maritalStatus);
-
-  if (!fullName) return false;
-  if (!(typeof age === 'number' && Number.isFinite(age) && age >= 18 && age <= 99)) return false;
-  if (!gender) return false;
-  if (!city) return false;
-  if (!country) return false;
-  if (!nationality) return false;
-  if (!occupation) return false;
-  if (!maritalStatus) return false;
-
-  if (maritalStatus === 'widowed' || maritalStatus === 'divorced') {
-    const hasChildren = safeStr(details?.hasChildren || a?.hasChildren).toLowerCase();
-    if (!hasChildren) return false;
-    if (hasChildren === 'yes') {
-      const cnt = asNum(details?.childrenCount);
-      if (!(typeof cnt === 'number' && Number.isFinite(cnt) && cnt >= 1 && cnt <= 20)) return false;
-    }
-  }
-
-  return true;
 }
 
 function asObj(v) {
@@ -182,7 +145,7 @@ function pickBestNonStubApplication(items) {
     .sort((x, y) => y.score - x.score);
 
   const bestNonStub = scored.find((x) => !x.isStub) || null;
-  return (bestNonStub || scored[0] || null) ? (bestNonStub ? bestNonStub.a : scored[0].a) : null;
+  return bestNonStub ? bestNonStub.a : null;
 }
 
 function ageRangeFromApp(app, { ageOverride = null } = {}) {
@@ -242,14 +205,10 @@ function ageRangeFromApp(app, { ageOverride = null } = {}) {
 
 function poolGenderOk(viewerApp, candApp) {
   const viewerGender = normalizeGender(viewerApp?.gender);
-  const viewerLookingFor = normalizeGender(viewerApp?.lookingForGender);
+  const viewerLookingFor = resolveLookingForGender(viewerApp?.gender, viewerApp?.lookingForGender);
   const candGender = normalizeGender(candApp?.gender);
 
-  // If we know viewerLookingFor, enforce it.
-  // Otherwise, if viewer gender is known, default to opposite.
-  const viewerWants =
-    viewerLookingFor ||
-    (viewerGender === 'male' ? 'female' : viewerGender === 'female' ? 'male' : '');
+  const viewerWants = viewerLookingFor || (viewerGender === 'male' ? 'female' : viewerGender === 'female' ? 'male' : '');
 
   if (viewerWants && candGender && candGender !== viewerWants) return false;
   if (viewerGender && candGender && candGender === viewerGender) return false;
@@ -277,21 +236,19 @@ export default async function handler(req, res) {
     const body = normalizeBody(req);
     const limitOut = (() => {
       const n = asNum(body?.limit);
-      if (n === null) return 30;
-      return Math.max(10, Math.min(60, Math.floor(n)));
+      if (n === null) return 120;
+      return Math.max(10, Math.min(1200, Math.floor(n)));
     })();
 
     const { db } = getAdmin();
 
-    // Viewer application (en iyi)
+    // Viewer application: sadece gerçek/form-submit edilmiş profil keşfeti kullanabilsin.
     const myAppsSnap = await db.collection('matchmakingApplications').where('userId', '==', uid).limit(10).get();
     const myApps = myAppsSnap.docs.map((d) => ({ id: d.id, ...(d.data() || {}) }));
     const myApp = pickBestNonStubApplication(myApps);
-
-    // Ürün kararı (2026-02): Keşfet listesi yeni kayıt olan kullanıcıya da gösterilebilir.
-    // Aksiyon (istek gönderme vb.) tarafında profil formu doldurma şartı UI/API katmanında ayrıca korunur.
     let needsApplication = false;
-    let viewerApp = myApp;
+    let viewerUserDoc = null;
+    let viewerApp = myApp && hasMinimumMatchmakingProfileInApplicationDoc(myApp) ? myApp : null;
 
     if (!viewerApp) {
       // Bazı kullanıcıların (özellikle eski akışlarda) matchmakingApplications dokümanı olmayabilir.
@@ -300,57 +257,82 @@ export default async function handler(req, res) {
       try {
         const snap = await db.collection('matchmakingUsers').doc(uid).get();
         const d = snap && snap.exists ? (snap.data() || {}) : {};
+        viewerUserDoc = d;
 
-        const appFromUser = d?.application && typeof d.application === 'object' ? d.application : null;
-        const publicProfile = d?.publicProfile && typeof d.publicProfile === 'object' ? d.publicProfile : null;
-        const merged = {
-          ...(publicProfile || {}),
-          ...(appFromUser || {}),
-          ...(d || {}),
-          details: {
-            ...((publicProfile && typeof publicProfile.details === 'object' ? publicProfile.details : {}) || {}),
-            ...((appFromUser && typeof appFromUser.details === 'object' ? appFromUser.details : {}) || {}),
-            ...((d?.details && typeof d.details === 'object' ? d.details : {}) || {}),
-          },
-        };
-        needsApplication = !isMinimumMatchmakingProfileCompleteFromApp(merged);
+        if (!hasSubmittedMatchmakingProfileInUserDoc(d)) {
+          needsApplication = true;
+          viewerApp = null;
+        } else {
+          const appFromUser = d?.application && typeof d.application === 'object' ? d.application : null;
+          const publicProfile = d?.publicProfile && typeof d.publicProfile === 'object' ? d.publicProfile : null;
+          const merged = {
+            ...(publicProfile || {}),
+            ...(appFromUser || {}),
+            ...(d || {}),
+            details: {
+              ...((publicProfile && typeof publicProfile.details === 'object' ? publicProfile.details : {}) || {}),
+              ...((appFromUser && typeof appFromUser.details === 'object' ? appFromUser.details : {}) || {}),
+              ...((d?.details && typeof d.details === 'object' ? d.details : {}) || {}),
+            },
+          };
+          void merged;
 
-        viewerApp = {
-          gender: safeStr(d?.gender || d?.publicProfile?.gender || d?.application?.gender),
-          lookingForGender: safeStr(d?.lookingForGender || d?.publicProfile?.lookingForGender || d?.application?.lookingForGender),
-        };
+          viewerApp = {
+            gender: safeStr(d?.gender || d?.publicProfile?.gender || d?.application?.gender),
+            lookingForGender: safeStr(d?.lookingForGender || d?.publicProfile?.lookingForGender || d?.application?.lookingForGender),
+          };
+        }
       } catch {
         needsApplication = true;
-        viewerApp = {};
+        viewerApp = null;
       }
     }
 
+    if (!viewerUserDoc) {
+      try {
+        const viewerSnap = await db.collection('matchmakingUsers').doc(uid).get();
+        viewerUserDoc = viewerSnap.exists ? (viewerSnap.data() || {}) : {};
+      } catch {
+        viewerUserDoc = {};
+      }
+    }
+
+    if (needsApplication || !viewerApp) {
+      res.statusCode = 200;
+      res.setHeader('content-type', 'application/json');
+      res.end(
+        JSON.stringify({
+          ok: true,
+          meta: {
+            viewerAge: null,
+            needsApplication: true,
+            total: 0,
+            returned: 0,
+          },
+          items: [],
+        })
+      );
+      return;
+    }
+
     const viewerAge = myApp ? getAge(myApp) : null;
-    // Ürün kararı (2026-02): Keşfet'te yaş filtresi yok. Herkes herkesi görebilir.
+    // Ürün kararı (2026-02): Keşfet'te yaş filtresi yok.
     // Minimum yaş onayı/signup tarafında kalır; keşfet/browse tarafında yaş uyumu uygulanmaz.
-    const min = 18;
-    const max = 99;
-
-    // Havuzda zaten match olduğun kişileri göstermeyelim.
-    // Soft reset varsa reset öncesi match'leri yok say.
-    const resetAtMs = await getMatchmakingResetAtMs(db).catch(() => 0);
     const excludeUids = new Set();
-    try {
-      const myMatchesSnap = await db.collection('matchmakingMatches').where('userIds', 'array-contains', uid).limit(500).get();
-      myMatchesSnap.docs.forEach((d) => {
-        const m = d.data() || {};
-        const st = safeStr(m?.status).toLowerCase();
-        if (!st || st === 'cancelled' || st === 'deleted_user') return;
-        const createdMs = matchCreatedAtMs(m);
-        if (resetAtMs > 0 && createdMs > 0 && createdMs < resetAtMs) return;
+    const adminExcludedUids = new Set();
 
-        const ids = Array.isArray(m?.userIds) ? m.userIds.map(String).filter(Boolean) : [];
-        if (ids.length !== 2) return;
-        const other = ids[0] === uid ? ids[1] : ids[1] === uid ? ids[0] : '';
-        if (other) excludeUids.add(other);
-      });
-    } catch {
-      // best-effort
+    for (const adminEmail of getAdminEmails()) {
+      try {
+        const snap = await db.collection('matchmakingUsers').where('authEmailLower', '==', adminEmail).limit(10).get();
+        snap.docs.forEach((doc) => {
+          const adminUid = safeStr(doc.id);
+          if (!adminUid) return;
+          adminExcludedUids.add(adminUid);
+          excludeUids.add(adminUid);
+        });
+      } catch {
+        // best-effort
+      }
     }
 
   // NOTE: Eski kayıtların bir kısmında age alanı kökte değil (details.age / birthYear / birthDate vs).
@@ -417,6 +399,7 @@ export default async function handler(req, res) {
     if (s > prev.score) bestByUid.set(candUid, { id: d.id, data: cand, score: s });
   }
 
+  const viewerBlockedSet = new Set(getBlockedUserIds(viewerUserDoc));
   const items = [];
 
   for (const [candUid, entry] of bestByUid.entries()) {
@@ -424,7 +407,8 @@ export default async function handler(req, res) {
     const applicationId = safeStr(entry?.id);
 
     const source = safeStr(cand?.source).toLowerCase();
-    const isStub = source === 'auto_stub' || cand?.details?.autoBootstrap === true;
+    const isStub = isStubMatchmakingApplication(cand);
+    if (isStub) continue;
 
     const age = getAge(cand);
     const details = asObj(cand?.details);
@@ -473,6 +457,8 @@ export default async function handler(req, res) {
         details: {
           maritalStatus: safeStr(details?.maritalStatus),
           occupation: safeStr(details?.occupation),
+          occupationTr: safeStr(details?.occupationTr),
+          occupationId: safeStr(details?.occupationId),
           hasChildren: safeStr(details?.hasChildren),
           childrenCount: asNum(details?.childrenCount),
           childrenLivingSituation: safeStr(details?.childrenLivingSituation),
@@ -488,6 +474,7 @@ export default async function handler(req, res) {
     const codeByUid = new Map();
     const lastSeenByUid = new Map();
     const verifiedByUid = new Map();
+    const hiddenUidSet = new Set(adminExcludedUids);
 
     // Not: '__name__ in' sorgusu 10 UID ile sınırlı ve bazı ortamlarda
     // sorun çıkarabiliyor. Keşfet sıralamasının "her zaman" doğrulanmışları
@@ -506,6 +493,14 @@ export default async function handler(req, res) {
       snaps.forEach((snap) => {
         if (!snap || !snap.exists) return;
         const u = snap.data() || {};
+        if (isAdminEmail(u?.authEmailLower || u?.authEmail)) {
+          hiddenUidSet.add(snap.id);
+          return;
+        }
+        if (viewerBlockedSet.has(snap.id) || hasBlockedUser(u, uid)) {
+          hiddenUidSet.add(snap.id);
+          return;
+        }
         const code = safeStr(u?.userCode) || safeStr(u?.publicProfile?.userCode);
         if (code) codeByUid.set(snap.id, code);
 
@@ -526,6 +521,11 @@ export default async function handler(req, res) {
       const verified = verifiedByUid.get(String(it?.uid || ''));
       if (typeof verified === 'boolean' && it?.profile && typeof it.profile === 'object') it.profile.identityVerified = verified;
     });
+
+    for (let i = items.length - 1; i >= 0; i -= 1) {
+      const candUid = String(items[i]?.uid || '');
+      if (candUid && hiddenUidSet.has(candUid)) items.splice(i, 1);
+    }
   } catch {
     // ignore
   }
@@ -563,8 +563,22 @@ export default async function handler(req, res) {
     // eslint-disable-next-line no-console
     console.error('[matchmaking-browse] error:', e);
 
-    res.statusCode = 500;
+    res.statusCode = 200;
     res.setHeader('content-type', 'application/json');
-    res.end(JSON.stringify({ ok: false, error, message: msg || 'server_error' }));
+    res.end(
+      JSON.stringify({
+        ok: true,
+        degraded: true,
+        error,
+        message: msg || 'server_error',
+        meta: {
+          viewerAge: null,
+          needsApplication: true,
+          total: 0,
+          returned: 0,
+        },
+        items: [],
+      })
+    );
   }
 }

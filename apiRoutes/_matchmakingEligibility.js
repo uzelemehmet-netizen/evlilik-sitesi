@@ -1,14 +1,30 @@
-import { fetchMatchmakingApplicationsByUid } from './_matchmakingApplications.js';
 import {
   getMinimumMatchmakingProfileMissingFromApp,
+  hasAnyMatchmakingProfileInUserDoc,
   hasMinimumMatchmakingProfileInApplicationDoc,
+  hasMinimumMatchmakingProfileInUserDoc,
+  isStubMatchmakingApplication,
 } from '../src/utils/matchmakingProfileCompletion.js';
+import { fetchMatchmakingApplicationsByUid } from './_matchmakingApplications.js';
 
 function normalizeGender(v) {
   const s = String(v || '').toLowerCase().trim();
   if (s === 'male' || s === 'm' || s === 'man' || s === 'erkek') return 'male';
   if (s === 'female' || s === 'f' || s === 'woman' || s === 'kadin' || s === 'kadın') return 'female';
   return '';
+}
+
+function oppositeGender(v) {
+  const gender = normalizeGender(v);
+  if (gender === 'male') return 'female';
+  if (gender === 'female') return 'male';
+  return '';
+}
+
+function resolveLookingForGender(gender, lookingForGender) {
+  const normalizedGender = normalizeGender(gender);
+  if (normalizedGender) return oppositeGender(normalizedGender);
+  return normalizeGender(lookingForGender);
 }
 
 function safeStr(v) {
@@ -245,10 +261,34 @@ function explainMinimumMatchmakingProfileMissing(app) {
 }
 
 function isStubApplication(a) {
-  const source = safeStr(a?.source).toLowerCase();
-  if (source === 'auto_stub') return true;
-  if (a?.details?.autoBootstrap === true) return true;
-  return false;
+  return isStubMatchmakingApplication(a);
+}
+
+function pickBestSubmittedApplication(apps) {
+  const list = Array.isArray(apps) ? apps : [];
+  let best = null;
+  let bestScore = -Infinity;
+
+  for (const app of list) {
+    if (!app || typeof app !== 'object' || isStubApplication(app)) continue;
+    const ms =
+      (typeof app?.updatedAtMs === 'number' && Number.isFinite(app.updatedAtMs) ? app.updatedAtMs : 0) ||
+      (typeof app?.createdAtMs === 'number' && Number.isFinite(app.createdAtMs) ? app.createdAtMs : 0) ||
+      0;
+    const score = ms > 0 ? ms : 1;
+    if (score > bestScore) {
+      best = app;
+      bestScore = score;
+    }
+  }
+
+  return best;
+}
+
+function hasSubmittedMatchmakingProfileInUserDoc(userDoc) {
+  const source = userDoc && typeof userDoc === 'object' ? userDoc : {};
+  if (!hasAnyMatchmakingProfileInUserDoc(source)) return false;
+  return hasMinimumMatchmakingProfileInUserDoc(source);
 }
 
 function isMembershipActive(userDoc, now = Date.now()) {
@@ -330,137 +370,37 @@ function ensureMembershipActiveOrThrow(userDoc) {
 async function ensureProfileCompleteOrThrow(db, uid) {
   const userId = safeStr(uid);
   if (!db || !userId) {
-    const err = new Error('bad_request');
-    err.statusCode = 400;
+    const err = new Error('application_required');
+    err.statusCode = 403;
     throw err;
   }
 
-  const isProd = String(process.env.NODE_ENV || '').toLowerCase().trim() === 'production';
+  const [apps, userSnap] = await Promise.all([
+    fetchMatchmakingApplicationsByUid(db, userId, { limit: 10 }),
+    db.collection('matchmakingUsers').doc(userId).get().catch(() => null),
+  ]);
 
-  const attachDebug = (err, debug) => {
-    if (!err || typeof err !== 'object') return;
-    if (isProd) return;
-    try {
-      err.debug = debug;
-    } catch {
-      // ignore
-    }
-  };
+  const userDoc = userSnap?.exists ? (userSnap.data() || {}) : {};
+  const submittedApp = pickBestSubmittedApplication(apps);
+  if ((submittedApp && isMinimumMatchmakingProfileCompleteFromApp(submittedApp)) || hasSubmittedMatchmakingProfileInUserDoc(userDoc)) return;
 
-  // Fast path: matchmakingUsers cache (bazı akışlarda uygulama dokümanı eksik olabilir).
-  try {
-    const uSnap = await db.collection('matchmakingUsers').doc(userId).get();
-    const u = uSnap && uSnap.exists ? (uSnap.data() || {}) : {};
-
-    const appFromUser = u?.application && typeof u.application === 'object' ? u.application : null;
-    const publicProfile = u?.publicProfile && typeof u.publicProfile === 'object' ? u.publicProfile : null;
-    const merged = {
-      ...(publicProfile || {}),
-      ...(appFromUser || {}),
-      ...(u || {}),
-      details: {
-        ...((publicProfile && typeof publicProfile.details === 'object' ? publicProfile.details : {}) || {}),
-        ...((appFromUser && typeof appFromUser.details === 'object' ? appFromUser.details : {}) || {}),
-        ...((u?.details && typeof u.details === 'object' ? u.details : {}) || {}),
-      },
-    };
-
-    if (isMinimumMatchmakingProfileCompleteFromApp(merged)) return;
-
-    // DEV debug: hangi alanlar eksik görünüyor?
-    try {
-      const missing = explainMinimumMatchmakingProfileMissing(merged);
-      if (missing.length) {
-        // Keep best-effort debug; do not throw here.
-        merged.__debugMissing = missing;
-      }
-    } catch {
-      // ignore
-    }
-  } catch {
-    // ignore and fall back to applications
-  }
-
-  const apps = await fetchMatchmakingApplicationsByUid(db, userId, { limit: 10 });
-  if (!apps.length) {
-    const err = new Error('profile_incomplete');
-    err.statusCode = 428;
-    attachDebug(err, { reason: 'no_applications', uid: userId });
-    throw err;
-  }
-
-  let ok = false;
-  const debugChecked = [];
-  const debugMissingByApp = [];
-  for (const a of apps) {
-    if (isStubApplication(a)) continue;
-    const appId = safeStr(a?.id) || '';
-    if (appId) debugChecked.push(appId);
-
-    if (isMinimumMatchmakingProfileCompleteFromApp(a)) {
-      ok = true;
-      break;
-    }
-
-    try {
-      const miss = explainMinimumMatchmakingProfileMissing(a);
-      if (miss.length) {
-        debugMissingByApp.push({ id: appId || null, missing: miss });
-      }
-    } catch {
-      // ignore
-    }
-  }
-
-  if (!ok) {
-    const err = new Error('profile_incomplete');
-    err.statusCode = 428;
-
-    // DEV debug payload: include merged missing if available.
-    let mergedMissing = null;
-    try {
-      const uSnap = await db.collection('matchmakingUsers').doc(userId).get();
-      if (uSnap && uSnap.exists) {
-        const u = uSnap.data() || {};
-        const appFromUser = u?.application && typeof u.application === 'object' ? u.application : null;
-        const publicProfile = u?.publicProfile && typeof u.publicProfile === 'object' ? u.publicProfile : null;
-        const merged = {
-          ...(publicProfile || {}),
-          ...(appFromUser || {}),
-          ...(u || {}),
-          details: {
-            ...((publicProfile && typeof publicProfile.details === 'object' ? publicProfile.details : {}) || {}),
-            ...((appFromUser && typeof appFromUser.details === 'object' ? appFromUser.details : {}) || {}),
-            ...((u?.details && typeof u.details === 'object' ? u.details : {}) || {}),
-          },
-        };
-
-        const miss = explainMinimumMatchmakingProfileMissing(merged);
-        mergedMissing = miss.length ? miss : null;
-      }
-    } catch {
-      mergedMissing = null;
-    }
-
-    attachDebug(err, {
-      reason: 'applications_not_complete',
-      uid: userId,
-      checkedAppIds: debugChecked,
-      mergedMissing,
-      missingByApplication: debugMissingByApp.slice(0, 10),
-    });
-    throw err;
-  }
+  const err = new Error('application_required');
+  err.statusCode = 403;
+  throw err;
 }
 
 export {
   normalizeGender,
+  oppositeGender,
+  resolveLookingForGender,
   isMembershipActive,
   isIdentityVerified,
   computeFreeActiveMembershipState,
   ensureEligibleOrThrow,
   ensureMembershipActiveOrThrow,
   ensureProfileCompleteOrThrow,
+  hasSubmittedMatchmakingProfileInUserDoc,
   isFreeActiveEnabled,
   isInteractionMembershipOnlyEnabled,
+  pickBestSubmittedApplication,
 };

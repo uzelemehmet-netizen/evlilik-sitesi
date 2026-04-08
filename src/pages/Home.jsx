@@ -1,11 +1,12 @@
 import Navigation from '../components/Navigation';
 import Footer from '../components/Footer';
 import HeroSocialButtons from '../components/HeroSocialButtons';
-import { MapPin, FileText, BadgeCheck, Heart, Video, IceCream, MessageCircle, Sparkles } from 'lucide-react';
+import { MapPin, FileText, BadgeCheck, Heart, Video, IceCream, MessageCircle, Sparkles, Download } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { isFeatureEnabled } from '../config/siteVariant';
 import { buildWhatsAppUrl } from '../utils/whatsapp';
 import { trackClick } from '../utils/clickTracker';
+import { APP_INSTALL_PATH, getAppInstallLinkUi } from '../utils/appInstallLink';
 
 function getBaseLang(raw) {
   const base = String(raw || '').trim().toLowerCase().split(/[-_]/)[0];
@@ -146,6 +147,7 @@ export default function Home() {
   const faqItems = t('home.faq.items', { returnObjects: true });
   const langBase = getBaseLang(i18n?.language);
   const homeSupportUi = getHomeSupportUi(langBase);
+  const installLinkUi = getAppInstallLinkUi(i18n?.language);
   const homeWhatsappHref = buildWhatsAppUrl(homeSupportUi.whatsappMessage, { lang: String(i18n?.language || 'tr') });
 
   const showWedding = isFeatureEnabled('wedding');
@@ -235,6 +237,28 @@ export default function Home() {
           {showWedding ? (
             <>
               <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 max-w-6xl mx-auto">
+                <a
+                  href={APP_INSTALL_PATH}
+                  className="group sm:col-span-2 lg:col-span-3 rounded-[28px] border border-emerald-200/30 bg-[linear-gradient(135deg,rgba(16,185,129,0.28),rgba(15,23,42,0.34))] p-5 text-left text-white shadow-[0_24px_70px_rgba(15,23,42,0.24)] backdrop-blur-md transition hover:brightness-105"
+                  onClick={() => trackClick('cta_app_install_home_hero', { page: '/' })}
+                  aria-label={installLinkUi.title}
+                >
+                  <div className="flex items-start gap-4">
+                    <div className="mt-0.5 inline-flex h-12 w-12 items-center justify-center rounded-2xl border border-white/15 bg-white/12">
+                      <Download size={20} className="text-white" />
+                    </div>
+                    <div className="flex-1">
+                      <div className="text-xs uppercase tracking-[0.22em] text-emerald-100/90">{installLinkUi.eyebrow}</div>
+                      <div className="mt-2 text-lg font-semibold md:text-2xl">{installLinkUi.title}</div>
+                      <div className="mt-2 max-w-3xl text-sm text-white/88 md:text-base">{installLinkUi.homeBody}</div>
+                      <div className="mt-4 inline-flex items-center gap-2 rounded-2xl bg-white px-5 py-3 text-sm font-semibold text-slate-950 shadow-[0_16px_34px_rgba(255,255,255,0.18)]">
+                        <Download size={18} />
+                        {installLinkUi.cta}
+                      </div>
+                    </div>
+                  </div>
+                </a>
+
                 <a
                   href={primaryCtaHref}
                   className="group rounded-2xl bg-white/10 text-white border border-white/20 p-4 md:p-5 hover:bg-white/15 transition text-left"

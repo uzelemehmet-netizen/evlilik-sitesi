@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="tr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Font Preview</title>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Rajdhani:wght@400;700&display=swap');
+
+      :root {
+        color-scheme: dark;
+        --bg: #07111f;
+        --panel: rgba(15, 23, 42, 0.82);
+        --line: rgba(255, 255, 255, 0.1);
+        --text: #f8fafc;
+        --muted: rgba(248, 250, 252, 0.68);
+        --accent: #fbbf24;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        background:
+          radial-gradient(circle at top, rgba(251, 191, 36, 0.16), transparent 28%),
+          linear-gradient(180deg, #020617 0%, var(--bg) 100%);
+        color: var(--text);
+        font-family: Inter, system-ui, sans-serif;
+      }
+
+      .wrap {
+        width: min(1100px, calc(100% - 32px));
+        margin: 0 auto;
+        padding: 40px 0 56px;
+      }
+
+      h1 {
+        margin: 0 0 10px;
+        font-size: clamp(2rem, 5vw, 3.5rem);
+        font-family: Rajdhani, sans-serif;
+        font-weight: 700;
+        letter-spacing: 0.03em;
+      }
+
+      .intro {
+        margin: 0 0 28px;
+        max-width: 780px;
+        color: var(--muted);
+        line-height: 1.7;
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(290px, 1fr));
+        gap: 18px;
+      }
+
+      .card {
+        border: 1px solid var(--line);
+        border-radius: 28px;
+        padding: 22px;
+        background: var(--panel);
+        backdrop-filter: blur(14px);
+        box-shadow: 0 24px 60px rgba(2, 6, 23, 0.38);
+      }
+
+      .eyebrow {
+        display: inline-flex;
+        padding: 6px 10px;
+        border-radius: 999px;
+        border: 1px solid rgba(251, 191, 36, 0.32);
+        color: var(--accent);
+        font-size: 12px;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+      }
+
+      .sample-title {
+        margin: 16px 0 6px;
+        font-size: 42px;
+        line-height: 1;
+      }
+
+      .sample-sub {
+        margin: 0 0 16px;
+        color: var(--muted);
+        font-size: 14px;
+      }
+
+      .sample-text {
+        margin: 0 0 16px;
+        font-size: clamp(1rem, 2vw, 1.18rem);
+        line-height: 1.75;
+      }
+
+      .sample-meta {
+        padding-top: 14px;
+        border-top: 1px solid var(--line);
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      .rajdhani {
+        font-family: Rajdhani, sans-serif;
+      }
+
+      .orbitron {
+        font-family: Orbitron, sans-serif;
+      }
+
+      .weights {
+        display: flex;
+        gap: 14px;
+        flex-wrap: wrap;
+        margin-top: 16px;
+      }
+
+      .weight-chip {
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        padding: 10px 14px;
+        background: rgba(255, 255, 255, 0.04);
+        font-size: 18px;
+      }
+
+      .footer-note {
+        margin-top: 22px;
+        color: var(--muted);
+        font-size: 13px;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="wrap">
+      <h1>Rajdhani ve Orbitron Onizleme</h1>
+      <p class="intro">
+        Ayni metni iki farkli fontla yan yana goruyorsunuz. Rajdhani daha akici ve okunakli bir arayuz hissi verirken,
+        Orbitron daha teknolojik ve belirgin bir karakter veriyor.
+      </p>
+
+      <section class="grid">
+        <article class="card">
+          <span class="eyebrow">Rajdhani</span>
+          <h2 class="sample-title rajdhani">Evlilik Platformu</h2>
+          <p class="sample-sub rajdhani">Baslik, navigasyon ve genel arayuz metni icin daha dengeli.</p>
+          <p class="sample-text rajdhani">
+            Dogru eslesmeyi bulmak icin guven, sadelik ve hiz hissini birlikte veren bir yapi kuruyoruz. Bu font,
+            dar ama okunakli formuyla modern arayuzlerde rahat kullanilir.
+          </p>
+          <div class="weights rajdhani">
+            <div class="weight-chip" style="font-weight: 400;">400 Normal</div>
+            <div class="weight-chip" style="font-weight: 700;">700 Bold</div>
+          </div>
+          <div class="sample-meta rajdhani">Karakter hissi: modern, dar, okunakli, UI dostu.</div>
+        </article>
+
+        <article class="card">
+          <span class="eyebrow">Orbitron</span>
+          <h2 class="sample-title orbitron">Evlilik Platformu</h2>
+          <p class="sample-sub orbitron">CTA, buton ve vurgu alanlarinda daha teknik ve sert bir ton verir.</p>
+          <p class="sample-text orbitron">
+            Dogru eslesmeyi bulmak icin guven, sadelik ve hiz hissini birlikte veren bir yapi kuruyoruz. Bu font,
+            futuristik karakteriyle dikkat cekici ama uzun paragraflarda daha baskin gorunur.
+          </p>
+          <div class="weights orbitron">
+            <div class="weight-chip" style="font-weight: 400;">400 Normal</div>
+            <div class="weight-chip" style="font-weight: 700;">700 Bold</div>
+          </div>
+          <div class="sample-meta orbitron">Karakter hissi: futuristik, sert, vurucu, buton odakli.</div>
+        </article>
+      </section>
+
+      <p class="footer-note">
+        Not: Bu onizleme sayfasi mevcut projedeki self-host fontlara dayanir. Tarayicida birebir projedeki font dosyalari yuklenir.
+      </p>
+    </main>
+  </body>
+</html>

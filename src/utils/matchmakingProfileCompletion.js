@@ -96,6 +96,15 @@ function normalizeHasChildren(value) {
   return '';
 }
 
+function hasAssignedMatchmakingUserCode(...sources) {
+  for (const source of sources) {
+    if (!source || typeof source !== 'object') continue;
+    const code = pickFirstNonEmptyStr(source?.userCode, source?.publicProfile?.userCode);
+    if (/^UC-\d{3,}$/i.test(code)) return true;
+  }
+  return false;
+}
+
 function pickUsername(profile, details) {
   const source = profile && typeof profile === 'object' ? profile : {};
   const nested = details && typeof details === 'object' ? details : {};
@@ -300,7 +309,10 @@ function pickMatchmakingPhotoRefs(...sources) {
 function isStubMatchmakingApplication(application) {
   const source = safeStr(application?.source).toLowerCase();
   if (source === 'auto_stub') return true;
-  if (application?.details?.autoBootstrap === true) return true;
+  if (application?.details?.autoBootstrap === true) {
+    if (source === 'apply_submit' && getMinimumMatchmakingProfileMissingFromApp(application).length === 0) return false;
+    return true;
+  }
   return false;
 }
 
@@ -343,6 +355,49 @@ function buildMergedUserProfile(userDoc) {
   merged.photoUrls = pickMatchmakingPhotoRefs(source, application, publicProfile, details);
 
   return merged;
+}
+
+function hasAnyMatchmakingProfileInApplicationDoc(application) {
+  if (!application || typeof application !== 'object' || isStubMatchmakingApplication(application)) return false;
+
+  const source = application;
+  const details = source?.details && typeof source.details === 'object' ? source.details : {};
+
+  if (hasAssignedMatchmakingUserCode(source, details)) return true;
+
+  return !!(
+    pickUsername(source, details) ||
+    pickFullName(source, details) ||
+    getAge(source) !== null ||
+    pickWhatsapp(source, details) ||
+    pickCity(source, details) ||
+    pickOccupation(details, source) ||
+    normalizeMaritalStatus(pickMaritalStatus(details, source)) ||
+    normalizeGender(source?.gender || details?.gender) ||
+    normalizeGender(source?.lookingForGender || details?.lookingForGender) ||
+    pickMatchmakingPhotoRefs(source, details).length
+  );
+}
+
+function hasAnyMatchmakingPhotoInApplicationDoc(application) {
+  if (!application || typeof application !== 'object' || isStubMatchmakingApplication(application)) return false;
+  const details = application?.details && typeof application.details === 'object' ? application.details : {};
+  return pickMatchmakingPhotoRefs(application, details).length > 0;
+}
+
+function hasAnyStoredMatchmakingPhotoInApplicationDoc(application) {
+  if (!application || typeof application !== 'object') return false;
+  const details = application?.details && typeof application.details === 'object' ? application.details : {};
+  return pickMatchmakingPhotoRefs(application, details).length > 0;
+}
+
+function hasAnyMatchmakingProfileInUserDoc(userDoc) {
+  if (hasAssignedMatchmakingUserCode(userDoc)) return true;
+  return hasAnyMatchmakingProfileInApplicationDoc(buildMergedUserProfile(userDoc));
+}
+
+function hasAnyMatchmakingPhotoInUserDoc(userDoc) {
+  return hasAnyStoredMatchmakingPhotoInApplicationDoc(buildMergedUserProfile(userDoc));
 }
 
 function getMinimumMatchmakingProfileMissingFromApp(application) {
@@ -429,6 +484,12 @@ export {
   getMatchmakingProfileGateStateFromApp,
   getMinimumMatchmakingProfileMissingFromApp,
   getMinimumMatchmakingProfileMissingFromUserDoc,
+  hasAnyMatchmakingPhotoInApplicationDoc,
+  hasAnyStoredMatchmakingPhotoInApplicationDoc,
+  hasAnyMatchmakingPhotoInUserDoc,
+  hasAnyMatchmakingProfileInApplicationDoc,
+  hasAnyMatchmakingProfileInUserDoc,
+  hasAssignedMatchmakingUserCode,
   hasMinimumMatchmakingProfileInApplicationDoc,
   hasMinimumMatchmakingProfileInUserDoc,
   isStubMatchmakingApplication,

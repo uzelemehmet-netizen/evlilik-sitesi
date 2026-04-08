@@ -1,12 +1,11 @@
 import { getAdmin, normalizeBody, requireIdToken } from './_firebaseAdmin.js';
-import { detectPII } from './_pii.js';
-import { isTranslateConfigured, translateTextProfile } from './_translate.js';
 import { activateFreeMembershipForUid, isFreeMembershipDisabledByEnv } from './_membershipFree.js';
+import { ensureUserCodeAssigned } from './_matchmakingUserCode.js';
+import { normalizeGender, resolveLookingForGender } from './_matchmakingEligibility.js';
+import { isStubMatchmakingApplication } from '../src/utils/matchmakingProfileCompletion.js';
+import { buildBilingualProfileText, detectForbiddenContactPII, normalizeProfileLang } from './_matchmakingProfileText.js';
 
 const MAX_TEXT_LEN = 1800;
-const TRANSLATE_CHARS = 400;
-const MIN_TRANSLATE_CHARS = 30;
-
 function toNumOrNull(value, { min, max } = {}) {
   const n = typeof value === 'number' ? value : Number(String(value ?? '').trim());
   if (!Number.isFinite(n)) return null;
@@ -43,10 +42,7 @@ function tsToMs(v) {
 }
 
 function isAutoStubApplication(app) {
-  const source = safeStr(app?.source).toLowerCase();
-  if (source === 'auto_stub') return true;
-  if (app?.details?.autoBootstrap === true) return true;
-  return false;
+  return isStubMatchmakingApplication(app);
 }
 
 function appCreatedAtMs(app) {
@@ -71,76 +67,6 @@ function pickBestNonStubApplication(apps) {
     }
   }
   return best;
-}
-
-function normalizeProfileLang(v) {
-  const s = safeStr(v).toLowerCase();
-  if (s === 'tr' || s === 'id') return s;
-  return '';
-}
-
-function oppositeLang(lang) {
-  return lang === 'tr' ? 'id' : 'tr';
-}
-
-function detectForbiddenContactPII(text) {
-  const pii = detectPII(text);
-  const reasons = Array.isArray(pii?.reasons) ? pii.reasons : [];
-  const forbidden = reasons.filter((r) => r && r !== 'name');
-  return {
-    hasForbidden: forbidden.length > 0,
-    reasons: forbidden,
-  };
-}
-
-async function buildBilingualText(text, sourceLang, opts = {}) {
-  const maxLen = typeof opts?.maxLen === 'number' && Number.isFinite(opts.maxLen) ? opts.maxLen : MAX_TEXT_LEN;
-  const translateChars =
-    typeof opts?.translateChars === 'number' && Number.isFinite(opts.translateChars) ? opts.translateChars : TRANSLATE_CHARS;
-  const minChars = typeof opts?.minChars === 'number' && Number.isFinite(opts.minChars) ? opts.minChars : MIN_TRANSLATE_CHARS;
-
-  const original = safeStr(text, maxLen);
-  const src = normalizeProfileLang(sourceLang) || 'tr';
-  const target = oppositeLang(src);
-
-  const out = {
-    sourceLang: src,
-    targetLang: target,
-    original,
-    tr: src === 'tr' ? original : '',
-    id: src === 'id' ? original : '',
-    translated: false,
-    skipped: false,
-    truncated: false,
-    translateConfigured: isTranslateConfigured(),
-  };
-
-  if (!original) {
-    out.skipped = true;
-    return out;
-  }
-
-  if (original.length < minChars) {
-    out.skipped = true;
-    return out;
-  }
-
-  if (!out.translateConfigured) {
-    out.skipped = true;
-    return out;
-  }
-
-  const chunk = original.slice(0, translateChars);
-  out.truncated = original.length > translateChars;
-
-  const translated = await translateTextProfile({ text: chunk, targetLang: target });
-  const finalText = out.truncated && translated ? `${translated}…` : translated;
-
-  if (target === 'tr') out.tr = finalText;
-  if (target === 'id') out.id = finalText;
-  out.translated = !!safeStr(finalText);
-
-  return out;
 }
 
 export default async function handler(req, res) {
@@ -254,14 +180,14 @@ export default async function handler(req, res) {
   const detailsForeignOther = safeStr(detailsRaw?.languages?.foreign?.other, 120);
 
   const [aboutBi, expBi, occBi, eduDeptBi, relValBi, commOtherBi, nativeOtherBi, foreignOtherBi] = await Promise.all([
-    buildBilingualText(about, sourceLang),
-    buildBilingualText(expectations, sourceLang),
-    buildBilingualText(detailsOccupation, sourceLang, { maxLen: 160, translateChars: 160, minChars: 1 }),
-    buildBilingualText(detailsEducationDepartment, sourceLang, { maxLen: 160, translateChars: 160, minChars: 1 }),
-    buildBilingualText(detailsReligiousValues, sourceLang, { maxLen: 300, translateChars: 240, minChars: 1 }),
-    buildBilingualText(detailsCommunicationLanguageOther, sourceLang, { maxLen: 120, translateChars: 120, minChars: 1 }),
-    buildBilingualText(detailsNativeOther, sourceLang, { maxLen: 120, translateChars: 120, minChars: 1 }),
-    buildBilingualText(detailsForeignOther, sourceLang, { maxLen: 120, translateChars: 120, minChars: 1 }),
+    buildBilingualProfileText(about, sourceLang, { fallbackSourceLang: 'tr' }),
+    buildBilingualProfileText(expectations, sourceLang, { fallbackSourceLang: 'tr' }),
+    buildBilingualProfileText(detailsOccupation, sourceLang, { maxLen: 160, translateChars: 160, minChars: 1, fallbackSourceLang: 'tr' }),
+    buildBilingualProfileText(detailsEducationDepartment, sourceLang, { maxLen: 160, translateChars: 160, minChars: 1, fallbackSourceLang: 'tr' }),
+    buildBilingualProfileText(detailsReligiousValues, sourceLang, { maxLen: 300, translateChars: 240, minChars: 1, fallbackSourceLang: 'tr' }),
+    buildBilingualProfileText(detailsCommunicationLanguageOther, sourceLang, { maxLen: 120, translateChars: 120, minChars: 1, fallbackSourceLang: 'tr' }),
+    buildBilingualProfileText(detailsNativeOther, sourceLang, { maxLen: 120, translateChars: 120, minChars: 1, fallbackSourceLang: 'tr' }),
+    buildBilingualProfileText(detailsForeignOther, sourceLang, { maxLen: 120, translateChars: 120, minChars: 1, fallbackSourceLang: 'tr' }),
   ]);
 
   const detailsWithTranslations = {
@@ -317,9 +243,9 @@ export default async function handler(req, res) {
   const coreCity = safeStr(payload?.city, 80);
   const coreCountry = safeStr(payload?.country, 80);
   const coreNationality = safeStr(payload?.nationality, 40);
-  const coreGender = safeStr(payload?.gender, 30);
+  const coreGender = normalizeGender(payload?.gender);
   const coreLookingForNationality = safeStr(payload?.lookingForNationality, 40);
-  const coreLookingForGender = safeStr(payload?.lookingForGender, 30);
+  const coreLookingForGender = resolveLookingForGender(coreGender, payload?.lookingForGender);
   const coreDetails = detailsWithTranslations;
   const corePartnerPreferences = asObj(payload?.partnerPreferences);
   const corePhotoUrls = Array.isArray(payload?.photoUrls)
@@ -386,6 +312,8 @@ export default async function handler(req, res) {
         translateConfigured: expBi.translateConfigured,
       },
     },
+    ...(coreGender ? { gender: coreGender } : {}),
+    ...(coreLookingForGender ? { lookingForGender: coreLookingForGender } : {}),
   };
 
   // Ensure client cannot backdate pool timestamps / override consent flags etc.
@@ -405,6 +333,15 @@ export default async function handler(req, res) {
   const batch = db.batch();
   if (isUpdate) {
     batch.set(appRef, appData, { merge: true });
+    batch.set(
+      appRef,
+      {
+        draftProgress: FieldValue.delete(),
+        draftUpdatedAt: FieldValue.delete(),
+        draftUpdatedAtMs: FieldValue.delete(),
+      },
+      { merge: true }
+    );
   } else {
     batch.create(appRef, appData);
   }
@@ -448,6 +385,13 @@ export default async function handler(req, res) {
         about,
         bio: about,
         expectations,
+        ...(detailsOccupation
+          ? {
+              occupation: detailsOccupation,
+              occupationTr: occBi.tr,
+              occupationId: occBi.id,
+            }
+          : {}),
         aboutTr: aboutBi.tr,
         aboutId: aboutBi.id,
         expectationsTr: expBi.tr,
@@ -464,6 +408,13 @@ export default async function handler(req, res) {
         ...(coreGender ? { gender: coreGender } : {}),
         ...(coreLookingForNationality ? { lookingForNationality: coreLookingForNationality } : {}),
         ...(coreLookingForGender ? { lookingForGender: coreLookingForGender } : {}),
+        ...(detailsOccupation
+          ? {
+              occupation: detailsOccupation,
+              occupationTr: occBi.tr,
+              occupationId: occBi.id,
+            }
+          : {}),
         ...(corePhotoUrls.length ? { photoUrls: corePhotoUrls } : {}),
         ...(corePhotoPaths.length ? { photoPaths: corePhotoPaths } : {}),
         about,
@@ -480,6 +431,23 @@ export default async function handler(req, res) {
   );
 
   await batch.commit();
+
+  try {
+    const ensuredCode = await ensureUserCodeAssigned({ db, FieldValue, uid, gender: coreGender, nowMs: Date.now() });
+    const userCode = safeStr(ensuredCode?.userCode, 40);
+    if (userCode) {
+      await appRef.set(
+        {
+          userCode,
+          updatedAt: FieldValue.serverTimestamp(),
+          updatedAtMs: Date.now(),
+        },
+        { merge: true },
+      );
+    }
+  } catch {
+    // best-effort
+  }
 
   // Yeni ürün kararı: Başvuru gönderilince üyelik otomatik aktif olsun.
   // Best-effort: başvuru zaten yazıldı; üyelik aktivasyonu başarısız olursa submit'i bozmayız.
@@ -511,6 +479,7 @@ export default async function handler(req, res) {
       translated: {
         about: aboutBi.translated,
         expectations: expBi.translated,
+        occupation: occBi.translated,
       },
     })
   );

@@ -11,11 +11,11 @@ import MatchmakingIdentityTab from '../components/admin/MatchmakingIdentityTab';
 import MatchmakingPaymentsTab from '../components/admin/MatchmakingPaymentsTab';
 import MatchmakingMatchesTab from '../components/admin/MatchmakingMatchesTab';
 import MatchmakingUserToolsTab from '../components/admin/MatchmakingUserToolsTab';
-import MatchmakingPhotoUpdatesTab from '../components/admin/MatchmakingPhotoUpdatesTab';
 import MatchmakingPoolTab from '../components/admin/MatchmakingPoolTab';
 import SystemAlertsTab from '../components/admin/SystemAlertsTab';
 import NewUsersTab from '../components/admin/NewUsersTab';
 import AllUsersTab from '../components/admin/AllUsersTab';
+import DailyActivityTab from '../components/admin/DailyActivityTab';
 import { isFeatureEnabled } from '../config/siteVariant';
 
 // Travel/Tours modülü kaldırıldığı için admin panelde tur konfigi boş.
@@ -148,7 +148,6 @@ export default function AdminDashboard() {
   const [geminiAlertNewCount, setGeminiAlertNewCount] = useState(0);
   const [, setIdentityPendingCount] = useState(0);
   const [, setPaymentsPendingCount] = useState(0);
-  const [, setPhotoUpdatesPendingCount] = useState(0);
   const [activeMatchesCount, setActiveMatchesCount] = useState(0);
   const matchmakingInitializedRef = useRef(false);
   const lastNotifiedAtRef = useRef(0);
@@ -434,24 +433,6 @@ export default function AdminDashboard() {
       (error) => {
         if (blockFirestoreIfNeeded(error)) return;
         console.error('Firestore identity pending count error:', error);
-      }
-    );
-
-    return () => unsub();
-  }, [blockFirestoreIfNeeded, firestoreBlocked, weddingOnly]);
-
-  useEffect(() => {
-    if (firestoreBlocked) return;
-    if (!weddingOnly) return;
-
-    const q = query(collection(db, 'matchmakingPhotoUpdateRequests'), where('status', '==', 'pending'), limit(200));
-
-    const unsub = onSnapshot(
-      q,
-      (snap) => setPhotoUpdatesPendingCount(snap.size),
-      (error) => {
-        if (blockFirestoreIfNeeded(error)) return;
-        console.error('Firestore photo updates pending count error:', error);
       }
     );
 
@@ -1086,16 +1067,16 @@ export default function AdminDashboard() {
         return <AllUsersTab />;
       }
 
+      if (activeTab === 'dailyActivity') {
+        return <DailyActivityTab />;
+      }
+
       if (activeTab === 'identity') {
         return <MatchmakingIdentityTab />;
       }
 
       if (activeTab === 'payments') {
         return <MatchmakingPaymentsTab />;
-      }
-
-      if (activeTab === 'photoUpdates') {
-        return <MatchmakingPhotoUpdatesTab />;
       }
 
       if (activeTab === 'matches') {
@@ -1683,6 +1664,17 @@ export default function AdminDashboard() {
                 }`}
               >
                 Tüm Kullanıcılar
+              </button>
+
+              <button
+                onClick={() => setActiveTab('dailyActivity')}
+                className={`px-6 py-3 font-semibold transition whitespace-nowrap ${
+                  activeTab === 'dailyActivity'
+                    ? 'text-indigo-600 border-b-2 border-indigo-600'
+                    : 'text-gray-600 hover:text-gray-800'
+                }`}
+              >
+                Günlük Aktivite
               </button>
 
               <button

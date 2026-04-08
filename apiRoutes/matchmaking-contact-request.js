@@ -1,5 +1,6 @@
 import { getAdmin, normalizeBody, requireIdToken } from './_firebaseAdmin.js';
 import { ensureEligibleOrThrow, ensureProfileCompleteOrThrow } from './_matchmakingEligibility.js';
+import { getContactShareActivityStatus } from './_matchmakingContactActivity.js';
 
 function safeStr(v) {
   return typeof v === 'string' ? v.trim() : '';
@@ -51,7 +52,7 @@ export default async function handler(req, res) {
     const matchRef = db.collection('matchmakingMatches').doc(matchId);
 
     const now = Date.now();
-    let status = 'pending';
+    let status = 'shared';
 
     await db.runTransaction(async (tx) => {
       const matchSnap = await tx.get(matchRef);
@@ -63,7 +64,7 @@ export default async function handler(req, res) {
 
       const match = matchSnap.data() || {};
       const st = String(match.status || '');
-      if (st !== 'mutual_accepted') {
+      if (st !== 'mutual_accepted' && st !== 'contact_unlocked') {
         const err = new Error('not_available');
         err.statusCode = 400;
         throw err;
@@ -157,15 +158,28 @@ export default async function handler(req, res) {
         }
       }
 
+      const activity = await getContactShareActivityStatus({ tx, matchRef, userIds });
+      if (!activity.eligible) {
+        const err = new Error('contact_activity_required');
+        err.statusCode = 403;
+        throw err;
+      }
+
       const cur = match?.contactShare && typeof match.contactShare === 'object' ? match.contactShare : null;
-      const curStatus = safeStr(cur?.status);
-      if (curStatus === 'approved') {
-        status = 'approved';
+      const sharedByUid = cur?.sharedByUid && typeof cur.sharedByUid === 'object' ? { ...cur.sharedByUid } : {};
+      const existingMine = sharedByUid?.[uid] && typeof sharedByUid[uid] === 'object' ? sharedByUid[uid] : null;
+      if (safeStr(existingMine?.whatsapp)) {
+        status = 'shared';
         return;
       }
-      if (curStatus === 'pending') {
-        status = 'pending';
-        return;
+
+      const aApp = aAppSnap && aAppSnap.exists ? (aAppSnap.data() || {}) : {};
+      const bApp = bAppSnap && bAppSnap.exists ? (bAppSnap.data() || {}) : {};
+      const myWhatsapp = safeStr(uid === aUid ? aApp?.whatsapp : bApp?.whatsapp);
+      if (!myWhatsapp) {
+        const err = new Error('contact_share_missing_number');
+        err.statusCode = 400;
+        throw err;
       }
 
       const msgRef = matchRef.collection('messages').doc();
@@ -173,26 +187,43 @@ export default async function handler(req, res) {
         matchId,
         userId: uid,
         type: 'system',
-        systemType: 'contact_request',
+        systemType: 'contact_shared',
+        contact: {
+          sharedByUid: uid,
+          sharedWhatsapp: myWhatsapp,
+          aUserId: aUid,
+          bUserId: bUid,
+        },
         createdAt: FieldValue.serverTimestamp(),
         createdAtMs: now,
       });
 
+      sharedByUid[uid] = {
+        whatsapp: myWhatsapp,
+        sharedAtMs: now,
+        messageId: msgRef.id,
+      };
+
       tx.set(
         matchRef,
         {
+          status: 'contact_unlocked',
+          contactUnlockedAt: FieldValue.serverTimestamp(),
+          contactUnlockedAtMs: now,
           contactShare: {
-            status: 'pending',
-            requestedByUid: uid,
-            requestedAtMs: now,
-            requestMessageId: msgRef.id,
+            ...(cur || {}),
+            status: 'shared',
+            sharedByUid,
+            lastSharedByUid: uid,
+            lastSharedAtMs: now,
+            lastSharedMessageId: msgRef.id,
           },
           updatedAt: FieldValue.serverTimestamp(),
         },
         { merge: true }
       );
 
-      status = 'pending';
+      status = 'shared';
     });
 
     res.statusCode = 200;

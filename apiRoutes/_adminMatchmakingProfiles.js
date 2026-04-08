@@ -1,3 +1,5 @@
+import { isStubMatchmakingApplication } from '../src/utils/matchmakingProfileCompletion.js';
+
 function safeStr(v) {
   return typeof v === 'string' ? v.trim() : '';
 }
@@ -66,8 +68,28 @@ function getAnyAboutFromUserDoc(userDoc) {
 }
 
 function isStubApplication(app) {
-  const source = safeStr(app?.source).toLowerCase();
-  return source === 'auto_stub' || app?.details?.autoBootstrap === true;
+  return isStubMatchmakingApplication(app);
+}
+
+function hasCoreSignupProfile(userDoc, app) {
+  const application = asObj(app);
+  const user = asObj(userDoc);
+  const appCache = asObj(user?.application);
+  const profile = asObj(user?.publicProfile);
+
+  const age =
+    parseAge(application?.age) ??
+    parseAge(user?.age) ??
+    parseAge(appCache?.age) ??
+    parseAge(profile?.age);
+
+  const gender =
+    normalizeGender(application?.gender) ??
+    normalizeGender(user?.gender) ??
+    normalizeGender(appCache?.gender) ??
+    normalizeGender(profile?.gender);
+
+  return age !== null && !!gender;
 }
 
 function appScoreForAdmin(app) {
@@ -337,9 +359,13 @@ async function loadBestAppsByUidBatch(db, uids, { limitPerField = 25 } = {}) {
 }
 
 function resolveAdminApplicationState(userDoc, bestApp) {
-  if (bestApp) return isStubApplication(bestApp) ? 'stub' : 'real';
+  if (bestApp) {
+    if (!isStubApplication(bestApp)) return 'real';
+    return hasCoreSignupProfile(userDoc, bestApp) ? 'partial' : 'stub';
+  }
   if (hasMeaningfulApplicationCache(userDoc)) {
-    return isStubApplication(userDoc?.application) ? 'stub_cache' : 'cache';
+    if (!isStubApplication(userDoc?.application)) return 'cache';
+    return hasCoreSignupProfile(userDoc, userDoc?.application) ? 'partial' : 'stub_cache';
   }
   if (hasMeaningfulProfileCache(userDoc)) return 'profile';
   return 'none';

@@ -70,7 +70,6 @@ export default function Wedding() {
   const navigate = useNavigate();
   const params = useParams();
   const BRAND_LOGO_SRC = staticAssetUrl('/brand-logo.webp');
-
   const youtubeVideos = [
     'https://youtu.be/-liIjzJmZ_E?si=zWR-QpcJqt9KzF0k',
     'https://youtu.be/94ann0PCzO4?si=OTiLFnY6rBPCEUSv',
@@ -1776,51 +1775,54 @@ export default function Wedding() {
         </div>
       </div>
 
-      {/* Mobil alt sekme barı (Shorts-style) */}
+      {/* Mobil alt sekme barı */}
       <div
-        className="sm:hidden fixed inset-x-0 bottom-0 z-[70] bg-[#14659c] border-t border-white/10"
+        className="sm:hidden fixed inset-x-0 bottom-0 z-[70] border-t border-white/10 bg-[linear-gradient(180deg,rgba(2,6,23,0.98),rgba(15,23,42,0.98))] shadow-[0_-18px_48px_rgba(2,6,23,0.42)] backdrop-blur-xl"
         style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
       >
-        <div className="max-w-6xl mx-auto px-3 py-2">
-          <div className="grid grid-cols-4">
+        <div className="max-w-4xl mx-auto px-2 py-1.5">
+          <div className="mx-auto mb-1.5 h-1 w-20 rounded-full bg-white/10" />
+          <div className="grid grid-cols-4 gap-1">
               <Link
                 to={`${mobileBasePath}/app/belgeler`}
                 className={
-                  'group w-full py-2 text-center flex flex-col items-center justify-center gap-1 rounded-xl select-none touch-manipulation ' +
-                  'transition-[transform,opacity,color] duration-150 ease-out active:scale-[0.96] active:translate-y-[1px] active:opacity-90 ' +
-                  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/30 ' +
-                  (mobileTab === 'belgeler' ? 'text-white' : 'text-white/60')
+                  'group relative flex w-full flex-col items-center justify-center gap-0.5 rounded-2xl px-2 py-2 text-center select-none touch-manipulation ' +
+                  'transition-[transform,background-color,box-shadow] duration-150 ease-out active:scale-[0.98] ' +
+                  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-200/70 ' +
+                  (mobileTab === 'belgeler'
+                    ? 'bg-white text-rose-800 shadow-[0_10px_26px_rgba(255,255,255,0.2)] ring-1 ring-white/80'
+                    : 'bg-rose-800/90 text-white hover:bg-rose-700')
                 }
-                style={{ fontFamily: '"Poppins", sans-serif' }}
                 aria-current={mobileTab === 'belgeler' ? 'page' : undefined}
               >
                 <span
                   className={
-                    'inline-flex items-center justify-center w-11 h-11 rounded-2xl transition-colors duration-150 ' +
-                    (mobileTab === 'belgeler' ? 'bg-rose-500/35' : 'bg-transparent group-active:bg-rose-500/20')
+                    'inline-flex h-9 w-9 items-center justify-center rounded-2xl transition-colors duration-150 ' +
+                    (mobileTab === 'belgeler' ? 'bg-rose-100' : 'bg-white/5 group-hover:bg-white/10')
                   }
                 >
                   <Files
-                    size={28}
+                    size={20}
                     className={
                       'transition-[transform,filter,color] duration-150 ' +
                       (mobileTab === 'belgeler'
-                        ? 'text-white scale-[1.05] brightness-125 drop-shadow-sm'
-                        : 'text-white/70 group-active:text-white/90')
+                        ? 'text-rose-700 scale-[1.04] drop-shadow-sm'
+                        : 'text-white/90')
                     }
                   />
                 </span>
                 <span
                   className={
-                    'text-[10px] leading-none transition-colors duration-150 ' +
-                    (mobileTab === 'belgeler' ? 'font-semibold text-white' : 'font-medium text-white/70')
+                    'mt-0.5 min-h-[20px] text-center text-[10px] leading-3 transition-colors duration-150 ' +
+                    (mobileTab === 'belgeler' ? 'font-bold text-rose-800' : 'font-medium text-white/80')
                   }
+                  style={{ fontFamily: '"Orbitron", sans-serif' }}
                 >
                   {t('weddingPage.mobileTabs.documents')}
                 </span>
                 <span
                   className={
-                    'mt-0.5 h-[2px] w-4 rounded-full bg-rose-400 transition-opacity duration-150 ' +
+                    'mt-0.5 h-[2px] w-6 rounded-full bg-rose-500 transition-opacity duration-150 ' +
                     (mobileTab === 'belgeler' ? 'opacity-100' : 'opacity-0')
                   }
                 />
@@ -1828,41 +1830,43 @@ export default function Wedding() {
               <Link
                 to={`${mobileBasePath}/app/surec`}
                 className={
-                  'group w-full py-2 text-center flex flex-col items-center justify-center gap-1 rounded-xl select-none touch-manipulation ' +
-                  'transition-[transform,opacity,color] duration-150 ease-out active:scale-[0.96] active:translate-y-[1px] active:opacity-90 ' +
-                  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/30 ' +
-                  (mobileTab === 'surec' ? 'text-white' : 'text-white/60')
+                  'group relative flex w-full flex-col items-center justify-center gap-0.5 rounded-2xl px-2 py-2 text-center select-none touch-manipulation ' +
+                  'transition-[transform,background-color,box-shadow] duration-150 ease-out active:scale-[0.98] ' +
+                  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-200/70 ' +
+                  (mobileTab === 'surec'
+                    ? 'bg-white text-rose-800 shadow-[0_10px_26px_rgba(255,255,255,0.2)] ring-1 ring-white/80'
+                    : 'bg-rose-800/90 text-white hover:bg-rose-700')
                 }
-                style={{ fontFamily: '"Poppins", sans-serif' }}
                 aria-current={mobileTab === 'surec' ? 'page' : undefined}
               >
                 <span
                   className={
-                    'inline-flex items-center justify-center w-11 h-11 rounded-2xl transition-colors duration-150 ' +
-                    (mobileTab === 'surec' ? 'bg-rose-500/35' : 'bg-transparent group-active:bg-rose-500/20')
+                    'inline-flex h-9 w-9 items-center justify-center rounded-2xl transition-colors duration-150 ' +
+                    (mobileTab === 'surec' ? 'bg-rose-100' : 'bg-white/5 group-hover:bg-white/10')
                   }
                 >
                   <Route
-                    size={28}
+                    size={20}
                     className={
                       'transition-[transform,filter,color] duration-150 ' +
                       (mobileTab === 'surec'
-                        ? 'text-white scale-[1.05] brightness-125 drop-shadow-sm'
-                        : 'text-white/70 group-active:text-white/90')
+                        ? 'text-rose-700 scale-[1.04] drop-shadow-sm'
+                        : 'text-white/90')
                     }
                   />
                 </span>
                 <span
                   className={
-                    'text-[10px] leading-none transition-colors duration-150 ' +
-                    (mobileTab === 'surec' ? 'font-semibold text-white' : 'font-medium text-white/70')
+                    'mt-0.5 min-h-[20px] text-center text-[10px] leading-3 transition-colors duration-150 ' +
+                    (mobileTab === 'surec' ? 'font-bold text-rose-800' : 'font-medium text-white/80')
                   }
+                  style={{ fontFamily: '"Orbitron", sans-serif' }}
                 >
                   {t('weddingPage.mobileTabs.process')}
                 </span>
                 <span
                   className={
-                    'mt-0.5 h-[2px] w-4 rounded-full bg-rose-400 transition-opacity duration-150 ' +
+                    'mt-0.5 h-[2px] w-6 rounded-full bg-rose-500 transition-opacity duration-150 ' +
                     (mobileTab === 'surec' ? 'opacity-100' : 'opacity-0')
                   }
                 />
@@ -1870,42 +1874,44 @@ export default function Wedding() {
               <Link
                 to={`${mobileBasePath}/app/rehberlik`}
                 className={
-                  'group w-full py-2 text-center flex flex-col items-center justify-center gap-1 rounded-xl select-none touch-manipulation ' +
-                  'transition-[transform,opacity,color] duration-150 ease-out active:scale-[0.96] active:translate-y-[1px] active:opacity-90 ' +
-                  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/30 ' +
-                  (mobileTab === 'rehberlik' ? 'text-white' : 'text-white/60')
+                  'group relative flex w-full flex-col items-center justify-center gap-0.5 rounded-2xl px-2 py-2 text-center select-none touch-manipulation ' +
+                  'transition-[transform,background-color,box-shadow] duration-150 ease-out active:scale-[0.98] ' +
+                  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-200/70 ' +
+                  (mobileTab === 'rehberlik'
+                    ? 'bg-white text-rose-800 shadow-[0_10px_26px_rgba(255,255,255,0.2)] ring-1 ring-white/80'
+                    : 'bg-rose-800/90 text-white hover:bg-rose-700')
                 }
-                style={{ fontFamily: '"Poppins", sans-serif' }}
                 aria-current={mobileTab === 'rehberlik' ? 'page' : undefined}
                 onClick={() => trackClick('wedding_app_nav_rehberlik', { page: String(location?.pathname || '') || '/' })}
               >
                 <span
                   className={
-                    'inline-flex items-center justify-center w-11 h-11 rounded-2xl transition-colors duration-150 ' +
-                    (mobileTab === 'rehberlik' ? 'bg-rose-500/35' : 'bg-transparent group-active:bg-rose-500/20')
+                    'inline-flex h-9 w-9 items-center justify-center rounded-2xl transition-colors duration-150 ' +
+                    (mobileTab === 'rehberlik' ? 'bg-rose-100' : 'bg-white/5 group-hover:bg-white/10')
                   }
                 >
                   <Compass
-                    size={28}
+                    size={20}
                     className={
                       'transition-[transform,filter,color] duration-150 ' +
                       (mobileTab === 'rehberlik'
-                        ? 'text-white scale-[1.05] brightness-125 drop-shadow-sm'
-                        : 'text-white/70 group-active:text-white/90')
+                        ? 'text-rose-700 scale-[1.04] drop-shadow-sm'
+                        : 'text-white/90')
                     }
                   />
                 </span>
                 <span
                   className={
-                    'text-[10px] leading-none transition-colors duration-150 ' +
-                    (mobileTab === 'rehberlik' ? 'font-semibold text-white' : 'font-medium text-white/70')
+                    'mt-0.5 min-h-[20px] text-center text-[10px] leading-3 transition-colors duration-150 ' +
+                    (mobileTab === 'rehberlik' ? 'font-bold text-rose-800' : 'font-medium text-white/80')
                   }
+                  style={{ fontFamily: '"Orbitron", sans-serif' }}
                 >
                   {t('weddingPage.mobileTabs.guidance')}
                 </span>
                 <span
                   className={
-                    'mt-0.5 h-[2px] w-4 rounded-full bg-rose-400 transition-opacity duration-150 ' +
+                    'mt-0.5 h-[2px] w-6 rounded-full bg-rose-500 transition-opacity duration-150 ' +
                     (mobileTab === 'rehberlik' ? 'opacity-100' : 'opacity-0')
                   }
                 />
@@ -1913,41 +1919,43 @@ export default function Wedding() {
               <Link
                 to={`${mobileBasePath}/app/planlama`}
                 className={
-                  'group w-full py-2 text-center flex flex-col items-center justify-center gap-1 rounded-xl select-none touch-manipulation ' +
-                  'transition-[transform,opacity,color] duration-150 ease-out active:scale-[0.96] active:translate-y-[1px] active:opacity-90 ' +
-                  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/30 ' +
-                  (mobileTab === 'planlama' ? 'text-white' : 'text-white/60')
+                  'group relative flex w-full flex-col items-center justify-center gap-0.5 rounded-2xl px-2 py-2 text-center select-none touch-manipulation ' +
+                  'transition-[transform,background-color,box-shadow] duration-150 ease-out active:scale-[0.98] ' +
+                  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-200/70 ' +
+                  (mobileTab === 'planlama'
+                    ? 'bg-white text-rose-800 shadow-[0_10px_26px_rgba(255,255,255,0.2)] ring-1 ring-white/80'
+                    : 'bg-rose-800/90 text-white hover:bg-rose-700')
                 }
-                style={{ fontFamily: '"Poppins", sans-serif' }}
                 aria-current={mobileTab === 'planlama' ? 'page' : undefined}
               >
                 <span
                   className={
-                    'inline-flex items-center justify-center w-11 h-11 rounded-2xl transition-colors duration-150 ' +
-                    (mobileTab === 'planlama' ? 'bg-rose-500/35' : 'bg-transparent group-active:bg-rose-500/20')
+                    'inline-flex h-9 w-9 items-center justify-center rounded-2xl transition-colors duration-150 ' +
+                    (mobileTab === 'planlama' ? 'bg-rose-100' : 'bg-white/5 group-hover:bg-white/10')
                   }
                 >
                   <ClipboardCheck
-                    size={28}
+                    size={20}
                     className={
                       'transition-[transform,filter,color] duration-150 ' +
                       (mobileTab === 'planlama'
-                        ? 'text-white scale-[1.05] brightness-125 drop-shadow-sm'
-                        : 'text-white/70 group-active:text-white/90')
+                        ? 'text-rose-700 scale-[1.04] drop-shadow-sm'
+                        : 'text-white/90')
                     }
                   />
                 </span>
                 <span
                   className={
-                    'text-[10px] leading-none transition-colors duration-150 ' +
-                    (mobileTab === 'planlama' ? 'font-semibold text-white' : 'font-medium text-white/70')
+                    'mt-0.5 min-h-[20px] text-center text-[10px] leading-3 transition-colors duration-150 ' +
+                    (mobileTab === 'planlama' ? 'font-bold text-rose-800' : 'font-medium text-white/80')
                   }
+                  style={{ fontFamily: '"Orbitron", sans-serif' }}
                 >
                   {t('weddingPage.mobileTabs.planning')}
                 </span>
                 <span
                   className={
-                    'mt-0.5 h-[2px] w-4 rounded-full bg-rose-400 transition-opacity duration-150 ' +
+                    'mt-0.5 h-[2px] w-6 rounded-full bg-rose-500 transition-opacity duration-150 ' +
                     (mobileTab === 'planlama' ? 'opacity-100' : 'opacity-0')
                   }
                 />

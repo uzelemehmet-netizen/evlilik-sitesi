@@ -28,6 +28,13 @@ function deepMerge(base, override) {
 // Indonesian translations: no TR/EN fallback here.
 // Only keys defined below will be shown in Indonesian.
 const overrides = {
+  previewGate: {
+    title: 'Anda harus mendaftar terlebih dahulu',
+    body: 'Untuk melakukan ini, Anda harus mendaftar dan mengisi formulir pencocokan terlebih dahulu.',
+    signup: 'Daftar',
+    dismiss: 'Lewati',
+  },
+
   appErrorBoundary: {
     title: 'Terjadi kesalahan',
     body: 'Halaman tidak dapat dimuat. Silakan coba muat ulang.',
@@ -59,7 +66,7 @@ const overrides = {
     youtube: "YouTube",
     contact: "Kontak",
     language: "Bahasa",
-    menu: "Menu",
+    menu: "Menu utama",
     openMenu: "Buka menu",
     closeMenu: "Tutup menu",
     close: "Tutup",
@@ -72,6 +79,7 @@ const overrides = {
     brandNoteDameturk: '',
     sections: {
       quickLinks: 'Tautan Cepat',
+      showEmailFallback: 'Ada kendala? Lanjutkan dengan email',
     preview: {
       matches: {
         title: 'Profil Anda: Kecocokan',
@@ -86,7 +94,7 @@ const overrides = {
         body: 'Tombol ini hanya pratinjau. Untuk aksi sebenarnya, Anda harus daftar dan mengisi formulir terlebih dulu.',
       },
     },
-      legal: 'Legal',
+      legal: 'Hukum',
       contact: 'Kontak',
       social: 'Sosial',
     },
@@ -101,6 +109,15 @@ const overrides = {
       siteRules: 'Aturan Situs',
       refundPolicy: 'Kebijakan Pembatalan & Pengembalian Dana',
       privacyPolicy: 'Kebijakan Privasi',
+      confirmError: 'Konfirmasi gagal: {{error}}',
+      contactRequestError: 'Permintaan kontak gagal: {{error}}',
+      contactApproveError: 'Persetujuan kontak gagal: {{error}}',
+      title: 'Informasi hukum',
+      labels: {
+        legalName: 'Nama resmi perusahaan',
+        address: 'Alamat',
+        tax: 'Pajak',
+      },
     },
     companyInfo: {
       title: 'Informasi Perusahaan',
@@ -137,7 +154,7 @@ const overrides = {
     info: {
       title: 'Tentang Layanan Ini',
       b1: 'Halaman ini dibuat untuk orang yang tidak ingin mendaftar di platform pencocokan dan ingin menemukan jodoh yang tepercaya melalui perantara kami.',
-      b2: 'Saat ada kandidat yang cocok, Anda akan diberi informasi dan kami akan memperkenalkan Anda dengan kandidat tersebut.',
+      b2: 'Saat ada kandidat yang cocok, Anda akan diberi tahu dan diperkenalkan kepada kandidat tersebut.',
       b3: 'Jika Anda ingin, dapat dilakukan penelusuran lebih detail secara timbal balik dan informasi yang diberikan dapat diverifikasi untuk memastikan keandalan.',
       b4: 'Dengan mengisi formulir di bawah ini, kami siap menjadi perantara saat kandidat yang cocok ditemukan.',
       b5: 'Informasi yang Anda berikan di sini tidak dibagikan kepada siapa pun selain kandidat yang cocok dan hanya digunakan untuk menemukan kandidat yang sesuai untuk Anda.',
@@ -163,6 +180,7 @@ const overrides = {
     },
     actions: {
       pickPhoto: 'Pilih foto',
+      remove: 'Hapus',
       submit: 'Kirim pengajuan',
       sending: 'Mengirim…',
       done: 'Selesai',
@@ -223,9 +241,11 @@ const overrides = {
         good: 'Baik',
       },
       livingWith: {
-        withFamily: 'Dengan keluarga',
+        withFamily: 'Tinggal bersama keluarga',
+        titleShort: 'Notifikasi',
         withChildren: 'Dengan anak saya',
-        withFriend: 'Dengan teman',
+        modalTitleRequests: 'Notifikasi',
+        withFriend: 'Tinggal bersama teman',
         alone: 'Sendiri',
       },
       childrenLivingWith: {
@@ -238,6 +258,9 @@ const overrides = {
       count: 'Berapa anak?',
       ages: 'Berapa usia anak?',
       livingWith: 'Tinggal dengan siapa?',
+    },
+    photo: {
+      uploadedAlt: 'Foto yang diunggah {{index}}',
     },
     photoNote: 'Anda dapat mengunggah 1 sampai 5 foto.',
     partner: {
@@ -282,7 +305,7 @@ const overrides = {
         prayer5: 'Salat 5 waktu',
         fasting: 'Puasa',
         hajj: 'Haji',
-        umrah: 'Umrah',
+        umrah: 'Ibadah umrah',
       },
     },
   },
@@ -310,14 +333,14 @@ const overrides = {
         cta: 'Lihat kecocokan',
       },
       pool: {
-        title: 'Pool',
+        title: 'Kandidat',
         body: 'Lihat kandidat dan kirim permintaan atau like.',
         cta: 'Ke pool',
         request: 'Kirim permintaan',
-        like: 'Like',
+        like: 'Suka',
       },
       chat: {
-        title: 'Chat',
+        title: 'Percakapan',
         body: 'Jika cocok, Anda bisa chat di sini.',
         mockTitle: 'Contoh chat',
         mockSystem: 'Sistem',
@@ -348,21 +371,114 @@ const overrides = {
     redirecting: 'Mengalihkan ke login…',
     infos: {
       startingGoogle: 'Membuka login Google…',
-      inAppBrowserGoogleRedirect: 'Browser Anda mungkin memblokir popup. Mengalihkan ke login Google…',
+      inAppBrowserGoogleRedirect: 'Membuka login Google… Langkah ini bisa memerlukan beberapa detik di browser dalam aplikasi.',
+      googleInAppHelp:
+        'Login Google kadang bisa berhenti di browser dalam aplikasi. Anda bisa lanjut dengan email, atau pilih “Buka di browser” lalu coba lagi.',
       accountExistsTryLogin: 'Anda sudah memiliki akun. Silakan coba masuk dengan email dan kata sandi Anda.',
+      existingAccountSwitchedToLogin: 'Email ini tampaknya sudah terdaftar. Kami alihkan ke layar masuk agar Anda bisa melanjutkan dengan akun Anda.',
+      existingAccountUseGoogle: 'Email ini tampaknya terdaftar dengan Google. Silakan masuk dengan Google.',
     },
     redirectScreen: {
       title: 'Mengalihkan…',
-      body: 'Membuka profil Anda. Jika layar ini lama, Anda bisa lanjut lewat tombol di bawah.',
-      goProfile: 'Ke profil saya',
+      body: 'Membuka halaman Profil Saya. Jika layar ini lama, Anda bisa lanjut lewat tombol di bawah.',
+      goProfile: 'Ke Profil Saya',
       refresh: 'Muat ulang',
     },
     trustNote: {
-      title: 'Dirancang untuk niat menikah yang serius',
-      body: 'Uniqah adalah sistem berorientasi pernikahan yang didirikan oleh pasangan Turki-Indonesia. Akun dapat dibatasi setelah peninjauan atas pelanggaran kebijakan atau niat buruk; jika Anda memintanya melalui jalur WhatsApp kami, kami dapat melakukan riset lebih mendetail tentang calon pasangan yang Anda kenal dan membantu membangun rasa percaya di antara kalian.',
+      title: 'Gratis, serius, dan berfokus pada niat pernikahan Islami',
+      body: 'Uniqah adalah sistem berorientasi pernikahan yang didirikan oleh pasangan Turki-Indonesia. Ini bukan aplikasi dating biasa; kami tidak memberi ruang bagi orang yang tujuannya bukan pernikahan. Pendaftaran saat ini sepenuhnya gratis. Setelah suka menjadi timbal balik, pengguna masuk ke tahap pencocokan aktif, dan selama pencocokan aktif berlanjut mereka dapat berbicara tanpa batas di jendela privat dengan dukungan terjemahan.',
     },
-    signupGuide: 'Untuk mendaftar, lanjutkan dengan Google, lalu isi formulir pendaftaran matchmaking.',
+    tour: {
+      eyebrow: 'Tur kepercayaan',
+      teaserTitle: 'Mengapa saya perlu mendaftar di Uniqah.com sebelum membuat akun?',
+      teaserBody: 'Jika mau, ikuti tur singkat kami. Di sini kami menjelaskan mengapa orang memilih kami, bahwa sistem saat ini sepenuhnya gratis, bagaimana alur pencocokan aktif bekerja, dan bagaimana chat dengan dukungan terjemahan tetap terkontrol.',
+      durationLabel: 'Tur singkat',
+      durationValue: 'Kurang dari 1 menit',
+      durationBody: 'Setelah setiap kartu, Anda bisa menghentikan tur dan langsung masuk ke pendaftaran atau login.',
+      inviteLead: 'Daripada membiarkan penjelasan kepercayaan menumpuk di halaman, kami menyajikannya sebagai alur opsional bagi pengguna yang membutuhkan keyakinan lebih.',
+      open: 'Ikuti tur',
+      close: 'Tutup tur',
+      back: 'Kembali',
+      next: 'Lanjut',
+      finish: 'Lanjut daftar',
+      signupNow: 'Daftar',
+      loginNow: 'Masuk',
+      progress: 'Langkah {{current}} / {{total}}',
+      flowTitle: 'Alur',
+      cardEyebrow: 'Mengapa orang memilih kami',
+      previewStep: 'Langkah {{number}}',
+      exitHint: 'Tur ini tidak wajib. Anda bisa menutupnya kapan saja lalu langsung lanjut dengan Google atau email/kata sandi.',
+      steps: [
+        {
+          eyebrow: 'Pendiri',
+          title: 'Uniqah dibangun oleh pasangan Turki-Indonesia nyata untuk orang yang serius menuju pernikahan',
+          body: 'Website ini adalah salah satu lini usaha PT Moonstar Global Indonesia milik pasangan Turki-Indonesia, dan dibuat khusus untuk melayani orang-orang yang benar-benar mencari pernikahan serius.',
+          points: [
+            'Ini bukan situs listing acak dengan pemilik yang tidak jelas.',
+            'Tujuannya bukan obrolan santai, tetapi mempertemukan orang-orang serius di ruang yang lebih aman.',
+            'Jika Anda mau, nanti kita juga bisa menambahkan foto pasangan pendiri pada langkah ini.'
+          ]
+        },
+        {
+          eyebrow: 'Proses terkontrol',
+          title: 'Kalau saya sudah bertemu seseorang, bagaimana saya bisa percaya?',
+          body: 'Anda tidak harus membangun rasa percaya sendirian setelah match; jika Anda mau, kami bisa membantu proses itu secara aktif.',
+          points: [
+            'Sebelum mengambil keputusan menikah, jika Anda mau, kami bisa meneliti semua hal tentang orang yang Anda kenal itu.',
+            'Jika Anda meminta, kami bisa menghubungi orang tersebut dan keluarganya.',
+            'Kami bisa menjadwalkan percakapan lewat WhatsApp dan membantu sebagai penerjemah untuk Anda, atau untuk Anda bersama keluarga Anda, saat berbicara dengan orang itu.'
+          ]
+        },
+        {
+          eyebrow: 'Kepercayaan',
+          title: 'Sistem ini bukan untuk pencari hiburan, tetapi untuk orang yang benar-benar ingin menikah',
+          body: 'Struktur perkenalan di sini tidak dirancang untuk orang yang hanya mencari kesenangan atau mengisi waktu, tetapi untuk orang yang membawa niat menikah yang serius.',
+          points: [
+            'Semua orang bisa saling mengirim pesan singkat, tetapi percakapan penuh hanya terbuka antara orang-orang yang memulai match aktif.',
+            'Saat suka menjadi timbal balik, tahap pencocokan aktif dimulai; setelah kedua pihak menyetujui, chat privat terbuka.',
+            'Selama pencocokan aktif berlanjut, dukungan terjemahan membantu setiap orang berbicara dalam bahasa mereka sendiri dengan lebih nyaman.'
+          ]
+        },
+        {
+          eyebrow: 'Mulai gratis',
+          title: 'Anda tidak kehilangan apa pun untuk mencoba: daftar gratis, ruangnya serius, dan jaringannya sedang tumbuh',
+          body: 'Anda bisa mendaftar gratis dan melihat sistemnya lebih dulu. Saat ini kami fokus pada pengguna Turki dan Indonesia dengan niat pernikahan Islami yang serius, dan dalam waktu dekat kami akan menambah negara lain secara terkontrol.',
+          points: [
+            'Sistem ini berbeda dari aplikasi dating biasa; kami tidak memberi tempat bagi tujuan di luar pernikahan.',
+            'Anda mulai dari pendaftaran gratis, lalu lanjut ke alur form dan panel hanya jika cocok untuk Anda.',
+            'Begitu suka timbal balik berubah menjadi pencocokan aktif, Anda bisa langsung memakai chat privat dengan dukungan terjemahan.',
+            'Tujuan kami bukan keramaian tanpa arah, tetapi pertumbuhan yang aman dengan niat yang benar.'
+          ]
+        }
+      ]
+    },
+    signupGuide: 'Pendaftaran saat ini sepenuhnya gratis. Lanjutkan dengan Google, lalu isi formulir matchmaking yang berfokus pada pernikahan Islami. Saat suka menjadi timbal balik, Anda masuk ke tahap pencocokan aktif dan bisa berbicara tanpa batas di jendela privat dengan dukungan terjemahan.',
     signupExistingAccountHint: 'Jika Anda sudah punya akun, masuk dengan Google.',
+    appEntry: {
+      eyebrow: 'Pintu masuk aplikasi',
+      badge: 'Alur aplikasi penuh',
+      title: 'Selamat datang di aplikasi Uniqah',
+      subtitle: 'Layar pembuka ini disusun seperti alur aplikasi: pertama buka akun Anda, lalu lengkapi formulir pendaftaran, kemudian masuk ke area matchmaking di dalam aplikasi.',
+      stepsTitle: 'Alur pembuka',
+      ctaEyebrow: 'Mulai',
+      ctaTitle: 'Buka akun Anda dan masuk ke aplikasi',
+      ctaBody: 'Jika Anda pengguna baru, setelah mendaftar Anda akan diarahkan ke formulir pendaftaran. Jika Anda sudah punya akun, Anda bisa masuk dan melanjutkan dari tempat terakhir.',
+      footerNote: 'Ini memberi PWA nuansa aplikasi yang lebih alami dan menyiapkan fondasi onboarding yang berguna nanti jika Anda bergerak menuju rilis Google Play.',
+      steps: {
+        account: {
+          title: 'Buka akun Anda',
+          body: 'Daftar dengan Google atau email, atau masuk dengan akun Anda yang sudah ada.',
+        },
+        form: {
+          title: 'Lengkapi pendaftaran',
+          body: 'Jika Anda baru, sistem akan otomatis mengarahkan Anda ke formulir aplikasi matchmaking.',
+        },
+        notify: {
+          title: 'Aktifkan notifikasi',
+          body: 'Setelah Anda mulai melihat profil lain, Anda bisa mengaktifkan notifikasi di dalam aplikasi dan menerima pembaruan segera.',
+        },
+      },
+    },
     quickProfile: {
       title: 'Profil Cepat',
       lead: 'Lengkapi profil singkat Anda, lalu lanjutkan.',
@@ -448,6 +564,7 @@ const overrides = {
     actions: {
       login: 'Masuk',
       signup: 'Daftar',
+      openInBrowser: 'Buka di browser dan lanjutkan',
       switchToSignup: 'Belum punya akun? Daftar',
       switchToLogin: 'Sudah punya akun? Masuk',
       showEmailFallback: 'Ada kendala? Lanjutkan dengan email',
@@ -590,6 +707,20 @@ const overrides = {
       done: 'Selesai',
       missingHint: 'Langkah ini belum terlihat saat ini. Anda bisa melanjutkan.',
     },
+    preview: {
+      matches: {
+        title: 'Profil Saya: Kecocokan',
+        body: 'Kecocokan, permintaan, dan chat dikelola dari layar Profil Saya.',
+      },
+      pool: {
+        title: 'Pool: Kandidat',
+        body: 'Anda dapat menelusuri kandidat dan mengirim permintaan atau like.',
+      },
+      request: {
+        title: 'Kirim permintaan kecocokan',
+        body: 'Tombol ini hanya pratinjau. Untuk melakukan aksi nyata, Anda harus mendaftar dan mengisi formulir terlebih dahulu.',
+      },
+    },
     publicGuidance: {
       step1: {
         title: 'Pembayaran & kepercayaan (1/2)',
@@ -606,7 +737,7 @@ const overrides = {
         body: 'Kelola suka, permintaan, dan kecocokan di layar ini.',
       },
       pool: {
-        title: 'Pool',
+        title: 'Kandidat',
         body: 'Lihat kandidat dan kirim permintaan kecocokan.',
       },
       request: {
@@ -616,11 +747,11 @@ const overrides = {
     },
     like: {
       title: 'Suka',
-      body: 'Gunakan Suka untuk menunjukkan minat. Anda dapat membatalkannya nanti.',
+      body: 'Gunakan Suka untuk menunjukkan minat. Jika orang itu juga menyukai Anda, tahap pencocokan aktif dimulai; lalu Anda bisa memulainya dan berbicara di jendela privat dengan dukungan terjemahan.',
     },
     activeStart: {
       title: 'Kecocokan aktif',
-      body: 'Setelah saling suka, mulai kecocokan aktif untuk membuka chat.',
+      body: 'Setelah saling suka, mulai pencocokan aktif untuk membuka chat privat dengan dukungan terjemahan. Selama pencocokan aktif berlanjut, Anda dapat terus berbicara tanpa batas.',
     },
     chat: {
       input: {
@@ -642,6 +773,39 @@ const overrides = {
       body: 'Instal aplikasi dan aktifkan notifikasi agar tidak ketinggalan pesan, permintaan, dan persetujuan.',
       primary: 'Satu klik: Instal + Aktifkan',
       later: 'Nanti',
+      installAndNotify: {
+        title: 'Pasang aplikasi agar tidak tertinggal pesan',
+        body: 'Kami sarankan Anda memasang aplikasi dan mengaktifkan notifikasi agar langsung tahu saat ada pesan baru, permintaan, atau kandidat yang cocok.',
+        primary: 'Lanjutkan, pasang dan aktifkan',
+      },
+      installOnly: {
+        title: 'Instal aplikasi',
+        body: 'Notifikasi Anda tampak sudah aktif. Kami tetap menyarankan memasang aplikasi agar pengalaman lebih stabil dan masalah masuk atau muat halaman berkurang.',
+        primary: 'Instal aplikasi',
+      },
+      notifyOnly: {
+        title: 'Aktifkan notifikasi',
+        body: 'Aplikasi tampaknya sudah terpasang. Aktifkan notifikasi sekarang agar pesan, permintaan, dan persetujuan langsung sampai tanpa terlewat.',
+        primary: 'Aktifkan notifikasi',
+      },
+      success: {
+        install: 'Berhasil. Langkah pemasangan aplikasi selesai.',
+        notify: 'Berhasil. Notifikasi sekarang sudah aktif.',
+        installAndNotify: 'Berhasil. Aplikasi dan notifikasi sekarang siap.',
+      },
+    },
+  },
+
+  ui: {
+    lightbox: {
+      close: 'Tutup',
+      prev: 'Sebelumnya',
+      next: 'Berikutnya',
+      imageAlt: 'Gambar {{index}}',
+    },
+    favorite: {
+      add: 'Tambahkan ke favorit',
+      remove: 'Hapus dari favorit',
     },
   },
 
@@ -931,6 +1095,8 @@ const overrides = {
       send: 'Kirim',
       loading: 'Memuat…',
       processing: 'Memproses…',
+      readMore: 'Baca selengkapnya',
+      readLess: 'Tampilkan lebih sedikit',
       match: 'Pencocokan',
       profile: 'Profil',
       verified: 'Pengguna terpercaya',
@@ -940,7 +1106,7 @@ const overrides = {
     },
 
     presence: {
-      online: 'Online',
+      online: 'Sedang online',
       lastSeenMinutes_one: 'Terakhir aktif: {{count}} menit lalu',
       lastSeenMinutes_other: 'Terakhir aktif: {{count}} menit lalu',
       lastSeenHours_one: 'Terakhir aktif: {{count}} jam lalu',
@@ -951,10 +1117,14 @@ const overrides = {
 
     referral: {
       title: 'Undang Teman',
-      description: 'Undang teman. Setelah kalian berdua menyelesaikan verifikasi identitas, kalian berdua akan mendapat keanggotaan gratis.',
+      description: 'Anda bisa merekomendasikan Uniqah dengan pesan singkat yang rapi dan membagikan alur pemasangan aplikasi.',
+      spotlightEyebrow: 'Undang teman',
+      spotlightBody: 'Kalau ada orang yang menurut Anda cocok, bagikan Uniqah lewat WhatsApp dengan pesan singkat dan alur pemasangan aplikasi.',
+      spotlightCta: 'Undang teman',
       myCodeLabel: 'Kode undangan Anda',
       shareButton: 'Bagikan via WhatsApp',
-      shareMessage: 'Bergabung ke Uniqah: {{url}}',
+      shareMessage:
+        'Aplikasi ini sangat bagus, saya merekomendasikannya. Anda bisa pasang aplikasi dulu, aktifkan notifikasi, lalu daftar gratis untuk berkenalan dengan orang baru di Uniqah.\n\n{{url}}',
       copy: 'Salin',
       copied: 'Tersalin.',
       enterCodeLabel: 'Kode undangan',
@@ -1005,7 +1175,7 @@ const overrides = {
       submit: 'Kirim',
       success: 'Laporan Anda kami terima. Terima kasih!',
       ticketId: 'Tiket',
-      error: 'Error',
+      error: 'Kesalahan',
       footerNote: 'Catatan: Form ini dikirim ke dukungan. Waktu respon bisa berbeda tergantung beban kerja.',
 
       screenshotLabel: 'Screenshot (opsional)',
@@ -1053,29 +1223,123 @@ const overrides = {
       photoAlt: 'Foto',
       wantChildren: 'Ingin punya anak',
       requestText: {
+        peopleList: 'Menambahkan Anda ke daftar orangnya.',
         preMatch: 'Mengirim permintaan pra-kecocokan.',
         photoAccess: 'Meminta izin untuk melihat foto Anda.',
         profileAccess: 'Meminta izin untuk melihat profil Anda.',
       },
     },
 
+    messagesHub: {
+      title: 'Pusat pesan',
+      subtitle: 'Pesan baru kini terlihat jauh lebih jelas dalam satu layar.',
+      totalActivity: '{{count}} pesan belum dibaca',
+      summaryMessages: 'Pesan belum dibaca',
+      summaryLikes: 'Suka baru',
+      summaryRequests: 'Permintaan tertunda',
+      emptyTitle: 'Belum ada pesan baru.',
+      emptyBody: 'Pesan baru akan langsung muncul di sini.',
+      sectionMessages: 'Pesan',
+      sectionMessagesHint: 'Orang yang mengirim pesan akan muncul di sini. Ketuk untuk langsung membuka percakapan.',
+      sectionLikes: 'Suka',
+      sectionLikesHint: 'Suka masuk ditonjolkan di sini agar tidak terlewat.',
+      sectionRequests: 'Permintaan',
+      sectionRequestsHint: 'Permintaan akses profil dan pra-kecocokan diringkas di sini.',
+      openChat: 'Buka chat',
+      openRequests: 'Buka permintaan',
+      unread: '{{count}} baru',
+      noPreview: 'Percakapan baru dengan orang ini sedang menunggu Anda.',
+      requestApproved: 'Permintaan disetujui.',
+      requestRejected: 'Permintaan ditolak.',
+    },
+
+    notificationsHub: {
+      title: 'Notifikasi',
+      subtitle: 'Notifikasi suka dan permintaan dikumpulkan di layar ini.',
+      totalActivity: '{{count}} notifikasi baru',
+      summaryLikes: 'Suka baru',
+      summaryRequests: 'Permintaan tertunda',
+      emptyTitle: 'Belum ada notifikasi baru.',
+      emptyBody: 'Suka atau permintaan baru akan langsung muncul di sini.',
+      sectionLikes: 'Suka',
+      sectionLikesHint: 'Suka masuk ditonjolkan di sini agar tidak terlewat.',
+      sectionRequests: 'Permintaan',
+      sectionRequestsHint: 'Permintaan akses profil dan pra-kecocokan diringkas di sini.',
+      requestApproved: 'Permintaan disetujui.',
+      requestRejected: 'Permintaan ditolak.',
+    },
+
     pool: {
       title: 'Jelajahi',
-      backToMatches: '← Kembali ke pencocokan',
+      backToMatches: '← Kembali ke Favoritku',
       refresh: 'Muat ulang',
       lastUpdated: 'Otomatis diperbarui (20 dtk).',
       countHint: 'Total: {{total}} • Ditampilkan: {{shown}}',
+      retrying: 'Ada masalah koneksi saat memuat daftar kandidat. Sedang dicoba ulang otomatis…',
+      cachedResults: 'Kandidat terakhir yang tersedia ditampilkan sampai koneksi pulih.',
+      loadMore: 'Tampilkan {{count}} kandidat lagi',
       filtersHint: 'Rentang usia: {{min}} – {{max}}',
+      myPeoplePrompt: {
+        title: 'Buka Favoritku untuk tindakan lain dan interaksi dengan koneksi Anda',
+        body: 'Status suka, pencocokan aktif, dan langkah lain terkait koneksi Anda bisa dikelola dari halaman Favoritku.',
+        cta: 'Ke Favoritku',
+      },
       trust: {
         title: 'Kepercayaan & verifikasi',
         body:
           'Sistem ini berfokus pada pernikahan dan berjalan dengan alur yang terkontrol. Verifikasi identitas tidak wajib; ini adalah lencana kepercayaan bagi pengguna yang memilih melakukannya.\n\nInformasi yang dikirim untuk verifikasi hanya digunakan untuk tujuan verifikasi dan tidak disimpan secara permanen setelah verifikasi selesai. Anda dapat menghapus akun kapan saja; setelah dihapus, data profil dan kecocokan Anda dihapus dari sistem.',
         sortNote: 'Catatan: Profil terverifikasi ditampilkan di urutan teratas di Jelajahi.',
       },
+      importantNotice: {
+        eyebrow: 'Peringatan penting',
+        tapSticker: 'Klik',
+        openButton: 'Penting: wajib dibaca',
+        title: 'Penting: wajib dibaca',
+        summary: 'Sebelum melanjutkan, baca dulu cara kerja platform ini, batas tanggung jawabnya, dan situasi apa saja yang harus segera dilaporkan.',
+        intro: 'Semua orang yang mendaftar ke situs kami mendaftar secara pribadi melalui iklan Facebook, Instagram, dan TikTok lalu membuat profil mereka sendiri.',
+        body1: 'Tidak ada pengguna yang bergabung ke sistem ini yang merupakan orang yang kami kenal dekat secara pribadi. Karena itu, Anda harus menguji, meneliti, dan mempertimbangkan dengan matang karakter, kepribadian, dan tujuan orang yang Anda kenal di sini.',
+        body2: 'Uniqah.com hanya menyediakan platform agar Anda bisa berkenalan dengan tujuan menikah. Uniqah.com tidak bertanggung jawab atas informasi yang diberikan pengguna, ataupun karakter, kepribadian, dan niat mereka.',
+        analysisTitle: 'Mohon ingat hal-hal ini',
+        analysisItems: [
+          'Orang baik maupun orang buruk bisa ada di mana saja di dunia. Karena itu, kami sangat menyarankan Anda untuk menganalisis orang yang Anda kenal dengan baik.',
+          'Jangan terlalu cepat percaya hanya karena seseorang ada di platform ini; perhatikan konsistensinya dari waktu ke waktu.',
+          'Rasa hormat, kejujuran, dan niat yang bersih sangat penting dalam sistem ini.',
+        ],
+        positiveTitle: 'Tanda yang bisa membantu Anda mengenali orang yang tepat',
+        positiveLead: 'Tanda-tanda ini tidak menjamin apa pun sendirian, tetapi saat Anda saling mengenal, ini bisa menunjukkan niat yang lebih sehat dan serius:',
+        positiveItems: [
+          'Mereka berusaha mengenal karakter, nilai hidup, dan cara berpikir Anda sebelum fokus pada fisik atau materi.',
+          'Ketika hubungan mulai berkembang, mereka bersedia membicarakan keluarga.',
+          'Mereka mau memperkenalkan Anda kepada keluarganya.',
+          'Mereka bisa jujur tentang beberapa hal sulit atau sensitif dalam hidupnya sendiri.',
+          'Mereka bisa membicarakan cinta, batasan, dan hal-hal yang tidak mereka inginkan dalam pernikahan secara terbuka.',
+          'Mereka terlihat sungguh-sungguh siap mengambil langkah nyata menuju pernikahan.',
+        ],
+        reportTitle: 'Jika ada tanda ini, jauhi, blokir, dan laporkan',
+        reportLead: 'Perilaku di bawah ini adalah tanda bahaya yang serius. Jika Anda melihatnya, jangan lanjutkan percakapan; blokir pengguna tersebut dan laporkan kepada kami disertai screenshot jika memungkinkan:',
+        reportItems: [
+          'Jika sejak awal mereka terlalu akrab secara berlebihan.',
+          'Jika mereka terus mengorek pendapatan, kondisi keuangan, atau kemampuan materi Anda.',
+          'Jika mereka mencoba mengarahkan percakapan ke topik seksual atau kedekatan yang tidak pantas.',
+          'Jika mereka mengajak Anda ke link lain, situs lain, atau aplikasi pesan lain.',
+          'Jika mereka berusaha membuat Anda iba soal kondisi keuangannya lalu meminta uang atau bantuan.',
+          'Jika mereka tampak mengejar keuntungan pribadi lewat kebohongan atau manipulasi.',
+          'Jika ucapan mereka tidak konsisten dengan informasi yang mereka berikan.',
+        ],
+        reportOutro: 'Jauhi orang seperti ini. Blokir dan laporkan kepada kami melalui area Keluhan / Permintaan.',
+        guidanceTitle: 'Opsi pendampingan dan konsultasi tambahan',
+        guidanceBody1: 'Jika Anda ingin dilakukan penelusuran tentang orang yang Anda kenal, keluarganya, atau tempat tinggalnya, Anda dapat meminta layanan pendampingan dan konsultasi dari kami dengan biaya tertentu agar rasa saling percaya bisa terbentuk sebelum keputusan menikah diambil.',
+        guidanceBody2: 'Selain itu, jika Anda sudah benar-benar memutuskan untuk menikah, Anda juga dapat meminta pendampingan dan konsultasi berbayar dari kami untuk seluruh proses pernikahan resmi.',
+        closing1: 'Tujuan situs ini adalah membantu orang-orang yang benar-benar ingin menikah agar dapat menemukan satu sama lain.',
+        closing2: 'Karena sistem ini masih sangat baru, mungkin masih ada kekurangan atau gangguan. Dalam situasi seperti itu, mohon jangan lupa melaporkannya kepada kami melalui tombol Keluhan / Permintaan.',
+        closing3: 'Setiap hari akan ada orang baru yang bergabung ke sistem. Silakan instal aplikasi di ponsel Anda dan aktifkan notifikasi agar Anda bisa langsung mengetahui pesan dan suka yang masuk.',
+        footer: 'Terima kasih sudah membaca sampai sini. Semoga Anda menemukan pernikahan bahagia yang Anda cari.',
+        closeButton: 'Tutup',
+      },
       empty: 'Belum ada profil untuk ditampilkan.',
-      requestProfileNow: 'Kirim permintaan kecocokan',
-      requesting: 'Mengirim…',
-      requestSent: 'Terkirim',
+      requestProfileNow: 'Tambah ke Favoritku',
+      requesting: 'Menambahkan…',
+      requestSent: 'Ditambahkan ke Favoritku',
       openProfile: 'Buka profil',
       profileModalTitle: 'Profil',
       actionsSoon: 'Segera: pesan singkat',
@@ -1085,7 +1349,7 @@ const overrides = {
         title: 'Detail sisanya bisa Anda lengkapi nanti',
         body: 'Kolom wajib Anda sudah lengkap. Jika mau, sekarang Anda bisa melengkapi sisa detail profil dan preferensi agar saran pasangan lebih baik. Jika pilih nanti, Anda bisa terus memakai Jelajah.',
         actions: {
-          ok: 'OK',
+          ok: 'Baik',
           later: 'Nanti',
         },
       },
@@ -1129,6 +1393,8 @@ const overrides = {
       subtitle: 'Ringkasan informasi yang Anda berikan di aplikasi.',
       noProfile: 'Data profil tidak ditemukan.',
       appMissing: 'Data formulir aplikasi tidak ditemukan. (Data aplikasi atau profil pengguna mungkin hilang.)',
+      contactPrivacyNotice:
+        'Detail kontak Anda seperti WhatsApp, email, dan Instagram bersifat privat. Informasi ini tidak ditampilkan secara publik saat Anda mengisi formulir maupun di antarmuka aplikasi.',
       sections: {
         basic: 'Info dasar',
         contact: 'Kontak',
@@ -1146,7 +1412,7 @@ const overrides = {
         country: 'Negara',
         nationality: 'Kebangsaan',
         whatsapp: 'WhatsApp',
-        email: 'Email',
+        email: 'Alamat email',
         instagram: 'Instagram',
         heightCm: 'Tinggi (cm)',
         weightKg: 'Berat (kg)',
@@ -1240,7 +1506,7 @@ const overrides = {
           pending: 'Permintaan terkirim (menunggu)',
           approved: 'Permintaan disetujui',
           granted: 'Akses sudah diberikan',
-          unknown: 'Status: {{status}}',
+          unknown: 'Status saat ini: {{status}}',
         },
         actions: {
           requested: 'Permintaan terkirim',
@@ -1251,14 +1517,14 @@ const overrides = {
         locked: 'Anda punya pencocokan aktif — yang lain terkunci',
         newMessage: 'Pesan baru',
         incomingLikeNote: 'Orang ini mengirimkan suka kepada Anda',
-        activeChatStarted: 'Pencocokan aktif Anda sudah dimulai. Ketuk tombol Pesan untuk mulai chat tanpa batas.',
+        activeChatStarted: 'Pencocokan aktif Anda sudah dimulai. Ketuk tombol Pesan untuk mulai chat tanpa batas dengan dukungan terjemahan.',
       },
     },
 
     matches: {
-      title: 'Pencocokan saya',
-      showingCount: 'Menampilkan {{count}} pencocokan.',
-      emptyHint: 'Pencocokan Anda akan muncul di sini.',
+      title: 'Favoritku',
+      showingCount: 'Menampilkan {{count}} orang.',
+      emptyHint: 'Orang yang Anda simpan dan pencocokan aktif muncul di sini.',
       backToProfile: '← Kembali ke profil',
       findNew: 'Cari pencocokan baru',
       finding: 'Mencari…',
@@ -1266,30 +1532,34 @@ const overrides = {
       howReadMore: 'Baca selengkapnya',
       howReadLess: 'Tampilkan lebih sedikit',
       howItems: [
-        'Profil yang cocok ditinjau di halaman Jelajahi.',
-        'Permintaan pra-pencocokan dikirim ke profil yang diinginkan dari daftar pencocokan.',
-        'Permintaan muncul di layar persetujuan pihak lain; jika disetujui, kedua pihak saling melihat di daftar pencocokan.',
-        'Pada tahap ini, kartu pencocokan menjadi interaktif: suka, pesan singkat, dan tinjauan detail profil.',
-        'Jika suka saling berbalas, sistem memulai tahap pencocokan aktif.',
-        'Saat pencocokan aktif dimulai, percakapan dimulai dengan dukungan terjemahan.',
-        'Setelah tahap ini dimulai, interaksi dengan profil lain dinonaktifkan untuk kedua pihak.',
-        'Sampai pencocokan aktif dibatalkan secara mutual, pencocokan/suka/pesan singkat dan peninjauan detail profil lain dinonaktifkan.',
-        'Untuk mencegah penyalahgunaan, pencocokan aktif tidak dapat dibatalkan selama 2 jam pertama setelah dimulai; dan pencocokan aktif baru tidak dapat dimulai saat masih ada pencocokan aktif.',
-        'Setelah periode pencocokan aktif 48 jam, kedua pihak memperoleh hak untuk berbagi detail kontak.',
-        'Detail kontak hanya akan terlihat di bagian detail profil, hanya untuk satu sama lain.',
-        'Setelah itu, percakapan dapat dilanjutkan di dalam situs atau melalui kanal komunikasi pribadi.',
-        'Setelah 48 jam, panggilan video dengan bantuan penerjemah dapat diminta melalui dukungan.',
-        'Pemeriksaan latar belakang / riset detail juga dapat diminta melalui dukungan.',
+        'Tinjau profil yang cocok di Jelajahi lalu tambahkan langsung ke Favoritku.',
+        'Pihak lain tidak perlu menyetujui langkah ini; mereka hanya menerima notifikasi.',
+        'Kartu di Favoritku punya aksi suka, pesan singkat, dan profil lengkap.',
+        'Tombol profil lengkap langsung membuka seluruh isian formulir dan preferensi pasangan.',
+        'Saat Anda menyukai seseorang, sistem pencocokan yang ada akan mengirim suka itu melalui dokumen match.',
+        'Jika suka menjadi saling berbalas, tahap pencocokan aktif bisa dimulai.',
+        'Saat pencocokan aktif dimulai, interaksi dengan profil lain terkunci dan chat privat panjang dengan dukungan terjemahan terbuka.',
+        'Setelah periode 48 jam pencocokan aktif, berbagi kontak dapat dibuka.',
       ],
       activeLockTitle: 'Anda punya pencocokan aktif',
       activeLockBody: 'Interaksi dengan profil lain terkunci. Buka <link>halaman pencocokan aktif</link> untuk mengelolanya.',
       requestFailed: 'Permintaan gagal: {{error}}',
-      requestOk: 'Permintaan terkirim. Bisa muncul di daftar dalam beberapa detik.',
+      requestOk: 'Ditambahkan ke Favoritku.',
       loading: 'Memuat…',
       loadFailed: 'Pencocokan tidak bisa dimuat: {{error}}',
-      noneTitle: 'Belum ada pencocokan.',
+      noneTitle: 'Anda belum menambahkan siapa pun.',
       noneBody:
-        'Jika Anda baru saja membuat profil, Anda dapat berinteraksi di daftar pencocokan dengan mengirim permintaan dari halaman Jelajahi kepada profil yang sesuai, atau dengan menyetujui permintaan masuk untuk menambahkannya ke daftar pencocokan Anda. Setelah cocok, Anda bisa menggunakan fitur suka, pesan singkat, dan melihat profil secara lebih detail. Jika Anda belum menemukan profil yang cocok, instal aplikasi di ponsel dan aktifkan notifikasi agar langsung mendapat kabar saat ada pembaruan. Jika tujuan Anda adalah menikah, menemukan orang yang tepat bisa memakan waktu; kami menyarankan Anda untuk bersabar.',
+        'Dari halaman Jelajahi, Anda bisa langsung menambahkan profil yang sesuai ke Favoritku. Mereka akan muncul di halaman ini, lalu Anda bisa memberi suka, mengirim pesan singkat, atau langsung membuka profil lengkapnya. Jika belum menemukan profil yang cocok, instal aplikasi dan aktifkan notifikasi agar segera mendapat kabar saat ada pembaruan.',
+      people: {
+        savedLabel: 'Tersimpan',
+        grantedLabel: 'Akses profil ada',
+        inspect: 'Profil lengkap',
+        profileRequested: 'Permintaan tinjau profil dikirim untuk {{name}}.',
+        messageModalSubtitle: 'Kirim pesan singkat',
+        messagePlaceholder: 'Tulis pesan singkat…',
+        messageSent: 'Pesan singkat terkirim.',
+        profileModalTitle: 'Detail profil',
+      },
       shortModal: {
         subtitle: 'Pesan singkat (batas 5) • untuk info singkat di luar profil',
         remaining: 'Sisa: {{remaining}} / {{limit}}',
@@ -1314,7 +1584,7 @@ const overrides = {
         },
       },
       errors: {
-          goToMatchCard: 'Buka kartu kecocokan',
+          goToMatchCard: 'Buka kartu pasangan',
         activeLocked: 'Anda tidak bisa mengirim pesan ke profil lain saat punya pencocokan aktif. Akhiri dulu pencocokan aktif Anda.',
         shortLimit: 'Pesan singkat Anda habis (5). Untuk lanjut, mulai pencocokan aktif.',
       },
@@ -1348,15 +1618,17 @@ const overrides = {
       remainingTime: '{{hours}}j {{minutes}}m',
       lock48h: {
         title: 'Chat privat 48 jam + berbagi kontak',
-        subtitle: 'Setelah konfirmasi mutual dan waktu selesai, kontak dapat dibagikan.',
+        subtitle: 'Setelah 48 jam, konfirmasi bersama, percakapan di setidaknya dua hari berbeda, dan minimal 5 pesan per pihak, Anda bisa membagikan nomor Anda.',
         lockedRemaining: 'Terkunci. Sisa: {{time}}',
         confirming: 'Mengonfirmasi…',
         confirmed: 'Dikonfirmasi',
         confirm: 'Konfirmasi 48 jam',
-        requesting: 'Mengirim permintaan…',
-        requestContact: 'Minta berbagi kontak',
+        requesting: 'Membagikan nomor Anda…',
+        requestContact: 'Bagikan nomor kontak saya',
         approving: 'Menyetujui…',
         approveContact: 'Setujui berbagi kontak',
+        keepChat: 'Lanjut chat di dalam situs',
+        keepChatSaving: 'Menyimpan pilihan Anda…',
         confirmStatusLabel: 'Status konfirmasi:',
         confirmStatus: {
           both: 'Dikonfirmasi mutual',
@@ -1366,16 +1638,31 @@ const overrides = {
         },
         contactStatusLabel: 'Berbagi kontak:',
         contactStatus: {
-          approved: 'Dibagikan',
+          approved: 'Kontak dibuka',
+          bothShared: 'Kedua pihak membagikan nomornya',
+          mineShared: 'Anda membagikan nomor Anda',
+          otherShared: 'Pihak lain membagikan nomornya',
+          continueChat: 'Sementara lanjut di dalam situs',
           pendingMine: 'Permintaan terkirim (menunggu persetujuan)',
           pendingOther: 'Pihak lain meminta (Anda bisa menyetujui)',
           closed: 'Tertutup',
         },
         confirmError: 'Konfirmasi gagal: {{error}}',
-        contactRequestError: 'Permintaan kontak gagal: {{error}}',
+        contactRequestError: 'Berbagi nomor gagal: {{error}}',
         contactApproveError: 'Persetujuan kontak gagal: {{error}}',
+        keepChatError: 'Pilihan Anda tidak bisa disimpan: {{error}}',
         whatsappTitle: 'WhatsApp',
         openInWhatsApp: 'Buka di WhatsApp',
+        sharedMineHint: 'Anda sudah membagikan nomor Anda. Pihak lain dapat menghubungi Anda melalui nomor ini kapan saja.',
+        keepChatHint: 'Pilihan Anda tersimpan. Untuk sekarang Anda melanjutkan percakapan di dalam situs.',
+        otherSharedHint: 'Pihak lain membagikan nomornya. Anda bisa menghubungi mereka lewat WhatsApp kapan saja.',
+        activityRuleTitle: 'Syarat percakapan tambahan untuk berbagi kontak',
+        activityRuleBody: 'Agar berbagi kontak terbuka, kedua pihak harus sudah berbicara pada setidaknya {{minDays}} hari berbeda dan masing-masing mengirim minimal {{minMessages}} pesan. Status saat ini: hari {{days}}/{{minDays}}, Anda {{yourCount}}/{{minMessages}}, pihak lain {{otherCount}}/{{minMessages}}.',
+        reportCta: 'Laporkan',
+        blockCta: 'Blokir',
+        blocking: 'Memblokir…',
+        blockConfirm: 'Apakah Anda yakin ingin memblokir pengguna ini? Pencocokan aktif akan ditutup dan orang ini tidak akan ditampilkan lagi kepada Anda.',
+        blockError: 'Gagal memblokir: {{error}}',
       },
     },
 
@@ -1395,7 +1682,7 @@ const overrides = {
         },
       },
       editProfile: 'Edit profil',
-      myMatches: 'Pencocokan saya',
+      myMatches: 'Favoritku',
       logout: 'Keluar',
       bannerAlt: 'Banner profil',
       aboutTitle: 'Tentang',
@@ -1409,7 +1696,7 @@ const overrides = {
       textsSaved: 'Tersimpan.',
 
       partnerPrefsTitle: 'Preferensi pasangan',
-      partnerPrefsCta: 'Edit',
+      partnerPrefsCta: 'Ubah',
       partnerPrefsSave: 'Simpan',
       partnerPrefsSaving: 'Menyimpan…',
       partnerPrefsSaved: 'Tersimpan.',
@@ -1429,7 +1716,7 @@ const overrides = {
       myInfo: 'Info saya',
       identityTitle: 'Verifikasi identitas',
       identityVerified: 'Identitas Anda tampak terverifikasi.',
-      identityStatus: 'Status',
+      identityStatus: 'Status identitas',
       verifyNow: 'Verifikasi identitas saya',
       identityHelp: 'Dengan memverifikasi identitas, Anda dapat meningkatkan kepercayaan dan menghapus batasan fitur/keanggotaan.',
       identityIntro: {
@@ -1495,6 +1782,12 @@ const overrides = {
           cta: 'Saya sudah baca, keluar',
         },
       },
+      discoverPrompt: {
+        eyebrow: 'Langkah berikutnya',
+        title: 'Buka halaman Jelajahi untuk melihat calon pasangan',
+        body: 'Banyak pengguna menunggu di halaman profil dan mengira tidak ada siapa-siapa. Buka Jelajahi sekarang untuk melihat kandidat yang cocok dan meninjau profil baru.',
+        cta: 'Ke Jelajahi',
+      },
       identityTrust: {
         title: 'Untuk apa verifikasi ini?',
         points: {
@@ -1538,7 +1831,7 @@ const overrides = {
       verifySocialTitle: 'Verifikasi via media sosial',
       verifySocialBody: 'Pilih akun Instagram / TikTok / YouTube / Facebook Anda dan kirim username. Tim kami akan meninjau dan memberikan lencana.',
       verifySocialPlatform: 'Platform',
-      verifySocialUsername: 'Username',
+      verifySocialUsername: 'Nama pengguna',
       verifySocialMissing: 'Silakan pilih platform dan masukkan username Anda.',
       verifySocialSubmitted: 'Terkirim. Menunggu peninjauan.',
       idType: 'Jenis ID',
@@ -1573,6 +1866,17 @@ const overrides = {
             'Saat visibilitas nonaktif, hanya orang yang Anda izinkan yang dapat melihat foto Anda; dan Anda hanya dapat melihat foto orang yang Anda izinkan.',
         },
         cooldownError: 'Ada masa tunggu untuk tindakan ini. Sisa: {{time}}',
+      },
+      photoManager: {
+        maxFive: 'Anda dapat menambahkan hingga 5 gambar.',
+        manageButton: 'Tambah/Ubah foto',
+        modalIntro: 'Lihat foto Anda saat ini dan perbarui kapan saja. Maksimal 5 gambar.',
+        slotLabel: 'Foto {{index}}',
+        remove: 'Hapus',
+        empty: 'Kosong',
+        replace: 'Ganti',
+        add: 'Tambah',
+        save: 'Simpan',
       },
 
       userCode: {
@@ -1645,6 +1949,7 @@ const overrides = {
         ],
         applicationIdLabel: 'ID Pengajuan',
         ctas: {
+          install: 'Pasang aplikasi',
           pool: 'Buka pool',
           matches: 'Pencocokan saya',
           learn: 'Cara kerja sistem',
@@ -1669,7 +1974,7 @@ const overrides = {
           pending: 'Permintaan terkirim (menunggu)',
           approved: 'Permintaan disetujui',
           granted: 'Akses sudah diberikan',
-          unknown: 'Status: {{status}}',
+          unknown: 'Status saat ini: {{status}}',
         },
         actions: {
           request: 'Kirim permintaan',
@@ -1692,7 +1997,7 @@ const overrides = {
       rules: {
         generic: 'Kesalahan',
         likeFirst: 'Jika suka timbal balik, “Suka timbal balik” terbentuk.',
-        startActive: 'Chat panjang terbuka setelah kedua pihak menyetujui “Mulai pencocokan aktif”.',
+        startActive: 'Chat panjang dengan dukungan terjemahan terbuka setelah kedua pihak menyetujui “Mulai pencocokan aktif”.',
         onlyOneActive: 'Hanya 1 pencocokan aktif; saat aktif, suka/pesan dengan profil lain terkunci.',
         unlockAfterCancel: 'Profil lain terbuka kembali setelah pencocokan aktif dibatalkan oleh kedua pihak.',
       },
@@ -1702,8 +2007,8 @@ const overrides = {
         start: 'Mulai pencocokan aktif',
         confirmPrompt:
           'Anda akan memulai pencocokan aktif.\n\n- Anda hanya bisa punya 1 pencocokan aktif (profil lain akan terkunci).\n- Setelah aktif, Anda tidak bisa membatalkan selama 2 jam pertama.\n\nApakah Anda setuju?',
-        activatedNotice: 'Pencocokan aktif dimulai.',
-        waitingNotice: 'Permintaan terkirim. Menunggu persetujuan pihak lain.',
+        activatedNotice: 'Pencocokan aktif dimulai. Chat panjang dengan dukungan terjemahan sekarang terbuka.',
+        waitingNotice: 'Permintaan terkirim. Setelah pihak lain menyetujui, chat panjang dengan dukungan terjemahan akan terbuka.',
       },
       cancel: {
         title: 'Akhiri pencocokan aktif',
@@ -1717,7 +2022,7 @@ const overrides = {
       },
       mutualLike: {
         title: 'Anda memiliki suka timbal balik',
-        body: 'Chat panjang terbuka hanya setelah kedua pihak menyetujui “Mulai pencocokan aktif”.',
+        body: 'Suka timbal balik memulai tahap pencocokan aktif. Setelah kedua pihak menyetujui, chat privat dengan dukungan terjemahan terbuka dan Anda bisa berbicara tanpa batas selama pencocokan aktif berlanjut.',
       },
       longChatClosedTitle: 'Chat panjang ditutup',
       longChatClosedBody: 'Chat panjang tersedia hanya setelah memulai pencocokan aktif. Pada tahap ini Anda hanya bisa menggunakan pesan singkat.',
@@ -1763,6 +2068,10 @@ const overrides = {
       ageRequired: 'Informasi usia Anda belum ada. Silakan lengkapi profil Anda dan coba lagi.',
       notAvailable: 'Tindakan ini tidak tersedia pada tahap ini.',
       forbidden: 'Anda tidak diizinkan melakukan tindakan ini.',
+      contactShareMissingNumber: 'Nomor WhatsApp untuk dibagikan tidak ditemukan. Silakan periksa info kontak di profil Anda.',
+      contactNotShared: 'Pihak lain belum membagikan nomor kontaknya.',
+      contactActivityRequired: 'Berbagi kontak mensyaratkan percakapan pada setidaknya dua hari berbeda dan minimal 5 pesan dari masing-masing pihak.',
+      blockedUserPair: 'Interaksi dengan pengguna ini ditutup. Salah satu pihak telah memblokir pihak lainnya.',
       cancelCooldown: 'Untuk mencegah penyalahgunaan, pembatalan sementara dinonaktifkan. Sisa: {{time}}',
     },
   },
@@ -1975,16 +2284,16 @@ const overrides = {
     title: "Sistem pencocokan untuk pernikahan",
     liveJoinToast: 'Peserta baru bergabung',
     description:
-      "Sistem ini masih baru—mohon bersabar. Pencocokan biasanya datang dalam 1–3 hari. Instal aplikasinya dan aktifkan notifikasi agar tidak ketinggalan pembaruan.",
+      "Sistem ini tidak memiliki tujuan yang sama dengan aplikasi dating biasa. Di sini tidak ada ruang bagi orang yang mencari hiburan, penipuan, atau kepuasan seksual alih-alih pernikahan yang sungguh-sungguh. Sistem ini sepenuhnya gratis; hari ini kami menghubungkan orang-orang antara Turki dan Indonesia, dan segera akan berkembang menjadi struktur yang membantu orang dari lebih banyak negara saling menemukan serta, bila diperlukan, mendapat pendampingan dalam perjalanan menuju pernikahan.",
     preview: {
       title: "Setelah daftar, apa yang akan kamu lihat di 'Profil Saya'?",
       subtitle:
-        'Kartu contoh ini bukan data pengguna nyata; hanya untuk memperlihatkan alur sistem setelah registrasi secara singkat.',
+        'Kartu contoh ini bukan data pengguna nyata; hanya untuk memperlihatkan alur sistem yang saat ini sepenuhnya gratis, langkah suka timbal balik, dan keuntungan chat dengan dukungan terjemahan secara singkat.',
       cta: 'Daftar gratis',
       cards: {
         matches: {
           title: 'Kecocokan & status',
-          body: 'Minat bersama, aktivasi, dan langkah komunikasi berjalan di sini—setiap langkah terkontrol.',
+          body: 'Suka timbal balik, tahap pencocokan aktif, dan chat privat berjalan di sini. Selama pencocokan aktif, kedua pihak dapat berbicara dengan dukungan terjemahan.',
           mockTitle: 'Contoh',
           mockItem1: 'Kecocokan yang disarankan',
           mockItem1Sub: 'Status: minat bersama (contoh)',
@@ -2003,12 +2312,12 @@ const overrides = {
         },
         chat: {
           title: 'Chat lebih aman',
-          body: 'Pesan difilter; berbagi telepon/email/link di tahap awal diblokir.',
+          body: 'Pesan difilter; selama pencocokan aktif, kedua pihak dapat berbicara di jendela privat dengan dukungan terjemahan dan tanpa terlalu khawatir soal bahasa.',
           mockTitle: 'Contoh',
           mockSystem: 'Sistem: Komunikasi lebih aman aktif',
           mockMsg1: 'Halo, apa kabar? (contoh)',
           mockMsg2: 'Chat dulu, lalu langkah persetujuan (contoh)',
-          mockHint: 'Catatan: berbagi kontak terbuka setelah 48 jam + persetujuan kedua pihak.',
+          mockHint: 'Catatan: selama pencocokan aktif berlanjut, Anda dapat berbicara tanpa batas di jendela privat; berbagi kontak terbuka setelah 48 jam + persetujuan kedua pihak.',
         },
       },
     },
@@ -2252,7 +2561,7 @@ const overrides = {
         partnerPreferences: 'Preferensi calon pasangan',
       },
       contactPrivacyNotice:
-        'Detail kontak Anda (WhatsApp/email) bersifat privat. Tidak ditampilkan secara publik saat Anda mengisi formulir maupun di tampilan aplikasi.',
+        'Detail kontak Anda seperti WhatsApp dan email bersifat privat. Informasi ini tidak ditampilkan secara publik saat Anda mengisi formulir maupun di tampilan aplikasi.',
       contactNumberNote: 'Nomor kontak Anda tidak dibagikan kepada siapa pun; diperlukan agar kami dapat menghubungi Anda jika dibutuhkan.',
       confirmGender: {
         title: 'Konfirmasi gender',
@@ -2265,11 +2574,11 @@ const overrides = {
         fullName: 'Nama lengkap',
         age: 'Usia',
         city: 'Kota',
-        country: 'Negara',
+        country: 'Anda tinggal di negara mana?',
         whatsapp: 'Nomor kontak',
-        email: 'Email',
+        email: 'Alamat email',
         instagram: 'Instagram (opsional)',
-        nationality: 'Kewarganegaraan',
+        nationality: 'Apa kewarganegaraan Anda?',
         gender: 'Jenis kelamin',
         lookingForNationality: 'Kewarganegaraan',
         lookingForGender: 'Jenis kelamin',
@@ -2332,6 +2641,7 @@ const overrides = {
         age: 'contoh: 29',
         city: 'contoh: Jakarta',
         country: 'contoh: Indonesia',
+        nationality: 'contoh: Indonesia / Turki',
         whatsapp: 'contoh: +62 8xx xxxx xxxx',
         email: 'contoh: contoh@mail.com',
         instagram: 'contoh: @username',
@@ -2465,6 +2775,7 @@ const overrides = {
       },
       hints: {
         lookingForGenderAuto: 'Gender yang Anda cari diatur otomatis berdasarkan gender Anda.',
+        countryNationality: 'Negara tempat tinggal dan kewarganegaraan Anda bisa berbeda. Yang satu menanyakan tempat tinggal Anda, yang lain menanyakan kewarganegaraan Anda.',
         foreignLanguages: 'Jika tidak ada, pilih “Tidak ada”. Jika memilih “Lainnya”, tuliskan bahasanya.',
         multiSelect: 'Anda dapat memilih lebih dari satu opsi.',
         partnerAgeNeedsYourAge: 'Rentang usia dihitung berdasarkan usia Anda.',
@@ -2481,11 +2792,12 @@ const overrides = {
       submit: 'Kirim pengajuan',
       submitting: 'Mengirim…',
       success: 'Pengajuan Anda berhasil dikirim.',
+      installAppCta: 'Pasang aplikasi dan aktifkan notifikasi',
       errors: {
         alreadySubmitted: 'Anda sudah memiliki pengajuan matchmaking. Anda bisa memperbarui info dari halaman Profil.',
         profileTextWriteOnceUsed: 'Teks “Tentang saya” dan “Kriteria pasangan” hanya bisa ditulis sekali dan tidak bisa diubah setelah disimpan.',
         profileTextPII: 'Jangan menulis info kontak (telepon, email, tautan, Instagram, IBAN, dll.) di “Tentang saya” atau “Kriteria pasangan”.',
-        honeypotTriggered: 'Pengiriman diblokir (terdeteksi spam).',
+        honeypotTriggered: 'Form tidak bisa dikirim. Autofill browser mungkin mengisi kolom tersembunyi. Muat ulang halaman lalu coba lagi.',
         tooFast: 'Anda mengirim terlalu cepat. Silakan coba lagi.',
         rateLimited: 'Terlalu banyak percobaan. Silakan coba lagi nanti.',
         consent18Plus: 'Untuk mengirim, Anda harus mengonfirmasi bahwa Anda berusia 18+.',
@@ -3323,6 +3635,10 @@ const overrides = {
             approveHint: 'Jika Anda menyetujui, nomor telepon akan muncul di pesan.',
           },
           contactShared: 'Detail kontak dibagikan:\n{{aWhatsapp}}\n{{bWhatsapp}}',
+          contactSharedMineTitle: 'Nomor kontak Anda telah dibagikan',
+          contactSharedMineBody: 'Pihak lain sekarang bisa menghubungi Anda melalui nomor ini.',
+          contactSharedOtherTitle: '{{name}} membagikan nomor kontaknya',
+          contactSharedOtherBody: 'Anda bisa menghubungi orang ini melalui nomor tersebut kapan saja.',
         },
         translate: {
           title: 'Terjemahkan pesan',
@@ -3875,19 +4191,39 @@ const overrides = {
     },
     steps: [
       {
-        title: 'Kami memahami Anda dan situasi Anda',
+        title: 'Langkah pertama: formulir perencanaan',
         description:
-          'Anda mengisi form; dengan informasi yang Anda berikan, kami memperjelas kebutuhan Anda.',
+          'Untuk memahami Anda dan kondisi Anda saat ini dengan lebih baik, Anda mengisi dan mengirimkan formulir 15 pertanyaan di bagian Perencanaan. Tahap ini sepenuhnya gratis dan hanya memerlukan beberapa menit.',
       },
       {
         title: 'Kami merencanakan bersama Anda',
         description:
-          'Dokumen, tanggal, dan langkah proses kami susun bersama sesuai anggaran dan harapan Anda.',
+          'Setelah meninjau informasi yang Anda kirimkan, kami menghubungi Anda kembali dan menyusun peta jalan yang jelas sesuai kebutuhan proses pernikahan Anda.',
       },
       {
-        title: 'Kami mengelola proses langkah demi langkah',
+        title: 'Kesepakatan & layanan pendampingan',
         description:
-          'Dari kedatangan Anda di Indonesia hingga pernikahan selesai, kami mendampingi di setiap langkah.',
+          'Saat Anda memutuskan untuk menggunakan layanan pendampingan kami, Anda membayar 40% dari total anggaran yang telah dihitung. Demi rasa saling percaya, 60% sisanya kami terima setelah Anda tiba di Indonesia.',
+      },
+      {
+        title: 'Proses administrasi pernikahan',
+        description:
+          'Kami mengajukan permohonan nikah resmi ke kantor KUA yang menaungi calon pasangan Anda dan memulai prosesnya. Kami membantu Anda mengumpulkan dokumen yang diperlukan langkah demi langkah dan menerjemahkan dokumen yang Anda kirim melalui WhatsApp.',
+      },
+      {
+        title: 'Tahap di Indonesia',
+        description:
+          'Jika Anda menghendaki, kami mengatur tiket pesawat, hotel, dan transportasi lokal di Indonesia untuk Anda. Mulai dari penjemputan di bandara hingga mengantar Anda bersama pasangan saat kembali ke Turki, kami mendampingi di setiap tahap, termasuk membantu penerjemahan dalam komunikasi dengan pasangan, keluarga, dan lingkungan sekitarnya. Jika Anda mau, kami juga bisa hanya memulai proses nikah dan menyiapkan rencana yang lebih fleksibel agar langkah selanjutnya Anda selesaikan bersama pasangan Anda.',
+      },
+      {
+        title: 'Prosedur setelah menikah',
+        description:
+          'Setelah pernikahan selesai, kami mengikuti langkah-langkah yang diperlukan agar pernikahan Anda diakui oleh instansi resmi. Jika Anda akan tinggal di Turki, kami menangani proses visa pasangan Anda; jika Anda akan tinggal di Indonesia, kami mengurus proses izin tinggal. Jika diminta, kami juga dapat membantu perencanaan bulan madu.',
+      },
+      {
+        title: 'Penyelesaian layanan pendampingan',
+        description:
+          'Setelah semua proses selesai dengan lengkap, kami menutup pendampingan dan menyelesaikan pemeriksaan akhir bersama Anda agar Anda bisa memulai pernikahan dengan cara yang paling rapi dan nyaman.',
       },
     ],
     images: {
@@ -4159,18 +4495,45 @@ const overrides = {
     install: {
       title: 'Pasang aplikasi',
       lead:
-        'Tambahkan ke layar utama agar lebih cepat dibuka. Aktifkan notifikasi untuk mendapat info instan tentang pesan, like, dan permintaan match.',
+        'Tambahkan ke layar utama agar lebih cepat dibuka. Setelah Anda mendaftar dan mulai melihat profil lain, kami sarankan mengaktifkan notifikasi agar tidak ketinggalan pesan dan match.',
       installButton: 'Pasang aplikasi',
       installed: 'Terpasang',
-      installedHint: 'Aplikasi sudah ada di layar utama. Anda juga bisa mengaktifkan notifikasi.',
+      installedHint: 'Aplikasi sudah ada di layar utama. Setelah masuk ke dalam aplikasi, Anda bisa mengaktifkan notifikasi kapan pun Anda mau.',
       installAvailableHint: 'Browser Anda mendukung instalasi. Klik untuk memasang.',
       installNotAvailableHint:
         'Jika tombol install tidak muncul: buka menu browser lalu pilih “Tambah ke Layar Utama / Pasang aplikasi” (di beberapa perangkat muncul setelah kunjungan pertama via HTTPS). Jika tautan dibuka di browser dalam aplikasi (WhatsApp/Instagram), pilih “Buka di Safari/Chrome” lalu coba lagi.',
+      actions: {
+        waitingForPrompt: 'Opsi pemasangan sedang disiapkan…',
+        openInBrowser: 'Buka di browser lalu pasang',
+        copyLink: 'Salin tautan',
+        inAppBrowserTitle: 'Halaman ini tampaknya dibuka di browser dalam aplikasi',
+        inAppBrowserBody: 'Prompt pemasangan biasanya tidak muncul di WhatsApp, Instagram, dan browser dalam aplikasi sejenis. Buka halaman ini di Safari/Chrome terlebih dahulu, lalu pasang dari sana.',
+        copiedIos: 'Tautan disalin. Buka di Safari lalu lanjutkan dengan Bagikan → “Tambah ke Layar Utama”.',
+        copiedAndroid: 'Tautan disalin. Buka di Chrome lalu pilih “Tambahkan ke layar utama” atau “Instal aplikasi” dari menu.',
+        copiedDesktop: 'Tautan disalin. Buka di browser desktop Anda lalu gunakan opsi “Instal aplikasi” dari menu.',
+        copyFailed: 'Tautan tidak dapat disalin. Buka halaman ini secara manual di Chrome/Safari.',
+      },
       ios: {
         title: 'Untuk iPhone/iPad (Safari)',
         step1: 'Buka situs di Safari.',
         step2: 'Ketuk Bagikan (kotak + panah).',
+        matchmakingHub: 'Cari calon pasangan',
+        matchmakingHint: 'Belum punya calon pasangan? Bergabunglah dengan sistem pencocokan kami dan telusuri kandidat dari sini.',
         step3: 'Pilih “Tambah ke Layar Utama” lalu konfirmasi.',
+      },
+      preview: {
+        matches: {
+          title: 'Profil Saya: Kecocokan',
+          body: 'Kecocokan, permintaan, dan percakapan dikelola dari layar Profil Saya.',
+        },
+        pool: {
+          title: 'Pool: Kandidat',
+          body: 'Anda dapat menelusuri kandidat dan mengirim permintaan atau suka.',
+        },
+        request: {
+          title: 'Kirim permintaan kecocokan',
+          body: 'Tombol ini hanya pratinjau. Untuk melakukan aksi nyata, Anda harus mendaftar dan mengisi formulir terlebih dahulu.',
+        },
       },
       notifications: {
         title: 'Notifikasi',
@@ -4186,10 +4549,12 @@ const overrides = {
         enabled: 'Notifikasi diaktifkan.',
         enabledButNotSaved:
           'Izin notifikasi aktif, tetapi token tidak dapat disimpan ke server. Silakan login lalu coba lagi (atau muat ulang halaman).',
-        denied: 'Izin tidak diberikan. Anda bisa mengaktifkannya dari pengaturan browser.',
+        denied:
+          'Browser belum memberikan izin notifikasi saat ini.\n1) Jika prompt izin muncul, tekan “Izinkan”.\n2) Jika sebelumnya sudah ditolak, buka ikon gembok di bilah alamat atau pengaturan situs browser lalu ubah Notifications menjadi Allow untuk situs ini.\n3) Setelah itu tekan lagi tombol “Aktifkan notifikasi”.',
         notSupported: 'Notifikasi tidak didukung di perangkat/browser ini.',
         notSecureContext: 'Notifikasi memerlukan HTTPS. Silakan buka situs melalui https.',
         serviceWorkerNotReady: 'Sistem notifikasi belum siap. Muat ulang halaman lalu coba lagi.',
+        timeout: 'Izin notifikasi atau langkah pemasangan tidak selesai tepat waktu. Periksa prompt izin di browser lalu coba lagi.',
         missingSetup: 'Konfigurasi push belum lengkap: kunci VAPID belum disetel.',
         invalidVapidKey:
           'Konfigurasi push tidak valid: kunci VAPID tidak benar. Salin Public key yang benar dari Firebase Console.',
@@ -4197,7 +4562,7 @@ const overrides = {
         testNoTokens: 'Token notifikasi tidak ditemukan. Tekan “Aktifkan notifikasi” lalu coba lagi.',
         error: 'Notifikasi tidak dapat diaktifkan. Silakan coba lagi.',
         note:
-          'Catatan: Di beberapa perangkat Anda harus menambahkan aplikasi ke layar utama terlebih dulu. Push saat aplikasi tertutup mungkin memerlukan pengaturan tambahan.',
+          'Ini hanya saran: daftar dan lihat-lihat profil dulu, lalu tekan Aktifkan notifikasi agar Anda tidak ketinggalan pesan dan match. Di browser yang mendukung, tombol ini akan membuka prompt izin secara otomatis.',
         items: {
           newMessage: 'Pesan baru pada match aktif',
           newLike: 'Like / interaksi',
@@ -4221,11 +4586,44 @@ const overrides = {
             pending: 'Permintaan terkirim (menunggu)',
             approved: 'Permintaan disetujui',
             granted: 'Izin sudah diberikan',
-            unknown: 'Status: {{status}}',
+            unknown: 'Status saat ini: {{status}}',
           },
           actions: {
             requested: 'Permintaan terkirim',
             granted: 'Izin diberikan',
+          },
+        },
+      },
+      tutorial: {
+        eyebrow: 'Persiapan aplikasi',
+        badge: 'Alur tutorial yang dibuka dari tautan',
+        title: 'Pasang aplikasi, lalu daftar dan lihat dulu',
+        body: 'Halaman ini disiapkan agar Anda bisa menambahkan aplikasi ke layar utama dan mulai lebih cepat. Buka aplikasi, buat akun, selesaikan formulir singkat, lalu lihat pengalaman aplikasinya terlebih dahulu. Kami menyarankan Anda mengaktifkan notifikasi nanti dari dalam aplikasi, setelah Anda mulai melihat profil lain.',
+        backHome: 'Beranda',
+        stepLabel: 'Langkah {{step}}',
+        note: 'Setelah pemasangan, aplikasi akan muncul di layar utama. Anda bisa daftar dan melihat-lihat dulu; saran notifikasi akan muncul nanti di dalam aplikasi pada waktu yang lebih tepat.',
+        installEyebrow: 'Langkah 1',
+        notificationsEyebrow: 'Langkah 2',
+        readyEyebrow: 'Langkah 2',
+        readyTitle: 'Pemasangan selesai, sekarang buka aplikasi',
+        readyBody: 'Sekarang Anda bisa masuk ke aplikasi dan mendaftar. Jika Anda pengguna baru, alur pembukaan akan mengarahkan Anda ke formulir pendaftaran. Setelah mulai melihat profil lain, Anda bisa mengaktifkan notifikasi dari dalam aplikasi.',
+        readyBodyWeb: 'Bahkan jika aplikasi tidak bisa dipasang di perangkat ini, Anda tetap bisa lanjut lewat web. Daftar dan selesaikan pendaftaran Anda lebih dulu, lalu coba aplikasi dan notifikasi lagi nanti saat sudah memungkinkan.',
+        readyBodyNoPush: 'Sekarang Anda bisa masuk ke aplikasi dan mendaftar. Notifikasi bisa diaktifkan nanti dari alur aplikasi atau pengaturan browser.',
+        openApp: 'Buka aplikasi',
+        continueOnWeb: 'Lanjutkan lewat halaman web',
+        continueWithoutNotifications: 'Lanjutkan, notifikasi diatur nanti',
+        standaloneHint: 'Aplikasi tampaknya sudah terbuka dalam mode terpasang. Lanjutkan untuk masuk langsung ke alur masuk aplikasi.',
+        browserHint: 'Di beberapa perangkat tombol ini masih bisa membuka tab browser. Jika begitu, ketuk ikon Uniqah di layar utama dan lanjutkan dari sana.',
+        linkBody: 'Satu tautan yang bisa dikirim ke pengguna: pemasangan dulu, lalu notifikasi, lalu masuk aplikasi.',
+        linkCta: 'Buka alur pemasangan',
+        steps: {
+          install: {
+            title: 'Pasang aplikasi',
+            body: 'Tambahkan aplikasi ke ponsel lebih dulu agar langkah berikutnya terasa seperti alur aplikasi sungguhan.',
+          },
+          open: {
+            title: 'Masuk ke aplikasi',
+            body: 'Buka aplikasi dan daftar dengan Google atau email. Saran notifikasi akan muncul nanti di dalam aplikasi, saat momennya lebih tepat.',
           },
         },
       },
@@ -4269,6 +4667,17 @@ export default {
         installAvailableHint: 'Browser Anda mendukung instalasi. Klik untuk memasang.',
         installNotAvailableHint:
           'Jika tombol install tidak muncul: buka menu browser lalu pilih “Tambah ke Layar Utama / Pasang aplikasi” (di beberapa perangkat muncul setelah kunjungan pertama via HTTPS).',
+        actions: {
+          waitingForPrompt: 'Opsi pemasangan sedang disiapkan…',
+          openInBrowser: 'Buka di browser lalu pasang',
+          copyLink: 'Salin tautan',
+          inAppBrowserTitle: 'Halaman ini tampaknya dibuka di browser dalam aplikasi',
+          inAppBrowserBody: 'Prompt pemasangan biasanya tidak muncul di WhatsApp, Instagram, dan browser dalam aplikasi sejenis. Buka halaman ini di Safari/Chrome terlebih dahulu, lalu pasang dari sana.',
+          copiedIos: 'Tautan disalin. Buka di Safari lalu lanjutkan dengan Bagikan → “Tambah ke Layar Utama”.',
+          copiedAndroid: 'Tautan disalin. Buka di Chrome lalu pilih “Tambahkan ke layar utama” atau “Instal aplikasi” dari menu.',
+          copiedDesktop: 'Tautan disalin. Buka di browser desktop Anda lalu gunakan opsi “Instal aplikasi” dari menu.',
+          copyFailed: 'Tautan tidak dapat disalin. Buka halaman ini secara manual di Chrome/Safari.',
+        },
         ios: {
           title: 'Untuk iPhone/iPad (Safari)',
           step1: 'Buka situs di Safari.',
@@ -4281,7 +4690,7 @@ export default {
           button: 'Aktifkan notifikasi',
           alreadyEnabled: 'Izin notifikasi sudah aktif.',
           enabled: 'Notifikasi diaktifkan.',
-          denied: 'Izin tidak diberikan. Anda bisa mengaktifkannya dari pengaturan browser.',
+          denied: 'Izin notifikasi tampaknya sedang mati. Anda bisa mengaktifkannya untuk situs ini dari ikon gembok di kolom alamat atau dari pengaturan browser. Jika mau, Anda juga bisa lanjut dulu tanpa notifikasi lalu menyalakannya nanti.',
           notSupported: 'Notifikasi tidak didukung di browser/perangkat ini.',
           note:
             'Catatan: Di beberapa perangkat Anda harus menambahkan aplikasi ke layar utama terlebih dahulu. Push saat aplikasi tertutup mungkin butuh pengaturan tambahan.',
@@ -4356,12 +4765,12 @@ export default {
         },
         chat: {
           title: 'Chat lebih aman',
-          body: 'Pesan difilter; berbagi telepon/email/link di tahap awal diblokir.',
+          body: 'Pesan difilter; selama pencocokan aktif, kedua pihak dapat berbicara di jendela privat dengan dukungan terjemahan dan tanpa terlalu khawatir soal bahasa.',
           mockTitle: 'Contoh',
           mockSystem: 'Sistem: Komunikasi lebih aman aktif',
           mockMsg1: 'Halo, apa kabar? (contoh)',
           mockMsg2: 'Chat dulu, lalu langkah persetujuan (contoh)',
-          mockHint: 'Catatan: berbagi kontak terbuka setelah 48 jam + persetujuan kedua pihak.',
+          mockHint: 'Catatan: selama pencocokan aktif berlanjut, Anda dapat berbicara tanpa batas di jendela privat; berbagi kontak terbuka setelah 48 jam + persetujuan kedua pihak.',
         },
       },
     },
@@ -5120,15 +5529,71 @@ export default {
     redirecting: 'Mengalihkan ke login…',
     infos: {
       startingGoogle: 'Membuka login Google…',
-      inAppBrowserGoogleRedirect: 'Browser Anda mungkin memblokir popup. Mengalihkan ke login Google…',
+      inAppBrowserGoogleRedirect: 'Membuka login Google… Langkah ini bisa memerlukan beberapa detik di browser dalam aplikasi.',
+      googleInAppHelp:
+        'Login Google kadang macet di browser dalam aplikasi. Anda bisa lanjut dengan email, atau pilih “Buka di browser” lalu coba lagi.',
+      openingExternalBrowser: 'Membuka browser… Lanjutkan dengan Google di tab atau browser baru.',
     },
     redirectScreen: {
       title: 'Mengalihkan…',
-      body: 'Membuka profil Anda. Jika layar ini lama, Anda bisa lanjut lewat tombol di bawah.',
-      goProfile: 'Ke profil saya',
+      body: 'Membuka halaman Profil Saya. Jika layar ini lama, Anda bisa lanjut lewat tombol di bawah.',
+      goProfile: 'Ke Profil Saya',
       refresh: 'Muat ulang',
     },
-    signupGuide: 'Untuk mendaftar, lanjutkan dengan Google, lalu isi formulir pendaftaran matchmaking.',
+    tour: {
+      eyebrow: 'Tur kepercayaan',
+      teaserTitle: 'Mengapa saya perlu mendaftar di Uniqah.com sebelum membuat akun?',
+      teaserBody: 'Jika mau, ikuti tur singkat kami. Di sini kami menjelaskan mengapa orang memilih kami, bahwa sistem saat ini sepenuhnya gratis, bagaimana alur pencocokan aktif bekerja, dan bagaimana chat dengan dukungan terjemahan tetap terkontrol.',
+      durationLabel: 'Tur singkat',
+      durationValue: 'Kurang dari 1 menit',
+      durationBody: 'Setelah setiap kartu, Anda bisa menghentikan tur dan langsung masuk ke pendaftaran atau login.',
+      inviteLead: 'Daripada membiarkan penjelasan kepercayaan menumpuk di halaman, kami menyajikannya sebagai alur opsional bagi pengguna yang membutuhkan keyakinan lebih.',
+      open: 'Ikuti tur',
+      close: 'Tutup tur',
+      back: 'Kembali',
+      next: 'Lanjut',
+      finish: 'Lanjut daftar',
+      signupNow: 'Daftar',
+      loginNow: 'Masuk',
+      progress: 'Langkah {{current}} / {{total}}',
+      flowTitle: 'Alur',
+      cardEyebrow: 'Mengapa orang memilih kami',
+      previewStep: 'Langkah {{number}}',
+      exitHint: 'Tur ini tidak wajib. Anda bisa menutupnya kapan saja lalu langsung lanjut dengan Google atau email/kata sandi.',
+      steps: [
+        {
+          eyebrow: 'Pendiri',
+          title: 'Uniqah dibangun oleh pasangan Turki-Indonesia nyata untuk orang yang serius menuju pernikahan',
+          body: 'Website ini adalah salah satu lini usaha PT Moonstar Global Indonesia milik pasangan Turki-Indonesia, dan dibuat khusus untuk melayani orang-orang yang benar-benar mencari pernikahan serius.',
+          points: [
+            'Ini bukan situs listing acak dengan pemilik yang tidak jelas.',
+            'Tujuannya bukan obrolan santai, tetapi mempertemukan orang-orang serius di ruang yang lebih aman.',
+            'Jika Anda mau, nanti kita juga bisa menambahkan foto pasangan pendiri pada langkah ini.'
+          ]
+        },
+        {
+          eyebrow: 'Proses terkontrol',
+          title: 'Kalau saya sudah bertemu seseorang, bagaimana saya bisa percaya?',
+          body: 'Anda tidak harus membangun rasa percaya sendirian setelah match; jika Anda mau, kami bisa membantu proses itu secara aktif.',
+          points: [
+            'Sebelum mengambil keputusan menikah, jika Anda mau, kami bisa meneliti semua hal tentang orang yang Anda kenal itu.',
+            'Jika Anda meminta, kami bisa menghubungi orang tersebut dan keluarganya.',
+            'Kami bisa menjadwalkan percakapan lewat WhatsApp dan membantu sebagai penerjemah untuk Anda, atau untuk Anda bersama keluarga Anda, saat berbicara dengan orang itu.'
+          ]
+        },
+        {
+          eyebrow: 'Kepercayaan',
+          title: 'Sistem ini bukan untuk pencari hiburan, tetapi untuk orang yang benar-benar ingin menikah',
+          body: 'Struktur perkenalan di sini tidak dirancang untuk orang yang hanya mencari kesenangan atau mengisi waktu, tetapi untuk orang yang membawa niat menikah yang serius.',
+          points: [
+            'Semua orang bisa saling mengirim pesan singkat, tetapi percakapan penuh hanya terbuka antara orang-orang yang memulai match aktif.',
+            'Saat suka menjadi timbal balik, tahap pencocokan aktif dimulai; setelah kedua pihak menyetujui, chat privat terbuka.',
+            'Selama pencocokan aktif berlanjut, dukungan terjemahan membantu setiap orang berbicara dalam bahasa mereka sendiri dengan lebih nyaman.'
+          ]
+        }
+      ]
+    },
+    signupGuide: 'Untuk mendaftar, lanjutkan dengan Google, lalu isi formulir pendaftaran matchmaking. Saat suka menjadi timbal balik, Anda masuk ke tahap pencocokan aktif dan bisa berbicara tanpa batas di jendela privat dengan dukungan terjemahan.',
     signupExistingAccountHint: 'Jika Anda sudah punya akun, masuk dengan Google.',
     quickProfile: {
       title: 'Profil Cepat',
@@ -5215,6 +5680,7 @@ export default {
     actions: {
       login: 'Masuk',
       signup: 'Daftar',
+      openInBrowser: 'Buka di browser dan lanjutkan',
       switchToSignup: 'Belum punya akun? Daftar',
       switchToLogin: 'Sudah punya akun? Masuk',
       showEmailFallback: 'Ada kendala? Lanjutkan dengan email',
@@ -5285,7 +5751,7 @@ export default {
       firebaseAuthInvalidConfig:
         'Konfigurasi Firebase Auth tidak valid. Periksa nilai `VITE_FIREBASE_*` di `.env.local` (dan env Vercel).',
       googleInAppBlocked:
-        'Masuk dengan Google mungkin diblokir di browser dalam aplikasi ini. Silakan gunakan “Buka di browser” (Chrome/Safari) lalu coba lagi, atau lanjutkan dengan email.',
+          'Masuk dengan Google kadang bisa berhenti di browser dalam aplikasi ini. Anda bisa lanjut dengan email, atau pilih “Buka di browser” lalu coba lagi di Chrome/Safari.',
       googleRedirectNoResult:
         'Masuk dengan Google tidak berhasil diselesaikan setelah kembali dari Google. Silakan coba lagi, atau lanjutkan dengan email/kata sandi.',
       googleFailed: 'Masuk dengan Google gagal.',

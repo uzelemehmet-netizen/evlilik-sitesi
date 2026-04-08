@@ -1,5 +1,10 @@
 import { getAdmin, normalizeBody, requireAdmin } from './_firebaseAdmin.js';
 import { sendPushToUid } from './_push.js';
+import { isStubMatchmakingApplication } from '../src/utils/matchmakingProfileCompletion.js';
+
+const MAX_PROCESS_PER_REQUEST = 12;
+const MAX_SCAN_CANDIDATES = 500;
+const MAX_RUNTIME_MS = 8000;
 
 function safeStr(v) {
   return typeof v === 'string' ? v.trim() : '';
@@ -15,10 +20,7 @@ function isTruthy(v) {
 }
 
 function isStubApplication(a) {
-  const source = safeStr(a?.source).toLowerCase();
-  if (source === 'auto_stub') return true;
-  if (a?.details?.autoBootstrap === true) return true;
-  return false;
+  return isStubMatchmakingApplication(a);
 }
 
 function normalizeGender(v) {
@@ -136,7 +138,7 @@ export default async function adminPushIncompleteApplicationOnce(req, res) {
 
     const body = normalizeBody(req);
     const dryRun = isTruthy(body?.dryRun);
-    const limit = typeof body?.limit === 'number' ? body.limit : 200;
+    const requestedLimit = typeof body?.limit === 'number' ? body.limit : 200;
     const sinceMs = typeof body?.sinceMs === 'number' ? body.sinceMs : 0;
     const cursorUid = safeStr(body?.cursorUid);
     const useCursor = !!cursorUid;
@@ -146,15 +148,23 @@ export default async function adminPushIncompleteApplicationOnce(req, res) {
     const url = safeStr(body?.url) || '/evlilik/eslestirme-basvuru?w=1';
 
     const { db, FieldValue } = getAdmin();
+    const processLimit = Math.max(1, Math.min(MAX_PROCESS_PER_REQUEST, Math.floor(requestedLimit || 200)));
+    const scanLimit = Math.max(processLimit, Math.min(MAX_SCAN_CANDIDATES, Math.max(240, processLimit * 20)));
 
-    const candidates = await listTargetUids({ db, limit, sinceMs });
+    const candidates = await listTargetUids({ db, limit: scanLimit, sinceMs });
     const startIndex = useCursor ? Math.max(0, candidates.findIndex((x) => x === cursorUid) + 1) : 0;
-    const slice = candidates.slice(startIndex, startIndex + Math.max(1, Math.min(60, Math.floor(limit || 200))));
 
     const nowMs = Date.now();
+    const requestStartedAtMs = nowMs;
     const results = [];
+    let lastProcessedUid = '';
 
-    for (const uid of slice) {
+    for (let index = startIndex; index < candidates.length; index += 1) {
+      if (results.length >= processLimit) break;
+      if (results.length > 0 && Date.now() - requestStartedAtMs >= MAX_RUNTIME_MS) break;
+
+      const uid = candidates[index];
+      lastProcessedUid = uid;
       const userRef = db.collection('matchmakingUsers').doc(uid);
       const markerRef = userRef.collection('pushCampaigns').doc('incomplete_application_once_20260327');
 
@@ -298,8 +308,8 @@ export default async function adminPushIncompleteApplicationOnce(req, res) {
     const skipped = results.filter((r) => r && r.skipped === true).length;
     const wouldSend = results.filter((r) => r && r.wouldSend === true).length;
 
-    const lastUid = slice.length ? slice[slice.length - 1] : '';
-    const nextCursorUid = lastUid && startIndex + slice.length < candidates.length ? lastUid : '';
+    const processed = results.length;
+    const nextCursorUid = lastProcessedUid && startIndex + processed < candidates.length ? lastProcessedUid : '';
 
     res.statusCode = 200;
     res.setHeader('content-type', 'application/json');
@@ -308,7 +318,7 @@ export default async function adminPushIncompleteApplicationOnce(req, res) {
         ok: true,
         dryRun,
         candidates: candidates.length,
-        processed: slice.length,
+        processed,
         cursorUid: useCursor ? cursorUid : '',
         nextCursorUid,
         sent,

@@ -111,6 +111,7 @@ export default function StudioInboxModal({
                 const id = safeStr(it?.requestId) || safeStr(it?.id);
                 const type = safeStr(it?.type);
                 const isPreMatch = type === 'pre_match';
+                const isPeopleList = type === 'people_list';
                 const p = it?.fromProfile && typeof it.fromProfile === 'object' ? it.fromProfile : {};
 
                 const name = safeStr(p?.username) || t('studio.common.profile');
@@ -172,7 +173,9 @@ export default function StudioInboxModal({
                           </div>
                         ) : (
                           <p className="mt-2 text-sm text-slate-700">
-                            {safeStr(it?.type) === 'pre_match'
+                            {safeStr(it?.type) === 'people_list'
+                              ? t('studio.inboxModal.requestText.peopleList')
+                              : safeStr(it?.type) === 'pre_match'
                               ? t('studio.inboxModal.requestText.preMatch')
                               : safeStr(it?.type) === 'photo_access'
                                 ? t('studio.inboxModal.requestText.photoAccess')
@@ -214,12 +217,12 @@ export default function StudioInboxModal({
                                   type="button"
                                   disabled={!!loadingId || !id}
                                   onClick={() => setExpandedId(expanded ? '' : id)}
-                                  className="app-btn app-btn-soft col-span-2 w-full sm:col-span-1"
+                                  className={`app-btn app-btn-soft w-full ${isPeopleList ? 'col-span-2 sm:col-span-3' : 'col-span-2 sm:col-span-1'}`}
                                 >
                                   {expanded ? t('studio.inboxModal.hideProfile') : t('studio.inboxModal.reviewProfile')}
                                 </button>
 
-                                {actionsDisabled ? (
+                                {isPeopleList ? null : actionsDisabled ? (
                                   <button
                                     type="button"
                                     disabled={!!loadingId}
@@ -279,6 +282,12 @@ export default function StudioInboxModal({
                               {actionsDisabled ? (
                                 <div className="mt-2 rounded-lg border border-amber-200 bg-amber-50 p-2 text-xs text-amber-900">
                                   {t('studio.profileGate.body')}
+                                </div>
+                              ) : null}
+
+                              {isPeopleList ? (
+                                <div className="mt-2 rounded-lg border border-emerald-200 bg-emerald-50 p-2 text-xs text-emerald-900">
+                                  {t('studio.matches.people.savedLabel')}
                                 </div>
                               ) : null}
                             </>

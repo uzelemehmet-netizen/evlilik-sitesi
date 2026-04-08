@@ -341,6 +341,8 @@ export default function StudioMyInfo() {
   }, [info.partner?.educationPreference, t]);
 
   const occupationLabel = useMemo(() => {
+    const localized = safeStr(getLocalizedProfileText(info.details, 'occupation', i18n.language));
+    if (localized) return localized;
     const v = safeStr(info.details?.occupation);
     if (!v) return '';
     const map = {
@@ -351,7 +353,7 @@ export default function StudioMyInfo() {
       other: 'matchmakingPage.form.options.occupation.other',
     };
     return map[v] ? t(map[v]) : v;
-  }, [info.details?.occupation, t]);
+  }, [i18n.language, info.details, info.details?.occupation, t]);
 
   const partnerOccupationLabel = useMemo(() => {
     const v = safeStr(info.partner?.occupationPreference);

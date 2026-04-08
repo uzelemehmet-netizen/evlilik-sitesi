@@ -12,6 +12,26 @@ const BADGE_DB = 'uniqah_pwa';
 const BADGE_STORE = 'kv';
 const BADGE_KEY = 'badgeCount';
 
+async function broadcastPushDebugNotification({ title, body, url }) {
+  try {
+    const clientList = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+    for (const client of clientList) {
+      try {
+        client.postMessage({
+          type: 'push-debug-notification',
+          title: String(title || ''),
+          body: String(body || ''),
+          url: String(url || ''),
+        });
+      } catch {
+        // ignore
+      }
+    }
+  } catch {
+    // ignore
+  }
+}
+
 function openBadgeDb() {
   return new Promise((resolve, reject) => {
     try {
@@ -190,6 +210,12 @@ if (messaging) {
     // Best-effort: increment persistent app badge so the user can notice missed toasts.
     try {
       incrementAppBadge();
+    } catch {
+      // ignore
+    }
+
+    try {
+      broadcastPushDebugNotification({ title, body, url: clickUrl });
     } catch {
       // ignore
     }

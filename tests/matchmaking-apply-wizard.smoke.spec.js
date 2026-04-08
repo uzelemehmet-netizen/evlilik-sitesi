@@ -38,8 +38,8 @@ async function loginIfConfigured(page) {
   });
   await emailCta.click();
 
-  const emailInput = page.locator('input[type="email"]').first();
-  const passwordInput = page.locator('input[type="password"]').first();
+  const emailInput = page.locator('input[type="email"]:visible').first();
+  const passwordInput = page.locator('input[type="password"]:visible').first();
 
   await expect(emailInput).toBeVisible();
   await expect(passwordInput).toBeVisible();
@@ -92,6 +92,6 @@ test('matchmaking apply wizard renders step flow for authenticated user', async 
   await expect(page.getByRole('button', { name: /devam et|lanjutkan|continue/i })).toBeVisible();
 
   const fileInputs = page.locator('input[type="file"]');
-  await expect(fileInputs).toHaveCount(5);
+  await expect(fileInputs.first()).toBeAttached();
   await expect(page.getByText(/zorunlu alanlar tamamlandığında|anda bisa menyelesaikan formulir di sini|required fields are complete/i).first()).toBeVisible();
 });

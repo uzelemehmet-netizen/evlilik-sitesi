@@ -102,6 +102,7 @@ export default async function handler(req, res) {
     }
 
     let applicationId = '';
+    const userRef = db.collection('matchmakingUsers').doc(uid);
 
     await db.runTransaction(async (tx) => {
       const appSnap = await tx.get(appRef);
@@ -127,6 +128,21 @@ export default async function handler(req, res) {
         {
           photoUrls: finalUrls,
           photoUpdate: FieldValue.delete(),
+          updatedAt: now,
+        },
+        { merge: true }
+      );
+
+      tx.set(
+        userRef,
+        {
+          photoUrls: finalUrls,
+          application: {
+            photoUrls: finalUrls,
+          },
+          publicProfile: {
+            photoUrls: finalUrls,
+          },
           updatedAt: now,
         },
         { merge: true }

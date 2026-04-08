@@ -1,42 +1,47 @@
 import { BrowserRouter as Router, Routes, Route, useLocation, useNavigate, Navigate } from 'react-router-dom';
-import { Suspense, lazy, useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import AnalyticsTracker from './components/AnalyticsTracker';
 import PrivateRoute from './components/PrivateRoute';
 import { maybeReportDropoffAfterSignupBeforeApply } from './utils/funnelTracker';
 import PublicOneTimeTour from './components/tutorial/PublicOneTimeTour.jsx';
+import { lazyRoute } from './utils/lazyRoute.js';
+import MatchmakingLeadNoAuth from './pages/MatchmakingLeadNoAuth';
+import StudioProfile from './pages/studio/StudioProfile';
+import StudioMatches from './pages/studio/StudioMatches';
+import StudioPool from './pages/studio/StudioPool';
 
-const Home = lazy(() => import('./pages/Home'));
-const About = lazy(() => import('./pages/About'));
-const Corporate = lazy(() => import('./pages/Corporate'));
-const Contact = lazy(() => import('./pages/Contact'));
-const Login = lazy(() => import('./pages/Login'));
-const Wedding = lazy(() => import('./pages/Wedding'));
-const MatchmakingApply = lazy(() => import('./pages/MatchmakingApply'));
-const MatchmakingHub = lazy(() => import('./pages/MatchmakingHub'));
-const MatchmakingMembership = lazy(() => import('./pages/MatchmakingMembership'));
-const YouTube = lazy(() => import('./pages/YouTube'));
-const DocumentsHub = lazy(() => import('./pages/DocumentsHub'));
-const Privacy = lazy(() => import('./pages/Privacy'));
-const NotFound = lazy(() => import('./pages/NotFound'));
-const MatchmakingLeadNoAuth = lazy(() => import('./pages/MatchmakingLeadNoAuth'));
+const Home = lazyRoute(() => import('./pages/Home'), 'home');
+const About = lazyRoute(() => import('./pages/About'), 'about');
+const Corporate = lazyRoute(() => import('./pages/Corporate'), 'corporate');
+const Contact = lazyRoute(() => import('./pages/Contact'), 'contact');
+const Login = lazyRoute(() => import('./pages/Login'), 'login');
+const AppWelcome = lazyRoute(() => import('./pages/AppWelcome'), 'app-welcome');
+const AppInstallTutorial = lazyRoute(() => import('./pages/AppInstallTutorial'), 'app-install-tutorial');
+const Wedding = lazyRoute(() => import('./pages/Wedding'), 'wedding');
+const MatchmakingApply = lazyRoute(() => import('./pages/MatchmakingApply'), 'matchmaking-apply');
+const MatchmakingHub = lazyRoute(() => import('./pages/MatchmakingHub'), 'matchmaking-hub');
+const MatchmakingMembership = lazyRoute(() => import('./pages/MatchmakingMembership'), 'matchmaking-membership');
+const YouTube = lazyRoute(() => import('./pages/YouTube'), 'youtube');
+const DocumentsHub = lazyRoute(() => import('./pages/DocumentsHub'), 'documents-hub');
+const Privacy = lazyRoute(() => import('./pages/Privacy'), 'privacy');
+const NotFound = lazyRoute(() => import('./pages/NotFound'), 'not-found');
 
-const StudioProfile = lazy(() => import('./pages/studio/StudioProfile'));
 // Studio preview is now the same pages in guest mode.
-const StudioMyInfo = lazy(() => import('./pages/studio/StudioMyInfo'));
-const StudioMatches = lazy(() => import('./pages/studio/StudioMatches'));
-const StudioChat = lazy(() => import('./pages/studio/StudioChat'));
-const StudioMatchProfile = lazy(() => import('./pages/studio/StudioMatchProfile'));
-const StudioPool = lazy(() => import('./pages/studio/StudioPool'));
-const StudioFeedback = lazy(() => import('./pages/studio/StudioFeedback'));
+const StudioMyInfo = lazyRoute(() => import('./pages/studio/StudioMyInfo'), 'studio-my-info');
+const StudioMessages = lazyRoute(() => import('./pages/studio/StudioMessages'), 'studio-messages');
+const StudioNotifications = lazyRoute(() => import('./pages/studio/StudioNotifications'), 'studio-notifications');
+const StudioChat = lazyRoute(() => import('./pages/studio/StudioChat'), 'studio-chat');
+const StudioMatchProfile = lazyRoute(() => import('./pages/studio/StudioMatchProfile'), 'studio-match-profile');
+const StudioFeedback = lazyRoute(() => import('./pages/studio/StudioFeedback'), 'studio-feedback');
 
-const AdminLogin = lazy(() => import('./pages/AdminLogin'));
-const AdminDashboard = lazy(() => import('./pages/AdminDashboardLite'));
-const AdminMatchmakingDetail = lazy(() => import('./pages/AdminMatchmakingDetail'));
-const AdminMatchmakingMatches = lazy(() => import('./pages/AdminMatchmakingMatches'));
-const AdminMatchmakingPayments = lazy(() => import('./pages/AdminMatchmakingPayments'));
-const AdminIdentityVerifications = lazy(() => import('./pages/AdminIdentityVerifications'));
-const AdminFeedback = lazy(() => import('./pages/AdminFeedback'));
+const AdminLogin = lazyRoute(() => import('./pages/AdminLogin'), 'admin-login');
+const AdminDashboard = lazyRoute(() => import('./pages/AdminDashboardLite'), 'admin-dashboard');
+const AdminMatchmakingDetail = lazyRoute(() => import('./pages/AdminMatchmakingDetail'), 'admin-matchmaking-detail');
+const AdminMatchmakingMatches = lazyRoute(() => import('./pages/AdminMatchmakingMatches'), 'admin-matchmaking-matches');
+const AdminMatchmakingPayments = lazyRoute(() => import('./pages/AdminMatchmakingPayments'), 'admin-matchmaking-payments');
+const AdminIdentityVerifications = lazyRoute(() => import('./pages/AdminIdentityVerifications'), 'admin-identity-verifications');
+const AdminFeedback = lazyRoute(() => import('./pages/AdminFeedback'), 'admin-feedback');
 import RequireAuth from './auth/RequireAuth';
 import RequireCompletedApplication from './auth/RequireCompletedApplication.jsx';
 import FloatingWhatsApp from './components/FloatingWhatsApp';
@@ -411,6 +416,7 @@ function DeferredMemberFeedToasts() {
 function App() {
   console.log('App component loaded');
   const showWedding = isFeatureEnabled('wedding');
+  const { user, loading } = useAuth();
 
   // If the user opens/focuses the app, clear any missed-notification badge.
   useEffect(() => {
@@ -501,6 +507,10 @@ function App() {
           <Route path="/kurumsal" element={<Corporate />} />
           <Route path="/contact" element={<Contact />} />
           <Route path="/login" element={<Login />} />
+          <Route path="/uygulama" element={<Navigate to="/app/install" replace />} />
+          <Route path="/app" element={<Navigate to="/app/welcome" replace />} />
+          <Route path="/app/install" element={<AppInstallTutorial />} />
+          <Route path="/app/welcome" element={<AppWelcome />} />
           <Route
             path="/profilim"
             element={
@@ -553,12 +563,26 @@ function App() {
             }
           />
           <Route
+            path="/app/messages"
+            element={
+              <RequireAuth>
+                <StudioMessages />
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/app/notifications"
+            element={
+              <RequireAuth>
+                <StudioNotifications />
+              </RequireAuth>
+            }
+          />
+          <Route
             path="/app/match/:matchId"
             element={
               <RequireAuth>
-                <RequireCompletedApplication>
-                  <StudioMatchProfile />
-                </RequireCompletedApplication>
+                <StudioMatchProfile />
               </RequireAuth>
             }
           />
@@ -566,9 +590,7 @@ function App() {
             path="/app/chat/:matchId"
             element={
               <RequireAuth>
-                <RequireCompletedApplication>
-                  <StudioChat />
-                </RequireCompletedApplication>
+                <StudioChat />
               </RequireAuth>
             }
           />

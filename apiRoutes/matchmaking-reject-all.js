@@ -4,13 +4,6 @@ function safeStr(v) {
   return typeof v === 'string' ? v.trim() : '';
 }
 
-function hasActiveLock(userDoc) {
-  const lock = userDoc?.matchmakingLock || null;
-  const active = !!lock?.active;
-  const matchId = safeStr(lock?.matchId);
-  return { active, matchId };
-}
-
 function getActiveChoiceMatchId(userDoc) {
   const choice = userDoc?.matchmakingChoice || null;
   const active = !!choice?.active;
@@ -39,13 +32,6 @@ export default async function handler(req, res) {
       const meRef = db.collection('matchmakingUsers').doc(uid);
       const meSnap = await tx.get(meRef);
       const me = meSnap.exists ? (meSnap.data() || {}) : {};
-
-      const myLock = hasActiveLock(me);
-      if (myLock.active) {
-        const err = new Error('user_locked');
-        err.statusCode = 409;
-        throw err;
-      }
 
       const q = db
         .collection('matchmakingMatches')
@@ -139,18 +125,13 @@ export default async function handler(req, res) {
         if (otherUserId) {
           const otherDoc = otherById[otherUserId] || {};
           const otherChoice = getActiveChoiceMatchId(otherDoc);
-          const otherLock = hasActiveLock(otherDoc);
-
           const patch = { updatedAt: FieldValue.serverTimestamp() };
 
           if (otherChoice === m.id) {
             patch.matchmakingChoice = { active: false, matchId: '' };
           }
-          if (otherLock.active && otherLock.matchId === m.id) {
-            patch.matchmakingLock = { active: false, matchId: '' };
-          }
 
-          if (patch.matchmakingChoice || patch.matchmakingLock) {
+          if (patch.matchmakingChoice) {
             const otherRef = db.collection('matchmakingUsers').doc(otherUserId);
             tx.set(otherRef, patch, { merge: true });
           }
@@ -164,7 +145,6 @@ export default async function handler(req, res) {
         meRef,
         {
           matchmakingChoice: { active: false, matchId: '' },
-          matchmakingLock: { active: false, matchId: '' },
           matchmakingRejectedAllAt: FieldValue.serverTimestamp(),
           updatedAt: FieldValue.serverTimestamp(),
         },

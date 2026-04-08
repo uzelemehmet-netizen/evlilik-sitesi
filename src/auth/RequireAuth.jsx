@@ -26,8 +26,17 @@ export default function RequireAuth({ children }) {
     return 'login';
   };
 
+  const isAppShellPath = (pathname) => {
+    const path = normalizePath(pathname);
+    return path === '/profilim' || path.startsWith('/profilim/') || path.startsWith('/app/');
+  };
+
   const isPublicPath = (pathname) => {
     const path = normalizePath(pathname);
+
+    if (path === '/app' || path === '/app/welcome' || path === '/app/install') {
+      return true;
+    }
 
     // Explicit protected pages that live under otherwise-public prefixes.
     // These must require a real (non-anonymous) authenticated user.
@@ -73,6 +82,19 @@ export default function RequireAuth({ children }) {
 
   if (!user || user.isAnonymous) {
     if (isPublicPath(location.pathname)) return children;
+
+    if (isAppShellPath(location.pathname)) {
+      return (
+        <Navigate
+          to="/app/welcome"
+          replace
+          state={{
+            from: `${location.pathname || ''}${location.search || ''}`,
+            fromState: location.state || null,
+          }}
+        />
+      );
+    }
 
     const mode = getAuthModeForPath(location.pathname);
     return (

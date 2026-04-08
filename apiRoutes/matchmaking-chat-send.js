@@ -8,6 +8,8 @@ function safeStr(v) {
   return typeof v === 'string' ? v.trim() : '';
 }
 
+const OPEN_CHAT_MODEL = true;
+
 function normalizeLangHint(v) {
   const s = safeStr(v).toLowerCase();
   if (s === 'tr' || s === 'id' || s === 'en') return s;
@@ -253,9 +255,8 @@ export default async function handler(req, res) {
       assertNotResetIgnoredMatch({ match, resetAtMs });
       const status = String(match.status || '');
 
-      const proposedChatPause = match?.proposedChatPause && typeof match.proposedChatPause === 'object' ? match.proposedChatPause : null;
-      const proposedChatPaused = status === 'proposed' && !!proposedChatPause?.active;
-      const proposedChatFocusUid = proposedChatPaused ? safeStr(proposedChatPause?.focusUid) : '';
+      const proposedChatPaused = false;
+      const proposedChatFocusUid = '';
 
       if (status !== 'mutual_accepted' && status !== 'proposed' && status !== 'contact_unlocked' && status !== 'mutual_interest') {
         const err = new Error('chat_not_available');
@@ -279,23 +280,14 @@ export default async function handler(req, res) {
 
       otherUidForPush = otherUid;
 
-      const lock = me?.matchmakingLock && typeof me.matchmakingLock === 'object' ? me.matchmakingLock : null;
-      const lockActive = !!lock?.active;
-      const lockMatchId = safeStr(lock?.matchId);
-      const longChatAllowed = (status === 'mutual_accepted' || status === 'contact_unlocked') && lockActive && lockMatchId === matchId;
+      const longChatAllowed = OPEN_CHAT_MODEL
+        ? status === 'proposed' || status === 'mutual_interest' || status === 'mutual_accepted' || status === 'contact_unlocked'
+        : status === 'mutual_accepted' || status === 'contact_unlocked';
 
       // Ürün kuralı: Üyelik aktif değilken sadece mesaj alabilir; kısa mesaj gönderemez.
       // Long chat (aktif eşleşme) akışında üyelik zorunlu değil.
       if (!longChatAllowed) {
         ensureMembershipActiveOrThrow(me);
-      }
-
-      // Yeni ürün kuralı: Aktif eşleşme varken diğer profillerle etkileşim yok.
-      // Bu yüzden, aktif lock başka bir match'e aitse kısa mesaj da engellenir.
-      if (!longChatAllowed && lockActive && lockMatchId && lockMatchId !== matchId) {
-        const err = new Error('active_match_locked');
-        err.statusCode = 409;
-        throw err;
       }
 
       // Kural: Reject alan kullanıcı, reject edene mesaj atamaz.
@@ -332,7 +324,7 @@ export default async function handler(req, res) {
       }
 
       // Age gating (pre-active only): if you're outside their age range, block message send.
-      if (status === 'proposed' || status === 'mutual_interest') {
+      if (!OPEN_CHAT_MODEL && (status === 'proposed' || status === 'mutual_interest')) {
         const interact = canInteractByAge({ requesterApp: myApp, targetApp: otherApp });
         if (!interact.ok) {
           const err = new Error(interact.reason);
@@ -392,7 +384,7 @@ export default async function handler(req, res) {
 
       // proposed aşamasında kontrollü sohbet: mesaj limiti dolunca karar aşamasına geç.
       // Not: sohbet beklemede ise (pause) limit uygulanmaz; mesajlar bekletilir.
-      if (status === 'proposed' && !proposedChatPaused) {
+      if (!OPEN_CHAT_MODEL && status === 'proposed' && !proposedChatPaused) {
         const reachedAt = typeof match?.proposedChatLimitReachedAtMs === 'number' ? match.proposedChatLimitReachedAtMs : 0;
         if (reachedAt > 0) {
           const err = new Error('chat_limit_reached');
@@ -425,7 +417,7 @@ export default async function handler(req, res) {
           userId: uid,
           text,
           ...(langHint ? { langHint } : {}),
-          ...(longChatAllowed ? {} : { chatMode: 'short' }),
+          ...(OPEN_CHAT_MODEL || longChatAllowed ? {} : { chatMode: 'short' }),
           createdAt: FieldValue.serverTimestamp(),
           createdAtMs: ts,
           delivery: {
@@ -440,7 +432,7 @@ export default async function handler(req, res) {
           userId: uid,
           text,
           ...(langHint ? { langHint } : {}),
-          ...(longChatAllowed ? {} : { chatMode: 'short' }),
+          ...(OPEN_CHAT_MODEL || longChatAllowed ? {} : { chatMode: 'short' }),
           createdAt: FieldValue.serverTimestamp(),
           createdAtMs: ts,
         });
@@ -468,7 +460,7 @@ export default async function handler(req, res) {
       };
 
       // proposed aşamasında: limit sayacı (beklemede değilse)
-      if (status === 'proposed' && !proposedChatPaused) {
+      if (!OPEN_CHAT_MODEL && status === 'proposed' && !proposedChatPaused) {
         const counts = match?.proposedChatCountByUid && typeof match.proposedChatCountByUid === 'object' ? { ...match.proposedChatCountByUid } : {};
         const myPrev = typeof counts?.[uid] === 'number' && Number.isFinite(counts[uid]) ? counts[uid] : 0;
         if (myPrev >= PROPOSED_CHAT_LIMIT_PER_UID) {
@@ -499,7 +491,7 @@ export default async function handler(req, res) {
           patch.dmStarterUid = uid;
           patch.dmStartedAtMs = ts;
         }
-      } else if (status === 'proposed' && proposedChatPaused) {
+      } else if (!OPEN_CHAT_MODEL && status === 'proposed' && proposedChatPaused) {
         // Beklemede de starter'ı set edelim (first message bilgisi kalsın)
         const starterUid = safeStr(match?.dmStarterUid);
         if (!starterUid) {
@@ -509,7 +501,7 @@ export default async function handler(req, res) {
       }
 
       // mutual_interest her zaman kısa mod; mutual_accepted/contact_unlocked da aktif match değilse kısa moda düşer.
-      if ((status === 'mutual_interest' || status === 'mutual_accepted' || status === 'contact_unlocked') && !longChatAllowed) {
+      if (!OPEN_CHAT_MODEL && (status === 'mutual_interest' || status === 'mutual_accepted' || status === 'contact_unlocked') && !longChatAllowed) {
         const counts = match?.limitedChatCountByUid && typeof match.limitedChatCountByUid === 'object' ? { ...match.limitedChatCountByUid } : {};
         const myPrev = typeof counts?.[uid] === 'number' && Number.isFinite(counts[uid]) ? counts[uid] : 0;
         if (myPrev >= LIMITED_CHAT_LIMIT_PER_UID) {

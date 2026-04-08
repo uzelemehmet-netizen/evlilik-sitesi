@@ -55,11 +55,13 @@ function pickUserForAdminModal(userDoc) {
   if (pp) {
     const ppUrls = Array.isArray(pp?.photoUrls) ? pp.photoUrls.map(String).map((s) => s.trim()).filter(Boolean).slice(0, 12) : [];
     const ppPaths = Array.isArray(pp?.photoPaths) ? pp.photoPaths.map(String).map((s) => s.trim()).filter(Boolean).slice(0, 24) : [];
+    const ppPhotoPath = safeStr(pp?.photoPath) || null;
     const ppDetails = pickDetails(pp);
-    if (ppUrls.length || ppPaths.length || ppDetails) {
+    if (ppUrls.length || ppPaths.length || ppPhotoPath || ppDetails) {
       out.publicProfile = {
         ...(ppUrls.length ? { photoUrls: ppUrls } : {}),
         ...(ppPaths.length ? { photoPaths: ppPaths } : {}),
+        ...(ppPhotoPath ? { photoPath: ppPhotoPath } : {}),
         ...(ppDetails ? { details: ppDetails } : {}),
       };
     }

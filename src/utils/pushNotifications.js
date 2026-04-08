@@ -4,6 +4,7 @@ import { firebaseWebPushVapidKey } from '../config/firebasePublicConfig';
 
 const DEFAULT_PUSH_ICON = '/pwa-192x192.png?v=20260224-1';
 const DEFAULT_PUSH_BADGE = '/pwa-64x64.png?v=20260224-1';
+const PUSH_SERVICE_WORKER_URL = import.meta.env.DEV ? '/dev-push-sw.js' : '/pwa-sw.js';
 
 function canUseNotifications() {
   return typeof window !== 'undefined' && 'Notification' in window && 'serviceWorker' in navigator;
@@ -60,16 +61,23 @@ export async function enablePushForCurrentUser() {
 
   let permission = 'default';
   try {
-    permission = await Notification.requestPermission();
+    permission = await withTimeout(Notification.requestPermission(), 15000);
   } catch {
-    permission = 'denied';
+    return { ok: false, code: 'permission_timeout' };
   }
 
   if (permission !== 'granted') {
     return { ok: false, code: 'permission_denied' };
   }
 
-  const { isSupported, getMessaging, getToken } = await import('firebase/messaging');
+  let isSupported;
+  let getMessaging;
+  let getToken;
+  try {
+    ({ isSupported, getMessaging, getToken } = await withTimeout(import('firebase/messaging'), 15000));
+  } catch {
+    return { ok: false, code: 'messaging_load_timeout' };
+  }
 
   const supported = await isSupported().catch(() => false);
   if (!supported) {
@@ -82,7 +90,10 @@ export async function enablePushForCurrentUser() {
     registration = await navigator.serviceWorker.getRegistration();
     if (!registration) {
       try {
-        registration = await navigator.serviceWorker.register('/pwa-sw.js');
+        registration = await navigator.serviceWorker.register(
+          PUSH_SERVICE_WORKER_URL,
+          import.meta.env.DEV ? undefined : { type: 'module' }
+        );
       } catch {
         // ignore; aşağıda ready beklerken tekrar deneyeceğiz.
       }
@@ -97,11 +108,16 @@ export async function enablePushForCurrentUser() {
   const messaging = getMessaging(app);
   let token = '';
   try {
-    token = await getToken(messaging, {
-      vapidKey: firebaseWebPushVapidKey,
-      serviceWorkerRegistration: registration,
-    });
+    token = await withTimeout(
+      getToken(messaging, {
+        vapidKey: firebaseWebPushVapidKey,
+        serviceWorkerRegistration: registration,
+      }),
+      20000
+    );
   } catch (e) {
+    if (String(e?.message || '').trim() === 'timeout') return { ok: false, code: 'token_timeout' };
+
     const code = String(e?.code || '').trim();
     const message = String(e?.message || '').trim();
 
@@ -120,12 +136,18 @@ export async function enablePushForCurrentUser() {
 
   persistPushToken(token);
 
+  // If permission is granted during an active session, start foreground handling immediately.
+  await startForegroundPushListener().catch(() => null);
+
   try {
-    await authFetch('/api/push-token-upsert', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ token }),
-    });
+    await withTimeout(
+      authFetch('/api/push-token-upsert', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ token }),
+      }),
+      12000
+    );
     return { ok: true, code: 'enabled', token, serverSync: true };
   } catch (e) {
     const msg = String(e?.message || '').trim();

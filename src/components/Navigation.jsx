@@ -177,6 +177,14 @@ export default function Navigation({ variant = 'default' } = {}) {
               {!isAdminRoute ? <option value="id">ID</option> : null}
             </select>
             <Link
+              to="/app/install"
+              className="inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-4 py-2 text-xs font-semibold text-emerald-900 shadow-sm transition hover:bg-emerald-100"
+              style={{ fontFamily: '"Poppins", sans-serif' }}
+              onClick={() => trackNav('/app/install')}
+            >
+              {t('pwa.install.title')}
+            </Link>
+            <Link
               to="/"
               className={tabClass(isActive('/'))}
               style={{ fontFamily: '"Poppins", sans-serif' }}
@@ -341,6 +349,17 @@ export default function Navigation({ variant = 'default' } = {}) {
               </div>
 
               <div className="mt-3 grid grid-cols-1 gap-2 pb-4">
+                <Link
+                  to="/app/install"
+                  onClick={() => {
+                    setIsMobileMenuOpen(false);
+                    trackNav('/app/install');
+                  }}
+                  className="w-full rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-900 transition-colors hover:bg-emerald-100"
+                  style={{ fontFamily: '"Poppins", sans-serif' }}
+                >
+                  {t('pwa.install.title')}
+                </Link>
                 {navItems.map((item) => (
                   <Link
                     key={item.to}

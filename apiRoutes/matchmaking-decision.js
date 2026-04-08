@@ -11,23 +11,6 @@ function normalizeDecision(v) {
   return '';
 }
 
-function hasActiveLock(userDoc, exceptMatchId) {
-  const lock = userDoc?.matchmakingLock || null;
-  const active = !!lock?.active;
-  const matchId = typeof lock?.matchId === 'string' ? lock.matchId : '';
-  if (!active) return false;
-  if (!matchId) return true;
-  return matchId !== String(exceptMatchId || '');
-}
-
-function getActiveLockMatchId(userDoc) {
-  const lock = userDoc?.matchmakingLock || null;
-  const active = !!lock?.active;
-  const matchId = typeof lock?.matchId === 'string' ? lock.matchId : '';
-  const s = safeStr(matchId);
-  return active && s ? s : '';
-}
-
 function getChoiceMatchId(userDoc) {
   const choice = userDoc?.matchmakingChoice || null;
   const active = !!choice?.active;
@@ -38,6 +21,8 @@ function getChoiceMatchId(userDoc) {
 function safeStr(v) {
   return typeof v === 'string' ? v.trim() : '';
 }
+
+const OPEN_CHAT_MODEL = true;
 
 function asNum(v) {
   if (v === null || v === undefined) return null;
@@ -356,14 +341,6 @@ export default async function handler(req, res) {
       const otherUser = otherUserSnap.exists ? (otherUserSnap.data() || {}) : {};
       const myPending = getPendingContinueMatchId(meUser);
 
-      // Yeni ürün kuralı: Aktif eşleşme varken diğer profillerle etkileşim yok.
-      const myActiveLockMatchId = getActiveLockMatchId(meUser);
-      if (myActiveLockMatchId && myActiveLockMatchId !== matchId) {
-        const err = new Error('active_match_locked');
-        err.statusCode = 409;
-        throw err;
-      }
-
       // Cinsiyet (policy için): application doc'tan oku.
       const myAppId = String(side === 'a' ? (data?.aApplicationId || '') : (data?.bApplicationId || ''));
       const otherAppId = String(side === 'a' ? (data?.bApplicationId || '') : (data?.aApplicationId || ''));
@@ -567,25 +544,18 @@ export default async function handler(req, res) {
           tx.set(otherUserRef, { matchmakingPendingContinue: { active: false, matchId: '' }, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
         }
 
-        // Eğer bu match karşılıklı onay sonrası kilitlenmişse kilidi kaldır
         tx.set(
           meRef,
           {
-            matchmakingLock: { active: false, matchId: '' },
             lastMatchRemovalAtMs: nowMs,
             lastMatchRemovalReason: 'rejected',
             updatedAt: FieldValue.serverTimestamp(),
           },
           { merge: true }
         );
-        tx.set(
-          otherUserRef,
-          { matchmakingLock: { active: false, matchId: '' }, updatedAt: FieldValue.serverTimestamp() },
-          { merge: true }
-        );
+        tx.set(otherUserRef, { updatedAt: FieldValue.serverTimestamp() }, { merge: true });
       } else {
         // accept
-        // pending/lock kısıtları kaldırıldı.
 
         const other = decisions[otherSide];
         if (other === 'accept') {
@@ -602,6 +572,7 @@ export default async function handler(req, res) {
             // Legacy: karşılıklı accept anında aktif eşleşme başlat.
             patch.status = 'mutual_accepted';
             patch.mutualAcceptedAtMs = acceptedAtMs;
+            status = 'mutual_accepted';
 
             if (!data?.everMutualAcceptedAtMs) {
               patch.everMutualAcceptedAtMs = Date.now();
@@ -648,20 +619,6 @@ export default async function handler(req, res) {
             tx.delete(myInboxRef);
           } catch {
             // noop
-          }
-
-          if (!isTwoStepActiveStartEnabled()) {
-            // İki kullanıcıyı bu match'e kilitle (yeni eşleşme akışını kontrol etmek için)
-            // Not: iptal/reject akışları zaten lock temizliyor.
-            const lockPatch = {
-              matchmakingLock: { active: true, matchId, matchCode: matchCode || '' },
-              matchmakingChoice: { active: true, matchId, matchCode: matchCode || '' },
-              updatedAt: FieldValue.serverTimestamp(),
-            };
-            tx.set(meRef, lockPatch, { merge: true });
-            tx.set(otherUserRef, lockPatch, { merge: true });
-
-            status = 'mutual_accepted';
           }
 
           // Pending temizliği (mutual_accepted artık aktif kilit ile yönetilir)

@@ -7,6 +7,7 @@ import { db } from '../../config/firebaseDb';
 import Navigation from '../../components/Navigation';
 import Footer from '../../components/Footer';
 import StudioMatchCard from '../../components/studio/StudioMatchCard';
+import StudioPersonCard from '../../components/studio/StudioPersonCard';
 import StudioInboxModal from '../../components/studio/StudioInboxModal';
 import { authFetch } from '../../utils/authFetch';
 import { translateStudioApiError } from '../../utils/studioErrorI18n';
@@ -15,15 +16,297 @@ import { HelpCircle, MessageCircle, User, Compass } from 'lucide-react';
 import { openPreviewGate } from '../../utils/previewGate';
 import { buildPreviewMatches } from '../../utils/studioPreviewData';
 import StudioBottomNav from '../../components/studio/StudioBottomNav';
+import StudioInviteFriendsCard from '../../components/studio/StudioInviteFriendsCard.jsx';
+import PwaInstallCard from '../../components/PwaInstallCard.jsx';
 import { isTutorialActive } from '../../utils/tutorialState.js';
-import { hasMinimumMatchmakingProfileInUserDoc } from '../../utils/matchmakingProfileCompletion';
+import {
+  hasAnyMatchmakingPhotoInApplicationDoc,
+  hasAnyStoredMatchmakingPhotoInApplicationDoc,
+  hasAnyMatchmakingPhotoInUserDoc,
+  hasAnyMatchmakingProfileInUserDoc,
+  hasMinimumMatchmakingProfileInUserDoc,
+} from '../../utils/matchmakingProfileCompletion';
 
 function safeStr(v) {
   return typeof v === 'string' ? v.trim() : '';
 }
 
+const OPEN_CHAT_MODEL = true;
+
+function getOtherUidFromMatch(match, currentUid) {
+  const aId = safeStr(match?.aUserId);
+  const bId = safeStr(match?.bUserId);
+  if (!currentUid) return '';
+  if (aId && aId === currentUid) return bId;
+  if (bId && bId === currentUid) return aId;
+  return '';
+}
+
 function isMinimumProfileCompleteFromUserDoc(d) {
   return hasMinimumMatchmakingProfileInUserDoc(d);
+}
+
+function mergeInboxAccessItems(nextItems, prevItems) {
+  const next = Array.isArray(nextItems) ? nextItems : [];
+  const prev = Array.isArray(prevItems) ? prevItems : [];
+  const nextIds = new Set(
+    next
+      .map((item) => safeStr(item?.requestId) || safeStr(item?.id))
+      .filter(Boolean)
+  );
+
+  const preservedPeopleList = prev.filter((item) => {
+    const id = safeStr(item?.requestId) || safeStr(item?.id);
+    if (!id || nextIds.has(id)) return false;
+    if (safeStr(item?.type) !== 'people_list') return false;
+    const status = safeStr(item?.status);
+    return status === 'pending' || !status;
+  });
+
+  if (!preservedPeopleList.length) return next;
+  return [...next, ...preservedPeopleList];
+}
+
+function hasMeaningfulProfileValue(v) {
+  if (v === null || v === undefined) return false;
+  if (typeof v === 'string') return v.trim().length > 0;
+  if (typeof v === 'number') return Number.isFinite(v);
+  if (typeof v === 'boolean') return true;
+  if (Array.isArray(v)) return v.some((item) => hasMeaningfulProfileValue(item));
+  if (typeof v === 'object') return Object.values(v).some((item) => hasMeaningfulProfileValue(item));
+  return true;
+}
+
+function formatYesNoLike(t, raw) {
+  if (raw === true) return t('matchmakingPage.form.options.common.yes');
+  if (raw === false) return t('matchmakingPage.form.options.common.no');
+  const v = safeStr(raw).toLowerCase();
+  if (!v) return '';
+  if (v === 'yes') return t('matchmakingPage.form.options.common.yes');
+  if (v === 'no') return t('matchmakingPage.form.options.common.no');
+  if (v === 'unsure') return t('matchmakingPage.form.options.common.unsure');
+  if (v === 'doesnt_matter' || v === 'doesntmatter') return t('matchmakingPage.form.options.common.doesntMatter');
+  return safeStr(raw);
+}
+
+function formatGenderLabel(t, raw) {
+  const v = safeStr(raw).toLowerCase();
+  if (!v) return '';
+  if (v === 'female' || v === 'f' || v === 'kadin' || v === 'kadın') return t('matchmakingPage.form.options.gender.female');
+  if (v === 'male' || v === 'm' || v === 'erkek') return t('matchmakingPage.form.options.gender.male');
+  return safeStr(raw);
+}
+
+function formatNationalityLabel(t, raw) {
+  const v = safeStr(raw).toLowerCase();
+  if (!v) return '';
+  if (v === 'tr') return t('matchmakingPage.form.options.nationality.tr');
+  if (v === 'id') return t('matchmakingPage.form.options.nationality.id');
+  if (v === 'other') return t('matchmakingPage.form.options.nationality.other');
+  return safeStr(raw);
+}
+
+function formatMappedProfileValue(t, kind, raw, extra = '') {
+  const v = safeStr(raw).toLowerCase();
+  if (!v) return '';
+
+  const maps = {
+    maritalStatus: {
+      single: 'matchmakingPage.form.options.maritalStatus.single',
+      widowed: 'matchmakingPage.form.options.maritalStatus.widowed',
+      divorced: 'matchmakingPage.form.options.maritalStatus.divorced',
+      other: 'matchmakingPage.form.options.maritalStatus.other',
+      doesnt_matter: 'matchmakingPage.form.options.maritalStatus.doesnt_matter',
+    },
+    childrenLivingSituation: {
+      with_children: 'matchmakingPage.form.options.childrenLivingSituation.withChildren',
+      separate: 'matchmakingPage.form.options.childrenLivingSituation.separate',
+    },
+    education: {
+      secondary: 'matchmakingPage.form.options.education.secondary',
+      high_school: 'matchmakingPage.form.options.education.highSchool',
+      highschool: 'matchmakingPage.form.options.education.highSchool',
+      university: 'matchmakingPage.form.options.education.university',
+      masters: 'matchmakingPage.form.options.education.masters',
+      phd: 'matchmakingPage.form.options.education.phd',
+      other: 'matchmakingPage.form.options.education.other',
+      doesnt_matter: 'matchmakingPage.form.options.common.doesntMatter',
+    },
+    occupation: {
+      civil_servant: 'matchmakingPage.form.options.occupation.civilServant',
+      civilservant: 'matchmakingPage.form.options.occupation.civilServant',
+      employee: 'matchmakingPage.form.options.occupation.employee',
+      retired: 'matchmakingPage.form.options.occupation.retired',
+      business_owner: 'matchmakingPage.form.options.occupation.businessOwner',
+      businessowner: 'matchmakingPage.form.options.occupation.businessOwner',
+      other: 'matchmakingPage.form.options.occupation.other',
+      doesnt_matter: 'matchmakingPage.form.options.common.doesntMatter',
+    },
+    religion: {
+      islam: 'matchmakingPage.form.options.religion.islam',
+      christian: 'matchmakingPage.form.options.religion.christian',
+      hindu: 'matchmakingPage.form.options.religion.hindu',
+      buddhist: 'matchmakingPage.form.options.religion.buddhist',
+      other: 'matchmakingPage.form.options.religion.other',
+      doesnt_matter: 'matchmakingPage.form.options.common.doesntMatter',
+    },
+    religiousValues: {
+      weak: 'matchmakingPage.form.options.religiousValues.weak',
+      medium: 'matchmakingPage.form.options.religiousValues.medium',
+      conservative: 'matchmakingPage.form.options.religiousValues.conservative',
+    },
+    familyValuesPreference: {
+      religious: 'matchmakingPage.form.options.familyValues.religious',
+      liberal: 'matchmakingPage.form.options.familyValues.liberal',
+      doesnt_matter: 'matchmakingPage.form.options.common.doesntMatter',
+    },
+    incomeLevel: {
+      low: 'matchmakingPage.form.options.income.low',
+      medium: 'matchmakingPage.form.options.income.medium',
+      good: 'matchmakingPage.form.options.income.good',
+      verygood: 'matchmakingPage.form.options.income.veryGood',
+      very_good: 'matchmakingPage.form.options.income.veryGood',
+      prefernot: 'matchmakingPage.form.options.income.preferNot',
+      prefer_not_to_say: 'matchmakingPage.form.options.income.preferNot',
+    },
+    marriageTimeline: {
+      '0_3': 'matchmakingPage.form.options.timeline.0_3',
+      '3_6': 'matchmakingPage.form.options.timeline.3_6',
+      '6_12': 'matchmakingPage.form.options.timeline.6_12',
+      '1_plus': 'matchmakingPage.form.options.timeline.1_plus',
+    },
+    communicationLanguage: {
+      tr: 'matchmakingPage.form.options.commLanguage.tr',
+      id: 'matchmakingPage.form.options.commLanguage.id',
+      en: 'matchmakingPage.form.options.commLanguage.en',
+      ar: 'myInfo.fields.foreignLanguageOther',
+      translation_app: 'matchmakingPage.form.options.commLanguage.translationApp',
+      translationapp: 'matchmakingPage.form.options.commLanguage.translationApp',
+      other: 'matchmakingPage.form.options.commLanguage.other',
+      doesnt_matter: 'matchmakingPage.form.options.common.doesntMatter',
+    },
+    partnerChildrenPreference: {
+      want_children: 'matchmakingPage.form.options.partnerChildren.wantChildren',
+      wantchildren: 'matchmakingPage.form.options.partnerChildren.wantChildren',
+      no_children: 'matchmakingPage.form.options.partnerChildren.noChildren',
+      nochildren: 'matchmakingPage.form.options.partnerChildren.noChildren',
+      doesnt_matter: 'matchmakingPage.form.options.common.doesntMatter',
+    },
+    partnerCommunicationMethod: {
+      own_language: 'matchmakingPage.form.options.partnerCommunicationMethods.ownLanguage',
+      ownlanguage: 'matchmakingPage.form.options.partnerCommunicationMethods.ownLanguage',
+      foreign_language: 'matchmakingPage.form.options.partnerCommunicationMethods.foreignLanguage',
+      foreignlanguage: 'matchmakingPage.form.options.partnerCommunicationMethods.foreignLanguage',
+      translation_app: 'matchmakingPage.form.options.partnerCommunicationMethods.translationApp',
+      translationapp: 'matchmakingPage.form.options.partnerCommunicationMethods.translationApp',
+    },
+    livingCountry: {
+      tr: 'matchmakingPage.form.options.livingCountry.tr',
+      id: 'matchmakingPage.form.options.livingCountry.id',
+      doesnt_matter: 'matchmakingPage.form.options.common.doesntMatter',
+    },
+  };
+
+  const key = maps?.[kind]?.[v] || '';
+  if (key) {
+    if (kind === 'communicationLanguage' && v === 'ar') return 'Arapca';
+    return t(key);
+  }
+
+  if (kind === 'smoking' || kind === 'alcohol' || kind === 'children' || kind === 'translationAppPreference' || kind === 'familyApprovalStatus' || kind === 'relocationWillingness') {
+    return formatYesNoLike(t, raw);
+  }
+
+  if (kind === 'communicationLanguage' && v === 'other') {
+    return extra ? `${t('matchmakingPage.form.options.commLanguage.other')}: ${extra}` : t('matchmakingPage.form.options.commLanguage.other');
+  }
+
+  return safeStr(raw);
+}
+
+function formatLanguageChoice(t, raw, other = '') {
+  const formatted = formatMappedProfileValue(t, 'communicationLanguage', raw, other);
+  if (safeStr(raw).toLowerCase() === 'other' && other) return `${formatted}: ${other}`;
+  return formatted || safeStr(other);
+}
+
+function buildPersonProfileSections(profile, t) {
+  const p = profile && typeof profile === 'object' ? profile : {};
+  const details = p?.details && typeof p.details === 'object' ? p.details : {};
+  const partner = p?.partnerPreferences && typeof p.partnerPreferences === 'object' ? p.partnerPreferences : {};
+  const languages = details?.languages && typeof details.languages === 'object' ? details.languages : {};
+  const nativeLang = languages?.native && typeof languages.native === 'object' ? languages.native : {};
+  const foreignLang = languages?.foreign && typeof languages.foreign === 'object' ? languages.foreign : {};
+
+  const identity = [
+    { label: t('myInfo.fields.age'), value: typeof p?.age === 'number' ? String(p.age) : '' },
+    { label: t('myInfo.fields.city'), value: safeStr(p?.city) },
+    { label: t('myInfo.fields.country'), value: safeStr(p?.country) },
+    { label: t('matchmakingPage.form.labels.nationality'), value: formatNationalityLabel(t, p?.nationality) },
+    { label: t('matchmakingPage.form.labels.gender'), value: formatGenderLabel(t, p?.gender) },
+    { label: t('matchmakingPage.form.labels.lookingForGender'), value: formatGenderLabel(t, p?.lookingForGender) },
+    { label: t('matchmakingPage.form.labels.lookingForNationality'), value: formatNationalityLabel(t, p?.lookingForNationality) },
+  ].filter((item) => hasMeaningfulProfileValue(item.value));
+
+  const detailsEntries = [
+    { label: t('matchmakingPage.form.labels.height'), value: typeof details?.heightCm === 'number' ? `${details.heightCm} cm` : '' },
+    { label: t('matchmakingPage.form.labels.weight'), value: typeof details?.weightKg === 'number' ? `${details.weightKg} kg` : '' },
+    { label: t('matchmakingPage.form.labels.occupation'), value: formatMappedProfileValue(t, 'occupation', details?.occupation) || safeStr(details?.occupation) },
+    { label: t('matchmakingPage.form.labels.education'), value: formatMappedProfileValue(t, 'education', details?.education) || safeStr(details?.education) },
+    { label: t('matchmakingPage.form.labels.educationDepartment'), value: safeStr(details?.educationDepartment) },
+    { label: t('matchmakingPage.form.labels.maritalStatus'), value: formatMappedProfileValue(t, 'maritalStatus', details?.maritalStatus) },
+    { label: t('matchmakingPage.form.labels.hasChildren'), value: formatYesNoLike(t, details?.hasChildren) },
+    { label: t('matchmakingPage.form.labels.childrenCount'), value: typeof details?.childrenCount === 'number' ? String(details.childrenCount) : '' },
+    { label: t('matchmakingPage.form.labels.childrenLivingSituation'), value: formatMappedProfileValue(t, 'childrenLivingSituation', details?.childrenLivingSituation) },
+    { label: t('matchmakingPage.form.labels.incomeLevel'), value: formatMappedProfileValue(t, 'incomeLevel', details?.incomeLevel) },
+    { label: t('matchmakingPage.form.labels.religion'), value: formatMappedProfileValue(t, 'religion', details?.religion) },
+    { label: t('matchmakingPage.form.labels.religiousValues'), value: formatMappedProfileValue(t, 'religiousValues', details?.religiousValues) || safeStr(details?.religiousValues) },
+    { label: t('matchmakingPage.form.labels.familyApprovalStatus'), value: formatMappedProfileValue(t, 'familyApprovalStatus', details?.familyApprovalStatus) },
+    { label: t('matchmakingPage.form.labels.marriageTimeline'), value: formatMappedProfileValue(t, 'marriageTimeline', details?.marriageTimeline) },
+    { label: t('matchmakingPage.form.labels.relocationWillingness'), value: formatMappedProfileValue(t, 'relocationWillingness', details?.relocationWillingness) },
+    { label: t('matchmakingPage.form.labels.preferredLivingCountry'), value: safeStr(details?.preferredLivingCountry) },
+    { label: t('matchmakingPage.form.labels.nativeLanguage'), value: formatLanguageChoice(t, nativeLang?.code, nativeLang?.other) },
+    {
+      label: t('matchmakingPage.form.labels.foreignLanguages'),
+      value: Array.isArray(foreignLang?.codes)
+        ? foreignLang.codes
+            .map((code) => formatLanguageChoice(t, code, code === 'other' ? foreignLang?.other : ''))
+            .filter(Boolean)
+            .join(', ')
+        : '',
+    },
+    { label: t('matchmakingPage.form.labels.communicationLanguages'), value: formatLanguageChoice(t, details?.communicationLanguage, details?.communicationLanguageOther) },
+    { label: t('matchmakingPage.form.labels.smoking'), value: formatMappedProfileValue(t, 'smoking', details?.smoking) },
+    { label: t('matchmakingPage.form.labels.alcohol'), value: formatMappedProfileValue(t, 'alcohol', details?.alcohol) },
+  ].filter((item) => hasMeaningfulProfileValue(item.value));
+
+  const communicationMethods = Array.isArray(partner?.communicationMethods)
+    ? partner.communicationMethods
+        .map((method) => formatMappedProfileValue(t, 'partnerCommunicationMethod', method))
+        .filter(Boolean)
+        .join(', ')
+    : '';
+
+  const partnerEntries = [
+    { label: t('myInfo.fields.partnerAgeMin'), value: hasMeaningfulProfileValue(partner?.ageMin) ? String(partner.ageMin) : '' },
+    { label: t('myInfo.fields.partnerAgeMax'), value: hasMeaningfulProfileValue(partner?.ageMax) ? String(partner.ageMax) : '' },
+    { label: t('matchmakingPage.form.labels.partnerAgeMaxOlderYears'), value: hasMeaningfulProfileValue(partner?.ageMaxOlderYears) ? String(partner.ageMaxOlderYears) : '' },
+    { label: t('matchmakingPage.form.labels.partnerAgeMaxYoungerYears'), value: hasMeaningfulProfileValue(partner?.ageMaxYoungerYears) ? String(partner.ageMaxYoungerYears) : '' },
+    { label: t('myInfo.fields.partnerHeightMinCm'), value: hasMeaningfulProfileValue(partner?.heightMinCm) ? `${partner.heightMinCm} cm` : '' },
+    { label: t('myInfo.fields.partnerHeightMaxCm'), value: hasMeaningfulProfileValue(partner?.heightMaxCm) ? `${partner.heightMaxCm} cm` : '' },
+    { label: t('matchmakingPage.form.labels.partnerMaritalStatus'), value: formatMappedProfileValue(t, 'maritalStatus', partner?.maritalStatus) },
+    { label: t('matchmakingPage.form.labels.partnerReligion'), value: formatMappedProfileValue(t, 'religion', partner?.religion) },
+    { label: t('matchmakingPage.form.labels.partnerLivingCountry'), value: formatMappedProfileValue(t, 'livingCountry', partner?.livingCountry) || safeStr(partner?.livingCountry) },
+    { label: t('matchmakingPage.form.labels.partnerChildrenPreference'), value: formatMappedProfileValue(t, 'partnerChildrenPreference', partner?.childrenPreference) },
+    { label: t('matchmakingPage.form.labels.partnerEducationPreference'), value: formatMappedProfileValue(t, 'education', partner?.educationPreference) },
+    { label: t('matchmakingPage.form.labels.partnerOccupationPreference'), value: formatMappedProfileValue(t, 'occupation', partner?.occupationPreference) },
+    { label: t('matchmakingPage.form.labels.partnerFamilyValuesPreference'), value: formatMappedProfileValue(t, 'familyValuesPreference', partner?.familyValuesPreference) },
+    { label: t('matchmakingPage.form.labels.partnerCommunicationMethods'), value: communicationMethods },
+    { label: t('matchmakingPage.form.labels.partnerSmokingPreference'), value: formatMappedProfileValue(t, 'smoking', partner?.smokingPreference) },
+    { label: t('matchmakingPage.form.labels.partnerAlcoholPreference'), value: formatMappedProfileValue(t, 'alcohol', partner?.alcoholPreference) },
+  ].filter((item) => hasMeaningfulProfileValue(item.value));
+
+  return { identity, detailsEntries, partnerEntries };
 }
 
 export default function StudioMatches() {
@@ -55,6 +338,8 @@ export default function StudioMatches() {
 
   const [inboxLikes, setInboxLikes] = useState([]);
   const [inboxAction, setInboxAction] = useState({ loadingId: '', error: '' });
+  const [myPeople, setMyPeople] = useState([]);
+  const [peopleAction, setPeopleAction] = useState({ loadingUid: '', kind: '', error: '', notice: '' });
 
   const [inboxAccess, setInboxAccess] = useState([]); // pre-match requests
   const [inboxProfileAccess, setInboxProfileAccess] = useState([]); // profile access requests
@@ -81,7 +366,6 @@ export default function StudioMatches() {
 
   const [inboxLoad, setInboxLoad] = useState({ loading: false, error: '', lastSource: '' });
   const inboxLoadRef = useRef({ loading: false, error: '', lastSource: '' });
-  const inboxSenderLiveCacheRef = useRef(new Map());
   const clientProjectId = useMemo(() => {
     try {
       return db?.app?.options?.projectId || '';
@@ -98,29 +382,40 @@ export default function StudioMatches() {
   const [shortLoading, setShortLoading] = useState(false);
   const shortScrollRef = useRef(null);
   const [translateState, setTranslateState] = useState({ loadingId: '', error: '' });
+  const [personMessageModal, setPersonMessageModal] = useState({ open: false, targetUid: '', displayName: '', photoUrl: '' });
+  const [personMessageText, setPersonMessageText] = useState('');
+  const [personMessageState, setPersonMessageState] = useState({ loading: false, error: '' });
+  const [personProfileModal, setPersonProfileModal] = useState({ open: false, loading: false, error: '', profile: null, displayName: '' });
 
   const activateMembershipRef = useRef(false);
   const paywallAutoActivateRef = useRef(false);
 
-  const [myLock, setMyLock] = useState({ active: false, matchId: '' });
   const [myMembership, setMyMembership] = useState({ active: false });
   const [paywallNotice, setPaywallNotice] = useState('');
   const [profileGateNotice, setProfileGateNotice] = useState('');
   const [myProfileComplete, setMyProfileComplete] = useState(true);
   const [myHasAnyPhoto, setMyHasAnyPhoto] = useState(null); // null=unknown
   const [myHasAnyApplication, setMyHasAnyApplication] = useState(null); // null=unknown
+  const [myHasAnyPhotoFromUserDoc, setMyHasAnyPhotoFromUserDoc] = useState(null);
+  const [myHasAnyApplicationFromUserDoc, setMyHasAnyApplicationFromUserDoc] = useState(null);
 
   const [completeProfileGateOpen, setCompleteProfileGateOpen] = useState(false);
 
+  const effectiveHasAnyApplication = useMemo(() => {
+    if (myHasAnyApplication === true || myHasAnyApplicationFromUserDoc === true) return true;
+    if (myHasAnyApplication === false && myHasAnyApplicationFromUserDoc === false) return false;
+    return myHasAnyApplication ?? myHasAnyApplicationFromUserDoc;
+  }, [myHasAnyApplication, myHasAnyApplicationFromUserDoc]);
+
+  const effectiveHasAnyPhoto = useMemo(() => {
+    if (myHasAnyPhoto === true || myHasAnyPhotoFromUserDoc === true) return true;
+    if (myHasAnyPhoto === false && myHasAnyPhotoFromUserDoc === false) return false;
+    return myHasAnyPhoto ?? myHasAnyPhotoFromUserDoc;
+  }, [myHasAnyPhoto, myHasAnyPhotoFromUserDoc]);
+
   const profileGateMode = useMemo(() => {
-    if (myHasAnyApplication === false) return 'application';
-    if (myHasAnyApplication === true) {
-      if (myHasAnyPhoto === false) return 'photo';
-      if (myHasAnyPhoto === null && myProfileComplete === false) return '';
-      if (myProfileComplete === false) return 'application';
-    }
     return '';
-  }, [myHasAnyApplication, myHasAnyPhoto, myProfileComplete]);
+  }, [effectiveHasAnyApplication, effectiveHasAnyPhoto]);
 
   const profileGateBody = useMemo(() => {
     if (profileGateMode === 'photo') return t('studio.profileGate.photoBody');
@@ -131,6 +426,11 @@ export default function StudioMatches() {
     if (profileGateMode === 'photo') return t('studio.profileGate.photoCta');
     return t('studio.profileGate.cta');
   }, [profileGateMode, t]);
+
+  useEffect(() => {
+    if (!profileGateNotice || !profileGateMode) return;
+    setProfileGateNotice((current) => (current === profileGateBody ? current : profileGateBody));
+  }, [profileGateBody, profileGateMode, profileGateNotice]);
 
   const [presenceByUid, setPresenceByUid] = useState({});
   const presenceUiEnabled = false;
@@ -146,15 +446,16 @@ export default function StudioMatches() {
     setLoading(false);
     setError('');
     setInboxLikes([]);
+    setMyPeople([]);
     setInboxAccess([]);
     setInboxProfileAccess([]);
     setInboxMessages([]);
     setPaywallNotice('');
     setProfileGateNotice('');
-    setMyLock({ active: false, matchId: '' });
     setMyMembership({ active: false });
     setMyProfileComplete(false);
     setPresenceByUid({});
+    setPeopleAction({ loadingUid: '', kind: '', error: '', notice: '' });
   }, [currentUidForView, isPreview]);
 
   const asMs = (v) => {
@@ -184,68 +485,6 @@ export default function StudioMatches() {
       .slice(0, 50);
   };
 
-  const filterItemsByLiveSender = useCallback(async (rawItems) => {
-    const list = Array.isArray(rawItems) ? rawItems : [];
-    const now = Date.now();
-    const cacheTtlMs = 60 * 1000;
-    const senderUids = Array.from(
-      new Set(
-        list
-          .map((item) => safeStr(item?.fromUid))
-          .filter(Boolean)
-      )
-    );
-
-    const toCheck = senderUids.filter((senderUid) => {
-      const cached = inboxSenderLiveCacheRef.current.get(senderUid);
-      return !(cached && typeof cached.checkedAtMs === 'number' && now - cached.checkedAtMs < cacheTtlMs);
-    });
-
-    if (toCheck.length) {
-      const liveUids = new Set();
-
-      await Promise.all(
-        toCheck.map(async (senderUid) => {
-          try {
-            const snap = await getDoc(doc(db, 'matchmakingUsers', senderUid));
-            if (snap.exists()) liveUids.add(senderUid);
-          } catch {
-            // ignore
-          }
-        })
-      );
-
-      const missingUids = toCheck.filter((senderUid) => !liveUids.has(senderUid));
-      for (let i = 0; i < missingUids.length; i += 10) {
-        const chunk = missingUids.slice(i, i + 10);
-        try {
-          const snap = await getDocs(query(collection(db, 'matchmakingApplications'), where('userId', 'in', chunk)));
-          snap.forEach((appDoc) => {
-            const data = appDoc.data() || {};
-            const senderUid = safeStr(data?.userId);
-            if (senderUid) liveUids.add(senderUid);
-          });
-        } catch {
-          // ignore
-        }
-      }
-
-      toCheck.forEach((senderUid) => {
-        inboxSenderLiveCacheRef.current.set(senderUid, {
-          live: liveUids.has(senderUid),
-          checkedAtMs: now,
-        });
-      });
-    }
-
-    return list.filter((item) => {
-      const senderUid = safeStr(item?.fromUid);
-      if (!senderUid) return true;
-      const cached = inboxSenderLiveCacheRef.current.get(senderUid);
-      return cached ? cached.live !== false : true;
-    });
-  }, []);
-
   const refreshInboxViaApi = useCallback(async () => {
     if (isPreview) return;
     const uid = effectiveUid;
@@ -261,16 +500,26 @@ export default function StudioMatches() {
       const likes = filterInboxLikes(Array.isArray(data?.inboxLikes) ? data.inboxLikes : [], uid, resetAtMs);
       const preMatch = Array.isArray(data?.inboxPreMatchRequests) ? data.inboxPreMatchRequests : [];
       const profileAccess = Array.isArray(data?.inboxAccessRequests) ? data.inboxAccessRequests : [];
-      setInboxLikes(await filterItemsByLiveSender(likes));
-      setInboxAccess(await filterItemsByLiveSender(preMatch));
-      setInboxProfileAccess(await filterItemsByLiveSender(profileAccess));
+      setInboxLikes(likes);
+      setInboxAccess((current) => mergeInboxAccessItems(preMatch, current));
+      setInboxProfileAccess(profileAccess);
       setInboxMessages(Array.isArray(data?.inboxMessages) ? data.inboxMessages : []);
       setInboxLoad({ loading: false, error: '', lastSource: 'api' });
     } catch (e) {
       const msg = String(e?.message || '').trim() || 'inbox_refresh_failed';
       setInboxLoad({ loading: false, error: translateStudioApiError(t, msg) || msg, lastSource: 'api' });
     }
-  }, [effectiveUid, filterItemsByLiveSender, isPreview, resetAtMs, t]);
+  }, [effectiveUid, isPreview, resetAtMs, t]);
+
+  useEffect(() => {
+    if (isPreview || !effectiveUid) return;
+    void refreshInboxViaApi();
+  }, [effectiveUid, isPreview, refreshInboxViaApi]);
+
+  useEffect(() => {
+    if (!inboxModal?.open || isPreview || !effectiveUid) return;
+    void refreshInboxViaApi();
+  }, [effectiveUid, inboxModal?.mode, inboxModal?.open, isPreview, refreshInboxViaApi]);
 
   useEffect(() => {
     const uid = effectiveUid;
@@ -290,11 +539,6 @@ export default function StudioMatches() {
         if (cancelled) return;
         const d = snap?.exists?.() ? snap.data() || {} : {};
 
-        const lock = d?.matchmakingLock && typeof d.matchmakingLock === 'object' ? d.matchmakingLock : null;
-        const active = !!lock?.active;
-        const matchId = typeof lock?.matchId === 'string' ? String(lock.matchId).trim() : '';
-        setMyLock({ active, matchId });
-
         const membershipObj = d?.membership && typeof d.membership === 'object' ? d.membership : null;
         const membershipValidUntilMs = asMs(membershipObj?.validUntilMs);
         const now = Date.now();
@@ -313,11 +557,6 @@ export default function StudioMatches() {
       ref,
       (snap) => {
         const d = snap.exists() ? snap.data() || {} : {};
-        const lock = d?.matchmakingLock && typeof d.matchmakingLock === 'object' ? d.matchmakingLock : null;
-        const active = !!lock?.active;
-        const matchId = typeof lock?.matchId === 'string' ? String(lock.matchId).trim() : '';
-        setMyLock({ active, matchId });
-
         const membershipObj = d?.membership && typeof d.membership === 'object' ? d.membership : null;
         const membershipValidUntilMs = asMs(membershipObj?.validUntilMs);
         const now = Date.now();
@@ -328,11 +567,14 @@ export default function StudioMatches() {
 
         // 2026-02: Apply form no longer asks for expectations.
         setMyProfileComplete(isMinimumProfileCompleteFromUserDoc(d));
+        setMyHasAnyApplicationFromUserDoc(hasAnyMatchmakingProfileInUserDoc(d));
+        setMyHasAnyPhotoFromUserDoc(hasAnyMatchmakingPhotoInUserDoc(d));
       },
       () => {
-        setMyLock({ active: false, matchId: '' });
         setMyMembership({ active: false });
         setMyProfileComplete(true);
+        setMyHasAnyApplicationFromUserDoc(null);
+        setMyHasAnyPhotoFromUserDoc(null);
       }
     );
 
@@ -347,12 +589,7 @@ export default function StudioMatches() {
   }, [effectiveUid]);
 
   const requireProfile = () => {
-    setProfileGateNotice(profileGateBody);
-    try {
-      if (typeof window !== 'undefined') window.scrollTo({ top: 0, behavior: 'smooth' });
-    } catch {
-      // noop
-    }
+    goToProfileCompletionTarget();
   };
 
   // En az 1 fotoğraf + en az 1 başvuru var mı? (pre-match gate için)
@@ -361,6 +598,8 @@ export default function StudioMatches() {
     if (!uid) {
       setMyHasAnyPhoto(null);
       setMyHasAnyApplication(null);
+      setMyHasAnyPhotoFromUserDoc(null);
+      setMyHasAnyApplicationFromUserDoc(null);
       return;
     }
 
@@ -369,11 +608,11 @@ export default function StudioMatches() {
         let count = 0;
         let hasPhoto = false;
         snap.forEach((d) => {
-          count += 1;
-          if (hasPhoto) return;
           const data = typeof d?.data === 'function' ? d.data() || {} : d?.data || {};
-          const urls = Array.isArray(data?.photoUrls) ? data.photoUrls : [];
-          if (urls.some((u) => safeStr(u))) hasPhoto = true;
+          if (hasAnyStoredMatchmakingPhotoInApplicationDoc(data)) hasPhoto = true;
+          if (data && typeof data === 'object' && !data?.details?.autoBootstrap && String(data?.source || '').trim().toLowerCase() !== 'auto_stub') {
+            count += 1;
+          }
         });
         return { count, hasPhoto };
       } catch {
@@ -422,12 +661,7 @@ export default function StudioMatches() {
   }, [effectiveUid]);
 
   const openCompleteProfileGate = () => {
-    setCompleteProfileGateOpen(true);
-    try {
-      if (typeof window !== 'undefined') window.scrollTo({ top: 0, behavior: 'smooth' });
-    } catch {
-      // noop
-    }
+    goToProfileCompletionTarget();
   };
 
   const dismissCompleteProfileGate = () => setCompleteProfileGateOpen(false);
@@ -518,12 +752,9 @@ export default function StudioMatches() {
         snap.forEach((d) => items.push({ id: d.id, ...d.data() }));
         // Sadece bekleyen + bana gelen beğeniler görünmeli; ayrıca canlı kaydı kalmamış
         // göndericilerin eski snapshot'ları gösterilmemeli.
-        void (async () => {
-          const filtered = filterInboxLikes(items, uid, resetAtMs);
-          const safeItems = await filterItemsByLiveSender(filtered);
-          setInboxLikes(safeItems);
-          setInboxLoad((s) => (s.lastSource === 'api' ? s : { ...s, error: '', lastSource: 'firestore' }));
-        })();
+        const filtered = filterInboxLikes(items, uid, resetAtMs);
+        setInboxLikes(filtered);
+        setInboxLoad((s) => (s.lastSource === 'api' ? s : { ...s, error: '', lastSource: 'firestore' }));
       },
       (e) => {
         setInboxLikes([]);
@@ -549,7 +780,7 @@ export default function StudioMatches() {
         // noop
       }
     };
-  }, [clientProjectId, effectiveUid, filterItemsByLiveSender, refreshInboxViaApi, resetAtMs, t]);
+  }, [clientProjectId, effectiveUid, refreshInboxViaApi, resetAtMs, t]);
 
   // Gelen ön eşleşme istekleri
   useEffect(() => {
@@ -570,11 +801,8 @@ export default function StudioMatches() {
       (snap) => {
         const items = [];
         snap.forEach((d) => items.push({ id: d.id, ...d.data() }));
-        void (async () => {
-          const safeItems = await filterItemsByLiveSender(items);
-          setInboxAccess(safeItems);
-          setInboxLoad((s) => (s.lastSource === 'api' ? s : { ...s, error: '', lastSource: 'firestore' }));
-        })();
+        setInboxAccess((current) => mergeInboxAccessItems(items, current));
+        setInboxLoad((s) => (s.lastSource === 'api' ? s : { ...s, error: '', lastSource: 'firestore' }));
       },
       (e) => {
         setInboxAccess([]);
@@ -600,7 +828,7 @@ export default function StudioMatches() {
         // noop
       }
     };
-  }, [clientProjectId, effectiveUid, filterItemsByLiveSender, refreshInboxViaApi, t]);
+  }, [clientProjectId, effectiveUid, refreshInboxViaApi, t]);
 
   // Gelen profil erişim istekleri
   useEffect(() => {
@@ -621,11 +849,8 @@ export default function StudioMatches() {
       (snap) => {
         const items = [];
         snap.forEach((d) => items.push({ id: d.id, ...d.data() }));
-        void (async () => {
-          const safeItems = await filterItemsByLiveSender(items);
-          setInboxProfileAccess(safeItems);
-          setInboxLoad((s) => (s.lastSource === 'api' ? s : { ...s, error: '', lastSource: 'firestore' }));
-        })();
+        setInboxProfileAccess(items);
+        setInboxLoad((s) => (s.lastSource === 'api' ? s : { ...s, error: '', lastSource: 'firestore' }));
       },
       (e) => {
         setInboxProfileAccess([]);
@@ -651,7 +876,39 @@ export default function StudioMatches() {
         // noop
       }
     };
-  }, [clientProjectId, effectiveUid, filterItemsByLiveSender, refreshInboxViaApi, t]);
+  }, [clientProjectId, effectiveUid, refreshInboxViaApi, t]);
+
+  useEffect(() => {
+    const uid = effectiveUid;
+    if (!uid) {
+      setMyPeople([]);
+      return;
+    }
+
+    const q = query(
+      collection(db, 'matchmakingUsers', uid, 'outboxPreMatchRequests'),
+      orderBy('updatedAtMs', 'desc'),
+      limit(200)
+    );
+
+    const unsub = onSnapshot(
+      q,
+      (snap) => {
+        const items = [];
+        snap.forEach((d) => items.push({ id: d.id, ...d.data() }));
+        setMyPeople(items);
+      },
+      () => setMyPeople([])
+    );
+
+    return () => {
+      try {
+        unsub();
+      } catch {
+        // noop
+      }
+    };
+  }, [effectiveUid]);
 
   // Gelen direkt mesajlar (inbox)
   useEffect(() => {
@@ -724,7 +981,7 @@ export default function StudioMatches() {
     } catch (e) {
       const msg = String(e?.message || '').trim();
       if (msg === 'membership_required') requirePaid();
-      if (msg === 'profile_incomplete' || msg === 'application_not_found' || msg === 'application_required') requireProfile();
+      if (msg === 'profile_incomplete' || msg === 'application_not_found' || msg === 'application_required' || msg === 'photo_required') requireProfile();
       setInboxAction({ loadingId: '', error: translateStudioApiError(t, msg) || msg || 'action_failed' });
     }
   };
@@ -751,10 +1008,6 @@ export default function StudioMatches() {
     const loadingKey = `${reqType || 'pre_match'}:${from}`;
 
     const isPreMatch = endpoint === '/api/matchmaking-pre-match-respond';
-    if (isPreMatch && (myProfileComplete === false || myHasAnyPhoto === false || myHasAnyApplication === false)) {
-      openCompleteProfileGate();
-      return;
-    }
 
     setAccessAction({ loadingId: loadingKey, error: '' });
     try {
@@ -767,7 +1020,7 @@ export default function StudioMatches() {
     } catch (e) {
       const msg = String(e?.message || '').trim();
       if (msg === 'membership_required') requirePaid();
-      if (msg === 'profile_incomplete' || msg === 'application_not_found' || msg === 'application_required') {
+      if (msg === 'profile_incomplete' || msg === 'application_not_found' || msg === 'application_required' || msg === 'photo_required') {
         if (isPreMatch) openCompleteProfileGate();
         else requireProfile();
       }
@@ -983,6 +1236,44 @@ export default function StudioMatches() {
     return set;
   }, [visibleMatches]);
 
+  const matchOtherUidSet = useMemo(() => {
+    const set = new Set();
+    (Array.isArray(visibleMatches) ? visibleMatches : []).forEach((match) => {
+      const otherUid = getOtherUidFromMatch(match, effectiveUid);
+      if (otherUid) set.add(otherUid);
+    });
+    return set;
+  }, [effectiveUid, visibleMatches]);
+
+  const visiblePeople = useMemo(() => {
+    const list = Array.isArray(myPeople) ? myPeople : [];
+    return list
+      .filter((item) => safeStr(item?.type) === 'people_list')
+      .filter((item) => {
+        const status = safeStr(item?.status);
+        return status !== 'rejected' && status !== 'cancelled';
+      })
+      .filter((item) => {
+        const updatedAtMs = typeof item?.updatedAtMs === 'number' && Number.isFinite(item.updatedAtMs) ? item.updatedAtMs : 0;
+        if (resetAtMs > 0 && updatedAtMs > 0 && updatedAtMs < resetAtMs) return false;
+        return true;
+      })
+      .filter((item) => {
+        const targetUid = safeStr(item?.toUid || item?.targetUid);
+        if (!targetUid) return false;
+        if (matchOtherUidSet.has(targetUid)) return false;
+        const targetProfile = item?.targetProfile && typeof item.targetProfile === 'object' ? item.targetProfile : null;
+        return !!targetProfile;
+      })
+      .slice()
+      .sort((a, b) => {
+        const aMs = typeof a?.updatedAtMs === 'number' && Number.isFinite(a.updatedAtMs) ? a.updatedAtMs : 0;
+        const bMs = typeof b?.updatedAtMs === 'number' && Number.isFinite(b.updatedAtMs) ? b.updatedAtMs : 0;
+        if (bMs !== aMs) return bMs - aMs;
+        return safeStr(a?.id).localeCompare(safeStr(b?.id));
+      });
+  }, [matchOtherUidSet, myPeople, resetAtMs]);
+
   const inboxLikesBanner = useMemo(() => {
     const list = Array.isArray(inboxLikes) ? inboxLikes : [];
     // Match listesinde zaten görünen like'lar için üst banner göstermeyelim.
@@ -998,16 +1289,13 @@ export default function StudioMatches() {
     const list2 = Array.isArray(inboxProfileAccess) ? inboxProfileAccess : [];
     const merged = [...list1, ...list2];
     return merged.filter((x) => {
+      if (String(x?.type || '').trim() === 'people_list') return false;
       if (String(x?.status || '').trim() !== 'pending') return false;
       const createdAtMs = typeof x?.createdAtMs === 'number' && Number.isFinite(x.createdAtMs) ? x.createdAtMs : 0;
       if (resetAtMs > 0 && createdAtMs > 0 && createdAtMs < resetAtMs) return false;
-      // Ürün kuralı: Aktif eşleşmesi olan kullanıcı, ön eşleşme isteklerini görmesin.
-      // Lock kalkınca (iptal vb.) tekrar görünür.
-      const type = String(x?.type || '').trim();
-      if (myLock?.active && type === 'pre_match') return false;
       return true;
     });
-  }, [inboxAccess, inboxProfileAccess, myLock?.active, resetAtMs]);
+  }, [inboxAccess, inboxProfileAccess, resetAtMs]);
 
   const unreadMessageCount = useMemo(() => {
     const list = Array.isArray(inboxMessages) ? inboxMessages : [];
@@ -1084,6 +1372,149 @@ export default function StudioMatches() {
     };
   }, [paywallNotice]);
 
+  const openPersonMessage = async (person) => {
+    if (isPreview) {
+      openPreviewGate({ reason: t('previewGate.body') });
+      return;
+    }
+    const targetUid = safeStr(person?.toUid || person?.targetUid || person?.uid);
+    const profile = person?.targetProfile && typeof person.targetProfile === 'object' ? person.targetProfile : {};
+    if (!targetUid) return;
+
+    if (OPEN_CHAT_MODEL) {
+      setPeopleAction({ loadingUid: targetUid, kind: 'message', error: '', notice: '' });
+      try {
+        const ensured = await authFetch('/api/matchmaking-people-match-ensure', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ targetUid }),
+        });
+        const matchId = safeStr(ensured?.matchId);
+        if (!matchId) throw new Error('match_ensure_failed');
+        setPeopleAction({ loadingUid: '', kind: '', error: '', notice: '' });
+        navigate(`/app/chat/${matchId}`);
+      } catch (e) {
+        const msg = String(e?.message || '').trim();
+        if (msg === 'membership_required' || msg === 'free_active_membership_required') requirePaid();
+        if (msg === 'profile_incomplete' || msg === 'application_not_found' || msg === 'application_required' || msg === 'photo_required') openCompleteProfileGate();
+        setPeopleAction({ loadingUid: '', kind: '', error: translateStudioApiError(t, msg) || msg || 'action_failed', notice: '' });
+      }
+      return;
+    }
+
+    setPersonMessageModal({
+      open: true,
+      targetUid,
+      displayName: safeStr(profile?.username) || t('studio.common.profile'),
+      photoUrl: safeStr(profile?.photoUrl || (Array.isArray(profile?.photoUrls) ? profile.photoUrls[0] : '')),
+    });
+    setPersonMessageText('');
+    setPersonMessageState({ loading: false, error: '' });
+  };
+
+  const sendPersonMessage = async (e) => {
+    e?.preventDefault?.();
+    if (isPreview) {
+      openPreviewGate({ reason: t('previewGate.body') });
+      return;
+    }
+
+    const targetUid = safeStr(personMessageModal?.targetUid);
+    const text = safeStr(personMessageText);
+    if (!targetUid || !text || personMessageState.loading) return;
+
+    setPersonMessageState({ loading: true, error: '' });
+    try {
+      await authFetch('/api/matchmaking-inbox-message-send', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ targetUid, text }),
+      });
+      setPersonMessageState({ loading: false, error: '' });
+      setPersonMessageModal({ open: false, targetUid: '', displayName: '', photoUrl: '' });
+      setPersonMessageText('');
+      setPeopleAction({ loadingUid: '', kind: '', error: '', notice: t('studio.matches.people.messageSent') });
+    } catch (e2) {
+      const msg = String(e2?.message || '').trim();
+      if (msg === 'membership_required') requirePaid();
+      if (msg === 'profile_incomplete' || msg === 'application_not_found' || msg === 'application_required' || msg === 'photo_required') openCompleteProfileGate();
+      setPersonMessageState({ loading: false, error: translateStudioApiError(t, msg) || msg || 'send_failed' });
+    }
+  };
+
+  const fetchAndOpenPersonProfile = async ({ targetUid, displayName }) => {
+    setPersonProfileModal({ open: true, loading: true, error: '', profile: null, displayName });
+    try {
+      const data = await authFetch('/api/matchmaking-profile-view', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ targetUid }),
+      });
+      setPersonProfileModal({ open: true, loading: false, error: '', profile: data?.profile || null, displayName });
+    } catch (e) {
+      const msg = String(e?.message || '').trim();
+      setPersonProfileModal({ open: true, loading: false, error: translateStudioApiError(t, msg) || msg || 'load_failed', profile: null, displayName });
+    }
+  };
+
+  const inspectPerson = async (person) => {
+    if (isPreview) {
+      openPreviewGate({ reason: t('previewGate.body') });
+      return;
+    }
+
+    const targetUid = safeStr(person?.toUid || person?.targetUid || person?.uid);
+    const profile = person?.targetProfile && typeof person.targetProfile === 'object' ? person.targetProfile : {};
+    const displayName = safeStr(profile?.username) || t('studio.common.profile');
+    if (!targetUid || peopleAction.loadingUid) return;
+
+    setPeopleAction({ loadingUid: targetUid, kind: 'profile', error: '', notice: '' });
+    try {
+      await fetchAndOpenPersonProfile({ targetUid, displayName });
+      setPeopleAction({ loadingUid: '', kind: '', error: '', notice: '' });
+    } catch (e) {
+      const msg = String(e?.message || '').trim();
+      if (msg === 'membership_required') requirePaid();
+      if (msg === 'profile_incomplete' || msg === 'application_not_found' || msg === 'application_required' || msg === 'photo_required') openCompleteProfileGate();
+      setPeopleAction({ loadingUid: '', kind: '', error: translateStudioApiError(t, msg) || msg || 'load_failed', notice: '' });
+    }
+  };
+
+  const likePerson = async (person) => {
+    if (isPreview) {
+      openPreviewGate({ reason: t('previewGate.body') });
+      return;
+    }
+
+    const targetUid = safeStr(person?.toUid || person?.targetUid || person?.uid);
+    if (!targetUid || peopleAction.loadingUid) return;
+
+    setPeopleAction({ loadingUid: targetUid, kind: 'like', error: '', notice: '' });
+    try {
+      const ensured = await authFetch('/api/matchmaking-people-match-ensure', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ targetUid }),
+      });
+      const matchId = safeStr(ensured?.matchId);
+      if (!matchId) throw new Error('match_ensure_failed');
+
+      await authFetch('/api/matchmaking-decision', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ matchId, decision: 'accept' }),
+      });
+
+      setPeopleAction({ loadingUid: '', kind: '', error: '', notice: '' });
+      navigate(`/app/match/${matchId}`);
+    } catch (e) {
+      const msg = String(e?.message || '').trim();
+      if (msg === 'membership_required' || msg === 'free_active_membership_required') requirePaid();
+      if (msg === 'profile_incomplete' || msg === 'application_not_found' || msg === 'application_required' || msg === 'photo_required') openCompleteProfileGate();
+      setPeopleAction({ loadingUid: '', kind: '', error: translateStudioApiError(t, msg) || msg || 'action_failed', notice: '' });
+    }
+  };
+
   const refreshPresence = useCallback(async () => {
     if (!presenceUiEnabled) return;
     if (isPreview) return;
@@ -1159,9 +1590,8 @@ export default function StudioMatches() {
     const mid = String(matchId || '').trim();
     if (!uid || !mid) return;
 
-    // Aktif eşleşme varken diğer profillerle etkileşim yok.
-    if (myLock?.active && myLock?.matchId && myLock.matchId !== mid) {
-      setShortState({ loading: false, error: t('studio.errors.activeLocked') });
+    if (OPEN_CHAT_MODEL) {
+      navigate(`/app/chat/${mid}`);
       return;
     }
 
@@ -1192,12 +1622,6 @@ export default function StudioMatches() {
     const text = String(shortText || '').trim();
 
     if (!uid || !mid || !text) return;
-
-    if (!myProfileComplete) {
-      requireProfile();
-      setShortState({ loading: false, error: t('studio.profileGate.body') });
-      return;
-    }
 
     // Ücretsiz kullanıcılar kısa mesaj gönderemez.
     if (!myMembership?.active) {
@@ -1357,8 +1781,8 @@ export default function StudioMatches() {
           <div>
             <h1 className="text-3xl md:text-4xl font-bold text-emerald-700">{t('studio.matches.title')}</h1>
             <p className="mt-1 text-sm text-slate-600">
-              {visibleMatches.length
-                ? t('studio.matches.showingCount', { count: visibleMatches.length })
+              {visibleMatches.length || visiblePeople.length
+                ? t('studio.matches.showingCount', { count: visibleMatches.length + visiblePeople.length })
                 : t('studio.matches.emptyHint')}
             </p>
           </div>
@@ -1367,7 +1791,7 @@ export default function StudioMatches() {
             <button
               type="button"
               onClick={() => setInboxModal({ open: true, mode: 'requests' })}
-              className="app-btn w-full sm:w-auto"
+              className="app-btn hidden w-full sm:inline-flex sm:w-auto"
             >
               <span className="inline-flex items-center justify-center gap-2">
                 <HelpCircle className="h-4 w-4" />
@@ -1378,8 +1802,8 @@ export default function StudioMatches() {
 
             <button
               type="button"
-              onClick={() => setInboxModal({ open: true, mode: 'messages' })}
-              className="app-btn app-btn-primary w-full sm:w-auto"
+              onClick={() => navigate('/app/messages')}
+              className="app-btn app-btn-primary hidden w-full sm:inline-flex sm:w-auto"
             >
               <span className="inline-flex items-center justify-center gap-2">
                 <MessageCircle className="h-4 w-4" />
@@ -1400,7 +1824,7 @@ export default function StudioMatches() {
             <Link
               to="/app/pool"
               data-tutorial-id="matches-go-pool"
-              className="app-btn app-btn-orange w-full sm:w-auto"
+              className="app-btn app-btn-orange hidden w-full sm:inline-flex sm:w-auto"
             >
               <span className="inline-flex items-center justify-center gap-2">
                 <Compass className="h-4 w-4" />
@@ -1410,6 +1834,22 @@ export default function StudioMatches() {
           </div>
         </div>
 
+        <StudioInviteFriendsCard
+          className="mb-6 mx-auto max-w-5xl"
+          compact
+          onClick={() => {
+            if (isPreview) {
+              openPreviewGate({ reason: t('previewGate.body') });
+              return;
+            }
+            navigate('/profilim?panel=referral');
+          }}
+        />
+
+        <div className="mb-6 mx-auto max-w-5xl">
+          <PwaInstallCard variant="light" />
+        </div>
+
         <StudioInboxModal
           open={!!inboxModal?.open}
           onClose={() => setInboxModal({ open: false, mode: 'requests' })}
@@ -1417,18 +1857,14 @@ export default function StudioMatches() {
           items={
             inboxModal?.mode === 'messages'
               ? inboxMessages
-              : [...(Array.isArray(inboxAccess) ? inboxAccess : []), ...(Array.isArray(inboxProfileAccess) ? inboxProfileAccess : [])].filter(
-                  (x) => !(myLock?.active && String(x?.type || '').trim() === 'pre_match')
-                )
+              : [...(Array.isArray(inboxAccess) ? inboxAccess : []), ...(Array.isArray(inboxProfileAccess) ? inboxProfileAccess : [])]
           }
           mode={inboxModal?.mode}
           onMarkRead={inboxModal?.mode === 'messages' ? markDirectMessageRead : markInboxMessageRead}
           onApprove={inboxModal?.mode === 'messages' ? null : ({ fromUid, type }) => respondAccessRequest({ fromUid, decision: 'approve', type })}
           onReject={inboxModal?.mode === 'messages' ? null : ({ fromUid, type }) => respondAccessRequest({ fromUid, decision: 'reject', type })}
           actionsDisabled={false}
-          onRequireProfile={() => {
-            requireProfile();
-          }}
+          onRequireProfile={() => {}}
           loadingId={accessAction.loadingId}
           error={accessAction.error}
         />
@@ -1452,20 +1888,6 @@ export default function StudioMatches() {
           ) : null}
         </div>
 
-        {myLock?.active && myLock?.matchId ? (
-          <div className="mb-4 mx-auto max-w-4xl rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-emerald-900">
-            <p className="font-semibold">{t('studio.matches.activeLockTitle')}</p>
-            <p className="mt-1 text-sm text-emerald-900/80">
-              <Trans
-                i18nKey="studio.matches.activeLockBody"
-                components={{
-                  link: <Link to={`/app/match/${myLock.matchId}`} className="font-semibold underline" />,
-                }}
-              />
-            </p>
-          </div>
-        ) : null}
-
         {paywallNotice ? (
           <div className="mb-4 mx-auto max-w-4xl rounded-xl border border-amber-200 bg-amber-50 p-4 text-amber-900">
             <div className="flex flex-wrap items-center justify-between gap-2">
@@ -1486,7 +1908,7 @@ export default function StudioMatches() {
           <div role="alert" className="mb-4 mx-auto max-w-4xl rounded-xl border border-amber-200 bg-amber-50 p-4 text-amber-950">
             <div className="flex flex-wrap items-start justify-between gap-2">
               <p className="font-semibold">
-                {t('studio.profile.completeProfileTutorial.title', { defaultValue: targetLang === 'tr' ? 'Profilini tamamla' : 'Complete your profile' })}
+                {t('studio.profile.completeProfileTutorial.title')}
               </p>
               <button
                 type="button"
@@ -1535,13 +1957,34 @@ export default function StudioMatches() {
           </div>
         ) : null}
 
+        {peopleAction.notice ? (
+          <div className="mb-4 mx-auto max-w-4xl rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-emerald-950">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="font-semibold">{peopleAction.notice}</p>
+              <button
+                type="button"
+                onClick={() => setPeopleAction((state) => ({ ...state, notice: '' }))}
+                className="rounded-md px-2 py-1 text-sm font-semibold text-emerald-900/70 hover:bg-emerald-100"
+              >
+                {t('studio.common.close')}
+              </button>
+            </div>
+          </div>
+        ) : null}
+
+        {peopleAction.error ? (
+          <div className="mb-4 mx-auto max-w-4xl rounded-xl border border-rose-200 bg-rose-50 p-4 text-rose-900">
+            {peopleAction.error}
+          </div>
+        ) : null}
+
         {loading ? (
           <p className="text-center text-slate-600">{t('studio.matches.loading')}</p>
         ) : error ? (
           <div className="mx-auto max-w-xl rounded-lg border border-rose-200 bg-rose-50 p-4 text-rose-800">
             {t('studio.matches.loadFailed', { error })}
           </div>
-        ) : visibleMatches.length === 0 ? (
+        ) : visibleMatches.length === 0 && visiblePeople.length === 0 ? (
           <div className="mx-auto max-w-2xl rounded-xl border border-slate-200 bg-white p-6 text-center shadow-sm">
             <p className="text-slate-800 font-semibold">{t('studio.matches.noneTitle')}</p>
             <p className="mt-2 text-sm text-slate-600">
@@ -1580,6 +2023,21 @@ export default function StudioMatches() {
           </div>
         ) : (
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4">
+            {visiblePeople.map((person) => {
+              const targetUid = safeStr(person?.toUid || person?.targetUid || person?.uid);
+              return (
+                <StudioPersonCard
+                  key={safeStr(person?.id) || targetUid}
+                  person={person}
+                  onLike={likePerson}
+                  onMessage={openPersonMessage}
+                  onInspect={inspectPerson}
+                  actionLoadingUid={peopleAction.loadingUid}
+                  actionKind={peopleAction.kind}
+                />
+              );
+            })}
+
             {visibleMatches.map((m) => (
               <StudioMatchCard
                 key={m.id}
@@ -1595,20 +2053,164 @@ export default function StudioMatches() {
                 canSeeFullProfiles={myMembership.active}
                 profileComplete={myProfileComplete}
                 membershipActive={!!myMembership.active}
-                onRequireProfile={() => {
-                  requireProfile();
-                }}
+                onRequireProfile={() => {}}
                 onRequirePaid={requirePaid}
-                activeLockMatchId={myLock?.active ? myLock?.matchId : ''}
                 presenceByUid={presenceByUid}
               />
             ))}
           </div>
         )}
 
+        {personMessageModal.open ? (
+          <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 p-4 pt-6 overflow-y-auto" role="dialog" aria-modal="true">
+            <div className="w-full max-w-lg rounded-xl bg-white text-slate-900 shadow-xl">
+              <div className="flex items-center justify-between border-b border-slate-200 p-4">
+                <div className="min-w-0 flex items-center gap-3">
+                  {personMessageModal.photoUrl ? (
+                    <img src={personMessageModal.photoUrl} alt={personMessageModal.displayName} className="h-10 w-10 rounded-full object-cover" />
+                  ) : (
+                    <div className="h-10 w-10 rounded-full bg-slate-100" />
+                  )}
+                  <div className="min-w-0">
+                    <p className="truncate font-semibold">{personMessageModal.displayName}</p>
+                    <p className="text-xs text-slate-500">{t('studio.matches.people.messageModalSubtitle')}</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setPersonMessageModal({ open: false, targetUid: '', displayName: '', photoUrl: '' })}
+                  className="app-btn app-btn-ghost h-8 px-2 text-xs"
+                >
+                  {t('studio.common.close')}
+                </button>
+              </div>
+
+              <form onSubmit={sendPersonMessage} className="p-4">
+                <textarea
+                  value={personMessageText}
+                  onChange={(e) => setPersonMessageText(e.target.value)}
+                  rows={5}
+                  maxLength={240}
+                  placeholder={t('studio.matches.people.messagePlaceholder')}
+                  className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-200"
+                />
+
+                {personMessageState.error ? <div className="mt-2 text-sm text-rose-700">{personMessageState.error}</div> : null}
+
+                <div className="mt-3 flex items-center justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setPersonMessageModal({ open: false, targetUid: '', displayName: '', photoUrl: '' })}
+                    className="app-btn app-btn-outline"
+                  >
+                    {t('studio.common.cancel')}
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={personMessageState.loading || !safeStr(personMessageText)}
+                    className="app-btn app-btn-primary disabled:opacity-60"
+                  >
+                    {personMessageState.loading ? t('studio.common.processing') : t('studio.common.send')}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        ) : null}
+
+        {personProfileModal.open ? (
+          <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 p-4 pt-6 overflow-y-auto" role="dialog" aria-modal="true">
+            <div data-testid="person-profile-modal" className="w-full max-w-4xl rounded-xl bg-white text-slate-900 shadow-xl max-h-[85vh] overflow-y-auto">
+              <div className="flex items-center justify-between border-b border-slate-200 p-4 sticky top-0 bg-white">
+                <p className="font-semibold">{personProfileModal.displayName || t('studio.matches.people.profileModalTitle')}</p>
+                <button
+                  type="button"
+                  onClick={() => setPersonProfileModal({ open: false, loading: false, error: '', profile: null, displayName: '' })}
+                  className="app-btn app-btn-ghost h-8 px-2 text-xs"
+                >
+                  {t('studio.common.close')}
+                </button>
+              </div>
+
+              <div className="p-4">
+                {personProfileModal.loading ? <p className="text-sm text-slate-500">{t('studio.common.loading')}</p> : null}
+                {personProfileModal.error ? <p className="text-sm text-rose-700">{personProfileModal.error}</p> : null}
+
+                {!personProfileModal.loading && !personProfileModal.error && personProfileModal.profile ? (
+                  <div className="space-y-5">
+                    {Array.isArray(personProfileModal.profile?.photoUrls) && personProfileModal.profile.photoUrls.length ? (
+                      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                        {personProfileModal.profile.photoUrls.slice(0, 6).map((url) => (
+                          <div key={url} className="aspect-square overflow-hidden rounded-lg bg-slate-100">
+                            <img src={url} alt="" className="h-full w-full object-cover" loading="lazy" decoding="async" />
+                          </div>
+                        ))}
+                      </div>
+                    ) : null}
+
+                    {(() => {
+                      const sections = buildPersonProfileSections(personProfileModal.profile, t);
+                      return (
+                        <>
+                          {sections.identity.length ? (
+                            <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                              <p className="font-semibold text-slate-900">{t('studio.matches.people.profileModalTitle')}</p>
+                              <div className="mt-3 grid grid-cols-1 gap-2 text-sm text-slate-700 sm:grid-cols-2">
+                                {sections.identity.map((item) => (
+                                  <p key={item.label}><span className="text-slate-500">{item.label}:</span> {item.value}</p>
+                                ))}
+                              </div>
+                            </div>
+                          ) : null}
+
+                          {sections.detailsEntries.length ? (
+                            <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                              <p className="font-semibold text-slate-900">{t('matchmakingPage.form.sections.details')}</p>
+                              <div className="mt-3 grid grid-cols-1 gap-2 text-sm text-slate-700 sm:grid-cols-2">
+                                {sections.detailsEntries.map((item) => (
+                                  <p key={item.label}><span className="text-slate-500">{item.label}:</span> {item.value}</p>
+                                ))}
+                              </div>
+                            </div>
+                          ) : null}
+
+                          {sections.partnerEntries.length ? (
+                            <div data-testid="person-profile-partner-preferences" className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                              <p className="font-semibold text-slate-900">{t('matchmakingPage.form.sections.partnerPreferences')}</p>
+                              <div className="mt-3 grid grid-cols-1 gap-2 text-sm text-slate-700 sm:grid-cols-2">
+                                {sections.partnerEntries.map((item) => (
+                                  <p key={item.label}><span className="text-slate-500">{item.label}:</span> {item.value}</p>
+                                ))}
+                              </div>
+                            </div>
+                          ) : null}
+                        </>
+                      );
+                    })()}
+
+                    {safeStr(personProfileModal.profile?.about) ? (
+                      <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm text-slate-800">
+                        <p className="font-semibold text-slate-900">{t('myInfo.fields.about')}</p>
+                        <p className="mt-1 whitespace-pre-wrap">{personProfileModal.profile.about}</p>
+                      </div>
+                    ) : null}
+
+                    {safeStr(personProfileModal.profile?.expectations) ? (
+                      <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm text-slate-800">
+                        <p className="font-semibold text-slate-900">{t('myInfo.fields.expectations')}</p>
+                        <p className="mt-1 whitespace-pre-wrap">{personProfileModal.profile.expectations}</p>
+                      </div>
+                    ) : null}
+                  </div>
+                ) : null}
+              </div>
+            </div>
+          </div>
+        ) : null}
+
         {shortModal.open ? (
           <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 p-4 pt-6 overflow-y-auto" role="dialog" aria-modal="true">
-            <div className="w-full max-w-lg rounded-xl bg-white shadow-xl max-h-[85vh] flex flex-col">
+            <div className="w-full max-w-lg rounded-xl bg-white text-slate-900 shadow-xl max-h-[85vh] flex flex-col">
               <div className="flex items-center justify-between border-b border-slate-200 p-4 shrink-0">
                 <div className="min-w-0 flex items-center gap-3">
                   {shortOtherPhoto ? (

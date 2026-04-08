@@ -13,11 +13,96 @@ import { normalizePhoneForWhatsApp } from '../../utils/phone';
 import { translateStudioApiError } from '../../utils/studioErrorI18n';
 import StudioBottomNav from '../../components/studio/StudioBottomNav';
 import { isTutorialActive } from '../../utils/tutorialState.js';
-import { hasMinimumMatchmakingProfileInUserDoc } from '../../utils/matchmakingProfileCompletion';
+import {
+  hasAnyMatchmakingPhotoInApplicationDoc,
+  hasAnyStoredMatchmakingPhotoInApplicationDoc,
+  hasAnyMatchmakingPhotoInUserDoc,
+  hasAnyMatchmakingProfileInApplicationDoc,
+  hasAnyMatchmakingProfileInUserDoc,
+  hasMinimumMatchmakingProfileInUserDoc,
+} from '../../utils/matchmakingProfileCompletion';
 
 function safeStr(v) {
   return typeof v === 'string' ? v.trim() : '';
 }
+
+function safeObj(v) {
+  return v && typeof v === 'object' && !Array.isArray(v) ? v : {};
+}
+
+function extractSharedContactsFromMessage(message) {
+  const contact = safeObj(message?.contact);
+  const createdAtMs = typeof message?.createdAtMs === 'number' && Number.isFinite(message.createdAtMs) ? message.createdAtMs : 0;
+  const items = [];
+
+  const sharedByUid = safeStr(contact?.sharedByUid);
+  const sharedWhatsapp = safeStr(contact?.sharedWhatsapp);
+  if (sharedByUid && sharedWhatsapp) {
+    items.push({ userId: sharedByUid, whatsapp: sharedWhatsapp, createdAtMs, messageId: safeStr(message?.id) });
+    return items;
+  }
+
+  const aUserId = safeStr(contact?.aUserId);
+  const aWhatsapp = safeStr(contact?.aWhatsapp);
+  const bUserId = safeStr(contact?.bUserId);
+  const bWhatsapp = safeStr(contact?.bWhatsapp);
+
+  if (aUserId && aWhatsapp) items.push({ userId: aUserId, whatsapp: aWhatsapp, createdAtMs, messageId: safeStr(message?.id) });
+  if (bUserId && bWhatsapp) items.push({ userId: bUserId, whatsapp: bWhatsapp, createdAtMs, messageId: safeStr(message?.id) });
+  return items;
+}
+
+function messageDayKeyUtc(ms) {
+  if (!ms || !Number.isFinite(ms)) return '';
+  try {
+    return new Date(ms).toISOString().slice(0, 10);
+  } catch {
+    return '';
+  }
+}
+
+function getContactShareActivityStats(messages, userIds) {
+  const participants = Array.isArray(userIds) ? userIds.map((x) => safeStr(x)).filter(Boolean).slice(0, 2) : [];
+  const perUserMessageCount = Object.fromEntries(participants.map((id) => [id, 0]));
+  const perDayByUid = {};
+
+  (Array.isArray(messages) ? messages : []).forEach((message) => {
+    if (safeStr(message?.type) === 'system') return;
+    const senderUid = safeStr(message?.userId);
+    if (!participants.includes(senderUid)) return;
+    const text = safeStr(message?.text);
+    if (!text) return;
+    const createdAtMs = typeof message?.createdAtMs === 'number' && Number.isFinite(message.createdAtMs) ? message.createdAtMs : 0;
+    if (!createdAtMs) return;
+
+    perUserMessageCount[senderUid] = (typeof perUserMessageCount[senderUid] === 'number' ? perUserMessageCount[senderUid] : 0) + 1;
+
+    const dayKey = messageDayKeyUtc(createdAtMs);
+    if (!dayKey) return;
+    if (!perDayByUid[dayKey]) {
+      perDayByUid[dayKey] = Object.fromEntries(participants.map((id) => [id, 0]));
+    }
+    perDayByUid[dayKey][senderUid] += 1;
+  });
+
+  const participantDayCount = Object.values(perDayByUid).filter((dayCounts) => participants.every((id) => (dayCounts?.[id] || 0) > 0)).length;
+  const minMessagesPerUser = 5;
+  const minParticipantDays = 2;
+  const eligible =
+    participants.length === 2 &&
+    participantDayCount >= minParticipantDays &&
+    participants.every((id) => (perUserMessageCount?.[id] || 0) >= minMessagesPerUser);
+
+  return {
+    eligible,
+    participantDayCount,
+    minParticipantDays,
+    minMessagesPerUser,
+    perUserMessageCount,
+  };
+}
+
+const OPEN_CHAT_MODEL = true;
 
 function isMinimumProfileCompleteFromUserDoc(d) {
   return hasMinimumMatchmakingProfileInUserDoc(d);
@@ -48,11 +133,12 @@ export default function StudioChat() {
 
   const [match, setMatch] = useState(null);
   const [matchLoading, setMatchLoading] = useState(true);
-  const [myLock, setMyLock] = useState({ active: false, matchId: '' });
   const [myProfileComplete, setMyProfileComplete] = useState(true);
   const [myMembership, setMyMembership] = useState({ active: false });
   const [myHasAnyPhoto, setMyHasAnyPhoto] = useState(null);
   const [myHasAnyApplication, setMyHasAnyApplication] = useState(null);
+  const [myHasAnyPhotoFromUserDoc, setMyHasAnyPhotoFromUserDoc] = useState(null);
+  const [myHasAnyApplicationFromUserDoc, setMyHasAnyApplicationFromUserDoc] = useState(null);
   const [paywallNotice, setPaywallNotice] = useState('');
   const [profileGateNotice, setProfileGateNotice] = useState('');
   const [messages, setMessages] = useState([]);
@@ -67,6 +153,8 @@ export default function StudioChat() {
   const [confirmState, setConfirmState] = useState({ loading: false, error: '' });
   const [contactRequestState, setContactRequestState] = useState({ loading: false, error: '' });
   const [contactApproveState, setContactApproveState] = useState({ loading: false, error: '' });
+  const [contactContinueState, setContactContinueState] = useState({ loading: false, error: '' });
+  const [blockState, setBlockState] = useState({ loading: false, error: '' });
   const [cancelState, setCancelState] = useState({ loading: false, error: '' });
 
   const scrollRef = useRef(null);
@@ -133,15 +221,23 @@ export default function StudioChat() {
     }
   };
 
+  const effectiveHasAnyApplication = useMemo(() => {
+    if (myHasAnyApplication === true || myHasAnyApplicationFromUserDoc === true) return true;
+    if (myHasAnyApplication === false && myHasAnyApplicationFromUserDoc === false) return false;
+    return myHasAnyApplication ?? myHasAnyApplicationFromUserDoc;
+  }, [myHasAnyApplication, myHasAnyApplicationFromUserDoc]);
+
+  const effectiveHasAnyPhoto = useMemo(() => {
+    if (myHasAnyPhoto === true || myHasAnyPhotoFromUserDoc === true) return true;
+    if (myHasAnyPhoto === false && myHasAnyPhotoFromUserDoc === false) return false;
+    return myHasAnyPhoto ?? myHasAnyPhotoFromUserDoc;
+  }, [myHasAnyPhoto, myHasAnyPhotoFromUserDoc]);
+
   const profileGateMode = useMemo(() => {
-    if (myHasAnyApplication === false) return 'application';
-    if (myHasAnyApplication === true) {
-      if (myHasAnyPhoto === false) return 'photo';
-      if (myHasAnyPhoto === null && myProfileComplete === false) return '';
-      if (myProfileComplete === false) return 'application';
-    }
+    if (effectiveHasAnyApplication === false) return 'application';
+    if (effectiveHasAnyApplication === true && effectiveHasAnyPhoto === false) return 'photo';
     return '';
-  }, [myHasAnyApplication, myHasAnyPhoto, myProfileComplete]);
+  }, [effectiveHasAnyApplication, effectiveHasAnyPhoto]);
 
   const profileGateCta = useMemo(() => {
     if (profileGateMode === 'photo') return t('studio.profileGate.photoCta');
@@ -228,11 +324,6 @@ export default function StudioChat() {
         if (cancelled) return;
         const d = snap?.exists?.() ? snap.data() || {} : {};
 
-        const lock = d?.matchmakingLock && typeof d.matchmakingLock === 'object' ? d.matchmakingLock : null;
-        const active = !!lock?.active;
-        const matchId = typeof lock?.matchId === 'string' ? String(lock.matchId).trim() : '';
-        setMyLock({ active, matchId });
-
         const membershipObj = d?.membership && typeof d.membership === 'object' ? d.membership : null;
         const membershipValidUntilMs = asMs(membershipObj?.validUntilMs);
         const now = Date.now();
@@ -242,6 +333,8 @@ export default function StudioChat() {
         setMyMembership({ active: membershipActive });
 
         setMyProfileComplete(isMinimumProfileCompleteFromUserDoc(d));
+        setMyHasAnyApplicationFromUserDoc(hasAnyMatchmakingProfileInUserDoc(d));
+        setMyHasAnyPhotoFromUserDoc(hasAnyMatchmakingPhotoInUserDoc(d));
 
         setMyCommLanguage(String(d?.details?.communicationLanguage || '').trim());
       } catch {
@@ -253,11 +346,6 @@ export default function StudioChat() {
       ref,
       (snap) => {
         const d = snap.exists() ? snap.data() || {} : {};
-        const lock = d?.matchmakingLock && typeof d.matchmakingLock === 'object' ? d.matchmakingLock : null;
-        const active = !!lock?.active;
-        const matchId = typeof lock?.matchId === 'string' ? String(lock.matchId).trim() : '';
-        setMyLock({ active, matchId });
-
         const membershipObj = d?.membership && typeof d.membership === 'object' ? d.membership : null;
         const membershipValidUntilMs = asMs(membershipObj?.validUntilMs);
         const now = Date.now();
@@ -267,15 +355,18 @@ export default function StudioChat() {
         setMyMembership({ active: membershipActive });
 
         setMyProfileComplete(isMinimumProfileCompleteFromUserDoc(d));
+        setMyHasAnyApplicationFromUserDoc(hasAnyMatchmakingProfileInUserDoc(d));
+        setMyHasAnyPhotoFromUserDoc(hasAnyMatchmakingPhotoInUserDoc(d));
 
         setMyCommLanguage(String(d?.details?.communicationLanguage || '').trim());
       },
       () => {
-        setMyLock({ active: false, matchId: '' });
         setMyProfileComplete(true);
         setMyMembership({ active: false });
         setMyHasAnyPhoto(null);
         setMyHasAnyApplication(null);
+        setMyHasAnyPhotoFromUserDoc(null);
+        setMyHasAnyApplicationFromUserDoc(null);
         setMyCommLanguage('');
       }
     );
@@ -294,6 +385,8 @@ export default function StudioChat() {
     if (!uid) {
       setMyHasAnyPhoto(null);
       setMyHasAnyApplication(null);
+      setMyHasAnyPhotoFromUserDoc(null);
+      setMyHasAnyApplicationFromUserDoc(null);
       return;
     }
 
@@ -302,12 +395,12 @@ export default function StudioChat() {
         const ids = [];
         let hasPhoto = false;
         snap.forEach((d) => {
-          const id = safeStr(d?.id);
-          if (id) ids.push(id);
-          if (hasPhoto) return;
           const data = typeof d?.data === 'function' ? d.data() || {} : d?.data || {};
-          const urls = Array.isArray(data?.photoUrls) ? data.photoUrls : [];
-          if (urls.some((u) => safeStr(u))) hasPhoto = true;
+          if (hasAnyMatchmakingProfileInApplicationDoc(data)) {
+            const id = safeStr(d?.id);
+            if (id) ids.push(id);
+          }
+          if (hasAnyStoredMatchmakingPhotoInApplicationDoc(data)) hasPhoto = true;
         });
         return { ids, hasPhoto };
       } catch {
@@ -533,6 +626,15 @@ export default function StudioChat() {
     const contactShare = match?.contactShare && typeof match.contactShare === 'object' ? match.contactShare : null;
     const contactStatus = contactShare ? String(contactShare?.status || '').trim() : '';
     const requestedByUid = contactShare ? String(contactShare?.requestedByUid || '').trim() : '';
+    const userIds = Array.isArray(match?.userIds) ? match.userIds.map(String).filter(Boolean) : [];
+    const otherUid = userIds.find((x) => x && x !== uid) || '';
+    const sharedByUid = safeObj(contactShare?.sharedByUid);
+    const continueChatByUid = safeObj(contactShare?.continueChatByUid);
+    const legacyApproved = contactStatus === 'approved';
+    const myShared = legacyApproved || !!safeStr(sharedByUid?.[uid]?.whatsapp);
+    const otherShared = legacyApproved || !!safeStr(sharedByUid?.[otherUid]?.whatsapp);
+    const myContinue = !!continueChatByUid?.[uid];
+    const otherContinue = !!continueChatByUid?.[otherUid];
 
     const h = Math.floor(remainingMs / 3600000);
     const m = Math.floor((remainingMs % 3600000) / 60000);
@@ -551,39 +653,74 @@ export default function StudioChat() {
       isConfirmed: confirmedAtMs > 0,
       contactStatus,
       requestedByUid,
+      otherUid,
+      myShared,
+      otherShared,
+      myContinue,
+      otherContinue,
     };
   }, [match, uid]);
 
   const contactInfo = useMemo(() => {
-    const list = Array.isArray(messages) ? messages : [];
-    const shared = list
-      .filter((m) => m?.type === 'system' && String(m?.systemType || '') === 'contact_shared')
-      .slice(-1)[0];
-
-    const c = shared?.contact && typeof shared.contact === 'object' ? shared.contact : null;
-    if (!c) return null;
-
-    const aUserId = String(c?.aUserId || '').trim();
-    const bUserId = String(c?.bUserId || '').trim();
-    const aWhatsapp = String(c?.aWhatsapp || '').trim();
-    const bWhatsapp = String(c?.bWhatsapp || '').trim();
-
-    const otherUid = Array.isArray(match?.userIds) ? match.userIds.map(String).find((x) => x && x !== uid) : '';
-
-    let otherWhatsapp = '';
-    if (otherUid) {
-      if (otherUid === aUserId) otherWhatsapp = aWhatsapp;
-      if (otherUid === bUserId) otherWhatsapp = bWhatsapp;
-    }
-
-    const otherDigits = normalizePhoneForWhatsApp(otherWhatsapp);
-    return {
-      otherUid,
-      otherWhatsapp,
-      otherDigits,
-      otherWaUrl: otherDigits ? `https://wa.me/${otherDigits}` : '',
+    const byUid = {};
+    const setEntry = (userId, whatsapp, createdAtMs = 0, source = '') => {
+      const cleanUid = safeStr(userId);
+      const cleanWhatsapp = safeStr(whatsapp);
+      if (!cleanUid || !cleanWhatsapp) return;
+      const ts = typeof createdAtMs === 'number' && Number.isFinite(createdAtMs) ? createdAtMs : 0;
+      const prev = byUid?.[cleanUid];
+      if (prev && (prev.createdAtMs || 0) > ts) return;
+      const digits = normalizePhoneForWhatsApp(cleanWhatsapp);
+      byUid[cleanUid] = {
+        userId: cleanUid,
+        whatsapp: cleanWhatsapp,
+        digits,
+        waUrl: digits ? `https://wa.me/${digits}` : '',
+        createdAtMs: ts,
+        source,
+      };
     };
-  }, [match?.userIds, messages, uid]);
+
+    (Array.isArray(messages) ? messages : [])
+      .filter((m) => m?.type === 'system' && safeStr(m?.systemType) === 'contact_shared')
+      .forEach((m) => {
+        extractSharedContactsFromMessage(m).forEach((entry) => {
+          setEntry(entry.userId, entry.whatsapp, entry.createdAtMs, 'message');
+        });
+      });
+
+    const sharedByUid = safeObj(match?.contactShare?.sharedByUid);
+    Object.entries(sharedByUid).forEach(([userId, rawEntry]) => {
+      const entry = safeObj(rawEntry);
+      setEntry(userId, entry?.whatsapp, entry?.sharedAtMs, 'match');
+    });
+
+    const userIds = Array.isArray(match?.userIds) ? match.userIds.map(String).filter(Boolean) : [];
+    const otherUid = userIds.find((x) => x && x !== uid) || '';
+
+    return {
+      byUid,
+      otherUid,
+      myEntry: uid ? byUid?.[uid] || null : null,
+      otherEntry: otherUid ? byUid?.[otherUid] || null : null,
+    };
+  }, [match?.contactShare, match?.userIds, messages, uid]);
+
+  const contactActivity = useMemo(
+    () => getContactShareActivityStats(messages, Array.isArray(match?.userIds) ? match.userIds : []),
+    [match?.userIds, messages]
+  );
+
+  const actionOtherUid = contactInfo?.otherUid || lockInfo.otherUid || '';
+
+  const complaintHref = useMemo(() => {
+    const params = new URLSearchParams();
+    params.set('kind', 'complaint');
+    if (mid) params.set('matchId', mid);
+    params.set('step', 'contact_share');
+    if (actionOtherUid) params.set('aboutUserId', actionOtherUid);
+    return `/profilim/destek?${params.toString()}`;
+  }, [actionOtherUid, mid]);
 
   const matchStatus = String(match?.status || '').trim();
   const isParticipant = useMemo(() => {
@@ -596,13 +733,17 @@ export default function StudioChat() {
     return arr.includes(uid);
   }, [match, uid]);
 
-  const chatStatusAllowed = matchStatus === 'proposed' || matchStatus === 'mutual_accepted' || matchStatus === 'contact_unlocked';
-  const lockedToOtherMatch = !!myLock?.active && !!myLock?.matchId && myLock.matchId !== mid;
-  const isActiveMatchForMe = !!myLock?.active && !!myLock?.matchId && myLock.matchId === mid;
+  const chatStatusAllowed =
+    matchStatus === 'proposed' ||
+    matchStatus === 'mutual_interest' ||
+    matchStatus === 'mutual_accepted' ||
+    matchStatus === 'contact_unlocked';
+  const isActiveMatchForMe = isParticipant && (matchStatus === 'mutual_accepted' || matchStatus === 'contact_unlocked');
 
-  // Kural: sadece aktif eşleşmesi bu match olan kişiler uzun sohbet yapabilir.
-  const longChatAllowed = isParticipant && isActiveMatchForMe && (matchStatus === 'mutual_accepted' || matchStatus === 'contact_unlocked');
-  const shortChatAllowed = isParticipant && chatStatusAllowed && !longChatAllowed;
+  const longChatAllowed = OPEN_CHAT_MODEL
+    ? isParticipant && chatStatusAllowed
+    : isActiveMatchForMe;
+  const shortChatAllowed = OPEN_CHAT_MODEL ? false : isParticipant && chatStatusAllowed && !longChatAllowed;
 
   const shortLimitPerUid = useMemo(() => {
     if (!match) return 5;
@@ -627,29 +768,33 @@ export default function StudioChat() {
   }, [match, matchStatus, uid]);
 
   const shortRemaining = Math.max(0, shortLimitPerUid - shortUsedByMe);
-  const canSend = (longChatAllowed || shortChatAllowed) && !sendState.loading && !!String(sendText || '').trim() && (longChatAllowed || shortRemaining > 0);
+  const canSend =
+    (longChatAllowed || shortChatAllowed) &&
+    !sendState.loading &&
+    !!String(sendText || '').trim() &&
+    (OPEN_CHAT_MODEL || longChatAllowed || shortRemaining > 0);
 
-  const canConfirm = !!uid && !!mid && !confirmState.loading && !!match && String(match?.status || '').trim() === 'mutual_accepted' && lockInfo.unlocked && !lockInfo.myConfirmed;
-  const canRequestContact =
+  const canConfirm =
+    !!uid && !!mid && !confirmState.loading && !!match && (String(match?.status || '').trim() === 'mutual_accepted' || String(match?.status || '').trim() === 'contact_unlocked') && lockInfo.unlocked && !lockInfo.myConfirmed;
+  const canShareMyContact =
     !!uid &&
     !!mid &&
     !contactRequestState.loading &&
     !!match &&
-    String(match?.status || '').trim() === 'mutual_accepted' &&
+    (String(match?.status || '').trim() === 'mutual_accepted' || String(match?.status || '').trim() === 'contact_unlocked') &&
     lockInfo.unlocked &&
     lockInfo.isConfirmed &&
-    (lockInfo.contactStatus === '' || lockInfo.contactStatus === 'none');
-  const canApproveContact =
+    contactActivity.eligible &&
+    !lockInfo.myShared;
+  const canKeepChatOnsite =
     !!uid &&
     !!mid &&
-    !contactApproveState.loading &&
+    !contactContinueState.loading &&
     !!match &&
-    String(match?.status || '').trim() === 'mutual_accepted' &&
+    (String(match?.status || '').trim() === 'mutual_accepted' || String(match?.status || '').trim() === 'contact_unlocked') &&
     lockInfo.unlocked &&
     lockInfo.isConfirmed &&
-    lockInfo.contactStatus === 'pending' &&
-    !!lockInfo.requestedByUid &&
-    lockInfo.requestedByUid !== uid;
+    !lockInfo.myContinue;
 
   const activeCancelByUid = match?.activeCancelByUid && typeof match.activeCancelByUid === 'object' ? match.activeCancelByUid : {};
   const iCancelled = !!(uid && activeCancelByUid?.[uid]);
@@ -852,6 +997,29 @@ export default function StudioChat() {
     }
   };
 
+  const chatReadMarkedRef = useRef('');
+  useEffect(() => {
+    const matchId = String(mid || '').trim();
+    const currentUid = String(uid || '').trim();
+    if (!matchId || !currentUid) return;
+
+    const key = `${currentUid}:${matchId}`;
+    if (chatReadMarkedRef.current === key) return;
+    chatReadMarkedRef.current = key;
+
+    void (async () => {
+      try {
+        await authFetch('/api/matchmaking-chat-mark-read', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ matchId }),
+        });
+      } catch {
+        // best-effort
+      }
+    })();
+  }, [mid, uid]);
+
   const confirm48h = async () => {
     if (!uid || !mid) return;
     if (confirmState.loading) return;
@@ -885,6 +1053,50 @@ export default function StudioChat() {
     } catch (e) {
       const msg = String(e?.message || '').trim();
       setContactRequestState({ loading: false, error: translateStudioApiError(t, msg) || msg || 'contact_request_failed' });
+    }
+  };
+
+  const keepChatOnsite = async () => {
+    if (!uid || !mid) return;
+    if (contactContinueState.loading) return;
+
+    setContactContinueState({ loading: true, error: '' });
+    try {
+      await authFetch('/api/matchmaking-contact-keep-chat', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ matchId: mid }),
+      });
+      setContactContinueState({ loading: false, error: '' });
+    } catch (e) {
+      const msg = String(e?.message || '').trim();
+      setContactContinueState({ loading: false, error: translateStudioApiError(t, msg) || msg || 'contact_keep_chat_failed' });
+    }
+  };
+
+  const blockUser = async () => {
+    if (!uid || !mid || !actionOtherUid) return;
+    if (blockState.loading) return;
+
+    const ok = typeof window !== 'undefined' ? window.confirm(t('studio.chat.lock48h.blockConfirm')) : true;
+    if (!ok) return;
+
+    setBlockState({ loading: true, error: '' });
+    try {
+      await authFetch('/api/matchmaking-block-user', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          targetUid: actionOtherUid,
+          matchId: mid,
+          reason: 'chat_block',
+        }),
+      });
+      setBlockState({ loading: false, error: '' });
+      navigate('/app/messages', { replace: true });
+    } catch (e) {
+      const msg = String(e?.message || '').trim();
+      setBlockState({ loading: false, error: translateStudioApiError(t, msg) || msg || 'block_user_failed' });
     }
   };
 
@@ -974,7 +1186,7 @@ export default function StudioChat() {
           </Link>
         </div>
 
-        <div className="mx-auto max-w-4xl overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+        <div className="mx-auto max-w-4xl overflow-hidden rounded-xl border border-slate-200 bg-white text-slate-900 shadow-sm">
           {/* Header */}
           <div className="flex items-center gap-3 border-b border-slate-200 p-4">
             {otherPhoto ? (
@@ -1028,23 +1240,18 @@ export default function StudioChat() {
           </div>
 
           {/* Kısa mesaj modu bilgilendirme */}
-          {shortChatAllowed ? (
+          {!OPEN_CHAT_MODEL && shortChatAllowed ? (
             <div className="m-4 rounded-lg border border-slate-200 bg-slate-50 p-4 text-slate-900">
               <p className="font-semibold">{t('studio.chat.shortAreaTitle')}</p>
               <p className="mt-1 text-sm text-slate-700">{t('studio.chat.shortAreaDesc')}</p>
               <p className="mt-1 text-sm text-slate-700">
                 {t('studio.chat.shortAreaLimit', { limit: shortLimitPerUid, remaining: shortRemaining })}
               </p>
-              {lockedToOtherMatch ? (
-                <p className="mt-2 text-sm text-slate-600">
-                  {t('studio.chat.otherActiveLock')}
-                </p>
-              ) : null}
             </div>
           ) : null}
 
           {/* Studio tarzı 48h / confirm / contact (sadece aktif eşleşmede anlamlı) */}
-          {longChatAllowed ? (
+          {isActiveMatchForMe && longChatAllowed ? (
             <div className="m-4 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-emerald-900">
               <div className="flex items-start gap-2">
                 <Lock className="mt-0.5 h-4 w-4" />
@@ -1074,6 +1281,21 @@ export default function StudioChat() {
                     </p>
                   ) : null}
 
+                  {lockInfo.unlocked && lockInfo.isConfirmed && !lockInfo.myShared && !contactInfo?.otherEntry && !contactActivity.eligible ? (
+                    <div className="mt-3 rounded-md border border-amber-200 bg-white p-3 text-sm text-amber-900">
+                      <p className="font-semibold">{t('studio.chat.lock48h.activityRuleTitle')}</p>
+                      <p className="mt-1 text-amber-900/80">
+                        {t('studio.chat.lock48h.activityRuleBody', {
+                          days: contactActivity.participantDayCount,
+                          minDays: contactActivity.minParticipantDays,
+                          yourCount: contactActivity.perUserMessageCount?.[uid] || 0,
+                          otherCount: contactActivity.perUserMessageCount?.[lockInfo.otherUid] || 0,
+                          minMessages: contactActivity.minMessagesPerUser,
+                        })}
+                      </p>
+                    </div>
+                  ) : null}
+
                   {/* Compact status */}
                   <div className="mt-2 text-sm text-emerald-900/80 space-y-1">
                     <div>
@@ -1091,8 +1313,16 @@ export default function StudioChat() {
                     <div>
                       {t('studio.chat.lock48h.contactStatusLabel')}{' '}
                       <span className="font-semibold">
-                        {lockInfo.contactStatus === 'approved'
-                          ? t('studio.chat.lock48h.contactStatus.approved')
+                        {lockInfo.myShared && lockInfo.otherShared
+                          ? t('studio.chat.lock48h.contactStatus.bothShared')
+                          : lockInfo.myShared
+                            ? t('studio.chat.lock48h.contactStatus.mineShared')
+                            : contactInfo?.otherEntry
+                              ? t('studio.chat.lock48h.contactStatus.otherShared')
+                              : lockInfo.myContinue
+                                ? t('studio.chat.lock48h.contactStatus.continueChat')
+                                : lockInfo.contactStatus === 'approved'
+                                  ? t('studio.chat.lock48h.contactStatus.approved')
                           : lockInfo.contactStatus === 'pending'
                             ? lockInfo.requestedByUid === uid
                               ? t('studio.chat.lock48h.contactStatus.pendingMine')
@@ -1104,9 +1334,9 @@ export default function StudioChat() {
 
                   {/* Primary action always visible */}
                   <div className="mt-3 flex flex-col sm:flex-row gap-2">
-                    {lockInfo.contactStatus === 'approved' && contactInfo?.otherWaUrl ? (
+                    {contactInfo?.otherEntry?.waUrl ? (
                       <a
-                        href={contactInfo.otherWaUrl}
+                        href={contactInfo.otherEntry.waUrl}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="app-btn app-btn-primary"
@@ -1114,27 +1344,33 @@ export default function StudioChat() {
                         <Share2 className="h-4 w-4" />
                         {t('studio.chat.lock48h.openInWhatsApp')}
                       </a>
-                    ) : canApproveContact ? (
-                      <button
-                        type="button"
-                        onClick={approveContact}
-                        disabled={!canApproveContact}
-                        className="app-btn app-btn-primary disabled:opacity-60"
-                      >
-                        <Share2 className="h-4 w-4" />
-                        {contactApproveState.loading ? t('studio.chat.lock48h.approving') : t('studio.chat.lock48h.approveContact')}
-                      </button>
-                    ) : canRequestContact ? (
+                    ) : null}
+
+                    {canShareMyContact ? (
                       <button
                         type="button"
                         onClick={requestContact}
-                        disabled={!canRequestContact}
+                        disabled={!canShareMyContact}
                         className="app-btn app-btn-primary-light disabled:opacity-60"
                       >
                         <Share2 className="h-4 w-4" />
                         {contactRequestState.loading ? t('studio.chat.lock48h.requesting') : t('studio.chat.lock48h.requestContact')}
                       </button>
-                    ) : (
+                    ) : null}
+
+                    {canKeepChatOnsite ? (
+                      <button
+                        type="button"
+                        onClick={keepChatOnsite}
+                        disabled={!canKeepChatOnsite}
+                        className="app-btn app-btn-outline disabled:opacity-60"
+                      >
+                        <Lock className="h-4 w-4" />
+                        {contactContinueState.loading ? t('studio.chat.lock48h.keepChatSaving') : t('studio.chat.lock48h.keepChat')}
+                      </button>
+                    ) : null}
+
+                    {!contactInfo?.otherEntry?.waUrl && !canShareMyContact && !canKeepChatOnsite && canConfirm ? (
                       <button
                         type="button"
                         onClick={confirm48h}
@@ -1148,7 +1384,24 @@ export default function StudioChat() {
                             ? t('studio.chat.lock48h.confirmed')
                             : t('studio.chat.lock48h.confirm')}
                       </button>
-                    )}
+                    ) : null}
+                  </div>
+
+                  <div className="mt-3 flex flex-col sm:flex-row gap-2">
+                    <Link to={complaintHref} className="app-btn app-btn-outline">
+                      {t('studio.chat.lock48h.reportCta')}
+                    </Link>
+                    {actionOtherUid ? (
+                      <button
+                        type="button"
+                        onClick={blockUser}
+                        disabled={blockState.loading}
+                        className="app-btn app-btn-danger disabled:opacity-60"
+                      >
+                        <X className="h-4 w-4" />
+                        {blockState.loading ? t('studio.chat.lock48h.blocking') : t('studio.chat.lock48h.blockCta')}
+                      </button>
+                    ) : null}
                   </div>
 
                   {/* Details */}
@@ -1164,16 +1417,64 @@ export default function StudioChat() {
                           {t('studio.chat.lock48h.contactRequestError', { error: contactRequestState.error })}
                         </div>
                       ) : null}
+                      {contactContinueState.error ? (
+                        <div className="mt-3 rounded-md border border-rose-200 bg-white p-2 text-sm text-rose-700">
+                          {t('studio.chat.lock48h.keepChatError', { error: contactContinueState.error })}
+                        </div>
+                      ) : null}
                       {contactApproveState.error ? (
                         <div className="mt-3 rounded-md border border-rose-200 bg-white p-2 text-sm text-rose-700">
                           {t('studio.chat.lock48h.contactApproveError', { error: contactApproveState.error })}
                         </div>
                       ) : null}
+                      {blockState.error ? (
+                        <div className="mt-3 rounded-md border border-rose-200 bg-white p-2 text-sm text-rose-700">
+                          {t('studio.chat.lock48h.blockError', { error: blockState.error })}
+                        </div>
+                      ) : null}
 
-                      {lockInfo.contactStatus === 'approved' && contactInfo?.otherDigits ? (
+                      {lockInfo.myShared ? (
+                        <div className="mt-3 rounded-md border border-emerald-200 bg-white p-3 text-sm text-emerald-900">
+                          {t('studio.chat.lock48h.sharedMineHint')}
+                        </div>
+                      ) : null}
+
+                      {lockInfo.myContinue ? (
+                        <div className="mt-3 rounded-md border border-slate-200 bg-white p-3 text-sm text-slate-700">
+                          {t('studio.chat.lock48h.keepChatHint')}
+                        </div>
+                      ) : null}
+
+                      {contactInfo?.otherEntry?.digits ? (
                         <div className="mt-3 rounded-md border border-emerald-200 bg-white p-3 text-sm">
                           <p className="font-semibold text-emerald-800">{t('studio.chat.lock48h.whatsappTitle')}</p>
-                          <p className="mt-1 text-slate-700">{contactInfo.otherWhatsapp || contactInfo.otherDigits}</p>
+                          <p className="mt-1 text-slate-700">{contactInfo.otherEntry.whatsapp || contactInfo.otherEntry.digits}</p>
+                          <p className="mt-2 text-slate-600">{t('studio.chat.lock48h.otherSharedHint')}</p>
+                          <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+                            <a
+                              href={contactInfo.otherEntry.waUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="app-btn app-btn-primary"
+                            >
+                              <Share2 className="h-4 w-4" />
+                              {t('studio.chat.lock48h.openInWhatsApp')}
+                            </a>
+                            <Link to={complaintHref} className="app-btn app-btn-outline">
+                              {t('studio.chat.lock48h.reportCta')}
+                            </Link>
+                            {actionOtherUid ? (
+                              <button
+                                type="button"
+                                onClick={blockUser}
+                                disabled={blockState.loading}
+                                className="app-btn app-btn-danger disabled:opacity-60"
+                              >
+                                <X className="h-4 w-4" />
+                                {blockState.loading ? t('studio.chat.lock48h.blocking') : t('studio.chat.lock48h.blockCta')}
+                              </button>
+                            ) : null}
+                          </div>
                         </div>
                       ) : null}
 
@@ -1237,10 +1538,93 @@ export default function StudioChat() {
                 <p className="mt-2 text-sm text-rose-700">{t('studio.matches.shortModal.translateError', { error: translateState.error })}</p>
               ) : null}
 
+              {contactInfo?.otherEntry?.waUrl ? (
+                <div className="sticky top-0 z-10 mb-3 rounded-xl border border-emerald-200 bg-white/95 p-3 shadow-sm backdrop-blur">
+                  <p className="text-sm font-semibold text-emerald-900">
+                    {t('studio.chat.system.contactSharedOtherTitle', { name: otherName })}
+                  </p>
+                  <p className="mt-1 text-sm text-slate-700">
+                    {t('studio.chat.system.contactSharedOtherBody', { name: otherName })}
+                  </p>
+                  <p className="mt-2 text-sm font-semibold text-slate-900">{contactInfo.otherEntry.whatsapp}</p>
+                  <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+                    <a
+                      href={contactInfo.otherEntry.waUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="app-btn app-btn-primary"
+                    >
+                      <Share2 className="h-4 w-4" />
+                      {t('studio.chat.lock48h.openInWhatsApp')}
+                    </a>
+                    <Link to={complaintHref} className="app-btn app-btn-outline">
+                      {t('studio.chat.lock48h.reportCta')}
+                    </Link>
+                    {actionOtherUid ? (
+                      <button
+                        type="button"
+                        onClick={blockUser}
+                        disabled={blockState.loading}
+                        className="app-btn app-btn-danger disabled:opacity-60"
+                      >
+                        <X className="h-4 w-4" />
+                        {blockState.loading ? t('studio.chat.lock48h.blocking') : t('studio.chat.lock48h.blockCta')}
+                      </button>
+                    ) : null}
+                  </div>
+                  {blockState.error ? <p className="mt-2 text-sm text-rose-700">{t('studio.chat.lock48h.blockError', { error: blockState.error })}</p> : null}
+                </div>
+              ) : null}
+
               <div className="space-y-3">
                 {(Array.isArray(messages) ? messages : []).map((m) => {
+                  const isSystem = safeStr(m?.type) === 'system';
+                  const systemType = safeStr(m?.systemType);
                   const fromMe = !!uid && String(m?.userId || '') === uid;
                   const text = String(m?.text || '').trim();
+
+                  if (isSystem && systemType === 'contact_shared') {
+                    const systemEntries = extractSharedContactsFromMessage(m);
+                    const sharedEntry = systemEntries.find((entry) => safeStr(entry?.userId) === safeStr(m?.userId)) || systemEntries[0] || null;
+                    if (!sharedEntry) return null;
+                    const isMineShared = safeStr(sharedEntry.userId) === uid;
+                    const digits = normalizePhoneForWhatsApp(sharedEntry.whatsapp);
+                    const waUrl = digits ? `https://wa.me/${digits}` : '';
+
+                    return (
+                      <div key={m.id} className="flex justify-center">
+                        <div className="max-w-[88%] rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-950 shadow-sm">
+                          <p className="font-semibold">
+                            {isMineShared
+                              ? t('studio.chat.system.contactSharedMineTitle')
+                              : t('studio.chat.system.contactSharedOtherTitle', { name: otherName })}
+                          </p>
+                          <p className="mt-1 text-emerald-900/80">
+                            {isMineShared
+                              ? t('studio.chat.system.contactSharedMineBody')
+                              : t('studio.chat.system.contactSharedOtherBody', { name: otherName })}
+                          </p>
+                          {!isMineShared && sharedEntry.whatsapp ? (
+                            <>
+                              <p className="mt-2 font-semibold text-slate-900">{sharedEntry.whatsapp}</p>
+                              <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+                                {waUrl ? (
+                                  <a href={waUrl} target="_blank" rel="noopener noreferrer" className="app-btn app-btn-primary">
+                                    <Share2 className="h-4 w-4" />
+                                    {t('studio.chat.lock48h.openInWhatsApp')}
+                                  </a>
+                                ) : null}
+                                <Link to={complaintHref} className="app-btn app-btn-outline">
+                                  {t('studio.chat.lock48h.reportCta')}
+                                </Link>
+                              </div>
+                            </>
+                          ) : null}
+                        </div>
+                      </div>
+                    );
+                  }
+
                   if (!text) return null;
 
                   const translated =
@@ -1302,15 +1686,7 @@ export default function StudioChat() {
             {/* Input */}
             {!(longChatAllowed || shortChatAllowed) ? (
               <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
-                {lockedToOtherMatch ? (
-                  <div className="flex items-start gap-2">
-                    <Lock className="mt-0.5 h-4 w-4" />
-                    <div>
-                      <p className="font-semibold">{t('studio.chat.lockedTitle')}</p>
-                      <p className="mt-1 text-slate-600">{t('studio.chat.lockedBody')}</p>
-                    </div>
-                  </div>
-                ) : !isParticipant ? (
+                {!isParticipant ? (
                   <p>{t('studio.chat.notAllowed')}</p>
                 ) : !chatStatusAllowed ? (
                   <div className="flex items-start gap-2">

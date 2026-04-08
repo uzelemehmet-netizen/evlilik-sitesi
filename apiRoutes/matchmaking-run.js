@@ -1,4 +1,4 @@
-import { getAdmin, normalizeBody, requireCronSecret } from './_firebaseAdmin.js';
+import { getAdmin, isAdminEmail, normalizeBody, requireCronSecret } from './_firebaseAdmin.js';
 import {
   decideAgeGroupExpandCount,
   getAgeGroupMaxExpandFromEnv,
@@ -6,6 +6,7 @@ import {
   getStrictGroupMinCandidatesFromEnv,
   ageGroupDistanceByAges,
 } from './_matchmakingAgePolicy.js';
+import { getBlockedUserIds } from './_matchmakingBlocks.js';
 
 const MIN_AGE = getMinAgeFromEnv();
 
@@ -272,6 +273,16 @@ function normalizeNatCode(v) {
 
 function setHas(list, v) {
   return Array.isArray(list) && v ? list.includes(v) : false;
+}
+
+function isPairBlockedByUsers({ seekerUid, candidateUid, seekerStatus, candidateStatus }) {
+  const a = String(seekerUid || '').trim();
+  const b = String(candidateUid || '').trim();
+  if (!a || !b) return false;
+
+  const seekerBlocked = seekerStatus?.blockedUserIds instanceof Set ? seekerStatus.blockedUserIds : new Set();
+  const candidateBlocked = candidateStatus?.blockedUserIds instanceof Set ? candidateStatus.blockedUserIds : new Set();
+  return seekerBlocked.has(b) || candidateBlocked.has(a);
 }
 
 function ageCompatibleOneWay(seeker, candidate) {
@@ -1108,7 +1119,8 @@ export default async function handler(req, res) {
         const hasFreeSlot = true;
 
         userStatusById.set(d.id, {
-          blocked: !!data.blocked,
+          blocked: !!data.blocked || isAdminEmail(data?.authEmailLower || data?.authEmail),
+          blockedUserIds: new Set(getBlockedUserIds(data)),
           lockActive: !!data?.matchmakingLock?.active,
           lastSeenAtMs: lastSeenMsFromUserDoc(data),
           cooldownUntilMs: 0,
@@ -1266,6 +1278,7 @@ export default async function handler(req, res) {
 
           const candStatus = userStatusById.get(String(cand.userId)) || { blocked: false };
           if (candStatus.blocked) return false;
+          if (isPairBlockedByUsers({ seekerUid: seekerUserId, candidateUid: cand.userId, seekerStatus, candidateStatus: candStatus })) return false;
 
           const candSeen = typeof candStatus?.lastSeenAtMs === 'number' ? candStatus.lastSeenAtMs : 0;
           const candCreatedAtMs = typeof cand?.createdAtMs === 'number' ? cand.createdAtMs : tsToMs(cand?.createdAt);
@@ -1300,6 +1313,7 @@ export default async function handler(req, res) {
 
           const candStatus = userStatusById.get(String(cand.userId)) || { blocked: false };
           if (candStatus.blocked) return false;
+          if (isPairBlockedByUsers({ seekerUid: seekerUserId, candidateUid: cand.userId, seekerStatus, candidateStatus: candStatus })) return false;
 
           const candSeen = typeof candStatus?.lastSeenAtMs === 'number' ? candStatus.lastSeenAtMs : 0;
           const candCreatedAtMs = typeof cand?.createdAtMs === 'number' ? cand.createdAtMs : tsToMs(cand?.createdAt);
@@ -1356,6 +1370,7 @@ export default async function handler(req, res) {
 
             const candStatus = userStatusById.get(String(cand.userId)) || { blocked: false };
             if (candStatus.blocked) return false;
+            if (isPairBlockedByUsers({ seekerUid: seekerUserId, candidateUid: cand.userId, seekerStatus, candidateStatus: candStatus })) return false;
 
             const candSeen = typeof candStatus?.lastSeenAtMs === 'number' ? candStatus.lastSeenAtMs : 0;
             const candCreatedAtMs = typeof cand?.createdAtMs === 'number' ? cand.createdAtMs : tsToMs(cand?.createdAt);
@@ -1385,6 +1400,7 @@ export default async function handler(req, res) {
 
             const candStatus = userStatusById.get(String(cand.userId)) || { blocked: false };
             if (candStatus.blocked) return false;
+            if (isPairBlockedByUsers({ seekerUid: seekerUserId, candidateUid: cand.userId, seekerStatus, candidateStatus: candStatus })) return false;
 
             const candSeen = typeof candStatus?.lastSeenAtMs === 'number' ? candStatus.lastSeenAtMs : 0;
             const candCreatedAtMs = typeof cand?.createdAtMs === 'number' ? cand.createdAtMs : tsToMs(cand?.createdAt);
@@ -1586,6 +1602,7 @@ export default async function handler(req, res) {
 
         const candStatus = userStatusById.get(String(cand.userId)) || { blocked: false };
         if (candStatus.blocked) return false;
+        if (isPairBlockedByUsers({ seekerUid: seekerUserId, candidateUid: cand.userId, seekerStatus, candidateStatus: candStatus })) return false;
 
         const candSeen = typeof candStatus?.lastSeenAtMs === 'number' ? candStatus.lastSeenAtMs : 0;
         const candCreatedAtMs = typeof cand?.createdAtMs === 'number' ? cand.createdAtMs : tsToMs(cand?.createdAt);
@@ -1619,6 +1636,7 @@ export default async function handler(req, res) {
 
         const candStatus = userStatusById.get(String(cand.userId)) || { blocked: false };
         if (candStatus.blocked) return false;
+        if (isPairBlockedByUsers({ seekerUid: seekerUserId, candidateUid: cand.userId, seekerStatus, candidateStatus: candStatus })) return false;
 
         const candSeen = typeof candStatus?.lastSeenAtMs === 'number' ? candStatus.lastSeenAtMs : 0;
         const candCreatedAtMs = typeof cand?.createdAtMs === 'number' ? cand.createdAtMs : tsToMs(cand?.createdAt);
@@ -1711,6 +1729,7 @@ export default async function handler(req, res) {
 
           const candStatus = userStatusById.get(String(cand.userId)) || { blocked: false };
           if (candStatus.blocked) return false;
+          if (isPairBlockedByUsers({ seekerUid: seekerUserId, candidateUid: cand.userId, seekerStatus, candidateStatus: candStatus })) return false;
 
           const candSeen = typeof candStatus?.lastSeenAtMs === 'number' ? candStatus.lastSeenAtMs : 0;
           const candCreatedAtMs = typeof cand?.createdAtMs === 'number' ? cand.createdAtMs : tsToMs(cand?.createdAt);

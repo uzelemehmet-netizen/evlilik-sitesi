@@ -2,6 +2,7 @@ import { getAdmin, normalizeBody, requireIdToken } from './_firebaseAdmin.js';
 import { ensureEligibleOrThrow, ensureProfileCompleteOrThrow } from './_matchmakingEligibility.js';
 import { sendPushToUid } from './_push.js';
 import { fetchMatchmakingApplicationsByUid } from './_matchmakingApplications.js';
+import { isEitherUserBlocked } from './_matchmakingBlocks.js';
 
 function safeStr(v) {
   return typeof v === 'string' ? v.trim() : '';
@@ -128,7 +129,7 @@ function pickBestNonStubApplication(items) {
     .sort((x, y) => y.score - x.score);
 
   const bestNonStub = scored.find((x) => !x.isStub) || null;
-  return (bestNonStub || scored[0] || null) ? (bestNonStub ? bestNonStub.a : scored[0].a) : null;
+  return bestNonStub ? bestNonStub.a : null;
 }
 
 function ageRangeFromApp(app, { ageOverride = null } = {}) {
@@ -257,6 +258,21 @@ export default async function handler(req, res) {
       fetchMatchmakingApplicationsByUid(db, targetUid, { limit: 10 }),
     ]);
 
+    const [myUserSnap, targetUserSnap] = await Promise.all([
+      db.collection('matchmakingUsers').doc(uid).get(),
+      db.collection('matchmakingUsers').doc(targetUid).get(),
+    ]);
+
+    const myUser = myUserSnap.exists ? (myUserSnap.data() || {}) : {};
+    const targetUser = targetUserSnap.exists ? (targetUserSnap.data() || {}) : {};
+
+    if (isEitherUserBlocked({ aUserDoc: myUser, aUid: uid, bUserDoc: targetUser, bUid: targetUid })) {
+      res.statusCode = 403;
+      res.setHeader('content-type', 'application/json');
+      res.end(JSON.stringify({ ok: false, error: 'blocked_user_pair' }));
+      return;
+    }
+
     const myApp = pickBestNonStubApplication(myApps);
     const targetApp = pickBestNonStubApplication(targetApps);
 
@@ -270,10 +286,8 @@ export default async function handler(req, res) {
     // Etkileşim kuralı: profil detay izni istemek bir aksiyon sayılır.
     // Alıcı için eligibility zorlamıyoruz; sadece göndereni kontrol ediyoruz.
     try {
-      const meUserSnap = await db.collection('matchmakingUsers').doc(uid).get();
-      const meUser = meUserSnap.exists ? (meUserSnap.data() || {}) : {};
       await ensureProfileCompleteOrThrow(db, uid);
-      ensureEligibleOrThrow(meUser, safeStr(myApp?.gender));
+      ensureEligibleOrThrow(myUser, safeStr(myApp?.gender));
     } catch (e2) {
       res.statusCode = e2?.statusCode || 402;
       res.setHeader('content-type', 'application/json');

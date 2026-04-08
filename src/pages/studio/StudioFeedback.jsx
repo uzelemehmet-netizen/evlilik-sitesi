@@ -24,6 +24,7 @@ export default function StudioFeedback() {
 
   const [kind, setKind] = useState(safeStr(query.get('kind')) || 'bug');
   const [matchId, setMatchId] = useState(safeStr(query.get('matchId')));
+  const [aboutUserId] = useState(safeStr(query.get('aboutUserId')));
   const [step, setStep] = useState(safeStr(query.get('step')));
   const [message, setMessage] = useState('');
 
@@ -76,6 +77,7 @@ export default function StudioFeedback() {
         kind,
         message: message.trim(),
         matchId: matchId.trim() || undefined,
+        aboutUserId: aboutUserId.trim() || undefined,
         step: step.trim() || undefined,
         pagePath: window.location?.pathname || '',
         attachments: attachment ? [attachment] : [],
@@ -88,13 +90,12 @@ export default function StudioFeedback() {
         },
       };
 
-      const res = await authFetch('/api/matchmaking-feedback-submit', {
+      const data = await authFetch('/api/matchmaking-feedback-submit', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify(payload),
       });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok || !data?.ok) {
+      if (!data?.ok) {
         throw new Error(String(data?.error || 'submit_failed'));
       }
 

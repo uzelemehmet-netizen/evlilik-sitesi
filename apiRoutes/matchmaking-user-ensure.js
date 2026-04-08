@@ -1,5 +1,5 @@
 import { getAdmin, normalizeBody, requireIdToken } from './_firebaseAdmin.js';
-import { normalizeGender } from './_matchmakingEligibility.js';
+import { normalizeGender, resolveLookingForGender } from './_matchmakingEligibility.js';
 
 function safeStr(v) {
   return typeof v === 'string' ? v.trim() : '';
@@ -13,8 +13,8 @@ function normalizeAge(v) {
   return n;
 }
 
-function normalizeLookingForGender(v) {
-  return normalizeGender(v);
+function normalizeLookingForGender(v, gender) {
+  return resolveLookingForGender(gender, v);
 }
 
 export default async function handler(req, res) {
@@ -38,7 +38,7 @@ export default async function handler(req, res) {
     const body = normalizeBody(req);
     const age = normalizeAge(body?.age);
     const gender = normalizeGender(body?.gender);
-    const lookingForGender = normalizeLookingForGender(body?.lookingForGender);
+    const lookingForGender = normalizeLookingForGender(body?.lookingForGender, gender);
     const authEmail = safeStr(decoded?.email).toLowerCase();
     const displayName = safeStr(decoded?.name);
     const authProvider = safeStr(decoded?.firebase?.sign_in_provider).toLowerCase();
@@ -56,7 +56,7 @@ export default async function handler(req, res) {
       const existingAge = typeof data?.age === 'number' && Number.isFinite(data.age) ? data.age : null;
 
       const existingGender = normalizeGender(data?.gender);
-      const existingLookingFor = normalizeLookingForGender(data?.lookingForGender);
+      const existingLookingFor = normalizeLookingForGender(data?.lookingForGender, existingGender || gender);
       const existingAuthEmail = safeStr(data?.authEmail).toLowerCase();
       const existingDisplayName = safeStr(data?.displayName);
       const existingAuthProvider = safeStr(data?.authProvider).toLowerCase();

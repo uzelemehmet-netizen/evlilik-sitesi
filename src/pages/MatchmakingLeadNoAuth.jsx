@@ -1,10 +1,12 @@
 import Navigation from '../components/Navigation';
 import Footer from '../components/Footer';
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { Download } from 'lucide-react';
 import { uploadImageToCloudinaryAuto } from '../utils/cloudinaryUpload';
 import { useTranslation } from 'react-i18next';
 import { ensureI18nLanguageLoaded, normalizeLang } from '../i18n.js';
 import { useNavigate } from 'react-router-dom';
+import { APP_INSTALL_PATH, getAppInstallLinkUi } from '../utils/appInstallLink';
 
 function safeStr(v) {
   return typeof v === 'string' ? v.trim() : '';
@@ -26,9 +28,30 @@ const WORK_STATUS_OPTIONS = [
   { value: 'not_working', labelKey: 'leadNoAuth.options.workStatus.notWorking' },
 ];
 
+function getLeadTrustUi(lang) {
+  const copy = {
+    tr: {
+      whatsappPrivacy: 'WhatsApp numaraniz tamamen gizli tutulur, baska kullanicilara gosterilmez. Gerektiginde size ulasabilmemiz icin sistem tarafindan saklanir.',
+      photoPrivacy: 'Fotograf alani zorunludur. Dilerseniz daha sonra profilinizden fotograf gorunurlugunu kapatabilirsiniz.',
+    },
+    en: {
+      whatsappPrivacy: 'Your WhatsApp number is kept completely private and is not shown to other users. It is stored by the system so we can reach you when necessary.',
+      photoPrivacy: 'This field is required. If you want, you can later turn off photo visibility from your profile.',
+    },
+    id: {
+      whatsappPrivacy: 'Nomor WhatsApp Anda disimpan sepenuhnya rahasia dan tidak ditampilkan ke pengguna lain. Nomor ini disimpan oleh sistem agar kami bisa menghubungi Anda bila diperlukan.',
+      photoPrivacy: 'Kolom foto wajib diisi. Jika mau, nanti Anda bisa mematikan visibilitas foto dari profil Anda.',
+    },
+  };
+
+  return copy[normalizeLang(lang) || 'tr'] || copy.tr;
+}
+
 export default function MatchmakingLeadNoAuth() {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
+  const installLinkUi = getAppInstallLinkUi(i18n?.language);
+  const trustUi = getLeadTrustUi(i18n?.language);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState('');
   const [successId, setSuccessId] = useState('');
@@ -43,6 +66,18 @@ export default function MatchmakingLeadNoAuth() {
     } catch {
       try {
         window.location.href = to;
+      } catch {
+        // ignore
+      }
+    }
+  };
+
+  const goToInstallTutorial = () => {
+    try {
+      navigate(APP_INSTALL_PATH);
+    } catch {
+      try {
+        window.location.href = APP_INSTALL_PATH;
       } catch {
         // ignore
       }
@@ -359,6 +394,23 @@ export default function MatchmakingLeadNoAuth() {
           <div className="rounded-[24px] border border-slate-200/80 bg-white/72 p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.95),0_14px_34px_rgba(148,163,184,0.08)]">
             <h1 className="text-xl font-bold text-slate-900 md:text-2xl">{t('leadNoAuth.title')}</h1>
             <p className="mt-2 max-w-2xl text-sm leading-relaxed text-slate-600">{t('leadNoAuth.subtitle')}</p>
+
+            <a
+              href={APP_INSTALL_PATH}
+              className="mt-4 flex items-start gap-4 rounded-[22px] border border-emerald-200/80 bg-[linear-gradient(135deg,#ecfdf5,#f0fdf4)] p-4 text-left shadow-[0_14px_34px_rgba(16,185,129,0.10)] transition hover:brightness-105"
+            >
+              <div className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-emerald-600 text-white shadow-[0_14px_28px_rgba(5,150,105,0.24)]">
+                <Download size={18} />
+              </div>
+              <div className="flex-1">
+                <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-emerald-700">{installLinkUi.eyebrow}</div>
+                <div className="mt-1 text-base font-semibold text-slate-900">{installLinkUi.title}</div>
+                <div className="mt-1 text-sm leading-relaxed text-slate-600">{installLinkUi.leadBody}</div>
+                <div className="mt-3 inline-flex items-center rounded-xl bg-slate-950 px-4 py-2 text-xs font-semibold text-white">
+                  {installLinkUi.cta}
+                </div>
+              </div>
+            </a>
           </div>
 
           <div className="mt-6 grid grid-cols-1 gap-4 rounded-[26px] border border-slate-200/80 bg-white/72 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.95),0_20px_60px_rgba(148,163,184,0.12)] backdrop-blur-sm md:p-5">
@@ -455,6 +507,7 @@ export default function MatchmakingLeadNoAuth() {
                 onChange={(e) => set('whatsapp', e.target.value)}
                 disabled={disabled}
               />
+              <div className="mt-2 text-xs leading-relaxed text-slate-600">{trustUi.whatsappPrivacy}</div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -515,7 +568,7 @@ export default function MatchmakingLeadNoAuth() {
                 </div>
 
                 <div className="mt-3">
-                  <label className="text-sm font-semibold text-slate-900">{t('leadNoAuth.children.livingWith')}</label>
+                  <label className="text-sm font-semibold text-slate-900">{t('matchmakingPage.form.labels.childrenLivingSituation')}</label>
                   <select
                     className="mt-1 w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white"
                     value={form.childrenLivingWith}
@@ -523,8 +576,8 @@ export default function MatchmakingLeadNoAuth() {
                     disabled={disabled}
                   >
                     <option value="">{t('leadNoAuth.common.select')}</option>
-                    <option value="with_me">{t('leadNoAuth.options.childrenLivingWith.withMe')}</option>
-                    <option value="not_with_me">{t('leadNoAuth.options.childrenLivingWith.notWithMe')}</option>
+                    <option value="with_me">{t('matchmakingPage.form.options.childrenLivingSituation.withChildren')}</option>
+                    <option value="not_with_me">{t('matchmakingPage.form.options.childrenLivingSituation.separate')}</option>
                   </select>
                 </div>
               </div>
@@ -707,6 +760,7 @@ export default function MatchmakingLeadNoAuth() {
                 <div>
                   <div className="text-sm font-semibold text-slate-900">{t('leadNoAuth.fields.photo')} *</div>
                   <div className="text-xs text-slate-600">{t('leadNoAuth.photoNote')}</div>
+                  <div className="mt-1 text-xs leading-relaxed text-slate-600">{trustUi.photoPrivacy}</div>
                 </div>
                 <label
                   className={`inline-flex items-center gap-2 text-xs font-semibold ${disabled || (Array.isArray(photoState.items) && photoState.items.length >= 5) ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'} text-slate-700`}
@@ -740,7 +794,7 @@ export default function MatchmakingLeadNoAuth() {
                       <div key={`${it?.url || 'photo'}_${idx}`} className="relative">
                         <img
                           src={it?.url}
-                          alt={`Yüklenen fotoğraf ${idx + 1}`}
+                          alt={t('leadNoAuth.photo.uploadedAlt', { index: idx + 1 })}
                           className="w-full aspect-square object-cover rounded-lg border"
                         />
                         <button
@@ -748,7 +802,7 @@ export default function MatchmakingLeadNoAuth() {
                           onClick={() => removePhotoAt(idx)}
                           disabled={disabled}
                           className="absolute -top-2 -right-2 w-6 h-6 rounded-full border border-slate-200 bg-white text-slate-700 text-xs font-bold hover:bg-slate-50 disabled:opacity-60"
-                          title="Kaldır"
+                          title={t('leadNoAuth.actions.remove')}
                         >
                           ×
                         </button>
@@ -949,6 +1003,13 @@ export default function MatchmakingLeadNoAuth() {
               </div>
 
               <div className="mt-4 flex items-center justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={goToInstallTutorial}
+                  className="app-btn app-btn-soft"
+                >
+                  {installLinkUi.cta}
+                </button>
                 <button
                   ref={successDoneRef}
                   type="button"

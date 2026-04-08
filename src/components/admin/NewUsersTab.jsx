@@ -5,12 +5,15 @@ import { collection, doc, getDoc, limit, onSnapshot, orderBy, query, Timestamp, 
 import { db } from '../../config/firebaseDb';
 import { storage } from '../../config/firebaseStorage';
 import { formatProfileCode } from '../../utils/profileCode';
+import { getDraftFieldLabel, getDraftProgressInfo } from '../../utils/adminDraftProgress';
 import {
   dedupeAdminNewUsers,
-  getAnyAbout,
+  getAdminNewUserKind,
   hasKnownAccountIdentity,
   pickAccountDisplayName,
   pickAccountEmail,
+  resolveAdminNewUserGender,
+  resolveAdminNewUserUid,
   safeStr,
 } from '../../utils/adminNewUsers';
 
@@ -69,26 +72,19 @@ function getUcCodeFromApplicationDoc(appDoc) {
   return uc;
 }
 
-function isStubAndIncomplete(it) {
-  const isStub = (() => {
-    const src = safeStr(it?.source).toLowerCase();
-    if (src === 'auto_stub') return true;
-    const auto = it?.details && typeof it.details === 'object' ? it.details.autoBootstrap === true : false;
-    return auto;
-  })();
+function getKindLabel(kind) {
+  if (kind === 'filled') return 'Form';
+  if (kind === 'partial') return 'On Kayit';
+  if (kind === 'unknown') return 'Bilinmeyen';
+  return 'Eksik Form';
+}
 
-  const isFormCompleted = (() => {
-    const about = getAnyAbout(it);
-    const expectations = safeStr(it?.expectations) || safeStr(it?.expectationsTr) || safeStr(it?.expectationsId);
-    const wroteOnceMs = typeof it?.profileTextWriteOnceUsedAtMs === 'number' && Number.isFinite(it.profileTextWriteOnceUsedAtMs)
-      ? it.profileTextWriteOnceUsedAtMs
-      : 0;
-    const hasEditOnce = !!it?.userEditOnceUsedAt || wroteOnceMs > 0;
-    // 2026-02: Apply form no longer asks for expectations.
-    return hasEditOnce || !!about || (!!about && !!expectations);
-  })();
-
-  return isStub && !isFormCompleted;
+function getKindPillClass(kind) {
+  const base = 'inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold border';
+  if (kind === 'filled') return `${base} border-emerald-200 bg-emerald-50 text-emerald-900`;
+  if (kind === 'partial') return `${base} border-amber-200 bg-amber-50 text-amber-900`;
+  if (kind === 'unknown') return `${base} border-rose-200 bg-rose-50 text-rose-900`;
+  return `${base} border-slate-200 bg-slate-50 text-slate-800`;
 }
 
 function loadBool(key, fallback = false) {
@@ -228,7 +224,7 @@ function displayUserLabel(it, userDoc = null) {
   const accountEmail = pickAccountEmail(it, userDoc);
   if (accountEmail) return accountEmail;
 
-  if (isStubAndIncomplete(it) && !hasKnownAccountIdentity(it, userDoc)) return 'Bilinmeyen kullanıcı';
+  if (getAdminNewUserKind(it, userDoc) === 'unknown' && !hasKnownAccountIdentity(it, userDoc)) return 'Bilinmeyen kullanıcı';
 
   const profile = formatProfileCode(it);
   if (profile) return profile;
@@ -242,6 +238,20 @@ function GenderPill({ gender }) {
   if (g === 'female') return <span className={`${base} border-fuchsia-200 bg-fuchsia-50 text-fuchsia-900`}>Kadın</span>;
   if (g === 'male') return <span className={`${base} border-sky-200 bg-sky-50 text-sky-900`}>Erkek</span>;
   return <span className={`${base} border-slate-200 bg-slate-50 text-slate-700`}>{g || '-'}</span>;
+}
+
+function draftUpdatedAtLabel(ms) {
+  if (!ms || typeof ms !== 'number') return '-';
+  try {
+    return new Intl.DateTimeFormat('tr-TR', {
+      hour: '2-digit',
+      minute: '2-digit',
+      day: '2-digit',
+      month: '2-digit',
+    }).format(new Date(ms));
+  } catch {
+    return '-';
+  }
 }
 
 function Modal({ open, onClose, item }) {
@@ -297,7 +307,7 @@ function Modal({ open, onClose, item }) {
 
     const run = async () => {
       if (!open || !item) return;
-      const uid = safeStr(item?.userId);
+      const uid = resolveAdminNewUserUid(item);
       if (!uid) {
         setUserDoc(null);
         return;
@@ -325,7 +335,8 @@ function Modal({ open, onClose, item }) {
   const safe = normalizeForJson(item);
   const safeUser = normalizeForJson(userDoc);
   const ucCode = getUcCodeFromApplicationDoc(item) || getUcCodeFromUserDoc(userDoc);
-  const hideSensitive = isStubAndIncomplete(item) && !hasKnownAccountIdentity(item, userDoc);
+  const hideSensitive = getAdminNewUserKind(item, userDoc) === 'unknown' && !hasKnownAccountIdentity(item, userDoc);
+  const draftInfo = getDraftProgressInfo(item);
 
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center p-4 pt-6 overflow-y-auto">
@@ -411,6 +422,30 @@ function Modal({ open, onClose, item }) {
             </div>
             <p className="mt-1 text-xs text-slate-600">Bu kod `matchmakingUsers.userCode` alanından gelir (UC-...).</p>
           </section>
+
+          {draftInfo ? (
+            <section className="rounded-xl border border-indigo-200 bg-indigo-50 p-4">
+              <h4 className="text-sm font-bold text-indigo-950">Form Drop-off Özeti</h4>
+              <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3 text-sm text-indigo-950">
+                <div><span className="text-indigo-700">İlerleme:</span> {draftInfo.totalRequiredCount > 0 ? `${draftInfo.completedRequiredCount}/${draftInfo.totalRequiredCount}` : '-'}</div>
+                <div><span className="text-indigo-700">Takıldığı alan:</span> {draftInfo.firstMissingRequiredLabel}</div>
+                <div><span className="text-indigo-700">Son dokunduğu alan:</span> {draftInfo.lastInputKey ? draftInfo.lastInputLabel : '-'}</div>
+                <div><span className="text-indigo-700">Son taslak kaydı:</span> {draftUpdatedAtLabel(draftInfo.draftUpdatedAtMs)}</div>
+              </div>
+              {draftInfo.completedRequiredKeys.length > 0 ? (
+                <div className="mt-3">
+                  <div className="text-xs font-semibold uppercase tracking-wide text-indigo-700">Tamamlanan zorunlu alanlar</div>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {draftInfo.completedRequiredKeys.map((key) => (
+                      <span key={key} className="inline-flex items-center rounded-full border border-indigo-200 bg-white px-2 py-1 text-[11px] font-semibold text-indigo-900">
+                        {key === 'photo' && draftInfo.photoComplete ? 'Fotoğraf' : getDraftFieldLabel(key)}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+            </section>
+          ) : null}
 
           <section className="rounded-xl border border-slate-200 bg-white p-4">
             <h4 className="text-sm font-bold text-slate-900">Form Bilgileri (tamamı)</h4>
@@ -532,7 +567,7 @@ export default function NewUsersTab() {
       const list = Array.isArray(items) ? items : [];
       const uids = [];
       for (const it of list) {
-        const uid = safeStr(it?.userId);
+        const uid = resolveAdminNewUserUid(it);
         if (!uid) continue;
         if (userInfoByUid[uid] !== undefined) continue; // cached (including null)
         if (userLoadingByUid[uid]) continue;
@@ -589,18 +624,32 @@ export default function NewUsersTab() {
   const counts = useMemo(() => {
     const list = Array.isArray(normalizedItems) ? normalizedItems : [];
     return {
-      female: list.filter((it) => it?.gender === 'female').length,
-      male: list.filter((it) => it?.gender === 'male').length,
-      other: list.filter((it) => it?.gender !== 'female' && it?.gender !== 'male').length,
+      female: list.filter((it) => resolveAdminNewUserGender(it, (() => {
+        const uid = resolveAdminNewUserUid(it);
+        return uid ? userInfoByUid[uid] : null;
+      })()) === 'female').length,
+      male: list.filter((it) => resolveAdminNewUserGender(it, (() => {
+        const uid = resolveAdminNewUserUid(it);
+        return uid ? userInfoByUid[uid] : null;
+      })()) === 'male').length,
+      other: list.filter((it) => {
+        const uid = resolveAdminNewUserUid(it);
+        const gender = resolveAdminNewUserGender(it, uid ? userInfoByUid[uid] : null);
+        return gender !== 'female' && gender !== 'male';
+      }).length,
       total: list.length,
     };
-  }, [normalizedItems]);
+  }, [normalizedItems, userInfoByUid]);
 
   const filtered = useMemo(() => {
     const list = Array.isArray(normalizedItems) ? normalizedItems : [];
     if (activeGender === 'all') return list;
-    return list.filter((it) => (activeGender === 'other' ? (it?.gender !== 'female' && it?.gender !== 'male') : it?.gender === activeGender));
-  }, [normalizedItems, activeGender]);
+    return list.filter((it) => {
+      const uid = resolveAdminNewUserUid(it);
+      const gender = resolveAdminNewUserGender(it, uid ? userInfoByUid[uid] : null);
+      return activeGender === 'other' ? (gender !== 'female' && gender !== 'male') : gender === activeGender;
+    });
+  }, [normalizedItems, activeGender, userInfoByUid]);
 
   const openModal = (it) => {
     setActiveItem(it);
@@ -776,6 +825,9 @@ export default function NewUsersTab() {
               <thead className="text-[11px] text-slate-600 bg-slate-50">
                 <tr>
                   <th className="px-3 py-2">Kullanıcı</th>
+                  <th className="px-3 py-2">Durum</th>
+                  <th className="px-3 py-2">İlerleme</th>
+                  <th className="px-3 py-2">Takıldığı Alan</th>
                   <th className="px-3 py-2">Kullanıcı Kodu (UC)</th>
                   <th className="px-3 py-2">Başvuru Kodu</th>
                   <th className="px-3 py-2">Yaş</th>
@@ -785,15 +837,36 @@ export default function NewUsersTab() {
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {filtered.map((it) => {
-                  const uid = safeStr(it?.userId);
+                  const uid = resolveAdminNewUserUid(it);
                   const u = uid ? userInfoByUid[uid] : null;
+                  const kind = getAdminNewUserKind(it, u);
+                  const gender = resolveAdminNewUserGender(it, u);
+                  const draftInfo = getDraftProgressInfo(it);
                   return (
                   <tr key={it.id} className="text-slate-800">
                     <td className="px-3 py-2">
                       <div className="flex items-center gap-2">
                         <div className="font-semibold text-slate-900">{displayUserLabel(it, u)}</div>
-                        <GenderPill gender={it.gender} />
+                        <GenderPill gender={gender} />
                       </div>
+                    </td>
+                    <td className="px-3 py-2">
+                      <span className={getKindPillClass(kind)}>{getKindLabel(kind)}</span>
+                    </td>
+                    <td className="px-3 py-2">
+                      {draftInfo?.totalRequiredCount > 0 ? (
+                        <div>
+                          <div className="font-semibold text-slate-900">{draftInfo.completedRequiredCount}/{draftInfo.totalRequiredCount}</div>
+                          <div className="text-[11px] text-slate-500">{draftUpdatedAtLabel(draftInfo.draftUpdatedAtMs)}</div>
+                        </div>
+                      ) : (
+                        <span className="text-slate-500">-</span>
+                      )}
+                    </td>
+                    <td className="px-3 py-2">
+                      <span className={draftInfo?.firstMissingRequiredKey ? 'font-semibold text-amber-900' : 'text-slate-500'}>
+                        {draftInfo?.firstMissingRequiredLabel || '-'}
+                      </span>
                     </td>
                     <td className="px-3 py-2">
                       {(() => {

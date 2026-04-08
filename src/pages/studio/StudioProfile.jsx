@@ -15,13 +15,11 @@ import { authFetch } from '../../utils/authFetch';
 import { uploadImageToCloudinaryAuto } from '../../utils/cloudinaryUpload';
 import { translateStudioApiError } from '../../utils/studioErrorI18n';
 import { buildWhatsAppShareUrl, buildWhatsAppUrl, getWhatsAppNumber } from '../../utils/whatsapp';
-import PwaInstallCard from '../../components/PwaInstallCard.jsx';
+import StudioInviteFriendsCard from '../../components/studio/StudioInviteFriendsCard.jsx';
 import { openPreviewGate } from '../../utils/previewGate';
 import { buildPreviewProfile } from '../../utils/studioPreviewData';
 import StudioBottomNav from '../../components/studio/StudioBottomNav';
 import { isOneTimeHintShown, markOneTimeHintShown } from '../../utils/oneTimeHints.js';
-import { isPwaInstalled } from '../../utils/pwaInstalled.js';
-import { enablePushForCurrentUser, hasSavedPushToken } from '../../utils/pushNotifications.js';
 import { trackClick } from '../../utils/clickTracker';
 
 const DEFAULT_LOOKING_FOR_NATIONALITY = 'id';
@@ -38,31 +36,31 @@ function getStudioTrustUi(lang) {
     tr: {
       eyebrow: 'Uye odasi',
       title: 'Profiliniz herkesin baktigi bir vitrin gibi calismaz',
-      body: 'Fotograflar, dogrulama ve temas ayni anda acilmaz. Sistem, duzgun bir akisi korumak icin bunlari kontrollu yonetir.',
+      body: 'Fotograflar, dogrulama ve temas ayni anda acilmaz. Simdilik tamamen ucretsiz olan sistem; karsilikli begeni, aktif eslesme ve ceviri destekli sohbeti kontrollu sekilde yonetir.',
       facts: [
-        'Profil ve fotograflar kontrollu akista gorunur',
-        'Dogrulanmis hesaplar daha guvenli sinyal verir',
-        'Iletisim once sistem ici adimlardan gecer',
+        'Karsilikli begeni aktif eslesme adimina tasinir',
+        'Aktif eslesmede ceviri destekli ozel sohbet acilir',
+        'Aktif eslesme surerken ozel pencerede sinirsiz konusabilirsiniz',
       ],
     },
     en: {
       eyebrow: 'Member room',
       title: 'Your profile does not work like a public showcase',
-      body: 'Photos, verification and contact do not open at the same time. The system controls each part to keep the flow orderly.',
+      body: 'Photos, verification and contact do not open at the same time. The currently free system keeps mutual likes, active matches, and translation-supported chat in an orderly flow.',
       facts: [
-        'Profile and photos appear in a controlled flow',
-        'Verified accounts send a stronger trust signal',
-        'Contact first moves through in-system steps',
+        'Mutual likes move into the active-match step',
+        'A private chat with translation support opens in active match',
+        'While the active match continues, you can keep talking without a message limit',
       ],
     },
     id: {
       eyebrow: 'Ruang anggota',
       title: 'Profil Anda tidak bekerja seperti etalase publik',
-      body: 'Foto, verifikasi, dan kontak tidak dibuka bersamaan. Sistem mengatur semuanya agar alurnya tetap rapi.',
+      body: 'Foto, verifikasi, dan kontak tidak dibuka bersamaan. Sistem yang saat ini gratis menjaga alur suka timbal balik, pencocokan aktif, dan chat dengan dukungan terjemahan tetap rapi.',
       facts: [
-        'Profil dan foto tampil dalam alur yang terkontrol',
-        'Akun terverifikasi memberi sinyal kepercayaan lebih kuat',
-        'Kontak selalu melewati langkah sistem terlebih dahulu',
+        'Suka timbal balik masuk ke tahap pencocokan aktif',
+        'Chat privat dengan dukungan terjemahan terbuka saat pencocokan aktif',
+        'Selama pencocokan aktif berlangsung, Anda bisa berbicara tanpa batas pesan',
       ],
     },
   };
@@ -70,34 +68,11 @@ function getStudioTrustUi(lang) {
   return copy[lang] || copy.tr;
 }
 
-const LS_PUSH_AFTER_INSTALL_PENDING_PREFIX = 'uniqah:push:nudgeAfterInstall:pending';
-const LS_PUSH_AFTER_INSTALL_DISMISSED_PREFIX = 'uniqah:push:nudgeAfterInstall:dismissed';
-
 function deriveLookingForGender(gender) {
   const value = String(gender || '').trim().toLowerCase();
   if (value === 'male') return 'female';
   if (value === 'female') return 'male';
   return '';
-}
-
-function pushAfterInstallKey(prefix, uid) {
-  return `${prefix}:${uid}`;
-}
-
-function isPushEnabledInBrowser() {
-  if (typeof window === 'undefined') return false;
-  try {
-    if (!('Notification' in window)) return false;
-    if (String(Notification.permission || '') !== 'granted') return false;
-  } catch {
-    return false;
-  }
-
-  try {
-    return hasSavedPushToken();
-  } catch {
-    return false;
-  }
 }
 
 function safeStr(v) {
@@ -152,8 +127,6 @@ function isMinimumProfileCompleteFromUserAndApp(mmUser, latestApp) {
   const age = asNum(merged?.age);
   const gender = normalizeGenderValue(merged?.gender);
   const city = safeStr(merged?.city);
-  const country = safeStr(merged?.country);
-  const nationality = safeStr(merged?.nationality);
   const occupation = safeStr(details?.occupation) || safeStr(merged?.occupation);
   const maritalStatus = normalizeMaritalStatus(details?.maritalStatus || merged?.maritalStatus);
 
@@ -161,8 +134,6 @@ function isMinimumProfileCompleteFromUserAndApp(mmUser, latestApp) {
   if (!(typeof age === 'number' && Number.isFinite(age) && age >= 18 && age <= 99)) return false;
   if (!gender) return false;
   if (!city) return false;
-  if (!country) return false;
-  if (!nationality) return false;
   if (!occupation) return false;
   if (!maritalStatus) return false;
 
@@ -246,56 +217,6 @@ export default function StudioProfile() {
   const isPreview = !user || user.isAnonymous || !rawUid;
   const uid = isPreview ? '' : rawUid;
 
-  const [pwaInstalled, setPwaInstalled] = useState(() => isPwaInstalled());
-  const [pushAfterInstallPending, setPushAfterInstallPending] = useState(false);
-  const [pushAfterInstallDismissed, setPushAfterInstallDismissed] = useState(false);
-  const [pushEnabledNow, setPushEnabledNow] = useState(() => isPushEnabledInBrowser());
-  const [pushNudgeBusy, setPushNudgeBusy] = useState(false);
-  const [pushNudgeFeedback, setPushNudgeFeedback] = useState('');
-
-  useEffect(() => {
-    if (!uid) {
-      setPushAfterInstallPending(false);
-      setPushAfterInstallDismissed(false);
-      return;
-    }
-
-    try {
-      const pending = window.localStorage.getItem(pushAfterInstallKey(LS_PUSH_AFTER_INSTALL_PENDING_PREFIX, uid)) === '1';
-      const dismissed = window.localStorage.getItem(pushAfterInstallKey(LS_PUSH_AFTER_INSTALL_DISMISSED_PREFIX, uid)) === '1';
-      setPushAfterInstallPending(pending);
-      setPushAfterInstallDismissed(dismissed);
-    } catch {
-      setPushAfterInstallPending(false);
-      setPushAfterInstallDismissed(false);
-    }
-  }, [uid]);
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-
-    const onAppInstalled = () => {
-      setPwaInstalled(true);
-
-      // After install, show a one-time (dismissible) reminder to enable notifications.
-      if (uid) {
-        try {
-          window.localStorage.setItem(pushAfterInstallKey(LS_PUSH_AFTER_INSTALL_PENDING_PREFIX, uid), '1');
-          window.localStorage.removeItem(pushAfterInstallKey(LS_PUSH_AFTER_INSTALL_DISMISSED_PREFIX, uid));
-        } catch {
-          // ignore
-        }
-        setPushAfterInstallPending(true);
-        setPushAfterInstallDismissed(false);
-      }
-    };
-
-    window.addEventListener('appinstalled', onAppInstalled);
-    return () => {
-      window.removeEventListener('appinstalled', onAppInstalled);
-    };
-  }, [uid]);
-
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const profileMenuWrapRef = useRef(null);
 
@@ -331,10 +252,6 @@ export default function StudioProfile() {
   const isTr = String(i18n?.language || '').toLowerCase().startsWith('tr');
   const shortLabel = (fallbackKey, trText) => (isTr ? trText : t(fallbackKey));
   const studioTrustUi = getStudioTrustUi(getBaseLang(i18n?.language));
-
-  useEffect(() => {
-    setPushEnabledNow(isPushEnabledInBrowser());
-  }, [pwaInstalled]);
 
   const blockInteraction = () => {
     openPreviewGate({ reason: t('previewGate.body') });
@@ -526,7 +443,7 @@ export default function StudioProfile() {
 
   const openApplyInline = () => {
     // Inline/iframe apply bloğu kaldırıldı. Kullanıcıyı doğrudan başvuru sayfasına yönlendir.
-    navigate('/evlilik/eslestirme-basvuru?w=1', { state: { returnTo: '/profilim' } });
+    navigate('/evlilik/eslestirme-basvuru?w=1&full=1', { state: { returnTo: '/profilim', profileMode: 'full' } });
   };
 
   useEffect(() => {
@@ -1226,39 +1143,16 @@ export default function StudioProfile() {
 
     setInviteState({ loading: true, error: '' });
     try {
-      const res = await authFetch('/api/matchmaking-invite-code-generate', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({}),
-      });
-
-      const code = String(res?.code || '').trim();
-      if (!code || !/^\d{4}$/.test(code)) {
-        throw new Error('invite_code_generation_failed');
-      }
-
-      const baseLang = (() => {
-        const raw = String(i18n?.language || '').trim().toLowerCase();
-        const base = raw.split(/[-_]/)[0];
-        if (base === 'in') return 'id';
-        if (base === 'tr' || base === 'en' || base === 'id') return base;
-        return 'tr';
-      })();
-
       const inviteUrl = (() => {
         try {
-          const origin = String(window.location?.origin || 'https://uniqah.com').trim() || 'https://uniqah.com';
-          const u = new URL('/login', origin);
-          u.searchParams.set('mode', 'signup');
-          u.searchParams.set('lang', baseLang);
-          u.searchParams.set('ref', code);
+          const u = new URL('https://uniqah.com/uygulama');
           return u.toString();
         } catch {
-          return `https://uniqah.com/login?mode=signup&lang=${encodeURIComponent(baseLang)}&ref=${encodeURIComponent(code)}`;
+          return 'https://uniqah.com/uygulama';
         }
       })();
 
-      const msg = t('studio.referral.shareMessage', { code, url: inviteUrl });
+      const msg = t('studio.referral.shareMessage', { url: inviteUrl });
 
       const waShareUrl = buildWhatsAppShareUrl(msg);
 
@@ -1451,6 +1345,32 @@ export default function StudioProfile() {
     setTopInlinePanel((prev) => (prev === key ? '' : key));
   };
 
+  useEffect(() => {
+    const params = new URLSearchParams(String(location?.search || ''));
+    const panel = safeStr(params.get('panel')).toLowerCase();
+    if (!panel) return;
+
+    if (panel === 'referral' || panel === 'membership' || panel === 'identity' || panel === 'photoprivacy') {
+      setTopInlinePanel(panel === 'photoprivacy' ? 'photoPrivacy' : panel);
+    } else if (panel === 'partnerprefs') {
+      setPartnerPrefsModalOpen(true);
+    } else if (panel === 'guidance') {
+      setGuidanceModalOpen(true);
+    } else {
+      return;
+    }
+
+    params.delete('panel');
+    const nextSearch = params.toString();
+    navigate(
+      {
+        pathname: location.pathname,
+        search: nextSearch ? `?${nextSearch}` : '',
+      },
+      { replace: true }
+    );
+  }, [location.pathname, location.search, navigate]);
+
   const guidanceSections = useMemo(() => {
     const getItems = (key) => {
       const v = t(key, { returnObjects: true });
@@ -1493,23 +1413,6 @@ export default function StudioProfile() {
       <Navigation />
 
       <main className="container mx-auto px-4 py-8">
-        <div className="mx-auto max-w-4xl mb-3">
-          <Link
-            to="/aracilik"
-            className="inline-flex items-center justify-between gap-3 w-full rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-900 hover:bg-emerald-100 transition"
-            onClick={() => {
-              try {
-                void trackClick('cta_lead_apply_profile');
-              } catch {
-                // ignore
-              }
-            }}
-          >
-            <span>{t('navigation.leadApply')}</span>
-            <span className="text-emerald-900/70">→</span>
-          </Link>
-        </div>
-
         <div className="mx-auto max-w-5xl overflow-visible rounded-[30px] border border-white bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(248,250,252,0.94))] shadow-[0_26px_90px_rgba(15,23,42,0.10)]">
           {/* Banner */}
           <div className="relative h-48 w-full bg-slate-200 overflow-hidden rounded-t-[30px]">
@@ -1624,6 +1527,342 @@ export default function StudioProfile() {
                   </p>
                 ) : null}
 
+                <div ref={profileMenuWrapRef} className="relative mt-4">
+                  <button
+                    type="button"
+                    onClick={() => setProfileMenuOpen((v) => !v)}
+                    className="app-btn app-btn-danger h-11 w-full px-5 sm:w-auto"
+                    aria-expanded={profileMenuOpen}
+                    aria-controls="profile-hamburger-menu"
+                  >
+                    {profileMenuOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
+                    {t('studio.common.actionMenu')}
+                  </button>
+
+                  {profileMenuOpen ? (
+                    <div
+                      id="profile-hamburger-menu"
+                      className="fixed left-1/2 bottom-3 z-50 w-[calc(100vw-1rem)] max-w-[520px] -translate-x-1/2 rounded-xl border border-slate-200 bg-white p-2 shadow-lg sm:absolute sm:bottom-auto sm:top-full sm:mt-2"
+                      role="dialog"
+                      aria-modal="false"
+                    >
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="text-sm font-semibold text-slate-900">
+                          {t('studio.common.actionMenu')}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setProfileMenuOpen(false)}
+                          className="app-btn app-btn-outline"
+                          aria-label={t('studio.common.close')}
+                        >
+                          <X className="h-4 w-4" />
+                          {t('studio.common.close')}
+                        </button>
+                      </div>
+
+                      <div className="mt-2 grid max-h-[60vh] grid-cols-1 gap-2 overflow-auto sm:grid-cols-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setProfileMenuOpen(false);
+                            openOneTimeActionIntro({
+                              hintId: 'profile-action-explore-v1',
+                              titleKey: 'studio.profile.actionIntro.explore.title',
+                              bodyKey: 'studio.profile.actionIntro.explore.body',
+                              ctaKey: 'studio.profile.actionIntro.explore.cta',
+                              onContinue: () => navigate('/app/pool'),
+                            });
+                          }}
+                          className="app-btn app-btn-action-menu relative h-12 w-full px-5 justify-start"
+                          aria-label={shortLabel('studio.pool.title', 'Keşfet')}
+                        >
+                          <span
+                            className="absolute left-6 top-1/2 flex h-12 w-12 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-2xl bg-white/15 ring-1 ring-white/25"
+                            aria-hidden="true"
+                          >
+                            <Compass className="h-6 w-6 text-white" />
+                          </span>
+                          <span className="min-w-0 pl-14 text-sm font-semibold tracking-wide text-white">
+                            <span className="block whitespace-nowrap">{shortLabel('studio.pool.title', 'Keşfet')}</span>
+                          </span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setProfileMenuOpen(false);
+                            openOneTimeActionIntro({
+                              hintId: 'profile-action-edit-profile-v1',
+                              titleKey: 'studio.profile.actionIntro.editProfile.title',
+                              bodyKey: 'studio.profile.actionIntro.editProfile.body',
+                              ctaKey: 'studio.profile.actionIntro.editProfile.cta',
+                              onContinue: () =>
+                                navigate('/evlilik/eslestirme-basvuru?w=1&full=1', { state: { returnTo: '/profilim', profileMode: 'full' } }),
+                            });
+                          }}
+                          className="app-btn app-btn-action-menu relative h-12 w-full px-5 justify-start"
+                          aria-label={shortLabel('studio.profile.editProfile', 'Profil')}
+                        >
+                          <span
+                            className="absolute left-6 top-1/2 flex h-12 w-12 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-2xl bg-white/15 ring-1 ring-white/25"
+                            aria-hidden="true"
+                          >
+                            <Edit className="h-6 w-6 text-white" />
+                          </span>
+                          <span className="min-w-0 pl-14 text-sm font-semibold tracking-wide text-white">
+                            <span className="block whitespace-nowrap">{shortLabel('studio.profile.editProfile', 'Profil')}</span>
+                          </span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setProfileMenuOpen(false);
+                            openOneTimeActionIntro({
+                              hintId: 'profile-action-matches-v1',
+                              titleKey: 'studio.profile.actionIntro.matches.title',
+                              bodyKey: 'studio.profile.actionIntro.matches.body',
+                              ctaKey: 'studio.profile.actionIntro.matches.cta',
+                              onContinue: () => navigate('/app/matches'),
+                            });
+                          }}
+                          className="app-btn app-btn-action-menu relative h-12 w-full px-5 justify-start"
+                          aria-label={shortLabel('studio.profile.myMatches', 'Eşleşmelerim')}
+                        >
+                          <span
+                            className="absolute left-6 top-1/2 flex h-12 w-12 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-2xl bg-white/15 ring-1 ring-white/25"
+                            aria-hidden="true"
+                          >
+                            <Users className="h-6 w-6 text-white" />
+                          </span>
+                          <span className="min-w-0 pl-14 text-sm font-semibold tracking-wide text-white">
+                            <span className="block whitespace-nowrap">{shortLabel('studio.profile.myMatches', 'Eşleşmelerim')}</span>
+                          </span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setProfileMenuOpen(false);
+                            openOneTimeActionIntro({
+                              hintId: 'profile-action-partner-prefs-v1',
+                              titleKey: 'studio.profile.actionIntro.partnerPrefs.title',
+                              bodyKey: 'studio.profile.actionIntro.partnerPrefs.body',
+                              ctaKey: 'studio.profile.actionIntro.partnerPrefs.cta',
+                              onContinue: () => openPartnerPrefsModal(),
+                            });
+                          }}
+                          className="app-btn app-btn-action-menu relative h-12 w-full px-5 justify-start"
+                          title={t('studio.profile.partnerPrefsTitle')}
+                          aria-label={t('studio.profile.partnerPrefsTitle')}
+                        >
+                          <span
+                            className="absolute left-6 top-1/2 flex h-12 w-12 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-2xl bg-white/15 ring-1 ring-white/25"
+                            aria-hidden="true"
+                          >
+                            <Edit className="h-6 w-6 text-white" />
+                          </span>
+                          <span className="min-w-0 pl-14 text-sm font-semibold tracking-wide text-white">
+                            <span className="block whitespace-nowrap">{t('studio.profile.partnerPrefsTitle')}</span>
+                          </span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setProfileMenuOpen(false);
+                            openOneTimeActionIntro({
+                              hintId: 'profile-action-membership-v1',
+                              titleKey: 'studio.profile.actionIntro.membership.title',
+                              bodyKey: 'studio.profile.actionIntro.membership.body',
+                              ctaKey: 'studio.profile.actionIntro.membership.cta',
+                              onContinue: () => toggleTopInlinePanel('membership'),
+                            });
+                          }}
+                          className="app-btn app-btn-action-menu relative h-12 w-full px-5 justify-start"
+                          title={t('studio.profile.subscriptionTitle')}
+                          aria-label={shortLabel('studio.profile.subscriptionTitle', 'Üyelik')}
+                        >
+                          <span
+                            className="absolute left-6 top-1/2 flex h-12 w-12 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-2xl bg-white/15 ring-1 ring-white/25"
+                            aria-hidden="true"
+                          >
+                            <Star className="h-6 w-6 text-white" />
+                          </span>
+                          <span className="min-w-0 pl-14 text-sm font-semibold tracking-wide text-white">
+                            <span className="block whitespace-nowrap">{shortLabel('studio.profile.subscriptionTitle', 'Üyelik')}</span>
+                          </span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setProfileMenuOpen(false);
+                            openOneTimeActionIntro({
+                              hintId: 'profile-action-photo-v1',
+                              titleKey: 'studio.profile.actionIntro.photo.title',
+                              bodyKey: 'studio.profile.actionIntro.photo.body',
+                              ctaKey: 'studio.profile.actionIntro.photo.cta',
+                              onContinue: () => {
+                                toggleTopInlinePanel('photoPrivacy');
+                                openPhotoManager();
+                              },
+                            });
+                          }}
+                          className="app-btn app-btn-action-menu relative h-12 w-full px-5 justify-start"
+                          title={t('studio.profile.photoPrivacy.title')}
+                          aria-label={shortLabel('studio.profile.photoPrivacy.title', 'Fotoğraf')}
+                        >
+                          <span
+                            className="absolute left-6 top-1/2 flex h-12 w-12 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-2xl bg-white/15 ring-1 ring-white/25"
+                            aria-hidden="true"
+                          >
+                            <Images className="h-6 w-6 text-white" />
+                          </span>
+                          <span className="min-w-0 pl-14 text-sm font-semibold tracking-wide text-white">
+                            <span className="block whitespace-nowrap">{shortLabel('studio.profile.photoPrivacy.title', 'Fotoğraf')}</span>
+                          </span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setProfileMenuOpen(false);
+                            openOneTimeActionIntro({
+                              hintId: 'profile-action-guidance-v1',
+                              titleKey: 'studio.profile.actionIntro.guidance.title',
+                              bodyKey: 'studio.profile.actionIntro.guidance.body',
+                              ctaKey: 'studio.profile.actionIntro.guidance.cta',
+                              onContinue: () => setGuidanceModalOpen(true),
+                            });
+                          }}
+                          className="app-btn app-btn-action-menu relative h-12 w-full px-5 justify-start"
+                          title={t('studio.profile.guidance.button')}
+                          aria-label={shortLabel('studio.profile.guidance.button', 'Rehberlik')}
+                        >
+                          <span
+                            className="absolute left-6 top-1/2 flex h-12 w-12 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-2xl bg-white/15 ring-1 ring-white/25"
+                            aria-hidden="true"
+                          >
+                            <BookOpen className="h-6 w-6 text-white" />
+                          </span>
+                          <span className="min-w-0 pl-14 text-sm font-semibold tracking-wide text-white">
+                            <span className="block whitespace-nowrap">{shortLabel('studio.profile.guidance.button', 'Rehberlik')}</span>
+                          </span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setProfileMenuOpen(false);
+                            openOneTimeActionIntro({
+                              hintId: 'profile-action-feedback-v1',
+                              titleKey: 'studio.profile.actionIntro.feedback.title',
+                              bodyKey: 'studio.profile.actionIntro.feedback.body',
+                              ctaKey: 'studio.profile.actionIntro.feedback.cta',
+                              onContinue: () => navigate('/profilim/destek'),
+                            });
+                          }}
+                          className="app-btn app-btn-action-menu relative h-12 w-full px-5 justify-start"
+                          aria-label={shortLabel('studio.feedback.nav', 'Şikayet/İstek')}
+                        >
+                          <span
+                            className="absolute left-6 top-1/2 flex h-12 w-12 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-2xl bg-white/15 ring-1 ring-white/25"
+                            aria-hidden="true"
+                          >
+                            <MessageCircle className="h-6 w-6 text-white" />
+                          </span>
+                          <span className="min-w-0 pl-10 text-sm font-semibold tracking-wide text-white">
+                            <span className="block whitespace-nowrap">{shortLabel('studio.feedback.nav', 'Şikayet/İstek')}</span>
+                          </span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setProfileMenuOpen(false);
+                            openOneTimeActionIntro({
+                              hintId: 'profile-action-identity-panel-v1',
+                              titleKey: 'studio.profile.actionIntro.identity.title',
+                              bodyKey: 'studio.profile.actionIntro.identity.body',
+                              ctaKey: 'studio.profile.actionIntro.identity.cta',
+                              onContinue: () => toggleTopInlinePanel('identity'),
+                            });
+                          }}
+                          className="app-btn app-btn-action-menu relative h-12 w-full px-5 justify-start"
+                          title={shortLabel('studio.profile.identityTitle', 'Kimlik doğrula')}
+                          aria-label={shortLabel('studio.profile.identityTitle', 'Kimlik doğrula')}
+                        >
+                          <span
+                            className="absolute left-6 top-1/2 flex h-12 w-12 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-2xl bg-white/15 ring-1 ring-white/25"
+                            aria-hidden="true"
+                          >
+                            <ShieldCheck className="h-6 w-6 text-white" />
+                          </span>
+                          <span className="min-w-0 pl-14 text-sm font-semibold tracking-wide text-white">
+                            <span className="block whitespace-nowrap">{shortLabel('studio.profile.identityTitle', 'Kimlik doğrula')}</span>
+                          </span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setProfileMenuOpen(false);
+                            openOneTimeActionIntro({
+                              hintId: 'profile-action-referral-v1',
+                              titleKey: 'studio.profile.actionIntro.referral.title',
+                              bodyKey: 'studio.profile.actionIntro.referral.body',
+                              ctaKey: 'studio.profile.actionIntro.referral.cta',
+                              onContinue: () => toggleTopInlinePanel('referral'),
+                            });
+                          }}
+                          className="app-btn app-btn-action-menu relative h-12 w-full px-5 justify-start"
+                          title={t('studio.referral.title')}
+                          aria-label={shortLabel('studio.referral.title', 'Davet')}
+                        >
+                          <span
+                            className="absolute left-6 top-1/2 flex h-12 w-12 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-2xl bg-white/15 ring-1 ring-white/25"
+                            aria-hidden="true"
+                          >
+                            <Users className="h-6 w-6 text-white" />
+                          </span>
+                          <span className="min-w-0 pl-14 text-sm font-semibold tracking-wide text-white">
+                            <span className="block whitespace-nowrap">{shortLabel('studio.referral.title', 'Davet')}</span>
+                          </span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setProfileMenuOpen(false);
+                            openOneTimeActionIntro({
+                              hintId: 'profile-action-logout-v1',
+                              titleKey: 'studio.profile.actionIntro.logout.title',
+                              bodyKey: 'studio.profile.actionIntro.logout.body',
+                              ctaKey: 'studio.profile.actionIntro.logout.cta',
+                              onContinue: () => logoutNow(),
+                            });
+                          }}
+                          className="app-btn app-btn-action-menu relative h-12 w-full px-5 justify-start"
+                          title={t('studio.profile.logout')}
+                          aria-label={shortLabel('studio.profile.logout', 'Çıkış')}
+                        >
+                          <span
+                            className="absolute left-6 top-1/2 flex h-12 w-12 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-2xl bg-white/15 ring-1 ring-white/25"
+                            aria-hidden="true"
+                          >
+                            <LogOut className="h-6 w-6 text-white" />
+                          </span>
+                          <span className="min-w-0 pl-14 text-sm font-semibold tracking-wide text-white">
+                            <span className="block whitespace-nowrap">{shortLabel('studio.profile.logout', 'Çıkış')}</span>
+                          </span>
+                        </button>
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
+
                 <div className="mt-4 rounded-[24px] border border-slate-200 bg-[linear-gradient(135deg,rgba(255,255,255,0.98),rgba(240,253,250,0.94))] p-5 shadow-[0_16px_40px_rgba(148,163,184,0.10)]">
                   <div className="text-lg font-semibold text-slate-900">{studioTrustUi.title}</div>
                   <div className="mt-2 text-sm leading-relaxed text-slate-600">{studioTrustUi.body}</div>
@@ -1636,6 +1875,24 @@ export default function StudioProfile() {
                     ))}
                   </div>
                 </div>
+
+                <div className="mt-4 rounded-[24px] border border-indigo-200 bg-[linear-gradient(135deg,rgba(238,242,255,0.96),rgba(255,255,255,0.94))] p-5 shadow-[0_16px_40px_rgba(99,102,241,0.10)]">
+                  <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                    <div className="min-w-0">
+                      <div className="inline-flex items-center gap-2 rounded-full border border-indigo-200 bg-white px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-indigo-700 shadow-sm">
+                        <Compass className="h-3.5 w-3.5" />
+                        {t('studio.profile.discoverPrompt.eyebrow')}
+                      </div>
+                      <p className="mt-3 text-base font-semibold text-slate-900">{t('studio.profile.discoverPrompt.title')}</p>
+                      <p className="mt-2 text-sm leading-relaxed text-slate-600">{t('studio.profile.discoverPrompt.body')}</p>
+                    </div>
+                    <Link to="/app/pool" className="app-btn app-btn-primary w-full md:w-auto whitespace-nowrap">
+                      {t('studio.profile.discoverPrompt.cta')}
+                    </Link>
+                  </div>
+                </div>
+
+                <StudioInviteFriendsCard className="mt-4" onClick={() => setTopInlinePanel('referral')} />
 
                 {showIncompleteExploreWarning ? (
                   <div role="alert" className="mt-4 rounded-[24px] border border-red-200 bg-[linear-gradient(135deg,rgba(254,242,242,0.96),rgba(255,255,255,0.92))] p-4 text-red-950 shadow-[0_12px_32px_rgba(248,113,113,0.10)]">
@@ -1674,344 +1931,6 @@ export default function StudioProfile() {
                     </div>
                   ))}
                 </div>
-
-                <div className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-1 sm:items-center">
-                <div ref={profileMenuWrapRef} className="relative col-span-2 sm:col-span-1">
-                  <button
-                    type="button"
-                    onClick={() => setProfileMenuOpen((v) => !v)}
-                    className="app-btn app-btn-danger w-full sm:w-auto h-10 px-5"
-                    aria-expanded={profileMenuOpen}
-                    aria-controls="profile-hamburger-menu"
-                  >
-                    {profileMenuOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
-                    {isTr ? 'İşlem Menüsü' : t('studio.common.actionMenu', { defaultValue: 'Actions' })}
-                  </button>
-
-                  {profileMenuOpen ? (
-                    <div
-                      id="profile-hamburger-menu"
-                      className="fixed left-1/2 bottom-3 z-50 w-[calc(100vw-1rem)] max-w-[520px] -translate-x-1/2 rounded-xl border border-slate-200 bg-white p-2 shadow-lg sm:absolute sm:bottom-auto sm:top-full sm:mt-2"
-                      role="dialog"
-                      aria-modal="false"
-                    >
-                        <div className="flex items-center justify-between gap-3">
-                          <div className="text-sm font-semibold text-slate-900">
-                            {isTr ? 'İşlem Menüsü' : t('studio.common.actionMenu', { defaultValue: 'Actions' })}
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => setProfileMenuOpen(false)}
-                            className="app-btn app-btn-outline"
-                            aria-label={isTr ? 'Kapat' : t('studio.common.close', { defaultValue: 'Close' })}
-                          >
-                            <X className="h-4 w-4" />
-                            {isTr ? 'Kapat' : t('studio.common.close', { defaultValue: 'Close' })}
-                          </button>
-                        </div>
-
-                      <div className="mt-2 grid max-h-[60vh] grid-cols-1 gap-2 overflow-auto sm:grid-cols-2">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setProfileMenuOpen(false);
-                            openOneTimeActionIntro({
-                              hintId: 'profile-action-explore-v1',
-                              titleKey: 'studio.profile.actionIntro.explore.title',
-                              bodyKey: 'studio.profile.actionIntro.explore.body',
-                              ctaKey: 'studio.profile.actionIntro.explore.cta',
-                              onContinue: () => navigate('/app/pool'),
-                            });
-                          }}
-                          className="app-btn app-btn-action-menu relative h-12 w-full px-5 justify-start"
-                          aria-label={shortLabel('studio.pool.title', 'Keşfet')}
-                        >
-                          <span
-                            className="absolute left-6 top-1/2 -translate-y-1/2 -translate-x-1/2 flex h-12 w-12 items-center justify-center rounded-2xl bg-white/15 ring-1 ring-white/25"
-                            aria-hidden="true"
-                          >
-                            <Compass className="h-6 w-6 text-white" />
-                          </span>
-                          <span className="min-w-0 pl-14 text-sm font-semibold tracking-wide text-white">
-                            <span className="block whitespace-nowrap">{shortLabel('studio.pool.title', 'Keşfet')}</span>
-                          </span>
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setProfileMenuOpen(false);
-                            openOneTimeActionIntro({
-                              hintId: 'profile-action-edit-profile-v1',
-                              titleKey: 'studio.profile.actionIntro.editProfile.title',
-                              bodyKey: 'studio.profile.actionIntro.editProfile.body',
-                              ctaKey: 'studio.profile.actionIntro.editProfile.cta',
-                              onContinue: () =>
-                                navigate('/evlilik/eslestirme-basvuru?w=1', { state: { returnTo: '/profilim' } }),
-                            });
-                          }}
-                          className="app-btn app-btn-action-menu relative h-12 w-full px-5 justify-start"
-                          aria-label={shortLabel('studio.profile.editProfile', 'Profil')}
-                        >
-                          <span
-                            className="absolute left-6 top-1/2 -translate-y-1/2 -translate-x-1/2 flex h-12 w-12 items-center justify-center rounded-2xl bg-white/15 ring-1 ring-white/25"
-                            aria-hidden="true"
-                          >
-                            <Edit className="h-6 w-6 text-white" />
-                          </span>
-                          <span className="min-w-0 pl-14 text-sm font-semibold tracking-wide text-white">
-                            <span className="block whitespace-nowrap">{shortLabel('studio.profile.editProfile', 'Profil')}</span>
-                          </span>
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setProfileMenuOpen(false);
-                            openOneTimeActionIntro({
-                              hintId: 'profile-action-matches-v1',
-                              titleKey: 'studio.profile.actionIntro.matches.title',
-                              bodyKey: 'studio.profile.actionIntro.matches.body',
-                              ctaKey: 'studio.profile.actionIntro.matches.cta',
-                              onContinue: () => navigate('/app/matches'),
-                            });
-                          }}
-                          className="app-btn app-btn-action-menu relative h-12 w-full px-5 justify-start"
-                          aria-label={shortLabel('studio.profile.myMatches', 'Eşleşmelerim')}
-                        >
-                          <span
-                            className="absolute left-6 top-1/2 -translate-y-1/2 -translate-x-1/2 flex h-12 w-12 items-center justify-center rounded-2xl bg-white/15 ring-1 ring-white/25"
-                            aria-hidden="true"
-                          >
-                            <Users className="h-6 w-6 text-white" />
-                          </span>
-                          <span className="min-w-0 pl-14 text-sm font-semibold tracking-wide text-white">
-                            <span className="block whitespace-nowrap">{shortLabel('studio.profile.myMatches', 'Eşleşmelerim')}</span>
-                          </span>
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setProfileMenuOpen(false);
-                            openOneTimeActionIntro({
-                              hintId: 'profile-action-partner-prefs-v1',
-                              titleKey: 'studio.profile.actionIntro.partnerPrefs.title',
-                              bodyKey: 'studio.profile.actionIntro.partnerPrefs.body',
-                              ctaKey: 'studio.profile.actionIntro.partnerPrefs.cta',
-                              onContinue: () => openPartnerPrefsModal(),
-                            });
-                          }}
-                          className="app-btn app-btn-action-menu relative h-12 w-full px-5 justify-start"
-                          title={t('studio.profile.partnerPrefsTitle')}
-                          aria-label={t('studio.profile.partnerPrefsTitle')}
-                        >
-                          <span
-                            className="absolute left-6 top-1/2 -translate-y-1/2 -translate-x-1/2 flex h-12 w-12 items-center justify-center rounded-2xl bg-white/15 ring-1 ring-white/25"
-                            aria-hidden="true"
-                          >
-                            <Edit className="h-6 w-6 text-white" />
-                          </span>
-                          <span className="min-w-0 pl-14 text-sm font-semibold tracking-wide text-white">
-                            <span className="block whitespace-nowrap">{t('studio.profile.partnerPrefsTitle')}</span>
-                          </span>
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setProfileMenuOpen(false);
-                            openOneTimeActionIntro({
-                              hintId: 'profile-action-membership-v1',
-                              titleKey: 'studio.profile.actionIntro.membership.title',
-                              bodyKey: 'studio.profile.actionIntro.membership.body',
-                              ctaKey: 'studio.profile.actionIntro.membership.cta',
-                              onContinue: () => toggleTopInlinePanel('membership'),
-                            });
-                          }}
-                          className="app-btn app-btn-action-menu relative h-12 w-full px-5 justify-start"
-                          title={t('studio.profile.subscriptionTitle')}
-                          aria-label={shortLabel('studio.profile.subscriptionTitle', 'Üyelik')}
-                        >
-                          <span
-                            className="absolute left-6 top-1/2 -translate-y-1/2 -translate-x-1/2 flex h-12 w-12 items-center justify-center rounded-2xl bg-white/15 ring-1 ring-white/25"
-                            aria-hidden="true"
-                          >
-                            <Star className="h-6 w-6 text-white" />
-                          </span>
-                          <span className="min-w-0 pl-14 text-sm font-semibold tracking-wide text-white">
-                            <span className="block whitespace-nowrap">{shortLabel('studio.profile.subscriptionTitle', 'Üyelik')}</span>
-                          </span>
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setProfileMenuOpen(false);
-                            openOneTimeActionIntro({
-                              hintId: 'profile-action-photo-v1',
-                              titleKey: 'studio.profile.actionIntro.photo.title',
-                              bodyKey: 'studio.profile.actionIntro.photo.body',
-                              ctaKey: 'studio.profile.actionIntro.photo.cta',
-                              onContinue: () => {
-                                toggleTopInlinePanel('photoPrivacy');
-                                openPhotoManager();
-                              },
-                            });
-                          }}
-                          className="app-btn app-btn-action-menu relative h-12 w-full px-5 justify-start"
-                          title={t('studio.profile.photoPrivacy.title')}
-                          aria-label={shortLabel('studio.profile.photoPrivacy.title', 'Fotoğraf')}
-                        >
-                          <span
-                            className="absolute left-6 top-1/2 -translate-y-1/2 -translate-x-1/2 flex h-12 w-12 items-center justify-center rounded-2xl bg-white/15 ring-1 ring-white/25"
-                            aria-hidden="true"
-                          >
-                            <Images className="h-6 w-6 text-white" />
-                          </span>
-                          <span className="min-w-0 pl-14 text-sm font-semibold tracking-wide text-white">
-                            <span className="block whitespace-nowrap">{shortLabel('studio.profile.photoPrivacy.title', 'Fotoğraf')}</span>
-                          </span>
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setProfileMenuOpen(false);
-                            openOneTimeActionIntro({
-                              hintId: 'profile-action-guidance-v1',
-                              titleKey: 'studio.profile.actionIntro.guidance.title',
-                              bodyKey: 'studio.profile.actionIntro.guidance.body',
-                              ctaKey: 'studio.profile.actionIntro.guidance.cta',
-                              onContinue: () => setGuidanceModalOpen(true),
-                            });
-                          }}
-                          className="app-btn app-btn-action-menu relative h-12 w-full px-5 justify-start"
-                          title={t('studio.profile.guidance.button')}
-                          aria-label={shortLabel('studio.profile.guidance.button', 'Rehberlik')}
-                        >
-                          <span
-                            className="absolute left-6 top-1/2 -translate-y-1/2 -translate-x-1/2 flex h-12 w-12 items-center justify-center rounded-2xl bg-white/15 ring-1 ring-white/25"
-                            aria-hidden="true"
-                          >
-                            <BookOpen className="h-6 w-6 text-white" />
-                          </span>
-                          <span className="min-w-0 pl-14 text-sm font-semibold tracking-wide text-white">
-                            <span className="block whitespace-nowrap">{shortLabel('studio.profile.guidance.button', 'Rehberlik')}</span>
-                          </span>
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setProfileMenuOpen(false);
-                            openOneTimeActionIntro({
-                              hintId: 'profile-action-feedback-v1',
-                              titleKey: 'studio.profile.actionIntro.feedback.title',
-                              bodyKey: 'studio.profile.actionIntro.feedback.body',
-                              ctaKey: 'studio.profile.actionIntro.feedback.cta',
-                              onContinue: () => navigate('/profilim/destek'),
-                            });
-                          }}
-                          className="app-btn app-btn-action-menu relative h-12 w-full px-5 justify-start"
-                          aria-label={shortLabel('studio.feedback.nav', 'Şikayet/İstek')}
-                        >
-                          <span
-                            className="absolute left-6 top-1/2 -translate-y-1/2 -translate-x-1/2 flex h-12 w-12 items-center justify-center rounded-2xl bg-white/15 ring-1 ring-white/25"
-                            aria-hidden="true"
-                          >
-                            <MessageCircle className="h-6 w-6 text-white" />
-                          </span>
-                          <span className="min-w-0 pl-10 text-sm font-semibold tracking-wide text-white">
-                            <span className="block whitespace-nowrap">{shortLabel('studio.feedback.nav', 'Şikayet/İstek')}</span>
-                          </span>
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setProfileMenuOpen(false);
-                            openOneTimeActionIntro({
-                              hintId: 'profile-action-identity-panel-v1',
-                              titleKey: 'studio.profile.actionIntro.identity.title',
-                              bodyKey: 'studio.profile.actionIntro.identity.body',
-                              ctaKey: 'studio.profile.actionIntro.identity.cta',
-                              onContinue: () => toggleTopInlinePanel('identity'),
-                            });
-                          }}
-                          className="app-btn app-btn-action-menu relative h-12 w-full px-5 justify-start"
-                          title={shortLabel('studio.profile.identityTitle', 'Kimlik doğrula')}
-                          aria-label={shortLabel('studio.profile.identityTitle', 'Kimlik doğrula')}
-                        >
-                          <span
-                            className="absolute left-6 top-1/2 -translate-y-1/2 -translate-x-1/2 flex h-12 w-12 items-center justify-center rounded-2xl bg-white/15 ring-1 ring-white/25"
-                            aria-hidden="true"
-                          >
-                            <ShieldCheck className="h-6 w-6 text-white" />
-                          </span>
-                          <span className="min-w-0 pl-14 text-sm font-semibold tracking-wide text-white">
-                            <span className="block whitespace-nowrap">{shortLabel('studio.profile.identityTitle', 'Kimlik doğrula')}</span>
-                          </span>
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setProfileMenuOpen(false);
-                            openOneTimeActionIntro({
-                              hintId: 'profile-action-referral-v1',
-                              titleKey: 'studio.profile.actionIntro.referral.title',
-                              bodyKey: 'studio.profile.actionIntro.referral.body',
-                              ctaKey: 'studio.profile.actionIntro.referral.cta',
-                              onContinue: () => toggleTopInlinePanel('referral'),
-                            });
-                          }}
-                          className="app-btn app-btn-action-menu relative h-12 w-full px-5 justify-start"
-                          title={t('studio.referral.title')}
-                          aria-label={shortLabel('studio.referral.title', 'Davet')}
-                        >
-                          <span
-                            className="absolute left-6 top-1/2 -translate-y-1/2 -translate-x-1/2 flex h-12 w-12 items-center justify-center rounded-2xl bg-white/15 ring-1 ring-white/25"
-                            aria-hidden="true"
-                          >
-                            <Users className="h-6 w-6 text-white" />
-                          </span>
-                          <span className="min-w-0 pl-14 text-sm font-semibold tracking-wide text-white">
-                            <span className="block whitespace-nowrap">{shortLabel('studio.referral.title', 'Davet')}</span>
-                          </span>
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setProfileMenuOpen(false);
-                            openOneTimeActionIntro({
-                              hintId: 'profile-action-logout-v1',
-                              titleKey: 'studio.profile.actionIntro.logout.title',
-                              bodyKey: 'studio.profile.actionIntro.logout.body',
-                              ctaKey: 'studio.profile.actionIntro.logout.cta',
-                              onContinue: () => logoutNow(),
-                            });
-                          }}
-                          className="app-btn app-btn-action-menu relative h-12 w-full px-5 justify-start"
-                          title={t('studio.profile.logout')}
-                          aria-label={shortLabel('studio.profile.logout', 'Çıkış')}
-                        >
-                          <span
-                            className="absolute left-6 top-1/2 -translate-y-1/2 -translate-x-1/2 flex h-12 w-12 items-center justify-center rounded-2xl bg-white/15 ring-1 ring-white/25"
-                            aria-hidden="true"
-                          >
-                            <LogOut className="h-6 w-6 text-white" />
-                          </span>
-                          <span className="min-w-0 pl-14 text-sm font-semibold tracking-wide text-white">
-                            <span className="block whitespace-nowrap">{shortLabel('studio.profile.logout', 'Çıkış')}</span>
-                          </span>
-                        </button>
-                      </div>
-                    </div>
-                  ) : null}
-                </div>
-              </div>
             </div>
           </div>
 
@@ -2179,13 +2098,13 @@ export default function StudioProfile() {
                         <div>
                           <div className="text-sm font-semibold text-slate-900">{shortLabel('matchmakingPanel.photos.title', 'Fotoğraflar')}</div>
                           <div className="mt-1 text-sm text-slate-600">
-                            {isTr ? 'En fazla 5 görsel ekleyebilirsiniz.' : 'You can add up to 5 images.'}
+                            {t('studio.profile.photoManager.maxFive')}
                           </div>
                         </div>
 
                         <button type="button" onClick={openPhotoManager} className="app-btn app-btn-primary" disabled={photoUpdateAction.loading}>
                           <UploadCloud className="mr-2 h-4 w-4" />
-                          {photoUpdateAction.loading ? t('studio.common.processing') : isTr ? 'Fotoğraf Ekle/Değiştir' : 'Add/Change Photos'}
+                          {photoUpdateAction.loading ? t('studio.common.processing') : t('studio.profile.photoManager.manageButton')}
                         </button>
                       </div>
 
@@ -2271,103 +2190,6 @@ export default function StudioProfile() {
               </div>
             ) : null}
 
-            {!pwaInstalled ? (
-              <div className="mt-6">
-                <PwaInstallCard variant="light" />
-              </div>
-            ) : pwaInstalled && pushAfterInstallPending && !pushAfterInstallDismissed && !pushEnabledNow ? (
-              <div className="mt-6 rounded-xl border border-emerald-200 bg-emerald-50 p-4">
-                <div className="flex items-start justify-between gap-4">
-                  <div className="flex items-start gap-3">
-                    <div className="mt-0.5 flex h-8 w-8 items-center justify-center rounded-full bg-emerald-100">
-                      <AlertTriangle className="h-4 w-4 text-emerald-800" />
-                    </div>
-                    <div>
-                      <div className="font-semibold text-slate-900">{t('pwa.install.notifications.title')}</div>
-                      <div className="mt-1 text-sm text-slate-700">{t('pwa.install.installedHint')}</div>
-                      {pushNudgeFeedback ? (
-                        <div className="mt-2 text-sm font-semibold text-slate-700">{pushNudgeFeedback}</div>
-                      ) : null}
-                      <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center">
-                        <button
-                          type="button"
-                          disabled={pushNudgeBusy}
-                          onClick={async () => {
-                            if (pushNudgeBusy) return;
-                            setPushNudgeFeedback('');
-                            setPushNudgeBusy(true);
-                            try {
-                              const res = await enablePushForCurrentUser().catch(() => null);
-
-                              if (res?.ok) {
-                                setPushEnabledNow(true);
-                                if (uid) {
-                                  try {
-                                    window.localStorage.removeItem(pushAfterInstallKey(LS_PUSH_AFTER_INSTALL_PENDING_PREFIX, uid));
-                                  } catch {
-                                    // ignore
-                                  }
-                                }
-                                setPushAfterInstallPending(false);
-                                setPushNudgeFeedback(
-                                  res?.serverSync === false
-                                    ? t('pwa.install.notifications.enabledButNotSaved')
-                                    : t('pwa.install.notifications.enabled')
-                                );
-                                return;
-                              }
-
-                              const code = String(res?.code || '').trim();
-                              const msgKey =
-                                code === 'not_supported' || code === 'messaging_not_supported'
-                                  ? 'pwa.install.notifications.notSupported'
-                                  : code === 'not_secure_context'
-                                    ? 'pwa.install.notifications.notSecureContext'
-                                    : code === 'service_worker_not_ready'
-                                      ? 'pwa.install.notifications.serviceWorkerNotReady'
-                                      : code === 'missing_vapid_key'
-                                        ? 'pwa.install.notifications.missingSetup'
-                                        : code === 'invalid_vapid_key'
-                                          ? 'pwa.install.notifications.invalidVapidKey'
-                                          : code === 'permission_denied'
-                                            ? 'pwa.install.notifications.denied'
-                                            : 'pwa.install.notifications.error';
-
-                              setPushNudgeFeedback(t(msgKey));
-                            } finally {
-                              setPushNudgeBusy(false);
-                            }
-                          }}
-                          className="app-btn app-btn-primary"
-                        >
-                          {pushNudgeBusy ? t('studio.common.processing') : t('pwa.install.notifications.button')}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            if (uid) {
-                              try {
-                                window.localStorage.removeItem(pushAfterInstallKey(LS_PUSH_AFTER_INSTALL_PENDING_PREFIX, uid));
-                                window.localStorage.setItem(pushAfterInstallKey(LS_PUSH_AFTER_INSTALL_DISMISSED_PREFIX, uid), '1');
-                              } catch {
-                                // ignore
-                              }
-                            }
-                            setPushAfterInstallPending(false);
-                            setPushAfterInstallDismissed(true);
-                            setPushNudgeFeedback('');
-                          }}
-                          className="app-btn app-btn-outline"
-                        >
-                          {t('studio.common.close')}
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ) : null}
-
             {showApplyBanner ? (
               <div className="mt-6 rounded-xl border border-amber-200 bg-amber-50 p-4">
                 <div className="flex items-start justify-between gap-4">
@@ -2391,6 +2213,12 @@ export default function StudioProfile() {
                 </div>
 
                 <div className="mt-4 grid grid-cols-1 gap-2 sm:flex sm:flex-wrap sm:items-center">
+                  <Link
+                    to="/uygulama"
+                    className="app-btn app-btn-soft w-full sm:w-auto"
+                  >
+                    {t('studio.profile.applySuccess.ctas.install')}
+                  </Link>
                   <Link
                     to="/app/pool"
                     className="app-btn app-btn-orange w-full sm:w-auto"
@@ -3142,6 +2970,23 @@ export default function StudioProfile() {
             ) : null}
           </div>
         </div>
+
+        <div className="mx-auto mt-6 max-w-4xl">
+          <Link
+            to="/aracilik"
+            className="inline-flex w-full items-center justify-between gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-900 transition hover:bg-emerald-100"
+            onClick={() => {
+              try {
+                void trackClick('cta_lead_apply_profile');
+              } catch {
+                // ignore
+              }
+            }}
+          >
+            <span>{t('navigation.leadApply')}</span>
+            <span className="text-emerald-900/70">→</span>
+          </Link>
+        </div>
       </main>
 
       <StudioBottomNav />
@@ -3154,15 +2999,13 @@ export default function StudioProfile() {
               <div className="font-semibold text-slate-900">{shortLabel('matchmakingPanel.photos.title', 'Fotoğraflar')}</div>
               <button type="button" onClick={closePhotoManager} className="app-btn app-btn-ghost h-9 px-3">
                 <X className="h-4 w-4" />
-                {isTr ? 'Kapat' : t('studio.common.close', { defaultValue: 'Close' })}
+                {t('studio.common.close')}
               </button>
             </div>
 
             <div className="p-4 overflow-y-auto flex-1">
               <div className="text-sm text-slate-600">
-                {isTr
-                  ? 'Mevcut fotoğraflarınızı görüntüleyin ve dilediğiniz zaman yenileyin. En fazla 5 görsel.'
-                  : 'View your photos and update any time. Up to 5 images.'}
+                {t('studio.profile.photoManager.modalIntro')}
               </div>
 
               <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-5">
@@ -3171,7 +3014,7 @@ export default function StudioProfile() {
                   const preview = String(photoManagerDraft?.previews?.[idx] || '').trim();
                   const file = photoManagerDraft?.files?.[idx] || null;
                   const shown = preview || url;
-                  const label = isTr ? `Fotoğraf ${idx + 1}` : `Photo ${idx + 1}`;
+                  const label = t('studio.profile.photoManager.slotLabel', { index: idx + 1 });
 
                   return (
                     <div key={idx} className="rounded-lg border border-slate-200 bg-slate-50 p-2">
@@ -3202,7 +3045,7 @@ export default function StudioProfile() {
                               });
                             }}
                             className="app-btn app-btn-ghost h-7 px-2 text-xs"
-                            title={isTr ? 'Kaldır' : 'Remove'}
+                            title={t('studio.profile.photoManager.remove')}
                           >
                             <Trash2 className="h-4 w-4" />
                           </button>
@@ -3216,7 +3059,7 @@ export default function StudioProfile() {
                           </a>
                         ) : (
                           <div className="flex h-28 items-center justify-center text-xs text-slate-500">
-                            {isTr ? 'Boş' : 'Empty'}
+                            {t('studio.profile.photoManager.empty')}
                           </div>
                         )}
                       </div>
@@ -3273,7 +3116,7 @@ export default function StudioProfile() {
                           className="app-btn app-btn-outline w-full"
                           disabled={photoUpdateAction.loading}
                         >
-                          {shown ? (isTr ? 'Değiştir' : 'Replace') : isTr ? 'Ekle' : 'Add'}
+                          {shown ? t('studio.profile.photoManager.replace') : t('studio.profile.photoManager.add')}
                         </button>
                         {file?.name ? <div className="mt-1 text-[11px] text-slate-500 break-words">{file.name}</div> : null}
                       </div>
@@ -3291,20 +3134,14 @@ export default function StudioProfile() {
 
               <div className="mt-4 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
                 <button type="button" onClick={closePhotoManager} className="app-btn app-btn-outline" disabled={photoUpdateAction.loading}>
-                  {isTr ? 'Vazgeç' : 'Cancel'}
+                  {t('studio.common.cancel')}
                 </button>
                 <button type="button" onClick={savePhotoUpdates} className="app-btn app-btn-primary" disabled={photoUpdateAction.loading}>
-                  {photoUpdateAction.loading ? t('studio.common.processing') : isTr ? 'Kaydet' : 'Save'}
+                  {photoUpdateAction.loading ? t('studio.common.processing') : t('studio.profile.photoManager.save')}
                 </button>
               </div>
             </div>
           </div>
-        </div>
-      ) : null}
-
-      {pwaInstalled ? (
-        <div className="mt-8">
-          <PwaInstallCard variant="light" />
         </div>
       ) : null}
 

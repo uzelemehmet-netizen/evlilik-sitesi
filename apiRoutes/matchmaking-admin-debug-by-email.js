@@ -72,7 +72,6 @@ function computeEligibilitySummary({ uid, userDoc, app, nowMs, inactiveHours = 2
   const excludedReasons = [];
   if (!userExists) excludedReasons.push('matchmakingUsers doc missing');
   if (blocked) excludedReasons.push('blocked');
-  if (lockActive) excludedReasons.push('matchmakingLock.active');
   if (cooldownActive) excludedReasons.push('cooldown_active');
   if (!appExists) excludedReasons.push('no matchmakingApplication');
   if (appExists && (!gender || !lookingForGender)) excludedReasons.push('application missing gender/lookingForGender');

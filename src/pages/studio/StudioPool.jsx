@@ -6,23 +6,78 @@ import Navigation from '../../components/Navigation';
 import { useAuth } from '../../auth/AuthProvider';
 import { db } from '../../config/firebaseDb';
 import { authFetch } from '../../utils/authFetch';
+import { getLocalizedProfileText } from '../../utils/profileText';
 import { translateStudioApiError } from '../../utils/studioErrorI18n';
 import StudioInboxModal from '../../components/studio/StudioInboxModal';
 import { useMatchmakingResetAtMs } from '../../utils/matchmakingReset';
-import { HelpCircle, RefreshCcw, ShieldCheck, Users } from 'lucide-react';
+import { AlertTriangle, HelpCircle, RefreshCcw, ShieldCheck, Users, X } from 'lucide-react';
 import ImageLightbox from '../../components/ImageLightbox';
 import PwaInstallCard from '../../components/PwaInstallCard';
+import StudioInviteFriendsCard from '../../components/studio/StudioInviteFriendsCard.jsx';
 import { openPreviewGate } from '../../utils/previewGate';
 import { buildPreviewPoolItems } from '../../utils/studioPreviewData';
 import StudioBottomNav from '../../components/studio/StudioBottomNav';
 import { isTutorialActive } from '../../utils/tutorialState.js';
-import { hasMinimumMatchmakingProfileInUserDoc, isStubMatchmakingApplication } from '../../utils/matchmakingProfileCompletion';
+import {
+  hasAnyMatchmakingPhotoInApplicationDoc,
+  hasAnyStoredMatchmakingPhotoInApplicationDoc,
+  hasAnyMatchmakingPhotoInUserDoc,
+  hasAnyMatchmakingProfileInApplicationDoc,
+  hasAnyMatchmakingProfileInUserDoc,
+  hasMinimumMatchmakingProfileInUserDoc,
+  isStubMatchmakingApplication,
+} from '../../utils/matchmakingProfileCompletion';
 
 const NEW_USER_BADGE_WINDOW_MS = 48 * 60 * 60 * 1000;
+const INITIAL_POOL_LIMIT = 120;
+const POOL_LOAD_MORE_STEP = 120;
+const POOL_RETRY_DELAYS_MS = [1500, 4000];
 
 function safeStr(v) {
   return typeof v === 'string' ? v.trim() : '';
 }
+
+function poolCacheKey(uid) {
+  const id = safeStr(uid) || 'guest';
+  return `uniqah:pool-cache:v2:${id}`;
+}
+
+function readPoolCache(uid) {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = sessionStorage.getItem(poolCacheKey(uid));
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    const items = Array.isArray(parsed?.items) ? parsed.items : [];
+    const meta = parsed?.meta && typeof parsed.meta === 'object' ? parsed.meta : null;
+    const savedAtMs = typeof parsed?.savedAtMs === 'number' && Number.isFinite(parsed.savedAtMs) ? parsed.savedAtMs : 0;
+    if (!items.length) return null;
+    return { items, meta, savedAtMs };
+  } catch {
+    return null;
+  }
+}
+
+function writePoolCache(uid, payload) {
+  if (typeof window === 'undefined') return;
+  try {
+    const items = Array.isArray(payload?.items) ? payload.items : [];
+    if (!items.length) return;
+    const meta = payload?.meta && typeof payload.meta === 'object' ? payload.meta : null;
+    sessionStorage.setItem(
+      poolCacheKey(uid),
+      JSON.stringify({
+        items,
+        meta,
+        savedAtMs: Date.now(),
+      })
+    );
+  } catch {
+    // ignore
+  }
+}
+
+const OPEN_CHAT_MODEL = true;
 
 function isMinimumProfileCompleteFromUserDoc(d) {
   return hasMinimumMatchmakingProfileInUserDoc(d);
@@ -141,7 +196,9 @@ export default function StudioPool() {
   const [state, setState] = useState({ loading: true, error: '' });
   const [meta, setMeta] = useState(null);
   const [items, setItems] = useState([]);
+  const [poolLimit, setPoolLimit] = useState(INITIAL_POOL_LIMIT);
   const [lastUpdatedMs, setLastUpdatedMs] = useState(0);
+  const [recoveryNotice, setRecoveryNotice] = useState('');
   const [autoRefreshEnabled, setAutoRefreshEnabled] = useState(true);
   const [needsApplication, setNeedsApplication] = useState(false);
 
@@ -154,8 +211,8 @@ export default function StudioPool() {
 
   const [inboxModal, setInboxModal] = useState({ open: false });
   const [lightbox, setLightbox] = useState({ open: false, images: [], index: 0, title: '' });
+  const [importantNoticeOpen, setImportantNoticeOpen] = useState(false);
 
-  const [myLock, setMyLock] = useState({ active: false, matchId: '' });
   const [, setMyMembership] = useState({ active: false });
   const [, setMyGender] = useState('');
   const [myPhotosBlurred, setMyPhotosBlurred] = useState(false);
@@ -164,6 +221,8 @@ export default function StudioPool() {
   const [myProfileComplete, setMyProfileComplete] = useState(true);
   const [myHasAnyPhoto, setMyHasAnyPhoto] = useState(null); // null=unknown
   const [myHasAnyApplication, setMyHasAnyApplication] = useState(null); // null=unknown
+  const [myHasAnyPhotoFromUserDoc, setMyHasAnyPhotoFromUserDoc] = useState(null);
+  const [myHasAnyApplicationFromUserDoc, setMyHasAnyApplicationFromUserDoc] = useState(null);
   const [myOptionalDetailsMissing, setMyOptionalDetailsMissing] = useState(false);
 
   const [completeProfileGateOpen, setCompleteProfileGateOpen] = useState(false);
@@ -172,29 +231,29 @@ export default function StudioPool() {
   const profileGateAutoShownRef = useRef(false);
   const optionalDetailsPromptAutoShownRef = useRef(false);
 
+  const effectiveHasAnyApplication = useMemo(() => {
+    if (myHasAnyApplication === true || myHasAnyApplicationFromUserDoc === true) return true;
+    if (myHasAnyApplication === false && myHasAnyApplicationFromUserDoc === false) return false;
+    return myHasAnyApplication ?? myHasAnyApplicationFromUserDoc;
+  }, [myHasAnyApplication, myHasAnyApplicationFromUserDoc]);
+
+  const effectiveHasAnyPhoto = useMemo(() => {
+    if (myHasAnyPhoto === true || myHasAnyPhotoFromUserDoc === true) return true;
+    if (myHasAnyPhoto === false && myHasAnyPhotoFromUserDoc === false) return false;
+    return myHasAnyPhoto ?? myHasAnyPhotoFromUserDoc;
+  }, [myHasAnyPhoto, myHasAnyPhotoFromUserDoc]);
+
   const applicationRequired = useMemo(() => {
-    // Backend'den gelen needsApplication bazı edge-case'lerde yanlış pozitif olabiliyor.
-    // Kullanıcı zaten form doldurduysa (application var) UI'da tekrar forma yönlendirmeyelim.
-    if (myHasAnyApplication === true) return false;
-    if (myHasAnyApplication === false) return true;
-    // Uygulama var/yok henüz bilinmiyorsa kullanıcıyı bloklamayalım;
-    // eksikse backend çağrısı zaten application_not_found/profile_incomplete ile döner.
     return false;
-  }, [myHasAnyApplication]);
+  }, [effectiveHasAnyApplication]);
 
   const interactionLocked = useMemo(() => {
-    return applicationRequired || myProfileComplete === false || myHasAnyPhoto === false;
-  }, [applicationRequired, myProfileComplete, myHasAnyPhoto]);
+    return false;
+  }, [applicationRequired, effectiveHasAnyPhoto]);
 
   const profileGateMode = useMemo(() => {
-    if (myHasAnyApplication === false) return 'application';
-    if (myHasAnyApplication === true) {
-      if (myHasAnyPhoto === false) return 'photo';
-      if (myHasAnyPhoto === null && myProfileComplete === false) return '';
-      if (myProfileComplete === false) return 'application';
-    }
     return '';
-  }, [myHasAnyApplication, myHasAnyPhoto, myProfileComplete]);
+  }, [effectiveHasAnyApplication, effectiveHasAnyPhoto]);
 
   const profileGateBody = useMemo(() => {
     if (profileGateMode === 'photo') return t('studio.profileGate.photoBody');
@@ -208,6 +267,18 @@ export default function StudioPool() {
 
   const cancelledRef = useRef(false);
   const activateMembershipRef = useRef(false);
+  const retryTimeoutRef = useRef(null);
+  const retryAttemptRef = useRef(0);
+
+  useEffect(() => {
+    return () => {
+      try {
+        if (retryTimeoutRef.current) window.clearTimeout(retryTimeoutRef.current);
+      } catch {
+        // ignore
+      }
+    };
+  }, []);
 
   const load = useCallback(
     async ({ silent } = { silent: false }) => {
@@ -218,6 +289,7 @@ export default function StudioPool() {
         setMeta({ total: sample.length });
         setItems(sample);
         setLastUpdatedMs(Date.now());
+        setRecoveryNotice('');
         setState({ loading: false, error: '' });
         return;
       }
@@ -226,31 +298,72 @@ export default function StudioPool() {
         const data = await authFetch('/api/matchmaking-browse', {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ limit: 30 }),
+          body: JSON.stringify({ limit: poolLimit }),
         });
 
         if (cancelledRef.current) return;
+        const degraded = data?.degraded === true;
+        const degradedMsg = degraded
+          ? translateStudioApiError(t, safeStr(data?.error) || safeStr(data?.message) || 'api_unreachable') ||
+            t('studio.errors.apiUnavailable')
+          : '';
+        const nextItems = Array.isArray(data?.items) ? data.items : [];
+        const nextMeta = data?.meta || null;
         setNeedsApplication(!!(data?.meta && data.meta.needsApplication));
         setAutoRefreshEnabled(true);
-        setMeta(data?.meta || null);
-        setItems(Array.isArray(data?.items) ? data.items : []);
+        setMeta(nextMeta);
+        setItems(nextItems);
         setLastUpdatedMs(Date.now());
-        setState({ loading: false, error: '' });
+        retryAttemptRef.current = 0;
+        if (retryTimeoutRef.current) {
+          window.clearTimeout(retryTimeoutRef.current);
+          retryTimeoutRef.current = null;
+        }
+        if (nextItems.length) {
+          writePoolCache(effectiveUid, { items: nextItems, meta: nextMeta });
+          setRecoveryNotice('');
+        } else if (degraded) {
+          const cached = readPoolCache(effectiveUid);
+          if (cached?.items?.length) {
+            setMeta(cached.meta || nextMeta);
+            setItems(cached.items);
+            setRecoveryNotice(t('studio.pool.cachedResults'));
+          }
+        }
+        setState({ loading: false, error: degradedMsg });
       } catch (e) {
         if (cancelledRef.current) return;
         const msg = safeStr(e?.message) || 'load_failed';
+        const translated = translateStudioApiError(t, msg) || msg;
 
         if (msg === 'application_not_found') {
           setNeedsApplication(true);
           setAutoRefreshEnabled(false);
         }
 
-        setItems([]);
-        setMeta(null);
-        setState({ loading: false, error: translateStudioApiError(t, msg) || msg });
+        const cached = readPoolCache(effectiveUid);
+        if (cached?.items?.length) {
+          setMeta(cached.meta || null);
+          setItems(cached.items);
+          setRecoveryNotice(t('studio.pool.cachedResults'));
+        }
+
+        if (msg !== 'application_not_found' && retryAttemptRef.current < POOL_RETRY_DELAYS_MS.length) {
+          const retryIndex = retryAttemptRef.current;
+          retryAttemptRef.current += 1;
+          if (retryTimeoutRef.current) window.clearTimeout(retryTimeoutRef.current);
+          retryTimeoutRef.current = window.setTimeout(() => {
+            retryTimeoutRef.current = null;
+            load({ silent: true });
+          }, POOL_RETRY_DELAYS_MS[retryIndex]);
+          setState({ loading: false, error: t('studio.pool.retrying') });
+          return;
+        }
+
+        setState({ loading: false, error: translated });
       }
     },
-    [isPreview, t]
+    [effectiveUid, isPreview, poolLimit, t]
   );
 
   useEffect(() => {
@@ -261,6 +374,7 @@ export default function StudioPool() {
     setMeta({ total: sample.length });
     setItems(sample);
     setLastUpdatedMs(Date.now());
+    setRecoveryNotice('');
     setState({ loading: false, error: '' });
     setMyPhotosBlurred(false);
     setMyProfileComplete(false);
@@ -279,12 +393,17 @@ export default function StudioPool() {
   }, [isPreview, profileGateMode, profileGateBody]);
 
   useEffect(() => {
+    if (!profileGateNotice || !profileGateMode) return;
+    setProfileGateNotice((current) => (current === profileGateBody ? current : profileGateBody));
+  }, [profileGateBody, profileGateMode, profileGateNotice]);
+
+  useEffect(() => {
     if (isPreview) return;
     if (interactionLocked) {
       setOptionalDetailsPromptOpen(false);
       return;
     }
-    if (!myHasAnyApplication || !myProfileComplete || !myOptionalDetailsMissing) {
+    if (!effectiveHasAnyApplication || !myProfileComplete || !myOptionalDetailsMissing) {
       setOptionalDetailsPromptOpen(false);
       return;
     }
@@ -292,7 +411,7 @@ export default function StudioPool() {
 
     optionalDetailsPromptAutoShownRef.current = true;
     setOptionalDetailsPromptOpen(true);
-  }, [interactionLocked, isPreview, myHasAnyApplication, myOptionalDetailsMissing, myProfileComplete]);
+  }, [effectiveHasAnyApplication, interactionLocked, isPreview, myOptionalDetailsMissing, myProfileComplete]);
 
   // Outbox (benim gönderdiğim ön eşleşme istekleri)
   useEffect(() => {
@@ -392,7 +511,6 @@ export default function StudioPool() {
   useEffect(() => {
     const uid = effectiveUid;
     if (!uid) {
-      setMyLock({ active: false, matchId: '' });
       setMyMembership({ active: false });
       setMyPhotosBlurred(false);
       return;
@@ -420,11 +538,6 @@ export default function StudioPool() {
         if (cancelled) return;
         const d = snap?.exists?.() ? snap.data() || {} : {};
 
-        const lock = d?.matchmakingLock && typeof d.matchmakingLock === 'object' ? d.matchmakingLock : null;
-        const active = !!lock?.active;
-        const matchId = typeof lock?.matchId === 'string' ? String(lock.matchId).trim() : '';
-        setMyLock({ active, matchId });
-
         const membershipObj = d?.membership && typeof d.membership === 'object' ? d.membership : null;
         const membershipValidUntilMs = asMs(membershipObj?.validUntilMs);
         const now = Date.now();
@@ -439,6 +552,8 @@ export default function StudioPool() {
         setMyGender(g);
 
         setMyProfileComplete(isMinimumProfileCompleteFromUserDoc(d));
+        setMyHasAnyApplicationFromUserDoc(hasAnyMatchmakingProfileInUserDoc(d));
+        setMyHasAnyPhotoFromUserDoc(hasAnyMatchmakingPhotoInUserDoc(d));
 
         const v1 = d?.publicProfile && typeof d.publicProfile === 'object' ? d.publicProfile.photosBlurred : undefined;
         const v2 = d?.photosBlurred;
@@ -454,11 +569,6 @@ export default function StudioPool() {
       (snap) => {
         const d = snap.exists() ? snap.data() || {} : {};
 
-        const lock = d?.matchmakingLock && typeof d.matchmakingLock === 'object' ? d.matchmakingLock : null;
-        const active = !!lock?.active;
-        const matchId = typeof lock?.matchId === 'string' ? String(lock.matchId).trim() : '';
-        setMyLock({ active, matchId });
-
         const membershipObj = d?.membership && typeof d.membership === 'object' ? d.membership : null;
         const membershipValidUntilMs = asMs(membershipObj?.validUntilMs);
         const now = Date.now();
@@ -473,6 +583,8 @@ export default function StudioPool() {
         setMyGender(g);
 
         setMyProfileComplete(isMinimumProfileCompleteFromUserDoc(d));
+        setMyHasAnyApplicationFromUserDoc(hasAnyMatchmakingProfileInUserDoc(d));
+        setMyHasAnyPhotoFromUserDoc(hasAnyMatchmakingPhotoInUserDoc(d));
 
         const v1 = d?.publicProfile && typeof d.publicProfile === 'object' ? d.publicProfile.photosBlurred : undefined;
         const v2 = d?.photosBlurred;
@@ -480,11 +592,12 @@ export default function StudioPool() {
         setMyPhotosBlurred(!!blur);
       },
       () => {
-        setMyLock({ active: false, matchId: '' });
         setMyMembership({ active: false });
         setMyGender('');
         setMyPhotosBlurred(false);
         setMyProfileComplete(true);
+        setMyHasAnyApplicationFromUserDoc(null);
+        setMyHasAnyPhotoFromUserDoc(null);
       }
     );
 
@@ -504,6 +617,8 @@ export default function StudioPool() {
     if (!uid) {
       setMyHasAnyPhoto(null);
       setMyHasAnyApplication(null);
+      setMyHasAnyPhotoFromUserDoc(null);
+      setMyHasAnyApplicationFromUserDoc(null);
       return;
     }
 
@@ -513,12 +628,11 @@ export default function StudioPool() {
         let hasPhoto = false;
         let bestApp = null;
         snap.forEach((d) => {
-          const id = safeStr(d?.id);
-          if (id) ids.push(id);
           const data = typeof d?.data === 'function' ? d.data() || {} : d?.data || {};
+          const id = safeStr(d?.id);
+          if (hasAnyMatchmakingProfileInApplicationDoc(data) && id) ids.push(id);
           bestApp = pickBestApplicationCandidate(bestApp, { id, ...data });
-          const urls = Array.isArray(data?.photoUrls) ? data.photoUrls : [];
-          if (urls.some((u) => safeStr(u))) hasPhoto = true;
+          if (hasAnyStoredMatchmakingPhotoInApplicationDoc(data)) hasPhoto = true;
         });
         return { ids, hasPhoto, bestApp };
       } catch {
@@ -527,8 +641,6 @@ export default function StudioPool() {
     };
 
     const qAppsUserId = query(collection(db, 'matchmakingApplications'), where('userId', '==', uid), limit(10));
-    const qAppsUid = query(collection(db, 'matchmakingApplications'), where('uid', '==', uid), limit(10));
-    const qAppsUserUid = query(collection(db, 'matchmakingApplications'), where('userUid', '==', uid), limit(10));
 
     const mergeAndSet = (parts) => {
       const list = Array.isArray(parts) ? parts : [];
@@ -549,19 +661,17 @@ export default function StudioPool() {
     let cancelled = false;
     (async () => {
       try {
-        const [s1, s2, s3] = await Promise.all([getDocs(qAppsUserId), getDocs(qAppsUid), getDocs(qAppsUserUid)]);
+        const s1 = await getDocs(qAppsUserId);
         if (cancelled) return;
         const p1 = parseAppsSnap(s1);
-        const p2 = parseAppsSnap(s2);
-        const p3 = parseAppsSnap(s3);
-        mergeAndSet([p1, p2, p3].filter(Boolean));
+        mergeAndSet([p1].filter(Boolean));
       } catch {
         // ignore
       }
     })();
 
-    const live = { userId: null, uid: null, userUid: null };
-    const applyLive = () => mergeAndSet([live.userId, live.uid, live.userUid].filter(Boolean));
+    const live = { userId: null };
+    const applyLive = () => mergeAndSet([live.userId].filter(Boolean));
 
     const unsub1 = onSnapshot(
       qAppsUserId,
@@ -575,57 +685,14 @@ export default function StudioPool() {
       }
     );
 
-    const unsub2 = onSnapshot(
-      qAppsUid,
-      (snap) => {
-        live.uid = parseAppsSnap(snap);
-        applyLive();
-      },
-      () => {
-        live.uid = null;
-        applyLive();
-      }
-    );
-
-    const unsub3 = onSnapshot(
-      qAppsUserUid,
-      (snap) => {
-        live.userUid = parseAppsSnap(snap);
-        applyLive();
-      },
-      () => {
-        live.userUid = null;
-        applyLive();
-      }
-    );
-
     return () => {
       cancelled = true;
-      try {
-        unsub1();
-      } catch {
-        // noop
-      }
-      try {
-        unsub2();
-      } catch {
-        // noop
-      }
-      try {
-        unsub3();
-      } catch {
-        // noop
-      }
+      unsub1();
     };
   }, [effectiveUid]);
 
   const requireProfile = () => {
-    setProfileGateNotice(profileGateBody);
-    try {
-      if (typeof window !== 'undefined') window.scrollTo({ top: 0, behavior: 'smooth' });
-    } catch {
-      // noop
-    }
+    goToProfileCompletionTarget();
   };
 
   useEffect(() => {
@@ -636,6 +703,11 @@ export default function StudioPool() {
     // Aksi halde history replace karmaşıklaşabiliyor.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location?.state]);
+
+  useEffect(() => {
+    if (!needsApplication) return;
+    requireProfile();
+  }, [needsApplication]);
 
   const activateFreeMembershipNow = useCallback(async () => {
     const uid = effectiveUid;
@@ -700,12 +772,7 @@ export default function StudioPool() {
   };
 
   const openCompleteProfileGate = () => {
-    setCompleteProfileGateOpen(true);
-    try {
-      if (typeof window !== 'undefined') window.scrollTo({ top: 0, behavior: 'smooth' });
-    } catch {
-      // noop
-    }
+    goToProfileCompletionTarget();
   };
 
   const dismissCompleteProfileGate = () => setCompleteProfileGateOpen(false);
@@ -720,11 +787,12 @@ export default function StudioPool() {
   const goToOptionalDetailsTarget = () => {
     dismissOptionalDetailsPrompt();
     try {
-      navigate('/evlilik/eslestirme-basvuru?w=1', {
+      navigate('/evlilik/eslestirme-basvuru?w=1&full=1', {
         replace: false,
         state: {
           returnTo: `${location.pathname || '/app/pool'}${location.search || ''}`,
           startStep: 1,
+          profileMode: 'full',
         },
       });
     } catch {
@@ -795,7 +863,7 @@ export default function StudioPool() {
     } catch (e) {
       const msg = safeStr(e?.message) || 'action_failed';
       if (msg === 'membership_required') requirePaid();
-      if (msg === 'profile_incomplete' || msg === 'application_not_found' || msg === 'application_required') openCompleteProfileGate();
+      if (msg === 'profile_incomplete' || msg === 'application_not_found' || msg === 'application_required' || msg === 'photo_required') openCompleteProfileGate();
       setAccessAction({ loadingId: '', error: translateStudioApiError(t, msg) || msg });
     }
   };
@@ -862,6 +930,15 @@ export default function StudioPool() {
     return '';
   }, []);
 
+  const canLoadMore = useMemo(() => {
+    const total = typeof meta?.total === 'number' ? meta.total : 0;
+    return !state.loading && !needsApplication && items.length > 0 && items.length < total;
+  }, [items.length, meta?.total, needsApplication, state.loading]);
+
+  const loadMore = () => {
+    setPoolLimit((current) => Math.min(1200, current + POOL_LOAD_MORE_STEP));
+  };
+
   const requestAccess = async ({ targetUid } = {}) => {
     if (isPreview) {
       openPreviewGate({ reason: t('previewGate.body') });
@@ -897,7 +974,7 @@ export default function StudioPool() {
           [toUid]: {
             ...(existing || {}),
             id: safeStr(existing?.id) || `${uid}__${toUid}`,
-            type: 'pre_match',
+            type: 'people_list',
             status: 'pending',
             fromUid: uid,
             toUid,
@@ -915,7 +992,7 @@ export default function StudioPool() {
         requirePaid();
         return;
       }
-      if (msg === 'profile_incomplete' || msg === 'application_not_found' || msg === 'application_required') {
+      if (msg === 'profile_incomplete' || msg === 'application_not_found' || msg === 'application_required' || msg === 'photo_required') {
         openCompleteProfileGate();
         return;
       }
@@ -925,9 +1002,8 @@ export default function StudioPool() {
 
   const pendingAccessCount = useMemo(() => {
     const list = Array.isArray(inboxAccess) ? inboxAccess : [];
-    if (myLock?.active) return 0;
-    return list.filter((x) => safeStr(x?.status) === 'pending').length;
-  }, [inboxAccess, myLock?.active]);
+    return list.filter((x) => safeStr(x?.status) === 'pending' && safeStr(x?.type) !== 'people_list').length;
+  }, [inboxAccess]);
 
   const markInboxMessageRead = async ({ requestId, fromUid }) => {
     try {
@@ -940,6 +1016,21 @@ export default function StudioPool() {
       // best-effort
     }
   };
+
+  const importantNoticeAnalysisItems = useMemo(() => {
+    const value = t('studio.pool.importantNotice.analysisItems', { returnObjects: true });
+    return Array.isArray(value) ? value : [];
+  }, [t]);
+
+  const importantNoticePositiveItems = useMemo(() => {
+    const value = t('studio.pool.importantNotice.positiveItems', { returnObjects: true });
+    return Array.isArray(value) ? value : [];
+  }, [t]);
+
+  const importantNoticeReportItems = useMemo(() => {
+    const value = t('studio.pool.importantNotice.reportItems', { returnObjects: true });
+    return Array.isArray(value) ? value : [];
+  }, [t]);
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 pb-24 sm:pb-0">
@@ -957,13 +1048,9 @@ export default function StudioPool() {
                     openPreviewGate({ reason: t('previewGate.body') });
                     return;
                   }
-                  if (interactionLocked) {
-                    openCompleteProfileGate();
-                    return;
-                  }
                   setInboxModal({ open: true });
                 }}
-                className="app-btn w-full sm:w-auto"
+                className="app-btn hidden w-full sm:inline-flex sm:w-auto"
               >
                 <span className="inline-flex items-center justify-center gap-2">
                   <HelpCircle className="h-4 w-4" />
@@ -987,16 +1074,11 @@ export default function StudioPool() {
               </button>
               <Link
                 to="/app/matches"
-                className="app-btn w-full sm:w-auto"
+                className="app-btn hidden w-full sm:inline-flex sm:w-auto"
                 onClick={(e) => {
                   if (isPreview) {
                     e.preventDefault();
                     openPreviewGate({ reason: t('previewGate.body') });
-                    return;
-                  }
-                  if (interactionLocked) {
-                    e.preventDefault();
-                    openCompleteProfileGate();
                   }
                 }}
               >
@@ -1015,6 +1097,50 @@ export default function StudioPool() {
           {meta && typeof meta?.total === 'number' ? (
             <p className="mt-1 text-xs text-slate-500">{t('studio.pool.countHint', { total: meta.total, shown: items.length })}</p>
           ) : null}
+          {recoveryNotice ? <p className="mt-1 text-xs text-amber-700">{recoveryNotice}</p> : null}
+
+          <div className="mt-4 rounded-2xl border border-amber-200 bg-[linear-gradient(135deg,rgba(255,251,235,0.98),rgba(255,255,255,0.94))] p-4 shadow-[0_18px_38px_rgba(217,119,6,0.08)]">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="min-w-0">
+                <p className="text-[11px] font-bold uppercase tracking-[0.24em] text-amber-700/80">{t('studio.pool.importantNotice.eyebrow')}</p>
+                <p className="mt-1 text-sm text-slate-700">{t('studio.pool.importantNotice.summary')}</p>
+              </div>
+              <div className="relative w-full pt-5 sm:w-auto">
+                <div className="pointer-events-none absolute left-1/2 top-0 z-10 -translate-x-1/2 sm:left-auto sm:right-4 sm:translate-x-0">
+                  <div className="-rotate-6 rounded-full border border-white/70 bg-rose-500 px-3 py-1 text-[10px] font-extrabold uppercase tracking-[0.18em] text-white shadow-[0_10px_24px_rgba(244,63,94,0.32)]">
+                    {t('studio.pool.importantNotice.tapSticker')}
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setImportantNoticeOpen(true)}
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-amber-500 px-4 py-3 text-sm font-semibold text-slate-950 shadow-[0_14px_30px_rgba(245,158,11,0.28)] transition hover:bg-amber-400 sm:w-auto"
+                >
+                  <AlertTriangle className="h-4 w-4" />
+                  <span>{t('studio.pool.importantNotice.openButton')}</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <StudioInviteFriendsCard
+            className="mt-4"
+            compact
+            onClick={() => {
+              if (isPreview) {
+                openPreviewGate({ reason: t('previewGate.body') });
+                return;
+              }
+              navigate('/profilim?panel=referral');
+            }}
+          />
+          {canLoadMore ? (
+            <div className="mt-3">
+              <button type="button" onClick={loadMore} className="app-btn app-btn-outline w-full sm:w-auto">
+                {t('studio.pool.loadMore', { count: Math.min(POOL_LOAD_MORE_STEP, Math.max((meta?.total || 0) - items.length, 0)) })}
+              </button>
+            </div>
+          ) : null}
 
           <div className="mt-4 rounded-xl border border-slate-200 bg-white p-4 text-slate-700">
             <div className="flex items-start gap-3">
@@ -1026,6 +1152,30 @@ export default function StudioPool() {
                 <p className="mt-1 text-sm text-slate-700 whitespace-pre-line">{t('studio.pool.trust.body')}</p>
                 <p className="mt-2 text-xs text-slate-500">{t('studio.pool.trust.sortNote')}</p>
               </div>
+            </div>
+          </div>
+
+          <div className="mt-4 rounded-xl border border-indigo-200 bg-[linear-gradient(135deg,rgba(238,242,255,0.96),rgba(255,255,255,0.94))] p-4 text-slate-700 shadow-[0_16px_36px_rgba(99,102,241,0.08)]">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-slate-900">{t('studio.pool.myPeoplePrompt.title')}</p>
+                <p className="mt-1 text-sm text-slate-600">{t('studio.pool.myPeoplePrompt.body')}</p>
+              </div>
+              <Link
+                to="/app/matches"
+                className="app-btn app-btn-primary w-full sm:w-auto"
+                onClick={(e) => {
+                  if (isPreview) {
+                    e.preventDefault();
+                    openPreviewGate({ reason: t('previewGate.body') });
+                  }
+                }}
+              >
+                <span className="inline-flex items-center justify-center gap-2">
+                  <Users className="h-4 w-4" />
+                  <span>{t('studio.pool.myPeoplePrompt.cta')}</span>
+                </span>
+              </Link>
             </div>
           </div>
 
@@ -1049,7 +1199,7 @@ export default function StudioPool() {
             <div role="alert" className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4 text-amber-950">
               <div className="flex flex-wrap items-start justify-between gap-2">
                 <p className="font-semibold">
-                  {t('studio.profile.completeProfileTutorial.title', { defaultValue: isTr ? 'Profilini tamamla' : 'Complete your profile' })}
+                  {t('studio.profile.completeProfileTutorial.title')}
                 </p>
                 <button
                   type="button"
@@ -1067,7 +1217,7 @@ export default function StudioPool() {
 
               {import.meta?.env?.DEV ? (
                 <p className="mt-2 text-[11px] text-amber-900/70">
-                  debug: hasApp={String(myHasAnyApplication)} hasPhoto={String(myHasAnyPhoto)} profileComplete={String(myProfileComplete)} needsApplication={String(needsApplication)}
+                  debug: hasApp={String(effectiveHasAnyApplication)} hasPhoto={String(effectiveHasAnyPhoto)} profileComplete={String(myProfileComplete)} needsApplication={String(needsApplication)}
                 </p>
               ) : null}
               <div className="mt-3 flex flex-wrap gap-2">
@@ -1131,7 +1281,9 @@ export default function StudioPool() {
           {state.loading ? <p className="mt-6 text-slate-600">{t('studio.common.loading')}</p> : null}
           {state.error ? <p className="mt-6 text-rose-700">{state.error}</p> : null}
 
-          {!state.loading && !state.error && items.length === 0 ? (
+          {null}
+
+          {!state.loading && !state.error && !needsApplication && items.length === 0 ? (
             <div className="mt-6 rounded-xl border border-slate-200 bg-white p-5 text-slate-700">
               <p className="font-semibold text-slate-900">{t('studio.waitingNote.title')}</p>
               <p className="mt-2 text-sm text-slate-700">
@@ -1148,11 +1300,6 @@ export default function StudioPool() {
                 />
               </p>
               <p className="mt-2 text-sm text-slate-600">{t('studio.pool.empty')}</p>
-              {!needsApplication && myProfileComplete !== false ? (
-                <div className="mt-4">
-                  <PwaInstallCard variant="light" />
-                </div>
-              ) : null}
             </div>
           ) : null}
 
@@ -1178,18 +1325,18 @@ export default function StudioPool() {
               const userCode = safeStr(p?.userCode);
               const city = safeStr(p?.city);
               const marital = safeStr(p?.details?.maritalStatus);
-              const occupation = safeStr(p?.details?.occupation);
+              const occupation = safeStr(getLocalizedProfileText(p?.details, 'occupation', i18n.language)) || safeStr(p?.details?.occupation);
               const genderText = genderLabel(t, p?.gender);
               const maritalText = maritalStatusLabel(t, marital);
-              const about = clip(p?.about, 180);
-              const exp = clip(p?.expectations, 180);
+              const about = clip(getLocalizedProfileText(p, 'about', i18n.language), 180);
+              const exp = clip(getLocalizedProfileText(p, 'expectations', i18n.language), 180);
               const isUnknown = p?.profileIncomplete === true;
               const photos = Array.isArray(p?.photoUrls) ? p.photoUrls.map(safeStr).filter(Boolean) : [];
               const photo = photos.length ? photos[0] : '';
               const canSeePhotos = !myPhotosBlurred;
 
               return (
-                <div key={safeStr(it?.uid) || safeStr(it?.applicationId)} className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
+                <div key={safeStr(it?.uid) || safeStr(it?.applicationId)} className="overflow-hidden rounded-lg border border-slate-200 bg-white text-slate-900 shadow-sm">
                   <div className="relative aspect-square w-full overflow-hidden bg-slate-100">
                     {photo ? (
                       <button
@@ -1239,9 +1386,9 @@ export default function StudioPool() {
                     ) : null}
                   </div>
 
-                  <div className="p-4">
+                  <div className="p-4 text-slate-900">
                     <div className="flex items-start justify-between gap-2">
-                      <p className="text-lg font-semibold">{name}{age}</p>
+                      <p className="text-lg font-semibold text-slate-900">{name}{age}</p>
                       <div className="flex flex-wrap items-center gap-1">
                         {isNewUser ? (
                           <span className="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-900 border border-emerald-200">
@@ -1321,15 +1468,13 @@ export default function StudioPool() {
             open={!!inboxModal?.open}
             onClose={() => setInboxModal({ open: false })}
             title={t('studio.inbox.modalTitleRequests')}
-            items={myLock?.active ? [] : inboxAccess}
+            items={inboxAccess}
             mode="requests"
             onMarkRead={markInboxMessageRead}
             onApprove={({ fromUid }) => respondAccessRequest({ fromUid, decision: 'approve' })}
             onReject={({ fromUid }) => respondAccessRequest({ fromUid, decision: 'reject' })}
-            actionsDisabled={interactionLocked}
-            onRequireProfile={() => {
-              requireProfile();
-            }}
+            actionsDisabled={false}
+            onRequireProfile={() => {}}
             loadingId={accessAction.loadingId}
             error={accessAction.error}
           />
@@ -1340,6 +1485,100 @@ export default function StudioPool() {
               currentIndex={lightbox.index}
               onClose={() => setLightbox({ open: false, images: [], index: 0, title: '' })}
             />
+          ) : null}
+
+          {importantNoticeOpen ? (
+            <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/50 p-4 pt-6 overflow-y-auto" role="dialog" aria-modal="true" aria-labelledby="pool-important-notice-title">
+              <div className="w-full max-w-2xl overflow-hidden rounded-[28px] bg-white shadow-[0_34px_100px_rgba(15,23,42,0.28)]">
+                <div className="flex items-start justify-between gap-3 border-b border-slate-200 px-5 py-4">
+                  <div>
+                    <p className="text-[11px] font-bold uppercase tracking-[0.24em] text-amber-700/80">{t('studio.pool.importantNotice.eyebrow')}</p>
+                    <h3 id="pool-important-notice-title" className="mt-1 text-lg font-semibold text-slate-950">{t('studio.pool.importantNotice.title')}</h3>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setImportantNoticeOpen(false)}
+                    className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-500 transition hover:bg-slate-50 hover:text-slate-800"
+                    aria-label={t('studio.common.close')}
+                  >
+                    <X className="h-5 w-5" />
+                  </button>
+                </div>
+
+                <div className="max-h-[80vh] overflow-y-auto px-5 py-5">
+                  <div className="space-y-5 text-sm leading-6 text-slate-700">
+                    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                      <p>{t('studio.pool.importantNotice.intro')}</p>
+                      <p className="mt-3">{t('studio.pool.importantNotice.body1')}</p>
+                      <p className="mt-3">{t('studio.pool.importantNotice.body2')}</p>
+                    </div>
+
+                    <div>
+                      <p className="font-semibold text-slate-950">{t('studio.pool.importantNotice.analysisTitle')}</p>
+                      <ul className="mt-2 space-y-2 text-slate-700">
+                        {importantNoticeAnalysisItems.map((item, index) => (
+                          <li key={`analysis-${index}`} className="flex items-start gap-2">
+                            <span className="mt-1 h-1.5 w-1.5 rounded-full bg-slate-400" />
+                            <span>{item}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+
+                    <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
+                      <p className="font-semibold text-emerald-950">{t('studio.pool.importantNotice.positiveTitle')}</p>
+                      <p className="mt-2 text-emerald-900/90">{t('studio.pool.importantNotice.positiveLead')}</p>
+                      <ul className="mt-3 space-y-2 text-emerald-950">
+                        {importantNoticePositiveItems.map((item, index) => (
+                          <li key={`positive-${index}`} className="flex items-start gap-2">
+                            <span className="mt-1 h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                            <span>{item}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+
+                    <div className="rounded-2xl border border-rose-200 bg-rose-50 p-4">
+                      <p className="font-semibold text-rose-950">{t('studio.pool.importantNotice.reportTitle')}</p>
+                      <p className="mt-2 text-rose-900/90">{t('studio.pool.importantNotice.reportLead')}</p>
+                      <ul className="mt-3 space-y-2 text-rose-950">
+                        {importantNoticeReportItems.map((item, index) => (
+                          <li key={`report-${index}`} className="flex items-start gap-2">
+                            <span className="mt-1 h-1.5 w-1.5 rounded-full bg-rose-500" />
+                            <span>{item}</span>
+                          </li>
+                        ))}
+                      </ul>
+                      <p className="mt-3 font-semibold text-rose-950">{t('studio.pool.importantNotice.reportOutro')}</p>
+                    </div>
+
+                    <div className="rounded-2xl border border-indigo-200 bg-indigo-50 p-4">
+                      <p className="font-semibold text-indigo-950">{t('studio.pool.importantNotice.guidanceTitle')}</p>
+                      <p className="mt-2 text-indigo-900/90">{t('studio.pool.importantNotice.guidanceBody1')}</p>
+                      <p className="mt-3 text-indigo-900/90">{t('studio.pool.importantNotice.guidanceBody2')}</p>
+                    </div>
+
+                    <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
+                      <p>{t('studio.pool.importantNotice.closing1')}</p>
+                      <p className="mt-3">{t('studio.pool.importantNotice.closing2')}</p>
+                      <p className="mt-3">{t('studio.pool.importantNotice.closing3')}</p>
+                    </div>
+
+                    <p className="font-semibold text-slate-950">{t('studio.pool.importantNotice.footer')}</p>
+                  </div>
+                </div>
+
+                <div className="border-t border-slate-200 px-5 py-4">
+                  <button
+                    type="button"
+                    onClick={() => setImportantNoticeOpen(false)}
+                    className="app-btn app-btn-primary w-full"
+                  >
+                    {t('studio.pool.importantNotice.closeButton')}
+                  </button>
+                </div>
+              </div>
+            </div>
           ) : null}
         </div>
       </main>

@@ -112,6 +112,38 @@ function isLikelyCrawlerUA(uaRaw) {
   }
 }
 
+function inAppBrowserHintFromUA(uaRaw) {
+  try {
+    const ua = safeStr(uaRaw).toLowerCase();
+    if (!ua) return '';
+    if (/fbav|fban/.test(ua)) return 'facebook';
+    if (/instagram/.test(ua)) return 'instagram';
+    if (/line\//.test(ua)) return 'line';
+    if (/micromessenger|wechat/.test(ua)) return 'wechat';
+    if (/tiktok|trill/.test(ua)) return 'tiktok';
+    return '';
+  } catch {
+    return '';
+  }
+}
+
+function isKnownInAppBridgeLoggingNoise({ ua, message, stack, errorMessage, errorName, visibility }) {
+  try {
+    const browser = inAppBrowserHintFromUA(ua);
+    if (browser !== 'facebook' && browser !== 'instagram') return false;
+
+    const haystack = [message, stack, errorMessage, errorName].filter(Boolean).join(' | ').toLowerCase();
+    if (!haystack) return false;
+    if (!haystack.includes('java object is gone')) return false;
+    if (!/error invoking enable[a-z]+logging/.test(haystack)) return false;
+
+    const vis = safeStr(visibility).toLowerCase();
+    return !vis || vis === 'hidden';
+  } catch {
+    return false;
+  }
+}
+
 function pickConsole(items, maxItems = 40) {
   const out = [];
   for (const it of safeArr(items)) {
@@ -555,6 +587,25 @@ export default async function publicErrorReport(req, res) {
       }
     } catch {
       // ignore
+    }
+  }
+
+  if (kindLower === 'global_window_error') {
+    const shouldIgnoreInAppBridgeNoise = isKnownInAppBridgeLoggingNoise({
+      ua,
+      message: messageRedacted,
+      stack,
+      errorMessage: safeStr(extraStored?.errorMessage || extra?.errorMessage),
+      errorName: safeStr(extraStored?.errorName || extra?.errorName),
+      visibility: safeStr(extraStored?.visibility || extra?.visibility),
+    });
+
+    if (shouldIgnoreInAppBridgeNoise) {
+      res.statusCode = 200;
+      res.setHeader('content-type', 'application/json');
+      res.setHeader('cache-control', 'no-store');
+      res.end(JSON.stringify({ ok: true, id: null, deduped: true, ignored: true }));
+      return;
     }
   }
 

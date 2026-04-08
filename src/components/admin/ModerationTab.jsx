@@ -119,8 +119,8 @@ export default function ModerationTab() {
     <div className="bg-white rounded-xl shadow p-6">
       <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-3">
         <div>
-          <h2 className="text-lg font-semibold text-gray-800">Şikayetler / Moderasyon</h2>
-          <p className="text-sm text-gray-600">matchmakingFeedback kayıtları</p>
+          <h2 className="text-lg font-semibold text-gray-800">Dönüşüm riski / Moderasyon</h2>
+          <p className="text-sm text-gray-600">Yalnızca dönüşüm kaybı sinyali taşıyan matchmakingFeedback kayıtları</p>
         </div>
 
         <div className="flex flex-col sm:flex-row gap-2 sm:items-center">

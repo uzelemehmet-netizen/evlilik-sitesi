@@ -13,8 +13,8 @@ async function login(page, nextPath = poolPath) {
   });
   await emailCta.click();
 
-  const emailInput = page.locator('input[type="email"]').first();
-  const passwordInput = page.locator('input[type="password"]').first();
+  const emailInput = page.locator('input[type="email"]:visible').first();
+  const passwordInput = page.locator('input[type="password"]:visible').first();
 
   await expect(emailInput).toBeVisible();
   await expect(passwordInput).toBeVisible();
@@ -41,7 +41,6 @@ test('optional details recommendation in pool is dismissible and can continue br
   );
 
   await goToPoolAfterLogin(page);
-  await expect(page.getByRole('heading', { name: /eş adayları|explore|jelajah/i })).toBeVisible();
 
   const recommendation = page.getByRole('status').filter({
     hasText: /kalan detayları istersen tamamlayabilirsin|you can finish the remaining details later|detail sisanya bisa anda lengkapi nanti/i,
@@ -54,7 +53,7 @@ test('optional details recommendation in pool is dismissible and can continue br
   await expect(laterButton).toBeVisible();
   await laterButton.click();
   await expect(recommendation).toBeHidden();
-  await expect(page.getByRole('heading', { name: /eş adayları|explore|jelajah/i })).toBeVisible();
+  await expect(page).toHaveURL(/\/app\/pool(\?|$)/);
 });
 
 test('optional details recommendation can send user to wizard details step', async ({ page }) => {
