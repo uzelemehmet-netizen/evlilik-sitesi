@@ -49,9 +49,8 @@ function getClientIp(req) {
   ).slice(0, 120);
 }
 
-async function consumeRateLimit(tx, ref, nowMs, { windowMs, maxAttempts, meta }) {
-  const snap = await tx.get(ref);
-  const data = snap.exists ? snap.data() || {} : {};
+function buildRateLimitWrite(snap, nowMs, { windowMs, maxAttempts, meta }) {
+  const data = snap?.exists ? snap.data() || {} : {};
   const windowStartedAtMs = typeof data?.windowStartedAtMs === 'number' ? data.windowStartedAtMs : nowMs;
   const count = typeof data?.count === 'number' ? data.count : 0;
   const sameWindow = nowMs - windowStartedAtMs < windowMs;
@@ -63,19 +62,15 @@ async function consumeRateLimit(tx, ref, nowMs, { windowMs, maxAttempts, meta })
     throw err;
   }
 
-  tx.set(
-    ref,
-    {
-      scope: meta?.scope || '',
-      keyHash: meta?.keyHash || '',
-      updatedAtMs: nowMs,
-      windowStartedAtMs: sameWindow ? windowStartedAtMs : nowMs,
-      count: nextCount,
-      ...(meta?.emailHash ? { emailHash: meta.emailHash } : {}),
-      ...(meta?.ipHash ? { ipHash: meta.ipHash } : {}),
-    },
-    { merge: true }
-  );
+  return {
+    scope: meta?.scope || '',
+    keyHash: meta?.keyHash || '',
+    updatedAtMs: nowMs,
+    windowStartedAtMs: sameWindow ? windowStartedAtMs : nowMs,
+    count: nextCount,
+    ...(meta?.emailHash ? { emailHash: meta.emailHash } : {}),
+    ...(meta?.ipHash ? { ipHash: meta.ipHash } : {}),
+  };
 }
 
 function getApiKey() {
@@ -166,23 +161,33 @@ export default async function publicEmailLogin(req, res) {
     const ipHash = sha256Short(`ip:${getClientIp(req)}`);
 
     await db.runTransaction(async (tx) => {
+      const refs = [];
       if (emailHash) {
-        const emailRef = db.collection('publicAuthRateLimits').doc(`login_email_${emailHash}`);
-        await consumeRateLimit(tx, emailRef, nowMs, {
-          windowMs: EMAIL_LIMIT_WINDOW_MS,
-          maxAttempts: EMAIL_LIMIT_MAX,
-          meta: { scope: 'login_email', keyHash: emailHash, emailHash, ipHash },
+        refs.push({
+          ref: db.collection('publicAuthRateLimits').doc(`login_email_${emailHash}`),
+          config: {
+            windowMs: EMAIL_LIMIT_WINDOW_MS,
+            maxAttempts: EMAIL_LIMIT_MAX,
+            meta: { scope: 'login_email', keyHash: emailHash, emailHash, ipHash },
+          },
+        });
+      }
+      if (ipHash) {
+        refs.push({
+          ref: db.collection('publicAuthRateLimits').doc(`login_ip_${ipHash}`),
+          config: {
+            windowMs: IP_LIMIT_WINDOW_MS,
+            maxAttempts: IP_LIMIT_MAX,
+            meta: { scope: 'login_ip', keyHash: ipHash, emailHash, ipHash },
+          },
         });
       }
 
-      if (ipHash) {
-        const ipRef = db.collection('publicAuthRateLimits').doc(`login_ip_${ipHash}`);
-        await consumeRateLimit(tx, ipRef, nowMs, {
-          windowMs: IP_LIMIT_WINDOW_MS,
-          maxAttempts: IP_LIMIT_MAX,
-          meta: { scope: 'login_ip', keyHash: ipHash, emailHash, ipHash },
-        });
-      }
+      const snaps = await Promise.all(refs.map((entry) => tx.get(entry.ref)));
+      refs.forEach((entry, index) => {
+        const nextData = buildRateLimitWrite(snaps[index], nowMs, entry.config);
+        tx.set(entry.ref, nextData, { merge: true });
+      });
     });
 
     const signInData = await signInWithPasswordViaIdentityToolkit({ email, password, apiKey });

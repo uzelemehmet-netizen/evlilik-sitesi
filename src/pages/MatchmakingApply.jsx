@@ -20,6 +20,7 @@ import { pickMatchmakingPhotoRefs } from '../utils/matchmakingProfileCompletion'
 import { isRunningAsPwa } from '../utils/pwaInstalled';
 
 const PHOTO_FIELD_KEYS = ['photo1', 'photo2', 'photo3', 'photo4', 'photo5'];
+const IMAGE_FILE_NAME_RE = /\.(avif|bmp|gif|heic|heif|jpe?g|png|webp)$/i;
 const DEFAULT_LOOKING_FOR_NATIONALITY = 'id';
 const TOUR_FORCE_KEY = 'uniqah:tour:force';
 const EMPTY_PHOTO_FILES = Object.freeze(
@@ -120,8 +121,10 @@ function getApplyFlowUi(lang) {
       fullTitle: 'Profili tamamla',
       fullBody: 'Bu modda ek profil detaylarini ve es tercihlerini duzenleyebilirsiniz.',
       photoTitle: 'Fotograf',
-      photoBody: 'Minimum 1, maksimum 5 fotograf ekleyin.',
-      photoPrivacyBody: 'Fotograf alani zorunludur. Dilerseniz daha sonra profilinizden fotograf gorunurlugunu kapatabilirsiniz.',
+      photoBody: 'Isterseniz simdi 1-5 fotograf ekleyin; isterseniz basvurudan sonra profilinizden yukleyin.',
+      photoPrivacyBody: 'Fotograflariniz herkese acik paylasilmaz. Ancak etkilesim ozellikleri acilmadan once profilinizde en az 1 fotograf bulunmasi gerekir.',
+      photoPrivacyBodyFemale: 'Kadin kullanicilar icin fotograf istege baglidir; fotograf yuklemeden de basvurunuz tamamlanir ve herhangi bir kisit uygulanmaz.',
+      photoFormatWarning: 'Fotograflarinizin JPEG formatinda olmasina dikkat edin.',
       photoCta: 'Fotograf',
       photoHide: 'Fotografi gizle',
       photoDone: 'Tamamla',
@@ -142,8 +145,10 @@ function getApplyFlowUi(lang) {
       fullTitle: 'Complete your profile',
       fullBody: 'This mode lets you update optional profile details and partner preferences.',
       photoTitle: 'Photo',
-      photoBody: 'Add at least 1 and up to 5 photos.',
-      photoPrivacyBody: 'This field is required. If you want, you can later turn off photo visibility from your profile.',
+      photoBody: 'Add 1-5 photos now if you want, or upload them later from your profile after submitting.',
+      photoPrivacyBody: 'Your photos are not shared publicly with everyone. However, at least 1 photo must exist on your profile before interaction features unlock.',
+      photoPrivacyBodyFemale: 'For women, photos are optional; your application can be completed without uploading a photo and no restriction will be applied.',
+      photoFormatWarning: 'Please make sure your photos are in JPEG format.',
       photoCta: 'Photo',
       photoHide: 'Hide photos',
       photoDone: 'Done',
@@ -164,8 +169,10 @@ function getApplyFlowUi(lang) {
       fullTitle: 'Lengkapi profil',
       fullBody: 'Mode ini untuk melengkapi detail profil tambahan dan preferensi pasangan.',
       photoTitle: 'Foto',
-      photoBody: 'Tambahkan minimal 1 dan maksimal 5 foto.',
-      photoPrivacyBody: 'Kolom foto wajib diisi. Jika mau, nanti Anda bisa mematikan visibilitas foto dari profil Anda.',
+      photoBody: 'Jika mau, tambahkan 1-5 foto sekarang; jika tidak, Anda bisa mengunggahnya nanti dari profil setelah pengajuan tersimpan.',
+      photoPrivacyBody: 'Foto Anda tidak dibagikan secara publik ke semua orang. Namun, setidaknya 1 foto harus ada di profil sebelum fitur interaksi dibuka.',
+      photoPrivacyBodyFemale: 'Untuk pengguna wanita, foto bersifat opsional; pengajuan tetap bisa selesai tanpa unggah foto dan tidak ada pembatasan yang diterapkan.',
+      photoFormatWarning: 'Pastikan foto Anda menggunakan format JPEG.',
       photoCta: 'Foto',
       photoHide: 'Sembunyikan foto',
       photoDone: 'Selesai',
@@ -194,7 +201,9 @@ function toNumberOrNull(value) {
 }
 
 function isImageFile(file) {
-  return !!file && typeof file.type === 'string' && file.type.startsWith('image/');
+  if (!file) return false;
+  if (typeof file.type === 'string' && file.type.startsWith('image/')) return true;
+  return IMAGE_FILE_NAME_RE.test(String(file?.name || '').trim());
 }
 
 function normalizeUsername(value) {
@@ -327,7 +336,6 @@ const DRAFT_REQUIRED_FIELD_ORDER = [
   'city',
   'nationality',
   'gender',
-  'whatsapp',
   'occupation',
   'maritalStatus',
   'consent18Plus',
@@ -335,7 +343,7 @@ const DRAFT_REQUIRED_FIELD_ORDER = [
   'consentTerms',
 ];
 
-function buildDraftProgressSnapshot(form, { hasPhoto = false, lastInputKey = '', wizardStep = 0 } = {}) {
+function buildDraftProgressSnapshot(form, { hasStoredPhoto = false, lastInputKey = '', wizardStep = 0 } = {}) {
   const completed = [];
   const missing = [];
   const maritalStatus = String(form?.maritalStatus || '').trim().toLowerCase();
@@ -346,7 +354,7 @@ function buildDraftProgressSnapshot(form, { hasPhoto = false, lastInputKey = '',
     else missing.push(key);
   };
 
-  pushState('photo', !!hasPhoto);
+  pushState('photo', !!hasStoredPhoto);
   pushState('username', !!normalizeUsername(form?.username));
   pushState('fullName', !!safeStr(form?.fullName));
   pushState('age', !!String(form?.age ?? '').trim());
@@ -362,6 +370,7 @@ function buildDraftProgressSnapshot(form, { hasPhoto = false, lastInputKey = '',
     if (String(form?.hasChildren || '').trim() === 'yes') {
       pushState('childrenCount', !!String(form?.childrenCount ?? '').trim());
       pushState('childrenLivingSituation', !!safeStr(form?.childrenLivingSituation));
+      pushState('liveWithChildrenAfterMarriage', !!safeStr(form?.liveWithChildrenAfterMarriage));
     }
   }
 
@@ -376,7 +385,7 @@ function buildDraftProgressSnapshot(form, { hasPhoto = false, lastInputKey = '',
     completedRequiredKeys: completed,
     completedRequiredCount: completed.length,
     totalRequiredCount: completed.length + missing.length,
-    photoComplete: !!hasPhoto,
+    photoComplete: !!hasStoredPhoto,
     wizardStep,
   };
 }
@@ -432,9 +441,25 @@ async function compressImageToJpeg(file, { maxWidth = 1600, maxHeight = 1600, qu
   }
 }
 
+function createDeferredPhotoProcessingError(failures = []) {
+  const err = new Error('Photo preprocessing failed');
+  err.code = 'photo/preprocess-failed';
+  err.details = {
+    failures: Array.isArray(failures)
+      ? failures.map((failure) => ({
+          key: String(failure?.key || '').trim(),
+          name: String(failure?.name || '').trim(),
+          message: String(failure?.message || '').trim(),
+        }))
+      : [],
+  };
+  return err;
+}
+
 export default function MatchmakingApply() {
   const { t, i18n } = useTranslation();
   const { user, loading } = useAuth();
+  const currentUser = user || auth?.currentUser || null;
   const location = useLocation();
   const navigate = useNavigate();
   const applyPremiumUi = getApplyPremiumUi(getBaseLang(i18n?.language));
@@ -648,16 +673,16 @@ export default function MatchmakingApply() {
 
   // Auth bazen (özellikle local dev / 3rd-party engeller) "loading"da takılı kalabiliyor.
   // Bu sayfanın kilitlenmemesi için gate'i sadece gerçek auth durumuna bağlarız.
-  const isAuthGate = !user || user.isAnonymous;
+  const isAuthGate = !currentUser || currentUser.isAnonymous;
 
   // Kullanıcı zaten daha önce başvuru gönderdi ise tekrar form doldurtmayalım.
   useEffect(() => {
-    if (!user?.uid) return;
+    if (!currentUser?.uid) return;
     let cancelled = false;
 
     (async () => {
       try {
-        const q = query(collection(db, 'matchmakingApplications'), where('userId', '==', user.uid), limit(10));
+        const q = query(collection(db, 'matchmakingApplications'), where('userId', '==', currentUser.uid), limit(10));
         const snap = await getDocs(q);
         if (cancelled) return;
         if (!snap.empty) {
@@ -703,6 +728,7 @@ export default function MatchmakingApply() {
               hasChildren: String(preferExistingUserInput(prev.hasChildren, details?.hasChildren || '') || ''),
               childrenCount: String(preferExistingUserInput(prev.childrenCount, details?.childrenCount === 0 || details?.childrenCount ? String(details.childrenCount) : '') || ''),
               childrenLivingSituation: String(preferExistingUserInput(prev.childrenLivingSituation, details?.childrenLivingSituation || '') || ''),
+              liveWithChildrenAfterMarriage: String(preferExistingUserInput(prev.liveWithChildrenAfterMarriage, details?.liveWithChildrenAfterMarriage || '') || ''),
               familyApprovalStatus: String(preferExistingUserInput(prev.familyApprovalStatus, details?.familyApprovalStatus || '') || ''),
               religion: String(preferExistingUserInput(prev.religion, details?.religion || '') || ''),
               religiousValues: String(preferExistingUserInput(prev.religiousValues, details?.religiousValues || '') || ''),
@@ -749,14 +775,14 @@ export default function MatchmakingApply() {
     return () => {
       cancelled = true;
     };
-  }, [isEditOnceMode, navigate, user?.uid]);
+  }, [currentUser?.uid, isEditOnceMode, navigate]);
 
   const [existingApplication, setExistingApplication] = useState(null);
 
   // Kayıt sırasında zaten alınan temel bilgileri tekrar sormayalım.
   // matchmakingsUsers dokümanından best-effort prefill edip alanları doldururuz.
   useEffect(() => {
-    const uid = String(user?.uid || '').trim();
+    const uid = String(currentUser?.uid || '').trim();
     if (!uid) return;
     let cancelled = false;
 
@@ -773,7 +799,7 @@ export default function MatchmakingApply() {
 
         const candidate = {
           username: safeStr(application?.username || publicProfile?.username || mmUser?.username),
-          fullName: safeStr(application?.fullName || publicProfile?.fullName || mmUser?.fullName || user?.displayName),
+          fullName: safeStr(application?.fullName || publicProfile?.fullName || mmUser?.fullName || currentUser?.displayName),
           age:
             application?.age === 0 || application?.age
               ? String(application.age)
@@ -825,7 +851,7 @@ export default function MatchmakingApply() {
     return () => {
       cancelled = true;
     };
-  }, [user?.displayName, user?.uid]);
+  }, [currentUser?.displayName, currentUser?.uid]);
 
   const genderOptions = useMemo(
     () => [
@@ -981,6 +1007,7 @@ export default function MatchmakingApply() {
     hasChildren: '',
     childrenCount: '',
     childrenLivingSituation: '',
+    liveWithChildrenAfterMarriage: '',
     familyApprovalStatus: '',
     religion: '',
     religiousValues: '',
@@ -1146,7 +1173,6 @@ export default function MatchmakingApply() {
   const applyTelemetryMode = isFullProfileMode ? 'full' : 'short';
 
   const formElRef = useRef(null);
-  const photoInputRefs = useRef({});
   const fieldRefs = useRef({});
   const photoSectionRef = useRef(null);
   const consentsSectionRef = useRef(null);
@@ -1154,6 +1180,7 @@ export default function MatchmakingApply() {
   const hasTrackedFormStartRef = useRef(false);
   const firstInputTelemetryRef = useRef('');
   const validationAttemptSourceRef = useRef('');
+  const pendingInvalidFocusKeyRef = useRef('');
   const userInteractedRef = useRef(false);
   const lastDraftInputKeyRef = useRef('');
   const lastDraftSavedHashRef = useRef('');
@@ -1189,6 +1216,32 @@ export default function MatchmakingApply() {
     const filtered = keys.filter(Boolean);
     if (!filtered.length) return;
     setInvalidFieldKeys((prev) => prev.filter((key) => !filtered.includes(key)));
+  };
+
+  const getWizardStepForField = (key) => {
+    if (!isWizardMode) return null;
+    if (!key) return null;
+    if (
+      key === 'photo' ||
+      key === 'username' ||
+      key === 'fullName' ||
+      key === 'age' ||
+      key === 'city' ||
+      key === 'nationality' ||
+      key === 'gender' ||
+      key === 'occupation' ||
+      key === 'maritalStatus' ||
+      key === 'hasChildren' ||
+      key === 'childrenCount' ||
+      key === 'childrenLivingSituation' ||
+      key === 'whatsapp' ||
+      key === 'consent18Plus' ||
+      key === 'consentPrivacy' ||
+      key === 'consentTerms'
+    ) {
+      return 0;
+    }
+    return null;
   };
 
   const scrollToField = (key) => {
@@ -1231,7 +1284,17 @@ export default function MatchmakingApply() {
       trackApplyEvent(`apply_form_step_blocked:${applyTelemetryMode}:${firstKey}`, { trace: true });
     }
     validationAttemptSourceRef.current = '';
-    if (normalizedKeys[0]) scrollToField(normalizedKeys[0]);
+    const firstKey = normalizedKeys[0] || '';
+    if (firstKey) {
+      const targetWizardStep = getWizardStepForField(firstKey);
+      if (targetWizardStep !== null && targetWizardStep !== wizardStep) {
+        pendingInvalidFocusKeyRef.current = firstKey;
+        setWizardStep(targetWizardStep);
+      } else {
+        pendingInvalidFocusKeyRef.current = '';
+        scrollToField(firstKey);
+      }
+    }
     return false;
   };
 
@@ -1265,13 +1328,24 @@ export default function MatchmakingApply() {
   };
 
   useEffect(() => {
-    if (!error) return;
+    if (!error || invalidFieldKeys.length > 0) return;
     try {
       submitFeedbackRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
     } catch {
       // ignore
     }
-  }, [error]);
+  }, [error, invalidFieldKeys.length]);
+
+  useEffect(() => {
+    const pendingKey = String(pendingInvalidFocusKeyRef.current || '').trim();
+    if (!pendingKey) return;
+    if (!invalidFieldSet.has(pendingKey)) {
+      pendingInvalidFocusKeyRef.current = '';
+      return;
+    }
+    pendingInvalidFocusKeyRef.current = '';
+    scrollToField(pendingKey);
+  }, [invalidFieldSet, wizardStep]);
 
   useEffect(() => {
     if (isAuthGate) return;
@@ -1412,6 +1486,7 @@ export default function MatchmakingApply() {
         next.hasChildren = '';
         next.childrenCount = '';
         next.childrenLivingSituation = '';
+        next.liveWithChildrenAfterMarriage = '';
       }
       try {
         formRef.current = { ...(formRef.current || {}), ...next };
@@ -1420,7 +1495,7 @@ export default function MatchmakingApply() {
       }
       return next;
     });
-    clearInvalidFields('maritalStatus', 'hasChildren', 'childrenCount', 'childrenLivingSituation');
+    clearInvalidFields('maritalStatus', 'hasChildren', 'childrenCount', 'childrenLivingSituation', 'liveWithChildrenAfterMarriage');
     if (error) setError('');
   };
 
@@ -1437,6 +1512,7 @@ export default function MatchmakingApply() {
       if (value !== 'yes') {
         next.childrenCount = '';
         next.childrenLivingSituation = '';
+        next.liveWithChildrenAfterMarriage = '';
       }
       try {
         formRef.current = { ...(formRef.current || {}), ...next };
@@ -1445,7 +1521,7 @@ export default function MatchmakingApply() {
       }
       return next;
     });
-    clearInvalidFields('hasChildren', 'childrenCount', 'childrenLivingSituation');
+    clearInvalidFields('hasChildren', 'childrenCount', 'childrenLivingSituation', 'liveWithChildrenAfterMarriage');
     if (error) setError('');
   };
 
@@ -1456,11 +1532,21 @@ export default function MatchmakingApply() {
     const file = e?.target?.files?.[0] || null;
     if (file && !isImageFile(file)) {
       failValidation('photo', t('matchmakingPage.form.errors.photoType'));
+      try {
+        if (e?.target) e.target.value = '';
+      } catch {
+        // ignore
+      }
       return;
     }
     setPhotoFiles((prev) => ({ ...(prev || {}), [key]: file }));
     clearInvalidFields('photo');
     if (error) setError('');
+    try {
+      if (e?.target) e.target.value = '';
+    } catch {
+      // ignore
+    }
   };
 
   useEffect(() => {
@@ -1525,6 +1611,9 @@ export default function MatchmakingApply() {
     if (photoPreviewUrls?.[key] || existingPhotoUrlSlots[index] || existingPhotoPathSlots[index]) return count + 1;
     return count;
   }, 0);
+  const isFemaleApplicant = String(form?.gender || '').trim().toLowerCase() === 'female';
+  const photoPrivacyNotice = isFemaleApplicant ? applyFlowUi.photoPrivacyBodyFemale : applyFlowUi.photoPrivacyBody;
+  const isDraftResumeApplication = !!(existingApplication && isAutoStubApplication(existingApplication));
 
   useEffect(() => {
     const uid = String(user?.uid || '').trim();
@@ -1550,12 +1639,13 @@ export default function MatchmakingApply() {
       hasChildren: String(snapshot?.hasChildren || '').trim(),
       childrenCount: String(snapshot?.childrenCount || '').trim(),
       childrenLivingSituation: String(snapshot?.childrenLivingSituation || '').trim(),
+      liveWithChildrenAfterMarriage: String(snapshot?.liveWithChildrenAfterMarriage || '').trim(),
       consent18Plus: snapshot?.consent18Plus === true,
       consentPrivacy: snapshot?.consentPrivacy === true,
       consentTerms: snapshot?.consentTerms === true,
     };
     const progress = buildDraftProgressSnapshot(snapshot, {
-      hasPhoto: hasExistingPhoto || hasNewPhotoSelection,
+      hasStoredPhoto: hasExistingPhoto,
       lastInputKey: lastDraftInputKeyRef.current,
       wizardStep,
     });
@@ -1617,20 +1707,9 @@ export default function MatchmakingApply() {
 
   const togglePhotoManager = () => setPhotoManagerOpen(true);
   const closePhotoManager = () => setPhotoManagerOpen(false);
-  const triggerPhotoSlotPick = (key) => {
-    try {
-      photoInputRefs.current?.[key]?.click?.();
-    } catch {
-      // ignore
-    }
-  };
+
   const clearSelectedPhoto = (key) => {
     setPhotoFiles((prev) => ({ ...(prev || {}), [key]: null }));
-    try {
-      if (photoInputRefs.current?.[key]) photoInputRefs.current[key].value = '';
-    } catch {
-      // ignore
-    }
   };
 
   useEffect(() => {
@@ -1708,22 +1787,19 @@ export default function MatchmakingApply() {
     for (const key of PHOTO_FIELD_KEYS) {
       if (photoFiles?.[key] && !isImageFile(photoFiles[key])) return failValidation('photo', t('matchmakingPage.form.errors.photoType'));
     }
-    if (!hasExistingPhoto && !hasNewPhotoSelection) {
-      return failValidation('photo', t('matchmakingPage.form.errors.photoRequired'));
-    }
     return true;
   };
 
   const validateRequiredForm = (f) => {
     const minApplicantAge = isIndonesianNationality(f?.nationality) ? 21 : 18;
     const normalizedUsername = normalizeUsername(f?.username);
+    const isFemaleApplicant = String(f?.gender || '').trim().toLowerCase() === 'female';
     if (!normalizedUsername) return failValidation('username', t('matchmakingPage.form.errors.username'));
     if (!requiredValue(f?.fullName)) return failValidation('fullName', t('matchmakingPage.form.errors.fullName'));
     if (!requiredValue(f?.age)) return failValidation('age', t('matchmakingPage.form.errors.age'));
     if (!requiredValue(f?.city)) return failValidation('city', t('matchmakingPage.form.errors.city'));
     if (!requiredValue(f?.nationality)) return failValidation('nationality', t('matchmakingPage.form.errors.nationality'));
     if (!requiredValue(f?.gender)) return failValidation('gender', t('matchmakingPage.form.errors.gender'));
-    if (!requiredValue(f?.whatsapp)) return failValidation('whatsapp', t('matchmakingPage.form.errors.whatsapp'));
     if (!requiredValue(f?.occupation)) return failValidation('occupation', t('matchmakingPage.form.errors.occupation'));
     if (!requiredValue(f?.maritalStatus)) return failValidation('maritalStatus', t('matchmakingPage.form.errors.maritalStatus'));
 
@@ -1734,6 +1810,9 @@ export default function MatchmakingApply() {
       if (f?.hasChildren === 'yes') {
         if (!requiredValue(f?.childrenCount)) return failValidation('childrenCount', t('matchmakingPage.form.errors.childrenCount'));
         if (!requiredValue(f?.childrenLivingSituation)) return failValidation('childrenLivingSituation', t('matchmakingPage.form.errors.childrenLivingSituation'));
+        if (!requiredValue(f?.liveWithChildrenAfterMarriage)) {
+          return failValidation('liveWithChildrenAfterMarriage', t('matchmakingPage.form.errors.liveWithChildrenAfterMarriage'));
+        }
       }
     }
 
@@ -1773,7 +1852,7 @@ export default function MatchmakingApply() {
       const minNum = Number(partnerHeightMin);
       const maxNum = Number(partnerHeightMax);
       if (Number.isFinite(minNum) && Number.isFinite(maxNum) && minNum > maxNum) {
-        return failValidation(['heightMinCm', 'heightMaxCm'], t('matchmakingPage.form.errors.partnerHeightRange'));
+        return failValidation('partnerPreferences.heightMaxCm', t('matchmakingPage.form.errors.partnerHeightRange'));
       }
     }
 
@@ -1976,6 +2055,9 @@ export default function MatchmakingApply() {
         if (!requiredValue(form.childrenLivingSituation)) {
           return setError(t('matchmakingPage.form.errors.childrenLivingSituation'));
         }
+        if (!requiredValue(form.liveWithChildrenAfterMarriage)) {
+          return setError(t('matchmakingPage.form.errors.liveWithChildrenAfterMarriage'));
+        }
       }
     }
 
@@ -1986,6 +2068,7 @@ export default function MatchmakingApply() {
 
     let childrenCountNum = toNumberOrNull(form.childrenCount);
     let childrenLivingSituation = String(form.childrenLivingSituation || '').trim() || null;
+    let liveWithChildrenAfterMarriage = String(form.liveWithChildrenAfterMarriage || '').trim() || null;
     if (requiresChildrenInfo && String(form.hasChildren || '') === 'yes') {
       // Evet seçildiyse: 1–20 arası zorunlu.
       if (childrenCountNum === null || childrenCountNum < 1 || childrenCountNum > 20) {
@@ -1997,10 +2080,17 @@ export default function MatchmakingApply() {
         return setError(t('matchmakingPage.form.errors.childrenLivingSituation'));
       }
       if (!childrenLivingSituation) childrenLivingSituation = null;
+
+      const allowedYesNo = new Set(['yes', 'no']);
+      if (liveWithChildrenAfterMarriage && !allowedYesNo.has(liveWithChildrenAfterMarriage)) {
+        return setError(t('matchmakingPage.form.errors.liveWithChildrenAfterMarriage'));
+      }
+      if (!liveWithChildrenAfterMarriage) liveWithChildrenAfterMarriage = null;
     } else {
       // Hayır/emin değilim seçildiyse sayıyı saklamayalım.
       childrenCountNum = null;
       childrenLivingSituation = null;
+      liveWithChildrenAfterMarriage = null;
     }
 
     const heightNum = toNumberOrNull(form.heightCm);
@@ -2051,7 +2141,19 @@ export default function MatchmakingApply() {
       // Not: username uniqueness check artık docId üzerinden çalışır.
 
       const compressedPhotos = await Promise.all(
-        PHOTO_FIELD_KEYS.map((key) => (photoFiles?.[key] ? compressImageToJpeg(photoFiles[key]) : Promise.resolve(null)))
+        PHOTO_FIELD_KEYS.map(async (key, index) => {
+          const sourcePhoto = photoFiles?.[key];
+          if (!sourcePhoto) return null;
+          try {
+            return await compressImageToJpeg(sourcePhoto);
+          } catch (photoPrepErr) {
+            const message = typeof photoPrepErr?.message === 'string' && photoPrepErr.message.trim()
+              ? photoPrepErr.message.trim()
+              : 'unknown_photo_preprocess_error';
+            console.warn('Photo preprocessing failed; retrying with original file:', { key, message, error: photoPrepErr });
+            return sourcePhoto;
+          }
+        })
       );
 
       const nextPhotoSlots = PHOTO_FIELD_KEYS.map((_, index) => ({
@@ -2065,22 +2167,36 @@ export default function MatchmakingApply() {
       const folder = `uniqah/matchmakingApplications/${docRef.id}`;
       const tags = ['matchmaking', 'application'];
 
-      const hasAnyPhoto = compressedPhotos.some(Boolean);
-      let cloudinaryOk = !hasAnyPhoto;
+      const hasAnyPreparedPhoto = compressedPhotos.some(Boolean);
+      let cloudinaryOk = !hasAnyPreparedPhoto;
       let cloudinaryErr = null;
+      let deferredPhotoUploadErr = null;
       try {
-        if (hasAnyPhoto) {
+        if (hasAnyPreparedPhoto) {
           // Signed upload varsa onu, yoksa unsigned preset'i otomatik kullanır.
           for (let index = 0; index < compressedPhotos.length; index += 1) {
-            const compressedPhoto = compressedPhotos[index];
-            if (!compressedPhoto) continue;
-            const uploaded = await uploadImageToCloudinaryAuto(compressedPhoto, { folder, tags });
+            const preparedPhoto = compressedPhotos[index];
+            if (!preparedPhoto) continue;
+            const originalPhoto = photoFiles?.[PHOTO_FIELD_KEYS[index]] || preparedPhoto;
+            let uploaded = null;
+            let uploadedFile = preparedPhoto;
+            try {
+              uploaded = await uploadImageToCloudinaryAuto(preparedPhoto, { folder, tags });
+            } catch (preparedUploadErr) {
+              if (preparedPhoto !== originalPhoto) {
+                console.warn('Compressed photo upload failed; retrying original file:', preparedUploadErr);
+                uploaded = await uploadImageToCloudinaryAuto(originalPhoto, { folder, tags });
+                uploadedFile = originalPhoto;
+              } else {
+                throw preparedUploadErr;
+              }
+            }
             nextPhotoSlots[index] = {
               url: uploaded.secureUrl,
               path: '',
               cloudinary: uploaded,
-              contentType: compressedPhoto.type || 'image/jpeg',
-              originalType: photoFiles?.[PHOTO_FIELD_KEYS[index]]?.type || '',
+              contentType: uploadedFile?.type || originalPhoto?.type || 'image/jpeg',
+              originalType: originalPhoto?.type || '',
             };
           }
           cloudinaryOk = true;
@@ -2103,25 +2219,30 @@ export default function MatchmakingApply() {
           const e = new Error(detailMsg || baseMsg);
           e.code = 'cloudinary/upload-failed';
           e.details = cloudinaryErr?.details;
-          throw e;
-        }
-
-        for (let index = 0; index < compressedPhotos.length; index += 1) {
-          const compressedPhoto = compressedPhotos[index];
-          if (!compressedPhoto) continue;
-          const storageRef = ref(storage, `matchmakingApplications/${docRef.id}/photo${index + 1}.jpg`);
-          await uploadBytes(storageRef, compressedPhoto, { contentType: compressedPhoto.type || 'image/jpeg' });
-          nextPhotoSlots[index] = {
-            url: '',
-            path: storageRef.fullPath,
-            cloudinary: null,
-            contentType: compressedPhoto.type || 'image/jpeg',
-            originalType: photoFiles?.[PHOTO_FIELD_KEYS[index]]?.type || '',
-          };
+          deferredPhotoUploadErr = e;
+        } else {
           try {
-            nextPhotoSlots[index].url = await getDownloadURL(storageRef);
-          } catch {
-            // ignore (rules/missing)
+            for (let index = 0; index < compressedPhotos.length; index += 1) {
+              const compressedPhoto = compressedPhotos[index];
+              if (!compressedPhoto) continue;
+              const storageRef = ref(storage, `matchmakingApplications/${docRef.id}/photo${index + 1}.jpg`);
+              await uploadBytes(storageRef, compressedPhoto, { contentType: compressedPhoto.type || 'image/jpeg' });
+              nextPhotoSlots[index] = {
+                url: '',
+                path: storageRef.fullPath,
+                cloudinary: null,
+                contentType: compressedPhoto.type || 'image/jpeg',
+                originalType: photoFiles?.[PHOTO_FIELD_KEYS[index]]?.type || '',
+              };
+              try {
+                nextPhotoSlots[index].url = await getDownloadURL(storageRef);
+              } catch {
+                // ignore (rules/missing)
+              }
+            }
+          } catch (storageErr) {
+            deferredPhotoUploadErr = storageErr;
+            console.warn('Storage fallback upload failed; deferring photo completion:', storageErr);
           }
         }
       }
@@ -2135,7 +2256,10 @@ export default function MatchmakingApply() {
 
       // Fotoğraf seçilmediyse bu alanları payload'a hiç koymayalım.
       // Böylece mevcut fotoğraflar (varsa) güncelleme sırasında yanlışlıkla silinmez.
-      const includePhotoFields = hasAnyPhoto;
+      const includePhotoFields = mergedPhotoSlots.length > 0;
+      if (hasNewPhotoSelection && mergedPhotoSlots.length < 1 && deferredPhotoUploadErr) {
+        console.warn('Photo upload deferred; continuing application submit without stored photos:', deferredPhotoUploadErr);
+      }
 
       // Kısa ve anlaşılır başvuru kodu: MK-<profileNo>
       // Not: Upload başarısız olursa numara boşa gidebilir; kabul edilebilir (sayaç sadece artar).
@@ -2206,6 +2330,7 @@ export default function MatchmakingApply() {
           hasChildren: requiresChildrenInfo ? (form.hasChildren || '') : '',
           childrenCount: requiresChildrenInfo && form.hasChildren === 'yes' ? childrenCountNum : null,
           childrenLivingSituation: requiresChildrenInfo && form.hasChildren === 'yes' ? childrenLivingSituation : null,
+          liveWithChildrenAfterMarriage: requiresChildrenInfo && form.hasChildren === 'yes' ? liveWithChildrenAfterMarriage : null,
           incomeLevel: form.incomeLevel || '',
           religion: form.religion || '',
           religiousValues: String(form.religiousValues || '').trim(),
@@ -2350,13 +2475,27 @@ export default function MatchmakingApply() {
       // Funnel: signup -> apply completion
       markFunnelApplyCompleted();
 
-      forceTour('pwa-install-nudge');
-      navigateAfterApplySubmit({ from: 'matchmakingApply', applicationId: nextId, triggerPushTutorial: true });
+      void submitRes;
+
+      const hadDeferredPhotoUpload = hasNewPhotoSelection && mergedPhotoSlots.length < 1 && deferredPhotoUploadErr;
+      navigateAfterApplySubmit({
+        from: 'matchmakingApply',
+        applicationId: nextId,
+        triggerPushTutorial: true,
+        ...(hadDeferredPhotoUpload
+          ? {
+              openPhotoManager: true,
+              photoUploadDeferred: true,
+              photoUploadDeferredMessage: t('matchmakingPage.form.errors.photoUploadDeferred'),
+            }
+          : {}),
+      });
       return;
     } catch (err) {
       console.error('matchmaking submit error:', err);
       const code = err?.code || err?.name || '';
       const apiMsg = typeof err?.message === 'string' ? err.message.trim() : '';
+      const status = typeof err?.status === 'number' ? err.status : null;
       if (code === 'permission-denied') {
         // Bu sayfada create izinleri dar; permission-denied en sık "doc zaten var" (username taken)
         // veya gerçek yetki problemi olur. EditOnce modunda update zaten admin'e ait.
@@ -2373,13 +2512,19 @@ export default function MatchmakingApply() {
         setError(t('matchmakingPage.form.errors.profileTextPII'));
       } else if (apiMsg === 'contact_required') {
         setError(t('matchmakingPage.form.errors.contactRequired'));
-      } else if (apiMsg === 'rate_limited') {
+      } else if (apiMsg === 'rate_limited' || apiMsg === 'translate_rate_limited' || apiMsg === 'translate_quota_exhausted') {
         setError(t('matchmakingPage.form.errors.rateLimited'));
       } else if (apiMsg === 'edit_once_used') {
         setError(t('matchmakingPage.form.errors.editOnceUsed'));
-      } else if (code === 'unauthenticated') {
+      } else if (code === 'unauthenticated' || apiMsg === 'unauthenticated' || apiMsg === 'not_authenticated') {
         setError(t('matchmakingPage.form.errors.mustLogin'));
-      } else if (typeof code === 'string' && (code.startsWith('storage/') || code.startsWith('cloudinary/'))) {
+      } else if (apiMsg === 'blocked') {
+        setError(t('matchmakingPage.form.errors.blocked'));
+      } else if (apiMsg === 'bad_request') {
+        setError(t('matchmakingPage.form.errors.submitFailed'));
+      } else if (apiMsg === 'api_unreachable') {
+        setError(t('studio.errors.apiUnavailable'));
+      } else if (typeof code === 'string' && (code.startsWith('storage/') || code.startsWith('cloudinary/') || code.startsWith('photo/'))) {
         const baseMsg = t('matchmakingPage.form.errors.photoUploadFailed');
         const detail = typeof err?.message === 'string' ? err.message.trim() : '';
         const missingCandidate =
@@ -2395,7 +2540,12 @@ export default function MatchmakingApply() {
           : baseMsg;
         setError(withDetail);
       } else {
-        setError(t('matchmakingPage.form.errors.submitFailed'));
+        // Best-effort: surfacing some HTTP context helps support/debugging.
+        if (status && status >= 500) {
+          setError(t('matchmakingPage.form.errors.submitFailed'));
+        } else {
+          setError(t('matchmakingPage.form.errors.submitFailed'));
+        }
       }
     } finally {
       setSubmitting(false);
@@ -2614,6 +2764,16 @@ export default function MatchmakingApply() {
             </div>
           )}
 
+          {isDraftResumeApplication ? (
+            <div className="rounded-[22px] border border-sky-200 bg-sky-50 p-4 text-sky-950 shadow-[0_12px_32px_rgba(14,165,233,0.10)]">
+              <p className="text-sm font-semibold">{t('matchmakingPage.form.draftResume.title')}</p>
+              <p className="mt-1 text-sm leading-relaxed text-sky-900/80">{t('matchmakingPage.form.draftResume.body')}</p>
+              {!hasExistingPhoto ? (
+                <p className="mt-2 text-sm leading-relaxed text-sky-900/90">{t('matchmakingPage.form.draftResume.photoMissing')}</p>
+              ) : null}
+            </div>
+          ) : null}
+
           <div className="rounded-[22px] border border-amber-200/70 bg-[linear-gradient(135deg,rgba(255,250,240,0.96),rgba(255,243,214,0.92))] p-4 text-amber-950 shadow-[0_14px_36px_rgba(245,158,11,0.10)] md:border-slate-200 md:bg-white md:text-slate-900 md:shadow-[0_12px_32px_rgba(15,23,42,0.08)]">
             <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
               <div>
@@ -2639,7 +2799,7 @@ export default function MatchmakingApply() {
             >
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className={getLabelClassName('username', 'block text-sm font-semibold text-slate-800 md:text-white/90')}>{t('matchmakingPage.form.labels.username')}</label>
+                  <label className={getLabelClassName('username', 'block text-sm font-semibold text-white/90 md:text-slate-800')}>{t('matchmakingPage.form.labels.username')}</label>
                   <input
                     ref={registerFieldRef('username')}
                     value={form.username}
@@ -2649,7 +2809,7 @@ export default function MatchmakingApply() {
                   />
                 </div>
                 <div>
-                  <label className={getLabelClassName('fullName', 'block text-sm font-semibold text-slate-800 md:text-white/90')}>{t('matchmakingPage.form.labels.fullName')}</label>
+                  <label className={getLabelClassName('fullName', 'block text-sm font-semibold text-white/90 md:text-slate-800')}>{t('matchmakingPage.form.labels.fullName')}</label>
                   <input
                     ref={registerFieldRef('fullName')}
                     value={form.fullName}
@@ -2661,7 +2821,7 @@ export default function MatchmakingApply() {
 
                 {isEditOnceMode ? (
                   <div className="md:col-span-2">
-                    <label className={getMobileAppReadableTextClassName('block text-sm font-semibold text-slate-800 md:text-white/90')}>{t('matchmakingPage.form.labels.inviteCode')}</label>
+                    <label className={getMobileAppReadableTextClassName('block text-sm font-semibold text-white/90 md:text-slate-800')}>{t('matchmakingPage.form.labels.inviteCode')}</label>
                     <input
                       value={form.inviteCode}
                       onChange={onChange('inviteCode')}
@@ -2674,7 +2834,7 @@ export default function MatchmakingApply() {
                 ) : null}
 
                 <div>
-                  <label className={getLabelClassName('age', 'block text-sm font-semibold text-slate-800 md:text-white/90')}>{t('matchmakingPage.form.labels.age')}</label>
+                  <label className={getLabelClassName('age', 'block text-sm font-semibold text-white/90 md:text-slate-800')}>{t('matchmakingPage.form.labels.age')}</label>
                   <input
                     ref={registerFieldRef('age')}
                     value={form.age}
@@ -2685,7 +2845,7 @@ export default function MatchmakingApply() {
                   />
                 </div>
                 <div>
-                  <label className={getLabelClassName('city', 'block text-sm font-semibold text-slate-800 md:text-white/90')}>{t('matchmakingPage.form.labels.city')}</label>
+                  <label className={getLabelClassName('city', 'block text-sm font-semibold text-white/90 md:text-slate-800')}>{t('matchmakingPage.form.labels.city')}</label>
                   <input
                     ref={registerFieldRef('city')}
                     value={form.city}
@@ -2695,7 +2855,7 @@ export default function MatchmakingApply() {
                   />
                 </div>
                 <div>
-                  <label className={getLabelClassName('nationality', 'block text-sm font-semibold text-slate-800 md:text-white/90')}>{t('matchmakingPage.form.labels.nationality')}</label>
+                  <label className={getLabelClassName('nationality', 'block text-sm font-semibold text-white/90 md:text-slate-800')}>{t('matchmakingPage.form.labels.nationality')}</label>
                   <input
                     ref={registerFieldRef('nationality')}
                     value={form.nationality}
@@ -2706,7 +2866,7 @@ export default function MatchmakingApply() {
                   />
                 </div>
                 <div>
-                  <label className={getLabelClassName('gender', 'block text-sm font-semibold text-slate-800 md:text-white/90')}>{t('matchmakingPage.form.labels.gender')}</label>
+                  <label className={getLabelClassName('gender', 'block text-sm font-semibold text-white/90 md:text-slate-800')}>{t('matchmakingPage.form.labels.gender')}</label>
                   <select
                     ref={registerFieldRef('gender')}
                     value={form.gender}
@@ -2724,7 +2884,7 @@ export default function MatchmakingApply() {
                 {!isEditOnceMode ? (
                   <>
                     <div>
-                      <label className={getLabelClassName('occupation', 'block text-sm font-semibold text-slate-800 md:text-white/90')}>{t('matchmakingPage.form.labels.occupation')}</label>
+                      <label className={getLabelClassName('occupation', 'block text-sm font-semibold text-white/90 md:text-slate-800')}>{t('matchmakingPage.form.labels.occupation')}</label>
                       <input
                         ref={registerFieldRef('occupation')}
                         value={form.occupation}
@@ -2734,7 +2894,7 @@ export default function MatchmakingApply() {
                       />
                     </div>
                     <div>
-                      <label className={getLabelClassName('maritalStatus', 'block text-sm font-semibold text-slate-800 md:text-white/90')}>{t('matchmakingPage.form.labels.maritalStatus')}</label>
+                      <label className={getLabelClassName('maritalStatus', 'block text-sm font-semibold text-white/90 md:text-slate-800')}>{t('matchmakingPage.form.labels.maritalStatus')}</label>
                       <select
                         ref={registerFieldRef('maritalStatus')}
                         value={form.maritalStatus}
@@ -2753,7 +2913,7 @@ export default function MatchmakingApply() {
                       String(form.maritalStatus || '').trim().toLowerCase() === 'divorced') ? (
                       <>
                         <div>
-                          <label className={getLabelClassName('hasChildren', 'block text-sm font-semibold text-slate-800 md:text-white/90')}>{t('matchmakingPage.form.labels.hasChildren')}</label>
+                          <label className={getLabelClassName('hasChildren', 'block text-sm font-semibold text-white/90 md:text-slate-800')}>{t('matchmakingPage.form.labels.hasChildren')}</label>
                           <select
                             ref={registerFieldRef('hasChildren')}
                             value={form.hasChildren}
@@ -2771,7 +2931,7 @@ export default function MatchmakingApply() {
                         {form.hasChildren === 'yes' ? (
                           <>
                             <div>
-                              <label className={getLabelClassName('childrenCount', 'block text-sm font-semibold text-slate-800 md:text-white/90')}>{t('matchmakingPage.form.labels.childrenCount')}</label>
+                              <label className={getLabelClassName('childrenCount', 'block text-sm font-semibold text-white/90 md:text-slate-800')}>{t('matchmakingPage.form.labels.childrenCount')}</label>
                               <input
                                 ref={registerFieldRef('childrenCount')}
                                 value={form.childrenCount}
@@ -2783,7 +2943,7 @@ export default function MatchmakingApply() {
                             </div>
 
                             <div>
-                              <label className={getLabelClassName('childrenLivingSituation', 'block text-sm font-semibold text-slate-800 md:text-white/90')}>{t('matchmakingPage.form.labels.childrenLivingSituation')}</label>
+                              <label className={getLabelClassName('childrenLivingSituation', 'block text-sm font-semibold text-white/90 md:text-slate-800')}>{t('matchmakingPage.form.labels.childrenLivingSituation')}</label>
                               <select
                                 ref={registerFieldRef('childrenLivingSituation')}
                                 value={form.childrenLivingSituation}
@@ -2791,6 +2951,22 @@ export default function MatchmakingApply() {
                                 className={getFieldClassName('childrenLivingSituation')}
                               >
                                 {childrenLivingSituationOptions.map((opt) => (
+                                  <option key={opt.id} value={opt.id}>
+                                    {opt.label}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+
+                            <div>
+                              <label className={getLabelClassName('liveWithChildrenAfterMarriage', 'block text-sm font-semibold text-white/90 md:text-slate-800')}>{t('matchmakingPage.form.labels.liveWithChildrenAfterMarriage')}</label>
+                              <select
+                                ref={registerFieldRef('liveWithChildrenAfterMarriage')}
+                                value={form.liveWithChildrenAfterMarriage}
+                                onChange={onChange('liveWithChildrenAfterMarriage')}
+                                className={getFieldClassName('liveWithChildrenAfterMarriage')}
+                              >
+                                {yesNoOptions.map((opt) => (
                                   <option key={opt.id} value={opt.id}>
                                     {opt.label}
                                   </option>
@@ -2805,7 +2981,7 @@ export default function MatchmakingApply() {
                 ) : null}
 
                 <div>
-                  <label className={getLabelClassName('whatsapp', 'block text-sm font-semibold text-slate-800 md:text-white/90')}>{t('matchmakingPage.form.labels.whatsapp')}</label>
+                  <label className={getLabelClassName('whatsapp', 'block text-sm font-semibold text-white/90 md:text-slate-800')}>{t('matchmakingPage.form.labels.whatsapp')}</label>
                   <input
                     ref={registerFieldRef('whatsapp')}
                     value={form.whatsapp}
@@ -3428,7 +3604,8 @@ export default function MatchmakingApply() {
                             {applyFlowUi.photoTitle}
                           </p>
                           <p className="mt-1 text-sm leading-relaxed text-slate-600">{applyFlowUi.photoBody}</p>
-                          <p className="mt-1 text-sm leading-relaxed text-slate-600">{applyFlowUi.photoPrivacyBody}</p>
+                          <p className="mt-1 text-sm leading-relaxed text-slate-600">{photoPrivacyNotice}</p>
+                          <p className="mt-1 text-sm font-medium leading-relaxed text-amber-700">{applyFlowUi.photoFormatWarning}</p>
                         </div>
                         <div className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">
                           {applyFlowUi.photoCount.replace('{{count}}', String(preparedPhotoCount))}
@@ -3438,33 +3615,38 @@ export default function MatchmakingApply() {
 
                     <div className="px-4 py-4 md:px-5 md:py-5">
                       <div className="grid grid-cols-5 gap-2.5">
-                        {photoSlots.map((slot) => (
+                        {photoSlots.map((slot) => {
+                          return (
                           <div key={slot.key} className="rounded-xl border border-slate-200 bg-slate-50 p-2 shadow-sm">
-                            <input
-                              ref={(node) => {
-                                photoInputRefs.current[slot.key] = node;
-                              }}
-                              id={`mk-${slot.key}`}
-                              type="file"
-                              accept="image/*"
-                              onChange={onPickPhoto(slot.key)}
-                              className="hidden"
-                            />
-                            <button
-                              type="button"
-                              onClick={() => triggerPhotoSlotPick(slot.key)}
-                              className="group block w-full overflow-hidden rounded-lg border border-dashed border-slate-300 bg-white"
-                            >
-                              <div className="relative aspect-square w-full bg-[radial-gradient(circle_at_top,rgba(251,191,36,0.14),rgba(255,255,255,0.92))]">
-                                {slot.previewUrl ? (
-                                  <img src={slot.previewUrl} alt={`photo-slot-${slot.index + 1}`} className="h-full w-full object-cover" />
-                                ) : (
-                                  <div className="flex h-full items-center justify-center px-1 text-center text-[11px] font-medium leading-tight text-slate-500">
-                                    {applyFlowUi.photoSlotLabel} {slot.index + 1}
-                                  </div>
-                                )}
+                            <div className="relative">
+                              <div
+                                aria-label={`${applyFlowUi.photoSlotLabel} ${slot.index + 1}`}
+                                className={
+                                  'group block w-full overflow-hidden rounded-lg border border-dashed border-slate-300 bg-white text-left ' +
+                                  (submitting ? 'pointer-events-none opacity-60' : 'cursor-pointer')
+                                }
+                              >
+                                <div className="relative aspect-square w-full bg-[radial-gradient(circle_at_top,rgba(251,191,36,0.14),rgba(255,255,255,0.92))]">
+                                  {slot.previewUrl ? (
+                                    <img src={slot.previewUrl} alt={`photo-slot-${slot.index + 1}`} className="h-full w-full object-cover" />
+                                  ) : (
+                                    <div className="flex h-full items-center justify-center px-1 text-center text-[11px] font-medium leading-tight text-slate-500">
+                                      {applyFlowUi.photoSlotLabel} {slot.index + 1}
+                                    </div>
+                                  )}
+                                </div>
                               </div>
-                            </button>
+                              {submitting ? null : (
+                                <input
+                                  type="file"
+                                  accept="image/*,.heic,.heif,.avif"
+                                  aria-label={`${applyFlowUi.photoSlotLabel} ${slot.index + 1}`}
+                                  tabIndex={-1}
+                                  className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+                                  onChange={onPickPhoto(slot.key)}
+                                />
+                              )}
+                            </div>
                             <div className="mt-2 space-y-1.5">
                               <div className="text-center text-[10px] font-medium leading-tight text-slate-500">
                                 {slot.hasNewSelection
@@ -3474,13 +3656,9 @@ export default function MatchmakingApply() {
                                     : applyFlowUi.photoEmpty}
                               </div>
                               <div className="flex flex-col gap-1">
-                                <button
-                                  type="button"
-                                  onClick={() => triggerPhotoSlotPick(slot.key)}
-                                  className="w-full rounded-full bg-slate-900 px-2 py-1.5 text-[10px] font-semibold text-white hover:bg-slate-800"
-                                >
+                                <div className="w-full rounded-full bg-slate-900 px-2 py-1.5 text-center text-[10px] font-semibold text-white">
                                   {applyFlowUi.photoSlotLabel} {slot.index + 1}
-                                </button>
+                                </div>
                                 {slot.hasNewSelection ? (
                                   <button
                                     type="button"
@@ -3493,7 +3671,7 @@ export default function MatchmakingApply() {
                               </div>
                             </div>
                           </div>
-                        ))}
+                        );})}
                       </div>
                     </div>
 
@@ -3539,17 +3717,18 @@ export default function MatchmakingApply() {
               </div>
 
               <div className="mt-3 text-xs font-medium text-slate-600">{applyFlowUi.photoCount.replace('{{count}}', String(preparedPhotoCount))}</div>
-              <div className="mt-2 text-xs leading-relaxed text-slate-600">{applyFlowUi.photoPrivacyBody}</div>
-              {invalidFieldSet.has('photo') ? <div className="mt-2 text-xs font-semibold text-rose-700">{t('matchmakingPage.form.errors.photoRequired')}</div> : null}
+              <div className="mt-2 text-xs leading-relaxed text-slate-600">{photoPrivacyNotice}</div>
+              <div className="mt-2 text-xs font-medium leading-relaxed text-amber-700">{applyFlowUi.photoFormatWarning}</div>
+              {invalidFieldSet.has('photo') ? <div className="mt-2 text-xs font-semibold text-rose-700">{error || t('matchmakingPage.form.errors.photoRequired')}</div> : null}
             </div>
           </div>
 
           <div ref={consentsSectionRef} className={isWizardMode ? 'space-y-3' : 'space-y-3 rounded-none border-0 md:rounded-xl md:border md:border-slate-200 p-0 md:p-4'}>
-            <label className={getLabelClassName('consent18Plus', 'flex items-start gap-3 text-sm text-slate-800 md:text-white/80')}>
+            <label className={getLabelClassName('consent18Plus', 'flex items-start gap-3 text-sm text-white/80 md:text-slate-800')}>
               <input ref={registerFieldRef('consent18Plus')} type="checkbox" checked={form.consent18Plus} onChange={onChange('consent18Plus')} className="mt-1" />
               <span>{t('matchmakingPage.form.consents.age', { minAge: isIndonesianNationality(form.nationality) ? 21 : 18 })}</span>
             </label>
-            <label className={getLabelClassName('consentPrivacy', 'flex items-start gap-3 text-sm text-slate-800 md:text-white/80')}>
+            <label className={getLabelClassName('consentPrivacy', 'flex items-start gap-3 text-sm text-white/80 md:text-slate-800')}>
               <input ref={registerFieldRef('consentPrivacy')} type="checkbox" checked={form.consentPrivacy} onChange={onChange('consentPrivacy')} className="mt-1" />
               <span>
                 <Trans
@@ -3575,7 +3754,7 @@ export default function MatchmakingApply() {
                 />
               </span>
             </label>
-            <label className={getLabelClassName('consentTerms', 'flex items-start gap-3 text-sm text-slate-800 md:text-white/80')}>
+            <label className={getLabelClassName('consentTerms', 'flex items-start gap-3 text-sm text-white/80 md:text-slate-800')}>
               <input ref={registerFieldRef('consentTerms')} type="checkbox" checked={form.consentTerms} onChange={onChange('consentTerms')} className="mt-1" />
               <span>
                 <Trans

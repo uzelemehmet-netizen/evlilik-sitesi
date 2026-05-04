@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { authFetch } from '../../utils/authFetch';
 import { getDownloadURL, ref } from 'firebase/storage';
 import { storage } from '../../config/firebaseStorage';
@@ -21,6 +22,242 @@ function fmtDate(ms) {
   }
 }
 
+function fmtDateLang(ms, lang) {
+  try {
+    if (!ms || typeof ms !== 'number') return '-';
+    return new Intl.DateTimeFormat(String(lang || 'tr'), {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+    }).format(new Date(ms));
+  } catch {
+    return fmtDate(ms);
+  }
+}
+
+function getBaseLang(language) {
+  const base = String(language || 'tr').toLowerCase().split('-')[0];
+  return base === 'en' || base === 'id' ? base : 'tr';
+}
+
+const ALL_USERS_UI = {
+  tr: {
+    headers: {
+      userCode: 'UC',
+      name: 'İsim',
+      age: 'Yaş',
+      gender: 'Cinsiyet',
+      whatsapp: 'WhatsApp',
+      email: 'Email',
+      uid: 'UID',
+      status: 'Durum',
+      membership: 'Üyelik',
+      payment: 'Ödeme',
+      identity: 'Kimlik',
+      app: 'Uygulama',
+      notifications: 'Bildirim',
+      created: 'Oluştu',
+      lastSignIn: 'Son giriş',
+    },
+    gender: { female: 'Kadın', male: 'Erkek' },
+    status: {
+      UNKNOWN: 'BİLİNMEYEN',
+      DISABLED: 'DEVRE DIŞI',
+      BLOCKED: 'ENGELLİ',
+      PHOTO_REVIEW: 'FOTOĞRAF KISITLI',
+      FORM: 'FORM',
+      PARTIAL: 'ÖN KAYIT',
+      CACHE: 'FORM CACHE',
+      STUB: 'STUB',
+      PROFILE: 'PROFİL',
+      SYSTEM: 'SİSTEM',
+      AUTH_REMOVED: 'AUTH SİLİNMİŞ',
+      NO_AUTH: 'AUTH YOK',
+      NO_DOC: 'DOKÜMAN YOK',
+    },
+    appState: {
+      real: 'Gerçek form',
+      partial: 'Ön kayıt tamam, form eksik',
+      cache: 'Cache form',
+      stub: 'Stub',
+      stub_cache: 'Stub',
+      profile: 'Profil cache',
+      none: 'Yok',
+    },
+    values: {
+      membershipActive: 'AKTİF',
+      membershipPassive: 'PASİF',
+      paymentReceived: 'ALINDI',
+      paymentExists: 'VAR',
+      identityVerified: 'DOĞRULANDI',
+      identityUnverified: 'DOĞRULANMADI',
+      appInstalled: 'KURULU MOD',
+      notificationsOn: 'AÇIK',
+      none: '—',
+    },
+    summary: {
+      userCode: 'UC',
+      name: 'İsim',
+      age: 'Yaş',
+      gender: 'Cinsiyet',
+      occupation: 'Meslek',
+      maritalStatus: 'Medeni Durum',
+      hasChildren: 'Çocuğu Var mı',
+      childrenCount: 'Çocuk Sayısı',
+      childrenLivingSituation: 'Çocuklar Kimle Yaşıyor',
+      city: 'Şehir',
+      country: 'Ülke',
+      email: 'Email',
+      uid: 'UID',
+      membershipEnds: 'Üyelik bitiş',
+    },
+  },
+  en: {
+    headers: {
+      userCode: 'UC',
+      name: 'Name',
+      age: 'Age',
+      gender: 'Gender',
+      whatsapp: 'WhatsApp',
+      email: 'Email',
+      uid: 'UID',
+      status: 'Status',
+      membership: 'Membership',
+      payment: 'Payment',
+      identity: 'Identity',
+      app: 'App',
+      notifications: 'Notifications',
+      created: 'Created',
+      lastSignIn: 'Last sign-in',
+    },
+    gender: { female: 'Female', male: 'Male' },
+    status: {
+      UNKNOWN: 'UNKNOWN',
+      DISABLED: 'DISABLED',
+      BLOCKED: 'BLOCKED',
+      PHOTO_REVIEW: 'PHOTO RESTRICTED',
+      FORM: 'FORM',
+      PARTIAL: 'PRE-REGISTRATION',
+      CACHE: 'FORM CACHE',
+      STUB: 'STUB',
+      PROFILE: 'PROFILE',
+      SYSTEM: 'SYSTEM',
+      AUTH_REMOVED: 'AUTH REMOVED',
+      NO_AUTH: 'NO AUTH',
+      NO_DOC: 'NO DOC',
+    },
+    appState: {
+      real: 'Real form',
+      partial: 'Pre-registration complete, form missing',
+      cache: 'Cache form',
+      stub: 'Stub',
+      stub_cache: 'Stub',
+      profile: 'Profile cache',
+      none: 'None',
+    },
+    values: {
+      membershipActive: 'ACTIVE',
+      membershipPassive: 'PASSIVE',
+      paymentReceived: 'RECEIVED',
+      paymentExists: 'EXISTS',
+      identityVerified: 'VERIFIED',
+      identityUnverified: 'UNVERIFIED',
+      appInstalled: 'STANDALONE',
+      notificationsOn: 'ON',
+      none: '—',
+    },
+    summary: {
+      userCode: 'UC',
+      name: 'Name',
+      age: 'Age',
+      gender: 'Gender',
+      occupation: 'Occupation',
+      maritalStatus: 'Marital status',
+      hasChildren: 'Has children',
+      childrenCount: 'Children count',
+      childrenLivingSituation: 'Children living with',
+      city: 'City',
+      country: 'Country',
+      email: 'Email',
+      uid: 'UID',
+      membershipEnds: 'Membership ends',
+    },
+  },
+  id: {
+    headers: {
+      userCode: 'UC',
+      name: 'Nama',
+      age: 'Usia',
+      gender: 'Gender',
+      whatsapp: 'WhatsApp',
+      email: 'Email',
+      uid: 'UID',
+      status: 'Status',
+      membership: 'Membership',
+      payment: 'Pembayaran',
+      identity: 'Identitas',
+      app: 'Aplikasi',
+      notifications: 'Notifikasi',
+      created: 'Dibuat',
+      lastSignIn: 'Login terakhir',
+    },
+    gender: { female: 'Perempuan', male: 'Laki-laki' },
+    status: {
+      UNKNOWN: 'TIDAK DIKETAHUI',
+      DISABLED: 'DINONAKTIFKAN',
+      BLOCKED: 'DIBLOKIR',
+      PHOTO_REVIEW: 'FOTO DIBATASI',
+      FORM: 'FORM',
+      PARTIAL: 'PRA-PENDAFTARAN',
+      CACHE: 'CACHE FORM',
+      STUB: 'STUB',
+      PROFILE: 'CACHE PROFIL',
+      SYSTEM: 'SISTEM',
+      AUTH_REMOVED: 'AUTH TERHAPUS',
+      NO_AUTH: 'TANPA AUTH',
+      NO_DOC: 'TANPA DOKUMEN',
+    },
+    appState: {
+      real: 'Form nyata',
+      partial: 'Pra-pendaftaran selesai, form belum lengkap',
+      cache: 'Cache form',
+      stub: 'Stub',
+      stub_cache: 'Stub',
+      profile: 'Cache profil',
+      none: 'Tidak ada',
+    },
+    values: {
+      membershipActive: 'AKTIF',
+      membershipPassive: 'PASIF',
+      paymentReceived: 'DITERIMA',
+      paymentExists: 'ADA',
+      identityVerified: 'TERVERIFIKASI',
+      identityUnverified: 'BELUM TERVERIFIKASI',
+      appInstalled: 'MODE APP',
+      notificationsOn: 'AKTIF',
+      none: '—',
+    },
+    summary: {
+      userCode: 'UC',
+      name: 'Nama',
+      age: 'Usia',
+      gender: 'Gender',
+      occupation: 'Pekerjaan',
+      maritalStatus: 'Status pernikahan',
+      hasChildren: 'Punya anak',
+      childrenCount: 'Jumlah anak',
+      childrenLivingSituation: 'Anak tinggal dengan',
+      city: 'Kota',
+      country: 'Negara',
+      email: 'Email',
+      uid: 'UID',
+      membershipEnds: 'Membership berakhir',
+    },
+  },
+};
+
 function shortUid(uid) {
   const s = String(uid || '');
   if (s.length <= 10) return s;
@@ -34,55 +271,43 @@ function parseUserCodeOrderValue(userCode) {
   return Number.isFinite(value) ? value : 0;
 }
 
-function genderLabel(g) {
+function genderLabel(g, ui) {
   const s = String(g || '').toLowerCase();
-  if (s === 'female') return 'Kadın';
-  if (s === 'male') return 'Erkek';
+  if (s === 'female') return ui.gender.female;
+  if (s === 'male') return ui.gender.male;
   return '-';
 }
 
-function statusLabel(code) {
+function statusLabel(code, ui) {
   const c = String(code || '').toUpperCase();
-  if (c === 'UNKNOWN') return 'BİLİNMEYEN';
-  if (c === 'DISABLED') return 'DEVRE DIŞI';
-  if (c === 'BLOCKED') return 'ENGELLİ';
-  if (c === 'FORM') return 'FORM';
-  if (c === 'PARTIAL') return 'ÖN KAYIT';
-  if (c === 'CACHE') return 'FORM CACHE';
-  if (c === 'STUB') return 'STUB';
-  if (c === 'PROFILE') return 'PROFİL';
-  if (c === 'SYSTEM') return 'SİSTEM';
-  if (c === 'NO_AUTH') return 'AUTH YOK';
-  if (c === 'NO_DOC') return 'DOKÜMAN YOK';
-  return c || '-';
+  return ui.status[c] || c || '-';
 }
 
 function statusPillClass(code) {
   const c = String(code || '').toUpperCase();
   if (c === 'UNKNOWN') return 'bg-rose-100 text-rose-800';
   if (c === 'BLOCKED' || c === 'DISABLED') return 'bg-rose-100 text-rose-800';
+  if (c === 'PHOTO_REVIEW') return 'bg-amber-100 text-amber-800';
   if (c === 'FORM') return 'bg-emerald-100 text-emerald-800';
   if (c === 'PARTIAL') return 'bg-amber-100 text-amber-800';
   if (c === 'CACHE') return 'bg-teal-100 text-teal-800';
   if (c === 'STUB') return 'bg-amber-100 text-amber-800';
   if (c === 'PROFILE') return 'bg-sky-100 text-sky-800';
   if (c === 'SYSTEM') return 'bg-slate-200 text-slate-800';
+  if (c === 'AUTH_REMOVED') return 'bg-violet-100 text-violet-800';
   if (c === 'NO_AUTH') return 'bg-fuchsia-100 text-fuchsia-800';
   return 'bg-amber-100 text-amber-800';
 }
 
-function applicationStateLabel(state) {
+function applicationStateLabel(state, ui) {
   const s = String(state || '').toLowerCase();
-  if (s === 'real') return 'Gerçek form';
-  if (s === 'partial') return 'Ön kayıt tamam, form eksik';
-  if (s === 'cache') return 'Cache form';
-  if (s === 'stub' || s === 'stub_cache') return 'Stub';
-  if (s === 'profile') return 'Profil cache';
-  return 'Yok';
+  return ui.appState[s] || ui.appState.none;
 }
 
 function hasSubmittedAdminProfile(user) {
-  return user?.hasSubmittedProfile === true;
+  if (user?.hasSubmittedProfile === true) return true;
+  const applicationState = String(user?.applicationState || '').toLowerCase();
+  return applicationState === 'real' || applicationState === 'cache' || applicationState === 'profile';
 }
 
 function isUnknownAdminUser(user) {
@@ -113,7 +338,63 @@ function draftUpdatedAtLabel(ms) {
   }
 }
 
+function areAdminUsersEqual(a, b) {
+  try {
+    return JSON.stringify(a || null) === JSON.stringify(b || null);
+  } catch {
+    return false;
+  }
+}
+
+function mergeAdminUsers(prevUsers, nextUsers, { pruneMissing = false } = {}) {
+  const previous = Array.isArray(prevUsers) ? prevUsers : [];
+  const incoming = Array.isArray(nextUsers) ? nextUsers : [];
+  const prevByUid = new Map(previous.map((item) => [String(item?.uid || ''), item]));
+  const nextByUid = new Map(incoming.map((item) => [String(item?.uid || ''), item]));
+
+  const merged = incoming.map((item) => {
+    const uid = String(item?.uid || '');
+    const prev = uid ? prevByUid.get(uid) : null;
+    return prev && areAdminUsersEqual(prev, item) ? prev : item;
+  });
+
+  if (!pruneMissing) {
+    for (const item of previous) {
+      const uid = String(item?.uid || '');
+      if (!uid || nextByUid.has(uid)) continue;
+      merged.push(item);
+    }
+  }
+
+  return merged;
+}
+
+function applyAdminUserDelta(prevUsers, nextUsers, deletedUids = []) {
+  const previous = Array.isArray(prevUsers) ? prevUsers : [];
+  const incoming = Array.isArray(nextUsers) ? nextUsers : [];
+  const deleted = new Set((Array.isArray(deletedUids) ? deletedUids : []).map((uid) => String(uid || '')).filter(Boolean));
+
+  const byUid = new Map();
+  for (const item of previous) {
+    const uid = String(item?.uid || '');
+    if (!uid || deleted.has(uid)) continue;
+    byUid.set(uid, item);
+  }
+
+  for (const item of incoming) {
+    const uid = String(item?.uid || '');
+    if (!uid || deleted.has(uid)) continue;
+    const prev = byUid.get(uid) || null;
+    byUid.set(uid, prev && areAdminUsersEqual(prev, item) ? prev : item);
+  }
+
+  return Array.from(byUid.values());
+}
+
 export default function AllUsersTab() {
+  const { t, i18n } = useTranslation();
+  const lang = getBaseLang(i18n?.language);
+  const ui = ALL_USERS_UI[lang];
   const [query, setQuery] = useState('');
   const [users, setUsers] = useState([]);
   const [sortMode, setSortMode] = useState('user_code_desc');
@@ -151,8 +432,14 @@ export default function AllUsersTab() {
 
   const [campaignState, setCampaignState] = useState({ loading: false, error: '', msg: '', details: null });
   const loadRef = useRef(null);
+  const lastSyncAtMsRef = useRef(0);
 
   const trimmedQuery = useMemo(() => String(query || '').trim(), [query]);
+  const selectedPhotoRestricted = selected?.photoReviewRequired === true;
+  const modalPhotoRestricted =
+    formModal.user?.photoModeration?.status === 'requires_reupload' ||
+    formModal.application?.photoModeration?.status === 'requires_reupload' ||
+    selectedPhotoRestricted;
 
   const visibleUsers = useMemo(() => {
     const list = Array.isArray(users) ? [...users] : [];
@@ -195,16 +482,21 @@ export default function AllUsersTab() {
   }, [users]);
 
   const load = async ({ mode }) => {
-    setLoading(true);
+    const isBackgroundRefresh = mode === 'refresh';
+    const showLoading = !isBackgroundRefresh || users.length === 0;
+    if (showLoading) setLoading(true);
     setErr('');
     try {
       const fetchPage = async (pageTokenValue = null) => {
         const payload = {
           pageSize: ADMIN_USERS_PAGE_SIZE,
+          includeNonAuth: true,
         };
 
         if (mode === 'search' && trimmedQuery) {
           payload.query = trimmedQuery;
+        } else if (mode === 'refresh' && lastSyncAtMsRef.current > 0) {
+          payload.refreshSinceMs = lastSyncAtMsRef.current;
         } else if (pageTokenValue) {
           payload.pageToken = pageTokenValue;
         }
@@ -245,26 +537,58 @@ export default function AllUsersTab() {
         const data = await fetchPage(mode === 'more' ? nextPageToken : null);
         list = Array.isArray(data?.users) ? data.users : [];
         token = data?.nextPageToken || null;
+        if (typeof data?.syncAtMs === 'number' && Number.isFinite(data.syncAtMs) && data.syncAtMs > 0) {
+          lastSyncAtMsRef.current = data.syncAtMs;
+        }
+
+        if (mode === 'refresh' && data?.refreshMode === 'delta') {
+          const deletedUids = Array.isArray(data?.deletedUids) ? data.deletedUids : [];
+          nextUsersState = applyAdminUserDelta(users, list, deletedUids);
+          setUsers(nextUsersState);
+          setNextPageToken(nextPageToken);
+
+          if (selected?.uid) {
+            const latestSelected = nextUsersState.find((u) => u?.uid === selected.uid) || null;
+            if (latestSelected) {
+              if (!areAdminUsersEqual(selected, latestSelected)) setSelected(latestSelected);
+            } else if (deletedUids.includes(selected.uid)) {
+              setSelected(null);
+            }
+          }
+          return;
+        }
       }
 
+      let nextUsersState = null;
       if (mode === 'more') {
-        setUsers((prev) => [...prev, ...list]);
+        setUsers((prev) => {
+          nextUsersState = [...prev, ...list];
+          return nextUsersState;
+        });
+      } else if (mode === 'refresh') {
+        nextUsersState = mergeAdminUsers(users, list, { pruneMissing: !token });
+        setUsers(nextUsersState);
       } else {
+        nextUsersState = list;
         setUsers(list);
       }
       setNextPageToken(token);
+      if ((mode === 'first' || mode === 'more') && !trimmedQuery) lastSyncAtMsRef.current = Date.now();
 
       // Eğer seçili kullanıcı artık listede yoksa (silindiyse vs.) seçimi temizle.
       if (selected?.uid) {
-        const stillThere = [...(mode === 'more' ? users : []), ...list].some((u) => u?.uid === selected.uid);
-        if (!stillThere && trimmedQuery && (trimmedQuery === selected.uid || trimmedQuery === selected.email)) {
+        const activeList = Array.isArray(nextUsersState) ? nextUsersState : [...(mode === 'more' ? users : []), ...list];
+        const latestSelected = activeList.find((u) => u?.uid === selected.uid) || null;
+        if (latestSelected) {
+          if (!areAdminUsersEqual(selected, latestSelected)) setSelected(latestSelected);
+        } else if (trimmedQuery && (trimmedQuery === selected.uid || trimmedQuery === selected.email)) {
           setSelected(null);
         }
       }
     } catch (e) {
       setErr(String(e?.message || 'liste_yuklenemedi'));
     } finally {
-      setLoading(false);
+      if (showLoading) setLoading(false);
     }
   };
 
@@ -294,9 +618,10 @@ export default function AllUsersTab() {
       if (cancelled) return;
       if (document.visibilityState !== 'visible') return;
       if (loading) return;
+      if (trimmedQuery) return;
       const runner = loadRef.current;
       if (typeof runner !== 'function') return;
-      await runner({ mode: trimmedQuery ? 'search' : 'first' });
+      await runner({ mode: 'refresh' });
     };
 
     const intervalId = window.setInterval(() => {
@@ -364,7 +689,7 @@ export default function AllUsersTab() {
       const data = await authFetch('/api/admin-users-list', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ query: selected.uid }),
+        body: JSON.stringify({ query: selected.uid, includeNonAuth: true }),
       });
       const u = Array.isArray(data?.users) ? data.users[0] : null;
       if (u) {
@@ -404,36 +729,39 @@ export default function AllUsersTab() {
     }
   };
 
-  const bulkMarkSystemUsers = async () => {
-    const phrase = window.prompt(
-      'Bu işlem tüm mevcut kullanıcıları "sistem kullanıcısı" olarak işaretler. Devam etmek için: MARK_ALL_SYSTEM_USERS yazın',
-      ''
-    );
-    if (!phrase) return;
-
+  const setPhotoReviewRequired = async (required, options = {}) => {
+    const targetUid = String(options?.uid || selectedUid || '').trim();
+    const targetApplicationId = String(options?.applicationId || selected?.applicationId || '').trim();
+    if (!targetUid) return;
     setActing(true);
     setActionErr('');
     setActionMsg('');
     try {
-      const data = await authFetch('/api/admin-users-mark-system', {
+      await authFetch('/api/admin-matchmaking-photo-review-require', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ mode: 'allExisting', confirmText: phrase, limit: 500 }),
+        body: JSON.stringify({
+          userId: targetUid,
+          applicationId: targetApplicationId,
+          required: !!required,
+        }),
       });
-      setActionMsg(`Sistem kullanıcısı işaretlendi: ${data?.marked || 0}`);
-      await loadFirst();
+      setActionMsg(
+        required
+          ? 'Fotoğraf uyarısı gönderildi. Kullanıcı kendi fotoğrafını yükleyene kadar uygulamayı kullanamaz.'
+          : 'Fotoğraf kısıtı kaldırıldı.'
+      );
       await refreshSelected();
     } catch (e) {
-      setActionErr(String(e?.message || 'bulk_islem_basarisiz'));
+      setActionErr(String(e?.message || 'foto_kisiti_guncellenemedi'));
     } finally {
       setActing(false);
     }
   };
 
-  const sendIncompleteApplicationPushOnce = async ({ dryRun } = {}) => {
+  const sendIncompleteApplicationPushOnce = async () => {
     setCampaignState({ loading: true, error: '', msg: '', details: null });
     try {
-      const isDryRun = dryRun !== false;
       const totalWanted = 200;
       const chunkLimit = 10;
       const maxRequests = 30;
@@ -443,7 +771,6 @@ export default function AllUsersTab() {
       let processed = 0;
       let totalSent = 0;
       let totalSkipped = 0;
-      let totalWouldSend = 0;
 
       let lastData = null;
 
@@ -452,7 +779,7 @@ export default function AllUsersTab() {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
           body: JSON.stringify({
-            dryRun: isDryRun,
+            dryRun: false,
             limit: chunkLimit,
             cursorUid,
             title: 'Başvurunu tamamla',
@@ -466,14 +793,11 @@ export default function AllUsersTab() {
         processed += typeof data?.processed === 'number' ? data.processed : 0;
         totalSent += typeof data?.sent === 'number' ? data.sent : 0;
         totalSkipped += typeof data?.skipped === 'number' ? data.skipped : 0;
-        totalWouldSend += typeof data?.wouldSend === 'number' ? data.wouldSend : 0;
 
         const next = String(data?.nextCursorUid || '').trim();
         cursorUid = next;
 
-        const line = isDryRun
-          ? `Dry-run: işlenen ${processed}, gönderilecek ${totalWouldSend}, atlanan ${totalSkipped}`
-          : `Gönderim: işlenen ${processed}, gönderilen ${totalSent}, atlanan ${totalSkipped}`;
+        const line = `Gönderim: işlenen ${processed}, gönderilen ${totalSent}, atlanan ${totalSkipped}`;
         setCampaignState({ loading: true, error: '', msg: line, details: lastData });
 
         // Stop if finished or we processed enough.
@@ -481,9 +805,7 @@ export default function AllUsersTab() {
         if (processed >= totalWanted) break;
       }
 
-      const finalLine = isDryRun
-        ? `Dry-run bitti: aday ${totalCandidates || 0}, işlenen ${processed}, gönderilecek ${totalWouldSend}, atlanan ${totalSkipped}`
-        : `Gönderim bitti: aday ${totalCandidates || 0}, işlenen ${processed}, gönderilen ${totalSent}, atlanan ${totalSkipped}`;
+      const finalLine = `Gönderim bitti: aday ${totalCandidates || 0}, işlenen ${processed}, gönderilen ${totalSent}, atlanan ${totalSkipped}`;
 
       setCampaignState({ loading: false, error: '', msg: finalLine, details: lastData });
     } catch (e) {
@@ -492,6 +814,12 @@ export default function AllUsersTab() {
   };
 
   const selectedUid = selected?.uid ? String(selected.uid) : '';
+  const modalActionUid = formModal?.uid ? String(formModal.uid) : selectedUid;
+  const modalApplicationId = formModal?.application?.id
+    ? String(formModal.application.id)
+    : selected?.applicationId
+      ? String(selected.applicationId)
+      : '';
 
   function safeStr(v) {
     return typeof v === 'string' ? v.trim() : '';
@@ -510,6 +838,7 @@ export default function AllUsersTab() {
       item?.maritalStatus,
       item?.hasChildren,
       item?.childrenCount,
+      item?.childrenLivingSituation,
       item?.applicationId,
     ].some((value) => value !== null && value !== undefined && String(value).trim?.() !== '');
 
@@ -520,6 +849,7 @@ export default function AllUsersTab() {
     if (safeStr(item?.maritalStatus)) details.maritalStatus = safeStr(item.maritalStatus);
     if (item?.hasChildren !== null && item?.hasChildren !== undefined && item?.hasChildren !== '') details.hasChildren = item.hasChildren;
     if (typeof item?.childrenCount === 'number' && Number.isFinite(item.childrenCount)) details.childrenCount = item.childrenCount;
+    if (safeStr(item?.childrenLivingSituation)) details.childrenLivingSituation = safeStr(item.childrenLivingSituation);
     if (safeStr(item?.whatsapp)) details.whatsapp = safeStr(item.whatsapp);
 
     return {
@@ -565,6 +895,7 @@ export default function AllUsersTab() {
       religion: 'Din',
       maritalStatus: 'Medeni Durum',
       childrenCount: 'Çocuk Sayısı',
+      childrenLivingSituation: 'Çocuklar Kimle Yaşıyor',
       smoking: 'Sigara',
       alcohol: 'Alkol',
       hobbies: 'Hobiler',
@@ -1076,39 +1407,127 @@ export default function AllUsersTab() {
     return <span className="text-sm text-slate-900">{String(data)}</span>;
   }
 
+  function renderFormActionPanels() {
+    return (
+      <>
+        {actionErr ? <p className="mb-3 text-sm text-rose-700">{actionErr}</p> : null}
+        {actionMsg ? <p className="mb-3 text-sm text-emerald-700">{actionMsg}</p> : null}
+
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+          <div className="rounded-lg border border-amber-200 bg-white p-3">
+            <div className="mb-2 flex items-center justify-between gap-2">
+              <div className="text-xs font-semibold text-amber-900">{t('admin.allUsers.modal.photoWarningsTitle')}</div>
+              <span className={modalPhotoRestricted ? pill('red') : pill('slate')}>
+                {modalPhotoRestricted ? t('admin.allUsers.badges.photoRestricted') : t('admin.allUsers.badges.photoClear')}
+              </span>
+            </div>
+            <div className="flex flex-col gap-2">
+              <button
+                type="button"
+                disabled={acting || !modalActionUid}
+                onClick={() => {
+                  const ok = window.confirm(t('admin.allUsers.confirms.sendPhotoWarning'));
+                  if (!ok) return;
+                  setPhotoReviewRequired(true, { uid: modalActionUid, applicationId: modalApplicationId });
+                }}
+                className="w-full rounded-lg bg-rose-600 px-3 py-2 text-sm text-white hover:bg-rose-700 disabled:opacity-60"
+              >
+                {t('admin.allUsers.modal.sendPhotoWarning')}
+              </button>
+              <button
+                type="button"
+                disabled={acting || !modalActionUid}
+                onClick={() => {
+                  const ok = window.confirm(t('admin.allUsers.confirms.clearPhotoRestriction'));
+                  if (!ok) return;
+                  setPhotoReviewRequired(false, { uid: modalActionUid, applicationId: modalApplicationId });
+                }}
+                className="w-full rounded-lg border border-amber-300 bg-white px-3 py-2 text-sm text-amber-900 hover:bg-amber-50 disabled:opacity-60"
+              >
+                {t('admin.allUsers.modal.clearPhotoRestriction')}
+              </button>
+            </div>
+            <p className="mt-2 text-xs text-slate-600">{t('admin.allUsers.modal.photoWarningHint')}</p>
+          </div>
+
+          <div className="rounded-lg border bg-white p-3">
+            <div className="mb-2 text-xs font-semibold text-gray-700">{t('admin.allUsers.modal.blockTitle')}</div>
+            <textarea
+              value={blockReason}
+              onChange={(e) => setBlockReason(e.target.value)}
+              className="w-full rounded border px-2 py-2 text-sm"
+              placeholder={t('admin.allUsers.modal.blockReasonPlaceholder')}
+              disabled={acting}
+              rows={2}
+            />
+            <div className="mt-2 flex gap-2">
+              <button
+                type="button"
+                disabled={acting || !modalActionUid}
+                onClick={() => doAction({ uid: modalActionUid, action: 'block', reason: blockReason })}
+                className="flex-1 rounded-lg bg-rose-600 px-3 py-2 text-sm text-white hover:bg-rose-700 disabled:opacity-60"
+              >
+                {t('admin.allUsers.modal.blockAccount')}
+              </button>
+              <button
+                type="button"
+                disabled={acting || !modalActionUid}
+                onClick={() => doAction({ uid: modalActionUid, action: 'unblock' })}
+                className="flex-1 rounded-lg bg-gray-200 px-3 py-2 text-sm text-gray-800 hover:bg-gray-300 disabled:opacity-60"
+              >
+                {t('admin.allUsers.modal.unblockAccount')}
+              </button>
+            </div>
+            <p className="mt-2 text-xs text-gray-600">{t('admin.allUsers.modal.blockHint')}</p>
+          </div>
+
+          <div className="rounded-lg border border-rose-200 bg-white p-3">
+            <div className="mb-2 text-xs font-semibold text-rose-800">{t('admin.allUsers.modal.deleteTitle')}</div>
+            <input
+              value={deleteConfirmText}
+              onChange={(e) => setDeleteConfirmText(e.target.value)}
+              className="w-full rounded border px-2 py-2 text-sm font-mono"
+              disabled={acting}
+            />
+            <label className="mt-2 flex items-center gap-2 text-xs text-rose-900">
+              <input
+                type="checkbox"
+                checked={deleteFinal}
+                onChange={(e) => setDeleteFinal(e.target.checked)}
+                disabled={acting}
+              />
+              {t('admin.allUsers.modal.deleteConfirm')}
+            </label>
+            <button
+              type="button"
+              disabled={acting || !modalActionUid || !deleteFinal}
+              onClick={() =>
+                doAction({
+                  uid: modalActionUid,
+                  action: 'delete',
+                  confirmText: deleteConfirmText,
+                  confirmFinal: deleteFinal,
+                })
+              }
+              className="mt-2 w-full rounded-lg bg-rose-700 px-3 py-2 text-sm text-white hover:bg-rose-800 disabled:opacity-60"
+            >
+              {t('admin.allUsers.modal.deleteButton')}
+            </button>
+            <p className="mt-2 text-xs text-gray-600">{t('admin.allUsers.modal.deleteHint')} <span className="font-mono">delete:&lt;uid&gt;</span></p>
+          </div>
+        </div>
+      </>
+    );
+  }
+
   return (
     <div className="bg-white rounded-xl shadow p-6">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h2 className="text-lg font-semibold text-gray-800">Tüm Kullanıcılar</h2>
-          <p className="text-sm text-gray-600">Firebase Auth kullanıcıları listelenir; Firestore (matchmakingUsers) durumları da gösterilir.</p>
+          <h2 className="text-lg font-semibold text-gray-800">{t('admin.allUsers.title')}</h2>
+          <p className="text-sm text-gray-600">{t('admin.allUsers.subtitle')}</p>
         </div>
       </div>
-
-      {campaignState.error ? <p className="mt-3 text-sm text-rose-700">{campaignState.error}</p> : null}
-      {campaignState.msg ? <p className="mt-3 text-sm text-emerald-700">{campaignState.msg}</p> : null}
-
-      {Array.isArray(campaignState?.details?.results) && campaignState.details.results.length ? (
-        <details className="mt-2 rounded-lg border border-slate-200 bg-slate-50">
-          <summary className="cursor-pointer select-none px-3 py-2 text-sm font-semibold text-slate-800">
-            Push sonucu detayları (ilk {Math.min(20, campaignState.details.results.length)})
-          </summary>
-          <div className="p-3 bg-white border-t border-slate-200">
-            <div className="space-y-1">
-              {campaignState.details.results.slice(0, 20).map((r, idx) => (
-                <div key={idx} className="text-xs text-slate-800 break-all">
-                  <span className="font-semibold">{String(r?.uid || '')}</span>
-                  {r?.skipped ? ' • skipped' : r?.dryRun ? ' • dryRun' : ''}
-                  {r?.reason ? ` • reason:${String(r.reason)}` : ''}
-                  {r?.appSource ? ` • appSource:${String(r.appSource)}` : ''}
-                  {r?.appId ? ` • appId:${String(r.appId)}` : ''}
-                  {r?.error ? ` • error:${String(r.error)}` : ''}
-                </div>
-              ))}
-            </div>
-          </div>
-        </details>
-      ) : null}
 
       <div className="mt-4 space-y-4">
         <div>
@@ -1122,7 +1541,7 @@ export default function AllUsersTab() {
                   (viewTab === 'defined_female' ? 'bg-fuchsia-600 text-white' : 'bg-white text-slate-700 hover:bg-slate-50')
                 }
               >
-                Tanımlı Kadınlar ({definedGenderCounts.female})
+                {t('admin.allUsers.filters.definedFemale', { count: definedGenderCounts.female })}
               </button>
               <button
                 type="button"
@@ -1132,7 +1551,7 @@ export default function AllUsersTab() {
                   (viewTab === 'defined_male' ? 'bg-sky-600 border-sky-600 text-white' : 'bg-white text-slate-700 hover:bg-slate-50')
                 }
               >
-                Tanımlı Erkekler ({definedGenderCounts.male})
+                {t('admin.allUsers.filters.definedMale', { count: definedGenderCounts.male })}
               </button>
               <button
                 type="button"
@@ -1142,43 +1561,10 @@ export default function AllUsersTab() {
                   (viewTab === 'unknown' ? 'bg-rose-600 border-rose-600 text-white' : 'bg-white text-slate-700 hover:bg-slate-50')
                 }
               >
-                Bilinmeyen Kullanıcılar ({unknownCount})
+                {t('admin.allUsers.filters.unknown', { count: unknownCount })}
               </button>
             </div>
 
-            <button
-              type="button"
-              className="px-3 py-2 rounded-lg bg-slate-700 text-white text-sm hover:bg-slate-800 disabled:opacity-60"
-              disabled={acting}
-              onClick={bulkMarkSystemUsers}
-              title="Mevcut tüm kullanıcıları sistem kullanıcısı olarak işaretle"
-            >
-              Tümünü Sistem Kullanıcısı Yap
-            </button>
-
-            <button
-              type="button"
-              className="px-3 py-2 rounded-lg bg-indigo-600 text-white text-sm hover:bg-indigo-700 disabled:opacity-60"
-              disabled={acting || campaignState.loading}
-              onClick={() => sendIncompleteApplicationPushOnce({ dryRun: true })}
-              title="Push açık olanlardan formu eksik görünenlere (tek seferlik) dry-run"
-            >
-              Eksik Forma Push (Dry-run)
-            </button>
-
-            <button
-              type="button"
-              className="px-3 py-2 rounded-lg bg-rose-600 text-white text-sm hover:bg-rose-700 disabled:opacity-60"
-              disabled={acting || campaignState.loading}
-              onClick={() => {
-                const ok = window.confirm('Push açık olan ve formu eksik olanlara tek seferlik bildirim gönderilecek. Devam?');
-                if (!ok) return;
-                sendIncompleteApplicationPushOnce({ dryRun: false });
-              }}
-              title="Push açık olanlardan formu eksik görünenlere tek seferlik gönder"
-            >
-              Eksik Forma Push Gönder
-            </button>
           </div>
 
           <div className="flex flex-col md:flex-row gap-2">
@@ -1190,7 +1576,7 @@ export default function AllUsersTab() {
                 e.preventDefault();
                 loadFirst().catch(() => {});
               }}
-              placeholder="Ara: UC-..., email veya uid"
+              placeholder={t('admin.allUsers.searchPlaceholder')}
               className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-indigo-600"
             />
 
@@ -1198,10 +1584,10 @@ export default function AllUsersTab() {
               value={sortMode}
               onChange={(e) => setSortMode(e.target.value)}
               className="w-full md:w-64 px-3 py-2 border border-gray-300 rounded text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-600"
-              aria-label="UC koduna göre sırala"
+              aria-label={t('admin.allUsers.sort.ariaLabel')}
             >
-              <option value="user_code_desc">UC: En yeni → En eski</option>
-              <option value="user_code_asc">UC: En eski → En yeni</option>
+              <option value="user_code_desc">{t('admin.allUsers.sort.userCodeDesc')}</option>
+              <option value="user_code_asc">{t('admin.allUsers.sort.userCodeAsc')}</option>
             </select>
 
             <button
@@ -1210,7 +1596,7 @@ export default function AllUsersTab() {
               disabled={loading}
               className="px-4 py-2 rounded-lg bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-700 disabled:opacity-60"
             >
-              {loading ? 'Yükleniyor…' : 'Yükle'}
+              {loading ? t('admin.allUsers.common.loading') : t('admin.allUsers.common.load')}
             </button>
           </div>
 
@@ -1221,21 +1607,21 @@ export default function AllUsersTab() {
               <table className="w-full text-sm">
                 <thead className="bg-gray-50 text-gray-700">
                   <tr>
-                    <th className="text-left px-3 py-2">UC</th>
-                    <th className="text-left px-3 py-2">İsim</th>
-                    <th className="text-left px-3 py-2">Yaş</th>
-                    <th className="text-left px-3 py-2">Cinsiyet</th>
-                    <th className="text-left px-3 py-2">WhatsApp</th>
-                    <th className="text-left px-3 py-2">Email</th>
-                    <th className="text-left px-3 py-2">UID</th>
-                    <th className="text-left px-3 py-2">Durum</th>
-                    <th className="text-left px-3 py-2">Üyelik</th>
-                    <th className="text-left px-3 py-2">Ödeme</th>
-                    <th className="text-left px-3 py-2">Kimlik</th>
-                    <th className="text-left px-3 py-2">Uygulama</th>
-                    <th className="text-left px-3 py-2">Bildirim</th>
-                    <th className="text-left px-3 py-2">Oluştu</th>
-                    <th className="text-left px-3 py-2">Son giriş</th>
+                    <th className="text-left px-3 py-2">{ui.headers.userCode}</th>
+                    <th className="text-left px-3 py-2">{ui.headers.name}</th>
+                    <th className="text-left px-3 py-2">{ui.headers.age}</th>
+                    <th className="text-left px-3 py-2">{ui.headers.gender}</th>
+                    <th className="text-left px-3 py-2">{ui.headers.whatsapp}</th>
+                    <th className="text-left px-3 py-2">{ui.headers.email}</th>
+                    <th className="text-left px-3 py-2">{ui.headers.uid}</th>
+                    <th className="text-left px-3 py-2">{ui.headers.status}</th>
+                    <th className="text-left px-3 py-2">{ui.headers.membership}</th>
+                    <th className="text-left px-3 py-2">{ui.headers.payment}</th>
+                    <th className="text-left px-3 py-2">{ui.headers.identity}</th>
+                    <th className="text-left px-3 py-2">{ui.headers.app}</th>
+                    <th className="text-left px-3 py-2">{ui.headers.notifications}</th>
+                    <th className="text-left px-3 py-2">{ui.headers.created}</th>
+                    <th className="text-left px-3 py-2">{ui.headers.lastSignIn}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1258,38 +1644,39 @@ export default function AllUsersTab() {
                     const status = [
                       u?.disabled ? 'DISABLED' : null,
                       u?.blocked ? 'BLOCKED' : null,
+                      u?.photoReviewRequired ? 'PHOTO_REVIEW' : null,
                       applicationStatusCode,
                       u?.systemUser ? 'SYSTEM' : null,
-                      u?.hasAuthRecord === false ? 'NO_AUTH' : null,
+                      u?.hasAuthRecord === false ? (u?.hasPersistedAuthTrace ? 'AUTH_REMOVED' : 'NO_AUTH') : null,
                       u?.hasUserDoc ? null : 'NO_DOC',
                     ].filter(Boolean);
 
                     const membership = u?.membershipActive
-                      ? `AKTİF (${String(u?.membershipPlan || '').toUpperCase()})`
+                      ? `${ui.values.membershipActive} (${String(u?.membershipPlan || '').toUpperCase()})`
                       : u?.membershipPlan
-                        ? `PASİF (${String(u?.membershipPlan || '').toUpperCase()})`
-                        : '—';
+                        ? `${ui.values.membershipPassive} (${String(u?.membershipPlan || '').toUpperCase()})`
+                        : ui.values.none;
 
                     const paymentPill = u?.lastApprovedPaymentId
-                      ? { label: 'ALINDI', cls: pill('green') }
+                      ? { label: ui.values.paymentReceived, cls: pill('green') }
                       : u?.membershipActive
-                        ? { label: 'VAR', cls: pill('green') }
-                        : { label: '—', cls: 'text-gray-500' };
+                        ? { label: ui.values.paymentExists, cls: pill('green') }
+                        : { label: ui.values.none, cls: 'text-gray-500' };
 
                     const identityPill =
                       u?.identityVerified === true
-                        ? { label: 'DOĞRULANDI', cls: pill('green') }
+                        ? { label: ui.values.identityVerified, cls: pill('green') }
                         : u?.identityVerified === false
-                          ? { label: 'DOĞRULANMADI', cls: pill('amber') }
-                          : { label: '—', cls: 'text-gray-500' };
+                          ? { label: ui.values.identityUnverified, cls: pill('amber') }
+                          : { label: ui.values.none, cls: 'text-gray-500' };
 
                     const pwaPill = u?.pwaInstalled
-                      ? { label: 'YÜKLÜ', cls: pill('green') }
-                      : { label: '—', cls: 'text-gray-500' };
+                      ? { label: ui.values.appInstalled, cls: pill('green') }
+                      : { label: ui.values.none, cls: 'text-gray-500' };
 
                     const pushPill = u?.pushEnabled
-                      ? { label: 'AÇIK', cls: pill('green') }
-                      : { label: '—', cls: 'text-gray-500' };
+                      ? { label: ui.values.notificationsOn, cls: pill('green') }
+                      : { label: ui.values.none, cls: 'text-gray-500' };
 
                     return (
                       <tr
@@ -1308,7 +1695,7 @@ export default function AllUsersTab() {
                         <td className="px-3 py-2 font-mono">{u?.userCode || '-'}</td>
                         <td className="px-3 py-2">{u?.fullName || '-'}</td>
                         <td className="px-3 py-2">{typeof u?.age === 'number' ? u.age : '-'}</td>
-                        <td className="px-3 py-2">{genderLabel(u?.gender)}</td>
+                        <td className="px-3 py-2">{genderLabel(u?.gender, ui)}</td>
                         <td className="px-3 py-2 font-mono break-all">{u?.whatsapp || '-'}</td>
                         <td className="px-3 py-2 break-all">{u?.email || '-'}</td>
                         <td className="px-3 py-2 font-mono">{shortUid(u?.uid)}</td>
@@ -1323,7 +1710,7 @@ export default function AllUsersTab() {
                                     statusPillClass(s)
                                   }
                                 >
-                                  {statusLabel(s)}
+                                  {statusLabel(s, ui)}
                                 </span>
                               ))}
                             </span>
@@ -1360,8 +1747,8 @@ export default function AllUsersTab() {
                             <span className={pushPill.cls}>{pushPill.label}</span>
                           )}
                         </td>
-                        <td className="px-3 py-2">{fmtDate(u?.createdAtMs)}</td>
-                        <td className="px-3 py-2">{fmtDate(u?.lastSignInAtMs)}</td>
+                        <td className="px-3 py-2">{fmtDateLang(u?.createdAtMs, lang)}</td>
+                        <td className="px-3 py-2">{fmtDateLang(u?.lastSignInAtMs, lang)}</td>
                       </tr>
                     );
                   })}
@@ -1369,7 +1756,7 @@ export default function AllUsersTab() {
                   {!visibleUsers.length && !loading ? (
                     <tr>
                       <td colSpan={15} className="px-3 py-6 text-center text-gray-500">
-                        Kayıt bulunamadı.
+                        {t('admin.allUsers.common.empty')}
                       </td>
                     </tr>
                   ) : null}
@@ -1380,10 +1767,10 @@ export default function AllUsersTab() {
             <div className="p-3 bg-gray-50 flex items-center justify-between">
               <div className="text-xs text-gray-600">
                 {viewTab === 'unknown'
-                  ? `Bilinmeyen kullanıcılar: ${visibleUsers.length}`
+                  ? t('admin.allUsers.counts.unknown', { count: visibleUsers.length })
                   : viewTab === 'defined_male'
-                    ? `Tanımlı erkek kullanıcılar: ${visibleUsers.length}`
-                    : `Tanımlı kadın kullanıcılar: ${visibleUsers.length}`}
+                    ? t('admin.allUsers.counts.definedMale', { count: visibleUsers.length })
+                    : t('admin.allUsers.counts.definedFemale', { count: visibleUsers.length })}
               </div>
               <button
                 type="button"
@@ -1391,7 +1778,7 @@ export default function AllUsersTab() {
                 disabled={!nextPageToken || loading}
                 onClick={loadMore}
               >
-                Daha fazla yükle
+                {t('admin.allUsers.common.loadMore')}
               </button>
             </div>
           </div>
@@ -1401,31 +1788,34 @@ export default function AllUsersTab() {
           <div className="border rounded-xl p-4 bg-gray-50">
             <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-3">
               <div>
-                <h3 className="text-sm font-semibold text-gray-800">Seçili Kullanıcı</h3>
+                <h3 className="text-sm font-semibold text-gray-800">{t('admin.allUsers.selected.title')}</h3>
                 <div className="mt-2 flex flex-wrap gap-2">
                   <span className={selected.membershipActive ? pill('green') : pill('amber')}>
-                    Üyelik: {selected.membershipActive ? 'Aktif' : 'Pasif'}
+                    {t('admin.allUsers.badges.membership')}: {selected.membershipActive ? t('admin.allUsers.states.active') : t('admin.allUsers.states.passive')}
                   </span>
                   <span className={selected.hasApplication ? pill('green') : pill('amber')}>
-                    Başvuru: {applicationStateLabel(selected.applicationState)}
+                    {t('admin.allUsers.badges.application')}: {applicationStateLabel(selected.applicationState, ui)}
                   </span>
                   <span className={selected.blocked ? pill('red') : pill('slate')}>
-                    {selected.blocked ? 'Engelli' : 'Engel yok'}
+                    {selected.blocked ? t('admin.allUsers.states.blocked') : t('admin.allUsers.states.unblocked')}
                   </span>
                   <span className={selected.disabled ? pill('red') : pill('slate')}>
-                    Auth: {selected.disabled ? 'Devre dışı' : 'Aktif'}
+                    {t('admin.allUsers.badges.auth')}: {selected.disabled ? t('admin.allUsers.states.disabled') : t('admin.allUsers.states.active')}
                   </span>
                   <span className={selected.identityVerified === true ? pill('green') : pill('amber')}>
-                    Kimlik: {selected.identityVerified === true ? 'Doğrulandı' : 'Doğrulanmadı'}
+                    {t('admin.allUsers.badges.identity')}: {selected.identityVerified === true ? t('admin.allUsers.states.verified') : t('admin.allUsers.states.unverified')}
                   </span>
                   <span className={selected.pwaInstalled ? pill('green') : pill('amber')}>
-                    Uygulama: {selected.pwaInstalled ? 'Yüklü' : 'Yok'}
+                    {t('admin.allUsers.badges.app')}: {selected.pwaInstalled ? t('admin.allUsers.states.installed') : t('admin.allUsers.states.none')}
                   </span>
                   <span className={selected.pushEnabled ? pill('green') : pill('amber')}>
-                    Bildirim: {selected.pushEnabled ? 'Açık' : 'Kapalı'}
+                    {t('admin.allUsers.badges.notifications')}: {selected.pushEnabled ? t('admin.allUsers.states.enabled') : t('admin.allUsers.states.disabledOff')}
                   </span>
                   <span className={selected.lastApprovedPaymentId ? pill('green') : pill('amber')}>
-                    Ödeme: {selected.lastApprovedPaymentId ? 'Alındı' : 'Yok'}
+                    {t('admin.allUsers.badges.payment')}: {selected.lastApprovedPaymentId ? t('admin.allUsers.states.received') : t('admin.allUsers.states.none')}
+                  </span>
+                  <span className={selectedPhotoRestricted ? pill('red') : pill('slate')}>
+                    {selectedPhotoRestricted ? t('admin.allUsers.badges.photoRestricted') : t('admin.allUsers.badges.photoClear')}
                   </span>
                 </div>
               </div>
@@ -1436,9 +1826,9 @@ export default function AllUsersTab() {
                   onClick={() => openFormModal(selectedUid, selected)}
                   disabled={!selectedUid}
                   className="px-3 py-2 rounded-lg bg-white border text-sm hover:bg-gray-100 disabled:opacity-60"
-                  title="Seçili kullanıcının form/başvuru detaylarını ve fotoğraflarını göster"
+                  title={t('admin.allUsers.selected.formPhotosTitle')}
                 >
-                  Form & Fotoğraflar
+                  {t('admin.allUsers.selected.formPhotosButton')}
                 </button>
 
                 <div className="text-xs text-gray-700 space-y-1">
@@ -1449,24 +1839,27 @@ export default function AllUsersTab() {
 
                     return (
                       <>
-                        <div><span className="font-semibold">UC:</span> <span className="font-mono">{selected.userCode || '-'}</span></div>
-                        <div><span className="font-semibold">İsim:</span> {selected.fullName || '-'}</div>
-                        <div><span className="font-semibold">Yaş:</span> {typeof selected.age === 'number' ? selected.age : '-'}</div>
-                        <div><span className="font-semibold">Cinsiyet:</span> {genderLabel(selected.gender)}</div>
-                        <div><span className="font-semibold">Meslek:</span> {formatPrimitive(selected.occupation, 'occupation')}</div>
+                        <div><span className="font-semibold">{ui.summary.userCode}:</span> <span className="font-mono">{selected.userCode || '-'}</span></div>
+                        <div><span className="font-semibold">{ui.summary.name}:</span> {selected.fullName || '-'}</div>
+                        <div><span className="font-semibold">{ui.summary.age}:</span> {typeof selected.age === 'number' ? selected.age : '-'}</div>
+                        <div><span className="font-semibold">{ui.summary.gender}:</span> {genderLabel(selected.gender, ui)}</div>
+                        <div><span className="font-semibold">{ui.summary.occupation}:</span> {formatPrimitive(selected.occupation, 'occupation')}</div>
 
-                        <div><span className="font-semibold">Medeni Durum:</span> {formatPrimitive(selected.maritalStatus, 'maritalStatus')}</div>
-                        <div><span className="font-semibold">Çocuğu Var mı:</span> {formatPrimitive(selected.hasChildren, 'hasChildren')}</div>
+                        <div><span className="font-semibold">{ui.summary.maritalStatus}:</span> {formatPrimitive(selected.maritalStatus, 'maritalStatus')}</div>
+                        <div><span className="font-semibold">{ui.summary.hasChildren}:</span> {formatPrimitive(selected.hasChildren, 'hasChildren')}</div>
                         {typeof selected.childrenCount === 'number' ? (
-                          <div><span className="font-semibold">Çocuk Sayısı:</span> {formatPrimitive(selected.childrenCount, 'childrenCount')}</div>
+                          <div><span className="font-semibold">{ui.summary.childrenCount}:</span> {formatPrimitive(selected.childrenCount, 'childrenCount')}</div>
+                        ) : null}
+                        {safeStr(selected.childrenLivingSituation) ? (
+                          <div><span className="font-semibold">{ui.summary.childrenLivingSituation}:</span> {formatPrimitive(selected.childrenLivingSituation, 'childrenLivingSituation')}</div>
                         ) : null}
 
-                        <div><span className="font-semibold">Şehir:</span> {city || '-'}</div>
-                        <div><span className="font-semibold">Ülke:</span> {country || '-'}</div>
+                        <div><span className="font-semibold">{ui.summary.city}:</span> {city || '-'}</div>
+                        <div><span className="font-semibold">{ui.summary.country}:</span> {country || '-'}</div>
 
-                        <div><span className="font-semibold">Email:</span> {selected.email || '-'}</div>
-                        <div><span className="font-semibold">UID:</span> <span className="font-mono">{selected.uid}</span></div>
-                        <div><span className="font-semibold">Üyelik bitiş:</span> {selected.membershipValidUntilMs ? fmtDate(selected.membershipValidUntilMs) : '-'}</div>
+                        <div><span className="font-semibold">{ui.summary.email}:</span> {selected.email || '-'}</div>
+                        <div><span className="font-semibold">{ui.summary.uid}:</span> <span className="font-mono">{selected.uid}</span></div>
+                        <div><span className="font-semibold">{ui.summary.membershipEnds}:</span> {selected.membershipValidUntilMs ? fmtDateLang(selected.membershipValidUntilMs, lang) : '-'}</div>
                       </>
                     );
                   })()}
@@ -1582,73 +1975,6 @@ export default function AllUsersTab() {
                 </div>
               </div>
 
-              <div className="space-y-4">
-                <div className="bg-white rounded-lg border p-3">
-                  <div className="text-xs font-semibold text-gray-700 mb-2">Engelle</div>
-                  <textarea
-                    value={blockReason}
-                    onChange={(e) => setBlockReason(e.target.value)}
-                    className="w-full px-2 py-2 border rounded text-sm"
-                    placeholder="Engelleme nedeni (opsiyonel)"
-                    disabled={acting}
-                    rows={2}
-                  />
-                  <div className="mt-2 flex gap-2">
-                    <button
-                      type="button"
-                      disabled={acting}
-                      onClick={() => doAction({ uid: selectedUid, action: 'block', reason: blockReason })}
-                      className="flex-1 px-3 py-2 rounded-lg bg-rose-600 text-white text-sm hover:bg-rose-700 disabled:opacity-60"
-                    >
-                      Hesabı Engelle
-                    </button>
-                    <button
-                      type="button"
-                      disabled={acting}
-                      onClick={() => doAction({ uid: selectedUid, action: 'unblock' })}
-                      className="flex-1 px-3 py-2 rounded-lg bg-gray-200 text-gray-800 text-sm hover:bg-gray-300 disabled:opacity-60"
-                    >
-                      Engeli Kaldır
-                    </button>
-                  </div>
-                  <p className="mt-2 text-xs text-gray-600">Not: Engelleme, Auth hesabını da disabled yapar.</p>
-                </div>
-
-                <div className="bg-white rounded-lg border border-rose-200 p-3">
-                  <div className="text-xs font-semibold text-rose-800 mb-2">Hesabı Sil (Geri alınamaz)</div>
-                  <input
-                    value={deleteConfirmText}
-                    onChange={(e) => setDeleteConfirmText(e.target.value)}
-                    className="w-full px-2 py-2 border rounded text-sm font-mono"
-                    disabled={acting}
-                  />
-                  <label className="mt-2 flex items-center gap-2 text-xs text-rose-900">
-                    <input
-                      type="checkbox"
-                      checked={deleteFinal}
-                      onChange={(e) => setDeleteFinal(e.target.checked)}
-                      disabled={acting}
-                    />
-                    Evet, geri alınamaz şekilde silmek istiyorum
-                  </label>
-                  <button
-                    type="button"
-                    disabled={acting || !deleteFinal}
-                    onClick={() =>
-                      doAction({
-                        uid: selectedUid,
-                        action: 'delete',
-                        confirmText: deleteConfirmText,
-                        confirmFinal: deleteFinal,
-                      })
-                    }
-                    className="mt-2 w-full px-3 py-2 rounded-lg bg-rose-700 text-white text-sm hover:bg-rose-800 disabled:opacity-60"
-                  >
-                    Hesabı Sil
-                  </button>
-                  <p className="mt-2 text-xs text-gray-600">Onay metni formatı: <span className="font-mono">delete:&lt;uid&gt;</span></p>
-                </div>
-              </div>
             </div>
           </div>
         ) : (
@@ -1852,6 +2178,7 @@ export default function AllUsersTab() {
                             const maritalStatus = d ? (safeStr(d?.maritalStatus) || safeStr(d?.marital)) : '';
                             const hasChildren = d ? (d?.hasChildren ?? d?.children ?? null) : null;
                             const childrenCount = d ? (d?.childrenCount ?? d?.childCount ?? null) : null;
+                            const childrenLivingSituation = d ? (d?.childrenLivingSituation ?? d?.childrenLivingWith ?? null) : null;
 
                             const blocks = [];
 
@@ -1871,6 +2198,11 @@ export default function AllUsersTab() {
                               blocks.push(
                                 <div key="childrenCount" className="text-sm"><span className="text-slate-600">Çocuk Sayısı:</span> {Number.isFinite(ccNum) ? String(Math.trunc(ccNum)) : '—'}</div>
                               );
+                              if (safeStr(childrenLivingSituation)) {
+                                blocks.push(
+                                  <div key="childrenLivingSituation" className="text-sm"><span className="text-slate-600">Çocuklar Kimle Yaşıyor:</span> {formatPrimitive(childrenLivingSituation, 'childrenLivingSituation')}</div>
+                                );
+                              }
                             }
 
                             const whatsapp = safeStr(app?.whatsapp);
@@ -2013,12 +2345,74 @@ export default function AllUsersTab() {
                       </pre>
                     </section>
                   ) : null}
+
+                  <section className="mt-4 md:hidden rounded-xl border border-slate-200 bg-slate-50 p-4">
+                    <h4 className="text-sm font-bold text-slate-900">İşlemler</h4>
+                    <p className="mt-1 text-xs text-slate-600">Mobilde işlemler sayfanın altına alındı. Aşağı kaydırarak ulaşabilirsiniz.</p>
+                    <div className="mt-3">
+                      {renderFormActionPanels()}
+                    </div>
+                  </section>
                 </>
               )}
             </div>
+
+            {!formModal.loading ? (
+              <div className="sticky bottom-0 z-10 hidden shrink-0 border-t border-slate-200 bg-slate-50/95 p-4 backdrop-blur md:block">
+                {renderFormActionPanels()}
+              </div>
+            ) : null}
           </div>
         </div>
       ) : null}
+
+      <section className="mt-6 rounded-xl border border-slate-200 bg-slate-50 p-4">
+        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <div>
+            <h3 className="text-sm font-semibold text-slate-800">Eksik form push gönder</h3>
+            <p className="mt-1 text-xs text-slate-600">
+              Push izni açık olan ve formu eksik görünen kullanıcılara tek seferlik hatırlatma gönderir.
+            </p>
+          </div>
+          <button
+            type="button"
+            className="px-4 py-2 rounded-lg bg-rose-600 text-white text-sm font-semibold hover:bg-rose-700 disabled:opacity-60"
+            disabled={acting || campaignState.loading}
+            onClick={() => {
+              const ok = window.confirm(t('admin.allUsers.confirms.sendIncompletePush'));
+              if (!ok) return;
+              sendIncompleteApplicationPushOnce();
+            }}
+          >
+            {campaignState.loading ? t('admin.allUsers.common.loading') : t('admin.allUsers.actions.incompletePushSend')}
+          </button>
+        </div>
+
+        {campaignState.error ? <p className="mt-3 text-sm text-rose-700">{campaignState.error}</p> : null}
+        {campaignState.msg ? <p className="mt-3 text-sm text-emerald-700">{campaignState.msg}</p> : null}
+
+        {Array.isArray(campaignState?.details?.results) && campaignState.details.results.length ? (
+          <details className="mt-3 rounded-lg border border-slate-200 bg-white">
+            <summary className="cursor-pointer select-none px-3 py-2 text-sm font-semibold text-slate-800">
+              Push sonucu detayları (ilk {Math.min(20, campaignState.details.results.length)})
+            </summary>
+            <div className="p-3 border-t border-slate-200">
+              <div className="space-y-1">
+                {campaignState.details.results.slice(0, 20).map((r, idx) => (
+                  <div key={idx} className="text-xs text-slate-800 break-all">
+                    <span className="font-semibold">{String(r?.uid || '')}</span>
+                    {r?.skipped ? ' • skipped' : ''}
+                    {r?.reason ? ` • reason:${String(r.reason)}` : ''}
+                    {r?.appSource ? ` • appSource:${String(r.appSource)}` : ''}
+                    {r?.appId ? ` • appId:${String(r.appId)}` : ''}
+                    {r?.error ? ` • error:${String(r.error)}` : ''}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </details>
+        ) : null}
+      </section>
 
       {formLightbox.open ? (
         <div

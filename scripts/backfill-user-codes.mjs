@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { FieldPath } from 'firebase-admin/firestore';
+import { isSyntheticTestUserRecord } from '../apiRoutes/_syntheticTestUser.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -56,7 +57,7 @@ function usage(exitCode = 0) {
   node scripts/backfill-user-codes.mjs [--dryRun] [--batchSize 200] [--maxWrites 5000] [--startAfter <uid>]
 
 Açıklama:
-  matchmakingUsers koleksiyonunu tarar ve eksik UC kodlarını atar.
+  matchmakingUsers koleksiyonunu tarar ve eksik veya legacy/bozuk UC kodlarını düzeltir.
   Kadın: UC-1001+ | Erkek: UC-2001+
 `);
   process.exit(exitCode);
@@ -87,10 +88,16 @@ function formatUcNo(n) {
   return `UC-${Math.floor(v)}`;
 }
 
+function isSupportedUserCodeNo(no) {
+  const numeric = typeof no === 'number' ? no : Number(no);
+  return Number.isFinite(numeric) && numeric > 0 && numeric < 100000;
+}
+
 function doesUserCodeMatchGender(no, gender) {
   const numeric = typeof no === 'number' ? no : Number(no);
   const genderNorm = normalizeGender(gender);
   if (!Number.isFinite(numeric) || numeric <= 0) return true;
+  if (!isSupportedUserCodeNo(numeric)) return false;
   if (genderNorm === 'female') return numeric >= 1001 && numeric < 2000;
   if (genderNorm === 'male') return numeric >= 2001;
   return true;
@@ -130,6 +137,7 @@ let assigned = 0;
 let normalized = 0;
 let reassigned = 0;
 let skippedNoGender = 0;
+let skippedSynthetic = 0;
 let lastDocId = startAfter || '';
 
 async function processUserDoc(docSnap) {
@@ -138,6 +146,11 @@ async function processUserDoc(docSnap) {
   const res = await db.runTransaction(async (tx) => {
     const freshSnap = await tx.get(usersCol.doc(uid));
     const user = freshSnap.exists ? (freshSnap.data() || {}) : {};
+    const appsSnap = await tx.get(db.collection('matchmakingApplications').where('userId', '==', uid).limit(20));
+
+    if (isSyntheticTestUserRecord({ uid, user })) {
+      return { ok: true, action: 'skip_synthetic' };
+    }
 
     const existingUserCode = safeStr(user?.userCode) || safeStr(user?.publicProfile?.userCode);
     const existingUserCodeNo =
@@ -154,6 +167,8 @@ async function processUserDoc(docSnap) {
       const parsed = parseUcNo(existingUserCode);
       if (parsed > 0) {
         patch.userCodeNo = parsed;
+        patch['application.userCode'] = existingUserCode;
+        patch['application.userCodeNo'] = parsed;
         patch['publicProfile.userCode'] = existingUserCode;
         patch['publicProfile.userCodeNo'] = parsed;
         patch.userCodeGender = normalizeGender(user?.userCodeGender) || genderNorm || user?.userCodeGender || '';
@@ -165,6 +180,8 @@ async function processUserDoc(docSnap) {
       const formatted = formatUcNo(existingUserCodeNo);
       if (formatted) {
         patch.userCode = formatted;
+        patch['application.userCode'] = formatted;
+        patch['application.userCodeNo'] = existingUserCodeNo;
         patch['publicProfile.userCode'] = formatted;
         patch['publicProfile.userCodeNo'] = existingUserCodeNo;
         patch.userCodeGender = normalizeGender(user?.userCodeGender) || genderNorm || user?.userCodeGender || '';
@@ -205,6 +222,8 @@ async function processUserDoc(docSnap) {
 
       patch.userCode = assignedCode;
       patch.userCodeNo = assignedNo;
+      patch['application.userCode'] = assignedCode;
+      patch['application.userCodeNo'] = assignedNo;
       patch['publicProfile.userCode'] = assignedCode;
       patch['publicProfile.userCodeNo'] = assignedNo;
       patch.userCodeGender = genderNorm;
@@ -237,6 +256,22 @@ async function processUserDoc(docSnap) {
         { merge: true }
       );
 
+      for (const appDoc of appsSnap.docs) {
+        tx.set(
+          appDoc.ref,
+          {
+            userCode: assignedCode,
+            userCodeNo: assignedNo,
+            ...(hasBandMismatch && normalizedUserCode ? { previousUserCode: normalizedUserCode } : {}),
+            ...(hasBandMismatch && normalizedUserCodeNo > 0 ? { previousUserCodeNo: normalizedUserCodeNo } : {}),
+            ...(hasBandMismatch ? { userCodeReassignedAtMs: Date.now() } : {}),
+            updatedAt: FieldValue.serverTimestamp(),
+            updatedAtMs: Date.now(),
+          },
+          { merge: true }
+        );
+      }
+
       return { ok: true, action: hasBandMismatch ? 'reassigned' : 'assigned', code: assignedCode };
     }
 
@@ -254,6 +289,19 @@ async function processUserDoc(docSnap) {
       },
       { merge: true }
     );
+
+    for (const appDoc of appsSnap.docs) {
+      tx.set(
+        appDoc.ref,
+        {
+          ...(normalizedUserCode ? { userCode: normalizedUserCode } : {}),
+          ...(normalizedUserCodeNo > 0 ? { userCodeNo: normalizedUserCodeNo } : {}),
+          updatedAt: FieldValue.serverTimestamp(),
+          updatedAtMs: Date.now(),
+        },
+        { merge: true }
+      );
+    }
 
     return { ok: true, action: 'normalized' };
   });
@@ -309,6 +357,8 @@ try {
       } else if (r.action === 'normalized') {
         normalized += 1;
         writes += 1;
+      } else if (r.action === 'skip_synthetic') {
+        skippedSynthetic += 1;
       } else if (r.action === 'skip_no_gender') {
         skippedNoGender += 1;
       }
@@ -329,6 +379,7 @@ try {
         reassigned,
         normalized,
         skippedNoGender,
+        skippedSynthetic,
         resumeHint: lastDocId ? `--startAfter ${lastDocId}` : null,
       },
       null,

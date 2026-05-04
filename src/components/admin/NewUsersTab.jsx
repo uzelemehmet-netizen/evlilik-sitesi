@@ -1,9 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { getDownloadURL, ref } from 'firebase/storage';
-import { collection, doc, getDoc, limit, onSnapshot, orderBy, query, Timestamp, where } from 'firebase/firestore';
-import { db } from '../../config/firebaseDb';
 import { storage } from '../../config/firebaseStorage';
+import { authFetch } from '../../utils/authFetch';
 import { formatProfileCode } from '../../utils/profileCode';
 import { getDraftFieldLabel, getDraftProgressInfo } from '../../utils/adminDraftProgress';
 import {
@@ -254,11 +253,9 @@ function draftUpdatedAtLabel(ms) {
   }
 }
 
-function Modal({ open, onClose, item }) {
+function Modal({ open, onClose, item, userDoc }) {
   const [photoUrls, setPhotoUrls] = useState([]);
   const [photoLoading, setPhotoLoading] = useState(false);
-  const [userDoc, setUserDoc] = useState(null);
-  const [userLoading, setUserLoading] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -293,34 +290,6 @@ function Modal({ open, onClose, item }) {
         if (!cancelled) setPhotoUrls(urls);
       } finally {
         if (!cancelled) setPhotoLoading(false);
-      }
-    };
-
-    run();
-    return () => {
-      cancelled = true;
-    };
-  }, [open, item]);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    const run = async () => {
-      if (!open || !item) return;
-      const uid = resolveAdminNewUserUid(item);
-      if (!uid) {
-        setUserDoc(null);
-        return;
-      }
-
-      setUserLoading(true);
-      try {
-        const snap = await getDoc(doc(db, 'matchmakingUsers', uid));
-        if (!cancelled) setUserDoc(snap.exists() ? (snap.data() || {}) : null);
-      } catch {
-        if (!cancelled) setUserDoc(null);
-      } finally {
-        if (!cancelled) setUserLoading(false);
       }
     };
 
@@ -417,9 +386,7 @@ function Modal({ open, onClose, item }) {
 
           <section className="rounded-xl border border-slate-200 bg-white p-4">
             <h4 className="text-sm font-bold text-slate-900">Kullanıcı Kodu</h4>
-            <div className="mt-2 text-sm text-slate-800">
-              {userLoading ? 'Yükleniyor…' : (ucCode || '-')}
-            </div>
+            <div className="mt-2 text-sm text-slate-800">{ucCode || '-'}</div>
             <p className="mt-1 text-xs text-slate-600">Bu kod `matchmakingUsers.userCode` alanından gelir (UC-...).</p>
           </section>
 
@@ -477,10 +444,10 @@ export default function NewUsersTab() {
   const [notifyEnabled, setNotifyEnabled] = useState(() => loadBool(LS_NOTIFY_KEY, false));
   const [soundEnabled, setSoundEnabled] = useState(() => loadBool(LS_SOUND_KEY, true));
   const [notifyHint, setNotifyHint] = useState('');
-  const didInitSnapshotRef = useRef(false);
+  const previousIdsRef = useRef(new Set());
+  const didInitLoadRef = useRef(false);
 
   const [userInfoByUid, setUserInfoByUid] = useState({});
-  const [userLoadingByUid, setUserLoadingByUid] = useState({});
 
   const [modalOpen, setModalOpen] = useState(false);
   const [activeItem, setActiveItem] = useState(null);
@@ -488,34 +455,41 @@ export default function NewUsersTab() {
   const todayStart = useMemo(() => {
     const d = new Date();
     d.setHours(0, 0, 0, 0);
-    return Timestamp.fromDate(d);
+    return d.getTime();
   }, []);
 
   useEffect(() => {
-    setLoading(true);
-    setError('');
+    let cancelled = false;
 
-    const q = query(
-      collection(db, 'matchmakingApplications'),
-      where('createdAt', '>=', todayStart),
-      orderBy('createdAt', 'desc'),
-      limit(300)
-    );
+    const load = async () => {
+      setLoading(true);
+      setError('');
+      try {
+        const data = await authFetch('/api/admin-new-users-list', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ sinceMs: todayStart, limit: 300, window: 'today' }),
+        });
+        if (cancelled) return;
 
-    const unsub = onSnapshot(
-      q,
-      (snap) => {
-        // İlk snapshot'ta mevcut dokümanlar "added" olarak gelir; spam yapmamak için ilk yüklemeyi bildirimsiz geçir.
-        const isFirst = !didInitSnapshotRef.current;
+        const nextItems = Array.isArray(data?.items) ? data.items : [];
+        const nextUserInfo = data?.userInfoByUid && typeof data.userInfoByUid === 'object' ? data.userInfoByUid : {};
+        const nextIds = new Set(nextItems.map((it) => safeStr(it?.id)).filter(Boolean));
+        const isFirst = !didInitLoadRef.current;
 
         if (!isFirst && notifyEnabled && canNotify() && notificationPermission() === 'granted') {
-          const changes = typeof snap.docChanges === 'function' ? snap.docChanges() : [];
-          for (const ch of changes) {
-            if (ch?.type !== 'added') continue;
-            const data = ch.doc?.data ? ch.doc.data() || {} : {};
-            const gender = safeStr(data?.gender) || '-';
-            const label = displayUserLabel({ id: ch.doc?.id, ...(data || {}) });
-            const code = formatProfileCode({ id: ch.doc?.id, ...(data || {}) }) || '';
+          const prevIds = previousIdsRef.current;
+          const addedItems = nextItems.filter((it) => {
+            const itemId = safeStr(it?.id);
+            return itemId && !prevIds.has(itemId);
+          });
+
+          for (const added of addedItems) {
+            const uid = resolveAdminNewUserUid(added);
+            const userDoc = uid ? nextUserInfo?.[uid] : null;
+            const gender = safeStr(added?.gender) || '-';
+            const label = displayUserLabel(added, userDoc);
+            const code = formatProfileCode(added) || '';
 
             try {
               const n = new Notification('Yeni kullanıcı başvurusu', {
@@ -536,19 +510,26 @@ export default function NewUsersTab() {
           }
         }
 
-        const next = snap.docs.map((d) => ({ id: d.id, ...(d.data() || {}) }));
-        setItems(next);
-        setLoading(false);
-        if (!didInitSnapshotRef.current) didInitSnapshotRef.current = true;
-      },
-      (e) => {
+        previousIdsRef.current = nextIds;
+        if (!didInitLoadRef.current) didInitLoadRef.current = true;
+        setItems(nextItems);
+        setUserInfoByUid(nextUserInfo);
+      } catch (e) {
+        if (cancelled) return;
         setItems([]);
-        setLoading(false);
+        setUserInfoByUid({});
         setError(String(e?.message || 'Bugünkü kayıtlar yüklenemedi.'));
+      } finally {
+        if (!cancelled) setLoading(false);
       }
-    );
+    };
 
-    return () => unsub();
+    load();
+    const timer = window.setInterval(load, 30000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
   }, [notifyEnabled, soundEnabled, todayStart]);
 
   useEffect(() => {
@@ -558,66 +539,6 @@ export default function NewUsersTab() {
   useEffect(() => {
     saveBool(LS_SOUND_KEY, soundEnabled);
   }, [soundEnabled]);
-
-  // UC kodu matchmakingUsers dokümanında durur; başvuru listesi geldikçe cache'e al.
-  useEffect(() => {
-    let cancelled = false;
-
-    const toFetch = () => {
-      const list = Array.isArray(items) ? items : [];
-      const uids = [];
-      for (const it of list) {
-        const uid = resolveAdminNewUserUid(it);
-        if (!uid) continue;
-        if (userInfoByUid[uid] !== undefined) continue; // cached (including null)
-        if (userLoadingByUid[uid]) continue;
-        uids.push(uid);
-        if (uids.length >= 25) break;
-      }
-      return uids;
-    };
-
-    const run = async () => {
-      const uids = toFetch();
-      if (!uids.length) return;
-
-      setUserLoadingByUid((prev) => {
-        const next = { ...prev };
-        for (const uid of uids) next[uid] = true;
-        return next;
-      });
-
-      try {
-        const snaps = await Promise.all(uids.map((uid) => getDoc(doc(db, 'matchmakingUsers', uid))));
-        const patch = {};
-        for (let i = 0; i < uids.length; i += 1) {
-          const uid = uids[i];
-          const snap = snaps[i];
-          patch[uid] = snap.exists() ? (snap.data() || {}) : null;
-        }
-        if (!cancelled) setUserInfoByUid((prev) => ({ ...prev, ...patch }));
-      } catch {
-        if (!cancelled) {
-          const patch = {};
-          for (const uid of uids) patch[uid] = null;
-          setUserInfoByUid((prev) => ({ ...prev, ...patch }));
-        }
-      } finally {
-        if (!cancelled) {
-          setUserLoadingByUid((prev) => {
-            const next = { ...prev };
-            for (const uid of uids) delete next[uid];
-            return next;
-          });
-        }
-      }
-    };
-
-    run();
-    return () => {
-      cancelled = true;
-    };
-  }, [items, userInfoByUid, userLoadingByUid]);
 
   const normalizedItems = useMemo(() => dedupeAdminNewUsers(items, userInfoByUid), [items, userInfoByUid]);
 
@@ -871,7 +792,6 @@ export default function NewUsersTab() {
                     <td className="px-3 py-2">
                       {(() => {
                         const uc = getUcCodeFromApplicationDoc(it) || getUcCodeFromUserDoc(u);
-                        if (userLoadingByUid[uid]) return <span className="text-slate-500">Yükleniyor…</span>;
                         return <span className="font-semibold">{uc || '-'}</span>;
                       })()}
                     </td>
@@ -897,7 +817,15 @@ export default function NewUsersTab() {
         ) : null}
       </div>
 
-      <Modal open={modalOpen} onClose={closeModal} item={activeItem} />
+      <Modal
+        open={modalOpen}
+        onClose={closeModal}
+        item={activeItem}
+        userDoc={(() => {
+          const uid = resolveAdminNewUserUid(activeItem);
+          return uid ? userInfoByUid[uid] || null : null;
+        })()}
+      />
     </div>
   );
 }

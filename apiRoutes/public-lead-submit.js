@@ -97,6 +97,12 @@ function normalizeGender(v) {
   return '';
 }
 
+function normalizeReligion(v) {
+  const s = safeStr(v).toLowerCase();
+  if (s === 'islam' || s === 'christian' || s === 'hindu' || s === 'buddhist') return s;
+  return '';
+}
+
 export default async function publicLeadSubmit(req, res) {
   if (req.method !== 'POST') {
     res.statusCode = 405;
@@ -124,12 +130,15 @@ export default async function publicLeadSubmit(req, res) {
     const fullName = truncate(lead?.fullName, 120);
     const age = safeInt(lead?.age, { min: 18, max: 99 });
     const city = truncate(lead?.city, 80);
+    const plannedLivingCountry = truncate(lead?.plannedLivingCountry, 80);
     const whatsapp = truncate(lead?.whatsapp, 60);
     const maritalStatus = truncate(lead?.maritalStatus, 40);
+    const religion = normalizeReligion(lead?.religion);
     const hasChildren = truncate(lead?.hasChildren, 40);
     const childrenCount = truncate(lead?.childrenCount, 40);
     const childrenAges = truncate(lead?.childrenAges, 240);
     const childrenLivingWith = truncate(lead?.childrenLivingWith, 120);
+    const liveWithChildrenAfterMarriage = truncate(lead?.liveWithChildrenAfterMarriage, 20);
     const livingWith = truncate(lead?.livingWith, 80);
     const occupation = truncate(lead?.occupation, 120);
     const profession = truncate(lead?.profession, 120);
@@ -292,12 +301,15 @@ export default async function publicLeadSubmit(req, res) {
           fullName,
           age,
           city,
+          plannedLivingCountry,
           whatsapp,
           maritalStatus,
+          religion,
           hasChildren,
           childrenCount: hasChildren === 'yes' ? childrenCount : '',
           childrenAges: hasChildren === 'yes' ? childrenAges : '',
           childrenLivingWith: hasChildren === 'yes' ? childrenLivingWith : '',
+          liveWithChildrenAfterMarriage: hasChildren === 'yes' ? liveWithChildrenAfterMarriage : '',
           livingWith,
           occupation,
           profession,

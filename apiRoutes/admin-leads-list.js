@@ -52,6 +52,13 @@ function normalizeGender(v) {
   return '';
 }
 
+function normalizeSourceKind(v) {
+  const s = safeStr(v).toLowerCase();
+  if (s === 'manual' || s === 'whatsapp') return 'manual';
+  if (s === 'form' || s === 'application') return 'form';
+  return 'all';
+}
+
 export default async function adminLeadsList(req, res) {
   if (req.method !== 'POST') {
     res.statusCode = 405;
@@ -64,16 +71,21 @@ export default async function adminLeadsList(req, res) {
     await requireAdmin(req);
     const body = normalizeBody(req);
 
-    const gender = normalizeGender(body?.gender) || 'female';
+    const gender = normalizeGender(body?.gender);
     const status = safeStr(body?.status);
+    const sourceKind = normalizeSourceKind(body?.sourceKind);
     const limit = typeof body?.limit === 'number' && Number.isFinite(body.limit) ? Math.max(1, Math.min(100, Math.floor(body.limit))) : 50;
 
     const { db } = getAdmin();
 
-    let q = db.collection('matchmakingLeads').where('lead.gender', '==', gender);
-    if (status) q = q.where('status', '==', status);
+    let q = db.collection('matchmakingLeads');
+    if (gender) q = q.where('lead.gender', '==', gender);
 
-    q = q.orderBy('createdAtMs', 'desc').limit(limit);
+    const needsPostFilterExpansion = sourceKind !== 'all' || !!status;
+    const queryLimit = needsPostFilterExpansion
+      ? Math.min(250, Math.max(limit * 4, 100))
+      : (sourceKind === 'form' ? Math.min(250, Math.max(limit, limit * 4)) : limit);
+    q = q.orderBy('createdAtMs', 'desc').limit(queryLimit);
 
     const snap = await q.get();
 
@@ -90,6 +102,8 @@ export default async function adminLeadsList(req, res) {
       return {
         id: d.id,
         status: safeStr(data?.status) || 'new',
+        source: safeStr(data?.source),
+        sourceKind: safeStr(data?.source) === 'admin_manual_mediation' ? 'manual' : 'form',
         createdAtMs: typeof data?.createdAtMs === 'number' ? data.createdAtMs : 0,
         updatedAtMs: typeof data?.updatedAtMs === 'number' ? data.updatedAtMs : 0,
         lead: {
@@ -97,12 +111,15 @@ export default async function adminLeadsList(req, res) {
           fullName: safeStr(lead?.fullName),
           age: typeof lead?.age === 'number' ? lead.age : null,
           city: safeStr(lead?.city),
+          plannedLivingCountry: safeStr(lead?.plannedLivingCountry),
           whatsapp: safeStr(lead?.whatsapp),
           maritalStatus: safeStr(lead?.maritalStatus),
+          religion: safeStr(lead?.religion),
           hasChildren: safeStr(lead?.hasChildren),
           childrenCount: safeStr(lead?.childrenCount),
           childrenAges: safeStr(lead?.childrenAges),
           childrenLivingWith: safeStr(lead?.childrenLivingWith),
+          liveWithChildrenAfterMarriage: safeStr(lead?.liveWithChildrenAfterMarriage),
           livingWith: safeStr(lead?.livingWith),
           occupation: safeStr(lead?.occupation),
           profession: safeStr(lead?.profession),
@@ -124,7 +141,12 @@ export default async function adminLeadsList(req, res) {
         partner: data?.partner || {},
         admin: data?.admin || {},
       };
-    });
+    }).filter((item) => {
+      if (status && item.status !== status) return false;
+      if (sourceKind === 'all') return true;
+      if (sourceKind === 'manual') return item.sourceKind === 'manual';
+      return item.sourceKind === 'form';
+    }).slice(0, limit);
 
     res.statusCode = 200;
     res.setHeader('content-type', 'application/json');

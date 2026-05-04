@@ -1,4 +1,7 @@
 import { getAdmin, normalizeBody, requireAdmin } from './_firebaseAdmin.js';
+import { loadApplicationsForUid, pickBestApp, resolveAdminApplicationState } from './_adminMatchmakingProfiles.js';
+import { normalizeCompletedStubApplication } from './_matchmakingApplicationActivation.js';
+import { ensureUserCodeAssigned } from './_matchmakingUserCode.js';
 
 function safeStr(v) {
   return typeof v === 'string' ? v.trim() : '';
@@ -321,6 +324,22 @@ export default async function handler(req, res) {
     if (action === 'delete') {
       const confirmText = safeStr(body?.confirmText);
       const confirmFinal = body?.confirmFinal === true;
+      let authUserRecord = null;
+
+      try {
+        authUserRecord = await auth.getUser(uid);
+      } catch (e) {
+        if (!isUserNotFound(e)) throw e;
+        authUserRecord = null;
+      }
+
+      let userData = null;
+      try {
+        const userSnap = await ref.get();
+        userData = userSnap.exists ? (userSnap.data() || {}) : null;
+      } catch {
+        userData = null;
+      }
 
       // Admin-silme için UID bazlı phrase: delete:<uid>
       const norm = toLowerSafe(confirmText);
@@ -425,6 +444,20 @@ export default async function handler(req, res) {
         // ignore
       }
 
+      try {
+        await db.collection('accountDeletionLogs').add({
+          uid,
+          email: safeStr(userData?.email) || safeStr(userData?.authEmail) || safeStr(authUserRecord?.email),
+          fullName: safeStr(userData?.fullName),
+          username: safeStr(userData?.username),
+          whatsapp: safeStr(userData?.whatsapp) || safeStr(userData?.phone),
+          source: 'admin_delete',
+          deletedAt: now,
+        });
+      } catch {
+        // ignore
+      }
+
       res.statusCode = 200;
       res.setHeader('content-type', 'application/json');
       res.end(JSON.stringify({ ok: true }));
@@ -513,6 +546,101 @@ export default async function handler(req, res) {
       res.setHeader('content-type', 'application/json');
       res.end(JSON.stringify({ ok: true, paymentId: r.paymentId, appliedTier: r.appliedTier || null, validUntilMs: r.validUntilMs || null }));
       await writeAudit(true, { meta: { paymentId: r.paymentId, appliedTier: r.appliedTier || null, validUntilMs: r.validUntilMs || null } });
+      return;
+    }
+
+    if (action === 'submitApplication') {
+      const userSnap = await ref.get();
+      const userDoc = userSnap.exists ? (userSnap.data() || {}) : {};
+      const docs = await loadApplicationsForUid(db, uid, {
+        applicationId: safeStr(userDoc?.applicationId),
+        limitPerField: 50,
+      });
+      const best = pickBestApp(docs);
+
+      if (!best?.id) {
+        const err = new Error('no_application');
+        err.statusCode = 404;
+        throw err;
+      }
+
+      let status = 'manual_approved';
+      let normalized = false;
+
+      if (resolveAdminApplicationState(userDoc, best) === 'real') {
+        await ref.set(
+          {
+            applicationId: best.id,
+            hasSubmittedProfile: true,
+            updatedAt: FieldValue.serverTimestamp(),
+          },
+          { merge: true }
+        );
+        status = 'already_submitted';
+      } else {
+        const normalizedResult = await normalizeCompletedStubApplication({
+          db,
+          FieldValue,
+          uid,
+          applicationId: best.id,
+          app: best,
+          userDoc,
+        });
+
+        if (normalizedResult?.normalized) {
+          status = 'normalized';
+          normalized = true;
+        } else {
+          await ref.set(
+            {
+              applicationId: best.id,
+              hasSubmittedProfile: true,
+              applicationManualApproval: {
+                active: true,
+                status: 'approved',
+                approvedAt: FieldValue.serverTimestamp(),
+                approvedAtMs: nowMs,
+                approvedBy: {
+                  uid: safeStr(admin?.uid),
+                  email: safeStr(admin?.email),
+                },
+                reason: 'admin_submit_application',
+              },
+              updatedAt: FieldValue.serverTimestamp(),
+            },
+            { merge: true }
+          );
+          status = normalizedResult?.reason === 'not_completed' ? 'manual_approved' : safeStr(normalizedResult?.reason) || 'manual_approved';
+        }
+      }
+
+      try {
+        const ensured = await ensureUserCodeAssigned({
+          db,
+          FieldValue,
+          uid,
+          gender: safeStr(best?.gender || userDoc?.gender),
+          nowMs,
+        });
+        const userCode = safeStr(ensured?.userCode);
+        if (userCode) {
+          await db.collection('matchmakingApplications').doc(best.id).set(
+            {
+              userCode,
+              updatedAt: FieldValue.serverTimestamp(),
+              updatedAtMs: Date.now(),
+            },
+            { merge: true }
+          );
+        }
+      } catch {
+        // best-effort
+      }
+
+      res.statusCode = 200;
+      res.setHeader('content-type', 'application/json');
+      res.end(JSON.stringify({ ok: true, applicationId: best.id, status, normalized }));
+      await writeAudit(true, { meta: { applicationId: best.id, status, normalized } });
       return;
     }
 

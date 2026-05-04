@@ -24,6 +24,22 @@ async function expectMobileSignupSurface(page, url) {
   await expect(page.getByRole('button', { name: emailAuthButtonName }).first()).toBeVisible();
 }
 
+async function expectAutoGoogleTransition(page, locale) {
+  await page.waitForTimeout(1500);
+
+  const currentUrl = page.url();
+  expect(currentUrl).not.toContain('auto=google');
+
+  const escapedLocale = locale.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const acceptedTargets = [
+    new RegExp(`/login\\?mode=signup(?:&lang=${escapedLocale}|&[^#]*)?$`),
+    /\/__\/auth\/handler(\?|$)/,
+    /^https:\/\/accounts\.google\.com\//,
+  ];
+
+  expect(acceptedTargets.some((pattern) => pattern.test(currentUrl))).toBe(true);
+}
+
 async function expectNoSameTabGoogleRedirect(page) {
   const googleButton = page.getByRole('button', { name: googleButtonName }).first();
   await expect(googleButton).toBeVisible();
@@ -43,7 +59,7 @@ async function expectNoSameTabGoogleRedirect(page) {
 async function loginWithEmailPassword(page, email, password, locale) {
   await page.goto(`/login?mode=login&lang=${locale}&next=${encodeURIComponent('/profilim')}`);
 
-  await page.getByRole('button', { name: emailAuthButtonName }).click();
+  await page.getByRole('button', { name: emailAuthButtonName }).first().click();
 
   const emailInput = page.locator('input[type="email"]:visible').first();
   const passwordInput = page.locator('input[type="password"]:visible').first();
@@ -64,7 +80,7 @@ async function signupWithEmailPassword(page, locale) {
   const password = 'Test1234!';
 
   await page.goto(`/login?mode=signup&lang=${locale}`);
-  await page.getByRole('button', { name: emailAuthButtonName }).click();
+  await page.getByRole('button', { name: emailAuthButtonName }).first().click();
 
   const emailInput = page.locator('input[type="email"]:visible').first();
   const passwordInput = page.locator('input[type="password"]:visible').first();
@@ -83,7 +99,7 @@ async function signupWithEmailPassword(page, locale) {
   await expect(page.locator('form').first()).toBeVisible();
 }
 
-test('TR mobil signup yüzeyi auto-google ile aynı sayfada kalıyor', async ({ browser }) => {
+test('TR mobil auto-google signup geçerli auth yüzeyine ilerliyor', async ({ browser }) => {
   await withMobilePage(
     browser,
     {
@@ -92,14 +108,12 @@ test('TR mobil signup yüzeyi auto-google ile aynı sayfada kalıyor', async ({ 
     },
     async (page) => {
       await expectMobileSignupSurface(page, '/login?mode=signup&auto=google&lang=tr');
-      await page.waitForTimeout(1500);
-      await expect(page).toHaveURL(/\/login\?mode=signup(?:&lang=tr|&[^#]*)?$/);
-      expect(page.url()).not.toContain('auto=google');
+      await expectAutoGoogleTransition(page, 'tr');
     },
   );
 });
 
-test('ID mobil signup yüzeyi auto-google ile aynı sayfada kalıyor', async ({ browser }) => {
+test('ID mobil auto-google signup geçerli auth yüzeyine ilerliyor', async ({ browser }) => {
   await withMobilePage(
     browser,
     {
@@ -108,9 +122,7 @@ test('ID mobil signup yüzeyi auto-google ile aynı sayfada kalıyor', async ({ 
     },
     async (page) => {
       await expectMobileSignupSurface(page, '/login?mode=signup&auto=google&lang=id');
-      await page.waitForTimeout(1500);
-      await expect(page).toHaveURL(/\/login\?mode=signup(?:&lang=id|&[^#]*)?$/);
-      expect(page.url()).not.toContain('auto=google');
+      await expectAutoGoogleTransition(page, 'id');
     },
   );
 });

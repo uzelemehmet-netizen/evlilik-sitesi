@@ -24,6 +24,18 @@ function countRegexMatches(text, regex) {
   return count;
 }
 
+function normalizeTranslateSkipReason(error) {
+  const msg = safeStr(error?.message).toLowerCase();
+  if (msg === 'pii_blocked') return 'translate_pii_blocked';
+  if (msg === 'translate_quota_exhausted') return 'translate_quota_exhausted';
+  if (msg === 'translate_rate_limited') return 'translate_rate_limited';
+  if (msg === 'translate_not_configured') return 'translate_not_configured';
+  if (msg === 'bad_request') return 'translate_bad_request';
+  if (msg) return msg;
+  if (Number(error?.statusCode) === 429) return 'translate_rate_limited';
+  return 'translate_failed';
+}
+
 export function normalizeProfileLang(v) {
   const s = safeStr(v).toLowerCase();
   if (s === 'tr' || s === 'id') return s;
@@ -50,13 +62,12 @@ export function isProfileTextTranslationConfigured() {
 
 export function inferProfileTextLang({ sourceLang, original, trValue, idValue } = {}) {
   const direct = normalizeProfileLang(sourceLang);
-  if (direct) return direct;
 
   const text = safeStr(original, MAX_PROFILE_TEXT_LEN);
   const tr = safeStr(trValue, MAX_PROFILE_TEXT_LEN);
   const id = safeStr(idValue, MAX_PROFILE_TEXT_LEN);
 
-  if (!text) return '';
+  if (!text) return direct || '';
   if (tr && text === tr && text !== id) return 'tr';
   if (id && text === id && text !== tr) return 'id';
   if (tr && !id && text === tr) return 'tr';
@@ -64,10 +75,17 @@ export function inferProfileTextLang({ sourceLang, original, trValue, idValue } 
 
   const turkishScore = (TURKISH_CHAR_RE.test(text) ? 3 : 0) + countRegexMatches(text, TURKISH_WORD_RE);
   const indonesianScore = countRegexMatches(text, INDONESIAN_WORD_RE);
+  const strongDetected =
+    turkishScore <= 0 && indonesianScore <= 0
+      ? ''
+      : Math.abs(turkishScore - indonesianScore) < 2
+        ? ''
+        : turkishScore > indonesianScore
+          ? 'tr'
+          : 'id';
 
-  if (turkishScore <= 0 && indonesianScore <= 0) return '';
-  if (Math.abs(turkishScore - indonesianScore) < 2) return '';
-  return turkishScore > indonesianScore ? 'tr' : 'id';
+  if (strongDetected && strongDetected !== direct) return strongDetected;
+  return direct || strongDetected || '';
 }
 
 export async function buildBilingualProfileText(text, sourceLang, opts = {}) {
@@ -131,7 +149,14 @@ export async function buildBilingualProfileText(text, sourceLang, opts = {}) {
 
   const chunk = original.slice(0, translateChars);
   out.truncated = original.length > translateChars;
-  const translated = await translateTextProfile({ text: chunk, targetLang: target });
+  let translated = '';
+  try {
+    translated = await translateTextProfile({ text: chunk, targetLang: target });
+  } catch (error) {
+    out.skipped = true;
+    out.skipReason = normalizeTranslateSkipReason(error);
+    return out;
+  }
   const finalText = out.truncated && translated ? `${translated}…` : translated;
 
   if (target === 'tr') out.tr = finalText;

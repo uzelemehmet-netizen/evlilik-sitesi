@@ -1,12 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { doc, getDoc, serverTimestamp, setDoc } from 'firebase/firestore';
 import { getDownloadURL, ref } from 'firebase/storage';
-import { auth } from '../config/firebaseAuth';
-import { db } from '../config/firebaseDb';
 import { storage } from '../config/firebaseStorage';
 import { formatProfileCode } from '../utils/profileCode';
 import { authFetch } from '../utils/authFetch';
+import { isPhotoModerationRestricted } from '../utils/photoModerationState';
 
 function labelForGender(v) {
   if (v === 'female') return 'Kadın';
@@ -172,6 +170,7 @@ export default function AdminMatchmakingDetail() {
   const [error, setError] = useState('');
   const [item, setItem] = useState(null);
   const [photoUrls, setPhotoUrls] = useState([]);
+  const [userRecord, setUserRecord] = useState(null);
   const [userBlocked, setUserBlocked] = useState(false);
   const [userMembership, setUserMembership] = useState(null);
   const [acting, setActing] = useState(false);
@@ -191,45 +190,30 @@ export default function AdminMatchmakingDetail() {
       setError('');
       try {
         if (!id) throw new Error('Missing id');
-        const snap = await getDoc(doc(db, 'matchmakingApplications', id));
-        if (!snap.exists()) {
+        const data = await authFetch('/api/admin-matchmaking-application-detail', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ applicationId: id }),
+        });
+        const itemData = data?.item && typeof data.item === 'object' ? data.item : null;
+        if (!itemData) {
           if (cancelled) return;
           setItem(null);
           setError('Bu başvuru bulunamadı.');
           return;
         }
 
-        const data = { id: snap.id, ...(snap.data() || {}) };
         if (cancelled) return;
-        setItem(data);
+        setItem(itemData);
+        setUserRecord(data?.userRecord && typeof data.userRecord === 'object' ? data.userRecord : null);
+        setUserBlocked(!!data?.userBlocked);
+        setUserMembership(data?.userMembership && typeof data.userMembership === 'object' ? data.userMembership : null);
 
-        // Kullanıcı engelli mi? (opsiyonel)
-        try {
-          const userId = data.userId;
-          if (userId && typeof userId === 'string') {
-            const userSnap = await getDoc(doc(db, 'matchmakingUsers', userId));
-            const u = userSnap.exists() ? (userSnap.data() || {}) : {};
-            const blocked = !!u.blocked;
-            if (!cancelled) {
-              setUserBlocked(blocked);
-              setUserMembership(u.membership || null);
-            }
-          } else if (!cancelled) {
-            setUserBlocked(false);
-            setUserMembership(null);
-          }
-        } catch {
-          if (!cancelled) {
-            setUserBlocked(false);
-            setUserMembership(null);
-          }
-        }
-
-        const directUrls = Array.isArray(data.photoUrls) ? data.photoUrls : [];
+        const directUrls = Array.isArray(itemData.photoUrls) ? itemData.photoUrls : [];
         const urls = directUrls.filter((u) => typeof u === 'string' && u.trim());
 
         if (!urls.length) {
-          const paths = Array.isArray(data.photoPaths) ? data.photoPaths : [];
+          const paths = Array.isArray(itemData.photoPaths) ? itemData.photoPaths : [];
           for (const p of paths) {
             if (!p || typeof p !== 'string') continue;
             try {
@@ -272,6 +256,8 @@ export default function AdminMatchmakingDetail() {
     return { active, validUntilMs, daysLeft, untilText, plan };
   }, [userMembership]);
 
+  const photoReviewRequired = useMemo(() => isPhotoModerationRestricted(userRecord, item), [item, userRecord]);
+
   const setBlocked = async (nextBlocked) => {
     if (!userId) return;
     setActing(true);
@@ -283,19 +269,18 @@ export default function AdminMatchmakingDetail() {
         ? (window.prompt('Engelleme nedeni (opsiyonel):', '') || '').trim()
         : '';
 
-      await setDoc(
-        doc(db, 'matchmakingUsers', userId),
-        {
-          blocked: !!nextBlocked,
-          blockedAt: nextBlocked ? serverTimestamp() : null,
-          blockedBy: auth.currentUser?.uid || null,
-          blockedReason: nextBlocked ? reason : null,
-          updatedAt: serverTimestamp(),
-        },
-        { merge: true }
-      );
+      await authFetch('/api/admin-user-action', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          action: nextBlocked ? 'block' : 'unblock',
+          uid: userId,
+          reason,
+        }),
+      });
 
       setUserBlocked(!!nextBlocked);
+      setUserRecord((prev) => ({ ...(prev || {}), blocked: !!nextBlocked, blockedReason: nextBlocked ? reason : null }));
       setActionMsg(nextBlocked ? 'Kullanıcı engellendi.' : 'Kullanıcının engeli kaldırıldı.');
     } catch (e) {
       setActionErr(String(e?.message || 'İşlem başarısız.'));
@@ -325,6 +310,58 @@ export default function AdminMatchmakingDetail() {
       navigate('/admin/dashboard');
     } catch (e) {
       setActionErr(String(e?.message || 'Silme işlemi başarısız.'));
+    } finally {
+      setActing(false);
+    }
+  };
+
+  const setPhotoReviewRequired = async (nextRequired) => {
+    if (!userId) return;
+    setActing(true);
+    setActionErr('');
+    setActionMsg('');
+
+    try {
+      await authFetch('/api/admin-matchmaking-photo-review-require', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ userId, applicationId: id, required: !!nextRequired }),
+      });
+
+      setUserRecord((prev) => {
+        const next = prev && typeof prev === 'object' ? { ...prev } : {};
+        if (nextRequired) {
+          next.photoModeration = {
+            ...(next.photoModeration && typeof next.photoModeration === 'object' ? next.photoModeration : {}),
+            status: 'requires_reupload',
+            messageCode: 'photo_review_required',
+          };
+        } else {
+          delete next.photoModeration;
+        }
+        return next;
+      });
+      setItem((prev) => {
+        if (!prev || typeof prev !== 'object') return prev;
+        const next = { ...prev };
+        if (nextRequired) {
+          next.photoModeration = {
+            ...(next.photoModeration && typeof next.photoModeration === 'object' ? next.photoModeration : {}),
+            status: 'requires_reupload',
+            messageCode: 'photo_review_required',
+          };
+        } else {
+          delete next.photoModeration;
+        }
+        return next;
+      });
+      setActionMsg(
+        nextRequired
+          ? 'Kullanıcıdan kendisini tanıtan farklı bir fotoğraf yüklemesi istendi.'
+          : 'Fotoğraf doğrulama kısıtı kaldırıldı.'
+      );
+    } catch (e) {
+      setActionErr(String(e?.message || 'Fotoğraf kısıtı güncellenemedi.'));
     } finally {
       setActing(false);
     }
@@ -411,6 +448,20 @@ export default function AdminMatchmakingDetail() {
                     {userBlocked ? 'Engeli kaldır' : 'Engelle'}
                   </button>
                 )}
+                {userId && (
+                  <button
+                    type="button"
+                    disabled={acting}
+                    onClick={() => setPhotoReviewRequired(!photoReviewRequired)}
+                    className={`inline-flex items-center justify-center rounded-lg px-3 py-2 text-sm font-semibold border transition ${
+                      photoReviewRequired
+                        ? 'bg-white text-amber-900 border-amber-300 hover:bg-amber-50'
+                        : 'bg-amber-500 text-white border-amber-500 hover:bg-amber-600'
+                    } ${acting ? 'opacity-60 cursor-not-allowed' : ''}`}
+                  >
+                    {photoReviewRequired ? 'Fotoğraf kısıtını kaldır' : 'Geçerli fotoğraf iste'}
+                  </button>
+                )}
                 <button
                   type="button"
                   disabled={acting}
@@ -442,6 +493,12 @@ export default function AdminMatchmakingDetail() {
             }`}
           >
             {actionErr || actionMsg}
+          </div>
+        )}
+
+        {!loading && item && photoReviewRequired && (
+          <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+            Kullanıcı, kendisini tanıtan farklı bir fotoğraf yükleyene kadar uygulama içinde kısıtlı kalacak.
           </div>
         )}
 

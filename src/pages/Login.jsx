@@ -6,6 +6,7 @@ import {
   fetchSignInMethodsForEmail,
   getAdditionalUserInfo,
   getRedirectResult,
+  onAuthStateChanged,
   signOut,
   signInWithCustomToken,
   signInWithPopup,
@@ -24,26 +25,34 @@ import { markFunnelSignupCompleted } from "../utils/funnelTracker";
 import { tiktokPage, tiktokTrack } from "../utils/tiktokPixel";
 import { buildSupportReport, storeSupportReport } from "../utils/supportReport";
 import { uploadImageToCloudinaryAuto } from '../utils/cloudinaryUpload';
-import { Download } from 'lucide-react';
+import { Download, Mail } from 'lucide-react';
 import { buildWhatsAppUrl } from '../utils/whatsapp';
 import { useSupportLine } from '../hooks/useSupportLine';
 import { APP_INSTALL_PATH, getAppInstallLinkUi } from '../utils/appInstallLink';
 import { getClientCountry, getSupportCountrySync } from '../utils/supportLine';
 import { normalizePathOnly, sanitizePostAuthTarget, shouldIgnorePostAuthState } from '../utils/postAuthRedirect';
+import { staticAssetUrl } from '../utils/staticAssetUrl';
 
-let firestoreApiPromise = null;
-async function loadFirestoreApi() {
-  if (!firestoreApiPromise) {
-    firestoreApiPromise = Promise.all([
-      import('../config/firebaseDb'),
-      import('firebase/firestore'),
-    ]).then(([dbMod, fs]) => {
-      const db = dbMod?.db || dbMod?.default;
-      return { db, ...fs };
-    });
-  }
-  return firestoreApiPromise;
-}
+const AUTH_SHORT_VIDEOS = [
+  {
+    url: 'https://youtu.be/emeOAdBT8TU',
+    videoId: 'emeOAdBT8TU',
+    title: 'salih turkce & tini sitiani nikah',
+  },
+  {
+    url: 'https://youtu.be/OgIGPCsiEu4',
+    videoId: 'OgIGPCsiEu4',
+    title: 'salih turkce & tini sitiani 2',
+  },
+  {
+    url: 'https://youtu.be/Kgfd9KrKRdc',
+    videoId: 'Kgfd9KrKRdc',
+    title: 'salih turkce roportaj',
+  },
+];
+
+const YOUTUBE_CHANNEL_URL = 'https://www.youtube.com/@endonezyakasifi';
+const INSTAGRAM_PROFILE_URL = 'https://instagram.com/endonezyakasifi';
 
 function resolveAuthLanguage(lang) {
   const key = String(lang || '').toLowerCase();
@@ -164,13 +173,217 @@ function getAuthSupportUi(lang) {
   return copy[lang] || copy.tr;
 }
 
+function getAuthVideoUi(lang) {
+  const copy = {
+    tr: {
+      eyebrow: 'Kisa videolar',
+      title: 'Kayit oncesi uc kisa videoyu izleyin',
+      body: 'Kayit mantigini hizlica gormek icin videolari alt alta acabilirsiniz.',
+      cta: 'Videoyu ac',
+      channelCta: 'Daha fazlasi icin YouTube kanalini ziyaret et',
+    },
+    en: {
+      eyebrow: 'Short videos',
+      title: 'Watch these three short videos before signing up',
+      body: 'Open any of them to get a quick feel for the flow before registration.',
+      cta: 'Open video',
+      channelCta: 'Visit the YouTube channel for more',
+    },
+    id: {
+      eyebrow: 'Video singkat',
+      title: 'Tonton tiga video singkat ini sebelum mendaftar',
+      body: 'Buka videonya satu per satu untuk melihat alurnya dengan cepat sebelum registrasi.',
+      cta: 'Buka video',
+      channelCta: 'Kunjungi kanal YouTube untuk lebih banyak video',
+    },
+  };
+
+  return copy[lang] || copy.tr;
+}
+
+function getAuthSocialUi(lang) {
+  const copy = {
+    tr: {
+      youtubeEyebrow: 'YouTube',
+      youtubeTitle: 'YouTube kanalimizda seyahat ve nikah videolarimizi izleyin',
+      youtubeBody: 'Uniqah, Endonezya hayati ve nikah sureclerine dair videolari YouTube kanalimizdan acabilirsiniz.',
+      youtubeSearchHint: 'Dilerseniz YouTube arama kismina @endonezyakasifi yazarak ya da Videolarimizi Izle butonuna tiklayarak videolarimizi izleyebilirsiniz.',
+      youtubeButtonLabel: 'Videolarimizi Izle',
+      instagramButtonLabel: "Bizi Instagram'da Takip Et",
+    },
+    en: {
+      youtubeEyebrow: 'YouTube',
+      youtubeTitle: 'Watch our travel and wedding videos on our YouTube channel',
+      youtubeBody: 'You can open our YouTube channel for videos about Uniqah, life in Indonesia, and marriage-related journeys.',
+      youtubeSearchHint: 'If you want, you can type @endonezyakasifi into YouTube search or click the Watch Our Videos button to watch our videos.',
+      youtubeButtonLabel: 'Watch Our Videos',
+      instagramButtonLabel: 'Follow Us on Instagram',
+    },
+    id: {
+      youtubeEyebrow: 'YouTube',
+      youtubeTitle: 'Tonton video perjalanan dan pernikahan kami di kanal YouTube',
+      youtubeBody: 'Anda bisa membuka kanal YouTube kami untuk video tentang Uniqah, kehidupan di Indonesia, dan proses pernikahan.',
+      youtubeSearchHint: 'Jika mau, Anda bisa mengetik @endonezyakasifi di pencarian YouTube atau mengetuk tombol Tonton Video Kami untuk menonton video kami.',
+      youtubeButtonLabel: 'Tonton Video Kami',
+      instagramButtonLabel: 'Ikuti Kami di Instagram',
+    },
+  };
+
+  return copy[lang] || copy.tr;
+}
+
+function AuthSocialLinks({ lang, idSuffix, className = '' }) {
+  const socialUi = getAuthSocialUi(resolveAuthLanguage(lang));
+  const youtubeBannerSrc = staticAssetUrl('/youtube-channel-banner.png');
+  const youtubeSvgFontSize = resolveAuthLanguage(lang) === 'en' ? 34 : 40;
+  const instagramSvgFontSize = resolveAuthLanguage(lang) === 'en' ? 34 : 40;
+  const youtubeGradId = `youtube-handle-button-grad-${idSuffix}`;
+  const instagramGradId = `instagram-button-grad-${idSuffix}`;
+
+  return (
+    <div className={[
+      'mt-4 overflow-hidden rounded-[22px] border border-rose-200 bg-[linear-gradient(145deg,#fff7ed_0%,#fff1f2_100%)] shadow-sm',
+      className,
+    ].join(' ').trim()}>
+      <div className="relative flex h-44 w-full items-center justify-center overflow-hidden bg-[#0f1720] p-2 md:h-52 md:p-3">
+        <img
+          src={youtubeBannerSrc}
+          alt="Endonezya Kasifi YouTube channel banner"
+          className="h-full w-full object-contain"
+          loading="lazy"
+          decoding="async"
+        />
+      </div>
+
+      <div className="p-4 md:p-5">
+        <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-rose-700">{socialUi.youtubeEyebrow}</div>
+        <div className="mt-2 text-lg font-semibold leading-tight text-slate-950 md:text-xl">{socialUi.youtubeTitle}</div>
+        <div className="mt-2 text-sm leading-relaxed text-slate-600">{socialUi.youtubeBody}</div>
+        <div className="mt-3 rounded-2xl border border-slate-200 bg-white/90 p-3">
+          <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">YouTube</div>
+          <p className="mt-2 text-sm leading-relaxed text-slate-600">{socialUi.youtubeSearchHint}</p>
+        </div>
+
+        <div className="mt-4 flex flex-col gap-3">
+          <a
+            href={YOUTUBE_CHANNEL_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="Open Endonezya Kasifi YouTube channel"
+            className="block w-full max-w-[340px]"
+          >
+            <svg viewBox="0 0 720 170" xmlns="http://www.w3.org/2000/svg" className="h-auto w-full drop-shadow-[0_18px_12px_rgba(0,0,0,0.30)]">
+              <style>{`
+                .yt-btn { transition: all 0.25s ease; cursor: pointer; transform-origin: center; }
+                .yt-btn:hover { transform: translateY(-4px) scale(1.02); filter: brightness(1.08); }
+                .bell { transform-origin: 30px 40px; transition: transform 0.2s ease; }
+                .yt-btn:hover .bell { transform: rotate(-12deg); }
+                .ring { opacity: 0; transition: opacity 0.2s ease; }
+                .yt-btn:hover .ring { opacity: 1; }
+              `}</style>
+
+              <defs>
+                <linearGradient id={youtubeGradId} x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stopColor="#ff4d4d" />
+                  <stop offset="100%" stopColor="#cc0000" />
+                </linearGradient>
+              </defs>
+
+              <g className="yt-btn">
+                <rect x="5" y="5" rx="85" ry="85" width="710" height="160" fill={`url(#${youtubeGradId})`} />
+                <rect x="15" y="15" rx="75" ry="75" width="690" height="140" fill="#ffffff" opacity="0.98" stroke="#efc0c0" strokeWidth="2" />
+
+                <g transform="translate(55,50)">
+                  <rect width="110" height="70" rx="18" fill="#FF0000" />
+                  <polygon points="42,18 42,52 75,35" fill="#ffffff" />
+                </g>
+
+                <text x="390" y="80" fontSize={youtubeSvgFontSize} fontFamily="Arial, sans-serif" fill="#cc0000" textAnchor="middle" fontWeight="bold">
+                  {socialUi.youtubeButtonLabel}
+                </text>
+
+                <text x="390" y="120" fontSize="24" fontFamily="Arial, sans-serif" fill="#333" textAnchor="middle">
+                  @endonezyakasifi
+                </text>
+
+                <g transform="translate(600,45)">
+                  <path className="ring" d="M5 30 Q0 40 5 50" stroke="#cc0000" strokeWidth="3" fill="none" strokeLinecap="round" />
+                  <path className="ring" d="M55 30 Q60 40 55 50" stroke="#cc0000" strokeWidth="3" fill="none" strokeLinecap="round" />
+
+                  <g className="bell">
+                    <circle cx="30" cy="10" r="6" fill="#cc0000" />
+                    <path
+                      d="M30 18 C18 18, 10 28, 10 42 L10 55 L50 55 L50 42 C50 28, 42 18, 30 18 Z"
+                      fill="#cc0000"
+                    />
+                    <ellipse cx="30" cy="55" rx="22" ry="6" fill="#b80000" />
+                    <circle cx="30" cy="62" r="5" fill="#cc0000" />
+                  </g>
+                </g>
+              </g>
+            </svg>
+          </a>
+
+          <a
+            href={INSTAGRAM_PROFILE_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="Open Endonezya Kasifi Instagram profile"
+            className="block w-full max-w-[340px]"
+          >
+            <svg viewBox="0 0 720 170" xmlns="http://www.w3.org/2000/svg" className="h-auto w-full drop-shadow-[0_18px_12px_rgba(0,0,0,0.30)]">
+              <style>{`
+                .ig-btn { transition: all 0.25s ease; cursor: pointer; transform-origin: center; }
+                .ig-btn:hover { transform: translateY(-4px) scale(1.02); filter: brightness(1.1); }
+                .ig-icon { transition: transform 0.3s ease; transform-origin: center; }
+                .ig-btn:hover .ig-icon { transform: scale(1.1) rotate(5deg); }
+              `}</style>
+
+              <defs>
+                <linearGradient id={instagramGradId} x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stopColor="#f58529" />
+                  <stop offset="25%" stopColor="#dd2a7b" />
+                  <stop offset="50%" stopColor="#8134af" />
+                  <stop offset="75%" stopColor="#515bd4" />
+                  <stop offset="100%" stopColor="#feda77" />
+                </linearGradient>
+              </defs>
+
+              <g className="ig-btn">
+                <rect x="5" y="5" rx="85" ry="85" width="710" height="160" fill={`url(#${instagramGradId})`} />
+                <rect x="15" y="15" rx="75" ry="75" width="690" height="140" fill="#f7f1fb" opacity="0.97" stroke="#dac4f1" strokeWidth="2" />
+
+                <g className="ig-icon" transform="translate(55,45)">
+                  <rect x="0" y="0" width="90" height="90" rx="25" fill={`url(#${instagramGradId})`} />
+                  <circle cx="45" cy="45" r="22" fill="none" stroke="#fff" strokeWidth="6" />
+                  <circle cx="65" cy="25" r="6" fill="#fff" />
+                </g>
+
+                <text x="400" y="80" fontSize={instagramSvgFontSize} fontFamily="Arial, sans-serif" fill="#8134af" textAnchor="middle" fontWeight="bold">
+                  {socialUi.instagramButtonLabel}
+                </text>
+
+                <text x="400" y="120" fontSize="24" fontFamily="Arial, sans-serif" fill="#333" textAnchor="middle">
+                  @endonezyakasifi
+                </text>
+              </g>
+            </svg>
+          </a>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function Login() {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
   const { user, loading: authLoading } = useAuth();
+  const googleLogoSrc = useMemo(() => staticAssetUrl('/google-logo.png'), []);
   const supportLine = useSupportLine(String(i18n?.language || 'tr'));
   const authSupportUi = getAuthSupportUi(resolveAuthLanguage(i18n?.language));
+  const authVideoUi = getAuthVideoUi(resolveAuthLanguage(i18n?.language));
   const installLinkUi = useMemo(() => getAppInstallLinkUi(i18n?.language), [i18n?.language]);
   const authSupportWhatsappHref = buildWhatsAppUrl(authSupportUi.whatsappMessage, {
     lang: String(i18n?.language || 'tr'),
@@ -539,10 +752,6 @@ export default function Login() {
   const landingCtaImpressionSentRef = useRef(false);
 
   const isSignupLanding = useMemo(() => location.pathname === '/login' && mode === 'signup', [location.pathname, mode]);
-  const landingSupportFacts = useMemo(() => {
-    const facts = Array.isArray(authSupportUi?.quickFacts) ? authSupportUi.quickFacts : [];
-    return facts.slice(0, 3);
-  }, [authSupportUi]);
 
   const trackLandingPrimaryCtaImpression = useCallback(() => {
     if (!isSignupLanding || user) return false;
@@ -1216,267 +1425,14 @@ export default function Login() {
   const hasCompletedApplication = async (uid) => {
     const userId = String(uid || '').trim();
     if (!userId) return false;
-
-    const safeStr = (v) => (typeof v === 'string' ? v.trim() : '');
-
-    const asNum = (v) => {
-      if (v === null || v === undefined) return null;
-      if (typeof v === 'string') {
-        const t = v.trim();
-        if (!t) return null;
-        const n = Number(t);
-        return Number.isFinite(n) ? n : null;
-      }
-      const n = typeof v === 'number' ? v : Number(v);
-      return Number.isFinite(n) ? n : null;
-    };
-
-    const normalizeGender = (v) => {
-      const s = safeStr(v).toLowerCase();
-      if (s === 'male' || s === 'm' || s === 'man' || s === 'erkek') return 'male';
-      if (s === 'female' || s === 'f' || s === 'woman' || s === 'kadin' || s === 'kadın') return 'female';
-      return '';
-    };
-
-    const normalizeMaritalStatus = (v) => safeStr(v).toLowerCase();
-
-    const ageFromBirthYearMaybe = (v) => {
-      const year = asNum(v);
-      if (!(typeof year === 'number' && Number.isFinite(year) && year >= 1900 && year <= 2100)) return null;
-      const now = new Date();
-      const age = now.getFullYear() - Math.trunc(year);
-      return age >= 18 && age <= 99 ? age : null;
-    };
-
-    const ageFromDateMaybe = (v) => {
-      let d = null;
-
-      if (typeof v === 'number' && Number.isFinite(v)) {
-        d = new Date(v);
-      } else if (typeof v === 'string') {
-        const s = v.trim();
-        if (!s) return null;
-        const parsed = Date.parse(s);
-        if (Number.isFinite(parsed)) d = new Date(parsed);
-      } else if (typeof v?.toDate === 'function') {
-        try {
-          d = v.toDate();
-        } catch {
-          d = null;
-        }
-      }
-
-      if (!d || Number.isNaN(d.getTime())) return null;
-      const now = new Date();
-      let age = now.getFullYear() - d.getFullYear();
-      const m = now.getMonth() - d.getMonth();
-      if (m < 0 || (m === 0 && now.getDate() < d.getDate())) age -= 1;
-      return age >= 18 && age <= 99 ? age : null;
-    };
-
-    const getAge = (obj) => {
-      const it = obj && typeof obj === 'object' ? obj : {};
-      const details = it?.details && typeof it.details === 'object' ? it.details : {};
-
-      const direct = asNum(it?.age);
-      if (typeof direct === 'number' && Number.isFinite(direct) && direct >= 18 && direct <= 99) return direct;
-
-      const nested = asNum(details?.age);
-      if (typeof nested === 'number' && Number.isFinite(nested) && nested >= 18 && nested <= 99) return nested;
-
-      const byYear = ageFromBirthYearMaybe(details?.birthYear ?? it?.birthYear);
-      if (byYear !== null) return byYear;
-
-      const byDate =
-        ageFromDateMaybe(details?.birthDateMs ?? it?.birthDateMs) ??
-        ageFromDateMaybe(details?.birthDate ?? it?.birthDate) ??
-        ageFromDateMaybe(details?.dob ?? it?.dob);
-      if (byDate !== null) return byDate;
-
-      return null;
-    };
-
-    const pickOccupation = (details, obj) => {
-      const d = details && typeof details === 'object' ? details : {};
-      const a = obj && typeof obj === 'object' ? obj : {};
-      return (
-        safeStr(d?.occupationTr) ||
-        safeStr(d?.occupation) ||
-        safeStr(d?.occupationId) ||
-        safeStr(a?.occupation) ||
-        safeStr(d?.job) ||
-        safeStr(d?.jobTitle) ||
-        safeStr(d?.profession) ||
-        safeStr(a?.job) ||
-        safeStr(a?.jobTitle) ||
-        safeStr(a?.profession) ||
-        ''
-      );
-    };
-
-    const pickMaritalStatus = (details, obj) => {
-      const d = details && typeof details === 'object' ? details : {};
-      const a = obj && typeof obj === 'object' ? obj : {};
-      return (
-        safeStr(d?.maritalStatus) ||
-        safeStr(a?.maritalStatus) ||
-        safeStr(d?.marital) ||
-        safeStr(a?.marital) ||
-        safeStr(d?.medeniDurum) ||
-        safeStr(a?.medeniDurum) ||
-        safeStr(d?.marital_status) ||
-        safeStr(a?.marital_status) ||
-        ''
-      );
-    };
-
-    const pickHasChildren = (details, obj) => {
-      const d = details && typeof details === 'object' ? details : {};
-      const a = obj && typeof obj === 'object' ? obj : {};
-
-      const raw =
-        safeStr(d?.hasChildren) ||
-        safeStr(a?.hasChildren) ||
-        safeStr(d?.children) ||
-        safeStr(a?.children) ||
-        safeStr(d?.childStatus) ||
-        safeStr(a?.childStatus) ||
-        safeStr(d?.has_children) ||
-        safeStr(a?.has_children);
-      if (raw) return raw;
-
-      if (typeof d?.hasChildren === 'boolean') return d.hasChildren ? 'yes' : 'no';
-      if (typeof a?.hasChildren === 'boolean') return a.hasChildren ? 'yes' : 'no';
-
-      return '';
-    };
-
-    const pickChildrenCount = (details, obj) => {
-      const d = details && typeof details === 'object' ? details : {};
-      const a = obj && typeof obj === 'object' ? obj : {};
-      const raw = d?.childrenCount ?? d?.childCount ?? d?.children_count ?? d?.child_count ?? a?.childrenCount ?? a?.childCount;
-      const n = asNum(raw);
-      if (!(typeof n === 'number' && Number.isFinite(n))) return null;
-      const i = Math.trunc(n);
-      if (i < 0 || i > 20) return null;
-      return i;
-    };
-
-    const isStubApplication = (a) => {
-      const source = safeStr(a?.source).toLowerCase();
-      if (source === 'auto_stub') return true;
-      if (a?.details?.autoBootstrap === true) return true;
-      return false;
-    };
-
-    const hasMinimumProfileInUserDoc = (d) => {
-      const userDoc = d && typeof d === 'object' ? d : {};
-      const appFromUser = userDoc?.application && typeof userDoc.application === 'object' ? userDoc.application : null;
-      const publicProfile =
-        userDoc?.publicProfile && typeof userDoc.publicProfile === 'object' ? userDoc.publicProfile : null;
-      const merged = {
-        ...(publicProfile || {}),
-        ...(appFromUser || {}),
-        ...(userDoc || {}),
-        details: {
-          ...((publicProfile && typeof publicProfile.details === 'object' ? publicProfile.details : {}) || {}),
-          ...((appFromUser && typeof appFromUser.details === 'object' ? appFromUser.details : {}) || {}),
-          ...((userDoc?.details && typeof userDoc.details === 'object' ? userDoc.details : {}) || {}),
-        },
-      };
-
-      const details = merged?.details && typeof merged.details === 'object' ? merged.details : {};
-
-      const fullName = safeStr(merged?.fullName);
-      const age = getAge(merged);
-      const gender = normalizeGender(merged?.gender);
-      const city = safeStr(merged?.city);
-      const occupation = pickOccupation(details, merged);
-      const maritalStatus = normalizeMaritalStatus(pickMaritalStatus(details, merged));
-
-      if (!fullName) return false;
-      if (!(typeof age === 'number' && Number.isFinite(age) && age >= 18 && age <= 99)) return false;
-      if (!gender) return false;
-      if (!city) return false;
-      if (!occupation) return false;
-      if (!maritalStatus) return false;
-
-      if (maritalStatus === 'widowed' || maritalStatus === 'divorced') {
-        const hasChildren = safeStr(pickHasChildren(details, merged)).toLowerCase();
-        if (!hasChildren) return false;
-        if (hasChildren === 'yes') {
-          const cnt = pickChildrenCount(details, merged);
-          if (!(typeof cnt === 'number' && Number.isFinite(cnt) && cnt >= 1 && cnt <= 20)) return false;
-        }
-      }
-
-      return true;
-    };
-
-    const hasMinimumProfileInApplicationDoc = (a) => {
-      const app = a && typeof a === 'object' ? a : {};
-      if (isStubApplication(app)) return false;
-      const details = app?.details && typeof app.details === 'object' ? app.details : {};
-
-      const fullName = safeStr(app?.fullName);
-      const age = getAge(app);
-      const gender = normalizeGender(app?.gender);
-      const city = safeStr(app?.city);
-      const occupation = pickOccupation(details, app);
-      const maritalStatus = normalizeMaritalStatus(pickMaritalStatus(details, app));
-
-      if (!fullName) return false;
-      if (!(typeof age === 'number' && Number.isFinite(age) && age >= 18 && age <= 99)) return false;
-      if (!gender) return false;
-      if (!city) return false;
-      if (!occupation) return false;
-      if (!maritalStatus) return false;
-
-      if (maritalStatus === 'widowed' || maritalStatus === 'divorced') {
-        const hasChildren = safeStr(pickHasChildren(details, app)).toLowerCase();
-        if (!hasChildren) return false;
-        if (hasChildren === 'yes') {
-          const cnt = pickChildrenCount(details, app);
-          if (!(typeof cnt === 'number' && Number.isFinite(cnt) && cnt >= 1 && cnt <= 20)) return false;
-        }
-      }
-
-      return true;
-    };
-
     try {
-      const { db, collection, doc, getDoc, getDocs, limit, query, where } = await loadFirestoreApi();
-
-      // Fast path: matchmakingUsers doc'unda minimum alanlar.
-      try {
-        const uRef = doc(db, 'matchmakingUsers', userId);
-        const uSnap = await getDoc(uRef);
-        if (uSnap.exists()) {
-          const d = uSnap.data() || {};
-          if (hasMinimumProfileInUserDoc(d)) return true;
-        }
-      } catch {
-        // ignore and fall back
-      }
-
-      // Fallback: matchmakingApplications, non-stub ve minimum alanlar dolu.
-      const q1 = query(collection(db, 'matchmakingApplications'), where('userId', '==', userId), limit(10));
-      const q2 = query(collection(db, 'matchmakingApplications'), where('uid', '==', userId), limit(10));
-      const q3 = query(collection(db, 'matchmakingApplications'), where('userUid', '==', userId), limit(10));
-
-      const [s1, s2, s3] = await Promise.all([getDocs(q1), getDocs(q2), getDocs(q3)]);
-      const docs = [...(s1?.docs || []), ...(s2?.docs || []), ...(s3?.docs || [])];
-      if (!docs.length) return false;
-
-      const seen = new Set();
-      for (const d of docs) {
-        const id = safeStr(d?.id);
-        if (id && seen.has(id)) continue;
-        if (id) seen.add(id);
-        const a = d.data() || {};
-        if (hasMinimumProfileInApplicationDoc(a)) return true;
-      }
-      return false;
+      const data = await authFetch('/api/matchmaking-profile-completion-state', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ uid: userId }),
+      });
+      if (data?.ok === true) return data?.completed === true;
+      return null;
     } catch {
       // Hata olursa kullanıcıyı bloklamayalım; guard hedefi zorla değiştirmesin.
       return null;
@@ -1839,8 +1795,9 @@ export default function Login() {
     }
 
     const freshSignup = shouldTreatAuthenticatedUserAsFreshSignup(user);
+    const fallbackIntent = resolveRedirectAuthIntent(mode || 'login');
     return {
-      target: resolvePostAuthTarget(freshSignup, freshSignup ? 'signup' : mode),
+      target: resolvePostAuthTarget(freshSignup, freshSignup ? 'signup' : fallbackIntent),
       state: freshSignup ? null : resolvePostAuthState(),
       usedPending: false,
     };
@@ -1865,6 +1822,39 @@ export default function Login() {
       new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), timeoutMs)),
     ]);
   };
+
+  const waitForRecentAuthUser = useCallback((timeoutMs = 4500) => {
+    return new Promise((resolve) => {
+      const existing = auth?.currentUser;
+      if (existing?.uid) {
+        resolve(existing);
+        return;
+      }
+
+      let settled = false;
+      let unsubscribe = () => {};
+      const finish = (nextUser) => {
+        if (settled) return;
+        settled = true;
+        try {
+          unsubscribe();
+        } catch {
+          // ignore
+        }
+        resolve(nextUser?.uid ? nextUser : null);
+      };
+
+      const timerId = window.setTimeout(() => finish(auth?.currentUser || null), timeoutMs);
+      unsubscribe = onAuthStateChanged(auth, (nextUser) => {
+        if (!nextUser?.uid) return;
+        window.clearTimeout(timerId);
+        finish(nextUser);
+      }, () => {
+        window.clearTimeout(timerId);
+        finish(auth?.currentUser || null);
+      });
+    });
+  }, []);
 
   const navigateNextWithApplyGuard = async (uid, target, state) => {
     let next = target;
@@ -1936,6 +1926,46 @@ export default function Login() {
     navigateNext(next, state);
   };
 
+  const navigateWhenAuthReady = useCallback(async (expectedUid, target, state, { timeoutMs = 1800 } = {}) => {
+    const readyUser = await waitForRecentAuthUser(timeoutMs);
+    const readyUid = String(readyUser?.uid || auth?.currentUser?.uid || '').trim();
+    const wantedUid = String(expectedUid || '').trim();
+
+    if (!readyUid) return false;
+    if (wantedUid && readyUid !== wantedUid) return false;
+
+    await navigateNextWithApplyGuard(readyUid, target, state);
+    clearPendingPostAuthNav();
+    return true;
+  }, [navigateNextWithApplyGuard, waitForRecentAuthUser]);
+
+  const salvageRecentRedirectUser = useCallback(async ({ intent = 'login' } = {}) => {
+    const recentUser = await waitForRecentAuthUser();
+    if (!recentUser?.uid) return false;
+
+    if (intent === 'signup') {
+      try {
+        await ensureProfileSaved(recentUser.uid, {});
+      } catch {
+        // ignore
+      }
+      try {
+        await bootstrapMatchmakingApplication(recentUser, {});
+      } catch {
+        // ignore
+      }
+    }
+
+    const target = resolvePostAuthTarget(false, intent);
+    const state = intent === 'signup' ? null : resolvePostAuthState();
+    writePendingPostAuthNav(target, state);
+    clearStoredRedirect();
+    writeForcedTarget('');
+    await navigateNextWithApplyGuard(recentUser.uid, target, state);
+    clearPendingPostAuthNav();
+    return true;
+  }, [navigateNextWithApplyGuard, waitForRecentAuthUser]);
+
   // Redirect/popup sonrası hedefe kesin yönlendirme.
   // Kritik: RequireAuth bounce'larını engellemek için AuthProvider loading=false + user geldiğinde çalıştır.
   useEffect(() => {
@@ -1974,73 +2004,32 @@ export default function Login() {
           ? profileOrAge
           : {};
 
-    // Prefer server-side ensure to avoid client-side Firestore rules/config issues.
     try {
-      const token = typeof auth?.currentUser?.getIdToken === 'function' ? await auth.currentUser.getIdToken() : '';
-      if (token) {
-        const res = await fetch('/api/matchmaking-user-ensure', {
-          method: 'POST',
-          headers: {
-            'content-type': 'application/json',
-            authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            age: profile?.age,
-            gender: profile?.gender,
-            lookingForGender: profile?.lookingForGender,
-          }),
-        });
-        const data = await res.json().catch(() => null);
-        if (data && data.ok) {
-          return {
-            ok: true,
-            ensured: data.ensured !== false,
-            created: data.created === true,
-            via: 'server',
-          };
-        }
+      const data = await authFetch('/api/matchmaking-user-ensure', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          age: profile?.age,
+          gender: profile?.gender,
+          lookingForGender: profile?.lookingForGender,
+        }),
+      });
+      if (data && data.ok) {
+        return {
+          ok: true,
+          ensured: data.ensured !== false,
+          created: data.created === true,
+          via: 'server',
+        };
       }
-    } catch {
-      // Fall back to client Firestore.
+      return { ok: false, skipped: false, reason: 'server_error' };
+    } catch (e) {
+      return {
+        ok: false,
+        skipped: false,
+        reason: String(e?.message || 'request_failed').trim() || 'request_failed',
+      };
     }
-
-    const { db, doc, getDoc, serverTimestamp, setDoc } = await loadFirestoreApi();
-
-    const ref = doc(db, "matchmakingUsers", uid);
-    const snap = await getDoc(ref);
-    const data = snap.exists() ? snap.data() || {} : {};
-    const existingAge = typeof data?.age === 'number' ? data.age : null;
-
-    const existingGender = String(data?.gender || '').trim().toLowerCase();
-    const hasGender = existingGender === 'male' || existingGender === 'female';
-
-    if (typeof existingAge === 'number' && hasGender) {
-      return { ok: true, ensured: true, created: false, via: 'client', unchanged: true };
-    }
-
-    const parsedAge = Number(String(profile?.age ?? '').trim());
-    const nextAge = Number.isFinite(parsedAge) && Number.isInteger(parsedAge) ? parsedAge : null;
-
-    const nextGenderRaw = String(profile?.gender || '').trim().toLowerCase();
-    const nextGender = nextGenderRaw === 'male' || nextGenderRaw === 'female' ? nextGenderRaw : null;
-
-    // IMPORTANT (firestore.rules): Client-side writes to matchmakingUsers are intentionally restricted
-    // to a small whitelist. Do NOT attempt to write extra fields here (e.g. lookingForGender),
-    // otherwise a permission-denied can break onboarding flows.
-
-    const payload = {
-      ...(typeof existingAge === 'number' ? {} : nextAge !== null ? { age: nextAge } : {}),
-      ...(hasGender ? {} : nextGender ? { gender: nextGender } : {}),
-      updatedAt: serverTimestamp(),
-    };
-
-    // createdAt sadece ilk oluşturma anında set edilsin (rules tarafını ve audit'i sadeleştirir).
-    if (!snap.exists()) {
-      payload.createdAt = serverTimestamp();
-    }
-
-    await setDoc(ref, payload, { merge: true });
-    return { ok: true, ensured: true, created: !snap.exists(), via: 'client' };
   };
 
   const bootstrapMatchmakingApplication = async (userOrUid, profile) => {
@@ -2441,6 +2430,24 @@ export default function Login() {
     }
   }, [location.search, mode]);
 
+  const resolveRedirectAuthIntent = useCallback((fallback = 'login') => {
+    const stored = readAuthIntent();
+    if (stored === 'signup' || stored === 'login') return stored;
+
+    try {
+      const params = new URLSearchParams(location.search || '');
+      const rawMode = String(params.get('mode') || mode || '').trim().toLowerCase();
+      const auto = String(params.get('auto') || '').trim().toLowerCase();
+      if (rawMode === 'signup') return 'signup';
+      if (rawMode === 'login') return 'login';
+      if (auto === 'google' || autoGoogleSignupRequested) return 'signup';
+    } catch {
+      // ignore
+    }
+
+    return fallback;
+  }, [autoGoogleSignupRequested, location.search, mode]);
+
   useEffect(() => {
     if (redirectFinalizeOnceRef.current) return;
     redirectFinalizeOnceRef.current = true;
@@ -2535,8 +2542,7 @@ export default function Login() {
               clearStoredRedirect();
               writeForcedTarget('');
               try {
-                await navigateNextWithApplyGuard(result?.user?.uid, target, state);
-                clearPendingPostAuthNav();
+                await navigateWhenAuthReady(result?.user?.uid, target, state, { timeoutMs: 2200 });
               } catch {
                 // ignore
               }
@@ -2595,8 +2601,7 @@ export default function Login() {
         clearStoredRedirect();
         writeForcedTarget('');
         try {
-          await navigateNextWithApplyGuard(u?.uid, target, state);
-          clearPendingPostAuthNav();
+          await navigateWhenAuthReady(u?.uid, target, state, { timeoutMs: 2200 });
         } catch {
           // ignore
         }
@@ -2633,16 +2638,25 @@ export default function Login() {
         // Bazı in-app tarayıcılarda getRedirectResult hiç resolve olmayabiliyor.
         // Timeout durumunda sessizce devam edip diğer effect'lerin yönlendirmesine izin veriyoruz.
         if (r?.timeout) {
+          const intent = resolveRedirectAuthIntent('login');
           try {
-            const intent = readAuthIntent() || 'login';
             void trackClick(`${intent}_redirect_result_timeout:${providerLabel}`, { trace: true });
           } catch {
             // ignore
           }
           clearAutoGoogleFlag();
+          try {
+            const quickUser = await waitForRecentAuthUser(import.meta.env.DEV ? 400 : 1400);
+            if (quickUser?.uid) {
+              const salvaged = await salvageRecentRedirectUser({ intent });
+              if (salvaged) return;
+            }
+          } catch {
+            // ignore
+          }
           // IMPORTANT: In some environments, redirect actually succeeds but getRedirectResult hangs.
           // If we don't salvage, we lose signups and skip onboarding/bootstrap.
-          void salvageRedirectAfterTimeout({ providerLabel, initialIntent: readAuthIntent() || 'login' });
+          void salvageRedirectAfterTimeout({ providerLabel, initialIntent: intent });
           return;
         }
 
@@ -2673,7 +2687,7 @@ export default function Login() {
 
           // Redirect akışında sayfa yenilendiği için mode kaybolabilir.
           // Bu yüzden intent'i (login/signup) sessionStorage üzerinden okuyoruz.
-          const intent = readAuthIntent() || 'login';
+          const intent = resolveRedirectAuthIntent('login');
           clearAuthIntent();
 
           if (!isNewUser) {
@@ -2735,8 +2749,7 @@ export default function Login() {
           // Kritik: Redirect sonucu geldiğinde elimizde user varken hemen yönlendir.
           // Bu, AuthProvider timing kaynaklı login'e geri düşme sorunlarını engeller.
           try {
-            await navigateNextWithApplyGuard(result?.user?.uid, target, state);
-            clearPendingPostAuthNav();
+            await navigateWhenAuthReady(result?.user?.uid, target, state, { timeoutMs: 2200 });
           } catch {
             // Best-effort; fallback effect pending target'ı kullanır.
           }
@@ -2745,6 +2758,20 @@ export default function Login() {
           // and store a support report for diagnosis (host mismatch, storage restrictions, etc.).
           const marker = readRedirectStartMarker();
           if (marker) {
+            const intent = resolveRedirectAuthIntent('login');
+            try {
+              const salvaged = await salvageRecentRedirectUser({ intent });
+              if (salvaged) {
+                clearAutoGoogleFlag();
+                clearAuthProvider();
+                clearRedirectStartMarker();
+                clearAuthIntent();
+                return;
+              }
+            } catch {
+              // fall through to visible error path
+            }
+
             clearAutoGoogleFlag();
             clearRedirectStartMarker();
 
@@ -2810,7 +2837,7 @@ export default function Login() {
 
         // Redirect flow'da hata olursa eskiden tamamen yutuluyordu.
         // Bu da “kayıt olmuyorlar ama sebep göremiyoruz” sorununa yol açıyor.
-        const intent = readAuthIntent() || 'login';
+        const intent = resolveRedirectAuthIntent('login');
 
         if (intent === 'signup') {
           void trackClick(`signup_error:${providerLabel}_redirect:${code || 'unknown'}`, { trace: true });
@@ -2885,7 +2912,7 @@ export default function Login() {
   // Redirect finalizer is intentionally one-shot; ref guards keep it idempotent while
   // allowing the latest closures during the first mount after the redirect round-trip.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [navigateNext, autoGoogleSignupRequested]);
+  }, [navigateNext, autoGoogleSignupRequested, navigateWhenAuthReady, resolveRedirectAuthIntent, salvageRecentRedirectUser, waitForRecentAuthUser]);
 
   useEffect(() => {
     auth.languageCode = resolveAuthLanguage(i18n?.language);
@@ -2906,7 +2933,8 @@ export default function Login() {
           // signup ekranını göstermeden direkt başvuru formuna itebiliyor.
           const pending = readPendingPostAuthNav();
           const freshSignup = shouldTreatAuthenticatedUserAsFreshSignup(user);
-          const target = String(pending?.target || '').trim() || resolvePostAuthTarget(freshSignup, freshSignup ? 'signup' : mode);
+          const fallbackIntent = resolveRedirectAuthIntent(mode || 'login');
+          const target = String(pending?.target || '').trim() || resolvePostAuthTarget(freshSignup, freshSignup ? 'signup' : fallbackIntent);
           const state = pending ? pending.state : freshSignup ? null : resolvePostAuthState();
           clearPendingPostAuthNav();
           clearStoredRedirect();
@@ -2918,7 +2946,7 @@ export default function Login() {
       })();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, redirectCheckDone, mode, needsQuickProfile, quickProfileCheckDone]);
+  }, [user, redirectCheckDone, mode, needsQuickProfile, quickProfileCheckDone, resolveRedirectAuthIntent]);
 
   useEffect(() => {
     if (hasNavigatedRef.current) return;
@@ -2986,6 +3014,7 @@ export default function Login() {
       }
 
       autoGoogleOnceRef.current = true;
+      consumeAutoGoogleQueryParam();
       // Best-effort: start Google flow immediately.
       void handleGoogle();
     } catch {
@@ -3120,8 +3149,7 @@ export default function Login() {
     writeForcedTarget('');
 
     try {
-      await navigateNextWithApplyGuard(userRef?.uid, target, state);
-      clearPendingPostAuthNav();
+      await navigateWhenAuthReady(userRef?.uid, target, state, { timeoutMs: 1800 });
     } catch {
       // Best-effort; generic auth effect can still consume pending target.
     }
@@ -3639,6 +3667,75 @@ export default function Login() {
     }
   };
 
+  const renderEmailPasswordForm = ({ variant = 'light' } = {}) => {
+    const isDark = variant === 'dark';
+    const cardClass = isDark
+      ? 'rounded-[24px] border border-white/12 bg-white/8 p-4 shadow-[0_12px_30px_rgba(2,6,23,0.18)]'
+      : 'rounded-[24px] border border-slate-200 bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(248,250,252,0.92))] p-4 shadow-[0_12px_30px_rgba(148,163,184,0.08)]';
+    const labelClass = isDark ? 'block text-xs font-semibold text-white/82' : 'block text-xs font-semibold text-slate-700';
+    const inputClass = isDark
+      ? 'mt-1 w-full rounded-2xl border border-white/14 bg-slate-950/28 px-4 py-3 text-sm text-white shadow-sm placeholder:text-white/40'
+      : 'mt-1 w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm shadow-sm';
+    const separatorClass = isDark ? 'text-xs text-white/55' : 'text-xs text-slate-500';
+
+    return (
+      <div className={cardClass}>
+        <div className={separatorClass}>{t('authPage.or')}</div>
+
+        <form noValidate onSubmit={handleEmailPassword} className="mt-3 grid grid-cols-1 gap-3">
+          <div>
+            <label className={labelClass}>{t('authPage.labels.email')}</label>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className={inputClass}
+              placeholder={t('authPage.placeholders.email')}
+              autoComplete="email"
+              disabled={busy}
+            />
+          </div>
+
+          <div>
+            <label className={labelClass}>{t('authPage.labels.password')}</label>
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className={inputClass}
+              placeholder={t('authPage.placeholders.password')}
+              autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
+              disabled={busy}
+            />
+          </div>
+
+          {mode === 'signup' ? (
+            <div>
+              <label className={labelClass}>{t('authPage.labels.confirmPassword')}</label>
+              <input
+                type="password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                className={inputClass}
+                placeholder={t('authPage.placeholders.confirmPassword')}
+                autoComplete="new-password"
+                disabled={busy}
+              />
+            </div>
+          ) : null}
+
+          <button
+            type="submit"
+            disabled={busy}
+            className="w-full rounded-2xl bg-[linear-gradient(135deg,#ef4444,#f97316)] px-5 py-3 text-sm font-semibold text-white shadow-[0_18px_38px_rgba(249,115,22,0.18)] transition hover:brightness-105 disabled:opacity-60"
+          >
+            {mode === 'signup' ? t('authPage.actions.signup') : t('authPage.actions.login')}
+          </button>
+        </form>
+      </div>
+    );
+  };
+
   const submitPublicFeedback = async () => {
     const msg = String(feedbackText || '').trim();
     const contact = String(feedbackContact || '').trim();
@@ -3865,7 +3962,7 @@ export default function Login() {
               </p>
 
               {!user ? (
-                <div className="mt-5 space-y-3 rounded-[28px] border border-white/10 bg-slate-950/28 p-4 shadow-[0_18px_40px_rgba(2,6,23,0.20)] backdrop-blur-sm lg:hidden">
+                <div ref={mobileAuthCtaRef} className="mt-5 space-y-3 rounded-[28px] border border-white/10 bg-slate-950/28 p-4 shadow-[0_18px_40px_rgba(2,6,23,0.20)] backdrop-blur-sm lg:hidden">
                   <div className="inline-flex rounded-2xl border border-white/10 bg-white/8 p-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]">
                     <button
                       type="button"
@@ -3923,23 +4020,31 @@ export default function Login() {
                     type="button"
                     onClick={handleGoogle}
                     disabled={busy}
-                    className="w-full rounded-2xl bg-white px-5 py-4 text-sm font-semibold text-slate-950 shadow-[0_18px_40px_rgba(255,255,255,0.16)] transition hover:bg-white/92 disabled:opacity-60"
+                    className="relative w-full rounded-2xl bg-white px-5 py-4 text-sm font-semibold text-slate-950 shadow-[0_18px_40px_rgba(255,255,255,0.16)] transition hover:bg-white/92 disabled:opacity-60"
                   >
-                    {mode === 'signup' ? t('authPage.googleSignupCta') : t('authPage.googleCta')}
+                    <span className="absolute left-5 top-1/2 inline-flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full bg-slate-50 ring-1 ring-slate-300 shadow-[0_4px_10px_rgba(15,23,42,0.10)]">
+                      <img src={googleLogoSrc} alt="" aria-hidden="true" className="h-7 w-7 object-contain" />
+                    </span>
+                    <span className="block w-full text-center">{mode === 'signup' ? t('authPage.googleSignupCta') : t('authPage.googleCta')}</span>
                   </button>
 
                   <button
                     type="button"
                     onClick={handleEmailMethodClick}
                     disabled={busy}
-                    className="w-full rounded-2xl border border-white/15 bg-white/8 px-5 py-4 text-sm font-semibold text-white shadow-[0_12px_32px_rgba(2,6,23,0.16)] transition hover:bg-white/12 disabled:opacity-60"
+                    className="relative w-full rounded-2xl border border-white/15 bg-white/8 px-5 py-4 text-sm font-semibold text-white shadow-[0_12px_32px_rgba(2,6,23,0.16)] transition hover:bg-white/12 disabled:opacity-60"
                   >
-                    {mode === 'signup' ? t('authPage.emailSignupCta') : t('authPage.emailLoginCta')}
+                    <span className="absolute left-5 top-1/2 inline-flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full border border-white/15 bg-white/12 text-white shadow-[0_4px_10px_rgba(2,6,23,0.12)]">
+                      <Mail size={16} />
+                    </span>
+                    <span className="block w-full text-center">{mode === 'signup' ? t('authPage.emailSignupCta') : t('authPage.emailLoginCta')}</span>
                   </button>
 
                   <div className="rounded-2xl border border-white/10 bg-white/8 px-4 py-3 text-xs leading-relaxed text-white/72">
                     {mode === 'signup' ? t('authPage.signupExistingAccountHint') : t('authPage.trustNote.title')}
                   </div>
+
+                  {emailFallbackVisible ? renderEmailPasswordForm({ variant: 'dark' }) : null}
 
                   {isGoogleInAppBrowser ? (
                     <button
@@ -3961,261 +4066,80 @@ export default function Login() {
                 {contextMessage}
               </p>
 
-              <FoundersShowcase compact className="mt-6" />
-
               <div className="mt-6 rounded-[30px] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.10),rgba(255,255,255,0.05))] p-5 shadow-[0_20px_60px_rgba(2,6,23,0.24)] backdrop-blur-sm md:p-6">
                 <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-                  <div className="min-w-0 max-w-2xl">
-                    <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/60">{t('authPage.tour.eyebrow')}</div>
-                    <div className="mt-3 text-2xl font-semibold leading-tight text-white md:text-3xl">
-                      {t('authPage.tour.teaserTitle')}
-                    </div>
-                    <div className="mt-3 text-sm leading-relaxed text-white/72 md:text-base">
-                      {t('authPage.tour.teaserBody')}
-                    </div>
+                  <div className="max-w-2xl">
+                    <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/60">{authVideoUi.eyebrow}</div>
+                    <div className="mt-3 text-2xl font-semibold leading-tight text-white md:text-3xl">{authVideoUi.title}</div>
+                    <div className="mt-3 text-sm leading-relaxed text-white/72 md:text-base">{authVideoUi.body}</div>
                   </div>
-
-                  <div className="w-full rounded-[24px] border border-white/10 bg-white/9 p-4 md:max-w-[220px]">
-                    <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/55">{t('authPage.tour.durationLabel')}</div>
-                    <div className="mt-2 text-lg font-semibold text-white">{t('authPage.tour.durationValue')}</div>
-                    <div className="mt-2 text-xs leading-relaxed text-white/65">{t('authPage.tour.durationBody')}</div>
-                  </div>
+                  <a
+                    href={YOUTUBE_CHANNEL_URL}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center justify-center rounded-2xl border border-red-300/35 bg-red-500/85 px-4 py-2.5 text-xs font-semibold text-white shadow-[0_14px_34px_rgba(239,68,68,0.24)] transition hover:bg-red-500"
+                  >
+                    {authVideoUi.channelCta}
+                  </a>
                 </div>
 
-                <div className="mt-5 hidden flex-wrap gap-2 lg:flex">
-                  {authSupportUi.quickFacts.map((item) => (
+                <div className="mt-5 space-y-3">
+                  {AUTH_SHORT_VIDEOS.map((video) => (
                     <div
-                      key={item.title}
-                      className="inline-flex items-center rounded-full border border-white/10 bg-white/8 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-white/82"
+                      key={video.videoId}
+                      className="flex flex-col gap-3 rounded-[24px] border border-white/10 bg-white/8 p-3 transition hover:bg-white/12 md:flex-row md:items-center"
                     >
-                      {item.title}
+                      <div className="overflow-hidden rounded-[18px] border border-white/10 bg-slate-950/40 md:w-[320px] md:min-w-[320px]">
+                        <div className="aspect-video w-full">
+                          <iframe
+                            src={`https://www.youtube-nocookie.com/embed/${video.videoId}?rel=0&modestbranding=1`}
+                            title={video.title}
+                            className="h-full w-full"
+                            loading="lazy"
+                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                            referrerPolicy="strict-origin-when-cross-origin"
+                            allowFullScreen
+                          />
+                        </div>
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="text-sm font-semibold leading-snug text-white md:text-base">{video.title}</div>
+                        <a
+                          href={YOUTUBE_CHANNEL_URL}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="mt-3 inline-flex items-center rounded-full border border-white/10 bg-white/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-white/72 transition hover:bg-white/16"
+                        >
+                          {authVideoUi.channelCta}
+                        </a>
+                      </div>
                     </div>
                   ))}
                 </div>
 
-                <div className="mt-5 flex flex-col gap-3 border-t border-white/10 pt-4 md:flex-row md:items-center md:justify-between">
-                  <div className="flex flex-col gap-2 md:max-w-[58%]">
-                    <div className="text-xs leading-relaxed text-white/60">{t('authPage.tour.exitHint')}</div>
-                    <div className="text-[11px] leading-relaxed text-white/45">{authSupportUi.ctaNote}</div>
-                  </div>
-                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-                    <button
-                      type="button"
-                      onClick={openAuthTour}
-                      className="inline-flex items-center justify-center rounded-2xl bg-[linear-gradient(135deg,#fb7185,#fb923c)] px-4 py-2.5 text-xs font-semibold text-slate-950 shadow-[0_14px_34px_rgba(251,146,60,0.24)] transition hover:brightness-105"
-                    >
-                      {t('authPage.tour.open')}
-                    </button>
-                    <a
-                      href={authSupportWhatsappHref}
-                      onClick={handleLandingWhatsAppClick}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="hidden items-center justify-center rounded-2xl border border-emerald-300/35 bg-emerald-300/12 px-4 py-2.5 text-xs font-semibold text-emerald-50 transition hover:bg-emerald-300/18 sm:inline-flex"
-                    >
-                      {authSupportUi.whatsappLabel}
-                    </a>
-                  </div>
-                </div>
-
                 {!user ? (
-                  <div ref={mobileAuthCtaRef} className="mt-5 space-y-3 rounded-[28px] border border-white/10 bg-slate-950/28 p-4 shadow-[0_18px_40px_rgba(2,6,23,0.20)] backdrop-blur-sm lg:hidden">
-                    <div className="inline-flex rounded-2xl border border-white/10 bg-white/8 p-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]">
-                      <button
-                        type="button"
-                        onClick={() => switchAuthMode('signup')}
-                        className={[
-                          'rounded-[14px] px-4 py-2 text-xs font-semibold transition',
-                          mode === 'signup'
-                            ? 'bg-white text-slate-900 shadow-[0_10px_24px_rgba(15,23,42,0.16)]'
-                            : 'text-white/65 hover:text-white',
-                        ].join(' ')}
-                      >
-                        {t('authPage.actions.signup')}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => switchAuthMode('login')}
-                        className={[
-                          'rounded-[14px] px-4 py-2 text-xs font-semibold transition',
-                          mode === 'login'
-                            ? 'bg-white text-slate-900 shadow-[0_10px_24px_rgba(15,23,42,0.16)]'
-                            : 'text-white/65 hover:text-white',
-                        ].join(' ')}
-                      >
-                        {t('authPage.actions.login')}
-                      </button>
-                    </div>
-
-                    <div>
-                      <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/55">
-                        {mode === 'signup' ? t('authPage.actions.signup') : t('authPage.actions.login')}
-                      </div>
-                      <div className="mt-2 text-xl font-semibold text-white">
-                        {mode === 'signup' ? t('authPage.googleSignupCta') : t('authPage.googleCta')}
-                      </div>
-                    </div>
-
-                      <Link
-                        to={APP_INSTALL_PATH}
-                        onClick={() => trackClick('auth_install_cta_mobile')}
-                        className="flex items-start gap-3 rounded-[24px] border border-emerald-300/30 bg-emerald-300/12 p-4 text-left text-white shadow-[0_16px_36px_rgba(2,6,23,0.18)] transition hover:bg-emerald-300/18"
-                      >
-                        <div className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-white text-emerald-700 shadow-[0_12px_28px_rgba(255,255,255,0.16)]">
-                          <Download size={18} />
-                        </div>
-                        <div className="flex-1">
-                          <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-emerald-100/90">{installLinkUi.eyebrow}</div>
-                          <div className="mt-1 text-sm font-semibold text-white">{installLinkUi.title}</div>
-                          <div className="mt-1 text-xs leading-relaxed text-white/72">{installLinkUi.loginBody}</div>
-                        </div>
-                      </Link>
-
-                    {mode === 'signup' ? (
-                      <div className="rounded-2xl border border-white/10 bg-white/8 p-3">
-                        <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/55">{authSupportUi.decisionSummaryLabel}</div>
-                        <div className="mt-3 space-y-2">
-                          {landingSupportFacts.map((item) => (
-                            <div key={item.title} className="rounded-2xl border border-white/8 bg-black/10 px-3 py-2.5">
-                              <div className="text-xs font-semibold text-white">{item.title}</div>
-                              <div className="mt-1 text-[11px] leading-relaxed text-white/68">{item.body}</div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    ) : null}
-
-                    {error ? (
-                      <div className="rounded-2xl border border-rose-300/30 bg-rose-300/10 p-3 text-sm text-rose-50">
-                        <div>{error}</div>
-                        <button
-                          type="button"
-                          onClick={prefillFeedbackFromError}
-                          className="mt-2 text-xs font-semibold text-amber-100 hover:underline"
-                        >
-                          {t('authPage.feedback.reportCta')}
-                        </button>
-                      </div>
-                    ) : null}
-                    {info ? (
-                      <div className="rounded-2xl border border-emerald-300/25 bg-emerald-300/10 p-3 text-sm text-emerald-50">{info}</div>
-                    ) : null}
-
-                    {import.meta.env.DEV && debugAuth ? (
-                      <div className="rounded-2xl border border-white/10 bg-white/8 p-3">
-                        <div className="text-[11px] font-semibold text-white/88">DEV: Firebase Auth debug</div>
-                        <div className="mt-1 text-[11px] text-white/72"><span className="font-semibold">code:</span> {debugAuth.code || '-'}</div>
-                        <div className="text-[11px] text-white/72"><span className="font-semibold">message:</span> {debugAuth.message || '-'}</div>
-                        {debugAuth.email ? <div className="text-[11px] text-white/72"><span className="font-semibold">email:</span> {debugAuth.email}</div> : null}
-                      </div>
-                    ) : null}
-
-                    <button
-                      type="button"
-                      onClick={handleGoogle}
-                      disabled={busy}
-                      className="w-full rounded-2xl bg-white px-5 py-4 text-sm font-semibold text-slate-950 shadow-[0_18px_40px_rgba(255,255,255,0.16)] transition hover:bg-white/92 disabled:opacity-60"
+                  <div className="mt-5 space-y-3 lg:hidden">
+                    <Link
+                      to={APP_INSTALL_PATH}
+                      onClick={() => trackClick('auth_install_cta_mobile')}
+                      className="flex items-start gap-3 rounded-[24px] border border-emerald-300/30 bg-emerald-300/12 p-4 text-left text-white shadow-[0_16px_36px_rgba(2,6,23,0.18)] transition hover:bg-emerald-300/18"
                     >
-                      {mode === 'signup' ? t('authPage.googleSignupCta') : t('authPage.googleCta')}
-                    </button>
-
-                    {isGoogleInAppBrowser ? (
-                      <button
-                        type="button"
-                        onClick={handleOpenInBrowserClick}
-                        disabled={busy}
-                        className="w-full rounded-2xl border border-amber-200/40 bg-amber-200/12 px-5 py-3 text-sm font-semibold text-amber-50 shadow-[0_12px_32px_rgba(2,6,23,0.16)] transition hover:bg-amber-200/18 disabled:opacity-60"
-                      >
-                        {t('authPage.actions.openInBrowser')}
-                      </button>
-                    ) : null}
-
-                    <button
-                      type="button"
-                      onClick={handleEmailMethodClick}
-                      disabled={busy}
-                      className="w-full rounded-2xl border border-white/15 bg-white/8 px-5 py-4 text-sm font-semibold text-white shadow-[0_12px_32px_rgba(2,6,23,0.16)] transition hover:bg-white/12 disabled:opacity-60"
-                    >
-                      {mode === 'signup' ? t('authPage.emailSignupCta') : t('authPage.emailLoginCta')}
-                    </button>
-
-                    {mode === 'signup' ? (
-                      <a
-                        href={authSupportWhatsappHref}
-                        onClick={handleLandingWhatsAppClick}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex w-full items-center justify-center rounded-2xl border border-emerald-300/30 bg-emerald-300/12 px-5 py-3 text-xs font-semibold text-emerald-50 transition hover:bg-emerald-300/18"
-                      >
-                        {authSupportUi.whatsappLabel}
-                      </a>
-                    ) : null}
-
-                    {mode === 'signup' ? (
-                      <div className="rounded-2xl border border-amber-300/20 bg-amber-300/10 px-4 py-3 text-xs leading-relaxed text-amber-50">
-                        {t('authPage.signupExistingAccountHint')}
+                      <div className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-white text-emerald-700 shadow-[0_12px_28px_rgba(255,255,255,0.16)]">
+                        <Download size={18} />
                       </div>
-                    ) : null}
-
-                    {emailFallbackVisible ? (
-                      <div className="rounded-[24px] border border-white/10 bg-white/8 p-4 shadow-[0_12px_30px_rgba(2,6,23,0.18)]">
-                        <div className="text-xs text-white/60">{t('authPage.or')}</div>
-
-                        <form onSubmit={handleEmailPassword} className="mt-3 grid grid-cols-1 gap-3">
-                          <div>
-                            <label className="block text-xs font-semibold text-white/80">{t('authPage.labels.email')}</label>
-                            <input
-                              type="email"
-                              value={email}
-                              onChange={(e) => setEmail(e.target.value)}
-                              className="mt-1 w-full rounded-2xl border border-white/15 bg-white px-4 py-3 text-sm text-slate-950 shadow-sm"
-                              placeholder={t('authPage.placeholders.email')}
-                              autoComplete="email"
-                              disabled={busy}
-                            />
-                          </div>
-
-                          <div>
-                            <label className="block text-xs font-semibold text-white/80">{t('authPage.labels.password')}</label>
-                            <input
-                              type="password"
-                              value={password}
-                              onChange={(e) => setPassword(e.target.value)}
-                              className="mt-1 w-full rounded-2xl border border-white/15 bg-white px-4 py-3 text-sm text-slate-950 shadow-sm"
-                              placeholder={t('authPage.placeholders.password')}
-                              autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
-                              disabled={busy}
-                            />
-                          </div>
-
-                          {mode === 'signup' ? (
-                            <div>
-                              <label className="block text-xs font-semibold text-white/80">{t('authPage.labels.confirmPassword')}</label>
-                              <input
-                                type="password"
-                                value={confirmPassword}
-                                onChange={(e) => setConfirmPassword(e.target.value)}
-                                className="mt-1 w-full rounded-2xl border border-white/15 bg-white px-4 py-3 text-sm text-slate-950 shadow-sm"
-                                placeholder={t('authPage.placeholders.confirmPassword')}
-                                autoComplete="new-password"
-                                disabled={busy}
-                              />
-                            </div>
-                          ) : null}
-
-                          <button
-                            type="submit"
-                            disabled={busy}
-                            className="w-full rounded-2xl bg-[linear-gradient(135deg,#fb7185,#fb923c)] px-5 py-3 text-sm font-semibold text-slate-950 shadow-[0_18px_38px_rgba(249,115,22,0.18)] transition hover:brightness-105 disabled:opacity-60"
-                          >
-                            {mode === 'signup' ? t('authPage.actions.signup') : t('authPage.actions.login')}
-                          </button>
-                        </form>
+                      <div className="flex-1">
+                        <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-emerald-100/90">{installLinkUi.eyebrow}</div>
+                        <div className="mt-1 text-sm font-semibold text-white">{installLinkUi.title}</div>
+                        <div className="mt-1 text-xs leading-relaxed text-white/72">{installLinkUi.loginBody}</div>
                       </div>
-                    ) : null}
+                    </Link>
+
+                    <AuthSocialLinks lang={i18n?.language} idSuffix="auth-mobile" />
                   </div>
                 ) : null}
               </div>
+
+              <FoundersShowcase compact className="mt-6" />
             </div>
           </div>
 
@@ -4275,23 +4199,6 @@ export default function Login() {
                 </div>
               </Link>
 
-              <div className="mt-4 flex flex-col gap-3 rounded-[24px] border border-slate-200 bg-[linear-gradient(180deg,#ffffff,#f8fafc)] p-4 shadow-[0_12px_30px_rgba(148,163,184,0.10)] sm:flex-row sm:items-center sm:justify-between">
-                <div className="min-w-0">
-                  <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">{t('authPage.tour.eyebrow')}</div>
-                  <div className="mt-1 text-sm font-semibold text-slate-950">{t('authPage.tour.teaserTitle')}</div>
-                  <div className="mt-1 text-xs leading-relaxed text-slate-600">
-                    {t('authPage.tour.durationValue')} • {t('authPage.tour.durationBody')}
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={openAuthTour}
-                  className="inline-flex items-center justify-center rounded-2xl border border-slate-300 bg-white px-4 py-2.5 text-xs font-semibold text-slate-900 shadow-[0_10px_24px_rgba(15,23,42,0.08)] transition hover:bg-slate-50"
-                >
-                  {t('authPage.tour.open')}
-                </button>
-              </div>
-
               {error ? (
                 <div className="mt-4 rounded-2xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-800">
                   <div>{error}</div>
@@ -4319,27 +4226,16 @@ export default function Login() {
 
               {!user ? (
                 <div ref={desktopAuthCtaRef} className="mt-5 space-y-3 rounded-[28px] border border-slate-200 bg-white/90 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_16px_40px_rgba(148,163,184,0.10)]">
-                  {mode === 'signup' ? (
-                    <div className="rounded-[24px] border border-slate-200 bg-[linear-gradient(180deg,#ffffff,#f8fafc)] p-4 shadow-[0_12px_30px_rgba(148,163,184,0.08)]">
-                      <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">{authSupportUi.decisionSummaryLabel}</div>
-                      <div className="mt-3 space-y-2">
-                        {landingSupportFacts.map((item) => (
-                          <div key={item.title} className="rounded-2xl border border-slate-200 bg-white px-3 py-2.5">
-                            <div className="text-xs font-semibold text-slate-900">{item.title}</div>
-                            <div className="mt-1 text-[11px] leading-relaxed text-slate-600">{item.body}</div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  ) : null}
-
                   <button
                     type="button"
                     onClick={handleGoogle}
                     disabled={busy}
-                    className="w-full rounded-2xl bg-[linear-gradient(135deg,#0f172a,#1e293b)] px-5 py-4 text-sm font-semibold text-white shadow-[0_18px_40px_rgba(15,23,42,0.20)] transition hover:brightness-105 disabled:opacity-60"
+                    className="relative w-full rounded-2xl bg-[linear-gradient(135deg,#0f172a,#1e293b)] px-5 py-4 text-sm font-semibold text-white shadow-[0_18px_40px_rgba(15,23,42,0.20)] transition hover:brightness-105 disabled:opacity-60"
                   >
-                    {mode === 'signup' ? t('authPage.googleSignupCta') : t('authPage.googleCta')}
+                    <span className="absolute left-5 top-1/2 inline-flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full bg-white ring-1 ring-white/60 shadow-[0_6px_14px_rgba(255,255,255,0.18)]">
+                      <img src={googleLogoSrc} alt="" aria-hidden="true" className="h-7 w-7 object-contain" />
+                    </span>
+                    <span className="block w-full text-center">{mode === 'signup' ? t('authPage.googleSignupCta') : t('authPage.googleCta')}</span>
                   </button>
 
                   {isGoogleInAppBrowser ? (
@@ -4357,9 +4253,12 @@ export default function Login() {
                     type="button"
                     onClick={handleEmailMethodClick}
                     disabled={busy}
-                    className="w-full rounded-2xl border border-slate-300 bg-[linear-gradient(180deg,#ffffff,#f8fafc)] px-5 py-4 text-sm font-semibold text-slate-900 shadow-[0_12px_32px_rgba(148,163,184,0.10)] transition hover:bg-slate-50 disabled:opacity-60"
+                    className="relative w-full rounded-2xl border border-slate-300 bg-[linear-gradient(180deg,#ffffff,#f8fafc)] px-5 py-4 text-sm font-semibold text-slate-900 shadow-[0_12px_32px_rgba(148,163,184,0.10)] transition hover:bg-slate-50 disabled:opacity-60"
                   >
-                    {mode === 'signup' ? t('authPage.emailSignupCta') : t('authPage.emailLoginCta')}
+                    <span className="absolute left-5 top-1/2 inline-flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full border border-slate-300 bg-slate-50 text-slate-700 shadow-[0_4px_10px_rgba(148,163,184,0.14)]">
+                      <Mail size={16} />
+                    </span>
+                    <span className="block w-full text-center">{mode === 'signup' ? t('authPage.emailSignupCta') : t('authPage.emailLoginCta')}</span>
                   </button>
 
                   {mode === 'signup' ? (
@@ -4381,61 +4280,10 @@ export default function Login() {
                   ) : null}
 
                   {emailFallbackVisible ? (
-                    <div className="rounded-[24px] border border-slate-200 bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(248,250,252,0.92))] p-4 shadow-[0_12px_30px_rgba(148,163,184,0.08)]">
-                      <div className="text-xs text-slate-500">{t('authPage.or')}</div>
-
-                      <form onSubmit={handleEmailPassword} className="mt-3 grid grid-cols-1 gap-3">
-                        <div>
-                          <label className="block text-xs font-semibold text-slate-700">{t('authPage.labels.email')}</label>
-                          <input
-                            type="email"
-                            value={email}
-                            onChange={(e) => setEmail(e.target.value)}
-                            className="mt-1 w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm shadow-sm"
-                            placeholder={t('authPage.placeholders.email')}
-                            autoComplete="email"
-                            disabled={busy}
-                          />
-                        </div>
-
-                        <div>
-                          <label className="block text-xs font-semibold text-slate-700">{t('authPage.labels.password')}</label>
-                          <input
-                            type="password"
-                            value={password}
-                            onChange={(e) => setPassword(e.target.value)}
-                            className="mt-1 w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm shadow-sm"
-                            placeholder={t('authPage.placeholders.password')}
-                            autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
-                            disabled={busy}
-                          />
-                        </div>
-
-                        {mode === 'signup' ? (
-                          <div>
-                            <label className="block text-xs font-semibold text-slate-700">{t('authPage.labels.confirmPassword')}</label>
-                            <input
-                              type="password"
-                              value={confirmPassword}
-                              onChange={(e) => setConfirmPassword(e.target.value)}
-                              className="mt-1 w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm shadow-sm"
-                              placeholder={t('authPage.placeholders.confirmPassword')}
-                              autoComplete="new-password"
-                              disabled={busy}
-                            />
-                          </div>
-                        ) : null}
-
-                        <button
-                          type="submit"
-                          disabled={busy}
-                          className="w-full rounded-2xl bg-[linear-gradient(135deg,#ef4444,#f97316)] px-5 py-3 text-sm font-semibold text-white shadow-[0_18px_38px_rgba(249,115,22,0.18)] transition hover:brightness-105 disabled:opacity-60"
-                        >
-                          {mode === 'signup' ? t('authPage.actions.signup') : t('authPage.actions.login')}
-                        </button>
-                      </form>
-                    </div>
+                    renderEmailPasswordForm()
                   ) : null}
+
+                  <AuthSocialLinks lang={i18n?.language} idSuffix="auth-desktop" />
 
                   <div className="text-[11px] leading-relaxed text-slate-500">{authSupportUi.ctaNote}</div>
                 </div>

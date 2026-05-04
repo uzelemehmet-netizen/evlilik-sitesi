@@ -44,6 +44,16 @@ function uniq(list) {
   return out;
 }
 
+export function getGeminiTranslateApiKey() {
+  return safeStr(
+    process.env.GEMINI_TRANSLATE_API_KEY || process.env.GEMINI_API_KEY || process.env.GOOGLE_GEMINI_API_KEY
+  );
+}
+
+export function hasGeminiTranslateApiKey() {
+  return !!getGeminiTranslateApiKey();
+}
+
 let MODEL_CACHE = { atMs: 0, models: [] };
 
 async function listGeminiModels(apiKey) {
@@ -105,7 +115,7 @@ function pickPreferredModelFromList(models) {
 }
 
 export async function translateWithGemini({ text, targetLang }) {
-  const apiKey = safeStr(process.env.GEMINI_API_KEY || process.env.GOOGLE_GEMINI_API_KEY);
+  const apiKey = getGeminiTranslateApiKey();
   if (!apiKey) {
     const err = new Error('translate_not_configured');
     err.statusCode = 501;

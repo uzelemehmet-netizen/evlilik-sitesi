@@ -1,5 +1,9 @@
+const IMAGE_FILE_NAME_RE = /\.(avif|bmp|gif|heic|heif|jpe?g|png|webp)$/i;
+
 function isImageFile(file) {
-  return !!file && typeof file.type === 'string' && file.type.startsWith('image/');
+  if (!file) return false;
+  if (typeof file.type === 'string' && file.type.startsWith('image/')) return true;
+  return IMAGE_FILE_NAME_RE.test(String(file?.name || '').trim());
 }
 
 function safeFileName(file, fallback) {

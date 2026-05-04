@@ -45,7 +45,7 @@ export async function getContactShareActivityStatus({ tx, matchRef, userIds }) {
     };
   }
 
-  const snap = await tx.get(matchRef.collection('messages').orderBy('createdAtMs', 'asc'));
+  const snap = await tx.get(matchRef.collection('messages').orderBy('createdAt', 'asc'));
   snap.forEach((doc) => {
     const data = doc.data() || {};
     if (safeStr(data?.type) === 'system') return;

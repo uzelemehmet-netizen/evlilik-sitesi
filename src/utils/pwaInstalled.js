@@ -77,17 +77,26 @@ export function hasReportedPwaInstalledToServer(uid) {
 }
 
 export async function reportPwaInstalledToServerBestEffort({ source = 'unknown', uid } = {}) {
-  // Only report if we have a local install signal.
-  if (!isPwaInstalled()) return false;
+  const normalizedSource = String(source || 'unknown').trim() || 'unknown';
+  const runningAsPwa = isRunningAsPwa();
+  const pendingInstallSignal = wantsReportPwaInstalledToServer();
+  const explicitInstallSignal = normalizedSource === 'appinstalled';
+
+  // Only report to the server when we have a live standalone session or a pending real install signal.
+  if (!runningAsPwa && !pendingInstallSignal && !explicitInstallSignal) return false;
 
   const u = String(uid || '').trim();
-  if (u && hasReportedPwaInstalledToServer(u)) return true;
+  if (u && hasReportedPwaInstalledToServer(u) && !runningAsPwa) return true;
 
   try {
     await authFetch('/api/pwa-installed-upsert', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ source: String(source || 'unknown').slice(0, 80) }),
+      body: JSON.stringify({
+        source: normalizedSource.slice(0, 80),
+        runningAsPwa,
+        installSignal: runningAsPwa || pendingInstallSignal || explicitInstallSignal,
+      }),
     });
 
     if (u) safeSetStorageItem(serverMarkedKey(u), '1');

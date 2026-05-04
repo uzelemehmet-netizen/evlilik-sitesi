@@ -6,19 +6,23 @@ import { useAuth } from '../../auth/AuthProvider';
 import { db } from '../../config/firebaseDb';
 import Navigation from '../../components/Navigation';
 import Footer from '../../components/Footer';
+import ImageLightbox from '../../components/ImageLightbox';
+import YouTubeVisitCard from '../../components/YouTubeVisitCard';
 import StudioMatchCard from '../../components/studio/StudioMatchCard';
 import StudioPersonCard from '../../components/studio/StudioPersonCard';
 import StudioInboxModal from '../../components/studio/StudioInboxModal';
 import { authFetch } from '../../utils/authFetch';
+import { useAutoLocalizedProfileText } from '../../hooks/useAutoLocalizedProfileText';
+import { getLocalizedProfileText } from '../../utils/profileText';
 import { translateStudioApiError } from '../../utils/studioErrorI18n';
 import { useMatchmakingResetAtMs } from '../../utils/matchmakingReset';
-import { HelpCircle, MessageCircle, User, Compass } from 'lucide-react';
+import { HelpCircle, MessageCircle, Share2, User, Compass } from 'lucide-react';
 import { openPreviewGate } from '../../utils/previewGate';
 import { buildPreviewMatches } from '../../utils/studioPreviewData';
 import StudioBottomNav from '../../components/studio/StudioBottomNav';
 import StudioInviteFriendsCard from '../../components/studio/StudioInviteFriendsCard.jsx';
-import PwaInstallCard from '../../components/PwaInstallCard.jsx';
 import { isTutorialActive } from '../../utils/tutorialState.js';
+import { formatDateTimeFromMs, formatRelativeTimeFromMs, timestampToMs } from '../../utils/relativeTime';
 import {
   hasAnyMatchmakingPhotoInApplicationDoc,
   hasAnyStoredMatchmakingPhotoInApplicationDoc,
@@ -251,13 +255,14 @@ function buildPersonProfileSections(profile, t) {
   const detailsEntries = [
     { label: t('matchmakingPage.form.labels.height'), value: typeof details?.heightCm === 'number' ? `${details.heightCm} cm` : '' },
     { label: t('matchmakingPage.form.labels.weight'), value: typeof details?.weightKg === 'number' ? `${details.weightKg} kg` : '' },
-    { label: t('matchmakingPage.form.labels.occupation'), value: formatMappedProfileValue(t, 'occupation', details?.occupation) || safeStr(details?.occupation) },
-    { label: t('matchmakingPage.form.labels.education'), value: formatMappedProfileValue(t, 'education', details?.education) || safeStr(details?.education) },
+    { label: t('matchmakingPage.form.labels.occupation'), value: formatMappedProfileValue(t, 'occupation', details?.occupation || p?.occupation) || safeStr(details?.occupation || p?.occupation) },
+    { label: t('matchmakingPage.form.labels.education'), value: formatMappedProfileValue(t, 'education', details?.education || p?.education) || safeStr(details?.education || p?.education) },
     { label: t('matchmakingPage.form.labels.educationDepartment'), value: safeStr(details?.educationDepartment) },
-    { label: t('matchmakingPage.form.labels.maritalStatus'), value: formatMappedProfileValue(t, 'maritalStatus', details?.maritalStatus) },
-    { label: t('matchmakingPage.form.labels.hasChildren'), value: formatYesNoLike(t, details?.hasChildren) },
+    { label: t('matchmakingPage.form.labels.maritalStatus'), value: formatMappedProfileValue(t, 'maritalStatus', details?.maritalStatus || p?.maritalStatus) },
+    { label: t('matchmakingPage.form.labels.hasChildren'), value: formatYesNoLike(t, details?.hasChildren || p?.hasChildren) },
     { label: t('matchmakingPage.form.labels.childrenCount'), value: typeof details?.childrenCount === 'number' ? String(details.childrenCount) : '' },
     { label: t('matchmakingPage.form.labels.childrenLivingSituation'), value: formatMappedProfileValue(t, 'childrenLivingSituation', details?.childrenLivingSituation) },
+    { label: t('matchmakingPage.form.labels.liveWithChildrenAfterMarriage'), value: formatYesNoLike(t, details?.liveWithChildrenAfterMarriage) },
     { label: t('matchmakingPage.form.labels.incomeLevel'), value: formatMappedProfileValue(t, 'incomeLevel', details?.incomeLevel) },
     { label: t('matchmakingPage.form.labels.religion'), value: formatMappedProfileValue(t, 'religion', details?.religion) },
     { label: t('matchmakingPage.form.labels.religiousValues'), value: formatMappedProfileValue(t, 'religiousValues', details?.religiousValues) || safeStr(details?.religiousValues) },
@@ -276,8 +281,16 @@ function buildPersonProfileSections(profile, t) {
         : '',
     },
     { label: t('matchmakingPage.form.labels.communicationLanguages'), value: formatLanguageChoice(t, details?.communicationLanguage, details?.communicationLanguageOther) },
-    { label: t('matchmakingPage.form.labels.smoking'), value: formatMappedProfileValue(t, 'smoking', details?.smoking) },
-    { label: t('matchmakingPage.form.labels.alcohol'), value: formatMappedProfileValue(t, 'alcohol', details?.alcohol) },
+    {
+      label: t('matchmakingPage.form.labels.partnerTranslationApp'),
+      value: details?.communicationLanguage === 'translation_app' || details?.canCommunicateWithTranslationApp === true
+        ? t('apply.form.options.common.yes')
+        : details?.communicationLanguage
+          ? t('apply.form.options.common.no')
+          : '',
+    },
+    { label: t('matchmakingPage.form.labels.smoking'), value: formatMappedProfileValue(t, 'smoking', details?.smoking || p?.smoking) },
+    { label: t('matchmakingPage.form.labels.alcohol'), value: formatMappedProfileValue(t, 'alcohol', details?.alcohol || p?.alcohol) },
   ].filter((item) => hasMeaningfulProfileValue(item.value));
 
   const communicationMethods = Array.isArray(partner?.communicationMethods)
@@ -301,7 +314,16 @@ function buildPersonProfileSections(profile, t) {
     { label: t('matchmakingPage.form.labels.partnerEducationPreference'), value: formatMappedProfileValue(t, 'education', partner?.educationPreference) },
     { label: t('matchmakingPage.form.labels.partnerOccupationPreference'), value: formatMappedProfileValue(t, 'occupation', partner?.occupationPreference) },
     { label: t('matchmakingPage.form.labels.partnerFamilyValuesPreference'), value: formatMappedProfileValue(t, 'familyValuesPreference', partner?.familyValuesPreference) },
+    { label: t('matchmakingPage.form.labels.partnerCommunicationLanguages'), value: formatLanguageChoice(t, partner?.communicationLanguage, partner?.communicationLanguageOther) },
     { label: t('matchmakingPage.form.labels.partnerCommunicationMethods'), value: communicationMethods },
+    {
+      label: t('matchmakingPage.form.labels.partnerTranslationApp'),
+      value: partner?.translationAppPreference === 'yes' || partner?.canCommunicateWithTranslationApp === true
+        ? t('apply.form.options.common.yes')
+        : partner?.translationAppPreference === 'no' || Array.isArray(partner?.communicationMethods)
+          ? t('apply.form.options.common.no')
+          : '',
+    },
     { label: t('matchmakingPage.form.labels.partnerSmokingPreference'), value: formatMappedProfileValue(t, 'smoking', partner?.smokingPreference) },
     { label: t('matchmakingPage.form.labels.partnerAlcoholPreference'), value: formatMappedProfileValue(t, 'alcohol', partner?.alcoholPreference) },
   ].filter((item) => hasMeaningfulProfileValue(item.value));
@@ -318,10 +340,6 @@ export default function StudioMatches() {
   const isPreview = !user || user.isAnonymous;
   const effectiveUid = isPreview ? '' : String(user?.uid || '').trim();
   const currentUidForView = isPreview ? 'guest' : effectiveUid;
-
-  const howItemsRaw = t('studio.matches.howItems', { returnObjects: true });
-  const howItems = Array.isArray(howItemsRaw) ? howItemsRaw : [];
-  const [howExpanded, setHowExpanded] = useState(false);
 
   const mmReset = useMatchmakingResetAtMs();
   const resetAtMs = typeof mmReset?.resetAtMs === 'number' && Number.isFinite(mmReset.resetAtMs) ? mmReset.resetAtMs : 0;
@@ -348,6 +366,7 @@ export default function StudioMatches() {
   const [inboxMessages, setInboxMessages] = useState([]);
 
   const [inboxModal, setInboxModal] = useState({ open: false, mode: 'requests' });
+  const [lightbox, setLightbox] = useState({ open: false, images: [], index: 0, title: '' });
 
   useEffect(() => {
     const st = location?.state && typeof location.state === 'object' ? location.state : null;
@@ -380,12 +399,14 @@ export default function StudioMatches() {
   const [shortMatch, setShortMatch] = useState(null);
   const [shortMessages, setShortMessages] = useState([]);
   const [shortLoading, setShortLoading] = useState(false);
+  const [shortNowMs, setShortNowMs] = useState(() => Date.now());
   const shortScrollRef = useRef(null);
   const [translateState, setTranslateState] = useState({ loadingId: '', error: '' });
   const [personMessageModal, setPersonMessageModal] = useState({ open: false, targetUid: '', displayName: '', photoUrl: '' });
   const [personMessageText, setPersonMessageText] = useState('');
   const [personMessageState, setPersonMessageState] = useState({ loading: false, error: '' });
   const [personProfileModal, setPersonProfileModal] = useState({ open: false, loading: false, error: '', profile: null, displayName: '' });
+  const [personProfilePhotoIndex, setPersonProfilePhotoIndex] = useState(0);
 
   const activateMembershipRef = useRef(false);
   const paywallAutoActivateRef = useRef(false);
@@ -433,7 +454,7 @@ export default function StudioMatches() {
   }, [profileGateBody, profileGateMode, profileGateNotice]);
 
   const [presenceByUid, setPresenceByUid] = useState({});
-  const presenceUiEnabled = false;
+  const presenceUiEnabled = true;
 
   useEffect(() => {
     inboxLoadRef.current = inboxLoad;
@@ -463,6 +484,18 @@ export default function StudioMatches() {
     if (v && typeof v.toMillis === 'function') return v.toMillis();
     if (v && typeof v.seconds === 'number' && Number.isFinite(v.seconds)) return v.seconds * 1000;
     return 0;
+  };
+
+  const getMatchActivityMs = (match) => {
+    const updatedAtMs = typeof match?.updatedAtMs === 'number' && Number.isFinite(match.updatedAtMs) ? match.updatedAtMs : 0;
+    const updatedAt = asMs(match?.updatedAt);
+    const chatLastMessageAtMsAny =
+      typeof match?.chatLastMessageAtMsAny === 'number' && Number.isFinite(match.chatLastMessageAtMsAny)
+        ? match.chatLastMessageAtMsAny
+        : 0;
+    const createdAtMs = typeof match?.createdAtMs === 'number' && Number.isFinite(match.createdAtMs) ? match.createdAtMs : 0;
+    const createdAt = asMs(match?.createdAt);
+    return Math.max(updatedAtMs, updatedAt, chatLastMessageAtMsAny, createdAtMs, createdAt);
   };
 
   const filterInboxLikes = (raw, uid, cutoffMs) => {
@@ -664,6 +697,22 @@ export default function StudioMatches() {
     goToProfileCompletionTarget();
   };
 
+  const openDeferredPhotoGate = () => {
+    try {
+      navigate('/profilim', { replace: false, state: { openPhotoManager: true, profileGate: 'deferred_photo_required' } });
+    } catch {
+      // noop
+    }
+  };
+
+  const openDeferredWhatsappGate = () => {
+    try {
+      navigate('/profilim', { replace: false, state: { profileGate: 'deferred_whatsapp_required' } });
+    } catch {
+      // noop
+    }
+  };
+
   const dismissCompleteProfileGate = () => setCompleteProfileGateOpen(false);
 
   const goToProfileCompletionTarget = () => {
@@ -728,7 +777,7 @@ export default function StudioMatches() {
     if (preferUpdatedAt) {
       return query(...base, orderBy('updatedAt', 'desc'), limit(25));
     }
-    return query(...base, orderBy('createdAt', 'desc'), limit(25));
+    return query(...base, orderBy('createdAt', 'desc'), limit(100));
   };
 
   // Gelen beğeniler (inbox)
@@ -981,7 +1030,15 @@ export default function StudioMatches() {
     } catch (e) {
       const msg = String(e?.message || '').trim();
       if (msg === 'membership_required') requirePaid();
-      if (msg === 'profile_incomplete' || msg === 'application_not_found' || msg === 'application_required' || msg === 'photo_required') requireProfile();
+      if (msg === 'photo_review_required') {
+        navigate('/profilim', { replace: false, state: { openPhotoManager: true, profileGate: 'photo_review_required' } });
+      } else if (msg === 'deferred_photo_required') {
+        openDeferredPhotoGate();
+      } else if (msg === 'deferred_whatsapp_required') {
+        openDeferredWhatsappGate();
+      } else if (msg === 'profile_incomplete' || msg === 'application_not_found' || msg === 'application_required' || msg === 'photo_required') {
+        requireProfile();
+      }
       setInboxAction({ loadingId: '', error: translateStudioApiError(t, msg) || msg || 'action_failed' });
     }
   };
@@ -1020,7 +1077,13 @@ export default function StudioMatches() {
     } catch (e) {
       const msg = String(e?.message || '').trim();
       if (msg === 'membership_required') requirePaid();
-      if (msg === 'profile_incomplete' || msg === 'application_not_found' || msg === 'application_required' || msg === 'photo_required') {
+      if (msg === 'photo_review_required') {
+        navigate('/profilim', { replace: false, state: { openPhotoManager: true, profileGate: 'photo_review_required' } });
+      } else if (msg === 'deferred_photo_required') {
+        openDeferredPhotoGate();
+      } else if (msg === 'deferred_whatsapp_required') {
+        openDeferredWhatsappGate();
+      } else if (msg === 'profile_incomplete' || msg === 'application_not_found' || msg === 'application_required' || msg === 'photo_required') {
         if (isPreMatch) openCompleteProfileGate();
         else requireProfile();
       }
@@ -1088,6 +1151,19 @@ export default function StudioMatches() {
       // noop
     }
   }, [shortModal?.open, shortMessages.length]);
+
+  useEffect(() => {
+    if (!shortModal?.open) return;
+    if (!Array.isArray(shortMessages) || shortMessages.length === 0) return;
+    const timer = setInterval(() => setShortNowMs(Date.now()), 30000);
+    return () => {
+      try {
+        clearInterval(timer);
+      } catch {
+        // noop
+      }
+    };
+  }, [shortMessages, shortModal?.open]);
 
   const shortLimitInfo = useMemo(() => {
     const uid = effectiveUid;
@@ -1210,18 +1286,8 @@ export default function StudioMatches() {
       })
       .slice()
       .sort((a, b) => {
-        const aMs =
-          (typeof a?.updatedAtMs === 'number' && Number.isFinite(a.updatedAtMs) ? a.updatedAtMs : 0) ||
-          asMs(a?.updatedAt) ||
-          (typeof a?.createdAtMs === 'number' && Number.isFinite(a.createdAtMs) ? a.createdAtMs : 0) ||
-          asMs(a?.createdAt) ||
-          0;
-        const bMs =
-          (typeof b?.updatedAtMs === 'number' && Number.isFinite(b.updatedAtMs) ? b.updatedAtMs : 0) ||
-          asMs(b?.updatedAt) ||
-          (typeof b?.createdAtMs === 'number' && Number.isFinite(b.createdAtMs) ? b.createdAtMs : 0) ||
-          asMs(b?.createdAt) ||
-          0;
+        const aMs = getMatchActivityMs(a);
+        const bMs = getMatchActivityMs(b);
         if (bMs !== aMs) return bMs - aMs;
         return String(a?.id || '').localeCompare(String(b?.id || ''));
       });
@@ -1306,6 +1372,17 @@ export default function StudioMatches() {
       return readMs <= 0;
     }).length;
   }, [inboxMessages]);
+
+  const modalAbout = useAutoLocalizedProfileText(personProfileModal.profile, 'about', i18n.language);
+  const modalExpectations = useAutoLocalizedProfileText(personProfileModal.profile, 'expectations', i18n.language);
+
+  const closePersonProfileModal = () => {
+    setPersonProfileModal({ open: false, loading: false, error: '', profile: null, displayName: '' });
+  };
+
+  useEffect(() => {
+    setPersonProfilePhotoIndex(0);
+  }, [personProfileModal.open, personProfileModal.profile?.uid]);
 
   const markInboxMessageRead = async ({ requestId, fromUid }) => {
     // accessRequests mesajı (opsiyonel)
@@ -1396,7 +1473,15 @@ export default function StudioMatches() {
       } catch (e) {
         const msg = String(e?.message || '').trim();
         if (msg === 'membership_required' || msg === 'free_active_membership_required') requirePaid();
-        if (msg === 'profile_incomplete' || msg === 'application_not_found' || msg === 'application_required' || msg === 'photo_required') openCompleteProfileGate();
+        if (msg === 'photo_review_required') {
+          navigate('/profilim', { replace: false, state: { openPhotoManager: true, profileGate: 'photo_review_required' } });
+        } else if (msg === 'deferred_photo_required') {
+          openDeferredPhotoGate();
+        } else if (msg === 'deferred_whatsapp_required') {
+          openDeferredWhatsappGate();
+        } else if (msg === 'profile_incomplete' || msg === 'application_not_found' || msg === 'application_required' || msg === 'photo_required') {
+          openCompleteProfileGate();
+        }
         setPeopleAction({ loadingUid: '', kind: '', error: translateStudioApiError(t, msg) || msg || 'action_failed', notice: '' });
       }
       return;
@@ -1437,7 +1522,15 @@ export default function StudioMatches() {
     } catch (e2) {
       const msg = String(e2?.message || '').trim();
       if (msg === 'membership_required') requirePaid();
-      if (msg === 'profile_incomplete' || msg === 'application_not_found' || msg === 'application_required' || msg === 'photo_required') openCompleteProfileGate();
+      if (msg === 'photo_review_required') {
+        navigate('/profilim', { replace: false, state: { openPhotoManager: true, profileGate: 'photo_review_required' } });
+      } else if (msg === 'deferred_photo_required') {
+        openDeferredPhotoGate();
+      } else if (msg === 'deferred_whatsapp_required') {
+        openDeferredWhatsappGate();
+      } else if (msg === 'profile_incomplete' || msg === 'application_not_found' || msg === 'application_required' || msg === 'photo_required') {
+        openCompleteProfileGate();
+      }
       setPersonMessageState({ loading: false, error: translateStudioApiError(t, msg) || msg || 'send_failed' });
     }
   };
@@ -1475,9 +1568,45 @@ export default function StudioMatches() {
     } catch (e) {
       const msg = String(e?.message || '').trim();
       if (msg === 'membership_required') requirePaid();
-      if (msg === 'profile_incomplete' || msg === 'application_not_found' || msg === 'application_required' || msg === 'photo_required') openCompleteProfileGate();
+      if (msg === 'photo_review_required') {
+        navigate('/profilim', { replace: false, state: { openPhotoManager: true, profileGate: 'photo_review_required' } });
+      } else if (msg === 'deferred_photo_required') {
+        openDeferredPhotoGate();
+      } else if (msg === 'deferred_whatsapp_required') {
+        openDeferredWhatsappGate();
+      } else if (msg === 'profile_incomplete' || msg === 'application_not_found' || msg === 'application_required' || msg === 'photo_required') {
+        openCompleteProfileGate();
+      }
       setPeopleAction({ loadingUid: '', kind: '', error: translateStudioApiError(t, msg) || msg || 'load_failed', notice: '' });
     }
+  };
+
+  const openPersonPhotos = ({ images, index = 0, title = '' }) => {
+    if (isPreview) {
+      openPreviewGate({ reason: t('previewGate.body') });
+      return;
+    }
+
+    const photoList = Array.isArray(images)
+      ? images.map((item) => safeStr(item)).filter(Boolean)
+      : [];
+    if (!photoList.length) return;
+
+    const safeIndex = Number.isFinite(index) ? Math.max(0, Math.min(index, photoList.length - 1)) : 0;
+    setLightbox({ open: true, images: photoList, index: safeIndex, title: safeStr(title) });
+  };
+
+  const openInboxPersonProfile = async (item) => {
+    if (isPreview) {
+      openPreviewGate({ reason: t('previewGate.body') });
+      return;
+    }
+
+    const targetUid = safeStr(item?.fromUid || item?.targetUid || item?.uid);
+    const profile = item?.fromProfile && typeof item.fromProfile === 'object' ? item.fromProfile : {};
+    const displayName = safeStr(profile?.username) || t('studio.common.profile');
+    if (!targetUid) return;
+    await fetchAndOpenPersonProfile({ targetUid, displayName });
   };
 
   const likePerson = async (person) => {
@@ -1510,7 +1639,15 @@ export default function StudioMatches() {
     } catch (e) {
       const msg = String(e?.message || '').trim();
       if (msg === 'membership_required' || msg === 'free_active_membership_required') requirePaid();
-      if (msg === 'profile_incomplete' || msg === 'application_not_found' || msg === 'application_required' || msg === 'photo_required') openCompleteProfileGate();
+      if (msg === 'photo_review_required') {
+        navigate('/profilim', { replace: false, state: { openPhotoManager: true, profileGate: 'photo_review_required' } });
+      } else if (msg === 'deferred_photo_required') {
+        openDeferredPhotoGate();
+      } else if (msg === 'deferred_whatsapp_required') {
+        openDeferredWhatsappGate();
+      } else if (msg === 'profile_incomplete' || msg === 'application_not_found' || msg === 'application_required' || msg === 'photo_required') {
+        openCompleteProfileGate();
+      }
       setPeopleAction({ loadingUid: '', kind: '', error: translateStudioApiError(t, msg) || msg || 'action_failed', notice: '' });
     }
   };
@@ -1521,18 +1658,32 @@ export default function StudioMatches() {
     const uid = effectiveUid;
     if (!uid) return;
 
-    const list = Array.isArray(matches) ? matches : [];
     const otherUids = [];
     const seen = new Set();
+    const registerUid = (candidateUid) => {
+      const other = String(candidateUid || '').trim();
+      if (!other || other === uid) return;
+      if (seen.has(other)) return;
+      seen.add(other);
+      otherUids.push(other);
+    };
+
+    const list = Array.isArray(matches) ? matches : [];
     for (const m of list) {
       const aId = String(m?.aUserId || '').trim();
       const bId = String(m?.bUserId || '').trim();
       const other = aId === uid ? bId : bId === uid ? aId : '';
-      if (!other) continue;
-      if (seen.has(other)) continue;
-      seen.add(other);
-      otherUids.push(other);
+      registerUid(other);
       if (otherUids.length >= 50) break;
+    }
+
+    if (otherUids.length < 50) {
+      const people = Array.isArray(visiblePeople) ? visiblePeople : [];
+      for (const person of people) {
+        const targetUid = safeStr(person?.toUid || person?.targetUid || person?.uid);
+        registerUid(targetUid);
+        if (otherUids.length >= 50) break;
+      }
     }
 
     if (!otherUids.length) {
@@ -1551,7 +1702,7 @@ export default function StudioMatches() {
     } catch {
       // best-effort
     }
-  }, [effectiveUid, isPreview, matches, presenceUiEnabled]);
+  }, [effectiveUid, isPreview, matches, presenceUiEnabled, visiblePeople]);
 
   useEffect(() => {
     if (!presenceUiEnabled) return;
@@ -1723,7 +1874,7 @@ export default function StudioMatches() {
               {inboxLikesBanner.map((it) => {
                 const p = it?.fromProfile && typeof it.fromProfile === 'object' ? it.fromProfile : null;
                 const name = String(p?.username || '').trim() || t('studio.common.match');
-                const age = typeof p?.age === 'number' ? String(p.age) : '';
+                const age = typeof p?.age === 'number' ? `${p.age} ${t('studio.common.ageSuffix')}` : '';
                 const photo = Array.isArray(p?.photoUrls) && p.photoUrls.length ? String(p.photoUrls[0] || '').trim() : '';
                 const mid = String(it?.matchId || it?.id || '').trim();
                 const acting = inboxAction.loadingId && inboxAction.loadingId === mid;
@@ -1737,7 +1888,7 @@ export default function StudioMatches() {
                         <div className="h-10 w-10 rounded-full bg-slate-100" />
                       )}
                       <div className="min-w-0">
-                        <p className="truncate font-semibold">{name}{age ? `, ${age}` : ''}</p>
+                        <p className="truncate font-semibold">{name}{age ? ` • ${age}` : ''}</p>
                         <p className="text-xs text-slate-600">{t('studio.inbox.likeReceived')}</p>
                       </div>
                     </div>
@@ -1821,6 +1972,16 @@ export default function StudioMatches() {
                 <span>{t('studio.matches.backToProfile')}</span>
               </span>
             </Link>
+
+            <Link
+              to="/profilim?panel=referral"
+              className="app-btn app-btn-outline w-full sm:w-auto"
+            >
+              <span className="inline-flex items-center justify-center gap-2">
+                <Share2 className="h-4 w-4" />
+                <span>{t('studio.referral.title')}</span>
+              </span>
+            </Link>
             <Link
               to="/app/pool"
               data-tutorial-id="matches-go-pool"
@@ -1846,9 +2007,7 @@ export default function StudioMatches() {
           }}
         />
 
-        <div className="mb-6 mx-auto max-w-5xl">
-          <PwaInstallCard variant="light" />
-        </div>
+        <YouTubeVisitCard className="mb-6 mx-auto max-w-5xl" compact />
 
         <StudioInboxModal
           open={!!inboxModal?.open}
@@ -1863,30 +2022,20 @@ export default function StudioMatches() {
           onMarkRead={inboxModal?.mode === 'messages' ? markDirectMessageRead : markInboxMessageRead}
           onApprove={inboxModal?.mode === 'messages' ? null : ({ fromUid, type }) => respondAccessRequest({ fromUid, decision: 'approve', type })}
           onReject={inboxModal?.mode === 'messages' ? null : ({ fromUid, type }) => respondAccessRequest({ fromUid, decision: 'reject', type })}
+          onOpenProfile={openInboxPersonProfile}
           actionsDisabled={false}
           onRequireProfile={() => {}}
           loadingId={accessAction.loadingId}
           error={accessAction.error}
         />
 
-        <div className="mb-4 mx-auto max-w-4xl rounded-xl border border-slate-200 bg-white p-4 text-sm text-slate-700 shadow-sm">
-          <p className="font-semibold text-slate-900">{t('studio.matches.howTitle')}</p>
-          <ul className="mt-2 list-disc space-y-1 pl-5">
-            {(howExpanded ? howItems : howItems.slice(0, 4)).map((item, idx) => (
-              <li key={idx}>{item}</li>
-            ))}
-          </ul>
-
-          {howItems.length > 4 ? (
-            <button
-              type="button"
-              onClick={() => setHowExpanded((v) => !v)}
-              className="mt-2 inline-flex items-center gap-2 text-sm font-semibold text-rose-700 hover:underline"
-            >
-              {howExpanded ? t('studio.matches.howReadLess') : t('studio.matches.howReadMore')}
-            </button>
-          ) : null}
-        </div>
+        {lightbox.open ? (
+          <ImageLightbox
+            images={lightbox.images}
+            currentIndex={lightbox.index}
+            onClose={() => setLightbox({ open: false, images: [], index: 0, title: '' })}
+          />
+        ) : null}
 
         {paywallNotice ? (
           <div className="mb-4 mx-auto max-w-4xl rounded-xl border border-amber-200 bg-amber-50 p-4 text-amber-900">
@@ -2032,8 +2181,10 @@ export default function StudioMatches() {
                   onLike={likePerson}
                   onMessage={openPersonMessage}
                   onInspect={inspectPerson}
+                  onOpenPhotos={openPersonPhotos}
                   actionLoadingUid={peopleAction.loadingUid}
                   actionKind={peopleAction.kind}
+                  presenceByUid={presenceByUid}
                 />
               );
             })}
@@ -2119,13 +2270,23 @@ export default function StudioMatches() {
         ) : null}
 
         {personProfileModal.open ? (
-          <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 p-4 pt-6 overflow-y-auto" role="dialog" aria-modal="true">
-            <div data-testid="person-profile-modal" className="w-full max-w-4xl rounded-xl bg-white text-slate-900 shadow-xl max-h-[85vh] overflow-y-auto">
+          <div
+            data-testid="person-profile-overlay"
+            className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 p-4 pt-6 overflow-y-auto"
+            role="dialog"
+            aria-modal="true"
+            onClick={closePersonProfileModal}
+          >
+            <div
+              data-testid="person-profile-modal"
+              className="w-full max-w-4xl rounded-xl bg-white text-slate-900 shadow-xl max-h-[85vh] overflow-y-auto"
+              onClick={(event) => event.stopPropagation()}
+            >
               <div className="flex items-center justify-between border-b border-slate-200 p-4 sticky top-0 bg-white">
                 <p className="font-semibold">{personProfileModal.displayName || t('studio.matches.people.profileModalTitle')}</p>
                 <button
                   type="button"
-                  onClick={() => setPersonProfileModal({ open: false, loading: false, error: '', profile: null, displayName: '' })}
+                  onClick={closePersonProfileModal}
                   className="app-btn app-btn-ghost h-8 px-2 text-xs"
                 >
                   {t('studio.common.close')}
@@ -2138,13 +2299,92 @@ export default function StudioMatches() {
 
                 {!personProfileModal.loading && !personProfileModal.error && personProfileModal.profile ? (
                   <div className="space-y-5">
-                    {Array.isArray(personProfileModal.profile?.photoUrls) && personProfileModal.profile.photoUrls.length ? (
-                      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-                        {personProfileModal.profile.photoUrls.slice(0, 6).map((url) => (
-                          <div key={url} className="aspect-square overflow-hidden rounded-lg bg-slate-100">
-                            <img src={url} alt="" className="h-full w-full object-cover" loading="lazy" decoding="async" />
+                    {(() => {
+                      const localizedAbout = modalAbout || getLocalizedProfileText(personProfileModal.profile, 'about', i18n.language);
+                      const localizedExpectations = modalExpectations || getLocalizedProfileText(personProfileModal.profile, 'expectations', i18n.language);
+                      const modalPhotoUrls = Array.isArray(personProfileModal.profile?.photoUrls)
+                        ? personProfileModal.profile.photoUrls.filter((url) => safeStr(url)).slice(0, 6)
+                        : [];
+                      const activePhotoIndex = modalPhotoUrls.length
+                        ? Math.max(0, Math.min(personProfilePhotoIndex, modalPhotoUrls.length - 1))
+                        : 0;
+                      return (
+                        <>
+                    {modalPhotoUrls.length ? (
+                      <div className="space-y-3">
+                        <button
+                          type="button"
+                          className="relative block aspect-[4/3] w-full overflow-hidden rounded-xl bg-slate-100"
+                          onClick={() =>
+                            setLightbox({
+                              open: true,
+                              images: modalPhotoUrls,
+                              index: activePhotoIndex,
+                              title: personProfileModal.displayName || t('studio.matches.people.profileModalTitle'),
+                            })
+                          }
+                        >
+                          <img
+                            src={modalPhotoUrls[activePhotoIndex]}
+                            alt=""
+                            className="h-full w-full object-cover"
+                            loading="lazy"
+                            decoding="async"
+                          />
+
+                          <div className="pointer-events-none absolute right-3 top-3 rounded-full bg-black/65 px-2.5 py-1 text-xs font-semibold text-white">
+                            {activePhotoIndex + 1}/{modalPhotoUrls.length}
                           </div>
-                        ))}
+
+                          {modalPhotoUrls.length > 1 ? (
+                            <div className="pointer-events-none absolute inset-y-0 left-0 right-0 flex items-center justify-between px-3">
+                              <button
+                                type="button"
+                                className="pointer-events-auto inline-flex h-9 w-9 items-center justify-center rounded-full bg-black/45 text-lg text-white transition hover:bg-black/60"
+                                onClick={(event) => {
+                                  event.preventDefault();
+                                  event.stopPropagation();
+                                  setPersonProfilePhotoIndex((prev) => (prev - 1 + modalPhotoUrls.length) % modalPhotoUrls.length);
+                                }}
+                                aria-label={t('studio.matchProfile.prevPhoto')}
+                              >
+                                ‹
+                              </button>
+
+                              <button
+                                type="button"
+                                className="pointer-events-auto inline-flex h-9 w-9 items-center justify-center rounded-full bg-black/45 text-lg text-white transition hover:bg-black/60"
+                                onClick={(event) => {
+                                  event.preventDefault();
+                                  event.stopPropagation();
+                                  setPersonProfilePhotoIndex((prev) => (prev + 1) % modalPhotoUrls.length);
+                                }}
+                                aria-label={t('studio.matchProfile.nextPhoto')}
+                              >
+                                ›
+                              </button>
+                            </div>
+                          ) : null}
+                        </button>
+
+                        {modalPhotoUrls.length > 1 ? (
+                          <div className="flex flex-wrap gap-2">
+                            {modalPhotoUrls.map((url, index) => (
+                              <button
+                                key={url}
+                                type="button"
+                                className={
+                                  'h-16 w-16 overflow-hidden rounded-lg border-2 bg-slate-100 transition ' +
+                                  (index === activePhotoIndex ? 'border-emerald-500' : 'border-transparent hover:border-slate-300')
+                                }
+                                onClick={() => setPersonProfilePhotoIndex(index)}
+                                aria-label={`${index + 1}. fotoğraf`}
+                              >
+                                <img src={url} alt="" className="h-full w-full object-cover" loading="lazy" decoding="async" />
+                              </button>
+                            ))}
+                          </div>
+                        ) : null}
                       </div>
                     ) : null}
 
@@ -2153,22 +2393,22 @@ export default function StudioMatches() {
                       return (
                         <>
                           {sections.identity.length ? (
-                            <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                            <div data-testid="person-profile-identity-section" className="rounded-lg border border-slate-200 bg-slate-50 p-4">
                               <p className="font-semibold text-slate-900">{t('studio.matches.people.profileModalTitle')}</p>
-                              <div className="mt-3 grid grid-cols-1 gap-2 text-sm text-slate-700 sm:grid-cols-2">
+                              <div data-testid="person-profile-identity-list" className="mt-3 grid grid-cols-1 gap-2 text-sm text-slate-700 sm:grid-cols-2">
                                 {sections.identity.map((item) => (
-                                  <p key={item.label}><span className="text-slate-500">{item.label}:</span> {item.value}</p>
+                                  <p data-testid="person-profile-identity-item" key={item.label}><span className="text-slate-500">{item.label}:</span> {item.value}</p>
                                 ))}
                               </div>
                             </div>
                           ) : null}
 
                           {sections.detailsEntries.length ? (
-                            <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                            <div data-testid="person-profile-details-section" className="rounded-lg border border-slate-200 bg-slate-50 p-4">
                               <p className="font-semibold text-slate-900">{t('matchmakingPage.form.sections.details')}</p>
-                              <div className="mt-3 grid grid-cols-1 gap-2 text-sm text-slate-700 sm:grid-cols-2">
+                              <div data-testid="person-profile-details-list" className="mt-3 grid grid-cols-1 gap-2 text-sm text-slate-700 sm:grid-cols-2">
                                 {sections.detailsEntries.map((item) => (
-                                  <p key={item.label}><span className="text-slate-500">{item.label}:</span> {item.value}</p>
+                                  <p data-testid="person-profile-details-item" key={item.label}><span className="text-slate-500">{item.label}:</span> {item.value}</p>
                                 ))}
                               </div>
                             </div>
@@ -2177,9 +2417,9 @@ export default function StudioMatches() {
                           {sections.partnerEntries.length ? (
                             <div data-testid="person-profile-partner-preferences" className="rounded-lg border border-slate-200 bg-slate-50 p-4">
                               <p className="font-semibold text-slate-900">{t('matchmakingPage.form.sections.partnerPreferences')}</p>
-                              <div className="mt-3 grid grid-cols-1 gap-2 text-sm text-slate-700 sm:grid-cols-2">
+                              <div data-testid="person-profile-partner-list" className="mt-3 grid grid-cols-1 gap-2 text-sm text-slate-700 sm:grid-cols-2">
                                 {sections.partnerEntries.map((item) => (
-                                  <p key={item.label}><span className="text-slate-500">{item.label}:</span> {item.value}</p>
+                                  <p data-testid="person-profile-partner-item" key={item.label}><span className="text-slate-500">{item.label}:</span> {item.value}</p>
                                 ))}
                               </div>
                             </div>
@@ -2188,19 +2428,22 @@ export default function StudioMatches() {
                       );
                     })()}
 
-                    {safeStr(personProfileModal.profile?.about) ? (
-                      <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm text-slate-800">
+                    {safeStr(localizedAbout) ? (
+                      <div data-testid="person-profile-about-section" className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm text-slate-800">
                         <p className="font-semibold text-slate-900">{t('myInfo.fields.about')}</p>
-                        <p className="mt-1 whitespace-pre-wrap">{personProfileModal.profile.about}</p>
+                        <p className="mt-1 whitespace-pre-wrap">{localizedAbout}</p>
                       </div>
                     ) : null}
 
-                    {safeStr(personProfileModal.profile?.expectations) ? (
-                      <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm text-slate-800">
+                    {safeStr(localizedExpectations) ? (
+                      <div data-testid="person-profile-expectations-section" className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm text-slate-800">
                         <p className="font-semibold text-slate-900">{t('myInfo.fields.expectations')}</p>
-                        <p className="mt-1 whitespace-pre-wrap">{personProfileModal.profile.expectations}</p>
+                        <p className="mt-1 whitespace-pre-wrap">{localizedExpectations}</p>
                       </div>
                     ) : null}
+                        </>
+                      );
+                    })()}
                   </div>
                 ) : null}
               </div>
@@ -2259,6 +2502,9 @@ export default function StudioMatches() {
                       .slice(-40)
                       .map((m) => {
                         const fromMe = String(m?.userId || '').trim() === String(currentUidForView || '').trim();
+                        const sentAtMs = timestampToMs(m?.createdAtMs) || timestampToMs(m?.createdAt);
+                        const sentAtLabel = formatRelativeTimeFromMs(sentAtMs, { nowMs: shortNowMs, locale: i18n?.language || 'tr' });
+                        const sentAtTitle = formatDateTimeFromMs(sentAtMs, { locale: i18n?.language || 'tr' });
                         const translated =
                           m?.translations && typeof m.translations === 'object'
                             ? String(m.translations?.[targetLang] || '').trim()
@@ -2270,6 +2516,17 @@ export default function StudioMatches() {
                               (fromMe ? 'bg-emerald-600 text-white' : 'bg-white text-slate-900')
                             }>
                               {String(m.text || '').trim()}
+                              {sentAtLabel ? (
+                                <div
+                                  className={
+                                    'mt-2 text-[11px] ' +
+                                    (fromMe ? 'text-emerald-100/90 text-right' : 'text-slate-500')
+                                  }
+                                  title={sentAtTitle}
+                                >
+                                  {sentAtLabel}
+                                </div>
+                              ) : null}
                               {!fromMe ? (
                                 <div className="mt-2 flex items-center justify-between gap-2">
                                   {translated ? <div className="text-xs text-slate-600">{targetLang.toUpperCase()}: {translated}</div> : <span />}

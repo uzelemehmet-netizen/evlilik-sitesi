@@ -1,3 +1,5 @@
+import { pickMatchmakingPhotoRefs } from './matchmakingProfileCompletion.js';
+
 function safeStr(value) {
   return String(value ?? '').trim();
 }
@@ -63,18 +65,26 @@ export function getDraftProgressInfo(application) {
 
   if (!isAutoStub && !progress) return null;
 
-  const completedRequiredKeys = normalizeKeys(progress?.completedRequiredKeys);
-  const missingRequiredKeys = normalizeKeys(progress?.missingRequiredKeys);
+  const storedPhotoComplete = pickMatchmakingPhotoRefs(application).length > 0;
+  const claimedPhotoComplete = progress?.photoComplete === true;
+  const completedRequiredKeys = normalizeKeys(progress?.completedRequiredKeys).filter((key) => !(key === 'photo' && claimedPhotoComplete && !storedPhotoComplete));
+  const missingRequiredKeysBase = normalizeKeys(progress?.missingRequiredKeys);
+  const missingRequiredKeys = claimedPhotoComplete && !storedPhotoComplete && !missingRequiredKeysBase.includes('photo')
+    ? [...missingRequiredKeysBase, 'photo']
+    : missingRequiredKeysBase;
   const totalRequiredCountRaw = Number(progress?.totalRequiredCount);
   const completedRequiredCountRaw = Number(progress?.completedRequiredCount);
   const totalRequiredCount =
     Number.isInteger(totalRequiredCountRaw) && totalRequiredCountRaw >= 0
       ? totalRequiredCountRaw
       : completedRequiredKeys.length + missingRequiredKeys.length;
-  const completedRequiredCount =
+  const completedRequiredCountBase =
     Number.isInteger(completedRequiredCountRaw) && completedRequiredCountRaw >= 0
       ? completedRequiredCountRaw
       : completedRequiredKeys.length;
+  const completedRequiredCount = claimedPhotoComplete && !storedPhotoComplete
+    ? Math.max(0, completedRequiredCountBase - 1)
+    : completedRequiredCountBase;
   const firstMissingRequiredKey = safeStr(progress?.firstMissingRequiredKey) || missingRequiredKeys[0] || '';
   const lastInputKey = safeStr(progress?.lastInputKey);
   const draftUpdatedAtMs =
@@ -96,7 +106,7 @@ export function getDraftProgressInfo(application) {
     lastInputKey,
     lastInputLabel: getDraftFieldLabel(lastInputKey),
     draftUpdatedAtMs,
-    photoComplete: progress?.photoComplete === true,
+    photoComplete: claimedPhotoComplete && storedPhotoComplete,
     wizardStep: Number.isInteger(Number(progress?.wizardStep)) ? Number(progress.wizardStep) : null,
   };
 }

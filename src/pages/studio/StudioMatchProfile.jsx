@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useLocation, useParams } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { collection, doc, getDoc, getDocFromServer, limit, onSnapshot, orderBy, query } from 'firebase/firestore';
-import { Lock, MessageCircle, ShieldCheck, Sparkles } from 'lucide-react';
+import { Lock, MessageCircle, Sparkles, User } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import Navigation from '../../components/Navigation';
 import Footer from '../../components/Footer';
@@ -11,9 +11,11 @@ import { db } from '../../config/firebaseDb';
 import { authFetch } from '../../utils/authFetch';
 import { translateStudioApiError } from '../../utils/studioErrorI18n';
 import { getLocalizedProfileText } from '../../utils/profileText';
+import { useAutoLocalizedProfileText } from '../../hooks/useAutoLocalizedProfileText';
 import { openPreviewGate } from '../../utils/previewGate';
 import { buildPreviewMatchById } from '../../utils/studioPreviewData';
 import StudioBottomNav from '../../components/studio/StudioBottomNav';
+import StudioInviteFriendsCard from '../../components/studio/StudioInviteFriendsCard.jsx';
 import { isTutorialActive } from '../../utils/tutorialState.js';
 
 function safeStr(v) {
@@ -138,6 +140,7 @@ function readProfileDeepLink(locationLike) {
 export default function StudioMatchProfile() {
   const { matchId } = useParams();
   const location = useLocation();
+  const navigate = useNavigate();
   const { user } = useAuth();
   const { t, i18n } = useTranslation();
   const [myCommLanguage, setMyCommLanguage] = useState('');
@@ -546,16 +549,14 @@ export default function StudioMatchProfile() {
   const otherCity = safeStr(otherMerged?.city);
   const otherCountry = safeStr(otherMerged?.country);
   const otherPhoto = Array.isArray(otherMerged?.photoUrls) && otherMerged.photoUrls.length ? safeStr(otherMerged.photoUrls[0]) : '';
-  const otherVerified = !!otherMerged?.identityVerified;
-
   const otherOccupation = safeStr(otherMerged?.details?.occupation || otherMerged?.occupation);
   const localizedOccupation = safeStr(getLocalizedProfileText(otherMerged?.details, 'occupation', i18n.language))
     || safeStr(getLocalizedProfileText(otherMerged, 'occupation', i18n.language));
   const otherHasChildrenRaw = safeStr(otherMerged?.details?.hasChildren);
   const otherChildrenCount = typeof otherMerged?.details?.childrenCount === 'number' ? otherMerged.details.childrenCount : null;
   const otherChildrenLiving = safeStr(otherMerged?.details?.childrenLivingSituation);
-  const otherAbout = getLocalizedProfileText(otherMerged, 'about', i18n.language);
-  const otherExpectations = getLocalizedProfileText(otherMerged, 'expectations', i18n.language);
+  const otherAbout = useAutoLocalizedProfileText(otherMerged, 'about', i18n.language) || getLocalizedProfileText(otherMerged, 'about', i18n.language);
+  const otherExpectations = useAutoLocalizedProfileText(otherMerged, 'expectations', i18n.language) || getLocalizedProfileText(otherMerged, 'expectations', i18n.language);
 
   const otherPhotos = useMemo(() => {
     const list = Array.isArray(otherMerged?.photoUrls) ? otherMerged.photoUrls : [];
@@ -1302,13 +1303,31 @@ export default function StudioMatchProfile() {
         </div>
 
         <div className="mb-4 hidden items-center justify-between gap-3 sm:flex">
-          <Link to="/app/matches" className="text-sm font-semibold text-emerald-700 hover:underline">
-            {t('studio.chat.backToMatches')}
-          </Link>
-          <Link to="/profilim" className="text-sm font-semibold text-slate-700 hover:underline">
-            {t('studio.common.profile')}
+          <div className="flex items-center gap-3">
+            <Link to="/app/matches" className="text-sm font-semibold text-emerald-700 hover:underline">
+              {t('studio.chat.backToMatches')}
+            </Link>
+            <Link to="/profilim" className="app-btn app-btn-danger h-10 px-4">
+              <User className="h-4 w-4" />
+              {t('studio.matches.backToProfile')}
+            </Link>
+          </div>
+          <Link to="/profilim?panel=referral" className="app-btn app-btn-outline h-10 px-4">
+            {t('studio.referral.title')}
           </Link>
         </div>
+
+        <StudioInviteFriendsCard
+          className="mb-4 mx-auto max-w-4xl"
+          compact
+          onClick={() => {
+            if (isPreview) {
+              openPreviewGate({ reason: t('previewGate.body') });
+              return;
+            }
+            navigate('/profilim?panel=referral');
+          }}
+        />
 
         <div className="mx-auto max-w-4xl overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
           <div className="border-b border-slate-200 p-4">
@@ -1336,15 +1355,6 @@ export default function StudioMatchProfile() {
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
                   <p className="truncate text-xl font-semibold">{otherName}{otherAge ? `, ${otherAge}` : ''}</p>
-                  {otherVerified ? (
-                    <span
-                      className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700"
-                      title={t('studio.common.verified')}
-                    >
-                      <ShieldCheck className="h-[30px] w-[30px] text-emerald-600" aria-hidden="true" />
-                      <span className="whitespace-nowrap">{t('studio.common.verified')}</span>
-                    </span>
-                  ) : null}
                 </div>
 
                 {otherUserCode ? (
@@ -1580,11 +1590,13 @@ export default function StudioMatchProfile() {
                         />
 
                         {!canSeeOtherPhotos ? (
-                          <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-                            <div className="rounded-full bg-black/60 px-3 py-1.5 text-[12px] font-semibold text-white">
+                          <div className="pointer-events-none absolute inset-0 flex items-center justify-center p-4">
+                            <div className="max-w-[20rem] rounded-2xl bg-black/65 px-4 py-2.5 text-center text-[12px] font-semibold leading-5 text-white">
                               {photoBlockedByReciprocity
                                 ? t('studio.matchProfile.photos.reciprocityBlocked')
-                                : t('studio.matchProfile.photos.onlyAllowed')}
+                                : photoBlockedByOtherPrivacy
+                                  ? t('studio.matchProfile.photos.hiddenByOwner')
+                                  : t('studio.matchProfile.photos.onlyAllowed')}
                             </div>
                           </div>
                         ) : null}
@@ -1863,6 +1875,10 @@ export default function StudioMatchProfile() {
                           {(() => {
                             const v = safeStr(childrenLivingSituationLabel) || safeStr(otherMerged?.details?.childrenLivingSituation);
                             return v ? <InfoRow label={t('studio.myInfo.fields.childrenLivingSituation')} value={v} /> : null;
+                          })()}
+                          {(() => {
+                            const v = tYesNoCommon(otherMerged?.details?.liveWithChildrenAfterMarriage);
+                            return v ? <InfoRow label={t('studio.myInfo.fields.liveWithChildrenAfterMarriage')} value={v} /> : null;
                           })()}
                         </>
                       ) : null}

@@ -1,5 +1,6 @@
 import { getAdmin, normalizeBody, requireIdToken } from './_firebaseAdmin.js';
 import { ensureEligibleOrThrow, ensureProfileCompleteOrThrow, normalizeGender, resolveLookingForGender } from './_matchmakingEligibility.js';
+import { ensureRequesterAllowedByTargetInteractionFilter } from './_matchmakingInteractionFilter.js';
 import { sendPushToUid } from './_push.js';
 import { fetchMatchmakingApplicationsByUid } from './_matchmakingApplications.js';
 import { isEitherUserBlocked } from './_matchmakingBlocks.js';
@@ -280,6 +281,7 @@ function buildTargetProfile(app) {
     username: safeStr(app?.username),
     age: getAge(app),
     gender: safeStr(app?.gender),
+    profileTextLang: safeStr(app?.profileTextLang) || safeStr(app?.details?.profileTextLang),
     city: safeStr(app?.city),
     country: safeStr(app?.country),
     maritalStatus: safeStr(app?.maritalStatus),
@@ -341,6 +343,7 @@ function buildFallbackAppFromUserDoc({ uid, userDoc }) {
     country: safeStr(app?.country) || safeStr(pp?.country) || safeStr(u?.country),
     age: asNum(app?.age) ?? asNum(pp?.age) ?? asNum(u?.age),
     details,
+    profileTextLang: safeStr(details?.profileTextLang) || safeStr(pp?.profileTextLang) || safeStr(app?.profileTextLang),
     photoUrls: Array.isArray(photoUrls) ? photoUrls.filter((x) => typeof x === 'string' && x.trim()) : [],
     about: safeStr(details?.about) || safeStr(pp?.about) || safeStr(app?.about),
     aboutTr: safeStr(details?.aboutTr) || safeStr(pp?.aboutTr) || safeStr(app?.aboutTr),
@@ -428,6 +431,18 @@ export default async function handler(req, res) {
       res.statusCode = 403;
       res.setHeader('content-type', 'application/json');
       res.end(JSON.stringify({ ok: false, error: rule.reason }));
+      return;
+    }
+
+    const interactionGate = ensureRequesterAllowedByTargetInteractionFilter({
+      targetUserDoc: targetUser,
+      requesterUserDoc: meUser,
+      requesterApp: myApp,
+    });
+    if (!interactionGate.ok) {
+      res.statusCode = interactionGate.reason === 'interaction_filter_age_required' ? 400 : 403;
+      res.setHeader('content-type', 'application/json');
+      res.end(JSON.stringify({ ok: false, error: interactionGate.reason }));
       return;
     }
 

@@ -10,6 +10,31 @@ import {
   safeStr,
 } from './_adminMatchmakingProfiles.js';
 
+function pickContactNumber(...sources) {
+  for (const source of sources) {
+    const it = asObj(source);
+    if (!it) continue;
+    const details = asObj(it?.details);
+    const application = asObj(it?.application);
+    const appDetails = asObj(application?.details);
+
+    const value =
+      safeStr(it?.whatsapp) ||
+      safeStr(it?.phone) ||
+      safeStr(it?.contactPhone) ||
+      safeStr(details?.whatsapp) ||
+      safeStr(details?.phone) ||
+      safeStr(details?.contactPhone) ||
+      safeStr(application?.whatsapp) ||
+      safeStr(application?.phone) ||
+      safeStr(appDetails?.whatsapp) ||
+      safeStr(appDetails?.phone);
+
+    if (value) return value;
+  }
+  return null;
+}
+
 function pickUserForAdminModal(userDoc) {
   const u = userDoc && typeof userDoc === 'object' ? userDoc : null;
   if (!u) return null;
@@ -44,6 +69,8 @@ function pickUserForAdminModal(userDoc) {
     fullName: safeStr(u?.fullName) || null,
     age: typeof u?.age === 'number' && Number.isFinite(u.age) ? u.age : null,
     gender: safeStr(u?.gender) || null,
+    whatsapp: pickContactNumber(u) || null,
+    phone: safeStr(u?.phone) || null,
     applicationId: safeStr(u?.applicationId) || null,
     photoUrls: Array.isArray(u?.photoUrls) ? u.photoUrls.map(String).map((s) => s.trim()).filter(Boolean).slice(0, 12) : [],
     photoPaths: Array.isArray(u?.photoPaths) ? u.photoPaths.map(String).map((s) => s.trim()).filter(Boolean).slice(0, 24) : [],
@@ -75,6 +102,7 @@ function pickUserForAdminModal(userDoc) {
     const cache = {
       lookingForNationality: safeStr(appCache?.lookingForNationality) || null,
       lookingForGender: safeStr(appCache?.lookingForGender) || null,
+      whatsapp: pickContactNumber(appCache) || null,
       partnerPreferences: asObj(appCache?.partnerPreferences) || null,
     };
     const any = Object.values(cache).some((v) => v !== null);

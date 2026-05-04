@@ -1,13 +1,21 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { doc, onSnapshot } from 'firebase/firestore';
 import { Link, useNavigate } from 'react-router-dom';
 import { ArrowRight, MessageCircle } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../auth/AuthProvider';
+import { db } from '../../config/firebaseDb';
 import Navigation from '../../components/Navigation';
 import Footer from '../../components/Footer';
 import StudioBottomNav from '../../components/studio/StudioBottomNav';
 import useStudioInboxHub from '../../hooks/useStudioInboxHub';
 import { authFetch } from '../../utils/authFetch';
+import { getPresenceMeta } from '../../utils/presenceLabel';
+import { formatDateTimeFromMs, formatRelativeTimeFromMs } from '../../utils/relativeTime';
+import {
+  isDeferredPhotoInteractionRequiredFromUserDoc,
+  isDeferredWhatsappInteractionRequiredFromUserDoc,
+} from '../../utils/matchmakingProfileCompletion';
 import { translateStudioApiError } from '../../utils/studioErrorI18n';
 
 function safeStr(v) {
@@ -32,23 +40,131 @@ export default function StudioMessages() {
   } = useStudioInboxHub(uid);
 
   const [threadAction, setThreadAction] = useState({ loadingKey: '', error: '' });
+  const [deferredPhotoGateActive, setDeferredPhotoGateActive] = useState(false);
+  const [deferredWhatsappGateActive, setDeferredWhatsappGateActive] = useState(false);
+  const [nowMs, setNowMs] = useState(() => Date.now());
+  const [presenceByUid, setPresenceByUid] = useState({});
+
+  const openDeferredPhotoGate = useCallback(() => {
+    navigate('/profilim', { replace: false, state: { openPhotoManager: true, profileGate: 'deferred_photo_required' } });
+  }, [navigate]);
+
+  const openDeferredWhatsappGate = useCallback(() => {
+    navigate('/profilim', { replace: false, state: { profileGate: 'deferred_whatsapp_required' } });
+  }, [navigate]);
+
+  useEffect(() => {
+    if (!uid) {
+      setDeferredPhotoGateActive(false);
+      setDeferredWhatsappGateActive(false);
+      return;
+    }
+
+    const ref = doc(db, 'matchmakingUsers', uid);
+    const unsub = onSnapshot(
+      ref,
+      (snap) => {
+        const docData = snap.exists() ? (snap.data() || {}) : {};
+        const photoActive = isDeferredPhotoInteractionRequiredFromUserDoc(docData);
+        const whatsappActive = isDeferredWhatsappInteractionRequiredFromUserDoc(docData);
+        setDeferredPhotoGateActive(photoActive);
+        setDeferredWhatsappGateActive(whatsappActive);
+      },
+      () => {
+        setDeferredPhotoGateActive(false);
+        setDeferredWhatsappGateActive(false);
+      }
+    );
+
+    return () => {
+      try {
+        unsub();
+      } catch {
+        // noop
+      }
+    };
+  }, [uid]);
 
   const formatWhen = useCallback(
     (ms) => {
-      if (!(typeof ms === 'number' && Number.isFinite(ms) && ms > 0)) return '';
-      try {
-        return new Intl.DateTimeFormat(i18n?.language || 'tr', {
-          day: '2-digit',
-          month: 'short',
-          hour: '2-digit',
-          minute: '2-digit',
-        }).format(ms);
-      } catch {
-        return '';
-      }
+      return formatRelativeTimeFromMs(ms, { nowMs, locale: i18n?.language || 'tr' });
     },
-    [i18n?.language]
+    [i18n?.language, nowMs]
   );
+
+  useEffect(() => {
+    if (!messageThreads.length) return;
+    const timer = setInterval(() => setNowMs(Date.now()), 30000);
+    return () => {
+      try {
+        clearInterval(timer);
+      } catch {
+        // noop
+      }
+    };
+  }, [messageThreads.length]);
+
+  const refreshPresence = useCallback(async () => {
+    if (!uid) {
+      setPresenceByUid({});
+      return;
+    }
+
+    const targetUids = [];
+    const seen = new Set();
+    messageThreads.forEach((thread) => {
+      const targetUid = safeStr(thread?.targetUid);
+      if (!targetUid || seen.has(targetUid)) return;
+      seen.add(targetUid);
+      targetUids.push(targetUid);
+    });
+
+    if (!targetUids.length) {
+      setPresenceByUid({});
+      return;
+    }
+
+    try {
+      const merged = {};
+      for (let index = 0; index < targetUids.length; index += 50) {
+        const data = await authFetch('/api/matchmaking-presence-batch', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ uids: targetUids.slice(index, index + 50) }),
+        });
+        const batch = data?.presenceByUid && typeof data.presenceByUid === 'object' ? data.presenceByUid : {};
+        Object.assign(merged, batch);
+      }
+      setPresenceByUid(merged);
+    } catch {
+      // best-effort
+    }
+  }, [messageThreads, uid]);
+
+  useEffect(() => {
+    refreshPresence();
+
+    const onFocus = () => refreshPresence();
+    try {
+      window.addEventListener('focus', onFocus);
+    } catch {
+      // noop
+    }
+
+    const id = setInterval(() => refreshPresence(), 60 * 1000);
+    return () => {
+      try {
+        clearInterval(id);
+      } catch {
+        // noop
+      }
+      try {
+        window.removeEventListener('focus', onFocus);
+      } catch {
+        // noop
+      }
+    };
+  }, [refreshPresence]);
 
   const summaryCards = useMemo(
     () => [
@@ -74,8 +190,9 @@ export default function StudioMessages() {
             headers: { 'content-type': 'application/json' },
             body: JSON.stringify({ messageId }),
           });
-        } catch {
-          // best-effort
+        } catch (error) {
+          const msg = safeStr(error?.message);
+          if (msg === 'deferred_photo_required' || msg === 'deferred_whatsapp_required') throw error;
         }
       })
     );
@@ -85,6 +202,14 @@ export default function StudioMessages() {
     async (thread) => {
       const key = safeStr(thread?.key);
       if (!key || threadAction.loadingKey) return;
+      if (deferredPhotoGateActive) {
+        openDeferredPhotoGate();
+        return;
+      }
+      if (deferredWhatsappGateActive) {
+        openDeferredWhatsappGate();
+        return;
+      }
 
       setThreadAction({ loadingKey: key, error: '' });
       try {
@@ -98,8 +223,9 @@ export default function StudioMessages() {
               headers: { 'content-type': 'application/json' },
               body: JSON.stringify({ matchId }),
             });
-          } catch {
-            // best-effort
+          } catch (error) {
+            const msg = safeStr(error?.message);
+            if (msg === 'deferred_photo_required' || msg === 'deferred_whatsapp_required') throw error;
           }
           setThreadAction({ loadingKey: '', error: '' });
           navigate(`/app/chat/${matchId}`);
@@ -122,10 +248,12 @@ export default function StudioMessages() {
         navigate(`/app/chat/${ensuredMatchId}`);
       } catch (error) {
         const msg = safeStr(error?.message) || 'action_failed';
+        if (msg === 'deferred_photo_required') openDeferredPhotoGate();
+        if (msg === 'deferred_whatsapp_required') openDeferredWhatsappGate();
         setThreadAction({ loadingKey: '', error: translateStudioApiError(t, msg) || msg });
       }
     },
-    [markDirectMessagesRead, navigate, t, threadAction.loadingKey]
+    [deferredPhotoGateActive, deferredWhatsappGateActive, markDirectMessagesRead, navigate, openDeferredPhotoGate, openDeferredWhatsappGate, t, threadAction.loadingKey]
   );
 
   const totalUnreadMessages = unreadInboxMessagesCount + unreadMatchMessagesCount;
@@ -211,7 +339,10 @@ export default function StudioMessages() {
                   const name = safeStr(thread?.displayName) || t('studio.common.profile');
                   const photoUrl = safeStr(thread?.photoUrl);
                   const unreadCount = typeof thread?.unreadCount === 'number' && Number.isFinite(thread.unreadCount) ? thread.unreadCount : 0;
+                  const lastSeenAtMs = typeof presenceByUid?.[safeStr(thread?.targetUid)] === 'number' ? presenceByUid[safeStr(thread?.targetUid)] : 0;
+                  const presenceMeta = getPresenceMeta(lastSeenAtMs, i18n?.language || 'tr');
                   const updatedAtLabel = formatWhen(thread?.updatedAtMs);
+                  const updatedAtTitle = formatDateTimeFromMs(thread?.updatedAtMs, { locale: i18n?.language || 'tr' });
                   const isLoading = threadAction.loadingKey === thread.key;
                   const threadTestId = safeStr(thread?.matchId || thread?.targetUid || thread?.key);
 
@@ -232,7 +363,21 @@ export default function StudioMessages() {
                         <div className="flex items-start justify-between gap-3">
                           <div className="min-w-0">
                             <p className="truncate text-base font-semibold text-slate-900">{name}</p>
-                            {updatedAtLabel ? <p className="mt-0.5 text-xs font-medium text-slate-500">{updatedAtLabel}</p> : null}
+                            {presenceMeta.label ? (
+                              <div className="mt-1 flex items-center gap-2 text-[11px] text-slate-500">
+                                <span
+                                  className={
+                                    'inline-block h-2 w-2 rounded-full ' +
+                                    (presenceMeta.isOnline
+                                      ? 'bg-emerald-500 shadow-[0_0_0_3px_rgba(16,185,129,0.12)]'
+                                      : 'bg-slate-300')
+                                  }
+                                  aria-hidden="true"
+                                />
+                                <span>{presenceMeta.label}</span>
+                              </div>
+                            ) : null}
+                            {updatedAtLabel ? <p className="mt-0.5 text-xs font-medium text-slate-500" title={updatedAtTitle}>{updatedAtLabel}</p> : null}
                           </div>
 
                           {unreadCount > 0 ? (

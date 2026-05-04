@@ -33,6 +33,24 @@ test('detectForbiddenChatText: blocks contact-like text', () => {
   expectForbidden('Beni @ali_veli_123 ekle', 'contact');
 });
 
+test('detectForbiddenChatText: blocks split phone fragments with recent context', () => {
+  const result = detectForbiddenChatText('516930', { recentTexts: ['089603'] });
+  assert.equal(result.forbidden, true, `Expected forbidden but was allowed: ${JSON.stringify(result)}`);
+  assert.ok(result.reasons.includes('contact'), `Expected contact reason: ${JSON.stringify(result)}`);
+});
+
+test('detectForbiddenChatText: allows normal text after prior split-phone attempt', () => {
+  const result = detectForbiddenChatText('Tamam, burada yazmaya devam edelim.', { recentTexts: ['089603', '516930'] });
+  assert.equal(result.forbidden, false, `Expected allowed but was forbidden: ${JSON.stringify(result)}`);
+  assert.deepEqual(result.reasons, [], `Expected no reasons for allowed text: ${JSON.stringify(result)}`);
+});
+
+test('detectForbiddenChatText: does not block unrelated short numbers without context', () => {
+  expectAllowed('516930');
+  const result = detectForbiddenChatText('12345', { recentTexts: ['bugun 31 yasindayim'] });
+  assert.equal(result.forbidden, false, `Expected allowed but was forbidden: ${JSON.stringify(result)}`);
+});
+
 test('detectForbiddenChatText: blocks explicit sexual keywords (conservative)', () => {
   expectForbidden('porno izliyorum', 'sexual');
   expectForbidden('onlyfans hesabım var', 'sexual');

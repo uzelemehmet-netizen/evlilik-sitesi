@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { collection, doc, getDoc, limit, onSnapshot, orderBy, query, where } from 'firebase/firestore';
-import { db } from '../../config/firebaseDb';
-import { getDraftFieldLabel, getDraftProgressInfo } from '../../utils/adminDraftProgress';
+import { useTranslation } from 'react-i18next';
+import { getDraftProgressInfo } from '../../utils/adminDraftProgress';
+import { authFetch } from '../../utils/authFetch';
 import {
   dedupeAdminNewUsers,
   getAdminNewUserKind,
@@ -14,10 +14,192 @@ import {
   safeStr,
 } from '../../utils/adminNewUsers';
 
-function fmtDate(ms) {
+function getBaseLang(language) {
+  const base = String(language || 'tr').toLowerCase().split('-')[0];
+  return base === 'en' || base === 'id' ? base : 'tr';
+}
+
+const UI = {
+  tr: {
+    female: 'Kadın',
+    male: 'Erkek',
+    single: 'Bekar',
+    widowed: 'Dul',
+    divorced: 'Boşanmış',
+    married: 'Evli',
+    yes: 'Evet',
+    no: 'Hayır',
+    hasPhoto: 'Var',
+    unknownUser: 'Bilinmeyen kullanıcı',
+    draftReview: 'Zorunlu Alan İncelemesi',
+    close: 'Kapat',
+    noDraft: 'Bu kullanıcı için kaydedilmiş taslak ilerleme bilgisi bulunamadı.',
+    progress: 'İlerleme:',
+    blockedField: 'Takıldığı alan:',
+    lastTouched: 'Son dokunduğu alan:',
+    lastDraft: 'Son taslak kaydı:',
+    completedFields: 'Doldurulan zorunlu alanlar',
+    noCompletedFields: 'Henüz kaydedilmiş zorunlu alan yok.',
+    missingFields: 'Boş bırakılan zorunlu alanlar',
+    noMissingFields: 'Eksik zorunlu alan görünmüyor.',
+    title: 'Yeni Kullanıcılar (Son 48 Saat)',
+    total: 'Son 48 saatteki benzersiz kullanıcılar. Toplam:',
+    incompleteTab: 'Eksik / Ön Kayıt',
+    filledTab: 'Formu Tamamlayanlar',
+    loadFailed: 'Yeni kullanıcılar yüklenemedi.',
+    status: 'Durum',
+    uc: 'UC',
+    name: 'İsim',
+    age: 'Yaş',
+    gender: 'Cinsiyet',
+    created: 'Kayıt',
+    kindFilled: 'Form',
+    kindPartial: 'Ön Kayıt',
+    kindUnknown: 'Bilinmeyen',
+    kindStub: 'Eksik Form',
+    emptyGroup: 'Bu grupta kullanıcı yok.',
+    footerNote: 'Not: Zorunlu kayıt alanları dolu olan kullanıcılar artık "Ön Kayıt" olarak görünür; tam başvuru tamamlandığında otomatik olarak "Formu Tamamlayanlar" sekmesine geçer.',
+    fieldLabels: {
+      photo: 'Fotoğraf',
+      username: 'Kullanıcı adı',
+      fullName: 'Ad soyad',
+      age: 'Yaş',
+      city: 'Şehir',
+      nationality: 'Uyruk',
+      gender: 'Cinsiyet',
+      whatsapp: 'WhatsApp',
+      occupation: 'Meslek',
+      maritalStatus: 'Medeni durum',
+      hasChildren: 'Çocuk durumu',
+      childrenCount: 'Çocuk sayısı',
+      childrenLivingSituation: 'Çocukların yaşam durumu',
+      consent18Plus: '18+ onayı',
+      consentPrivacy: 'Gizlilik onayı',
+      consentTerms: 'Şartlar onayı',
+    },
+  },
+  en: {
+    female: 'Female',
+    male: 'Male',
+    single: 'Single',
+    widowed: 'Widowed',
+    divorced: 'Divorced',
+    married: 'Married',
+    yes: 'Yes',
+    no: 'No',
+    hasPhoto: 'Available',
+    unknownUser: 'Unknown user',
+    draftReview: 'Required Fields Review',
+    close: 'Close',
+    noDraft: 'No saved draft progress was found for this user.',
+    progress: 'Progress:',
+    blockedField: 'Blocked field:',
+    lastTouched: 'Last touched field:',
+    lastDraft: 'Last draft save:',
+    completedFields: 'Completed required fields',
+    noCompletedFields: 'No required fields have been saved yet.',
+    missingFields: 'Missing required fields',
+    noMissingFields: 'No missing required fields are visible.',
+    title: 'New Users (Last 48 Hours)',
+    total: 'Unique users in the last 48 hours. Total:',
+    incompleteTab: 'Incomplete / Pre-registration',
+    filledTab: 'Completed Forms',
+    loadFailed: 'Failed to load new users.',
+    status: 'Status',
+    uc: 'UC',
+    name: 'Name',
+    age: 'Age',
+    gender: 'Gender',
+    created: 'Created',
+    kindFilled: 'Form',
+    kindPartial: 'Pre-registration',
+    kindUnknown: 'Unknown',
+    kindStub: 'Incomplete Form',
+    emptyGroup: 'No users in this group.',
+    footerNote: 'Note: Users whose required registration fields are filled now appear as "Pre-registration"; when the full application is completed they move automatically to the "Completed Forms" tab.',
+    fieldLabels: {
+      photo: 'Photo',
+      username: 'Username',
+      fullName: 'Full name',
+      age: 'Age',
+      city: 'City',
+      nationality: 'Nationality',
+      gender: 'Gender',
+      whatsapp: 'WhatsApp',
+      occupation: 'Occupation',
+      maritalStatus: 'Marital status',
+      hasChildren: 'Children status',
+      childrenCount: 'Children count',
+      childrenLivingSituation: 'Children living situation',
+      consent18Plus: '18+ consent',
+      consentPrivacy: 'Privacy consent',
+      consentTerms: 'Terms consent',
+    },
+  },
+  id: {
+    female: 'Perempuan',
+    male: 'Laki-laki',
+    single: 'Lajang',
+    widowed: 'Janda/Duda',
+    divorced: 'Cerai',
+    married: 'Menikah',
+    yes: 'Ya',
+    no: 'Tidak',
+    hasPhoto: 'Ada',
+    unknownUser: 'Pengguna tidak dikenal',
+    draftReview: 'Tinjauan Field Wajib',
+    close: 'Tutup',
+    noDraft: 'Tidak ada progres draft tersimpan untuk pengguna ini.',
+    progress: 'Progres:',
+    blockedField: 'Field yang terhenti:',
+    lastTouched: 'Field terakhir disentuh:',
+    lastDraft: 'Simpan draft terakhir:',
+    completedFields: 'Field wajib yang sudah diisi',
+    noCompletedFields: 'Belum ada field wajib yang tersimpan.',
+    missingFields: 'Field wajib yang masih kosong',
+    noMissingFields: 'Tidak ada field wajib yang hilang.',
+    title: 'Pengguna Baru (48 Jam Terakhir)',
+    total: 'Pengguna unik dalam 48 jam terakhir. Total:',
+    incompleteTab: 'Belum lengkap / Pra-pendaftaran',
+    filledTab: 'Form Selesai',
+    loadFailed: 'Gagal memuat pengguna baru.',
+    status: 'Status',
+    uc: 'UC',
+    name: 'Nama',
+    age: 'Usia',
+    gender: 'Gender',
+    created: 'Dibuat',
+    kindFilled: 'Form',
+    kindPartial: 'Pra-pendaftaran',
+    kindUnknown: 'Tidak dikenal',
+    kindStub: 'Form Belum Lengkap',
+    emptyGroup: 'Tidak ada pengguna di grup ini.',
+    footerNote: 'Catatan: Pengguna yang field pendaftaran wajibnya sudah terisi kini tampil sebagai "Pra-pendaftaran"; saat aplikasi penuh selesai, mereka otomatis pindah ke tab "Form Selesai".',
+    fieldLabels: {
+      photo: 'Foto',
+      username: 'Username',
+      fullName: 'Nama lengkap',
+      age: 'Usia',
+      city: 'Kota',
+      nationality: 'Kewarganegaraan',
+      gender: 'Gender',
+      whatsapp: 'WhatsApp',
+      occupation: 'Pekerjaan',
+      maritalStatus: 'Status pernikahan',
+      hasChildren: 'Status anak',
+      childrenCount: 'Jumlah anak',
+      childrenLivingSituation: 'Kondisi tinggal anak',
+      consent18Plus: 'Persetujuan 18+',
+      consentPrivacy: 'Persetujuan privasi',
+      consentTerms: 'Persetujuan syarat',
+    },
+  },
+};
+
+function fmtDate(ms, lang) {
   try {
     if (!ms || typeof ms !== 'number') return '-';
-    return new Intl.DateTimeFormat('tr-TR', {
+    return new Intl.DateTimeFormat(lang, {
       year: 'numeric',
       month: '2-digit',
       day: '2-digit',
@@ -36,34 +218,34 @@ function normalizeGender(g) {
   return '';
 }
 
-function genderLabel(g) {
-  if (g === 'female') return 'Kadın';
-  if (g === 'male') return 'Erkek';
+function genderLabel(g, ui) {
+  if (g === 'female') return ui.female;
+  if (g === 'male') return ui.male;
   return '-';
 }
 
-function maritalStatusLabel(value) {
+function maritalStatusLabel(value, ui) {
   const s = safeStr(value).toLowerCase();
-  if (s === 'single') return 'Bekar';
-  if (s === 'widowed') return 'Dul';
-  if (s === 'divorced') return 'Boşanmış';
-  if (s === 'married') return 'Evli';
+  if (s === 'single') return ui.single;
+  if (s === 'widowed') return ui.widowed;
+  if (s === 'divorced') return ui.divorced;
+  if (s === 'married') return ui.married;
   return s || '-';
 }
 
-function yesNoLabel(value) {
-  if (value === true) return 'Evet';
-  if (value === false) return 'Hayır';
+function yesNoLabel(value, ui) {
+  if (value === true) return ui.yes;
+  if (value === false) return ui.no;
   const s = safeStr(value).toLowerCase();
-  if (s === 'yes') return 'Evet';
-  if (s === 'no') return 'Hayır';
+  if (s === 'yes') return ui.yes;
+  if (s === 'no') return ui.no;
   return s || '-';
 }
 
-function draftUpdatedAtLabel(ms) {
+function draftUpdatedAtLabel(ms, lang) {
   try {
     if (!ms || typeof ms !== 'number') return '-';
-    return new Intl.DateTimeFormat('tr-TR', {
+    return new Intl.DateTimeFormat(lang, {
       year: 'numeric',
       month: '2-digit',
       day: '2-digit',
@@ -75,36 +257,41 @@ function draftUpdatedAtLabel(ms) {
   }
 }
 
-function formatRequiredFieldValue(application, key) {
+function getDraftFieldLabel(key, ui) {
+  const normalized = safeStr(key);
+  return ui.fieldLabels?.[normalized] || normalized || '-';
+}
+
+function formatRequiredFieldValue(application, key, ui) {
   const app = application && typeof application === 'object' ? application : {};
   const details = app?.details && typeof app.details === 'object' ? app.details : {};
 
-  if (key === 'photo') return getDraftProgressInfo(app)?.photoComplete ? 'Var' : '-';
+  if (key === 'photo') return getDraftProgressInfo(app)?.photoComplete ? ui.hasPhoto : '-';
   if (key === 'username') return safeStr(app?.username) || '-';
   if (key === 'fullName') return safeStr(app?.fullName) || '-';
   if (key === 'age') return typeof app?.age === 'number' && Number.isFinite(app.age) ? String(app.age) : '-';
   if (key === 'city') return safeStr(app?.city) || '-';
   if (key === 'nationality') return safeStr(app?.nationality || app?.country) || '-';
-  if (key === 'gender') return genderLabel(normalizeGender(app?.gender));
+  if (key === 'gender') return genderLabel(normalizeGender(app?.gender), ui);
   if (key === 'whatsapp') return safeStr(app?.whatsapp) || '-';
   if (key === 'occupation') return safeStr(details?.occupation) || '-';
-  if (key === 'maritalStatus') return maritalStatusLabel(details?.maritalStatus);
-  if (key === 'hasChildren') return yesNoLabel(details?.hasChildren);
+  if (key === 'maritalStatus') return maritalStatusLabel(details?.maritalStatus, ui);
+  if (key === 'hasChildren') return yesNoLabel(details?.hasChildren, ui);
   if (key === 'childrenCount') {
     return typeof details?.childrenCount === 'number' && Number.isFinite(details.childrenCount)
       ? String(details.childrenCount)
       : '-';
   }
   if (key === 'childrenLivingSituation') return safeStr(details?.childrenLivingSituation) || '-';
-  if (key === 'consent18Plus') return yesNoLabel(app?.consent18Plus);
-  if (key === 'consentPrivacy') return yesNoLabel(app?.consentPrivacy);
-  if (key === 'consentTerms') return yesNoLabel(app?.consentTerms);
+  if (key === 'consent18Plus') return yesNoLabel(app?.consent18Plus, ui);
+  if (key === 'consentPrivacy') return yesNoLabel(app?.consentPrivacy, ui);
+  if (key === 'consentTerms') return yesNoLabel(app?.consentTerms, ui);
 
   return '-';
 }
 
 
-function displayLabel(app, userDoc = null) {
+function displayLabel(app, userDoc = null, ui) {
   const username = safeStr(app?.username) || safeStr(userDoc?.username);
   if (username) return `@${username}`;
 
@@ -117,7 +304,7 @@ function displayLabel(app, userDoc = null) {
   const accountEmail = pickAccountEmail(app, userDoc);
   if (accountEmail) return accountEmail;
 
-  if (getAdminNewUserKind(app, userDoc) === 'unknown' && !hasKnownAccountIdentity(app, userDoc)) return 'Bilinmeyen kullanıcı';
+  if (getAdminNewUserKind(app, userDoc) === 'unknown' && !hasKnownAccountIdentity(app, userDoc)) return ui.unknownUser;
 
   return '-';
 }
@@ -130,11 +317,11 @@ function pillClass(kind) {
   return `${base} border-slate-200 bg-slate-50 text-slate-700`;
 }
 
-function DraftFieldsModal({ open, item, userDoc, onClose }) {
+function DraftFieldsModal({ open, item, userDoc, onClose, ui, lang }) {
   if (!open || !item) return null;
 
   const draftInfo = getDraftProgressInfo(item);
-  const label = displayLabel(item, userDoc);
+  const label = displayLabel(item, userDoc, ui);
   const completedKeys = draftInfo?.completedRequiredKeys || [];
   const missingKeys = draftInfo?.missingRequiredKeys || [];
 
@@ -143,7 +330,7 @@ function DraftFieldsModal({ open, item, userDoc, onClose }) {
       <div className="w-full max-w-3xl rounded-2xl bg-white shadow-2xl" onClick={(event) => event.stopPropagation()}>
         <div className="flex items-start justify-between gap-3 border-b border-slate-200 p-4">
           <div>
-            <h3 className="text-lg font-semibold text-slate-900">Zorunlu Alan İncelemesi</h3>
+            <h3 className="text-lg font-semibold text-slate-900">{ui.draftReview}</h3>
             <p className="mt-1 text-sm text-slate-600">{label}</p>
           </div>
           <button
@@ -151,36 +338,36 @@ function DraftFieldsModal({ open, item, userDoc, onClose }) {
             onClick={onClose}
             className="rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
           >
-            Kapat
+            {ui.close}
           </button>
         </div>
 
         <div className="p-4 space-y-4">
           {!draftInfo ? (
             <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
-              Bu kullanıcı için kaydedilmiş taslak ilerleme bilgisi bulunamadı.
+              {ui.noDraft}
             </div>
           ) : (
             <>
               <section className="rounded-xl border border-indigo-200 bg-indigo-50 p-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm text-indigo-950">
-                  <div><span className="text-indigo-700">İlerleme:</span> {draftInfo.totalRequiredCount > 0 ? `${draftInfo.completedRequiredCount}/${draftInfo.totalRequiredCount}` : '-'}</div>
-                  <div><span className="text-indigo-700">Takıldığı alan:</span> {draftInfo.firstMissingRequiredLabel}</div>
-                  <div><span className="text-indigo-700">Son dokunduğu alan:</span> {draftInfo.lastInputKey ? draftInfo.lastInputLabel : '-'}</div>
-                  <div><span className="text-indigo-700">Son taslak kaydı:</span> {draftUpdatedAtLabel(draftInfo.draftUpdatedAtMs)}</div>
+                  <div><span className="text-indigo-700">{ui.progress}</span> {draftInfo.totalRequiredCount > 0 ? `${draftInfo.completedRequiredCount}/${draftInfo.totalRequiredCount}` : '-'}</div>
+                  <div><span className="text-indigo-700">{ui.blockedField}</span> {getDraftFieldLabel(draftInfo.firstMissingRequiredKey, ui)}</div>
+                  <div><span className="text-indigo-700">{ui.lastTouched}</span> {draftInfo.lastInputKey ? getDraftFieldLabel(draftInfo.lastInputKey, ui) : '-'}</div>
+                  <div><span className="text-indigo-700">{ui.lastDraft}</span> {draftUpdatedAtLabel(draftInfo.draftUpdatedAtMs, lang)}</div>
                 </div>
               </section>
 
               <section className="rounded-xl border border-emerald-200 bg-emerald-50 p-4">
-                <h4 className="text-sm font-bold text-emerald-950">Doldurulan zorunlu alanlar</h4>
+                <h4 className="text-sm font-bold text-emerald-950">{ui.completedFields}</h4>
                 {completedKeys.length === 0 ? (
-                  <p className="mt-2 text-sm text-emerald-900">Henüz kaydedilmiş zorunlu alan yok.</p>
+                  <p className="mt-2 text-sm text-emerald-900">{ui.noCompletedFields}</p>
                 ) : (
                   <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3">
                     {completedKeys.map((key) => (
                       <div key={key} className="rounded-lg border border-emerald-200 bg-white p-3 text-sm">
-                        <div className="font-semibold text-emerald-950">{getDraftFieldLabel(key)}</div>
-                        <div className="mt-1 text-emerald-900 break-words">{formatRequiredFieldValue(item, key)}</div>
+                        <div className="font-semibold text-emerald-950">{getDraftFieldLabel(key, ui)}</div>
+                        <div className="mt-1 text-emerald-900 break-words">{formatRequiredFieldValue(item, key, ui)}</div>
                       </div>
                     ))}
                   </div>
@@ -188,14 +375,14 @@ function DraftFieldsModal({ open, item, userDoc, onClose }) {
               </section>
 
               <section className="rounded-xl border border-amber-200 bg-amber-50 p-4">
-                <h4 className="text-sm font-bold text-amber-950">Boş bırakılan zorunlu alanlar</h4>
+                <h4 className="text-sm font-bold text-amber-950">{ui.missingFields}</h4>
                 {missingKeys.length === 0 ? (
-                  <p className="mt-2 text-sm text-amber-900">Eksik zorunlu alan görünmüyor.</p>
+                  <p className="mt-2 text-sm text-amber-900">{ui.noMissingFields}</p>
                 ) : (
                   <div className="mt-3 flex flex-wrap gap-2">
                     {missingKeys.map((key) => (
                       <span key={key} className="inline-flex items-center rounded-full border border-amber-200 bg-white px-3 py-1 text-xs font-semibold text-amber-900">
-                        {getDraftFieldLabel(key)}
+                        {getDraftFieldLabel(key, ui)}
                       </span>
                     ))}
                   </div>
@@ -210,103 +397,53 @@ function DraftFieldsModal({ open, item, userDoc, onClose }) {
 }
 
 export default function NewUsers48hTab() {
+  const { i18n } = useTranslation();
+  const lang = getBaseLang(i18n?.language);
+  const ui = UI[lang];
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [items, setItems] = useState([]);
   const [subTab, setSubTab] = useState('incomplete');
   const [userInfoByUid, setUserInfoByUid] = useState({});
-  const [userLoadingByUid, setUserLoadingByUid] = useState({});
   const [activeItem, setActiveItem] = useState(null);
-
-  const didInitRef = useRef(false);
 
   const cutoffMs = useMemo(() => Date.now() - 48 * 60 * 60 * 1000, []);
 
   useEffect(() => {
-    setLoading(true);
-    setError('');
-
-    const q = query(
-      collection(db, 'matchmakingApplications'),
-      where('createdAtMs', '>=', cutoffMs),
-      orderBy('createdAtMs', 'desc'),
-      limit(500)
-    );
-
-    const unsub = onSnapshot(
-      q,
-      (snap) => {
-        const next = snap.docs.map((d) => ({ id: d.id, ...(d.data() || {}) }));
-        setItems(next);
-        setLoading(false);
-        if (!didInitRef.current) didInitRef.current = true;
-      },
-      (e) => {
-        setItems([]);
-        setLoading(false);
-        setError(String(e?.message || 'Yeni kullanıcılar yüklenemedi.'));
-      }
-    );
-
-    return () => unsub();
-  }, [cutoffMs]);
-
-  useEffect(() => {
     let cancelled = false;
 
-    const toFetch = () => {
-      const list = Array.isArray(items) ? items : [];
-      const uids = [];
-      for (const it of list) {
-        const uid = resolveAdminNewUserUid(it);
-        if (!uid) continue;
-        if (userInfoByUid[uid] !== undefined) continue;
-        if (userLoadingByUid[uid]) continue;
-        uids.push(uid);
-        if (uids.length >= 40) break;
-      }
-      return uids;
-    };
-
-    const run = async () => {
-      const uids = toFetch();
-      if (!uids.length) return;
-
-      setUserLoadingByUid((prev) => {
-        const next = { ...prev };
-        for (const uid of uids) next[uid] = true;
-        return next;
-      });
-
+    const load = async () => {
+      setLoading(true);
+      setError('');
       try {
-        const snaps = await Promise.all(uids.map((uid) => getDoc(doc(db, 'matchmakingUsers', uid))));
-        const patch = {};
-        for (let i = 0; i < uids.length; i += 1) {
-          patch[uids[i]] = snaps[i].exists() ? (snaps[i].data() || {}) : null;
-        }
-        if (!cancelled) setUserInfoByUid((prev) => ({ ...prev, ...patch }));
-      } catch {
+        const data = await authFetch('/api/admin-new-users-list', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ sinceMs: cutoffMs, limit: 500 }),
+        });
         if (!cancelled) {
-          const patch = {};
-          for (const uid of uids) patch[uid] = null;
-          setUserInfoByUid((prev) => ({ ...prev, ...patch }));
+          setItems(Array.isArray(data?.items) ? data.items : []);
+          setUserInfoByUid(data?.userInfoByUid && typeof data.userInfoByUid === 'object' ? data.userInfoByUid : {});
+        }
+      } catch (e) {
+        if (!cancelled) {
+          setItems([]);
+          setUserInfoByUid({});
+          setError(String(e?.message || ui.loadFailed));
         }
       } finally {
-        if (!cancelled) {
-          setUserLoadingByUid((prev) => {
-            const next = { ...prev };
-            for (const uid of uids) delete next[uid];
-            return next;
-          });
-        }
+        if (!cancelled) setLoading(false);
       }
     };
 
-    run();
+    load();
+    const timer = window.setInterval(load, 30000);
     return () => {
       cancelled = true;
+      window.clearInterval(timer);
     };
-  }, [items, userInfoByUid, userLoadingByUid]);
+  }, [cutoffMs, ui.loadFailed]);
 
   const normalizedItems = useMemo(() => dedupeAdminNewUsers(items, userInfoByUid), [items, userInfoByUid]);
 
@@ -335,9 +472,9 @@ export default function NewUsers48hTab() {
     <div className="bg-white rounded-xl shadow p-6">
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
         <div>
-          <h2 className="text-lg font-semibold text-gray-800">Yeni Kullanıcılar (Son 48 Saat)</h2>
+          <h2 className="text-lg font-semibold text-gray-800">{ui.title}</h2>
           <p className="text-sm text-gray-600">
-            Son 48 saatteki benzersiz kullanıcılar. Toplam: <span className="font-semibold text-gray-900">{groups.total}</span>
+            {ui.total} <span className="font-semibold text-gray-900">{groups.total}</span>
           </p>
         </div>
 
@@ -352,7 +489,7 @@ export default function NewUsers48hTab() {
                 : 'bg-white text-gray-800 border-gray-200 hover:bg-gray-50')
             }
           >
-            Eksik / On Kayit ({groups.incomplete.length})
+            {ui.incompleteTab} ({groups.incomplete.length})
           </button>
           <button
             type="button"
@@ -364,7 +501,7 @@ export default function NewUsers48hTab() {
                 : 'bg-white text-gray-800 border-gray-200 hover:bg-gray-50')
             }
           >
-            Formu Tamamlayanlar ({groups.filled.length})
+            {ui.filledTab} ({groups.filled.length})
           </button>
         </div>
       </div>
@@ -376,12 +513,12 @@ export default function NewUsers48hTab() {
           <table className="w-full text-sm">
             <thead className="bg-gray-50 text-gray-700">
               <tr>
-                <th className="text-left px-3 py-2">Durum</th>
-                <th className="text-left px-3 py-2">UC</th>
-                <th className="text-left px-3 py-2">İsim</th>
-                <th className="text-left px-3 py-2">Yaş</th>
-                <th className="text-left px-3 py-2">Cinsiyet</th>
-                <th className="text-left px-3 py-2">Kayıt</th>
+                <th className="text-left px-3 py-2">{ui.status}</th>
+                <th className="text-left px-3 py-2">{ui.uc}</th>
+                <th className="text-left px-3 py-2">{ui.name}</th>
+                <th className="text-left px-3 py-2">{ui.age}</th>
+                <th className="text-left px-3 py-2">{ui.gender}</th>
+                <th className="text-left px-3 py-2">{ui.created}</th>
               </tr>
             </thead>
             <tbody>
@@ -390,7 +527,7 @@ export default function NewUsers48hTab() {
                 const userDoc = uid ? userInfoByUid[uid] : null;
                 const createdAtMs = getCreatedAtMs(it);
                 const uc = safeStr(it?.userCode) || safeStr(userDoc?.userCode) || safeStr(userDoc?.publicProfile?.userCode);
-                const label = displayLabel(it, userDoc);
+                const label = displayLabel(it, userDoc, ui);
                 const age = typeof it?.age === 'number' && Number.isFinite(it.age) ? it.age : '';
                 const gender = resolveAdminNewUserGender(it, userDoc);
                 const kind = getAdminNewUserKind(it, userDoc);
@@ -399,7 +536,7 @@ export default function NewUsers48hTab() {
                 return (
                   <tr key={it?.id} className="border-t">
                     <td className="px-3 py-2">
-                      <span className={pillClass(kind)}>{kind === 'filled' ? 'Form' : kind === 'partial' ? 'On Kayit' : kind === 'unknown' ? 'Bilinmeyen' : 'Eksik Form'}</span>
+                      <span className={pillClass(kind)}>{kind === 'filled' ? ui.kindFilled : kind === 'partial' ? ui.kindPartial : kind === 'unknown' ? ui.kindUnknown : ui.kindStub}</span>
                     </td>
                     <td className="px-3 py-2 font-mono">{uc || '-'}</td>
                     <td className="px-3 py-2">
@@ -416,8 +553,8 @@ export default function NewUsers48hTab() {
                       )}
                     </td>
                     <td className="px-3 py-2">{age || '-'}</td>
-                    <td className="px-3 py-2">{genderLabel(gender)}</td>
-                    <td className="px-3 py-2">{createdAtMs ? fmtDate(createdAtMs) : '-'}</td>
+                    <td className="px-3 py-2">{genderLabel(gender, ui)}</td>
+                    <td className="px-3 py-2">{createdAtMs ? fmtDate(createdAtMs, lang) : '-'}</td>
                   </tr>
                 );
               })}
@@ -425,7 +562,7 @@ export default function NewUsers48hTab() {
               {!visible.length && !loading ? (
                 <tr>
                   <td colSpan={6} className="px-3 py-6 text-center text-gray-500">
-                    Bu grupta kullanıcı yok.
+                    {ui.emptyGroup}
                   </td>
                 </tr>
               ) : null}
@@ -434,7 +571,7 @@ export default function NewUsers48hTab() {
         </div>
 
         <div className="p-3 bg-gray-50 text-xs text-gray-600">
-          Not: Zorunlu kayıt alanları dolu olan kullanıcılar artık "On Kayit" olarak görünür; tam başvuru tamamlandığında otomatik olarak "Formu Tamamlayanlar" sekmesine geçer.
+          {ui.footerNote}
         </div>
 
         <DraftFieldsModal
@@ -442,6 +579,8 @@ export default function NewUsers48hTab() {
           item={activeItem}
           userDoc={activeItem ? userInfoByUid[resolveAdminNewUserUid(activeItem)] : null}
           onClose={closeDraftModal}
+          ui={ui}
+          lang={lang}
         />
       </div>
     </div>

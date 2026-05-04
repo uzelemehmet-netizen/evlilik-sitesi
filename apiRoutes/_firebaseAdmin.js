@@ -1,6 +1,7 @@
 import { cert, getApps, initializeApp } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
 import { FieldValue, getFirestore } from 'firebase-admin/firestore';
+import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 
@@ -53,6 +54,21 @@ function parseAdminEmails() {
   return ['uzelemehmet@gmail.com'];
 }
 
+function getServiceAccountFromFields() {
+  const projectId = String(process.env.FIREBASE_ADMIN_PROJECT_ID || process.env.FIREBASE_PROJECT_ID || '').trim();
+  const clientEmail = String(process.env.FIREBASE_ADMIN_CLIENT_EMAIL || '').trim();
+  const privateKeyRaw = String(process.env.FIREBASE_ADMIN_PRIVATE_KEY || process.env.FIREBASE_PRIVATE_KEY || '').trim();
+  const privateKey = privateKeyRaw ? privateKeyRaw.replace(/\\n/g, '\n') : '';
+
+  if (!projectId || !clientEmail || !privateKey) return null;
+
+  return {
+    project_id: projectId,
+    client_email: clientEmail,
+    private_key: privateKey,
+  };
+}
+
 export function getAdminEmails() {
   return [...parseAdminEmails()];
 }
@@ -61,6 +77,160 @@ export function isAdminEmail(email) {
   const normalized = String(email || '').toLowerCase().trim();
   if (!normalized) return false;
   return parseAdminEmails().includes(normalized);
+}
+
+function hasAdminClaim(decoded) {
+  return decoded?.admin === true;
+}
+
+function requiresAdminSecondFactor(decoded) {
+  return decoded?.admin_mfa_required === true;
+}
+
+function hasAdminSecondFactor(decoded) {
+  return !requiresAdminSecondFactor(decoded) || !!String(decoded?.firebase?.sign_in_second_factor || '').trim();
+}
+
+function safeTimingEqual(left, right) {
+  const a = Buffer.from(String(left || ''), 'utf8');
+  const b = Buffer.from(String(right || ''), 'utf8');
+  if (a.length !== b.length) return false;
+  try {
+    return crypto.timingSafeEqual(a, b);
+  } catch {
+    return false;
+  }
+}
+
+function sha256Hex(value) {
+  return crypto.createHash('sha256').update(String(value || ''), 'utf8').digest('hex');
+}
+
+function getAdminStepUpPasswordRaw() {
+  return String(process.env.ADMIN_PANEL_STEPUP_PASSWORD || '').trim();
+}
+
+function getAdminStepUpPasswordHash() {
+  return String(process.env.ADMIN_PANEL_STEPUP_PASSWORD_HASH || '').trim().toLowerCase();
+}
+
+function getAdminStepUpSigningSecret() {
+  return String(
+    process.env.ADMIN_PANEL_STEPUP_SIGNING_SECRET ||
+      process.env.ADMIN_PANEL_STEPUP_PASSWORD_HASH ||
+      process.env.ADMIN_PANEL_STEPUP_PASSWORD ||
+      ''
+  ).trim();
+}
+
+function base64UrlEncode(value) {
+  return Buffer.from(String(value || ''), 'utf8')
+    .toString('base64')
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/g, '');
+}
+
+function base64UrlDecode(value) {
+  const normalized = String(value || '').replace(/-/g, '+').replace(/_/g, '/');
+  if (!normalized) return '';
+  const padLen = normalized.length % 4;
+  const padded = normalized + (padLen ? '='.repeat(4 - padLen) : '');
+  try {
+    return Buffer.from(padded, 'base64').toString('utf8');
+  } catch {
+    return '';
+  }
+}
+
+function getRequestPath(req) {
+  const raw = String(req?.url || '').trim();
+  if (!raw) return '';
+  try {
+    return new URL(raw, 'http://localhost').pathname || '';
+  } catch {
+    return raw.split('?')[0] || '';
+  }
+}
+
+export function isAdminStepUpEnabled() {
+  return !!(getAdminStepUpPasswordRaw() || getAdminStepUpPasswordHash());
+}
+
+export function getAdminStepUpTtlMs() {
+  const raw = Number(String(process.env.ADMIN_PANEL_STEPUP_TTL_MINUTES || '20').trim());
+  const minutes = Number.isFinite(raw) ? Math.max(2, Math.min(240, Math.floor(raw))) : 20;
+  return minutes * 60 * 1000;
+}
+
+export function verifyAdminStepUpPassword(password) {
+  const input = String(password || '');
+  if (!input) return false;
+
+  const raw = getAdminStepUpPasswordRaw();
+  if (raw) return safeTimingEqual(input, raw);
+
+  const hash = getAdminStepUpPasswordHash();
+  if (!hash) return false;
+  return safeTimingEqual(sha256Hex(input), hash);
+}
+
+export function issueAdminStepUpToken(decoded) {
+  const signingSecret = getAdminStepUpSigningSecret();
+  if (!signingSecret) return '';
+
+  const payload = {
+    uid: String(decoded?.uid || '').trim(),
+    email: String(decoded?.email || '').toLowerCase().trim(),
+    exp: Date.now() + getAdminStepUpTtlMs(),
+  };
+  const payloadRaw = JSON.stringify(payload);
+  const payloadB64 = base64UrlEncode(payloadRaw);
+  const sig = crypto.createHmac('sha256', signingSecret).update(payloadB64).digest('base64url');
+  return `${payloadB64}.${sig}`;
+}
+
+function verifyAdminStepUpToken(req, decoded) {
+  const signingSecret = getAdminStepUpSigningSecret();
+  if (!signingSecret) return false;
+
+  const headers = req?.headers || {};
+  const raw = String(headers['x-admin-step-up'] || headers['X-Admin-Step-Up'] || '').trim();
+  if (!raw) return false;
+
+  const dot = raw.indexOf('.');
+  if (dot <= 0) return false;
+
+  const payloadB64 = raw.slice(0, dot);
+  const sig = raw.slice(dot + 1);
+  if (!payloadB64 || !sig) return false;
+
+  const expectedSig = crypto.createHmac('sha256', signingSecret).update(payloadB64).digest('base64url');
+  if (!safeTimingEqual(sig, expectedSig)) return false;
+
+  const payloadRaw = base64UrlDecode(payloadB64);
+  if (!payloadRaw) return false;
+
+  try {
+    const payload = JSON.parse(payloadRaw);
+    const exp = typeof payload?.exp === 'number' && Number.isFinite(payload.exp) ? payload.exp : 0;
+    const email = String(payload?.email || '').toLowerCase().trim();
+    const uid = String(payload?.uid || '').trim();
+    if (!exp || exp <= Date.now()) return false;
+    if (uid !== String(decoded?.uid || '').trim()) return false;
+    if (email !== String(decoded?.email || '').toLowerCase().trim()) return false;
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function shouldRequireAdminStepUp(req) {
+  if (!isAdminStepUpEnabled()) return false;
+  const pathName = getRequestPath(req);
+  if (!pathName.startsWith('/api/admin')) return false;
+  if (pathName === '/api/admin-step-up-status' || pathName === '/api/admin-step-up-verify') return false;
+  return true;
 }
 
 function normalizeBody(req) {
@@ -83,6 +253,9 @@ function getBearerToken(req) {
 }
 
 function getServiceAccount() {
+  const fromFields = getServiceAccountFromFields();
+  if (fromFields) return fromFields;
+
   const raw = process.env.FIREBASE_SERVICE_ACCOUNT_JSON || process.env.FIREBASE_SERVICE_ACCOUNT;
   if (raw) {
     try {
@@ -174,13 +347,20 @@ export async function requireIdToken(req) {
   }
 }
 
-export async function requireAdmin(req) {
+export async function requireAdmin(req, { requireStepUp } = {}) {
   const decoded = await requireIdToken(req);
   const email = String(decoded?.email || '').toLowerCase();
   const allowed = parseAdminEmails();
 
-  if (!email || !allowed.includes(email)) {
+  if (!email || !allowed.includes(email) || !hasAdminClaim(decoded) || !hasAdminSecondFactor(decoded)) {
     const err = new Error('forbidden');
+    err.statusCode = 403;
+    throw err;
+  }
+
+  const mustStepUp = requireStepUp === true || (requireStepUp !== false && shouldRequireAdminStepUp(req));
+  if (mustStepUp && !verifyAdminStepUpToken(req, decoded)) {
+    const err = new Error('admin_step_up_required');
     err.statusCode = 403;
     throw err;
   }
@@ -189,8 +369,14 @@ export async function requireAdmin(req) {
 }
 
 export function requireCronSecret(req) {
-  const secret = process.env.MATCHMAKING_CRON_SECRET || '';
+  const secret = process.env.MATCHMAKING_CRON_SECRET || process.env.CRON_SECRET || '';
   const headers = req?.headers || {};
+
+  // Vercel Cron Jobs, CRON_SECRET varsa Authorization: Bearer <secret> gönderir.
+  const authHeader = String(headers?.authorization || headers?.Authorization || '').trim();
+  const authMatch = authHeader.match(/^Bearer\s+(.+)$/i);
+  const gotBearer = authMatch ? String(authMatch[1] || '').trim() : '';
+  if (secret && gotBearer && gotBearer === secret) return true;
 
   // Primary: shared secret via header (local scripts / GitHub Actions gibi ortamlarda).
   const gotHeader = String(headers?.['x-cron-secret'] || headers?.['X-Cron-Secret'] || '').trim();

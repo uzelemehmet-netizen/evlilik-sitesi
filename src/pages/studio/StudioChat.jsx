@@ -13,6 +13,7 @@ import { normalizePhoneForWhatsApp } from '../../utils/phone';
 import { translateStudioApiError } from '../../utils/studioErrorI18n';
 import StudioBottomNav from '../../components/studio/StudioBottomNav';
 import { isTutorialActive } from '../../utils/tutorialState.js';
+import { formatDateTimeFromMs, formatRelativeTimeFromMs, timestampToMs } from '../../utils/relativeTime';
 import {
   hasAnyMatchmakingPhotoInApplicationDoc,
   hasAnyStoredMatchmakingPhotoInApplicationDoc,
@@ -20,6 +21,8 @@ import {
   hasAnyMatchmakingProfileInApplicationDoc,
   hasAnyMatchmakingProfileInUserDoc,
   hasMinimumMatchmakingProfileInUserDoc,
+  isDeferredPhotoInteractionRequiredFromUserDoc,
+  isDeferredWhatsappInteractionRequiredFromUserDoc,
 } from '../../utils/matchmakingProfileCompletion';
 
 function safeStr(v) {
@@ -139,6 +142,8 @@ export default function StudioChat() {
   const [myHasAnyApplication, setMyHasAnyApplication] = useState(null);
   const [myHasAnyPhotoFromUserDoc, setMyHasAnyPhotoFromUserDoc] = useState(null);
   const [myHasAnyApplicationFromUserDoc, setMyHasAnyApplicationFromUserDoc] = useState(null);
+  const [deferredPhotoGateActive, setDeferredPhotoGateActive] = useState(false);
+  const [deferredWhatsappGateActive, setDeferredWhatsappGateActive] = useState(false);
   const [paywallNotice, setPaywallNotice] = useState('');
   const [profileGateNotice, setProfileGateNotice] = useState('');
   const [messages, setMessages] = useState([]);
@@ -234,20 +239,31 @@ export default function StudioChat() {
   }, [myHasAnyPhoto, myHasAnyPhotoFromUserDoc]);
 
   const profileGateMode = useMemo(() => {
+    if (deferredPhotoGateActive) return 'deferred_photo';
+    if (deferredWhatsappGateActive) return 'deferred_whatsapp';
     if (effectiveHasAnyApplication === false) return 'application';
-    if (effectiveHasAnyApplication === true && effectiveHasAnyPhoto === false) return 'photo';
     return '';
-  }, [effectiveHasAnyApplication, effectiveHasAnyPhoto]);
+  }, [deferredPhotoGateActive, deferredWhatsappGateActive, effectiveHasAnyApplication]);
 
   const profileGateCta = useMemo(() => {
-    if (profileGateMode === 'photo') return t('studio.profileGate.photoCta');
+    if (profileGateMode === 'deferred_photo') return t('studio.profileGate.photoCta');
+    if (profileGateMode === 'deferred_whatsapp') return t('studio.profileGate.deferredWhatsappPrimaryCta');
     return t('studio.profileGate.cta');
   }, [profileGateMode, t]);
 
   const goToProfileCompletionTarget = () => {
-    if (profileGateMode === 'photo') {
+    if (profileGateMode === 'deferred_photo') {
       try {
-        navigate('/profilim', { replace: false, state: { openPhotoManager: true, profileGate: 'photo_required' } });
+        navigate('/profilim', { replace: false, state: { openPhotoManager: true, profileGate: 'deferred_photo_required' } });
+      } catch {
+        // noop
+      }
+      return;
+    }
+
+    if (profileGateMode === 'deferred_whatsapp') {
+      try {
+        navigate('/profilim', { replace: false, state: { profileGate: 'deferred_whatsapp_required' } });
       } catch {
         // noop
       }
@@ -276,6 +292,30 @@ export default function StudioChat() {
       }
     };
   }, [profileGateNotice]);
+
+  const deferredPhotoRedirectRef = useRef(false);
+  useEffect(() => {
+    if (!deferredPhotoGateActive) {
+      deferredPhotoRedirectRef.current = false;
+      return;
+    }
+    if (deferredPhotoRedirectRef.current) return;
+    deferredPhotoRedirectRef.current = true;
+    setProfileGateNotice(t('studio.profileGate.deferredPhotoBody'));
+    goToProfileCompletionTarget();
+  }, [deferredPhotoGateActive, t]);
+
+  const deferredWhatsappRedirectRef = useRef(false);
+  useEffect(() => {
+    if (!deferredWhatsappGateActive) {
+      deferredWhatsappRedirectRef.current = false;
+      return;
+    }
+    if (deferredWhatsappRedirectRef.current) return;
+    deferredWhatsappRedirectRef.current = true;
+    setProfileGateNotice(t('studio.profileGate.deferredWhatsappBody'));
+    goToProfileCompletionTarget();
+  }, [deferredWhatsappGateActive, t]);
 
   const activateFreeMembershipNow = useCallback(async () => {
     if (!uid) return;
@@ -335,6 +375,7 @@ export default function StudioChat() {
         setMyProfileComplete(isMinimumProfileCompleteFromUserDoc(d));
         setMyHasAnyApplicationFromUserDoc(hasAnyMatchmakingProfileInUserDoc(d));
         setMyHasAnyPhotoFromUserDoc(hasAnyMatchmakingPhotoInUserDoc(d));
+        setDeferredPhotoGateActive(isDeferredPhotoInteractionRequiredFromUserDoc(d));
 
         setMyCommLanguage(String(d?.details?.communicationLanguage || '').trim());
       } catch {
@@ -357,6 +398,8 @@ export default function StudioChat() {
         setMyProfileComplete(isMinimumProfileCompleteFromUserDoc(d));
         setMyHasAnyApplicationFromUserDoc(hasAnyMatchmakingProfileInUserDoc(d));
         setMyHasAnyPhotoFromUserDoc(hasAnyMatchmakingPhotoInUserDoc(d));
+        setDeferredPhotoGateActive(isDeferredPhotoInteractionRequiredFromUserDoc(d));
+        setDeferredWhatsappGateActive(isDeferredWhatsappInteractionRequiredFromUserDoc(d));
 
         setMyCommLanguage(String(d?.details?.communicationLanguage || '').trim());
       },
@@ -367,6 +410,8 @@ export default function StudioChat() {
         setMyHasAnyApplication(null);
         setMyHasAnyPhotoFromUserDoc(null);
         setMyHasAnyApplicationFromUserDoc(null);
+        setDeferredPhotoGateActive(false);
+        setDeferredWhatsappGateActive(false);
         setMyCommLanguage('');
       }
     );
@@ -821,11 +866,11 @@ export default function StudioChat() {
   }, [cancelCooldownRemainingMs, t]);
 
   useEffect(() => {
-    if (!longChatAllowed) return;
-    if (cancelCooldownRemainingMs <= 0) return;
+    const hasMessages = Array.isArray(messages) && messages.length > 0;
+    if (!hasMessages && (!longChatAllowed || cancelCooldownRemainingMs <= 0)) return;
     const timer = setInterval(() => setNowTickMs(Date.now()), 30000);
     return () => clearInterval(timer);
-  }, [cancelCooldownRemainingMs, longChatAllowed]);
+  }, [cancelCooldownRemainingMs, longChatAllowed, messages]);
 
   const cancelActiveMutual = async () => {
     if (!uid || !mid) return;
@@ -1009,16 +1054,33 @@ export default function StudioChat() {
 
     void (async () => {
       try {
-        await authFetch('/api/matchmaking-chat-mark-read', {
+        await authFetch('/api/matchmaking-chat-release-held', {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
           body: JSON.stringify({ matchId }),
         });
       } catch {
-        // best-effort
+        // noop
+      }
+
+      try {
+        await authFetch('/api/matchmaking-chat-mark-read', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ matchId }),
+        });
+      } catch (error) {
+        const msg = String(error?.message || '').trim();
+        if (msg === 'deferred_photo_required') {
+          setProfileGateNotice(t('studio.profileGate.deferredPhotoBody'));
+          goToProfileCompletionTarget();
+        } else if (msg === 'deferred_whatsapp_required') {
+          setProfileGateNotice(t('studio.profileGate.deferredWhatsappBody'));
+          goToProfileCompletionTarget();
+        }
       }
     })();
-  }, [mid, uid]);
+  }, [goToProfileCompletionTarget, mid, t, uid]);
 
   const confirm48h = async () => {
     if (!uid || !mid) return;
@@ -1582,6 +1644,9 @@ export default function StudioChat() {
                   const systemType = safeStr(m?.systemType);
                   const fromMe = !!uid && String(m?.userId || '') === uid;
                   const text = String(m?.text || '').trim();
+                  const sentAtMs = timestampToMs(m?.createdAtMs) || timestampToMs(m?.createdAt);
+                  const sentAtLabel = formatRelativeTimeFromMs(sentAtMs, { nowMs: nowTickMs, locale: i18n?.language || 'tr' });
+                  const sentAtTitle = formatDateTimeFromMs(sentAtMs, { locale: i18n?.language || 'tr' });
 
                   if (isSystem && systemType === 'contact_shared') {
                     const systemEntries = extractSharedContactsFromMessage(m);
@@ -1604,6 +1669,7 @@ export default function StudioChat() {
                               ? t('studio.chat.system.contactSharedMineBody')
                               : t('studio.chat.system.contactSharedOtherBody', { name: otherName })}
                           </p>
+                          {sentAtLabel ? <p className="mt-2 text-[11px] text-emerald-900/70" title={sentAtTitle}>{sentAtLabel}</p> : null}
                           {!isMineShared && sharedEntry.whatsapp ? (
                             <>
                               <p className="mt-2 font-semibold text-slate-900">{sharedEntry.whatsapp}</p>
@@ -1649,6 +1715,18 @@ export default function StudioChat() {
                         }
                       >
                         {text}
+
+                        {sentAtLabel ? (
+                          <div
+                            className={
+                              'mt-2 text-[11px] ' +
+                              (fromMe ? 'text-emerald-100/90 text-right' : 'text-slate-500')
+                            }
+                            title={sentAtTitle}
+                          >
+                            {sentAtLabel}
+                          </div>
+                        ) : null}
 
                         {!fromMe ? (
                           <div className="mt-2 flex items-center justify-between gap-2">

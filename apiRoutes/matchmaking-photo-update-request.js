@@ -1,4 +1,7 @@
 import { getAdmin, normalizeBody, requireIdToken } from './_firebaseAdmin.js';
+import { ensureUserCodeAssigned } from './_matchmakingUserCode.js';
+import { normalizeCompletedStubApplication } from './_matchmakingApplicationActivation.js';
+import { havePhotoUrlsChanged, isPhotoModerationRestricted, normalizePhotoUrls } from '../src/utils/photoModerationState.js';
 
 function safeStr(v) {
   return typeof v === 'string' ? v.trim() : '';
@@ -62,6 +65,9 @@ export default async function handler(req, res) {
   try {
     const decoded = await requireIdToken(req);
     const uid = decoded.uid;
+    const authEmail = safeStr(decoded?.email).toLowerCase();
+    const displayName = safeStr(decoded?.name);
+    const authProvider = safeStr(decoded?.firebase?.sign_in_provider).toLowerCase();
 
     const body = normalizeBody(req);
     const requestedApplicationId = safeStr(body?.applicationId);
@@ -102,6 +108,7 @@ export default async function handler(req, res) {
     }
 
     let applicationId = '';
+    let finalUrlsForNormalization = [];
     const userRef = db.collection('matchmakingUsers').doc(uid);
 
     await db.runTransaction(async (tx) => {
@@ -113,6 +120,8 @@ export default async function handler(req, res) {
       }
 
       const app = appSnap.data() || {};
+      const userSnap = await tx.get(userRef);
+      const userDoc = userSnap.exists ? (userSnap.data() || {}) : {};
       if (safeStr(app?.userId) !== safeStr(uid)) {
         const err = new Error('forbidden');
         err.statusCode = 403;
@@ -122,12 +131,31 @@ export default async function handler(req, res) {
       const now = FieldValue.serverTimestamp();
 
       const finalUrls = photoUrlsBySlot.filter(Boolean).slice(0, 5);
+      const primaryPhotoUrl = safeStr(finalUrls[0]);
+      finalUrlsForNormalization = finalUrls;
+      const previousUrls = normalizePhotoUrls(
+        app?.photoUrls || userDoc?.application?.photoUrls || userDoc?.publicProfile?.photoUrls || userDoc?.photoUrls,
+        5,
+      );
+      const clearPhotoRestriction = isPhotoModerationRestricted(userDoc, app) && havePhotoUrlsChanged(previousUrls, finalUrls);
 
       tx.set(
         appRef,
         {
           photoUrls: finalUrls,
+          ...(primaryPhotoUrl
+            ? {
+                photoUrl: primaryPhotoUrl,
+                primaryPhotoUrl,
+                profilePhotoUrl: primaryPhotoUrl,
+              }
+            : {}),
+          deferredPhotoRequiredForInteraction: false,
+          ...(authEmail ? { authEmail, authEmailLower: authEmail } : {}),
+          ...(displayName ? { displayName } : {}),
+          ...(authProvider ? { authProvider } : {}),
           photoUpdate: FieldValue.delete(),
+          ...(clearPhotoRestriction ? { photoModeration: FieldValue.delete() } : {}),
           updatedAt: now,
         },
         { merge: true }
@@ -137,17 +165,93 @@ export default async function handler(req, res) {
         userRef,
         {
           photoUrls: finalUrls,
+          ...(primaryPhotoUrl
+            ? {
+                photoUrl: primaryPhotoUrl,
+                primaryPhotoUrl,
+                profilePhotoUrl: primaryPhotoUrl,
+              }
+            : {}),
+          deferredPhotoRequiredForInteraction: false,
+          ...(authEmail ? { authEmail, authEmailLower: authEmail } : {}),
+          ...(displayName ? { displayName } : {}),
+          ...(authProvider ? { authProvider } : {}),
           application: {
             photoUrls: finalUrls,
+            ...(primaryPhotoUrl
+              ? {
+                  photoUrl: primaryPhotoUrl,
+                  primaryPhotoUrl,
+                  profilePhotoUrl: primaryPhotoUrl,
+                }
+              : {}),
+            deferredPhotoRequiredForInteraction: false,
           },
           publicProfile: {
             photoUrls: finalUrls,
+            ...(primaryPhotoUrl
+              ? {
+                  photoUrl: primaryPhotoUrl,
+                  primaryPhotoUrl,
+                  profilePhotoUrl: primaryPhotoUrl,
+                }
+              : {}),
+            deferredPhotoRequiredForInteraction: false,
           },
+          ...(clearPhotoRestriction
+            ? {
+                photoModeration: FieldValue.delete(),
+                'application.photoModeration': FieldValue.delete(),
+                'publicProfile.photoModeration': FieldValue.delete(),
+              }
+            : {}),
           updatedAt: now,
         },
         { merge: true }
       );
     });
+
+    try {
+      const [appSnap, userSnap] = await Promise.all([appRef.get(), userRef.get()]);
+      if (appSnap.exists && userSnap.exists) {
+        await normalizeCompletedStubApplication({
+          db,
+          FieldValue,
+          uid,
+          applicationId,
+          app: appSnap.data() || {},
+          userDoc: userSnap.data() || {},
+          finalPhotoUrls: finalUrlsForNormalization,
+        });
+      }
+    } catch {
+      // best-effort: photo update should still succeed if normalization cannot run
+    }
+
+    try {
+      const userSnap = await userRef.get();
+      const userDoc = userSnap.exists ? (userSnap.data() || {}) : {};
+      const ensuredCode = await ensureUserCodeAssigned({
+        db,
+        FieldValue,
+        uid,
+        gender: safeStr(userDoc?.gender || userDoc?.publicProfile?.gender || userDoc?.application?.gender),
+        nowMs: Date.now(),
+      });
+      const userCode = safeStr(ensuredCode?.userCode);
+      if (userCode) {
+        await appRef.set(
+          {
+            userCode,
+            updatedAt: FieldValue.serverTimestamp(),
+            updatedAtMs: Date.now(),
+          },
+          { merge: true }
+        );
+      }
+    } catch {
+      // best-effort: photo update should not fail if UC assignment cannot be completed
+    }
 
     res.statusCode = 200;
     res.setHeader('content-type', 'application/json');

@@ -1,10 +1,16 @@
 import {
   getMinimumMatchmakingProfileMissingFromApp,
+  getMinimumMatchmakingProfileMissingFromUserDoc,
   hasAnyMatchmakingProfileInUserDoc,
+  hasManualApplicationApproval,
   hasMinimumMatchmakingProfileInApplicationDoc,
-  hasMinimumMatchmakingProfileInUserDoc,
+  isDeferredPhotoInteractionRequiredFromApplication,
+  isDeferredPhotoInteractionRequiredFromUserDoc,
+  isDeferredWhatsappInteractionRequiredFromApplication,
+  isDeferredWhatsappInteractionRequiredFromUserDoc,
   isStubMatchmakingApplication,
 } from '../src/utils/matchmakingProfileCompletion.js';
+import { isPhotoModerationRestricted } from '../src/utils/photoModerationState.js';
 import { fetchMatchmakingApplicationsByUid } from './_matchmakingApplications.js';
 
 function normalizeGender(v) {
@@ -252,8 +258,13 @@ function pickChildrenCount(details, app) {
   return i;
 }
 
+function stripPhotoMissing(missing) {
+  return (Array.isArray(missing) ? missing : []).filter((item) => safeStr(item) !== 'photo');
+}
+
 function isMinimumMatchmakingProfileCompleteFromApp(app) {
-  return hasMinimumMatchmakingProfileInApplicationDoc(app);
+  if (hasMinimumMatchmakingProfileInApplicationDoc(app)) return true;
+  return stripPhotoMissing(getMinimumMatchmakingProfileMissingFromApp(app)).length === 0;
 }
 
 function explainMinimumMatchmakingProfileMissing(app) {
@@ -287,8 +298,11 @@ function pickBestSubmittedApplication(apps) {
 
 function hasSubmittedMatchmakingProfileInUserDoc(userDoc) {
   const source = userDoc && typeof userDoc === 'object' ? userDoc : {};
+  const applicationState = safeStr(source?.applicationState).toLowerCase();
+  const explicitSubmitted = source?.hasSubmittedProfile === true || applicationState === 'real';
+  if (explicitSubmitted) return true;
   if (!hasAnyMatchmakingProfileInUserDoc(source)) return false;
-  return hasMinimumMatchmakingProfileInUserDoc(source);
+  return stripPhotoMissing(getMinimumMatchmakingProfileMissingFromUserDoc(source)).length === 0;
 }
 
 function isMembershipActive(userDoc, now = Date.now()) {
@@ -367,6 +381,38 @@ function ensureMembershipActiveOrThrow(userDoc) {
   }
 }
 
+function ensureDeferredPhotoInteractionAllowedFromDocsOrThrow(userDoc, submittedApp) {
+  if (isDeferredPhotoInteractionRequiredFromApplication(submittedApp) || isDeferredPhotoInteractionRequiredFromUserDoc(userDoc)) {
+    const err = new Error('deferred_photo_required');
+    err.statusCode = 403;
+    throw err;
+  }
+
+  if (isDeferredWhatsappInteractionRequiredFromApplication(submittedApp) || isDeferredWhatsappInteractionRequiredFromUserDoc(userDoc)) {
+    const err = new Error('deferred_whatsapp_required');
+    err.statusCode = 403;
+    throw err;
+  }
+}
+
+async function ensureDeferredPhotoInteractionAllowedOrThrow(db, uid) {
+  const userId = safeStr(uid);
+  if (!db || !userId) {
+    const err = new Error('deferred_photo_required');
+    err.statusCode = 403;
+    throw err;
+  }
+
+  const [apps, userSnap] = await Promise.all([
+    fetchMatchmakingApplicationsByUid(db, userId, { limit: 10 }),
+    db.collection('matchmakingUsers').doc(userId).get().catch(() => null),
+  ]);
+
+  const userDoc = userSnap?.exists ? (userSnap.data() || {}) : {};
+  const submittedApp = pickBestSubmittedApplication(apps);
+  ensureDeferredPhotoInteractionAllowedFromDocsOrThrow(userDoc, submittedApp);
+}
+
 async function ensureProfileCompleteOrThrow(db, uid) {
   const userId = safeStr(uid);
   if (!db || !userId) {
@@ -381,7 +427,14 @@ async function ensureProfileCompleteOrThrow(db, uid) {
   ]);
 
   const userDoc = userSnap?.exists ? (userSnap.data() || {}) : {};
+  if (hasManualApplicationApproval(userDoc)) return;
   const submittedApp = pickBestSubmittedApplication(apps);
+  if (isPhotoModerationRestricted(userDoc, submittedApp)) {
+    const err = new Error('photo_review_required');
+    err.statusCode = 403;
+    throw err;
+  }
+  ensureDeferredPhotoInteractionAllowedFromDocsOrThrow(userDoc, submittedApp);
   if ((submittedApp && isMinimumMatchmakingProfileCompleteFromApp(submittedApp)) || hasSubmittedMatchmakingProfileInUserDoc(userDoc)) return;
 
   const err = new Error('application_required');
@@ -397,6 +450,7 @@ export {
   isIdentityVerified,
   computeFreeActiveMembershipState,
   ensureEligibleOrThrow,
+  ensureDeferredPhotoInteractionAllowedOrThrow,
   ensureMembershipActiveOrThrow,
   ensureProfileCompleteOrThrow,
   hasSubmittedMatchmakingProfileInUserDoc,

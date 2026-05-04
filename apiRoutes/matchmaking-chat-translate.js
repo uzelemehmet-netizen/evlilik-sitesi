@@ -1,4 +1,5 @@
 import { getAdmin, normalizeBody, requireIdToken } from './_firebaseAdmin.js';
+import { hasGeminiTranslateApiKey } from './_geminiTranslate.js';
 import { normalizeChatLang, translateText } from './_translate.js';
 import { checkAndRecordGeminiTranslateRpm } from './_geminiTranslateRpm.js';
 import {
@@ -59,7 +60,7 @@ function safeProvider(v) {
 function isProviderAvailable(provider) {
   const p = safeProvider(provider);
   if (!p) return false;
-  if (p === 'gemini') return !!safeStr(process.env.GEMINI_API_KEY || process.env.GOOGLE_GEMINI_API_KEY);
+  if (p === 'gemini') return hasGeminiTranslateApiKey();
   if (p === 'deepl') return !!safeStr(process.env.DEEPL_API_KEY);
   if (p === 'google') return !!safeStr(process.env.GOOGLE_TRANSLATE_API_KEY);
   if (p === 'libretranslate') return !!safeStr(process.env.LIBRETRANSLATE_URL);
@@ -409,7 +410,7 @@ export default async function handler(req, res) {
         return;
       }
 
-      const hasGeminiKey = !!String(process.env.GEMINI_API_KEY || process.env.GOOGLE_GEMINI_API_KEY || '').trim();
+      const hasGeminiKey = hasGeminiTranslateApiKey();
       const configuredProvider = safeProvider(process.env.TRANSLATE_PROVIDER);
       const configuredFallbackProvider = safeProvider(process.env.TRANSLATE_FALLBACK_PROVIDER);
 
@@ -424,8 +425,8 @@ export default async function handler(req, res) {
         : (isProviderAvailable(configuredProvider) ? configuredProvider : pickFirstAvailable(defaultNonGeminiOrder, { exclude: [primaryProvider] }));
 
       // Gemini free-tier RPM guard + admin alert (best-effort).
-      // If RPM is exceeded, we transparently fall back to configured provider (e.g., DeepL).
-      if (primaryProvider === 'gemini') {
+      // Only pre-emptively rate-limit when a non-Gemini fallback exists; otherwise let Gemini decide.
+      if (primaryProvider === 'gemini' && fallbackProvider && fallbackProvider !== 'gemini') {
         const rpmLimitRaw = String(process.env.GEMINI_TRANSLATE_RPM_LIMIT || '').trim();
         const rpmLimitParsed = rpmLimitRaw ? Number.parseInt(rpmLimitRaw, 10) : NaN;
         const rpmLimit = Number.isFinite(rpmLimitParsed) ? rpmLimitParsed : 15;

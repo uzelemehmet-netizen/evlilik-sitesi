@@ -1,14 +1,80 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { authFetch } from '../../utils/authFetch';
 
 function safeStr(v) {
   return typeof v === 'string' ? v.trim() : '';
 }
 
-function fmtDate(ms) {
+function getBaseLang(language) {
+  const base = String(language || 'tr').toLowerCase().split('-')[0];
+  return base === 'en' || base === 'id' ? base : 'tr';
+}
+
+const UI = {
+  tr: {
+    title: 'Admin Logları',
+    subtitle: 'Admin aksiyon kayıtları',
+    search: 'Ara: aksiyon / uid / e-posta / hata',
+    loading: 'Yükleniyor…',
+    refresh: 'Yenile',
+    time: 'Zaman',
+    admin: 'Admin',
+    action: 'Aksiyon',
+    target: 'Hedef',
+    result: 'Sonuç',
+    meta: 'Meta',
+    ok: 'OK',
+    error: 'HATA',
+    show: 'Göster',
+    empty: 'Kayıt yok.',
+    shown: 'Gösterilen',
+    limit: 'Limit',
+  },
+  en: {
+    title: 'Admin Logs',
+    subtitle: 'Admin action records',
+    search: 'Search: action / uid / email / error',
+    loading: 'Loading…',
+    refresh: 'Refresh',
+    time: 'Time',
+    admin: 'Admin',
+    action: 'Action',
+    target: 'Target',
+    result: 'Result',
+    meta: 'Meta',
+    ok: 'OK',
+    error: 'ERROR',
+    show: 'Show',
+    empty: 'No records.',
+    shown: 'Shown',
+    limit: 'Limit',
+  },
+  id: {
+    title: 'Log Admin',
+    subtitle: 'Catatan aksi admin',
+    search: 'Cari: aksi / uid / email / error',
+    loading: 'Memuat…',
+    refresh: 'Segarkan',
+    time: 'Waktu',
+    admin: 'Admin',
+    action: 'Aksi',
+    target: 'Target',
+    result: 'Hasil',
+    meta: 'Meta',
+    ok: 'OK',
+    error: 'ERROR',
+    show: 'Lihat',
+    empty: 'Tidak ada data.',
+    shown: 'Ditampilkan',
+    limit: 'Batas',
+  },
+};
+
+function fmtDate(ms, lang) {
   try {
     if (!ms || typeof ms !== 'number') return '-';
-    return new Intl.DateTimeFormat('tr-TR', {
+    return new Intl.DateTimeFormat(lang, {
       year: 'numeric',
       month: '2-digit',
       day: '2-digit',
@@ -59,6 +125,9 @@ function auditErrorLabel(value) {
 }
 
 export default function AuditLogsTab() {
+  const { i18n } = useTranslation();
+  const lang = getBaseLang(i18n?.language);
+  const ui = UI[lang];
   const [q, setQ] = useState('');
   const [limit, setLimit] = useState(120);
 
@@ -99,15 +168,15 @@ export default function AuditLogsTab() {
     <div className="bg-white rounded-xl shadow p-6">
       <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-3">
         <div>
-          <h2 className="text-lg font-semibold text-gray-800">Admin Logları</h2>
-          <p className="text-sm text-gray-600">Admin aksiyonları (adminAuditLogs)</p>
+          <h2 className="text-lg font-semibold text-gray-800">{ui.title}</h2>
+          <p className="text-sm text-gray-600">{ui.subtitle}</p>
         </div>
 
         <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
           <input
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            placeholder="Ara: aksiyon / uid / e-posta / hata"
+            placeholder={ui.search}
             className="w-full sm:w-96 px-3 py-2 border border-gray-300 rounded text-sm"
             disabled={loading}
           />
@@ -117,7 +186,7 @@ export default function AuditLogsTab() {
             disabled={loading}
             className="px-4 py-2 rounded-lg bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-700 disabled:opacity-60"
           >
-            {loading ? 'Yükleniyor…' : 'Yenile'}
+            {loading ? ui.loading : ui.refresh}
           </button>
         </div>
       </div>
@@ -129,18 +198,18 @@ export default function AuditLogsTab() {
           <table className="w-full text-sm">
             <thead className="bg-gray-50 text-gray-700">
               <tr>
-                <th className="text-left px-3 py-2">Zaman</th>
-                <th className="text-left px-3 py-2">Admin</th>
-                <th className="text-left px-3 py-2">Aksiyon</th>
-                <th className="text-left px-3 py-2">Hedef</th>
-                <th className="text-left px-3 py-2">Sonuç</th>
-                <th className="text-left px-3 py-2">Meta</th>
+                <th className="text-left px-3 py-2">{ui.time}</th>
+                <th className="text-left px-3 py-2">{ui.admin}</th>
+                <th className="text-left px-3 py-2">{ui.action}</th>
+                <th className="text-left px-3 py-2">{ui.target}</th>
+                <th className="text-left px-3 py-2">{ui.result}</th>
+                <th className="text-left px-3 py-2">{ui.meta}</th>
               </tr>
             </thead>
             <tbody>
               {items.map((x) => (
                 <tr key={x?.id} className="border-t">
-                  <td className="px-3 py-2 text-xs text-gray-700">{fmtDate(x?.createdAtMs)}</td>
+                  <td className="px-3 py-2 text-xs text-gray-700">{fmtDate(x?.createdAtMs, lang)}</td>
                   <td className="px-3 py-2">
                     <div className="text-xs text-gray-800 break-all">{safeStr(x?.adminEmail) || '-'}</div>
                     <div className="text-[11px] text-gray-600 font-mono">{shortId(x?.adminUid) || ''}</div>
@@ -149,16 +218,16 @@ export default function AuditLogsTab() {
                   <td className="px-3 py-2 font-mono text-xs">{shortId(x?.targetUid) || '-'}</td>
                   <td className="px-3 py-2">
                     {x?.ok ? (
-                      <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold border border-emerald-200 bg-emerald-50 text-emerald-900">OK</span>
+                      <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold border border-emerald-200 bg-emerald-50 text-emerald-900">{ui.ok}</span>
                     ) : (
-                      <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold border border-rose-200 bg-rose-50 text-rose-900">HATA</span>
+                      <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold border border-rose-200 bg-rose-50 text-rose-900">{ui.error}</span>
                     )}
                     {!x?.ok && safeStr(x?.error) ? <div className="mt-1 text-xs text-rose-800">{auditErrorLabel(x.error)}</div> : null}
                   </td>
                   <td className="px-3 py-2">
                     {x?.meta ? (
                       <details>
-                        <summary className="cursor-pointer text-xs font-semibold text-slate-600 hover:text-slate-800">Göster</summary>
+                        <summary className="cursor-pointer text-xs font-semibold text-slate-600 hover:text-slate-800">{ui.show}</summary>
                         <pre className="mt-2 text-[11px] overflow-auto bg-white border rounded p-2">{JSON.stringify(x.meta, null, 2)}</pre>
                       </details>
                     ) : (
@@ -170,16 +239,16 @@ export default function AuditLogsTab() {
 
               {!items.length && !loading ? (
                 <tr>
-                  <td colSpan={6} className="px-3 py-6 text-center text-gray-500">Kayıt yok.</td>
+                  <td colSpan={6} className="px-3 py-6 text-center text-gray-500">{ui.empty}</td>
                 </tr>
               ) : null}
             </tbody>
           </table>
         </div>
         <div className="p-3 bg-gray-50 text-xs text-gray-600 flex items-center justify-between">
-          <div>Gösterilen: <span className="font-semibold text-gray-900">{items.length}</span></div>
+          <div>{ui.shown}: <span className="font-semibold text-gray-900">{items.length}</span></div>
           <div className="flex items-center gap-2">
-            <span>Limit</span>
+            <span>{ui.limit}</span>
             <input
               value={String(limit)}
               onChange={(e) => setLimit(Math.max(20, Math.min(300, Number(e.target.value) || 120)))}
@@ -195,3 +264,4 @@ export default function AuditLogsTab() {
     </div>
   );
 }
+

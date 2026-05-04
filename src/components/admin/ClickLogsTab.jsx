@@ -1,15 +1,269 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { authFetch } from '../../utils/authFetch';
 import { firebaseConfig } from '../../config/firebasePublicConfig';
+import { getYouTubeVideosForLang } from '../../data/youtube';
 
 function safeNum(v) {
   return typeof v === 'number' && Number.isFinite(v) ? v : 0;
 }
 
-const regionNamesTr =
-  typeof Intl !== 'undefined' && typeof Intl.DisplayNames === 'function'
-    ? new Intl.DisplayNames(['tr'], { type: 'region' })
-    : null;
+function getBaseLang(language) {
+  const base = String(language || 'tr').toLowerCase().split('-')[0];
+  return base === 'en' || base === 'id' ? base : 'tr';
+}
+
+const UI = {
+  tr: {
+    title: 'Tıklama Günlüğü',
+    subtitle: 'Her tarayıcı için, aynı gün içinde aynı buton veya sekme yalnızca 1 kez sayılır. Ülke bilgisi varsa proxy headerlarından alınır.',
+    day: 'Gün',
+    today: 'Bugün',
+    last7: 'Son 7 gün',
+    last14: 'Son 14 gün',
+    last30: 'Son 30 gün',
+    refresh: 'Yenile',
+    selectedDay: 'Seçili gün',
+    totalUnique: 'Toplam unique event',
+    sessionStart: 'Oturum başlangıcı (yaklaşık ziyaretçi)',
+    signupLanding: 'Signup modunda açılış',
+    friction: 'Landing→aksiyon sürtünmesi',
+    ctaImpression: 'CTA görünümü',
+    dropoff: 'Aksiyonsuz çıkış',
+    realSignupStart: 'Gerçek kayıt başlangıcı',
+    emailPassword: 'Email/Şifre seçildi',
+    authRecord: 'Auth kaydı',
+    clientCreated: 'Hesap oluştu (istemci)',
+    profileReady: 'Profil hazır (event)',
+    stubReady: 'Başvuru stub hazır (event)',
+    backendReal: 'Backend gerçek form',
+    backendUnknown: 'Backend bilinmeyen/stub',
+    helpActions: 'WhatsApp/Tur yardımı',
+    postStartLoss: 'Başlangıç sonrası kayıp',
+    postStartLossNote1: 'Sadece gerçek kayıt başlatan kullanıcılar baz alınır.',
+    postStartLossNote2: 'Pasif landing sayıları bu metriğe dahil edilmez.',
+    firebaseMismatch: 'Firebase proje uyuşmazlığı',
+    signupSummary: 'Signup teşhis özeti',
+    googleStart: 'Google kayıt başlangıcı',
+    googleSuccess: 'Google kayıt başarısı',
+    redirectIssues: 'Redirect sorunları',
+    riskyEnv: 'Riskli çevre',
+    noResultCountries: 'Google yönlendirmesi sonuçsuz dönen ülkeler',
+    timeoutCountries: 'Google yönlendirmesi zaman aşımına düşen ülkeler',
+    dayEvents: 'Seçili gün — Olay listesi',
+    event: 'Olay',
+    unique: 'Tekil',
+    countriesTop: 'Ülke (top)',
+    noData: 'Henüz veri yok.',
+    countryBreakdown: 'Seçili gün — Ülke kırılımı (Oturum başlangıcı)',
+    countryFallback: 'Oturum başlangıcı ülke verisi yok; tüm event toplamı gösteriliyor.',
+    countryNote: 'Not: Ülke, Vercel veya Cloudflare headerları varsa görünür. Yoksa UN (Bilinmeyen) olarak kalır.',
+    userTraceTitle: 'Kullanıcı İzleri (ham tıklama akışı)',
+    userTraceSubtitle: 'Bu tablo, buton ve link tıklamalarını trace olarak yazar. Adblock veya JS sorunlarında eksik olabilir.',
+    range: 'Aralık',
+    hours24: '24 saat',
+    hours48: '48 saat',
+    days7: '7 gün',
+    days14: '14 gün',
+    anonSessions: 'Anon oturumlar',
+    pages: 'sayfa',
+    lastActions: 'Son hareketler',
+    noBrowserHint: 'Tarayıcı ipucu henüz yok',
+    time: 'Zaman',
+    country: 'Ülke',
+    browser: 'Tarayıcı',
+    language: 'Dil',
+    timezone: 'TZ',
+    page: 'Sayfa',
+    noTrace: 'Henüz trace yok.',
+    summaryLastDays: 'Son {{days}} gün — Özet',
+    signupCount: 'Kayıt',
+    unknownStub: 'Bilinmeyen/Stub',
+    loading: 'Yükleniyor…',
+    generalTab: 'Genel',
+    youtubeTab: 'YouTube',
+    youtubeTitle: 'YouTube akışı',
+    youtubeSubtitle: 'YouTube sayfasına geçişler ve video açma tıklamaları bu sekmede ayrı raporlanır.',
+    youtubeArrivals: 'YouTube sayfa görüntüleme',
+    youtubeDirectNav: 'Doğrudan sekme tıklaması',
+    youtubeRedirects: 'Yönlendirme kartı tıklaması',
+    youtubeVideoClicks: 'Video açma tıklaması',
+    youtubeSourcePages: 'Kaynak sayfalar',
+    youtubeVideos: 'Video performansı',
+    youtubeVideo: 'Video',
+    youtubeRecentClicks: 'YouTube son tıklamalar',
+    youtubeNoData: 'Henüz YouTube tıklaması yok.',
+  },
+  en: {
+    title: 'Click Logs',
+    subtitle: 'For each browser, the same button or tab is counted only once per day. Country info is taken from proxy headers when available.',
+    day: 'Day',
+    today: 'Today',
+    last7: 'Last 7 days',
+    last14: 'Last 14 days',
+    last30: 'Last 30 days',
+    refresh: 'Refresh',
+    selectedDay: 'Selected day',
+    totalUnique: 'Total unique events',
+    sessionStart: 'Session starts (approx. visitors)',
+    signupLanding: 'Signup-mode landings',
+    friction: 'Landing → action friction',
+    ctaImpression: 'CTA impressions',
+    dropoff: 'Dropoff without action',
+    realSignupStart: 'Actual signup starts',
+    emailPassword: 'Email/Password selected',
+    authRecord: 'Auth record',
+    clientCreated: 'Client account created',
+    profileReady: 'Profile ready (event)',
+    stubReady: 'Application stub ready (event)',
+    backendReal: 'Backend real form',
+    backendUnknown: 'Backend unknown/stub',
+    helpActions: 'WhatsApp/Tour help',
+    postStartLoss: 'Post-start loss',
+    postStartLossNote1: 'Only users who actually started signup are counted.',
+    postStartLossNote2: 'Passive landing counts are excluded from this metric.',
+    firebaseMismatch: 'Firebase project mismatch',
+    signupSummary: 'Signup diagnostics summary',
+    googleStart: 'Google signup starts',
+    googleSuccess: 'Google signup success',
+    redirectIssues: 'Redirect issues',
+    riskyEnv: 'Risky environment',
+    noResultCountries: 'Countries with Google redirects returning no result',
+    timeoutCountries: 'Countries with Google redirect timeouts',
+    dayEvents: 'Selected day — Event list',
+    event: 'Event',
+    unique: 'Unique',
+    countriesTop: 'Countries (top)',
+    noData: 'No data yet.',
+    countryBreakdown: 'Selected day — Country breakdown (session starts)',
+    countryFallback: 'No session-start country data; showing totals across all events.',
+    countryNote: 'Note: Country is visible when Vercel or Cloudflare headers are present. Otherwise it remains UN (Unknown).',
+    userTraceTitle: 'User Traces (raw click flow)',
+    userTraceSubtitle: 'This table records button and link clicks as traces. It may be incomplete with ad blockers or JS failures.',
+    range: 'Range',
+    hours24: '24 hours',
+    hours48: '48 hours',
+    days7: '7 days',
+    days14: '14 days',
+    anonSessions: 'Anonymous sessions',
+    pages: 'pages',
+    lastActions: 'Latest actions',
+    noBrowserHint: 'No browser hint yet',
+    time: 'Time',
+    country: 'Country',
+    browser: 'Browser',
+    language: 'Language',
+    timezone: 'TZ',
+    page: 'Page',
+    noTrace: 'No trace yet.',
+    summaryLastDays: 'Last {{days}} days — Summary',
+    signupCount: 'Signups',
+    unknownStub: 'Unknown/Stub',
+    loading: 'Loading…',
+    generalTab: 'General',
+    youtubeTab: 'YouTube',
+    youtubeTitle: 'YouTube flow',
+    youtubeSubtitle: 'Transitions to the YouTube page and video-open clicks are reported separately here.',
+    youtubeArrivals: 'YouTube page views',
+    youtubeDirectNav: 'Direct tab clicks',
+    youtubeRedirects: 'Redirect card clicks',
+    youtubeVideoClicks: 'Video open clicks',
+    youtubeSourcePages: 'Source pages',
+    youtubeVideos: 'Video performance',
+    youtubeVideo: 'Video',
+    youtubeRecentClicks: 'Recent YouTube clicks',
+    youtubeNoData: 'No YouTube clicks yet.',
+  },
+  id: {
+    title: 'Log Klik',
+    subtitle: 'Untuk setiap browser, tombol atau tab yang sama hanya dihitung sekali per hari. Info negara diambil dari header proxy bila tersedia.',
+    day: 'Hari',
+    today: 'Hari ini',
+    last7: '7 hari terakhir',
+    last14: '14 hari terakhir',
+    last30: '30 hari terakhir',
+    refresh: 'Segarkan',
+    selectedDay: 'Hari terpilih',
+    totalUnique: 'Total event unik',
+    sessionStart: 'Awal sesi (perkiraan pengunjung)',
+    signupLanding: 'Landing mode signup',
+    friction: 'Gesekan landing → aksi',
+    ctaImpression: 'Tampilan CTA',
+    dropoff: 'Keluar tanpa aksi',
+    realSignupStart: 'Awal signup nyata',
+    emailPassword: 'Email/Password dipilih',
+    authRecord: 'Catatan Auth',
+    clientCreated: 'Akun klien terbentuk',
+    profileReady: 'Profil siap (event)',
+    stubReady: 'Stub aplikasi siap (event)',
+    backendReal: 'Form nyata backend',
+    backendUnknown: 'Unknown/stub backend',
+    helpActions: 'Bantuan WhatsApp/Tur',
+    postStartLoss: 'Kehilangan setelah mulai',
+    postStartLossNote1: 'Hanya pengguna yang benar-benar memulai signup yang dihitung.',
+    postStartLossNote2: 'Jumlah landing pasif tidak masuk ke metrik ini.',
+    firebaseMismatch: 'Proyek Firebase tidak cocok',
+    signupSummary: 'Ringkasan diagnostik signup',
+    googleStart: 'Awal signup Google',
+    googleSuccess: 'Signup Google berhasil',
+    redirectIssues: 'Masalah redirect',
+    riskyEnv: 'Lingkungan berisiko',
+    noResultCountries: 'Negara dengan redirect Google tanpa hasil',
+    timeoutCountries: 'Negara dengan timeout redirect Google',
+    dayEvents: 'Hari terpilih — Daftar event',
+    event: 'Event',
+    unique: 'Unik',
+    countriesTop: 'Negara (teratas)',
+    noData: 'Belum ada data.',
+    countryBreakdown: 'Hari terpilih — Rincian negara (awal sesi)',
+    countryFallback: 'Data negara untuk awal sesi tidak ada; menampilkan total semua event.',
+    countryNote: 'Catatan: Negara terlihat jika header Vercel atau Cloudflare ada. Jika tidak, tetap UN (Tidak diketahui).',
+    userTraceTitle: 'Jejak Pengguna (alur klik mentah)',
+    userTraceSubtitle: 'Tabel ini mencatat klik tombol dan tautan sebagai trace. Bisa kurang lengkap jika ada adblock atau masalah JS.',
+    range: 'Rentang',
+    hours24: '24 jam',
+    hours48: '48 jam',
+    days7: '7 hari',
+    days14: '14 hari',
+    anonSessions: 'Sesi anonim',
+    pages: 'halaman',
+    lastActions: 'Aktivitas terbaru',
+    noBrowserHint: 'Belum ada petunjuk browser',
+    time: 'Waktu',
+    country: 'Negara',
+    browser: 'Browser',
+    language: 'Bahasa',
+    timezone: 'TZ',
+    page: 'Halaman',
+    noTrace: 'Belum ada trace.',
+    summaryLastDays: '{{days}} hari terakhir — Ringkasan',
+    signupCount: 'Signup',
+    unknownStub: 'Unknown/Stub',
+    loading: 'Memuat…',
+    generalTab: 'Umum',
+    youtubeTab: 'YouTube',
+    youtubeTitle: 'Alur YouTube',
+    youtubeSubtitle: 'Perpindahan ke halaman YouTube dan klik buka video dilaporkan terpisah di sini.',
+    youtubeArrivals: 'Tampilan halaman YouTube',
+    youtubeDirectNav: 'Klik tab langsung',
+    youtubeRedirects: 'Klik kartu pengarah',
+    youtubeVideoClicks: 'Klik buka video',
+    youtubeSourcePages: 'Halaman sumber',
+    youtubeVideos: 'Performa video',
+    youtubeVideo: 'Video',
+    youtubeRecentClicks: 'Klik YouTube terbaru',
+    youtubeNoData: 'Belum ada klik YouTube.',
+  },
+};
+
+function getRegionNames(lang) {
+  if (typeof Intl === 'undefined' || typeof Intl.DisplayNames !== 'function') return null;
+  try {
+    return new Intl.DisplayNames([lang], { type: 'region' });
+  } catch {
+    return null;
+  }
+}
 
 function normalizeCountryCode(code) {
   const raw = String(code || '').trim().toUpperCase();
@@ -17,30 +271,30 @@ function normalizeCountryCode(code) {
   return raw;
 }
 
-function countryNameTr(code) {
+function countryName(code, lang) {
   const normalized = normalizeCountryCode(code);
   const explicit = {
-    UN: 'Bilinmeyen',
-    XX: 'Bilinmeyen',
-    ZZ: 'Bilinmeyen',
-    EU: 'Avrupa Birliği',
+    tr: { UN: 'Bilinmeyen', XX: 'Bilinmeyen', ZZ: 'Bilinmeyen', EU: 'Avrupa Birliği' },
+    en: { UN: 'Unknown', XX: 'Unknown', ZZ: 'Unknown', EU: 'European Union' },
+    id: { UN: 'Tidak diketahui', XX: 'Tidak diketahui', ZZ: 'Tidak diketahui', EU: 'Uni Eropa' },
   };
-  if (explicit[normalized]) return explicit[normalized];
+  if (explicit[lang]?.[normalized]) return explicit[lang][normalized];
 
   const alias = {
     UK: 'GB',
   };
   const lookupCode = alias[normalized] || normalized;
-  if (regionNamesTr && /^[A-Z]{2}$/.test(lookupCode)) {
-    const label = regionNamesTr.of(lookupCode);
+  const regionNames = getRegionNames(lang);
+  if (regionNames && /^[A-Z]{2}$/.test(lookupCode)) {
+    const label = regionNames.of(lookupCode);
     if (label && label !== lookupCode) return label;
   }
   return normalized;
 }
 
-function formatCountryLabel(code) {
+function formatCountryLabel(code, lang) {
   const normalized = normalizeCountryCode(code);
-  const name = countryNameTr(normalized);
+  const name = countryName(normalized, lang);
   if (!name || name === normalized) return normalized;
   return `${normalized} (${name})`;
 }
@@ -100,6 +354,17 @@ function sumCountries(events) {
     .map(([k, v]) => ({ k, v }))
     .sort((a, b) => b.v - a.v);
   return arr;
+}
+
+function sumSourcePages(events) {
+  const totals = {};
+  for (const e of events) {
+    const key = String(e?.page || '').trim() || '-';
+    totals[key] = (totals[key] || 0) + 1;
+  }
+  return Object.entries(totals)
+    .map(([k, v]) => ({ k, v }))
+    .sort((a, b) => b.v - a.v);
 }
 
 function eventLabelTr(eventKey) {
@@ -189,8 +454,16 @@ function eventLabelTr(eventKey) {
     'login_redirect_result_timeout:google': 'Google giriş yönlendirmesi zaman aşımına uğradı',
     'auth_redirect_no_result:google': 'Google yönlendirmesi döndü ama sonuç tamamlanamadı',
     'auth_redirect_salvaged:google': 'Google yönlendirmesi kurtarıldı',
+    'nav_click:/youtube': 'YouTube sekmesine tıklandı',
+    'youtube_page_redirect:visit_card': 'YouTube yönlendirme kartı tıklandı',
+    'youtube_channel_visit:cta': 'YouTube kanal CTA tıklandı',
   };
   if (exact[raw]) return exact[raw];
+
+  if (raw.startsWith('youtube_video_watch:')) {
+    const videoId = raw.slice('youtube_video_watch:'.length) || '-';
+    return `YouTube video açıldı/izlemeye gidildi: ${videoId}`;
+  }
 
   if (raw.startsWith('signup_error:') || raw.startsWith('login_error:') || raw.startsWith('signin_error:')) {
     const parts = raw.split(':');
@@ -276,7 +549,34 @@ function eventLabelTr(eventKey) {
   return pretty || raw;
 }
 
+function eventLabelGeneric(eventKey) {
+  const raw = String(eventKey || '').trim();
+  if (!raw) return '—';
+  if (raw === 'nav_click:/youtube') return 'YouTube tab clicked';
+  if (raw === 'youtube_page_redirect:visit_card') return 'YouTube redirect card clicked';
+  if (raw === 'youtube_channel_visit:cta') return 'YouTube channel CTA clicked';
+  if (raw.startsWith('youtube_video_watch:')) {
+    return `YouTube video opened/watched: ${raw.slice('youtube_video_watch:'.length) || '-'}`;
+  }
+  if (raw.startsWith('arrival:')) {
+    const path = raw.slice('arrival:'.length);
+    return path ? `Page view: ${path}` : 'Page view';
+  }
+  if (raw.startsWith('utm_source:')) return `UTM source: ${raw.slice('utm_source:'.length) || '-'}`;
+  if (raw.startsWith('utm_campaign:')) return `UTM campaign: ${raw.slice('utm_campaign:'.length) || '-'}`;
+  if (raw.startsWith('utm_medium:')) return `UTM medium: ${raw.slice('utm_medium:'.length) || '-'}`;
+  return raw.replace(/_/g, ' ').replace(/:/g, ' / ');
+}
+
+function eventLabel(eventKey, lang) {
+  return lang === 'tr' ? eventLabelTr(eventKey) : eventLabelGeneric(eventKey);
+}
+
 export default function ClickLogsTab() {
+  const { i18n } = useTranslation();
+  const lang = getBaseLang(i18n?.language);
+  const ui = UI[lang];
+  const [innerTab, setInnerTab] = useState('general');
   const [days, setDays] = useState(30);
   const [activeDayKey, setActiveDayKey] = useState('');
   const [loading, setLoading] = useState(false);
@@ -600,27 +900,114 @@ export default function ClickLogsTab() {
       .slice(0, 8);
   }, [visibleTrace]);
 
+  const youtubeVideoMap = useMemo(() => {
+    const items = Array.isArray(getYouTubeVideosForLang(lang)) ? getYouTubeVideosForLang(lang) : [];
+    const map = new Map();
+    for (const item of items) {
+      const videoId = String(item?.videoId || '').trim();
+      if (!videoId) continue;
+      map.set(videoId, item);
+    }
+    return map;
+  }, [lang]);
+
+  const youtubeArrivalCount = useMemo(() => getEventTotal(selectedDoc, 'arrival:youtube'), [selectedDoc]);
+  const youtubeDirectNavCount = useMemo(() => getEventTotal(selectedDoc, 'nav_click:/youtube'), [selectedDoc]);
+  const youtubeRedirectCount = useMemo(() => getEventTotal(selectedDoc, 'youtube_page_redirect:visit_card'), [selectedDoc]);
+
+  const youtubeVideoEvents = useMemo(() => {
+    const all = flattenEvents(selectedDoc);
+    return all
+      .filter((item) => String(item?.eventKey || '').startsWith('youtube_video_watch:'))
+      .map((item) => {
+        const videoId = String(item.eventKey || '').slice('youtube_video_watch:'.length);
+        const meta = youtubeVideoMap.get(videoId) || null;
+        return {
+          ...item,
+          videoId,
+          title: String(meta?.title || videoId || '-'),
+        };
+      })
+      .sort((a, b) => b.total - a.total);
+  }, [selectedDoc, youtubeVideoMap]);
+
+  const youtubeVideoClickCount = useMemo(
+    () => youtubeVideoEvents.reduce((sum, item) => sum + safeNum(item?.total), 0),
+    [youtubeVideoEvents]
+  );
+
+  const youtubeTraceEvents = useMemo(
+    () => traceEvents.filter((event) => {
+      const key = String(event?.eventKey || '');
+      return key === 'nav_click:/youtube'
+        || key === 'youtube_page_redirect:visit_card'
+        || key === 'youtube_channel_visit:cta'
+        || key.startsWith('youtube_video_watch:');
+    }),
+    [traceEvents]
+  );
+
+  const youtubeSourcePages = useMemo(() => sumSourcePages(youtubeTraceEvents).slice(0, 10), [youtubeTraceEvents]);
+
+  const youtubeAnonSummaries = useMemo(() => {
+    const map = new Map();
+    for (const e of youtubeTraceEvents) {
+      const anonId = String(e?.anonId || '').trim();
+      if (!anonId) continue;
+      const cur = map.get(anonId) || { anonId, count: 0, lastAtMs: 0, pages: new Set() };
+      cur.count += 1;
+      const ms = typeof e?.createdAtMs === 'number' ? e.createdAtMs : 0;
+      if (ms > cur.lastAtMs) cur.lastAtMs = ms;
+      const page = String(e?.page || '').trim();
+      if (page) cur.pages.add(page);
+      map.set(anonId, cur);
+    }
+    return Array.from(map.values())
+      .map((item) => ({
+        anonId: item.anonId,
+        count: item.count,
+        lastAtMs: item.lastAtMs,
+        uniquePages: item.pages.size,
+      }))
+      .sort((a, b) => (b.lastAtMs || 0) - (a.lastAtMs || 0));
+  }, [youtubeTraceEvents]);
+
+  const [youtubeActiveAnonId, setYouTubeActiveAnonId] = useState('');
+
+  useEffect(() => {
+    if (!youtubeAnonSummaries.length) {
+      setYouTubeActiveAnonId('');
+      return;
+    }
+    setYouTubeActiveAnonId((prev) => (prev && youtubeAnonSummaries.some((item) => item.anonId === prev) ? prev : youtubeAnonSummaries[0].anonId));
+  }, [youtubeAnonSummaries]);
+
+  const visibleYouTubeTrace = useMemo(() => {
+    if (!youtubeActiveAnonId) return youtubeTraceEvents;
+    return youtubeTraceEvents.filter((event) => String(event?.anonId || '').trim() === youtubeActiveAnonId);
+  }, [youtubeActiveAnonId, youtubeTraceEvents]);
+
   return (
     <div className="space-y-4">
       <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-3">
         <div>
           <h2 className="text-lg font-bold text-slate-900">Tıklama Günlüğü</h2>
           <p className="text-sm text-slate-600">
-            Her tarayıcı için, aynı gün içinde aynı buton/sekme sadece 1 kez sayılır. Ülke bilgisi varsa proxy header’larından alınır.
+            {ui.subtitle}
           </p>
         </div>
 
         <div className="flex items-center gap-2">
-          <label className="text-sm font-semibold text-slate-700">Gün</label>
+          <label className="text-sm font-semibold text-slate-700">{ui.day}</label>
           <select
             value={days}
             onChange={(e) => setDays(Number(e.target.value))}
             className="px-3 py-2 rounded-xl border border-slate-200 bg-white text-sm font-semibold"
           >
-            <option value={1}>Bugün</option>
-            <option value={7}>Son 7 gün</option>
-            <option value={14}>Son 14 gün</option>
-            <option value={30}>Son 30 gün</option>
+            <option value={1}>{ui.today}</option>
+            <option value={7}>{ui.last7}</option>
+            <option value={14}>{ui.last14}</option>
+            <option value={30}>{ui.last30}</option>
           </select>
           <button
             type="button"
@@ -628,7 +1015,7 @@ export default function ClickLogsTab() {
             className="px-3 py-2 rounded-xl bg-slate-900 text-white text-sm font-semibold hover:bg-black"
             disabled={loading}
           >
-            Yenile
+            {ui.refresh}
           </button>
         </div>
       </div>
@@ -649,9 +1036,170 @@ export default function ClickLogsTab() {
         </div>
       ) : null}
 
+      <div className="inline-flex rounded-2xl border border-slate-200 bg-white p-1 shadow-sm">
+        <button
+          type="button"
+          onClick={() => setInnerTab('general')}
+          className={`rounded-xl px-4 py-2 text-sm font-semibold transition ${innerTab === 'general' ? 'bg-slate-900 text-white' : 'text-slate-700 hover:bg-slate-100'}`}
+        >
+          {ui.generalTab}
+        </button>
+        <button
+          type="button"
+          onClick={() => setInnerTab('youtube')}
+          className={`rounded-xl px-4 py-2 text-sm font-semibold transition ${innerTab === 'youtube' ? 'bg-red-600 text-white' : 'text-slate-700 hover:bg-slate-100'}`}
+        >
+          {ui.youtubeTab}
+        </button>
+      </div>
+
+      {innerTab === 'youtube' ? (
+        <div className="space-y-4">
+          <div className="rounded-2xl border border-red-100 bg-[linear-gradient(135deg,rgba(254,242,242,0.96),rgba(255,255,255,0.98))] p-4">
+            <h3 className="text-base font-bold text-slate-900">{ui.youtubeTitle}</h3>
+            <p className="mt-1 text-sm text-slate-600">{ui.youtubeSubtitle}</p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+            <div className="rounded-2xl border border-slate-200 bg-white p-4">
+              <div className="text-xs uppercase tracking-wide text-slate-500">{ui.youtubeArrivals}</div>
+              <div className="mt-2 text-2xl font-bold text-slate-900">{youtubeArrivalCount}</div>
+            </div>
+            <div className="rounded-2xl border border-slate-200 bg-white p-4">
+              <div className="text-xs uppercase tracking-wide text-slate-500">{ui.youtubeDirectNav}</div>
+              <div className="mt-2 text-2xl font-bold text-slate-900">{youtubeDirectNavCount}</div>
+            </div>
+            <div className="rounded-2xl border border-slate-200 bg-white p-4">
+              <div className="text-xs uppercase tracking-wide text-slate-500">{ui.youtubeRedirects}</div>
+              <div className="mt-2 text-2xl font-bold text-slate-900">{youtubeRedirectCount}</div>
+            </div>
+            <div className="rounded-2xl border border-slate-200 bg-white p-4">
+              <div className="text-xs uppercase tracking-wide text-slate-500">{ui.youtubeVideoClicks}</div>
+              <div className="mt-2 text-2xl font-bold text-slate-900">{youtubeVideoClickCount}</div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
+            <div className="rounded-2xl border border-slate-200 bg-white p-4">
+              <h3 className="text-sm font-bold text-slate-900">{ui.youtubeSourcePages}</h3>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {youtubeSourcePages.length ? youtubeSourcePages.map((item) => (
+                  <span key={item.k} className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs">
+                    {item.k}:{item.v}
+                  </span>
+                )) : <span className="text-sm text-slate-500">{ui.youtubeNoData}</span>}
+              </div>
+            </div>
+
+            <div className="lg:col-span-2 rounded-2xl border border-slate-200 bg-white p-4 overflow-x-auto">
+              <div className="flex items-center justify-between gap-2">
+                <h3 className="text-sm font-bold text-slate-900">{ui.youtubeVideos}</h3>
+                {loading ? <div className="text-xs text-slate-500">{ui.loading}</div> : null}
+              </div>
+              <table className="w-full mt-3 text-sm">
+                <thead>
+                  <tr className="text-left text-xs uppercase tracking-wide text-slate-500 border-b">
+                    <th className="py-2 pr-3">{ui.youtubeVideo}</th>
+                    <th className="py-2 pr-3">Video ID</th>
+                    <th className="py-2 pr-3">{ui.unique}</th>
+                    <th className="py-2">{ui.countriesTop}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {youtubeVideoEvents.map((item) => (
+                    <tr key={item.eventKey} className="border-b last:border-b-0">
+                      <td className="py-2 pr-3">
+                        <div className="font-semibold text-slate-900">{item.title}</div>
+                      </td>
+                      <td className="py-2 pr-3 font-mono text-xs text-slate-600">{item.videoId || '-'}</td>
+                      <td className="py-2 pr-3 font-bold">{item.total}</td>
+                      <td className="py-2">
+                        <div className="flex flex-wrap gap-1">
+                          {item.topCountries.length ? item.topCountries.map((countryItem) => (
+                            <span key={countryItem.k} className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs">
+                              {formatCountryLabel(countryItem.k, lang)}:{countryItem.v}
+                            </span>
+                          )) : <span className="text-slate-400">-</span>}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                  {!youtubeVideoEvents.length ? (
+                    <tr>
+                      <td colSpan={4} className="py-4 text-slate-500">{ui.youtubeNoData}</td>
+                    </tr>
+                  ) : null}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-slate-200 bg-white p-4">
+            <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-3">
+              <div>
+                <h3 className="text-sm font-bold text-slate-900">{ui.youtubeRecentClicks}</h3>
+                <p className="text-xs text-slate-600">Anon oturum bazında doğrudan sekme, yönlendirme kartı ve video açma tıklamaları listelenir.</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <label className="text-sm font-semibold text-slate-700">{ui.anonSessions}</label>
+                <select
+                  value={youtubeActiveAnonId}
+                  onChange={(e) => setYouTubeActiveAnonId(String(e.target.value))}
+                  className="min-w-[240px] px-3 py-2 rounded-xl border border-slate-200 bg-white text-sm font-semibold"
+                >
+                  {youtubeAnonSummaries.map((item) => (
+                    <option key={item.anonId} value={item.anonId}>
+                      {item.anonId.slice(0, 10)}… ({item.count} / {item.uniquePages} {ui.pages})
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <table className="w-full mt-3 text-sm">
+              <thead>
+                <tr className="text-left text-xs uppercase tracking-wide text-slate-500 border-b">
+                  <th className="py-2 pr-3">{ui.time}</th>
+                  <th className="py-2 pr-3">{ui.country}</th>
+                  <th className="py-2 pr-3">{ui.browser}</th>
+                  <th className="py-2 pr-3">{ui.event}</th>
+                  <th className="py-2">{ui.page}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {visibleYouTubeTrace.slice(0, 200).map((event) => (
+                  <tr key={event.id} className="border-b last:border-b-0">
+                    <td className="py-2 pr-3 text-xs font-mono">
+                      {typeof event.createdAtMs === 'number'
+                        ? new Date(event.createdAtMs).toISOString().slice(0, 19).replace('T', ' ')
+                        : '-'}
+                    </td>
+                    <td className="py-2 pr-3 text-xs font-semibold">{formatCountryLabel(event.country || 'UN', lang)}</td>
+                    <td className="py-2 pr-3 text-xs font-mono">{String(event.uaHint || '-')}</td>
+                    <td className="py-2 pr-3">
+                      <div className="text-xs font-semibold text-slate-900">{eventLabel(event?.eventKey, lang)}</div>
+                      <div className="mt-0.5 font-mono text-[11px] text-slate-500">{String(event.eventKey || '')}</div>
+                    </td>
+                    <td className="py-2 text-xs font-mono">{String(event.page || '')}</td>
+                  </tr>
+                ))}
+                {!visibleYouTubeTrace.length ? (
+                  <tr>
+                    <td colSpan={5} className="py-4 text-slate-500">{ui.youtubeNoData}</td>
+                  </tr>
+                ) : null}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      ) : null}
+
+      {innerTab !== 'general' ? null : (
+        <>
+
       <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
         <div className="rounded-2xl border border-slate-200 bg-white p-4">
-          <div className="text-xs uppercase tracking-wide text-slate-500">Seçili gün</div>
+          <div className="text-xs uppercase tracking-wide text-slate-500">{ui.selectedDay}</div>
           <div className="text-lg font-bold text-slate-900">{fmtDateKey(selectedKey)}</div>
           {dayKeys.length ? (
             <div className="mt-2">
@@ -669,53 +1217,51 @@ export default function ClickLogsTab() {
             </div>
           ) : null}
           <div className="mt-2 text-sm text-slate-700">
-            Toplam unique event: <span className="font-bold">{safeNum(selectedDoc?.totalUnique)}</span>
+            {ui.totalUnique}: <span className="font-bold">{safeNum(selectedDoc?.totalUnique)}</span>
           </div>
           <div className="mt-1 text-sm text-slate-700">
-            Oturum başlangıcı (yaklaşık ziyaretçi): <span className="font-bold">{getEventTotal(selectedDoc, 'session_start')}</span>
+            {ui.sessionStart}: <span className="font-bold">{getEventTotal(selectedDoc, 'session_start')}</span>
           </div>
         </div>
 
         <div className="rounded-2xl border border-slate-200 bg-white p-4">
-          <div className="text-xs uppercase tracking-wide text-slate-500">Signup modunda açılış</div>
+          <div className="text-xs uppercase tracking-wide text-slate-500">{ui.signupLanding}</div>
           <div className="text-lg font-bold text-slate-900">{selectedPassiveSignupLandings}</div>
           <div className="mt-2 text-sm text-slate-700">
-            Landing→aksiyon sürtünmesi: <span className="font-bold">{selectedUpperFunnelFriction}</span>
+            {ui.friction}: <span className="font-bold">{selectedUpperFunnelFriction}</span>
           </div>
-          <div className="mt-1 text-sm text-slate-700">CTA görünümü: <span className="font-bold">{selectedLandingCtaImpressions}</span></div>
-          <div className="mt-1 text-sm text-slate-700">Aksiyonsuz çıkış: <span className="font-bold">{selectedLandingDropoff}</span></div>
+          <div className="mt-1 text-sm text-slate-700">{ui.ctaImpression}: <span className="font-bold">{selectedLandingCtaImpressions}</span></div>
+          <div className="mt-1 text-sm text-slate-700">{ui.dropoff}: <span className="font-bold">{selectedLandingDropoff}</span></div>
         </div>
 
         <div className="rounded-2xl border border-slate-200 bg-white p-4">
-          <div className="text-xs uppercase tracking-wide text-slate-500">Gerçek kayıt başlangıcı</div>
+          <div className="text-xs uppercase tracking-wide text-slate-500">{ui.realSignupStart}</div>
           <div className="text-lg font-bold text-slate-900">{selectedSignupStarts}</div>
           <div className="mt-2 text-sm text-slate-700">
-            Email/Şifre seçildi: <span className="font-bold">{selectedEmailPasswordMethodClicks}</span>
+            {ui.emailPassword}: <span className="font-bold">{selectedEmailPasswordMethodClicks}</span>
           </div>
+          <div className="mt-1 text-sm text-slate-700">{ui.authRecord}: <span className="font-bold">{selectedSignups}</span></div>
           <div className="mt-1 text-sm text-slate-700">
-            Auth kaydı: <span className="font-bold">{selectedSignups}</span>
+            {ui.clientCreated}: <span className="font-bold">{selectedClientAccountCreated}</span>
           </div>
-          <div className="mt-1 text-sm text-slate-700">
-            Hesap oluştu (istemci): <span className="font-bold">{selectedClientAccountCreated}</span>
-          </div>
-          <div className="mt-1 text-sm text-slate-700">Profil hazır (event): <span className="font-bold">{selectedSignupProfileReady}</span></div>
-          <div className="mt-1 text-sm text-slate-700">Başvuru stub hazır (event): <span className="font-bold">{selectedSignupApplyBootstrapReady}</span></div>
-          <div className="mt-1 text-sm text-slate-700">Backend gerçek form: <span className="font-bold">{selectedSubmittedSignupCount}</span></div>
-          <div className="mt-1 text-sm text-slate-700">Backend bilinmeyen/stub: <span className="font-bold">{selectedUnknownSignupCount}</span></div>
-          <div className="mt-1 text-sm text-slate-700">WhatsApp/Tur yardımı: <span className="font-bold">{selectedLandingHelpActions}</span></div>
+          <div className="mt-1 text-sm text-slate-700">{ui.profileReady}: <span className="font-bold">{selectedSignupProfileReady}</span></div>
+          <div className="mt-1 text-sm text-slate-700">{ui.stubReady}: <span className="font-bold">{selectedSignupApplyBootstrapReady}</span></div>
+          <div className="mt-1 text-sm text-slate-700">{ui.backendReal}: <span className="font-bold">{selectedSubmittedSignupCount}</span></div>
+          <div className="mt-1 text-sm text-slate-700">{ui.backendUnknown}: <span className="font-bold">{selectedUnknownSignupCount}</span></div>
+          <div className="mt-1 text-sm text-slate-700">{ui.helpActions}: <span className="font-bold">{selectedLandingHelpActions}</span></div>
         </div>
 
         <div className="rounded-2xl border border-slate-200 bg-white p-4">
-          <div className="text-xs uppercase tracking-wide text-slate-500">Başlangıç sonrası kayıp</div>
+          <div className="text-xs uppercase tracking-wide text-slate-500">{ui.postStartLoss}</div>
           <div className="text-lg font-bold text-slate-900">{selectedPostStartLoss}</div>
-          <div className="mt-2 text-sm text-slate-700">Sadece gerçek kayıt başlatan kullanıcılar baz alınır.</div>
-          <div className="mt-1 text-sm text-slate-700">Pasif landing sayıları bu metriğe dahil edilmez.</div>
+          <div className="mt-2 text-sm text-slate-700">{ui.postStartLossNote1}</div>
+          <div className="mt-1 text-sm text-slate-700">{ui.postStartLossNote2}</div>
         </div>
       </div>
 
       {(firebaseProjectInfo.mismatch || selectedClientAuthGap > 0 || selectedProvisioningGap > 0) ? (
         <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-amber-950">
-          <div className="font-bold">Signup teşhis özeti</div>
+          <div className="font-bold">{ui.signupSummary}</div>
           <div className="mt-2 text-sm">
             Hesap oluştu (istemci): <span className="font-semibold">{selectedClientAccountCreated}</span> · Auth kaydı: <span className="font-semibold">{selectedSignups}</span> · Profil hazır: <span className="font-semibold">{selectedSignupProfileReady}</span> · Başvuru stub hazır: <span className="font-semibold">{selectedSignupApplyBootstrapReady}</span>
           </div>
@@ -739,26 +1285,26 @@ export default function ClickLogsTab() {
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
         <div className="rounded-2xl border border-slate-200 bg-white p-4">
-          <div className="text-xs uppercase tracking-wide text-slate-500">Google kayıt başlangıcı</div>
+          <div className="text-xs uppercase tracking-wide text-slate-500">{ui.googleStart}</div>
           <div className="text-lg font-bold text-slate-900">{googleSignupDiagnostics.start}</div>
           <div className="mt-2 text-sm text-slate-700">Popup başlangıcı: <span className="font-bold">{googleSignupDiagnostics.popupStart}</span></div>
           <div className="mt-2 text-sm text-slate-700">Yönlendirme başlangıcı: <span className="font-bold">{googleSignupDiagnostics.redirectStart}</span></div>
         </div>
 
         <div className="rounded-2xl border border-slate-200 bg-white p-4">
-          <div className="text-xs uppercase tracking-wide text-slate-500">Google kayıt başarısı</div>
+          <div className="text-xs uppercase tracking-wide text-slate-500">{ui.googleSuccess}</div>
           <div className="text-lg font-bold text-emerald-700">{googleSignupDiagnostics.success}</div>
           <div className="mt-2 text-sm text-slate-700">Kurtarılan yönlendirme: <span className="font-bold">{googleSignupDiagnostics.salvaged}</span></div>
         </div>
 
         <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
-          <div className="text-xs uppercase tracking-wide text-amber-700">Redirect sorunları</div>
+          <div className="text-xs uppercase tracking-wide text-amber-700">{ui.redirectIssues}</div>
           <div className="text-lg font-bold text-amber-900">{googleSignupDiagnostics.timeout + googleSignupDiagnostics.noResult}</div>
           <div className="mt-2 text-sm text-amber-900">Zaman aşımı: <span className="font-bold">{googleSignupDiagnostics.timeout}</span> · Sonuçsuz dönüş: <span className="font-bold">{googleSignupDiagnostics.noResult}</span></div>
         </div>
 
         <div className="rounded-2xl border border-rose-200 bg-rose-50 p-4">
-          <div className="text-xs uppercase tracking-wide text-rose-700">Riskli çevre</div>
+          <div className="text-xs uppercase tracking-wide text-rose-700">{ui.riskyEnv}</div>
           <div className="text-lg font-bold text-rose-900">{googleSignupDiagnostics.popupFallback + googleSignupDiagnostics.inAppBlocked}</div>
           <div className="mt-2 text-sm text-rose-900">Popup→yönlendirme: <span className="font-bold">{googleSignupDiagnostics.popupFallback}</span> · Uygulama içi blok: <span className="font-bold">{googleSignupDiagnostics.inAppBlocked}</span></div>
         </div>
@@ -767,22 +1313,22 @@ export default function ClickLogsTab() {
       {(googleSignupDiagnostics.noResultCountries.length || googleSignupDiagnostics.timeoutCountries.length) ? (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
           <div className="rounded-2xl border border-slate-200 bg-white p-4">
-            <h3 className="text-sm font-bold text-slate-900">Google yönlendirmesi sonuçsuz dönen ülkeler</h3>
+            <h3 className="text-sm font-bold text-slate-900">{ui.noResultCountries}</h3>
             <div className="mt-3 flex flex-wrap gap-2">
               {googleSignupDiagnostics.noResultCountries.map((c) => (
                 <span key={c.k} className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs">
-                  {formatCountryLabel(c.k)}:{c.v}
+                  {formatCountryLabel(c.k, lang)}:{c.v}
                 </span>
               ))}
             </div>
           </div>
 
           <div className="rounded-2xl border border-slate-200 bg-white p-4">
-            <h3 className="text-sm font-bold text-slate-900">Google yönlendirmesi zaman aşımına düşen ülkeler</h3>
+            <h3 className="text-sm font-bold text-slate-900">{ui.timeoutCountries}</h3>
             <div className="mt-3 flex flex-wrap gap-2">
               {googleSignupDiagnostics.timeoutCountries.map((c) => (
                 <span key={c.k} className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs">
-                  {formatCountryLabel(c.k)}:{c.v}
+                  {formatCountryLabel(c.k, lang)}:{c.v}
                 </span>
               ))}
             </div>
@@ -793,23 +1339,23 @@ export default function ClickLogsTab() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
         <div className="lg:col-span-2 rounded-2xl border border-slate-200 bg-white p-4 overflow-x-auto">
           <div className="flex items-center justify-between gap-2">
-            <h3 className="text-sm font-bold text-slate-900">Seçili gün — Olay listesi</h3>
-            {loading ? <div className="text-xs text-slate-500">Yükleniyor…</div> : null}
+            <h3 className="text-sm font-bold text-slate-900">{ui.dayEvents}</h3>
+            {loading ? <div className="text-xs text-slate-500">{ui.loading}</div> : null}
           </div>
 
           <table className="w-full mt-3 text-sm">
             <thead>
               <tr className="text-left text-xs uppercase tracking-wide text-slate-500 border-b">
-                <th className="py-2 pr-3">Olay</th>
-                <th className="py-2 pr-3">Tekil</th>
-                <th className="py-2">Ülke (top)</th>
+                <th className="py-2 pr-3">{ui.event}</th>
+                <th className="py-2 pr-3">{ui.unique}</th>
+                <th className="py-2">{ui.countriesTop}</th>
               </tr>
             </thead>
             <tbody>
               {selectedEvents.slice(0, 50).map((e) => (
                 <tr key={e.eventKey} className="border-b last:border-b-0">
                   <td className="py-2 pr-3">
-                    <div className="text-sm font-semibold text-slate-900">{eventLabelTr(e.eventKey)}</div>
+                    <div className="text-sm font-semibold text-slate-900">{eventLabel(e.eventKey, lang)}</div>
                     <div className="mt-0.5 font-mono text-[11px] text-slate-500">{e.eventKey}</div>
                   </td>
                   <td className="py-2 pr-3 font-bold">{e.total}</td>
@@ -821,7 +1367,7 @@ export default function ClickLogsTab() {
                             key={c.k}
                             className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs"
                           >
-                            {formatCountryLabel(c.k)}:{c.v}
+                            {formatCountryLabel(c.k, lang)}:{c.v}
                           </span>
                         ))
                       ) : (
@@ -834,7 +1380,7 @@ export default function ClickLogsTab() {
               {!selectedEvents.length ? (
                 <tr>
                   <td colSpan={3} className="py-4 text-slate-500">
-                    Henüz veri yok.
+                    {ui.noData}
                   </td>
                 </tr>
               ) : null}
@@ -843,21 +1389,21 @@ export default function ClickLogsTab() {
         </div>
 
         <div className="rounded-2xl border border-slate-200 bg-white p-4">
-          <h3 className="text-sm font-bold text-slate-900">Seçili gün — Ülke kırılımı (Oturum başlangıcı)</h3>
+          <h3 className="text-sm font-bold text-slate-900">{ui.countryBreakdown}</h3>
           <div className="mt-3 space-y-2">
             {(sessionStartCountries.length ? sessionStartCountries : countryTotals).slice(0, 12).map((c) => (
               <div key={c.k} className="flex items-center justify-between">
-                <div className="text-sm font-semibold text-slate-700">{formatCountryLabel(c.k)}</div>
+                <div className="text-sm font-semibold text-slate-700">{formatCountryLabel(c.k, lang)}</div>
                 <div className="text-sm font-bold text-slate-900">{c.v}</div>
               </div>
             ))}
             {!countryTotals.length ? <div className="text-sm text-slate-500">-</div> : null}
           </div>
           {!sessionStartCountries.length && countryTotals.length ? (
-            <div className="mt-3 text-xs text-amber-700">Oturum başlangıcı ülke verisi yok; tüm event toplamı gösteriliyor.</div>
+            <div className="mt-3 text-xs text-amber-700">{ui.countryFallback}</div>
           ) : null}
           <div className="mt-3 text-xs text-slate-500">
-            Not: Ülke, Vercel/Cloudflare header’ları varsa görünür. Yoksa UN (Bilinmeyen) olarak kalır.
+            {ui.countryNote}
           </div>
         </div>
       </div>
@@ -865,22 +1411,22 @@ export default function ClickLogsTab() {
       <div className="rounded-2xl border border-slate-200 bg-white p-4">
         <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-3">
           <div>
-            <h3 className="text-sm font-bold text-slate-900">Kullanıcı İzleri (ham tıklama akışı)</h3>
+            <h3 className="text-sm font-bold text-slate-900">{ui.userTraceTitle}</h3>
             <p className="text-xs text-slate-600">
-              Bu tablo, buton/link tıklamalarını (best-effort) trace olarak yazar. Adblock/ETP veya JS sorunlarında eksik olabilir.
+              {ui.userTraceSubtitle}
             </p>
           </div>
           <div className="flex items-center gap-2">
-            <label className="text-sm font-semibold text-slate-700">Aralık</label>
+            <label className="text-sm font-semibold text-slate-700">{ui.range}</label>
             <select
               value={traceDays}
               onChange={(e) => setTraceDays(Number(e.target.value))}
               className="px-3 py-2 rounded-xl border border-slate-200 bg-white text-sm font-semibold"
             >
-              <option value={1}>24 saat</option>
-              <option value={2}>48 saat</option>
-              <option value={7}>7 gün</option>
-              <option value={14}>14 gün</option>
+              <option value={1}>{ui.hours24}</option>
+              <option value={2}>{ui.hours48}</option>
+              <option value={7}>{ui.days7}</option>
+              <option value={14}>{ui.days14}</option>
             </select>
             <button
               type="button"
@@ -888,14 +1434,14 @@ export default function ClickLogsTab() {
               className="px-3 py-2 rounded-xl bg-slate-900 text-white text-sm font-semibold hover:bg-black"
               disabled={traceLoading}
             >
-              Yenile
+              {ui.refresh}
             </button>
           </div>
         </div>
 
         <div className="mt-3 grid grid-cols-1 lg:grid-cols-3 gap-3">
           <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
-            <div className="text-xs uppercase tracking-wide text-slate-500">Anon oturumlar</div>
+            <div className="text-xs uppercase tracking-wide text-slate-500">{ui.anonSessions}</div>
             <div className="mt-2">
               <select
                 value={activeAnonId}
@@ -904,7 +1450,7 @@ export default function ClickLogsTab() {
               >
                 {anonSummaries.slice(0, 60).map((x) => (
                   <option key={x.anonId} value={x.anonId}>
-                    {x.anonId.slice(0, 10)}… ({x.count} / {x.uniquePages} sayfa)
+                    {x.anonId.slice(0, 10)}… ({x.count} / {x.uniquePages} {ui.pages})
                   </option>
                 ))}
               </select>
@@ -920,8 +1466,8 @@ export default function ClickLogsTab() {
 
           <div className="lg:col-span-2 rounded-2xl border border-slate-200 bg-white p-3 overflow-x-auto">
             <div className="flex items-center justify-between">
-              <div className="text-xs uppercase tracking-wide text-slate-500">Son hareketler</div>
-              {traceLoading ? <div className="text-xs text-slate-500">Yükleniyor…</div> : null}
+              <div className="text-xs uppercase tracking-wide text-slate-500">{ui.lastActions}</div>
+              {traceLoading ? <div className="text-xs text-slate-500">{ui.loading}</div> : null}
             </div>
 
             <div className="mt-2 flex flex-wrap gap-2">
@@ -930,19 +1476,19 @@ export default function ClickLogsTab() {
                   {item.k}:{item.v}
                 </span>
               ))}
-              {!traceUaTotals.length ? <span className="text-xs text-slate-400">Tarayıcı ipucu henüz yok</span> : null}
+              {!traceUaTotals.length ? <span className="text-xs text-slate-400">{ui.noBrowserHint}</span> : null}
             </div>
 
             <table className="w-full mt-2 text-sm">
               <thead>
                 <tr className="text-left text-xs uppercase tracking-wide text-slate-500 border-b">
-                  <th className="py-2 pr-3">Zaman</th>
-                  <th className="py-2 pr-3">Ülke</th>
-                  <th className="py-2 pr-3">Tarayıcı</th>
-                  <th className="py-2 pr-3">Dil</th>
-                  <th className="py-2 pr-3">TZ</th>
-                  <th className="py-2 pr-3">Olay</th>
-                  <th className="py-2">Sayfa</th>
+                  <th className="py-2 pr-3">{ui.time}</th>
+                  <th className="py-2 pr-3">{ui.country}</th>
+                  <th className="py-2 pr-3">{ui.browser}</th>
+                  <th className="py-2 pr-3">{ui.language}</th>
+                  <th className="py-2 pr-3">{ui.timezone}</th>
+                  <th className="py-2 pr-3">{ui.event}</th>
+                  <th className="py-2">{ui.page}</th>
                 </tr>
               </thead>
               <tbody>
@@ -953,12 +1499,12 @@ export default function ClickLogsTab() {
                         ? new Date(e.createdAtMs).toISOString().slice(0, 19).replace('T', ' ')
                         : '-'}
                     </td>
-                    <td className="py-2 pr-3 text-xs font-semibold">{formatCountryLabel(e.country || 'UN')}</td>
+                    <td className="py-2 pr-3 text-xs font-semibold">{formatCountryLabel(e.country || 'UN', lang)}</td>
                     <td className="py-2 pr-3 text-xs font-mono">{String(e.uaHint || '-')}</td>
                     <td className="py-2 pr-3 text-xs font-mono">{String(e.lang || '-')}</td>
                     <td className="py-2 pr-3 text-xs font-mono">{String(e.tz || '-')}</td>
                     <td className="py-2 pr-3">
-                      <div className="text-xs font-semibold text-slate-900">{eventLabelTr(e?.eventKey)}</div>
+                      <div className="text-xs font-semibold text-slate-900">{eventLabel(e?.eventKey, lang)}</div>
                       <div className="mt-0.5 font-mono text-[11px] text-slate-500">{String(e.eventKey || '')}</div>
                     </td>
                     <td className="py-2 text-xs font-mono">{String(e.page || '')}</td>
@@ -967,7 +1513,7 @@ export default function ClickLogsTab() {
                 {!visibleTrace.length ? (
                   <tr>
                     <td colSpan={7} className="py-4 text-slate-500">
-                      Henüz trace yok.
+                      {ui.noTrace}
                     </td>
                   </tr>
                 ) : null}
@@ -979,16 +1525,16 @@ export default function ClickLogsTab() {
 
       {dayKeys.length ? (
         <div className="rounded-2xl border border-slate-200 bg-white p-4 overflow-x-auto">
-          <h3 className="text-sm font-bold text-slate-900">Son {days} gün — Özet</h3>
+          <h3 className="text-sm font-bold text-slate-900">{ui.summaryLastDays.replace('{{days}}', String(days))}</h3>
           <table className="w-full mt-3 text-sm">
             <thead>
               <tr className="text-left text-xs uppercase tracking-wide text-slate-500 border-b">
-                <th className="py-2 pr-3">Gün</th>
-                <th className="py-2 pr-3">Tekil olay</th>
-                <th className="py-2 pr-3">Gerçek kayıt başlangıcı</th>
-                <th className="py-2 pr-3">Email/Şifre seçildi</th>
-                <th className="py-2 pr-3">Kayıt</th>
-                <th className="py-2">Bilinmeyen/Stub</th>
+                <th className="py-2 pr-3">{ui.day}</th>
+                <th className="py-2 pr-3">{ui.totalUnique}</th>
+                <th className="py-2 pr-3">{ui.realSignupStart}</th>
+                <th className="py-2 pr-3">{ui.emailPassword}</th>
+                <th className="py-2 pr-3">{ui.signupCount}</th>
+                <th className="py-2">{ui.unknownStub}</th>
               </tr>
             </thead>
             <tbody>
@@ -1023,6 +1569,8 @@ export default function ClickLogsTab() {
           </table>
         </div>
       ) : null}
+        </>
+      )}
     </div>
   );
 }

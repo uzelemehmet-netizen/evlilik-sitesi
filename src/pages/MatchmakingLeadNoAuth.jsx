@@ -1,7 +1,6 @@
 import Navigation from '../components/Navigation';
 import Footer from '../components/Footer';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Download } from 'lucide-react';
 import { uploadImageToCloudinaryAuto } from '../utils/cloudinaryUpload';
 import { useTranslation } from 'react-i18next';
 import { ensureI18nLanguageLoaded, normalizeLang } from '../i18n.js';
@@ -20,6 +19,12 @@ function toIntOrEmpty(v) {
   return String(Math.trunc(n));
 }
 
+function normalizeReligionValue(v) {
+  const s = safeStr(v).toLowerCase();
+  if (s === 'islam' || s === 'christian' || s === 'hindu' || s === 'buddhist') return s;
+  return '';
+}
+
 const WORK_STATUS_OPTIONS = [
   { value: 'civil_servant', labelKey: 'leadNoAuth.options.workStatus.civilServant' },
   { value: 'worker', labelKey: 'leadNoAuth.options.workStatus.worker' },
@@ -32,15 +37,15 @@ function getLeadTrustUi(lang) {
   const copy = {
     tr: {
       whatsappPrivacy: 'WhatsApp numaraniz tamamen gizli tutulur, baska kullanicilara gosterilmez. Gerektiginde size ulasabilmemiz icin sistem tarafindan saklanir.',
-      photoPrivacy: 'Fotograf alani zorunludur. Dilerseniz daha sonra profilinizden fotograf gorunurlugunu kapatabilirsiniz.',
+      photoPrivacy: 'Fotograf yuklemek zorunludur. Daha sonra Islemler menusundeki Fotograf bolumunden fotograflarinizi gizleyebilirsiniz.',
     },
     en: {
       whatsappPrivacy: 'Your WhatsApp number is kept completely private and is not shown to other users. It is stored by the system so we can reach you when necessary.',
-      photoPrivacy: 'This field is required. If you want, you can later turn off photo visibility from your profile.',
+      photoPrivacy: 'Uploading a photo is required. Later, you can hide your photos from the Photos section in the Actions menu.',
     },
     id: {
       whatsappPrivacy: 'Nomor WhatsApp Anda disimpan sepenuhnya rahasia dan tidak ditampilkan ke pengguna lain. Nomor ini disimpan oleh sistem agar kami bisa menghubungi Anda bila diperlukan.',
-      photoPrivacy: 'Kolom foto wajib diisi. Jika mau, nanti Anda bisa mematikan visibilitas foto dari profil Anda.',
+      photoPrivacy: 'Mengunggah foto wajib dilakukan. Nanti Anda bisa menyembunyikan foto dari bagian Foto di menu Tindakan.',
     },
   };
 
@@ -103,12 +108,15 @@ export default function MatchmakingLeadNoAuth() {
     heightCm: '',
     weightKg: '',
     city: '',
+    plannedLivingCountry: '',
     whatsapp: '',
     maritalStatus: '',
+    religion: '',
     hasChildren: '',
     childrenCount: '',
     childrenAges: '',
     childrenLivingWith: '',
+    liveWithChildrenAfterMarriage: '',
     livingWith: '',
     occupation: '',
     profession: '',
@@ -275,6 +283,7 @@ export default function MatchmakingLeadNoAuth() {
         next.childrenCount = '';
         next.childrenAges = '';
         next.childrenLivingWith = '';
+        next.liveWithChildrenAfterMarriage = '';
       }
       return next;
     });
@@ -309,12 +318,15 @@ export default function MatchmakingLeadNoAuth() {
             return s ? Number(s) : null;
           })(),
           city: safeStr(form.city),
+          plannedLivingCountry: safeStr(form.plannedLivingCountry),
           whatsapp: safeStr(form.whatsapp),
           maritalStatus: safeStr(form.maritalStatus),
+          religion: normalizeReligionValue(form.religion),
           hasChildren: safeStr(form.hasChildren),
           childrenCount: form.hasChildren === 'yes' ? safeStr(form.childrenCount) : '',
           childrenAges: form.hasChildren === 'yes' ? safeStr(form.childrenAges) : '',
           childrenLivingWith: form.hasChildren === 'yes' ? safeStr(form.childrenLivingWith) : '',
+          liveWithChildrenAfterMarriage: form.hasChildren === 'yes' ? safeStr(form.liveWithChildrenAfterMarriage) : '',
           livingWith: safeStr(form.livingWith),
           occupation: safeStr(form.occupation),
           profession: safeStr(form.profession),
@@ -379,38 +391,9 @@ export default function MatchmakingLeadNoAuth() {
 
       <div className="relative mx-auto max-w-4xl px-4 py-8 md:py-10">
         <div className="rounded-[30px] border border-white/80 bg-white/86 p-5 shadow-[0_30px_90px_rgba(148,163,184,0.16)] backdrop-blur-xl md:p-8">
-          <div className="mb-5 rounded-[24px] border border-amber-200/80 bg-[linear-gradient(135deg,#fff9e8,#fff2d2)] p-4 shadow-[0_16px_44px_rgba(245,158,11,0.12)]">
-            <div className="text-sm font-semibold text-slate-900">{t('leadNoAuth.info.title')}</div>
-            <ul className="mt-2 list-disc pl-5 text-sm text-slate-700 space-y-1">
-              <li>{t('leadNoAuth.info.b1')}</li>
-              <li>{t('leadNoAuth.info.b2')}</li>
-              <li>{t('leadNoAuth.info.b3')}</li>
-              <li>{t('leadNoAuth.info.b4')}</li>
-              <li>{t('leadNoAuth.info.b5')}</li>
-              <li>{t('leadNoAuth.info.b6')}</li>
-            </ul>
-          </div>
-
           <div className="rounded-[24px] border border-slate-200/80 bg-white/72 p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.95),0_14px_34px_rgba(148,163,184,0.08)]">
             <h1 className="text-xl font-bold text-slate-900 md:text-2xl">{t('leadNoAuth.title')}</h1>
             <p className="mt-2 max-w-2xl text-sm leading-relaxed text-slate-600">{t('leadNoAuth.subtitle')}</p>
-
-            <a
-              href={APP_INSTALL_PATH}
-              className="mt-4 flex items-start gap-4 rounded-[22px] border border-emerald-200/80 bg-[linear-gradient(135deg,#ecfdf5,#f0fdf4)] p-4 text-left shadow-[0_14px_34px_rgba(16,185,129,0.10)] transition hover:brightness-105"
-            >
-              <div className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-emerald-600 text-white shadow-[0_14px_28px_rgba(5,150,105,0.24)]">
-                <Download size={18} />
-              </div>
-              <div className="flex-1">
-                <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-emerald-700">{installLinkUi.eyebrow}</div>
-                <div className="mt-1 text-base font-semibold text-slate-900">{installLinkUi.title}</div>
-                <div className="mt-1 text-sm leading-relaxed text-slate-600">{installLinkUi.leadBody}</div>
-                <div className="mt-3 inline-flex items-center rounded-xl bg-slate-950 px-4 py-2 text-xs font-semibold text-white">
-                  {installLinkUi.cta}
-                </div>
-              </div>
-            </a>
           </div>
 
           <div className="mt-6 grid grid-cols-1 gap-4 rounded-[26px] border border-slate-200/80 bg-white/72 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.95),0_20px_60px_rgba(148,163,184,0.12)] backdrop-blur-sm md:p-5">
@@ -464,6 +447,17 @@ export default function MatchmakingLeadNoAuth() {
                   disabled={disabled}
                 />
               </div>
+            </div>
+
+            <div>
+              <label className="text-sm font-semibold text-slate-900">{t('leadNoAuth.fields.plannedLivingCountry')}</label>
+              <input
+                className="mt-1 w-full px-3 py-2 rounded-lg border border-slate-200 text-sm"
+                value={form.plannedLivingCountry}
+                onChange={(e) => set('plannedLivingCountry', e.target.value)}
+                disabled={disabled}
+                placeholder={t('leadNoAuth.placeholders.country')}
+              />
             </div>
 
             <div className="grid grid-cols-2 items-end gap-4 sm:flex sm:flex-wrap">
@@ -527,6 +521,21 @@ export default function MatchmakingLeadNoAuth() {
                 </select>
               </div>
               <div>
+                <label className="text-sm font-semibold text-slate-900">{t('leadNoAuth.fields.religion')}</label>
+                <select
+                  className="mt-1 w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white"
+                  value={form.religion}
+                  onChange={(e) => set('religion', normalizeReligionValue(e.target.value))}
+                  disabled={disabled}
+                >
+                  <option value="">{t('leadNoAuth.common.select')}</option>
+                  <option value="islam">{t('matchmakingPage.form.options.religion.islam')}</option>
+                  <option value="christian">{t('matchmakingPage.form.options.religion.christian')}</option>
+                  <option value="hindu">{t('matchmakingPage.form.options.religion.hindu')}</option>
+                  <option value="buddhist">{t('matchmakingPage.form.options.religion.buddhist')}</option>
+                </select>
+              </div>
+              <div>
                 <label className="text-sm font-semibold text-slate-900">{t('leadNoAuth.fields.hasChildren')}</label>
                 <select
                   className="mt-1 w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white"
@@ -578,6 +587,20 @@ export default function MatchmakingLeadNoAuth() {
                     <option value="">{t('leadNoAuth.common.select')}</option>
                     <option value="with_me">{t('matchmakingPage.form.options.childrenLivingSituation.withChildren')}</option>
                     <option value="not_with_me">{t('matchmakingPage.form.options.childrenLivingSituation.separate')}</option>
+                  </select>
+                </div>
+
+                <div className="mt-3">
+                  <label className="text-sm font-semibold text-slate-900">{t('leadNoAuth.children.liveWithAfterMarriage')}</label>
+                  <select
+                    className="mt-1 w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white"
+                    value={form.liveWithChildrenAfterMarriage}
+                    onChange={(e) => set('liveWithChildrenAfterMarriage', e.target.value)}
+                    disabled={disabled}
+                  >
+                    <option value="">{t('leadNoAuth.common.select')}</option>
+                    <option value="yes">{t('leadNoAuth.common.yes')}</option>
+                    <option value="no">{t('leadNoAuth.common.no')}</option>
                   </select>
                 </div>
               </div>
@@ -762,27 +785,27 @@ export default function MatchmakingLeadNoAuth() {
                   <div className="text-xs text-slate-600">{t('leadNoAuth.photoNote')}</div>
                   <div className="mt-1 text-xs leading-relaxed text-slate-600">{trustUi.photoPrivacy}</div>
                 </div>
-                <label
-                  className={`inline-flex items-center gap-2 text-xs font-semibold ${disabled || (Array.isArray(photoState.items) && photoState.items.length >= 5) ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'} text-slate-700`}
+                <div
+                  className={`relative inline-flex items-center gap-2 text-xs font-semibold ${disabled || (Array.isArray(photoState.items) && photoState.items.length >= 5) ? 'opacity-60' : ''} text-slate-700`}
                 >
-                  <input
-                    type="file"
-                    accept="image/*"
-                    multiple
-                    disabled={disabled || (Array.isArray(photoState.items) && photoState.items.length >= 5)}
-                    className="hidden"
-                    onChange={(e) => {
-                      // Bazı tarayıcılarda `e.target.value = ''` yapınca FileList anında boşalabiliyor.
-                      // Bu yüzden önce dosyaları kopyalayıp sonra input'u sıfırlıyoruz.
-                      const picked = Array.from(e.target.files || []).filter(Boolean);
-                      e.target.value = '';
-                      if (picked.length) void uploadPhotos(picked);
-                    }}
-                  />
                   <span className="px-3 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50">
                     {photoState.uploading ? t('leadNoAuth.common.uploading') : t('leadNoAuth.actions.pickPhoto')}
                   </span>
-                </label>
+                  {disabled || (Array.isArray(photoState.items) && photoState.items.length >= 5) ? null : (
+                    <input
+                      type="file"
+                      accept="image/*,.heic,.heif,.avif"
+                      multiple
+                      aria-label={t('leadNoAuth.actions.pickPhoto')}
+                      className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+                      onChange={(e) => {
+                        const picked = Array.from(e.target.files || []).filter(Boolean);
+                        e.target.value = '';
+                        if (picked.length) void uploadPhotos(picked);
+                      }}
+                    />
+                  )}
+                </div>
               </div>
 
               {photoState.error ? <div className="mt-2 text-xs text-rose-700">{photoState.error}</div> : null}

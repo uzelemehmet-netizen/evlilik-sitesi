@@ -131,6 +131,12 @@ try {
 
 precacheAndRoute(self.__WB_MANIFEST);
 
+// Admin ekranı deploy sonrası en güncel HTML'i görmeli; SW cache devreye girmesin.
+registerRoute(
+  ({ request, url }) => request.mode === 'navigate' && url.pathname.startsWith('/admin'),
+  new NetworkOnly()
+);
+
 // SPA navigations (HTML): Network-first.
 // Kök problem: deploy sonrası eski HTML -> eski chunk URL'leri -> "sayfayı yenile" hatası.
 // HTML'i precache'e sokmuyoruz; network-first ile güncel app shell gelir.

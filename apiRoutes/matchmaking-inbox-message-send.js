@@ -1,5 +1,6 @@
 import { getAdmin, normalizeBody, requireIdToken } from './_firebaseAdmin.js';
-import { ensureEligibleOrThrow, ensureProfileCompleteOrThrow } from './_matchmakingEligibility.js';
+import { ensureProfileCompleteOrThrow } from './_matchmakingEligibility.js';
+import { ensureRequesterAllowedByTargetInteractionFilter } from './_matchmakingInteractionFilter.js';
 import { sendPushToUid } from './_push.js';
 
 function safeStr(v) {
@@ -183,23 +184,6 @@ function pickBestNonStubApplication(items) {
   return best ? best.a : null;
 }
 
-function containsContactLikeText(text) {
-  const s = String(text || '').toLowerCase();
-
-  if (/https?:\/\//i.test(s) || /www\./i.test(s) || /\b[a-z0-9-]+\.(com|net|org|id|tr|me)\b/i.test(s)) return true;
-  if (/(instagram|insta|\big\b|facebook|\bfb\b|telegram|\bt\.me\b|whatsapp|\bwa\.me\b|line\b|tiktok|discord)/i.test(s)) return true;
-  if (/@[a-z0-9_\.]{2,}/i.test(s)) return true;
-
-  const digitsOnly = s.replace(/[^0-9]/g, '');
-  if (digitsOnly.length >= 8) {
-    if (/\+\s*\d{8,}/.test(s)) return true;
-    if (digitsOnly.length >= 10) return true;
-    if (/(\d[\s\-\.\(\)]*){8,}/.test(s)) return true;
-  }
-
-  return false;
-}
-
 export default async function handler(req, res) {
   if (String(req?.method || '').toUpperCase() !== 'POST') {
     res.statusCode = 405;
@@ -231,18 +215,15 @@ export default async function handler(req, res) {
       return;
     }
 
-    if (containsContactLikeText(text)) {
-      res.statusCode = 400;
-      res.setHeader('content-type', 'application/json');
-      res.end(JSON.stringify({ ok: false, error: 'filtered' }));
-      return;
-    }
-
     const { db, FieldValue } = getAdmin();
 
-    // Sender eligibility (üyelik vb). Alıcıyı zorlamıyoruz.
-    const meUserSnap = await db.collection('matchmakingUsers').doc(uid).get();
+    // Sender profile gates remain enforced. Direct inbox replies should not require paid membership.
+    const [meUserSnap, targetUserSnap] = await Promise.all([
+      db.collection('matchmakingUsers').doc(uid).get(),
+      db.collection('matchmakingUsers').doc(targetUid).get(),
+    ]);
     const meUser = meUserSnap.exists ? (meUserSnap.data() || {}) : {};
+    const targetUser = targetUserSnap.exists ? (targetUserSnap.data() || {}) : {};
 
     const myAppsSnap = await db.collection('matchmakingApplications').where('userId', '==', uid).limit(10).get();
     const myApps = myAppsSnap.docs.map((d) => ({ id: d.id, ...(d.data() || {}) }));
@@ -261,7 +242,6 @@ export default async function handler(req, res) {
 
     try {
       await ensureProfileCompleteOrThrow(db, uid);
-      ensureEligibleOrThrow(meUser, safeStr(myApp?.gender));
     } catch (e2) {
       res.statusCode = e2?.statusCode || 402;
       res.setHeader('content-type', 'application/json');
@@ -274,6 +254,18 @@ export default async function handler(req, res) {
       res.statusCode = interact.reason === 'age_required' ? 400 : 403;
       res.setHeader('content-type', 'application/json');
       res.end(JSON.stringify({ ok: false, error: interact.reason }));
+      return;
+    }
+
+    const interactionGate = ensureRequesterAllowedByTargetInteractionFilter({
+      targetUserDoc: targetUser,
+      requesterUserDoc: meUser,
+      requesterApp: myApp,
+    });
+    if (!interactionGate.ok) {
+      res.statusCode = interactionGate.reason === 'interaction_filter_age_required' ? 400 : 403;
+      res.setHeader('content-type', 'application/json');
+      res.end(JSON.stringify({ ok: false, error: interactionGate.reason }));
       return;
     }
 

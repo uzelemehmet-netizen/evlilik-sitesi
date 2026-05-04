@@ -36,6 +36,7 @@ const StudioMatchProfile = lazyRoute(() => import('./pages/studio/StudioMatchPro
 const StudioFeedback = lazyRoute(() => import('./pages/studio/StudioFeedback'), 'studio-feedback');
 
 const AdminLogin = lazyRoute(() => import('./pages/AdminLogin'), 'admin-login');
+const AdminStepUpGate = lazyRoute(() => import('./components/admin/AdminStepUpGate.jsx'), 'admin-step-up-gate');
 const AdminDashboard = lazyRoute(() => import('./pages/AdminDashboardLite'), 'admin-dashboard');
 const AdminMatchmakingDetail = lazyRoute(() => import('./pages/AdminMatchmakingDetail'), 'admin-matchmaking-detail');
 const AdminMatchmakingMatches = lazyRoute(() => import('./pages/AdminMatchmakingMatches'), 'admin-matchmaking-matches');
@@ -44,6 +45,7 @@ const AdminIdentityVerifications = lazyRoute(() => import('./pages/AdminIdentity
 const AdminFeedback = lazyRoute(() => import('./pages/AdminFeedback'), 'admin-feedback');
 import RequireAuth from './auth/RequireAuth';
 import RequireCompletedApplication from './auth/RequireCompletedApplication.jsx';
+import RequirePhotoModerationClear from './auth/RequirePhotoModerationClear.jsx';
 import FloatingWhatsApp from './components/FloatingWhatsApp';
 import { isFeatureEnabled } from './config/siteVariant';
 import DevOverlay from './components/DevOverlay';
@@ -52,6 +54,7 @@ import { authFetch } from './utils/authFetch.js';
 import { clearAppBadge, resetServiceWorkerBadge } from './utils/appBadge.js';
 import { startForegroundPushListener, stopForegroundPushListener } from './utils/pushNotifications.js';
 import StudioOneTimeTour from './components/tutorial/StudioOneTimeTour.jsx';
+import AppReviewPrompt from './components/tutorial/AppReviewPrompt.jsx';
 import PreviewGateGlobal from './components/PreviewGateGlobal.jsx';
 
 function ScrollToTop() {
@@ -242,60 +245,6 @@ function StudioBodyClass() {
 }
 
 function AdminLanguageLock() {
-  const location = useLocation();
-  const { i18n } = useTranslation();
-
-  useEffect(() => {
-    const path = location.pathname || '/';
-    const isAdmin = path.startsWith('/admin');
-
-    const key = '__admin_prev_lang';
-    const getStored = () => {
-      try {
-        return sessionStorage.getItem(key);
-      } catch {
-        return null;
-      }
-    };
-    const setStored = (v) => {
-      try {
-        sessionStorage.setItem(key, v);
-      } catch {
-        // ignore
-      }
-    };
-    const clearStored = () => {
-      try {
-        sessionStorage.removeItem(key);
-      } catch {
-        // ignore
-      }
-    };
-
-    const current = String(i18n.language || 'tr');
-    const currentBase = current.split('-')[0].toLowerCase();
-
-    if (isAdmin) {
-      const prev = getStored();
-      if (!prev) setStored(current);
-
-      if (currentBase !== 'tr') {
-        i18n.changeLanguage('tr');
-      }
-      return;
-    }
-
-    // Admin'den çıkınca önceki dili geri yükle (site geneli dili bozulmasın).
-    const prev = getStored();
-    if (prev) {
-      clearStored();
-      const prevBase = String(prev).split('-')[0].toLowerCase();
-      if (prevBase && prevBase !== currentBase) {
-        i18n.changeLanguage(prevBase);
-      }
-    }
-  }, [location.pathname, i18n]);
-
   return null;
 }
 
@@ -310,15 +259,38 @@ function RouteLoading() {
 
 function MatchmakingHeartbeatGlobal() {
   const { user, loading } = useAuth();
+  const location = useLocation();
 
   useEffect(() => {
     if (loading) return;
     if (!user?.uid) return;
     if (user?.isAnonymous) return;
 
+    const path = String(location?.pathname || '');
+    const isMatchmakingSurface =
+      path.startsWith('/eslestirme') ||
+      path.startsWith('/evlilik/eslestirme') ||
+      path.startsWith('/profilim') ||
+      path.startsWith('/app');
+
+    if (!isMatchmakingSurface) return;
+
     let alive = true;
+    let intervalId = null;
+
+    const canPingNow = () => {
+      try {
+        if (!alive) return false;
+        if (document.visibilityState !== 'visible') return false;
+        if (typeof navigator !== 'undefined' && navigator.onLine === false) return false;
+        return true;
+      } catch {
+        return alive;
+      }
+    };
 
     const ping = async () => {
+      if (!canPingNow()) return;
       try {
         await authFetch('/api/matchmaking-heartbeat', {
           method: 'POST',
@@ -331,32 +303,41 @@ function MatchmakingHeartbeatGlobal() {
     };
 
     const onFocus = () => ping();
+    const onOnline = () => ping();
+    const onVisibilityChange = () => {
+      if (document.visibilityState !== 'visible') return;
+      ping();
+    };
 
     // İlk girişte + odak değişimlerinde lastSeen güncellensin.
     ping();
 
     try {
       window.addEventListener('focus', onFocus);
+      window.addEventListener('online', onOnline);
+      document.addEventListener('visibilitychange', onVisibilityChange);
     } catch {
       // noop
     }
 
     // Çok sık ping atmayalım; sadece "ben buradayım" sinyali.
-    const interval = setInterval(() => {
+    intervalId = setInterval(() => {
       if (!alive) return;
       ping();
     }, 5 * 60 * 1000);
 
     return () => {
       alive = false;
-      clearInterval(interval);
+      if (intervalId) clearInterval(intervalId);
       try {
         window.removeEventListener('focus', onFocus);
+        window.removeEventListener('online', onOnline);
+        document.removeEventListener('visibilitychange', onVisibilityChange);
       } catch {
         // noop
       }
     };
-  }, [loading, user?.uid, user?.isAnonymous]);
+  }, [loading, location?.pathname, user?.uid, user?.isAnonymous]);
 
   return null;
 }
@@ -495,6 +476,7 @@ function App() {
       <FloatingWhatsApp />
       <DeferredMemberFeedToasts />
       <StudioOneTimeTour />
+      <AppReviewPrompt />
       <PublicOneTimeTour />
       <PreviewGateGlobal />
       {import.meta.env.DEV ? <DevOverlay /> : null}
@@ -550,7 +532,9 @@ function App() {
             path="/app/matches"
             element={
               <RequireAuth>
-                <StudioMatches />
+                <RequirePhotoModerationClear>
+                  <StudioMatches />
+                </RequirePhotoModerationClear>
               </RequireAuth>
             }
           />
@@ -558,7 +542,9 @@ function App() {
             path="/app/pool"
             element={
               <RequireAuth>
-                <StudioPool />
+                <RequirePhotoModerationClear>
+                  <StudioPool />
+                </RequirePhotoModerationClear>
               </RequireAuth>
             }
           />
@@ -566,7 +552,9 @@ function App() {
             path="/app/messages"
             element={
               <RequireAuth>
-                <StudioMessages />
+                <RequirePhotoModerationClear>
+                  <StudioMessages />
+                </RequirePhotoModerationClear>
               </RequireAuth>
             }
           />
@@ -574,7 +562,9 @@ function App() {
             path="/app/notifications"
             element={
               <RequireAuth>
-                <StudioNotifications />
+                <RequirePhotoModerationClear>
+                  <StudioNotifications />
+                </RequirePhotoModerationClear>
               </RequireAuth>
             }
           />
@@ -582,7 +572,9 @@ function App() {
             path="/app/match/:matchId"
             element={
               <RequireAuth>
-                <StudioMatchProfile />
+                <RequirePhotoModerationClear>
+                  <StudioMatchProfile />
+                </RequirePhotoModerationClear>
               </RequireAuth>
             }
           />
@@ -590,7 +582,9 @@ function App() {
             path="/app/chat/:matchId"
             element={
               <RequireAuth>
-                <StudioChat />
+                <RequirePhotoModerationClear>
+                  <StudioChat />
+                </RequirePhotoModerationClear>
               </RequireAuth>
             }
           />
@@ -655,7 +649,9 @@ function App() {
             path="/admin/dashboard"
             element={
               <PrivateRoute>
-                <AdminDashboard />
+                <AdminStepUpGate>
+                  <AdminDashboard />
+                </AdminStepUpGate>
               </PrivateRoute>
             }
           />
@@ -663,7 +659,9 @@ function App() {
             path="/admin/matchmaking/:id"
             element={
               <PrivateRoute>
-                <AdminMatchmakingDetail />
+                <AdminStepUpGate>
+                  <AdminMatchmakingDetail />
+                </AdminStepUpGate>
               </PrivateRoute>
             }
           />
@@ -671,7 +669,9 @@ function App() {
             path="/admin/matchmaking-matches"
             element={
               <PrivateRoute>
-                <AdminMatchmakingMatches />
+                <AdminStepUpGate>
+                  <AdminMatchmakingMatches />
+                </AdminStepUpGate>
               </PrivateRoute>
             }
           />
@@ -679,7 +679,9 @@ function App() {
             path="/admin/matchmaking-payments"
             element={
               <PrivateRoute>
-                <AdminMatchmakingPayments />
+                <AdminStepUpGate>
+                  <AdminMatchmakingPayments />
+                </AdminStepUpGate>
               </PrivateRoute>
             }
           />
@@ -688,7 +690,9 @@ function App() {
             path="/admin/identity-verifications"
             element={
               <PrivateRoute>
-                <AdminIdentityVerifications />
+                <AdminStepUpGate>
+                  <AdminIdentityVerifications />
+                </AdminStepUpGate>
               </PrivateRoute>
             }
           />
@@ -697,7 +701,20 @@ function App() {
             path="/admin/feedback"
             element={
               <PrivateRoute>
-                <AdminFeedback />
+                <AdminStepUpGate>
+                  <AdminFeedback />
+                </AdminStepUpGate>
+              </PrivateRoute>
+            }
+          />
+
+          <Route
+            path="/admin/reviews"
+            element={
+              <PrivateRoute>
+                <AdminStepUpGate>
+                  <AdminFeedback defaultViewMode="reviews" />
+                </AdminStepUpGate>
               </PrivateRoute>
             }
           />

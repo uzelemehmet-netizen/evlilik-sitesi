@@ -3,32 +3,86 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { collection, doc, getDoc, getDocFromServer, getDocs, limit, onSnapshot, query, where } from 'firebase/firestore';
 import { sendEmailVerification, signOut } from 'firebase/auth';
 import { getDownloadURL, ref } from 'firebase/storage';
-import { AlertTriangle, BookOpen, Compass, Edit, Images, LogOut, Menu, MessageCircle, Share2, ShieldCheck, Star, Trash2, UploadCloud, Users, X } from 'lucide-react';
+import { AlertTriangle, BookOpen, Compass, Copy, Download, Edit, ExternalLink, Filter, Images, LogOut, Menu, MessageCircle, Share2, ShieldCheck, Star, Trash2, UploadCloud, Users, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import Navigation from '../../components/Navigation';
 import Footer from '../../components/Footer';
+import YouTubeVisitCard from '../../components/YouTubeVisitCard';
 import { useAuth } from '../../auth/AuthProvider';
 import { auth } from '../../config/firebaseAuth';
 import { db } from '../../config/firebaseDb';
 import { storage } from '../../config/firebaseStorage';
 import { authFetch } from '../../utils/authFetch';
 import { uploadImageToCloudinaryAuto } from '../../utils/cloudinaryUpload';
+import { compressImageToJpeg } from '../../utils/imageCompression';
+import { isPhotoModerationRestricted } from '../../utils/photoModerationState';
+import { moveSlotToFront } from '../../utils/photoManagerSlots';
 import { translateStudioApiError } from '../../utils/studioErrorI18n';
 import { buildWhatsAppShareUrl, buildWhatsAppUrl, getWhatsAppNumber } from '../../utils/whatsapp';
+import { APP_INSTALL_SHARE_URL } from '../../utils/appInstallLink';
+import { staticAssetUrl } from '../../utils/staticAssetUrl';
+import {
+  isDeferredPhotoInteractionRequiredFromApplication,
+  isDeferredPhotoInteractionRequiredFromUserDoc,
+  isDeferredWhatsappInteractionRequiredFromApplication,
+  isDeferredWhatsappInteractionRequiredFromUserDoc,
+} from '../../utils/matchmakingProfileCompletion';
 import StudioInviteFriendsCard from '../../components/studio/StudioInviteFriendsCard.jsx';
 import { openPreviewGate } from '../../utils/previewGate';
 import { buildPreviewProfile } from '../../utils/studioPreviewData';
 import StudioBottomNav from '../../components/studio/StudioBottomNav';
 import { isOneTimeHintShown, markOneTimeHintShown } from '../../utils/oneTimeHints.js';
 import { trackClick } from '../../utils/clickTracker';
+import { getYouTubeVideosForLang } from '../../data/youtube';
 
 const DEFAULT_LOOKING_FOR_NATIONALITY = 'id';
+const OPTIONAL_DETAILS_HINT_ID = 'matchmaking-optional-details-v1';
+const INTERACTION_FILTER_TUTORIAL_HINT_ID = 'profile-interaction-filter-tutorial-v1';
+const IMAGE_FILE_NAME_RE = /\.(avif|bmp|gif|heic|heif|jpe?g|png|webp)$/i;
 
 function getBaseLang(raw) {
   const base = String(raw || '').trim().toLowerCase().split(/[-_]/)[0];
   if (base === 'in') return 'id';
   if (base === 'tr' || base === 'en' || base === 'id') return base;
   return 'tr';
+}
+
+async function preparePhotoUploadFile(file) {
+  if (!file) return null;
+  try {
+    return await compressImageToJpeg(file, { maxWidth: 1600, maxHeight: 1600, quality: 0.82 });
+  } catch (error) {
+    console.warn('StudioProfile photo compression failed; retrying with original file:', error);
+    return file;
+  }
+}
+
+async function uploadPhotoWithFallback(file, options) {
+  if (!file) return null;
+  let lastError = null;
+
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    const preparedFile = await preparePhotoUploadFile(file);
+
+    try {
+      return await uploadImageToCloudinaryAuto(preparedFile || file, options);
+    } catch (error) {
+      lastError = error;
+      if (preparedFile && preparedFile !== file) {
+        try {
+          console.warn('StudioProfile compressed photo upload failed; retrying original file:', error);
+          return await uploadImageToCloudinaryAuto(file, options);
+        } catch (fallbackError) {
+          lastError = fallbackError;
+        }
+      }
+
+      if (attempt === 1) break;
+      console.warn('StudioProfile photo upload failed; retrying once:', lastError);
+    }
+  }
+
+  throw lastError || new Error('photo_upload_failed');
 }
 
 function getStudioTrustUi(lang) {
@@ -68,6 +122,145 @@ function getStudioTrustUi(lang) {
   return copy[lang] || copy.tr;
 }
 
+function getReferralShareUi(lang) {
+  const copy = {
+    tr: {
+      title: 'Uniqah paylasim paneli',
+      intro: 'Platform secin. WhatsApp icin gorsel + metin hazir; Instagram ve TikTok icin video baglantisi panoya kopyalanir ve platform acilir.',
+      campaignTitle: 'Uniqah',
+      campaignBody: 'Uniqah uygulamasinda Endonezyali ve Turk insanlar ciddi evlilik amaciyla tanisiyor. Siz de bize katilin.',
+      imageAlt: 'Uniqah paylasim gorseli',
+      shareCardLabel: 'Hazir paylasim karti',
+      videoPreviewLabel: 'Video baglantisi onizlemesi',
+      videoFallbackTitle: 'Uniqah YouTube videosu',
+      videoFallbackDescription: 'Uniqah ve Endonezya hayatiyla ilgili videomuzu acabilirsiniz.',
+      helperText: 'Paylas tusu secilen platforma gore yonlendirir. Instagram veya TikTok icin once video baglantisi otomatik kopyalanir.',
+      platforms: {
+        whatsappStatus: 'WhatsApp durum',
+        whatsappDirect: 'WhatsApp kisiler',
+        facebook: 'Facebook',
+        instagram: 'Instagram',
+        tiktok: 'TikTok',
+      },
+      actions: {
+        share: 'Paylas',
+        copyText: 'Metni kopyala',
+        copyLink: 'Baglantiyi kopyala',
+        downloadImage: 'Resmi indir',
+        watchVideo: 'Videoyu ac',
+      },
+      hints: {
+        whatsappStatus: 'Durum akisi icin cihazin paylasim menusu acilir. Destek yoksa WhatsApp paylasim ekrani acilir.',
+        whatsappDirect: 'Gorsel ve metinle birlikte WhatsApp kisi paylasimina yonlendirir.',
+        facebook: 'Facebook paylasim sayfasi acilir.',
+        instagram: 'Video baglantisi panoya kopyalanir; sonra Instagram acilir.',
+        tiktok: 'Video baglantisi panoya kopyalanir; sonra TikTok acilir.',
+      },
+      notices: {
+        copiedText: 'Paylasim metni kopyalandi.',
+        copiedLink: 'Baglanti kopyalandi.',
+        imageDownloaded: 'Gorsel indirilmeye basladi.',
+        redirected: 'Secilen platform aciliyor.',
+        whatsappFallback: 'Bu cihaz dogrudan durum paylasimini acmadi. WhatsApp paylasim ekrani aciliyor.',
+        clipboardMissing: 'Bu cihazda otomatik kopyalama desteklenmiyor.',
+      },
+    },
+    en: {
+      title: 'Uniqah sharing panel',
+      intro: 'Choose a platform. WhatsApp uses image + text; Instagram and TikTok copy the video link first and then open the platform.',
+      campaignTitle: 'Uniqah',
+      campaignBody: 'On Uniqah, Indonesian and Turkish people meet with serious marriage intentions. Join us as well.',
+      imageAlt: 'Uniqah share image',
+      shareCardLabel: 'Ready-to-share card',
+      videoPreviewLabel: 'Video link preview',
+      videoFallbackTitle: 'Uniqah YouTube video',
+      videoFallbackDescription: 'Open our video about Uniqah and life in Indonesia.',
+      helperText: 'The share action follows the selected platform. For Instagram or TikTok, the video link is copied automatically first.',
+      platforms: {
+        whatsappStatus: 'WhatsApp status',
+        whatsappDirect: 'WhatsApp contacts',
+        facebook: 'Facebook',
+        instagram: 'Instagram',
+        tiktok: 'TikTok',
+      },
+      actions: {
+        share: 'Share',
+        copyText: 'Copy text',
+        copyLink: 'Copy link',
+        downloadImage: 'Download image',
+        watchVideo: 'Open video',
+      },
+      hints: {
+        whatsappStatus: 'Opens the device share sheet for status-style sharing. Falls back to WhatsApp share when unsupported.',
+        whatsappDirect: 'Opens WhatsApp contact sharing with image/text support.',
+        facebook: 'Opens the Facebook share page.',
+        instagram: 'Copies the video link, then opens Instagram.',
+        tiktok: 'Copies the video link, then opens TikTok.',
+      },
+      notices: {
+        copiedText: 'Share text copied.',
+        copiedLink: 'Link copied.',
+        imageDownloaded: 'Image download started.',
+        redirected: 'Opening the selected platform.',
+        whatsappFallback: 'Direct status sharing was not available, opening WhatsApp share instead.',
+        clipboardMissing: 'Automatic copy is not supported on this device.',
+      },
+    },
+    id: {
+      title: 'Panel berbagi Uniqah',
+      intro: 'Pilih platform. Untuk WhatsApp digunakan gambar + teks; untuk Instagram dan TikTok tautan video disalin dulu lalu platform dibuka.',
+      campaignTitle: 'Uniqah',
+      campaignBody: 'Di Uniqah, orang Indonesia dan Turki bertemu dengan niat pernikahan yang serius. Anda juga bisa bergabung.',
+      imageAlt: 'Gambar berbagi Uniqah',
+      shareCardLabel: 'Kartu siap dibagikan',
+      videoPreviewLabel: 'Pratinjau tautan video',
+      videoFallbackTitle: 'Video YouTube Uniqah',
+      videoFallbackDescription: 'Buka video kami tentang Uniqah dan kehidupan di Indonesia.',
+      helperText: 'Aksi berbagi mengikuti platform yang dipilih. Untuk Instagram atau TikTok, tautan video disalin otomatis terlebih dahulu.',
+      platforms: {
+        whatsappStatus: 'Status WhatsApp',
+        whatsappDirect: 'Kontak WhatsApp',
+        facebook: 'Facebook',
+        instagram: 'Instagram',
+        tiktok: 'TikTok',
+      },
+      actions: {
+        share: 'Bagikan',
+        copyText: 'Salin teks',
+        copyLink: 'Salin tautan',
+        downloadImage: 'Unduh gambar',
+        watchVideo: 'Buka video',
+      },
+      hints: {
+        whatsappStatus: 'Membuka menu berbagi perangkat untuk alur seperti status. Jika tidak didukung, WhatsApp share dibuka.',
+        whatsappDirect: 'Mengarahkan ke berbagi kontak WhatsApp dengan gambar/teks.',
+        facebook: 'Membuka halaman berbagi Facebook.',
+        instagram: 'Menyalin tautan video lalu membuka Instagram.',
+        tiktok: 'Menyalin tautan video lalu membuka TikTok.',
+      },
+      notices: {
+        copiedText: 'Teks promosi disalin.',
+        copiedLink: 'Tautan disalin.',
+        imageDownloaded: 'Unduhan gambar dimulai.',
+        redirected: 'Membuka platform yang dipilih.',
+        whatsappFallback: 'Bagikan status langsung tidak tersedia, WhatsApp share dibuka.',
+        clipboardMissing: 'Salin otomatis tidak didukung di perangkat ini.',
+      },
+    },
+  };
+
+  return copy[lang] || copy.tr;
+}
+
+function getReferralPlatformOpenUrl(platform, lang, shareUrl) {
+  const encodedShareUrl = encodeURIComponent(String(shareUrl || '').trim());
+  const base = getBaseLang(lang);
+  if (platform === 'facebook') return `https://www.facebook.com/sharer/sharer.php?u=${encodedShareUrl}`;
+  if (platform === 'instagram') return 'https://www.instagram.com/create/select/';
+  if (platform === 'tiktok') return `https://www.tiktok.com/upload?lang=${encodeURIComponent(base || 'en')}`;
+  return '';
+}
+
 function deriveLookingForGender(gender) {
   const value = String(gender || '').trim().toLowerCase();
   if (value === 'male') return 'female';
@@ -100,6 +293,63 @@ function normalizeGenderValue(v) {
 
 function normalizeMaritalStatus(v) {
   return safeStr(v).toLowerCase();
+}
+
+function createInteractionFilterDraft() {
+  return {
+    requireVerified: false,
+    requirePhoto: false,
+    ageMin: '',
+    ageMax: '',
+    allowedMaritalStatuses: [],
+  };
+}
+
+function buildInteractionFilterDraft(raw) {
+  const source = raw && typeof raw === 'object' ? raw : {};
+  const allowedMaritalStatuses = Array.isArray(source?.allowedMaritalStatuses)
+    ? Array.from(new Set(source.allowedMaritalStatuses.map((item) => normalizeMaritalStatus(item)).filter(Boolean)))
+    : [];
+
+  return {
+    requireVerified: source?.requireVerified === true,
+    requirePhoto: source?.requirePhoto === true,
+    ageMin: source?.ageMin === null || source?.ageMin === undefined ? '' : String(source.ageMin).trim(),
+    ageMax: source?.ageMax === null || source?.ageMax === undefined ? '' : String(source.ageMax).trim(),
+    allowedMaritalStatuses,
+  };
+}
+
+function normalizeInteractionFilterPayload(draft) {
+  const current = draft && typeof draft === 'object' ? draft : createInteractionFilterDraft();
+  const ageMin = asNum(current?.ageMin);
+  const ageMax = asNum(current?.ageMax);
+  const payload = {
+    requireVerified: current?.requireVerified === true,
+    requirePhoto: current?.requirePhoto === true,
+    ageMin: Number.isFinite(ageMin) && ageMin >= 18 && ageMin <= 99 ? ageMin : null,
+    ageMax: Number.isFinite(ageMax) && ageMax >= 18 && ageMax <= 99 ? ageMax : null,
+    allowedMaritalStatuses: Array.isArray(current?.allowedMaritalStatuses)
+      ? Array.from(new Set(current.allowedMaritalStatuses.map((item) => normalizeMaritalStatus(item)).filter(Boolean)))
+      : [],
+  };
+
+  if (payload.ageMin !== null && payload.ageMax !== null && payload.ageMax < payload.ageMin) {
+    payload.ageMax = payload.ageMin;
+  }
+
+  return payload;
+}
+
+function hasActiveInteractionFilterDraft(draft) {
+  const payload = normalizeInteractionFilterPayload(draft);
+  return !!(
+    payload.requireVerified ||
+    payload.requirePhoto ||
+    payload.ageMin !== null ||
+    payload.ageMax !== null ||
+    payload.allowedMaritalStatuses.length > 0
+  );
 }
 
 function isMinimumProfileCompleteFromUserAndApp(mmUser, latestApp) {
@@ -147,6 +397,57 @@ function isMinimumProfileCompleteFromUserAndApp(mmUser, latestApp) {
   }
 
   return true;
+}
+
+function hasFilledOptionalDetails(application) {
+  const app = application && typeof application === 'object' ? application : null;
+  if (!app || safeStr(app?.source).toLowerCase() === 'auto_stub') return false;
+
+  const details = app?.details && typeof app.details === 'object' ? app.details : {};
+  const partner = app?.partnerPreferences && typeof app.partnerPreferences === 'object' ? app.partnerPreferences : {};
+  const languages = details?.languages && typeof details.languages === 'object' ? details.languages : {};
+  const nativeLang = languages?.native && typeof languages.native === 'object' ? languages.native : {};
+  const foreignLang = languages?.foreign && typeof languages.foreign === 'object' ? languages.foreign : {};
+
+  const hasValue = (value) => {
+    if (Array.isArray(value)) return value.some((item) => hasValue(item));
+    if (value === null || value === undefined) return false;
+    if (typeof value === 'number') return Number.isFinite(value);
+    if (typeof value === 'boolean') return value;
+    const str = safeStr(value);
+    return !!str && str !== 'doesnt_matter' && str !== 'any';
+  };
+
+  const optionalDetailValues = [
+    details?.heightCm,
+    details?.weightKg,
+    details?.education,
+    details?.educationDepartment,
+    details?.incomeLevel,
+    details?.religion,
+    details?.religiousValues,
+    details?.familyApprovalStatus,
+    details?.marriageTimeline,
+    details?.relocationWillingness,
+    details?.preferredLivingCountry,
+    details?.communicationLanguage,
+    details?.communicationLanguageOther,
+    details?.smoking,
+    details?.alcohol,
+    nativeLang?.code,
+    nativeLang?.other,
+    foreignLang?.codes,
+    foreignLang?.other,
+    app?.about,
+    app?.aboutTr,
+    app?.aboutId,
+    app?.expectations,
+    app?.expectationsTr,
+    app?.expectationsId,
+  ];
+
+  if (optionalDetailValues.some((value) => hasValue(value))) return true;
+  return Object.entries(partner).some(([, value]) => hasValue(value));
 }
 
 function asMs(v) {
@@ -251,7 +552,9 @@ export default function StudioProfile() {
 
   const isTr = String(i18n?.language || '').toLowerCase().startsWith('tr');
   const shortLabel = (fallbackKey, trText) => (isTr ? trText : t(fallbackKey));
-  const studioTrustUi = getStudioTrustUi(getBaseLang(i18n?.language));
+  const baseLang = getBaseLang(i18n?.language);
+  const studioTrustUi = getStudioTrustUi(baseLang);
+  const referralShareUi = getReferralShareUi(baseLang);
 
   const blockInteraction = () => {
     openPreviewGate({ reason: t('previewGate.body') });
@@ -261,6 +564,7 @@ export default function StudioProfile() {
   const [loading, setLoading] = useState(true);
 
   const [applyBannerOpen, setApplyBannerOpen] = useState(true);
+  const [optionalDetailsNudgeOpen, setOptionalDetailsNudgeOpen] = useState(false);
   
 
   const [latestApp, setLatestApp] = useState(null);
@@ -268,14 +572,22 @@ export default function StudioProfile() {
   const [appLoading, setAppLoading] = useState(true);
 
   const [deleteState, setDeleteState] = useState({ loading: false, error: '' });
+  const [deferredPhotoGateOpen, setDeferredPhotoGateOpen] = useState(false);
+  const [deferredWhatsappGateOpen, setDeferredWhatsappGateOpen] = useState(false);
+  const [deferredWhatsappGateStep, setDeferredWhatsappGateStep] = useState('intro');
+  const [deferredWhatsappValue, setDeferredWhatsappValue] = useState('');
+  const [deferredWhatsappAction, setDeferredWhatsappAction] = useState({ loading: false, error: '' });
   const [membershipAction, setMembershipAction] = useState({ loading: false, error: '', success: '' });
+  const membershipAutoActivateRef = useRef(false);
 
-  const [inviteState, setInviteState] = useState({ loading: false, error: '' });
+  const [inviteState, setInviteState] = useState({ loading: false, error: '', notice: '' });
+  const [invitePlatform, setInvitePlatform] = useState('whatsapp_status');
 
   const [emailVerifyState, setEmailVerifyState] = useState({ loading: false, error: '', success: '' });
 
   const [verifyModalOpen, setVerifyModalOpen] = useState(false);
   const [identityIntroModalOpen, setIdentityIntroModalOpen] = useState(false);
+  const [interactionFilterIntroOpen, setInteractionFilterIntroOpen] = useState(false);
   const [actionIntroModal, setActionIntroModal] = useState({ open: false, hintId: '', title: '', body: '', cta: '' });
   const actionIntroContinueRef = useRef(null);
   const [guidanceModalOpen, setGuidanceModalOpen] = useState(false);
@@ -308,6 +620,17 @@ export default function StudioProfile() {
   const closeActionIntroModal = () => {
     setActionIntroModal({ open: false, hintId: '', title: '', body: '', cta: '' });
     actionIntroContinueRef.current = null;
+  };
+
+  const dismissInteractionFilterIntro = () => {
+    markOneTimeHintShown(uid, INTERACTION_FILTER_TUTORIAL_HINT_ID);
+    setInteractionFilterIntroOpen(false);
+  };
+
+  const continueInteractionFilterIntro = () => {
+    markOneTimeHintShown(uid, INTERACTION_FILTER_TUTORIAL_HINT_ID);
+    setInteractionFilterIntroOpen(false);
+    setTopInlinePanel('interactionFilter');
   };
 
   const openOneTimeActionIntro = ({ hintId, titleKey, bodyKey, ctaKey, onContinue }) => {
@@ -371,6 +694,9 @@ export default function StudioProfile() {
   const [partnerPrefsSaveState, setPartnerPrefsSaveState] = useState({ loading: false, error: '', success: '' });
 
   const [photoPrivacyState, setPhotoPrivacyState] = useState({ loading: false, error: '' });
+  const [interactionFilterState, setInteractionFilterState] = useState({ loading: false, error: '', success: '' });
+  const [interactionFilterDraft, setInteractionFilterDraft] = useState(createInteractionFilterDraft);
+  const [interactionFilterDirty, setInteractionFilterDirty] = useState(false);
   const [localPhotosBlurred, setLocalPhotosBlurred] = useState(null);
   const [photoUpdateAction, setPhotoUpdateAction] = useState({ loading: false, error: '', success: '' });
   const [showAllMyPhotos, setShowAllMyPhotos] = useState(false);
@@ -381,6 +707,8 @@ export default function StudioProfile() {
     files: [null, null, null, null, null],
     previews: ['', '', '', '', ''],
   });
+  const photoManagerInputRefs = useRef([]);
+  const deferredPhotoGateInputRef = useRef(null);
 
   const [resolvedPhotoUrls, setResolvedPhotoUrls] = useState([]);
 
@@ -401,6 +729,11 @@ export default function StudioProfile() {
   }, [isPreview]);
 
   const isProfileIncomplete = useMemo(() => {
+    const appFromUser = mmUser?.application && typeof mmUser.application === 'object' ? mmUser.application : null;
+    const best = pickMoreCompleteApp(appFromUser, latestApp);
+    if (isDeferredPhotoInteractionRequiredFromApplication(best) || isDeferredPhotoInteractionRequiredFromUserDoc(mmUser)) {
+      return false;
+    }
     return !isMinimumProfileCompleteFromUserAndApp(mmUser, latestApp);
   }, [
     latestApp,
@@ -435,11 +768,32 @@ export default function StudioProfile() {
     });
   }, [appLoading, isPreview, isProfileIncomplete, loading, navigate, uid]);
 
+  useEffect(() => {
+    if (isPreview || !uid) return;
+    if (loading || appLoading) return;
+    if (interactionFilterIntroOpen || actionIntroModal?.open || identityIntroModalOpen || verifyModalOpen || guidanceModalOpen || partnerPrefsModalOpen) return;
+    if (isOneTimeHintShown(uid, INTERACTION_FILTER_TUTORIAL_HINT_ID)) return;
+    setInteractionFilterIntroOpen(true);
+  }, [actionIntroModal?.open, appLoading, guidanceModalOpen, identityIntroModalOpen, interactionFilterIntroOpen, isPreview, loading, partnerPrefsModalOpen, uid, verifyModalOpen]);
+
   const showIncompleteExploreWarning = !isPreview && isProfileIncomplete;
 
   const applySource = String(location?.state?.from || '').trim();
   const showApplyBanner =
     applyBannerOpen && ['matchmakingApply', 'matchmakingEditOnce', 'applyRedirectExisting'].includes(applySource);
+
+  const dismissOptionalDetailsNudge = useCallback(() => {
+    if (uid) markOneTimeHintShown(uid, OPTIONAL_DETAILS_HINT_ID);
+    setOptionalDetailsNudgeOpen(false);
+  }, [uid]);
+
+  const goToOptionalDetailsForm = useCallback(() => {
+    if (uid) markOneTimeHintShown(uid, OPTIONAL_DETAILS_HINT_ID);
+    setOptionalDetailsNudgeOpen(false);
+    navigate('/evlilik/eslestirme-basvuru?w=1&full=1', {
+      state: { returnTo: '/profilim', startStep: 1, profileMode: 'full' },
+    });
+  }, [navigate, uid]);
 
   const openApplyInline = () => {
     // Inline/iframe apply bloğu kaldırıldı. Kullanıcıyı doğrudan başvuru sayfasına yönlendir.
@@ -540,6 +894,26 @@ export default function StudioProfile() {
     }
   }, [isPreview, uid]);
 
+  const resolvePhotoUpdateApplicationId = useCallback(async () => {
+    const stateApplicationId = safeStr(location?.state?.applicationId);
+    const currentApplicationId = safeStr(latestAppId || latestApp?.id || stateApplicationId);
+    if (currentApplicationId) return currentApplicationId;
+    if (isPreview || !uid) return '';
+
+    try {
+      const q = query(collection(db, 'matchmakingApplications'), where('userId', '==', uid), limit(10));
+      const snap = await getDocs(q);
+      const items = snap.docs.map((d) => ({ id: d.id, ...(d.data() || {}) }));
+      const best = pickBestNonStubApplication(items);
+      const nextId = best?.id ? String(best.id) : '';
+      setLatestApp(best || null);
+      setLatestAppId(nextId);
+      return nextId;
+    } catch {
+      return '';
+    }
+  }, [isPreview, latestApp?.id, latestAppId, location?.state?.applicationId, uid]);
+
   useEffect(() => {
     if (isPreview) return;
     if (!uid) return;
@@ -638,27 +1012,44 @@ export default function StudioProfile() {
       !!publicProfile?.identityVerified;
 
     const membershipObj = mmUser?.membership && typeof mmUser.membership === 'object' ? mmUser.membership : null;
-    const membershipValidUntilMs = (() => {
+    const directMembershipValidUntilMs = (() => {
       const v = membershipObj?.validUntilMs;
       if (typeof v === 'number' && Number.isFinite(v)) return v;
       if (v && typeof v.toMillis === 'function') return v.toMillis();
       if (v && typeof v.seconds === 'number' && Number.isFinite(v.seconds)) return v.seconds * 1000;
       return 0;
     })();
+    const freeActiveMembership = mmUser?.freeActiveMembership && typeof mmUser.freeActiveMembership === 'object'
+      ? mmUser.freeActiveMembership
+      : null;
     const now = Date.now();
-    const membershipActive =
-      (membershipValidUntilMs > 0 && membershipValidUntilMs > now) ||
-      (!!membershipObj?.active && (!membershipValidUntilMs || membershipValidUntilMs > now));
-    const membershipPlan = String(membershipObj?.plan || '').trim();
+    const freeActiveWindowHours = typeof freeActiveMembership?.windowHours === 'number' ? freeActiveMembership.windowHours : 0;
+    const freeActiveLastActiveAtMs = typeof freeActiveMembership?.lastActiveAtMs === 'number' ? freeActiveMembership.lastActiveAtMs : 0;
+    const freeActiveExpiresAtMs =
+      !!freeActiveMembership?.active && freeActiveWindowHours > 0 && freeActiveLastActiveAtMs > 0
+        ? freeActiveLastActiveAtMs + freeActiveWindowHours * 3600000
+        : 0;
+    const freeActiveEligible =
+      !!freeActiveMembership?.active &&
+      !freeActiveMembership?.blocked &&
+      freeActiveExpiresAtMs > now;
+    const directMembershipActive =
+      (directMembershipValidUntilMs > 0 && directMembershipValidUntilMs > now) ||
+      (!!membershipObj?.active && (!directMembershipValidUntilMs || directMembershipValidUntilMs > now));
+    const membershipActive = directMembershipActive || freeActiveEligible;
+    const membershipValidUntilMs = directMembershipValidUntilMs || (freeActiveEligible ? freeActiveExpiresAtMs : 0);
+    const membershipPlan = String(membershipObj?.plan || (freeActiveEligible ? 'eco' : '')).trim();
 
     const identityStatus = String(mmUser?.identityVerification?.status || '').trim();
     const identityMethod = String(mmUser?.identityVerification?.method || '').trim();
     const identityRef = String(mmUser?.identityVerification?.referenceCode || '').trim();
+    const whatsapp = String(app?.whatsapp || publicProfile?.whatsapp || mmUser?.whatsapp || '').trim();
 
     return {
       username,
       name,
       age,
+      whatsapp,
       genderLabel,
       photoUrl: photoUrls.length ? photoUrls[0] : '',
       photoUrls,
@@ -681,6 +1072,76 @@ export default function StudioProfile() {
     const appFromUser = mmUser?.application && typeof mmUser.application === 'object' ? mmUser.application : null;
     return pickMoreCompleteApp(appFromUser, latestApp);
   }, [latestApp, mmUser]);
+
+  const deferredPhotoGateRequired = useMemo(() => {
+    return isDeferredPhotoInteractionRequiredFromApplication(bestApp) || isDeferredPhotoInteractionRequiredFromUserDoc(mmUser);
+  }, [bestApp, mmUser]);
+
+  const deferredWhatsappGateRequired = useMemo(() => {
+    return isDeferredWhatsappInteractionRequiredFromApplication(bestApp) || isDeferredWhatsappInteractionRequiredFromUserDoc(mmUser);
+  }, [bestApp, mmUser]);
+
+  const activateFreeMembershipSilently = useCallback(async () => {
+    if (!uid || isPreview) return;
+    try {
+      await authFetch('/api/matchmaking-membership-activate-free', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: '{}',
+      });
+    } catch {
+      // best-effort only
+    }
+  }, [isPreview, uid]);
+
+  useEffect(() => {
+    if (!uid || isPreview || profile.appLoading) return;
+    if (profile.membershipActive) {
+      membershipAutoActivateRef.current = false;
+      return;
+    }
+    if (membershipAutoActivateRef.current) return;
+    if (!isMinimumProfileCompleteFromUserAndApp(mmUser, latestApp)) return;
+    if (deferredPhotoGateRequired || deferredWhatsappGateRequired) return;
+    membershipAutoActivateRef.current = true;
+    activateFreeMembershipSilently();
+  }, [
+    activateFreeMembershipSilently,
+    deferredPhotoGateRequired,
+    deferredWhatsappGateRequired,
+    isPreview,
+    latestApp,
+    mmUser,
+    profile.appLoading,
+    profile.membershipActive,
+    uid,
+  ]);
+
+  const optionalDetailsRecommended = useMemo(() => {
+    if (!bestApp) return false;
+    if (!isMinimumProfileCompleteFromUserAndApp(mmUser, latestApp)) return false;
+    return !hasFilledOptionalDetails(bestApp);
+  }, [bestApp, latestApp, mmUser]);
+
+  useEffect(() => {
+    if (!uid) {
+      setOptionalDetailsNudgeOpen(false);
+      return;
+    }
+    if (applySource !== 'matchmakingApply') {
+      setOptionalDetailsNudgeOpen(false);
+      return;
+    }
+    if (!optionalDetailsRecommended) {
+      setOptionalDetailsNudgeOpen(false);
+      return;
+    }
+    if (isOneTimeHintShown(uid, OPTIONAL_DETAILS_HINT_ID)) {
+      setOptionalDetailsNudgeOpen(false);
+      return;
+    }
+    setOptionalDetailsNudgeOpen(true);
+  }, [applySource, optionalDetailsRecommended, uid]);
 
   const partnerMaritalStatusOptions = useMemo(
     () => [
@@ -880,10 +1341,9 @@ export default function StudioProfile() {
 
   const avatarUrl = myPhotoUrls.length ? String(myPhotoUrls[0] || '').trim() : '';
 
-  const closePhotoManager = () => {
-    if (photoUpdateAction.loading) return;
+  const revokePhotoDraftPreviews = useCallback((previews) => {
     try {
-      const prevs = Array.isArray(photoManagerDraft?.previews) ? photoManagerDraft.previews : [];
+      const prevs = Array.isArray(previews) ? previews : [];
       for (const p of prevs) {
         if (p && String(p).startsWith('blob:')) {
           try {
@@ -896,17 +1356,9 @@ export default function StudioProfile() {
     } catch {
       // ignore
     }
-    setPhotoManagerOpen(false);
-  };
+  }, []);
 
-  const openPhotoManager = () => {
-    if (isPreview) {
-      blockInteraction();
-      return;
-    }
-
-    setPhotoUpdateAction({ loading: false, error: '', success: '' });
-
+  const buildPhotoManagerBaseDraft = useCallback(() => {
     const base = (Array.isArray(myPhotoUrls) ? myPhotoUrls : [])
       .map((s) => String(s || '').trim())
       .filter(Boolean)
@@ -915,25 +1367,86 @@ export default function StudioProfile() {
     const urls = ['', '', '', '', ''];
     for (let i = 0; i < Math.min(5, base.length); i += 1) urls[i] = base[i];
 
-    // Eski preview URL'lerini temizle.
+    return { urls, files: [null, null, null, null, null], previews: ['', '', '', '', ''] };
+  }, [myPhotoUrls]);
+
+  const openPhotoManagerWithSeedFile = useCallback((file, slotIndex = 0) => {
+    const seedIndex = Number.isInteger(slotIndex) && slotIndex >= 0 && slotIndex < 5 ? slotIndex : 0;
+    revokePhotoDraftPreviews(photoManagerDraft?.previews);
+
+    const nextDraft = buildPhotoManagerBaseDraft();
+    let previewUrl = '';
     try {
-      const prevs = Array.isArray(photoManagerDraft?.previews) ? photoManagerDraft.previews : [];
-      for (const p of prevs) {
-        if (p && String(p).startsWith('blob:')) {
-          try {
-            URL.revokeObjectURL(p);
-          } catch {
-            // ignore
-          }
-        }
+      previewUrl = URL.createObjectURL(file);
+    } catch {
+      previewUrl = '';
+    }
+
+    nextDraft.files[seedIndex] = file;
+    nextDraft.previews[seedIndex] = previewUrl;
+    setPhotoUpdateAction({ loading: false, error: '', success: '' });
+    setPhotoManagerDraft(nextDraft);
+    setPhotoManagerOpen(true);
+  }, [buildPhotoManagerBaseDraft, photoManagerDraft?.previews, revokePhotoDraftPreviews]);
+
+  const closePhotoManager = () => {
+    if (photoUpdateAction.loading) return;
+    revokePhotoDraftPreviews(photoManagerDraft?.previews);
+    setPhotoManagerOpen(false);
+  };
+
+  const openPhotoManager = useCallback(() => {
+    if (isPreview) {
+      blockInteraction();
+      return;
+    }
+
+    setPhotoUpdateAction({ loading: false, error: '', success: '' });
+
+    revokePhotoDraftPreviews(photoManagerDraft?.previews);
+    setPhotoManagerDraft(buildPhotoManagerBaseDraft());
+    setPhotoManagerOpen(true);
+  }, [blockInteraction, buildPhotoManagerBaseDraft, isPreview, photoManagerDraft?.previews, revokePhotoDraftPreviews]);
+
+  const openPhotoManagerInput = useCallback((index) => {
+    if (!Number.isInteger(index) || index < 0 || index >= 5) return;
+    if (photoUpdateAction.loading) return;
+
+    const input = photoManagerInputRefs.current[index];
+    if (!input) return;
+
+    try {
+      if (typeof input.showPicker === 'function') {
+        input.showPicker();
+        return;
       }
+    } catch {
+      // Fallback to click below.
+    }
+
+    try {
+      input.click();
     } catch {
       // ignore
     }
+  }, [photoUpdateAction.loading]);
 
-    setPhotoManagerDraft({ urls, files: [null, null, null, null, null], previews: ['', '', '', '', ''] });
-    setPhotoManagerOpen(true);
-  };
+  const setPrimaryPhotoSlot = useCallback((index) => {
+    if (!Number.isInteger(index) || index <= 0 || index >= 5) return;
+
+    setPhotoManagerDraft((prev) => {
+      const nextUrls = moveSlotToFront(prev?.urls, index);
+      const nextFiles = moveSlotToFront(prev?.files, index, { emptyValue: null });
+      const nextPreviews = moveSlotToFront(prev?.previews, index);
+
+      return {
+        ...prev,
+        urls: nextUrls,
+        files: nextFiles,
+        previews: nextPreviews,
+      };
+    });
+  }, []);
 
   const openPhotoManagerFromNavOnceRef = useRef(false);
   useEffect(() => {
@@ -941,20 +1454,99 @@ export default function StudioProfile() {
       if (openPhotoManagerFromNavOnceRef.current) return;
       const s = location?.state && typeof location.state === 'object' ? location.state : null;
       if (!s || s.openPhotoManager !== true) return;
+      if (safeStr(s?.profileGate) === 'deferred_photo_required') return;
       openPhotoManagerFromNavOnceRef.current = true;
+      const profileGate = safeStr(s?.profileGate);
 
+      const nextState = { ...s };
+      delete nextState.openPhotoManager;
+      delete nextState.profileGate;
+      delete nextState.photoUploadDeferred;
+      delete nextState.photoUploadDeferredMessage;
+      const hasNextState = Object.keys(nextState).length > 0;
+      navigate(`${location.pathname || '/profilim'}${location.search || ''}${location.hash || ''}`, {
+        replace: true,
+        state: hasNextState ? nextState : null,
+      });
+
+      const deferredMessage = s?.photoUploadDeferred === true ? safeStr(s?.photoUploadDeferredMessage) : '';
       setTopInlinePanel('photoPrivacy');
       openPhotoManager();
+      const gateMessage = profileGate === 'photo_review_required'
+        ? t('studio.profileGate.photoReviewBody')
+        : profileGate === 'photo_required'
+          ? t('studio.profile.completeProfileTutorial.photoBody')
+          : '';
+      if (deferredMessage || gateMessage) {
+        setPhotoUpdateAction({ loading: false, error: deferredMessage || gateMessage, success: '' });
+      }
     } catch {
       // ignore
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [location?.state]);
+  }, [location?.hash, location?.pathname, location?.search, location?.state, navigate, t]);
+
+  useEffect(() => {
+    try {
+      const s = location?.state && typeof location.state === 'object' ? location.state : null;
+      if (!s || safeStr(s?.profileGate) !== 'deferred_photo_required') return;
+
+      const nextState = { ...s };
+      delete nextState.openPhotoManager;
+      delete nextState.profileGate;
+      delete nextState.photoUploadDeferred;
+      delete nextState.photoUploadDeferredMessage;
+      const hasNextState = Object.keys(nextState).length > 0;
+      navigate(`${location.pathname || '/profilim'}${location.search || ''}${location.hash || ''}`, {
+        replace: true,
+        state: hasNextState ? nextState : null,
+      });
+
+      setTopInlinePanel('photoPrivacy');
+      setDeferredPhotoGateOpen(true);
+    } catch {
+      // ignore
+    }
+  }, [location?.hash, location?.pathname, location?.search, location?.state, navigate]);
+
+  useEffect(() => {
+    try {
+      const s = location?.state && typeof location.state === 'object' ? location.state : null;
+      if (!s || safeStr(s?.profileGate) !== 'deferred_whatsapp_required') return;
+
+      const nextState = { ...s };
+      delete nextState.openPhotoManager;
+      delete nextState.profileGate;
+      delete nextState.photoUploadDeferred;
+      delete nextState.photoUploadDeferredMessage;
+      const hasNextState = Object.keys(nextState).length > 0;
+      navigate(`${location.pathname || '/profilim'}${location.search || ''}${location.hash || ''}`, {
+        replace: true,
+        state: hasNextState ? nextState : null,
+      });
+
+      setDeferredWhatsappAction({ loading: false, error: '' });
+      setDeferredWhatsappGateStep('intro');
+      setDeferredWhatsappValue(safeStr(profile?.whatsapp));
+      setDeferredWhatsappGateOpen(true);
+    } catch {
+      // ignore
+    }
+  }, [location?.hash, location?.pathname, location?.search, location?.state, navigate, profile?.whatsapp]);
+
+  useEffect(() => {
+    if (!deferredWhatsappGateRequired) return;
+    setDeferredWhatsappAction({ loading: false, error: '' });
+    setDeferredWhatsappGateStep('intro');
+    setDeferredWhatsappValue(safeStr(profile?.whatsapp));
+    setDeferredWhatsappGateOpen(true);
+  }, [deferredWhatsappGateRequired, profile?.whatsapp]);
 
   const isImageFile = (file) => {
     if (!file) return false;
     const typ = String(file?.type || '').toLowerCase();
-    return typ.startsWith('image/');
+    if (typ.startsWith('image/')) return true;
+    return IMAGE_FILE_NAME_RE.test(String(file?.name || '').trim());
   };
 
   const savePhotoUpdates = async () => {
@@ -980,17 +1572,28 @@ export default function StudioProfile() {
       return;
     }
 
+    const applicationId = await resolvePhotoUpdateApplicationId();
+    if (!applicationId) {
+      setPhotoUpdateAction({ loading: false, error: t('matchmakingPanel.photos.updateRequest.errors.applicationNotFound'), success: '' });
+      return;
+    }
+
     setPhotoUpdateAction({ loading: true, error: '', success: '' });
     try {
       const uploadedSlots = ['', '', '', '', ''];
+      const uploadErrors = [];
       for (let i = 0; i < 5; i += 1) {
         const f = draftFiles[i] || null;
         if (!f) continue;
-        const up = await uploadImageToCloudinaryAuto(f, {
-          folder: `matchmaking/photos/${uid || 'unknown'}`,
-          tags: ['matchmaking', 'photo-update', `photo${i + 1}`],
-        });
-        uploadedSlots[i] = String(up?.secureUrl || '').trim();
+        try {
+          const up = await uploadPhotoWithFallback(f, {
+            folder: `matchmaking/photos/${uid || 'unknown'}`,
+            tags: ['matchmaking', 'photo-update', `photo${i + 1}`],
+          });
+          uploadedSlots[i] = String(up?.secureUrl || '').trim();
+        } catch (error) {
+          uploadErrors.push(error);
+        }
       }
 
       const finalSlots = [];
@@ -999,7 +1602,13 @@ export default function StudioProfile() {
       }
       const finalUrls = finalSlots.filter(Boolean).slice(0, 5);
       if (!finalUrls.length) {
-        setPhotoUpdateAction({ loading: false, error: t('matchmakingPanel.photos.updateRequest.errors.photosRequired'), success: '' });
+        const uploadMessage = safeStr(uploadErrors[0]?.message);
+        const mappedUploadMessage = uploadMessage ? (translateStudioApiError(t, uploadMessage) || uploadMessage) : '';
+        setPhotoUpdateAction({
+          loading: false,
+          error: mappedUploadMessage || t('matchmakingPanel.photos.updateRequest.errors.photosRequired'),
+          success: '',
+        });
         return;
       }
 
@@ -1007,7 +1616,7 @@ export default function StudioProfile() {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
-          applicationId: latestAppId || '',
+          applicationId,
           photoUrls: finalUrls,
         }),
       });
@@ -1036,6 +1645,8 @@ export default function StudioProfile() {
     return false;
   }, [localPhotosBlurred, mmUser]);
 
+  const photoModerationRestricted = useMemo(() => isPhotoModerationRestricted(mmUser, latestApp), [latestApp, mmUser]);
+
   useEffect(() => {
     // Server'dan gelen değer geldiyse optimistic state'i senkronla.
     const v1 = mmUser?.publicProfile && typeof mmUser.publicProfile === 'object' ? mmUser.publicProfile.photosBlurred : undefined;
@@ -1043,6 +1654,13 @@ export default function StudioProfile() {
     const serverVal = typeof v1 === 'boolean' ? v1 : typeof v2 === 'boolean' ? v2 : null;
     if (typeof serverVal === 'boolean') setLocalPhotosBlurred(serverVal);
   }, [mmUser]);
+
+  useEffect(() => {
+    if (interactionFilterDirty) return;
+    setInteractionFilterDraft(buildInteractionFilterDraft(mmUser?.interactionFilter));
+  }, [interactionFilterDirty, mmUser]);
+
+  const interactionFilterActive = useMemo(() => hasActiveInteractionFilterDraft(interactionFilterDraft), [interactionFilterDraft]);
 
   const setPhotosBlurred = async (next) => {
     if (isPreview) {
@@ -1068,6 +1686,62 @@ export default function StudioProfile() {
       setLocalPhotosBlurred(!!prev);
       setPhotoPrivacyState({ loading: false, error: translateStudioApiError(t, msg) || msg });
     }
+  };
+
+  const persistInteractionFilter = async (nextDraft) => {
+    if (isPreview) {
+      blockInteraction();
+      return;
+    }
+    if (!uid || interactionFilterState.loading) return;
+
+    const payload = normalizeInteractionFilterPayload(nextDraft);
+    const nextActive = hasActiveInteractionFilterDraft(payload);
+
+    setInteractionFilterState({ loading: true, error: '', success: '' });
+    try {
+      await authFetch('/api/matchmaking-interaction-filter-set', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      const nextDraftState = buildInteractionFilterDraft(payload);
+      setInteractionFilterDraft(nextDraftState);
+      setInteractionFilterDirty(false);
+      setMmUser((prev) => (prev && typeof prev === 'object' ? { ...prev, interactionFilter: payload } : prev));
+      setInteractionFilterState({
+        loading: false,
+        error: '',
+        success: nextActive ? t('studio.profile.interactionFilter.saved') : t('studio.profile.interactionFilter.cleared'),
+      });
+    } catch (e) {
+      const msg = safeStr(e?.message) || 'save_failed';
+      setInteractionFilterState({ loading: false, error: translateStudioApiError(t, msg) || msg, success: '' });
+    }
+  };
+
+  const saveInteractionFilter = async () => {
+    await persistInteractionFilter(interactionFilterDraft);
+  };
+
+  const clearInteractionFilter = async () => {
+    await persistInteractionFilter(createInteractionFilterDraft());
+  };
+
+  const toggleInteractionFilterMaritalStatus = (status) => {
+    const nextValue = normalizeMaritalStatus(status);
+    if (!nextValue) return;
+    setInteractionFilterState((current) => ({ ...current, error: '', success: '' }));
+    setInteractionFilterDirty(true);
+    setInteractionFilterDraft((current) => {
+      const list = Array.isArray(current?.allowedMaritalStatuses) ? current.allowedMaritalStatuses : [];
+      const exists = list.includes(nextValue);
+      return {
+        ...current,
+        allowedMaritalStatuses: exists ? list.filter((item) => item !== nextValue) : [...list, nextValue],
+      };
+    });
   };
 
   useEffect(() => {
@@ -1134,6 +1808,100 @@ export default function StudioProfile() {
     }
   };
 
+  const referralVideo = useMemo(() => {
+    const videos = getYouTubeVideosForLang(i18n?.language);
+    if (Array.isArray(videos) && videos[2]) return videos[2];
+    if (Array.isArray(videos) && videos[0]) return videos[0];
+    return null;
+  }, [i18n?.language]);
+
+  const referralShareUrl = APP_INSTALL_SHARE_URL;
+  const referralCampaignImageUrl = useMemo(() => staticAssetUrl('/brand-logo.webp'), []);
+  const referralCampaignText = useMemo(
+    () => `${referralShareUi.campaignBody}\n\n${referralShareUrl}`,
+    [referralShareUi.campaignBody, referralShareUrl]
+  );
+  const referralVideoUrl = useMemo(() => {
+    const videoId = String(referralVideo?.videoId || '').trim();
+    return videoId ? `https://www.youtube.com/watch?v=${videoId}` : 'https://uniqah.com/youtube';
+  }, [referralVideo?.videoId]);
+  const referralVideoThumb = useMemo(() => {
+    const videoId = String(referralVideo?.videoId || '').trim();
+    return videoId ? staticAssetUrl(`/youtube-thumbs/${videoId}.jpg`) : referralCampaignImageUrl;
+  }, [referralCampaignImageUrl, referralVideo?.videoId]);
+  const isVideoSharePlatform = invitePlatform === 'instagram' || invitePlatform === 'tiktok';
+
+  const setInviteNotice = (notice = '') => {
+    setInviteState((prev) => ({ ...prev, loading: false, error: '', notice }));
+  };
+
+  const copyToClipboard = async (text) => {
+    const value = String(text || '').trim();
+    if (!value) return false;
+    if (typeof navigator === 'undefined' || !navigator.clipboard?.writeText) return false;
+    await navigator.clipboard.writeText(value);
+    return true;
+  };
+
+  const openExternalLink = (url) => {
+    const target = String(url || '').trim();
+    if (!target || typeof window === 'undefined') return false;
+    try {
+      const popup = window.open(target, '_blank', 'noopener,noreferrer');
+      if (!popup || popup.closed || typeof popup.closed === 'undefined') {
+        window.location.href = target;
+      }
+      return true;
+    } catch {
+      window.location.href = target;
+      return true;
+    }
+  };
+
+  const downloadReferralImage = () => {
+    if (typeof document === 'undefined') return;
+    const a = document.createElement('a');
+    a.href = referralCampaignImageUrl;
+    a.download = 'uniqah-share.webp';
+    a.rel = 'noopener';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  };
+
+  const buildReferralShareFile = async () => {
+    try {
+      const res = await fetch(referralCampaignImageUrl, { credentials: 'same-origin' });
+      if (!res.ok) return null;
+      const blob = await res.blob();
+      return new File([blob], 'uniqah-share.webp', { type: blob.type || 'image/webp' });
+    } catch {
+      return null;
+    }
+  };
+
+  const tryNativeStatusShare = async () => {
+    if (typeof navigator === 'undefined' || typeof navigator.share !== 'function') return false;
+    const payload = {
+      title: referralShareUi.campaignTitle,
+      text: referralCampaignText,
+      url: referralShareUrl,
+    };
+
+    const file = await buildReferralShareFile();
+    if (file && typeof navigator.canShare === 'function' && navigator.canShare({ files: [file] })) {
+      payload.files = [file];
+    }
+
+    try {
+      await navigator.share(payload);
+      return true;
+    } catch (error) {
+      if (String(error?.name || '').trim() === 'AbortError') return true;
+      return false;
+    }
+  };
+
   const generateInviteCodeAndShareWhatsApp = async () => {
     if (isPreview) {
       blockInteraction();
@@ -1141,34 +1909,73 @@ export default function StudioProfile() {
     }
     if (inviteState.loading) return;
 
-    setInviteState({ loading: true, error: '' });
+    setInviteState({ loading: true, error: '', notice: '' });
     try {
-      const inviteUrl = (() => {
-        try {
-          const u = new URL('https://uniqah.com/uygulama');
-          return u.toString();
-        } catch {
-          return 'https://uniqah.com/uygulama';
+      const trackBase = `studio_referral_share_${invitePlatform}`;
+
+      if (invitePlatform === 'whatsapp_status') {
+        const shared = await tryNativeStatusShare();
+        if (shared) {
+          trackClick(`${trackBase}_native`);
+          setInviteNotice(referralShareUi.notices.redirected);
+          return;
         }
-      })();
 
-      const msg = t('studio.referral.shareMessage', { url: inviteUrl });
-
-      const waShareUrl = buildWhatsAppShareUrl(msg);
-
-      setInviteState({ loading: false, error: '' });
-
-      try {
-        if (typeof window !== 'undefined' && waShareUrl) {
-          window.location.href = waShareUrl;
-        }
-      } catch {
-        // ignore
+        const waStatusFallbackUrl = buildWhatsAppShareUrl(referralCampaignText);
+        openExternalLink(waStatusFallbackUrl);
+        trackClick(`${trackBase}_fallback`);
+        setInviteNotice(referralShareUi.notices.whatsappFallback);
+        return;
       }
+
+      if (invitePlatform === 'whatsapp_direct') {
+        const waShareUrl = buildWhatsAppShareUrl(referralCampaignText);
+        openExternalLink(waShareUrl);
+        trackClick(`${trackBase}_open`);
+        setInviteNotice(referralShareUi.notices.redirected);
+        return;
+      }
+
+      if (invitePlatform === 'facebook') {
+        const fbUrl = getReferralPlatformOpenUrl('facebook', i18n?.language, referralShareUrl);
+        openExternalLink(fbUrl);
+        trackClick(`${trackBase}_open`);
+        setInviteNotice(referralShareUi.notices.redirected);
+        return;
+      }
+
+      const copied = await copyToClipboard(referralVideoUrl);
+      const socialUrl = getReferralPlatformOpenUrl(invitePlatform, i18n?.language, referralVideoUrl);
+      openExternalLink(socialUrl);
+      trackClick(`${trackBase}_open`);
+      setInviteNotice(copied ? referralShareUi.notices.copiedLink : referralShareUi.notices.clipboardMissing);
     } catch (e) {
       const msg = String(e?.message || 'invite_failed').trim();
-      setInviteState({ loading: false, error: translateStudioApiError(t, msg) || msg });
+      setInviteState({ loading: false, error: translateStudioApiError(t, msg) || msg, notice: '' });
     }
+  };
+
+  const copyReferralText = async () => {
+    try {
+      const copied = await copyToClipboard(referralCampaignText);
+      setInviteNotice(copied ? referralShareUi.notices.copiedText : referralShareUi.notices.clipboardMissing);
+    } catch {
+      setInviteNotice(referralShareUi.notices.clipboardMissing);
+    }
+  };
+
+  const copyReferralLink = async () => {
+    try {
+      const copied = await copyToClipboard(isVideoSharePlatform ? referralVideoUrl : referralShareUrl);
+      setInviteNotice(copied ? referralShareUi.notices.copiedLink : referralShareUi.notices.clipboardMissing);
+    } catch {
+      setInviteNotice(referralShareUi.notices.clipboardMissing);
+    }
+  };
+
+  const downloadReferralVisual = () => {
+    downloadReferralImage();
+    setInviteNotice(referralShareUi.notices.imageDownloaded);
   };
 
   const submitSocialVerification = async () => {
@@ -1341,6 +2148,80 @@ export default function StudioProfile() {
     }
   };
 
+  const startDeferredPhotoUpload = () => {
+    setDeferredPhotoGateOpen(false);
+    setTopInlinePanel('photoPrivacy');
+    const input = deferredPhotoGateInputRef.current;
+    if (!input) {
+      openPhotoManager();
+      return;
+    }
+
+    try {
+      if (typeof input.showPicker === 'function') {
+        input.showPicker();
+        return;
+      }
+    } catch {
+      // fallback below
+    }
+
+    try {
+      input.click();
+    } catch {
+      openPhotoManager();
+    }
+  };
+
+  const startDeferredPhotoDelete = async () => {
+    setDeferredPhotoGateOpen(false);
+    await deleteAccount();
+  };
+
+  const startDeferredWhatsappEntry = () => {
+    setDeferredWhatsappAction({ loading: false, error: '' });
+    setDeferredWhatsappValue(safeStr(profile?.whatsapp));
+    setDeferredWhatsappGateStep('input');
+  };
+
+  const skipDeferredWhatsappGate = () => {
+    if (deferredWhatsappAction.loading) return;
+    setDeferredWhatsappGateOpen(false);
+    setDeferredWhatsappGateStep('intro');
+  };
+
+  const saveDeferredWhatsapp = async () => {
+    if (isPreview) {
+      blockInteraction();
+      return;
+    }
+
+    const normalizedWhatsapp = safeStr(deferredWhatsappValue);
+    if (!normalizedWhatsapp) {
+      setDeferredWhatsappAction({ loading: false, error: t('matchmakingPage.form.errors.whatsapp') });
+      setDeferredWhatsappGateStep('input');
+      return;
+    }
+
+    if (deferredWhatsappAction.loading) return;
+    setDeferredWhatsappAction({ loading: true, error: '' });
+
+    try {
+      await authFetch('/api/matchmaking-application-edit-once', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ payload: { whatsapp: normalizedWhatsapp } }),
+      });
+      setDeferredWhatsappAction({ loading: false, error: '' });
+      setDeferredWhatsappGateOpen(false);
+      setDeferredWhatsappGateStep('intro');
+    } catch (e) {
+      const msg = String(e?.message || '').trim();
+      setDeferredWhatsappAction({ loading: false, error: translateStudioApiError(t, msg) || msg || 'save_failed' });
+      setDeferredWhatsappGateStep('input');
+    }
+  };
+
   const toggleTopInlinePanel = (key) => {
     setTopInlinePanel((prev) => (prev === key ? '' : key));
   };
@@ -1350,8 +2231,8 @@ export default function StudioProfile() {
     const panel = safeStr(params.get('panel')).toLowerCase();
     if (!panel) return;
 
-    if (panel === 'referral' || panel === 'membership' || panel === 'identity' || panel === 'photoprivacy') {
-      setTopInlinePanel(panel === 'photoprivacy' ? 'photoPrivacy' : panel);
+    if (panel === 'referral' || panel === 'membership' || panel === 'identity' || panel === 'photoprivacy' || panel === 'interactionfilter') {
+      setTopInlinePanel(panel === 'photoprivacy' ? 'photoPrivacy' : panel === 'interactionfilter' ? 'interactionFilter' : panel);
     } else if (panel === 'partnerprefs') {
       setPartnerPrefsModalOpen(true);
     } else if (panel === 'guidance') {
@@ -1526,6 +2407,10 @@ export default function StudioProfile() {
                     {t('studio.profile.endsAt')}: {new Intl.DateTimeFormat(String(i18n?.language || 'tr'), { dateStyle: 'medium' }).format(new Date(profile.membershipValidUntilMs))}
                   </p>
                 ) : null}
+
+                <YouTubeVisitCard className="mt-4 max-w-xl" compact />
+
+                <StudioInviteFriendsCard className="mt-4 max-w-xl" onClick={() => setTopInlinePanel('referral')} />
 
                 <div ref={profileMenuWrapRef} className="relative mt-4">
                   <button
@@ -1729,6 +2614,27 @@ export default function StudioProfile() {
                           type="button"
                           onClick={() => {
                             setProfileMenuOpen(false);
+                            toggleTopInlinePanel('interactionFilter');
+                          }}
+                          className="app-btn app-btn-action-menu relative h-12 w-full px-5 justify-start"
+                          title={t('studio.profile.interactionFilter.title')}
+                          aria-label={shortLabel('studio.profile.interactionFilter.title', 'Etkileşim')}
+                        >
+                          <span
+                            className="absolute left-6 top-1/2 flex h-12 w-12 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-2xl bg-white/15 ring-1 ring-white/25"
+                            aria-hidden="true"
+                          >
+                            <Filter className="h-6 w-6 text-white" />
+                          </span>
+                          <span className="min-w-0 pl-14 text-sm font-semibold tracking-wide text-white">
+                            <span className="block whitespace-nowrap">{shortLabel('studio.profile.interactionFilter.title', 'Etkileşim')}</span>
+                          </span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setProfileMenuOpen(false);
                             openOneTimeActionIntro({
                               hintId: 'profile-action-guidance-v1',
                               titleKey: 'studio.profile.actionIntro.guidance.title',
@@ -1749,6 +2655,39 @@ export default function StudioProfile() {
                           </span>
                           <span className="min-w-0 pl-14 text-sm font-semibold tracking-wide text-white">
                             <span className="block whitespace-nowrap">{shortLabel('studio.profile.guidance.button', 'Rehberlik')}</span>
+                          </span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setProfileMenuOpen(false);
+                            openOneTimeActionIntro({
+                              hintId: 'profile-action-review-v1',
+                              titleKey: 'studio.profile.actionIntro.review.title',
+                              bodyKey: 'studio.profile.actionIntro.review.body',
+                              ctaKey: 'studio.profile.actionIntro.review.cta',
+                              onContinue: () => {
+                                try {
+                                  window.sessionStorage.setItem('uniqah:app-review-prompt:source', 'profile_button');
+                                  window.dispatchEvent(new Event('uniqah:open-app-review-prompt'));
+                                } catch {
+                                  // ignore
+                                }
+                              },
+                            });
+                          }}
+                          className="app-btn app-btn-action-menu relative h-12 w-full px-5 justify-start"
+                          aria-label={shortLabel('studio.profile.actionIntro.review.title', 'Uygulamayı değerlendir')}
+                        >
+                          <span
+                            className="absolute left-6 top-1/2 flex h-12 w-12 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-2xl bg-white/15 ring-1 ring-white/25"
+                            aria-hidden="true"
+                          >
+                            <Star className="h-6 w-6 text-white" />
+                          </span>
+                          <span className="min-w-0 pl-14 text-sm font-semibold tracking-wide text-white">
+                            <span className="block whitespace-nowrap">{shortLabel('studio.profile.actionIntro.review.title', 'Uygulamayı değerlendir')}</span>
                           </span>
                         </button>
 
@@ -1891,8 +2830,6 @@ export default function StudioProfile() {
                     </Link>
                   </div>
                 </div>
-
-                <StudioInviteFriendsCard className="mt-4" onClick={() => setTopInlinePanel('referral')} />
 
                 {showIncompleteExploreWarning ? (
                   <div role="alert" className="mt-4 rounded-[24px] border border-red-200 bg-[linear-gradient(135deg,rgba(254,242,242,0.96),rgba(255,255,255,0.92))] p-4 text-red-950 shadow-[0_12px_32px_rgba(248,113,113,0.10)]">
@@ -2108,6 +3045,12 @@ export default function StudioProfile() {
                         </button>
                       </div>
 
+                      {photoModerationRestricted ? (
+                        <div className="mt-3 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+                          {t('studio.profileGate.photoReviewBody')}
+                        </div>
+                      ) : null}
+
                       {photoUpdateAction.error ? (
                         <div className="mt-3 rounded-md border border-rose-200 bg-rose-50 p-2 text-sm text-rose-900">{photoUpdateAction.error}</div>
                       ) : null}
@@ -2163,6 +3106,145 @@ export default function StudioProfile() {
                   </div>
                 ) : null}
 
+                {topInlinePanel === 'interactionFilter' ? (
+                  <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                    <h3 className="flex items-center gap-2 text-base font-semibold">
+                      <Filter className="h-5 w-5 text-emerald-600" />
+                      {t('studio.profile.interactionFilter.title')}
+                    </h3>
+
+                    <p className="mt-2 text-sm text-slate-600">{t('studio.profile.interactionFilter.body')}</p>
+                    <p className="mt-2 text-xs text-slate-500">{t('studio.profile.interactionFilter.scopeHint')}</p>
+
+                    {interactionFilterState.error ? (
+                      <div className="mt-3 rounded-md border border-rose-200 bg-rose-50 p-2 text-sm text-rose-900">
+                        {interactionFilterState.error}
+                      </div>
+                    ) : null}
+                    {interactionFilterState.success ? (
+                      <div className="mt-3 rounded-md border border-emerald-200 bg-emerald-50 p-2 text-sm text-emerald-900">
+                        {interactionFilterState.success}
+                      </div>
+                    ) : null}
+
+                    <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,0.9fr)_minmax(0,1.2fr)]">
+                      <div className="rounded-xl border border-slate-200 bg-white p-4">
+                        <p className="text-sm font-semibold text-slate-900">{t('studio.profile.interactionFilter.ageTitle')}</p>
+                        <div className="mt-3 grid grid-cols-2 gap-3">
+                          <label className="block text-sm text-slate-700">
+                            <span className="mb-1 block">{t('studio.profile.interactionFilter.ageMin')}</span>
+                            <input
+                              type="number"
+                              min="18"
+                              inputMode="numeric"
+                              value={interactionFilterDraft.ageMin}
+                              onChange={(event) => {
+                                setInteractionFilterDirty(true);
+                                setInteractionFilterState((current) => ({ ...current, error: '', success: '' }));
+                                setInteractionFilterDraft((current) => ({ ...current, ageMin: event.target.value }));
+                              }}
+                              className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+                            />
+                          </label>
+                          <label className="block text-sm text-slate-700">
+                            <span className="mb-1 block">{t('studio.profile.interactionFilter.ageMax')}</span>
+                            <input
+                              type="number"
+                              min="18"
+                              inputMode="numeric"
+                              value={interactionFilterDraft.ageMax}
+                              onChange={(event) => {
+                                setInteractionFilterDirty(true);
+                                setInteractionFilterState((current) => ({ ...current, error: '', success: '' }));
+                                setInteractionFilterDraft((current) => ({ ...current, ageMax: event.target.value }));
+                              }}
+                              className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+                            />
+                          </label>
+                        </div>
+                      </div>
+
+                      <div className="rounded-xl border border-slate-200 bg-white p-4">
+                        <p className="text-sm font-semibold text-slate-900">{t('studio.profile.interactionFilter.flagsTitle')}</p>
+                        <div className="mt-3 space-y-3">
+                          <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">
+                            <input
+                              type="checkbox"
+                              checked={interactionFilterDraft.requireVerified}
+                              onChange={(event) => {
+                                setInteractionFilterDirty(true);
+                                setInteractionFilterState((current) => ({ ...current, error: '', success: '' }));
+                                setInteractionFilterDraft((current) => ({ ...current, requireVerified: event.target.checked }));
+                              }}
+                              className="mt-0.5 h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+                            />
+                            <span>{t('studio.profile.interactionFilter.requireVerified')}</span>
+                          </label>
+                          <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">
+                            <input
+                              type="checkbox"
+                              checked={interactionFilterDraft.requirePhoto}
+                              onChange={(event) => {
+                                setInteractionFilterDirty(true);
+                                setInteractionFilterState((current) => ({ ...current, error: '', success: '' }));
+                                setInteractionFilterDraft((current) => ({ ...current, requirePhoto: event.target.checked }));
+                              }}
+                              className="mt-0.5 h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+                            />
+                            <span>{t('studio.profile.interactionFilter.requirePhoto')}</span>
+                          </label>
+                        </div>
+                      </div>
+
+                      <div className="rounded-xl border border-slate-200 bg-white p-4">
+                        <p className="text-sm font-semibold text-slate-900">{t('studio.profile.interactionFilter.maritalStatusTitle')}</p>
+                        <div className="mt-3 grid gap-2 sm:grid-cols-3 lg:grid-cols-1 xl:grid-cols-3">
+                          {['single', 'widowed', 'divorced'].map((status) => {
+                            const checked = interactionFilterDraft.allowedMaritalStatuses.includes(status);
+                            return (
+                              <label key={status} className="flex cursor-pointer items-start gap-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">
+                                <input
+                                  type="checkbox"
+                                  checked={checked}
+                                  onChange={() => toggleInteractionFilterMaritalStatus(status)}
+                                  className="mt-0.5 h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+                                />
+                                <span>{t(`matchmakingPage.form.options.maritalStatus.${status}`)}</span>
+                              </label>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 pt-4">
+                      <p className="text-sm text-slate-600">
+                        {interactionFilterActive
+                          ? t('studio.profile.interactionFilter.statusOn')
+                          : t('studio.profile.interactionFilter.statusOff')}
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          onClick={clearInteractionFilter}
+                          disabled={interactionFilterState.loading || !interactionFilterActive}
+                          className="app-btn app-btn-outline disabled:opacity-60"
+                        >
+                          {t('studio.profile.interactionFilter.clear')}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={saveInteractionFilter}
+                          disabled={interactionFilterState.loading}
+                          className="app-btn app-btn-primary disabled:opacity-60"
+                        >
+                          {interactionFilterState.loading ? t('studio.profile.interactionFilter.saving') : t('studio.profile.interactionFilter.save')}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ) : null}
+
                 {topInlinePanel === 'referral' ? (
                   <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
                     <h3 className="flex items-center gap-2 text-base font-semibold">
@@ -2170,19 +3252,133 @@ export default function StudioProfile() {
                       {t('studio.referral.title')}
                     </h3>
 
+                    <p className="mt-2 text-sm leading-relaxed text-slate-600">{referralShareUi.intro}</p>
+
                     <div className="mt-3 rounded-md border border-slate-200 bg-white p-3">
-                      <button
-                        type="button"
-                        onClick={generateInviteCodeAndShareWhatsApp}
-                        disabled={inviteState.loading}
-                        className="app-btn app-btn-primary disabled:opacity-60"
-                      >
-                        {inviteState.loading ? t('studio.common.processing') : t('studio.referral.shareButton')}
-                        <Share2 className="h-4 w-4" />
-                      </button>
+                      <div className="flex flex-wrap gap-2">
+                        {[
+                          { id: 'whatsapp_status', label: referralShareUi.platforms.whatsappStatus },
+                          { id: 'whatsapp_direct', label: referralShareUi.platforms.whatsappDirect },
+                          { id: 'facebook', label: referralShareUi.platforms.facebook },
+                          { id: 'instagram', label: referralShareUi.platforms.instagram },
+                          { id: 'tiktok', label: referralShareUi.platforms.tiktok },
+                        ].map((platform) => {
+                          const active = invitePlatform === platform.id;
+                          return (
+                            <button
+                              key={platform.id}
+                              type="button"
+                              onClick={() => {
+                                setInvitePlatform(platform.id);
+                                setInviteState((prev) => ({ ...prev, error: '', notice: '' }));
+                              }}
+                              className={[
+                                'rounded-full border px-3 py-1.5 text-sm font-semibold transition',
+                                active
+                                  ? 'border-indigo-600 bg-indigo-50 text-indigo-700'
+                                  : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:text-slate-900',
+                              ].join(' ')}
+                            >
+                              {platform.label}
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                        {isVideoSharePlatform ? (
+                          <div>
+                            <div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">{referralShareUi.videoPreviewLabel}</div>
+                            <div className="mt-3 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+                              <div className="aspect-video bg-slate-100">
+                                <img
+                                  src={referralVideoThumb}
+                                  alt={String(referralVideo?.title || referralShareUi.videoFallbackTitle)}
+                                  className="h-full w-full object-cover"
+                                />
+                              </div>
+                              <div className="p-4">
+                                <div className="text-sm font-semibold text-slate-900">{String(referralVideo?.title || referralShareUi.videoFallbackTitle)}</div>
+                                <div className="mt-1 text-sm text-slate-600">{String(referralVideo?.description || referralShareUi.videoFallbackDescription)}</div>
+                                <a
+                                  href={referralVideoUrl}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="mt-3 inline-flex items-center gap-2 text-sm font-semibold text-indigo-700 hover:text-indigo-800"
+                                >
+                                  {referralShareUi.actions.watchVideo}
+                                  <ExternalLink className="h-4 w-4" />
+                                </a>
+                              </div>
+                            </div>
+                          </div>
+                        ) : (
+                          <div>
+                            <div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">{referralShareUi.shareCardLabel}</div>
+                            <div className="mt-3 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+                              <div className="flex flex-col gap-4 p-4 md:flex-row md:items-center">
+                                <div className="flex h-24 w-24 items-center justify-center rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                                  <img src={referralCampaignImageUrl} alt={referralShareUi.imageAlt} className="max-h-full w-full object-contain" />
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                  <div className="text-base font-semibold text-slate-900">{referralShareUi.campaignTitle}</div>
+                                  <p className="mt-1 text-sm leading-relaxed text-slate-600">{referralShareUi.campaignBody}</p>
+                                  <div className="mt-2 break-all text-xs font-medium text-indigo-700">{referralShareUrl}</div>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="mt-4 flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          onClick={generateInviteCodeAndShareWhatsApp}
+                          disabled={inviteState.loading}
+                          className="app-btn app-btn-primary disabled:opacity-60"
+                        >
+                          {inviteState.loading ? t('studio.common.processing') : referralShareUi.actions.share}
+                          <Share2 className="h-4 w-4" />
+                        </button>
+
+                        {(isVideoSharePlatform || invitePlatform === 'facebook') ? (
+                          <button type="button" onClick={copyReferralLink} className="app-btn app-btn-outline">
+                            {referralShareUi.actions.copyLink}
+                            <Copy className="h-4 w-4" />
+                          </button>
+                        ) : null}
+
+                        {isVideoSharePlatform ? (
+                          <>
+                            <button type="button" onClick={copyReferralText} className="app-btn app-btn-outline">
+                              {referralShareUi.actions.copyText}
+                              <Copy className="h-4 w-4" />
+                            </button>
+                            <button type="button" onClick={downloadReferralVisual} className="app-btn app-btn-outline">
+                              {referralShareUi.actions.downloadImage}
+                              <Download className="h-4 w-4" />
+                            </button>
+                          </>
+                        ) : null}
+                      </div>
+
+                      <div className="mt-3 text-xs leading-relaxed text-slate-500">
+                        {invitePlatform === 'whatsapp_status' ? referralShareUi.hints.whatsappStatus : null}
+                        {invitePlatform === 'whatsapp_direct' ? referralShareUi.hints.whatsappDirect : null}
+                        {invitePlatform === 'facebook' ? referralShareUi.hints.facebook : null}
+                        {invitePlatform === 'instagram' ? referralShareUi.hints.instagram : null}
+                        {invitePlatform === 'tiktok' ? referralShareUi.hints.tiktok : null}
+                      </div>
+
+                      <div className="mt-2 text-xs leading-relaxed text-slate-500">{referralShareUi.helperText}</div>
 
                       {inviteState.error ? (
                         <div className="mt-2 rounded-md border border-rose-200 bg-rose-50 p-2 text-sm text-rose-900">{inviteState.error}</div>
+                      ) : null}
+
+                      {inviteState.notice ? (
+                        <div className="mt-2 rounded-md border border-emerald-200 bg-emerald-50 p-2 text-sm text-emerald-900">{inviteState.notice}</div>
                       ) : null}
                     </div>
                   </div>
@@ -2237,6 +3433,30 @@ export default function StudioProfile() {
                   >
                     {t('studio.profile.applySuccess.ctas.learn')}
                   </Link>
+                </div>
+              </div>
+            ) : null}
+
+            {optionalDetailsNudgeOpen ? (
+              <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-emerald-950">
+                <div className="flex flex-wrap items-start justify-between gap-2">
+                  <p className="font-semibold">{t('studio.pool.optionalDetailsRecommendation.title')}</p>
+                  <button
+                    type="button"
+                    onClick={dismissOptionalDetailsNudge}
+                    className="rounded-md px-2 py-1 text-sm font-semibold text-emerald-900/70 hover:bg-emerald-100"
+                  >
+                    {t('studio.common.close')}
+                  </button>
+                </div>
+                <p className="mt-1 text-sm text-emerald-900/80">{t('studio.pool.optionalDetailsRecommendation.body')}</p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <button type="button" onClick={goToOptionalDetailsForm} className="app-btn app-btn-primary">
+                    {t('studio.pool.optionalDetailsRecommendation.actions.ok')}
+                  </button>
+                  <button type="button" onClick={dismissOptionalDetailsNudge} className="app-btn app-btn-outline">
+                    {t('studio.pool.optionalDetailsRecommendation.actions.later')}
+                  </button>
                 </div>
               </div>
             ) : null}
@@ -2535,6 +3755,47 @@ export default function StudioProfile() {
                         className="app-btn app-btn-primary"
                       >
                         {t('studio.profile.identityIntro.cta')}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ) : null}
+
+            {interactionFilterIntroOpen ? (
+              <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 p-4 pt-6 overflow-y-auto" role="dialog" aria-modal="true">
+                <div className="w-full max-w-xl rounded-xl bg-white shadow-xl max-h-[85vh] flex flex-col">
+                  <div className="flex items-center justify-between border-b border-slate-200 p-4 shrink-0">
+                    <h3 className="text-lg font-semibold">{t('studio.profile.interactionFilter.tutorial.title')}</h3>
+                    <button type="button" onClick={dismissInteractionFilterIntro} className="app-btn app-btn-ghost h-8 px-2 text-xs">
+                      {t('studio.common.close')}
+                    </button>
+                  </div>
+
+                  <div className="p-4 space-y-4 overflow-y-auto flex-1">
+                    <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                      <p className="text-sm text-slate-700 whitespace-pre-line">{t('studio.profile.interactionFilter.tutorial.body')}</p>
+                    </div>
+
+                    <ul className="space-y-2 rounded-lg border border-emerald-100 bg-emerald-50 p-4 text-sm text-emerald-950">
+                      {(() => {
+                        const value = t('studio.profile.interactionFilter.tutorial.items', { returnObjects: true });
+                        const items = Array.isArray(value) ? value : [];
+                        return items.map((item, index) => (
+                          <li key={`${item}-${index}`} className="flex items-start gap-2">
+                            <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-emerald-500" aria-hidden="true" />
+                            <span>{item}</span>
+                          </li>
+                        ));
+                      })()}
+                    </ul>
+
+                    <div className="flex items-center justify-end gap-2">
+                      <button type="button" onClick={dismissInteractionFilterIntro} className="app-btn app-btn-outline">
+                        {t('studio.profile.interactionFilter.tutorial.later')}
+                      </button>
+                      <button type="button" onClick={continueInteractionFilterIntro} className="app-btn app-btn-primary">
+                        {t('studio.profile.interactionFilter.tutorial.cta')}
                       </button>
                     </div>
                   </div>
@@ -2991,12 +4252,128 @@ export default function StudioProfile() {
 
       <StudioBottomNav />
 
+      <input
+        ref={deferredPhotoGateInputRef}
+        type="file"
+        accept="image/*,.heic,.heif,.avif"
+        className="sr-only"
+        onChange={(event) => {
+          const file = event.target.files?.[0] || null;
+          if (!file) return;
+          if (!isImageFile(file)) {
+            setPhotoUpdateAction({ loading: false, error: t('matchmakingPanel.photos.updateRequest.errors.photoType'), success: '' });
+            event.target.value = '';
+            openPhotoManager();
+            return;
+          }
+
+          openPhotoManagerWithSeedFile(file, 0);
+          event.target.value = '';
+        }}
+      />
+
+      {deferredPhotoGateOpen ? (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-slate-900/70" />
+          <div className="relative w-full max-w-lg rounded-3xl border border-amber-200 bg-white p-6 shadow-2xl">
+            <div className="inline-flex items-center rounded-full bg-amber-100 px-3 py-1 text-xs font-extrabold tracking-[0.18em] text-amber-900">
+              {t('studio.profileGate.important')}
+            </div>
+            <h2 className="mt-4 text-2xl font-bold text-slate-950">{t('studio.profileGate.deferredPhotoTitle')}</h2>
+            <p className="mt-3 text-sm leading-6 text-slate-700">{t('studio.profileGate.deferredPhotoBody')}</p>
+
+            <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+              <button
+                type="button"
+                onClick={startDeferredPhotoUpload}
+                className="app-btn app-btn-primary h-11 flex-1 justify-center"
+                disabled={deleteState.loading}
+              >
+                <UploadCloud className="h-4 w-4" />
+                {t('studio.profileGate.photoCta')}
+              </button>
+              <button
+                type="button"
+                onClick={() => void startDeferredPhotoDelete()}
+                className="app-btn app-btn-danger h-11 flex-1 justify-center"
+                disabled={deleteState.loading}
+              >
+                <Trash2 className="h-4 w-4" />
+                {t('studio.profileGate.deferredPhotoDeleteCta')}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {deferredWhatsappGateOpen ? (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-slate-900/70" />
+          <div className="relative w-full max-w-lg rounded-3xl border border-amber-200 bg-white p-6 shadow-2xl">
+            <div className="inline-flex items-center rounded-full bg-amber-100 px-3 py-1 text-xs font-extrabold tracking-[0.18em] text-amber-900">
+              {t('studio.profileGate.important')}
+            </div>
+            <h2 className="mt-4 text-2xl font-bold text-slate-950">{t('studio.profileGate.deferredWhatsappTitle')}</h2>
+            <p className="mt-3 text-sm leading-6 text-slate-700">{t('studio.profileGate.deferredWhatsappBody')}</p>
+
+            {deferredWhatsappGateStep === 'input' ? (
+              <div className="mt-5">
+                <label className="block text-sm font-semibold text-slate-900">{t('matchmakingPage.form.labels.whatsapp')}</label>
+                <input
+                  value={deferredWhatsappValue}
+                  onChange={(event) => {
+                    setDeferredWhatsappValue(event.target.value);
+                    if (deferredWhatsappAction.error) setDeferredWhatsappAction({ loading: false, error: '' });
+                  }}
+                  className="mt-2 w-full rounded-xl border border-slate-300 px-3 py-3 text-sm text-slate-900 shadow-sm"
+                  placeholder={t('matchmakingPage.form.placeholders.whatsapp')}
+                  disabled={deferredWhatsappAction.loading}
+                />
+                {deferredWhatsappAction.error ? <p className="mt-2 text-sm font-medium text-rose-700">{deferredWhatsappAction.error}</p> : null}
+              </div>
+            ) : null}
+
+            <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+              {deferredWhatsappGateStep === 'input' ? (
+                <button
+                  type="button"
+                  onClick={() => void saveDeferredWhatsapp()}
+                  className="app-btn app-btn-primary h-11 flex-1 justify-center"
+                  disabled={deferredWhatsappAction.loading}
+                >
+                  <MessageCircle className="h-4 w-4" />
+                  {t('studio.profileGate.deferredWhatsappSaveCta')}
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={startDeferredWhatsappEntry}
+                  className="app-btn app-btn-primary h-11 flex-1 justify-center"
+                  disabled={deferredWhatsappAction.loading}
+                >
+                  <MessageCircle className="h-4 w-4" />
+                  {t('studio.profileGate.deferredWhatsappPrimaryCta')}
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={skipDeferredWhatsappGate}
+                className="app-btn app-btn-outline h-11 flex-1 justify-center"
+                disabled={deferredWhatsappAction.loading}
+              >
+                {t('studio.profileGate.deferredWhatsappSkipCta')}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
       {photoManagerOpen ? (
-        <div className="fixed inset-0 z-50 flex items-start justify-center p-4 pt-6 overflow-y-auto">
+        <div className="fixed inset-0 z-[70] flex items-start justify-center p-4 pt-6 overflow-y-auto" role="dialog" aria-modal="true" aria-labelledby="studio-photo-manager-title">
           <div className="absolute inset-0 bg-slate-900/60" onClick={closePhotoManager} />
           <div className="relative w-full max-w-2xl rounded-xl border border-slate-200 bg-white shadow-xl max-h-[85vh] flex flex-col">
             <div className="flex items-center justify-between border-b border-slate-200 p-4 shrink-0">
-              <div className="font-semibold text-slate-900">{shortLabel('matchmakingPanel.photos.title', 'Fotoğraflar')}</div>
+              <div id="studio-photo-manager-title" className="font-semibold text-slate-900">{shortLabel('matchmakingPanel.photos.title', 'Fotoğraflar')}</div>
               <button type="button" onClick={closePhotoManager} className="app-btn app-btn-ghost h-9 px-3">
                 <X className="h-4 w-4" />
                 {t('studio.common.close')}
@@ -3014,7 +4391,10 @@ export default function StudioProfile() {
                   const preview = String(photoManagerDraft?.previews?.[idx] || '').trim();
                   const file = photoManagerDraft?.files?.[idx] || null;
                   const shown = preview || url;
-                  const label = t('studio.profile.photoManager.slotLabel', { index: idx + 1 });
+                  const label = idx === 0
+                    ? t('studio.profile.photoManager.primarySlotLabel')
+                    : t('studio.profile.photoManager.slotLabel', { index: idx + 1 });
+                  const inputId = `photo-slot-${idx}`;
 
                   return (
                     <div key={idx} className="rounded-lg border border-slate-200 bg-slate-50 p-2">
@@ -3064,17 +4444,39 @@ export default function StudioProfile() {
                         )}
                       </div>
 
+                      <div className="mt-2 min-h-[28px]">
+                        {shown && idx === 0 ? (
+                          <div className="inline-flex items-center rounded-full bg-emerald-100 px-2 py-1 text-[11px] font-semibold text-emerald-800">
+                            {t('studio.profile.photoManager.primaryBadge')}
+                          </div>
+                        ) : null}
+                        {shown && idx > 0 ? (
+                          <button
+                            type="button"
+                            onClick={() => setPrimaryPhotoSlot(idx)}
+                            className="app-btn app-btn-ghost h-7 px-2 text-xs"
+                            disabled={photoUpdateAction.loading}
+                          >
+                            {t('studio.profile.photoManager.setPrimary')}
+                          </button>
+                        ) : null}
+                      </div>
+
                       <div className="mt-2">
                         <input
-                          id={`photo-slot-${idx}`}
+                          id={inputId}
                           type="file"
-                          accept="image/*"
-                          className="hidden"
+                          accept="image/*,.heic,.heif,.avif"
+                          className="sr-only"
+                          ref={(node) => {
+                            photoManagerInputRefs.current[idx] = node;
+                          }}
                           onChange={(e) => {
                             const f = e.target.files?.[0] || null;
                             if (!f) return;
                             if (!isImageFile(f)) {
                               setPhotoUpdateAction({ loading: false, error: t('matchmakingPanel.photos.updateRequest.errors.photoType'), success: '' });
+                              e.target.value = '';
                               return;
                             }
 
@@ -3102,22 +4504,34 @@ export default function StudioProfile() {
                               nextPreviews[idx] = previewUrl;
                               return { ...p, urls: nextUrls, files: nextFiles, previews: nextPreviews };
                             });
+                            e.target.value = '';
                           }}
-                        />
-                        <button
-                          type="button"
-                          onClick={() => {
-                            try {
-                              document.getElementById(`photo-slot-${idx}`)?.click();
-                            } catch {
-                              // ignore
-                            }
-                          }}
-                          className="app-btn app-btn-outline w-full"
                           disabled={photoUpdateAction.loading}
-                        >
-                          {shown ? t('studio.profile.photoManager.replace') : t('studio.profile.photoManager.add')}
-                        </button>
+                        />
+                        <div className="relative">
+                          <button
+                            type="button"
+                            onClick={() => openPhotoManagerInput(idx)}
+                            aria-controls={inputId}
+                            disabled={photoUpdateAction.loading}
+                            className={
+                              'app-btn app-btn-outline w-full ' +
+                              (photoUpdateAction.loading ? 'pointer-events-none opacity-60' : 'cursor-pointer')
+                            }
+                          >
+                            {shown ? t('studio.profile.photoManager.replace') : t('studio.profile.photoManager.add')}
+                          </button>
+                          {photoUpdateAction.loading ? null : (
+                            <label
+                              htmlFor={inputId}
+                              aria-label={label}
+                              className="absolute inset-0 z-10 cursor-pointer"
+                              onClick={() => openPhotoManagerInput(idx)}
+                            >
+                              <span className="sr-only">{label}</span>
+                            </label>
+                          )}
+                        </div>
                         {file?.name ? <div className="mt-1 text-[11px] text-slate-500 break-words">{file.name}</div> : null}
                       </div>
                     </div>

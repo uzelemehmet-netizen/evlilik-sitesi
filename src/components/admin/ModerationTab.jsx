@@ -1,31 +1,114 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { authFetch } from '../../utils/authFetch';
 
 function safeStr(v) {
   return typeof v === 'string' ? v.trim() : '';
 }
 
-function fmtDate(tsLike) {
+function getBaseLang(language) {
+  const base = String(language || 'tr').toLowerCase().split('-')[0];
+  return base === 'en' || base === 'id' ? base : 'tr';
+}
+
+const UI = {
+  tr: {
+    title: 'Dönüşüm riski / Moderasyon',
+    subtitle: 'Yalnızca dönüşüm kaybı sinyali taşıyan matchmakingFeedback kayıtları',
+    all: 'Tümü',
+    new: 'Yeni',
+    inProgress: 'İşlemde',
+    done: 'Tamam',
+    rejected: 'Reddedildi',
+    today: 'Bugün',
+    kind: 'kind (opsiyonel)',
+    search: 'Ara: matchId / uid / email / step',
+    loading: 'Yükleniyor…',
+    refresh: 'Yenile',
+    updated: 'Güncellendi.',
+    empty: 'Kayıt yok.',
+    feedback: 'Feedback',
+    detail: 'Detay',
+    created: 'Gönderim',
+    updatedAt: 'Güncelleme',
+    adminNote: 'Admin notu (opsiyonel)',
+    update: 'Güncelle',
+    shown: 'Gösterilen',
+    limit: 'Limit',
+  },
+  en: {
+    title: 'Conversion Risk / Moderation',
+    subtitle: 'Only matchmakingFeedback records that signal conversion loss',
+    all: 'All',
+    new: 'New',
+    inProgress: 'In progress',
+    done: 'Done',
+    rejected: 'Rejected',
+    today: 'Today',
+    kind: 'kind (optional)',
+    search: 'Search: matchId / uid / email / step',
+    loading: 'Loading…',
+    refresh: 'Refresh',
+    updated: 'Updated.',
+    empty: 'No records.',
+    feedback: 'Feedback',
+    detail: 'Detail',
+    created: 'Submitted',
+    updatedAt: 'Updated',
+    adminNote: 'Admin note (optional)',
+    update: 'Update',
+    shown: 'Shown',
+    limit: 'Limit',
+  },
+  id: {
+    title: 'Risiko Konversi / Moderasi',
+    subtitle: 'Hanya rekaman matchmakingFeedback yang memberi sinyal kehilangan konversi',
+    all: 'Semua',
+    new: 'Baru',
+    inProgress: 'Diproses',
+    done: 'Selesai',
+    rejected: 'Ditolak',
+    today: 'Hari ini',
+    kind: 'kind (opsional)',
+    search: 'Cari: matchId / uid / email / step',
+    loading: 'Memuat…',
+    refresh: 'Segarkan',
+    updated: 'Diperbarui.',
+    empty: 'Tidak ada data.',
+    feedback: 'Feedback',
+    detail: 'Detail',
+    created: 'Dikirim',
+    updatedAt: 'Diperbarui',
+    adminNote: 'Catatan admin (opsional)',
+    update: 'Perbarui',
+    shown: 'Ditampilkan',
+    limit: 'Batas',
+  },
+};
+
+function fmtDate(tsLike, lang) {
   try {
     let ms = 0;
     if (typeof tsLike?.toMillis === 'function') ms = tsLike.toMillis();
     else if (typeof tsLike === 'number') ms = tsLike;
     if (!ms) return '-';
-    return new Intl.DateTimeFormat('tr-TR', { dateStyle: 'short', timeStyle: 'short' }).format(new Date(ms));
+    return new Intl.DateTimeFormat(lang, { dateStyle: 'short', timeStyle: 'short' }).format(new Date(ms));
   } catch {
     return '-';
   }
 }
 
-const STATUS_OPTIONS = [
-  { id: '', label: 'Tümü' },
-  { id: 'new', label: 'Yeni' },
-  { id: 'in_progress', label: 'İşlemde' },
-  { id: 'done', label: 'Tamam' },
-  { id: 'rejected', label: 'Reddedildi' },
-];
-
 export default function ModerationTab() {
+  const { i18n } = useTranslation();
+  const lang = getBaseLang(i18n?.language);
+  const ui = UI[lang];
+  const statusOptions = [
+    { id: '', label: ui.all },
+    { id: 'new', label: ui.new },
+    { id: 'in_progress', label: ui.inProgress },
+    { id: 'done', label: ui.done },
+    { id: 'rejected', label: ui.rejected },
+  ];
   const [status, setStatus] = useState('new');
   const [kind, setKind] = useState('');
   const [q, setQ] = useState('');
@@ -105,7 +188,7 @@ export default function ModerationTab() {
           userId: safeStr(it?.userId) || '',
         }),
       });
-      setMsg('Güncellendi.');
+      setMsg(ui.updated);
       setNoteById((p) => ({ ...p, [id]: '' }));
       await load();
     } catch (e) {
@@ -119,13 +202,13 @@ export default function ModerationTab() {
     <div className="bg-white rounded-xl shadow p-6">
       <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-3">
         <div>
-          <h2 className="text-lg font-semibold text-gray-800">Dönüşüm riski / Moderasyon</h2>
-          <p className="text-sm text-gray-600">Yalnızca dönüşüm kaybı sinyali taşıyan matchmakingFeedback kayıtları</p>
+          <h2 className="text-lg font-semibold text-gray-800">{ui.title}</h2>
+          <p className="text-sm text-gray-600">{ui.subtitle}</p>
         </div>
 
         <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
           <select value={status} onChange={(e) => setStatus(e.target.value)} className="px-3 py-2 border rounded text-sm" disabled={loading || acting}>
-            {STATUS_OPTIONS.map((x) => (
+            {statusOptions.map((x) => (
               <option key={x.id || 'all'} value={x.id}>{x.label}</option>
             ))}
           </select>
@@ -136,19 +219,19 @@ export default function ModerationTab() {
               onChange={(e) => setTodayOnly(e.target.checked)}
               disabled={loading || acting}
             />
-            Bugün
+            {ui.today}
           </label>
           <input
             value={kind}
             onChange={(e) => setKind(e.target.value)}
-            placeholder="kind (opsiyonel)"
+            placeholder={ui.kind}
             className="px-3 py-2 border rounded text-sm"
             disabled={loading || acting}
           />
           <input
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            placeholder="Ara: matchId / uid / email / step"
+            placeholder={ui.search}
             className="w-full sm:w-80 px-3 py-2 border rounded text-sm"
             disabled={loading || acting}
           />
@@ -158,7 +241,7 @@ export default function ModerationTab() {
             disabled={loading}
             className="px-4 py-2 rounded-lg bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-700 disabled:opacity-60"
           >
-            {loading ? 'Yükleniyor…' : 'Yenile'}
+            {loading ? ui.loading : ui.refresh}
           </button>
         </div>
       </div>
@@ -167,7 +250,7 @@ export default function ModerationTab() {
       {msg ? <div className="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 p-2 text-emerald-900 text-sm">{msg}</div> : null}
 
       {!items.length && !loading ? (
-        <div className="mt-4 rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm text-gray-600">Kayıt yok.</div>
+        <div className="mt-4 rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm text-gray-600">{ui.empty}</div>
       ) : null}
 
       <div className="mt-4 space-y-3">
@@ -182,7 +265,7 @@ export default function ModerationTab() {
             <div key={id} className="rounded-xl border border-slate-200 bg-slate-50 p-4">
               <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-3">
                 <div className="min-w-0">
-                  <div className="text-sm font-semibold text-slate-900 break-all">{safeStr(it?.step) || safeStr(it?.kind) || 'Feedback'}</div>
+                  <div className="text-sm font-semibold text-slate-900 break-all">{safeStr(it?.step) || safeStr(it?.kind) || ui.feedback}</div>
                   <div className="mt-1 text-xs text-slate-700 break-all">
                     <span className="font-semibold">ID:</span> <span className="font-mono">{id || '-'}</span>
                   </div>
@@ -200,10 +283,10 @@ export default function ModerationTab() {
                     <span className="font-semibold">Match:</span> <span className="font-mono">{safeStr(it?.matchId) || '-'}</span>
                   </div>
                   <div className="mt-1 text-xs text-slate-600">
-                    <span className="font-semibold">Gönderim:</span> {fmtDate(createdAt)}
+                    <span className="font-semibold">{ui.created}:</span> {fmtDate(createdAt, lang)}
                     {updatedAt && updatedAt !== createdAt ? (
                       <span className="ml-2">
-                        <span className="font-semibold">Güncelleme:</span> {fmtDate(updatedAt)}
+                        <span className="font-semibold">{ui.updatedAt}:</span> {fmtDate(updatedAt, lang)}
                       </span>
                     ) : null}
                   </div>
@@ -214,7 +297,7 @@ export default function ModerationTab() {
 
                   {it?.data ? (
                     <details className="mt-2">
-                      <summary className="cursor-pointer text-xs font-semibold text-slate-600 hover:text-slate-800">Detay</summary>
+                      <summary className="cursor-pointer text-xs font-semibold text-slate-600 hover:text-slate-800">{ui.detail}</summary>
                       <pre className="mt-2 text-[11px] overflow-auto bg-white border rounded p-2">{JSON.stringify(it.data, null, 2)}</pre>
                     </details>
                   ) : null}
@@ -227,14 +310,14 @@ export default function ModerationTab() {
                     className="px-3 py-2 border rounded text-sm"
                     disabled={acting}
                   >
-                    {STATUS_OPTIONS.filter((x) => x.id).map((x) => (
+                    {statusOptions.filter((x) => x.id).map((x) => (
                       <option key={x.id} value={x.id}>{x.label}</option>
                     ))}
                   </select>
                   <input
                     value={note}
                     onChange={(e) => setNoteById((p) => ({ ...p, [id]: e.target.value }))}
-                    placeholder="Admin notu (opsiyonel)"
+                    placeholder={ui.adminNote}
                     className="px-3 py-2 border rounded text-sm"
                     disabled={acting}
                   />
@@ -244,7 +327,7 @@ export default function ModerationTab() {
                     onClick={() => update(it)}
                     className="px-4 py-2 rounded-lg bg-slate-900 text-white text-sm font-semibold hover:bg-slate-800 disabled:opacity-60"
                   >
-                    Güncelle
+                    {ui.update}
                   </button>
                 </div>
               </div>
@@ -254,9 +337,9 @@ export default function ModerationTab() {
       </div>
 
       <div className="mt-3 text-xs text-gray-600 flex items-center justify-between">
-        <div>Gösterilen: <span className="font-semibold text-gray-900">{items.length}</span></div>
+        <div>{ui.shown}: <span className="font-semibold text-gray-900">{items.length}</span></div>
         <div className="flex items-center gap-2">
-          <span>Limit</span>
+          <span>{ui.limit}</span>
           <input
             value={String(limit)}
             onChange={(e) => setLimit(Math.max(10, Math.min(200, Number(e.target.value) || 80)))}

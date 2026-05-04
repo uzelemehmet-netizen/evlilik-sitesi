@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { getLocalizedProfileText } from '../../utils/profileText';
+import { formatDateTimeFromMs, formatRelativeTimeFromMs, timestampToMs } from '../../utils/relativeTime';
 
 function safeStr(v) {
   return typeof v === 'string' ? v.trim() : '';
@@ -49,6 +50,7 @@ export default function StudioInboxModal({
   onMarkRead,
   onApprove,
   onReject,
+  onOpenProfile,
   actionsDisabled,
   onRequireProfile,
   loadingId,
@@ -58,6 +60,7 @@ export default function StudioInboxModal({
   const list = useMemo(() => (Array.isArray(items) ? items : []), [items]);
   const [lightbox, setLightbox] = useState({ open: false, urls: [], index: 0, title: '' });
   const [expandedId, setExpandedId] = useState('');
+  const [nowMs, setNowMs] = useState(() => Date.now());
 
   const visible = useMemo(() => {
     const pending = list.filter((x) => safeStr(x?.status) === 'pending');
@@ -80,6 +83,19 @@ export default function StudioInboxModal({
       setExpandedId('');
     }
   }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    if (!visible.length) return;
+    const timer = setInterval(() => setNowMs(Date.now()), 30000);
+    return () => {
+      try {
+        clearInterval(timer);
+      } catch {
+        // noop
+      }
+    };
+  }, [open, visible.length]);
 
   if (!open) return null;
 
@@ -115,13 +131,16 @@ export default function StudioInboxModal({
                 const p = it?.fromProfile && typeof it.fromProfile === 'object' ? it.fromProfile : {};
 
                 const name = safeStr(p?.username) || t('studio.common.profile');
-                const age = typeof p?.age === 'number' ? `, ${p.age}` : '';
+                const age = typeof p?.age === 'number' ? ` • ${p.age} ${t('studio.common.ageSuffix')}` : '';
                 const gender = genderLabel(t, p?.gender);
                 const city = safeStr(p?.city);
                 const photoUrls = normalizePhotoUrls(p);
                 const photoUrl = safeStr(photoUrls[0] || '');
 
                 const msg = clip(mode === 'messages' ? (it?.text || it?.messageText) : it?.messageText, 600);
+                const messageAtMs = timestampToMs(it?.createdAtMs) || timestampToMs(it?.messageCreatedAtMs);
+                const messageAtLabel = formatRelativeTimeFromMs(messageAtMs, { nowMs, locale: i18n?.language || 'tr' });
+                const messageAtTitle = formatDateTimeFromMs(messageAtMs, { locale: i18n?.language || 'tr' });
                 const readMsRaw = mode === 'messages' ? it?.readAtMs : it?.messageReadAtMs;
                 const readMs = typeof readMsRaw === 'number' && Number.isFinite(readMsRaw) ? readMsRaw : 0;
                 const isUnread = !!msg && readMs <= 0;
@@ -142,15 +161,34 @@ export default function StudioInboxModal({
                 return (
                   <div key={id || fromUid} className="overflow-hidden rounded-xl border border-slate-200 bg-white">
                     <div className="flex gap-3 p-3">
-                      <div className="h-14 w-14 shrink-0 overflow-hidden rounded-lg bg-slate-100">
+                      <button
+                        type="button"
+                        onClick={() => onOpenProfile?.(it)}
+                        className={
+                          'h-14 w-14 shrink-0 overflow-hidden rounded-lg bg-slate-100 ' +
+                          (typeof onOpenProfile === 'function' ? 'cursor-pointer ring-offset-2 transition hover:ring-2 hover:ring-emerald-200' : '')
+                        }
+                        aria-label={name}
+                        disabled={typeof onOpenProfile !== 'function'}
+                      >
                         {photoUrl ? <img src={photoUrl} alt="" className="h-full w-full object-cover" loading="lazy" decoding="async" /> : null}
-                      </div>
+                      </button>
 
                       <div className="min-w-0 flex-1">
                         <div className="flex items-start justify-between gap-2">
                           <div className="min-w-0">
                             <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                              <p className="truncate text-sm font-semibold text-slate-900">{name}{age}</p>
+                              {typeof onOpenProfile === 'function' ? (
+                                <button
+                                  type="button"
+                                  onClick={() => onOpenProfile(it)}
+                                  className="truncate text-left text-sm font-semibold text-slate-900 hover:text-emerald-700 hover:underline"
+                                >
+                                  {name}{age}
+                                </button>
+                              ) : (
+                                <p className="truncate text-sm font-semibold text-slate-900">{name}{age}</p>
+                              )}
                               {gender ? (
                                 <span className="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-700">
                                   {gender}
@@ -170,6 +208,7 @@ export default function StudioInboxModal({
                         {msg ? (
                           <div className="mt-2 rounded-lg border border-slate-200 bg-slate-50 p-2 text-sm text-slate-800">
                             {msg}
+                            {messageAtLabel ? <p className="mt-2 text-[11px] text-slate-500" title={messageAtTitle}>{messageAtLabel}</p> : null}
                           </div>
                         ) : (
                           <p className="mt-2 text-sm text-slate-700">
@@ -201,6 +240,16 @@ export default function StudioInboxModal({
                         <div className={mode === 'messages' ? "mt-3" : "mt-3"}>
                           {mode === 'messages' ? (
                             <>
+                              {typeof onOpenProfile === 'function' ? (
+                                <button
+                                  type="button"
+                                  disabled={!!loadingId || !fromUid}
+                                  onClick={() => onOpenProfile(it)}
+                                  className="app-btn app-btn-outline w-full sm:w-auto"
+                                >
+                                  {t('studio.inboxModal.reviewProfile')}
+                                </button>
+                              ) : null}
                               <button
                                 type="button"
                                 disabled={!!loadingId || !id}

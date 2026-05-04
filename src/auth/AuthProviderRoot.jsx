@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { onAuthStateChanged } from 'firebase/auth';
 import { auth } from '../config/firebaseAuth';
 import { authFetch } from '../utils/authFetch';
-import { isPwaInstalled, reportPwaInstalledToServerBestEffort, wantsReportPwaInstalledToServer } from '../utils/pwaInstalled.js';
+import { isRunningAsPwa, reportPwaInstalledToServerBestEffort, wantsReportPwaInstalledToServer } from '../utils/pwaInstalled.js';
 import { AuthContext } from './AuthProvider.jsx';
 
 function dayKeyUTC(ts = Date.now()) {
@@ -75,7 +75,7 @@ export default function AuthProvider({ children }) {
     if (!user || user.isAnonymous) return;
 
     try {
-      const shouldTry = wantsReportPwaInstalledToServer() || isPwaInstalled();
+      const shouldTry = wantsReportPwaInstalledToServer() || isRunningAsPwa();
       if (!shouldTry) return;
     } catch {
       return;

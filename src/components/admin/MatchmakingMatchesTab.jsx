@@ -1,17 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { collection, limit, onSnapshot, orderBy, query, where } from 'firebase/firestore';
 import { useTranslation } from 'react-i18next';
-import { db } from '../../config/firebaseDb';
 import { authFetch } from '../../utils/authFetch';
 
 const MANUAL_MATCH_DRAFT_KEY = 'mk_admin_manual_match_draft_v1';
-
-function isIndexError(e) {
-  const code = String(e?.code || '').toLowerCase();
-  const msg = String(e?.message || '').toLowerCase();
-  return code === 'failed-precondition' || msg.includes('requires an index');
-}
 
 function toMs(v) {
   if (!v) return 0;
@@ -124,57 +116,33 @@ export default function MatchmakingMatchesTab() {
   };
 
   useEffect(() => {
-    setErr('');
-    const base = collection(db, 'matchmakingMatches');
-    const qPrimary = query(
-      base,
-      where('status', 'in', ['mutual_accepted', 'contact_unlocked']),
-      orderBy('updatedAt', 'desc'),
-      limit(50)
-    );
+    let cancelled = false;
 
-    const qFallback = query(base, where('status', 'in', ['mutual_accepted', 'contact_unlocked']), limit(50));
-
-    let unsubFallback = null;
-
-    const unsub = onSnapshot(
-      qPrimary,
-      (snap) => {
-        const rows = [];
-        snap.forEach((d) => rows.push({ id: d.id, ...d.data() }));
-        setItems(rows);
-        setLoading(false);
-      },
-      (e) => {
-        if (isIndexError(e)) {
-          console.warn('matchmakingMatches primary query requires index; falling back to unordered query.');
-          unsubFallback = onSnapshot(
-            qFallback,
-            (snap) => {
-              const rows = [];
-              snap.forEach((d) => rows.push({ id: d.id, ...d.data() }));
-              rows.sort((a, b) => toMs(b?.updatedAt) - toMs(a?.updatedAt));
-              setItems(rows);
-              setLoading(false);
-            },
-            (e2) => {
-              console.error('matchmakingMatches fallback load failed:', e2);
-              setErr(String(e2?.message || t('admin.matchmakingMatches.errors.loadFailed')));
-              setLoading(false);
-            }
-          );
-          return;
+    const load = async () => {
+      setLoading(true);
+      setErr('');
+      try {
+        const data = await authFetch('/api/admin-matchmaking-matches-list', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ limit: 50 }),
+        });
+        if (!cancelled) setItems(Array.isArray(data?.items) ? data.items : []);
+      } catch (e) {
+        if (!cancelled) {
+          setItems([]);
+          setErr(String(e?.message || t('admin.matchmakingMatches.errors.loadFailed')));
         }
-
-        console.error('matchmakingMatches load failed:', e);
-        setErr(String(e?.message || t('admin.matchmakingMatches.errors.loadFailed')));
-        setLoading(false);
+      } finally {
+        if (!cancelled) setLoading(false);
       }
-    );
+    };
 
+    load();
+    const timer = window.setInterval(load, 30000);
     return () => {
-      unsub();
-      if (typeof unsubFallback === 'function') unsubFallback();
+      cancelled = true;
+      window.clearInterval(timer);
     };
   }, [t]);
 
@@ -192,6 +160,12 @@ export default function MatchmakingMatchesTab() {
         body: JSON.stringify({ matchId, reason: 'cancelled_after_contact' }),
       });
       setMsg(t('admin.matchmakingMatches.messages.cancelSuccess'));
+      const data = await authFetch('/api/admin-matchmaking-matches-list', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ limit: 50 }),
+      });
+      setItems(Array.isArray(data?.items) ? data.items : []);
     } catch (e) {
       setErr(String(e?.message || t('admin.matchmakingMatches.errors.actionFailed')));
     } finally {
@@ -229,6 +203,12 @@ export default function MatchmakingMatchesTab() {
           ? t('admin.matchmakingMatches.messages.manualExtraSkipped')
           : '';
       setMsg(t('admin.matchmakingMatches.messages.manualCreated', { matchId: data?.matchId || '-', extra }));
+      const refreshed = await authFetch('/api/admin-matchmaking-matches-list', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ limit: 50 }),
+      });
+      setItems(Array.isArray(refreshed?.items) ? refreshed.items : []);
     } catch (e) {
       const details = e?.details ? ` (${JSON.stringify(e.details)})` : '';
       setErr(String(e?.message || t('admin.matchmakingMatches.errors.actionFailed')) + details);

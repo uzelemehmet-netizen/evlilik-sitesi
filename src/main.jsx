@@ -160,6 +160,64 @@ if (typeof window !== 'undefined') {
       }
     };
 
+    const recoverFromFirestorePoolAssertion = ({ code, message, errorName, errorMessage } = {}) => {
+      try {
+        if (String(code || '') !== 'unhandled_error') return false;
+
+        const path = String(window.location?.pathname || '').trim();
+        if (path !== '/app/pool') return false;
+
+        const haystack = [message, errorName, errorMessage]
+          .map((value) => String(value || '').toLowerCase())
+          .filter(Boolean)
+          .join(' | ');
+
+        if (!haystack.includes('firestore')) return false;
+        if (!haystack.includes('internal assertion failed')) return false;
+        if (!haystack.includes('unexpected state')) return false;
+
+        const storageKey = 'uniqah:firestore_pool_assert_recover_v1';
+        const throttleMs = 10 * 60 * 1000;
+        const now = Date.now();
+        const last = (() => {
+          try {
+            return Number(sessionStorage.getItem(storageKey) || '0');
+          } catch {
+            return 0;
+          }
+        })();
+
+        if (Number.isFinite(last) && last > 0 && now - last <= throttleMs) {
+          return false;
+        }
+
+        try {
+          sessionStorage.setItem(storageKey, String(now));
+        } catch {
+          // ignore
+        }
+
+        try {
+          const url = new URL(String(window.location?.href || 'https://uniqah.com/app/pool'));
+          url.searchParams.set('__reload', String(now));
+          url.searchParams.set('__reason', 'firestore_pool_assert');
+          window.location.replace(url.toString());
+          return true;
+        } catch {
+          // ignore
+        }
+
+        try {
+          window.location.reload();
+          return true;
+        } catch {
+          return false;
+        }
+      } catch {
+        return false;
+      }
+    };
+
     const safeSend = async (report, opts = {}) => {
       try {
         const opaque = !!opts?.opaque;
@@ -557,6 +615,14 @@ if (typeof window !== 'undefined') {
 
           if (shouldIgnoreFacebookWebViewBridgeError) return;
 
+          try {
+            if (recoverFromFirestorePoolAssertion({ code, message, errorName, errorMessage })) {
+              return;
+            }
+          } catch {
+            // ignore
+          }
+
           // Recovery: If a same-origin Vite chunk fails to preload, the page may stay blank
           // (stale cached HTML referencing an old hashed asset, flaky networks, or aggressive caches).
           // Try a single cache-busted reload to recover.
@@ -844,12 +910,63 @@ if (import.meta.env.DEV && typeof window !== 'undefined') {
     // ignore
   }
 }
+
+async function clearServiceWorkersAndCachesBestEffort() {
+  try {
+    if ('serviceWorker' in navigator && typeof navigator.serviceWorker?.getRegistrations === 'function') {
+      const regs = await navigator.serviceWorker.getRegistrations().catch(() => []);
+      await Promise.allSettled((regs || []).map((r) => r.unregister()));
+    }
+
+    if (typeof window.caches?.keys === 'function') {
+      const keys = await window.caches.keys().catch(() => []);
+      await Promise.allSettled((keys || []).map((k) => window.caches.delete(k)));
+    }
+  } catch {
+    // ignore
+  }
+}
+
 if (import.meta.env.PROD && typeof window !== 'undefined') {
+  const isAdminPath = (() => {
+    try {
+      return String(window.location?.pathname || '').startsWith('/admin');
+    } catch {
+      return false;
+    }
+  })();
+
+  if (isAdminPath) {
+    // Admin panelinde stale PWA/SW cache yüzünden eski dashboard chunk'larının görünmesini istemiyoruz.
+    void clearServiceWorkersAndCachesBestEffort();
+  }
+
   // Defer SW registration to avoid competing with first-load resources on slow networks (mobile/VPN).
   try {
     const doRegister = () => {
+      if (isAdminPath) return;
       try {
-        registerSW({ immediate: true });
+        const updateSW = registerSW({
+          immediate: true,
+          onNeedRefresh() {
+            try {
+              void updateSW(true);
+            } catch {
+              try {
+                window.location.reload();
+              } catch {
+                // ignore
+              }
+            }
+          },
+          onRegisteredSW(_swUrl, registration) {
+            try {
+              registration?.update?.();
+            } catch {
+              // ignore
+            }
+          },
+        });
       } catch {
         // noop
       }

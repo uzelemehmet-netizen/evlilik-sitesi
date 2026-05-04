@@ -1,7 +1,6 @@
 import { getAdmin, normalizeBody, requireIdToken } from './_firebaseAdmin.js';
-import { ensureMembershipActiveOrThrow, ensureProfileCompleteOrThrow } from './_matchmakingEligibility.js';
 import { assertNotResetIgnoredMatch, getMatchmakingResetAtMs } from './_matchmakingReset.js';
-import { detectForbiddenChatText } from './_chatTextFilter.js';
+import { ensureRequesterAllowedByTargetInteractionFilter } from './_matchmakingInteractionFilter.js';
 import { sendPushToUid } from './_push.js';
 
 function safeStr(v) {
@@ -207,27 +206,9 @@ export default async function handler(req, res) {
       return;
     }
 
-    const filtered = detectForbiddenChatText(text);
-    if (filtered.forbidden) {
-      res.statusCode = 400;
-      res.setHeader('content-type', 'application/json');
-      res.end(JSON.stringify({ ok: false, error: 'filtered' }));
-      return;
-    }
-
     // Yeni model: Kullanıcı kendi dilinde yazar; çeviri sadece gelen mesajlarda manuel yapılır.
 
     const { db, FieldValue } = getAdmin();
-
-    // Etkileşim kuralı: profil tamamlanmadan iletişim/mesaj yok.
-    try {
-      await ensureProfileCompleteOrThrow(db, uid);
-    } catch (e2) {
-      res.statusCode = e2?.statusCode || 428;
-      res.setHeader('content-type', 'application/json');
-      res.end(JSON.stringify({ ok: false, error: String(e2?.message || 'profile_incomplete') }));
-      return;
-    }
 
     const matchRef = db.collection('matchmakingMatches').doc(matchId);
     const meRef = db.collection('matchmakingUsers').doc(uid);
@@ -255,9 +236,6 @@ export default async function handler(req, res) {
       assertNotResetIgnoredMatch({ match, resetAtMs });
       const status = String(match.status || '');
 
-      const proposedChatPaused = false;
-      const proposedChatFocusUid = '';
-
       if (status !== 'mutual_accepted' && status !== 'proposed' && status !== 'contact_unlocked' && status !== 'mutual_interest') {
         const err = new Error('chat_not_available');
         err.statusCode = 400;
@@ -278,26 +256,13 @@ export default async function handler(req, res) {
         throw err;
       }
 
+      const otherUserRef = db.collection('matchmakingUsers').doc(otherUid);
+
       otherUidForPush = otherUid;
 
       const longChatAllowed = OPEN_CHAT_MODEL
         ? status === 'proposed' || status === 'mutual_interest' || status === 'mutual_accepted' || status === 'contact_unlocked'
         : status === 'mutual_accepted' || status === 'contact_unlocked';
-
-      // Ürün kuralı: Üyelik aktif değilken sadece mesaj alabilir; kısa mesaj gönderemez.
-      // Long chat (aktif eşleşme) akışında üyelik zorunlu değil.
-      if (!longChatAllowed) {
-        ensureMembershipActiveOrThrow(me);
-      }
-
-      // Kural: Reject alan kullanıcı, reject edene mesaj atamaz.
-      // rejectBlockByUid = reject eden kullanıcı.
-      const rejectBlockByUid = safeStr(match?.rejectBlockByUid);
-      if (rejectBlockByUid && rejectBlockByUid === otherUid) {
-        const err = new Error('dm_blocked_by_dislike');
-        err.statusCode = 403;
-        throw err;
-      }
 
       // Cinsiyet bazlı eligibility (match application doc'larından okunur)
       // Firestore transaction kuralı: tüm okumalar yazmalardan önce olmalı.
@@ -305,26 +270,35 @@ export default async function handler(req, res) {
       const bUid = safeStr(match?.bUserId);
       const aAppId = safeStr(match?.aApplicationId);
       const bAppId = safeStr(match?.bApplicationId);
-      const [aAppSnap, bAppSnap] = await Promise.all([
+      const [aAppSnap, bAppSnap, otherUserSnap] = await Promise.all([
         aAppId ? tx.get(db.collection('matchmakingApplications').doc(aAppId)) : Promise.resolve(null),
         bAppId ? tx.get(db.collection('matchmakingApplications').doc(bAppId)) : Promise.resolve(null),
+        tx.get(otherUserRef),
       ]);
       const aGender = aAppSnap && aAppSnap.exists ? safeStr((aAppSnap.data() || {})?.gender) : '';
       const bGender = bAppSnap && bAppSnap.exists ? safeStr((bAppSnap.data() || {})?.gender) : '';
       const aApp = aAppSnap && aAppSnap.exists ? (aAppSnap.data() || {}) : null;
       const bApp = bAppSnap && bAppSnap.exists ? (bAppSnap.data() || {}) : null;
-      const myGender = uid === aUid ? aGender : bGender;
-
+      const otherUser = otherUserSnap && otherUserSnap.exists ? (otherUserSnap.data() || {}) : {};
       const myApp = uid === aUid ? aApp : bApp;
       const otherApp = uid === aUid ? bApp : aApp;
-      if (!myApp || !otherApp) {
-        const err = new Error('application_not_found');
-        err.statusCode = 404;
-        throw err;
+      const hasApplications = !!myApp && !!otherApp;
+
+      if (hasApplications && status !== 'contact_unlocked') {
+        const interactionGate = ensureRequesterAllowedByTargetInteractionFilter({
+          targetUserDoc: otherUser,
+          requesterUserDoc: me,
+          requesterApp: myApp,
+        });
+        if (!interactionGate.ok) {
+          const err = new Error(interactionGate.reason);
+          err.statusCode = interactionGate.reason === 'interaction_filter_age_required' ? 400 : 403;
+          throw err;
+        }
       }
 
       // Age gating (pre-active only): if you're outside their age range, block message send.
-      if (!OPEN_CHAT_MODEL && (status === 'proposed' || status === 'mutual_interest')) {
+      if (hasApplications && !OPEN_CHAT_MODEL && (status === 'proposed' || status === 'mutual_interest')) {
         const interact = canInteractByAge({ requesterApp: myApp, targetApp: otherApp });
         if (!interact.ok) {
           const err = new Error(interact.reason);
@@ -333,113 +307,25 @@ export default async function handler(req, res) {
         }
       }
 
-      // Uzun chat kapalıysa: kısa mesaj + limit + daha kısa uzunluk.
-      if (!longChatAllowed) {
-        if (text.length > LIMITED_CHAT_TEXT_MAX) {
-          const err = new Error('short_message_too_long');
-          err.statusCode = 400;
-          throw err;
-        }
-
-        // Günlük kısa mesaj limiti (tüm eşleşmeler toplamı)
-        const dailyLimitRaw = Number(process.env.SHORT_MESSAGE_DAILY_LIMIT || 5);
-        const dailyLimit = Number.isFinite(dailyLimitRaw) ? Math.max(0, Math.min(50, Math.floor(dailyLimitRaw))) : 5;
-        if (dailyLimit > 0) {
-          const key = dayKeyUtc(ts);
-          const prevMap = me?.shortMessageUsageDaily && typeof me.shortMessageUsageDaily === 'object' ? me.shortMessageUsageDaily : {};
-          const usedPrev = key && typeof prevMap?.[key] === 'number' && Number.isFinite(prevMap[key]) ? prevMap[key] : 0;
-
-          if (key && usedPrev >= dailyLimit) {
-            const err = new Error('short_message_daily_limit');
-            err.statusCode = 409;
-            throw err;
-          }
-
-          if (key) {
-            const next = { ...prevMap, [key]: usedPrev + 1 };
-            const keys = Object.keys(next).sort();
-            if (keys.length > 20) {
-              for (const k of keys.slice(0, keys.length - 14)) delete next[k];
-            }
-            tx.set(
-              meRef,
-              {
-                shortMessageUsageDaily: next,
-                shortMessageUsageDailyUpdatedAtMs: ts,
-                updatedAt: FieldValue.serverTimestamp(),
-              },
-              { merge: true }
-            );
-          }
-        }
-      }
-
-      // Kota/üyelik kısıtı yok: mesaj göndermede üyelik şartı ve lock şartı kaldırıldı.
-      // Not: Mesaj göndermek için alıcının eligibility şartlarını zorlamıyoruz.
-      // Amaç: Diğer taraf offline/uygunsuz durumda olsa bile mesaj kuyruk gibi düşsün,
-      // karşı taraf panele girince unread/bildirim görsün.
-      // (Aksiyonlar / contact unlock gibi adımlar kendi kurallarıyla ayrıca korunur.)
-
-      // Not: Bu akışta chat süre sınırı yok; iptal/evlilik kararı ile kapanır.
-
-      // proposed aşamasında kontrollü sohbet: mesaj limiti dolunca karar aşamasına geç.
-      // Not: sohbet beklemede ise (pause) limit uygulanmaz; mesajlar bekletilir.
-      if (!OPEN_CHAT_MODEL && status === 'proposed' && !proposedChatPaused) {
-        const reachedAt = typeof match?.proposedChatLimitReachedAtMs === 'number' ? match.proposedChatLimitReachedAtMs : 0;
-        if (reachedAt > 0) {
-          const err = new Error('chat_limit_reached');
-          err.statusCode = 409;
-          throw err;
-        }
-      }
-
-      const last = match?.chatLastMessageAtMs && typeof match.chatLastMessageAtMs[uid] === 'number' ? match.chatLastMessageAtMs[uid] : 0;
-      if (last && ts - last < 1500) {
-        const err = new Error('rate_limited');
-        err.statusCode = 429;
-        throw err;
-      }
-
       const msgRef = matchRef.collection('messages').doc();
       messageId = msgRef.id;
 
-      if (proposedChatPaused) {
-        // Odak kullanıcı bu sohbeti kullanamaz.
-        if (proposedChatFocusUid && proposedChatFocusUid === uid) {
-          const err = new Error('chat_paused');
-          err.statusCode = 409;
-          throw err;
-        }
+      tx.set(msgRef, {
+        matchId,
+        userId: uid,
+        text,
+        ...(langHint ? { langHint } : {}),
+        ...(OPEN_CHAT_MODEL || longChatAllowed ? {} : { chatMode: 'short' }),
+        createdAt: FieldValue.serverTimestamp(),
+        createdAtMs: ts,
+        delivery: {
+          state: 'delivered',
+          deliveredAt: FieldValue.serverTimestamp(),
+          deliveredAtMs: ts,
+        },
+      });
 
-        // Diğer taraf mesaj atabilir ama mesaj teslim edilmez (bekletilir).
-        tx.set(msgRef, {
-          matchId,
-          userId: uid,
-          text,
-          ...(langHint ? { langHint } : {}),
-          ...(OPEN_CHAT_MODEL || longChatAllowed ? {} : { chatMode: 'short' }),
-          createdAt: FieldValue.serverTimestamp(),
-          createdAtMs: ts,
-          delivery: {
-            state: 'held',
-            heldForUid: proposedChatFocusUid,
-            reason: 'focus_active',
-          },
-        });
-      } else {
-        tx.set(msgRef, {
-          matchId,
-          userId: uid,
-          text,
-          ...(langHint ? { langHint } : {}),
-          ...(OPEN_CHAT_MODEL || longChatAllowed ? {} : { chatMode: 'short' }),
-          createdAt: FieldValue.serverTimestamp(),
-          createdAtMs: ts,
-        });
-
-        // Delivered message -> push the other user.
-        shouldPush = true;
-      }
+      shouldPush = true;
 
 
       const patch = {
@@ -457,17 +343,13 @@ export default async function handler(req, res) {
           [otherUid]: (typeof (match.chatUnreadByUid || {})?.[otherUid] === 'number' ? (match.chatUnreadByUid || {})[otherUid] : 0) + 1,
         },
         updatedAt: FieldValue.serverTimestamp(),
+        updatedAtMs: ts,
       };
 
       // proposed aşamasında: limit sayacı (beklemede değilse)
-      if (!OPEN_CHAT_MODEL && status === 'proposed' && !proposedChatPaused) {
+      if (!OPEN_CHAT_MODEL && status === 'proposed') {
         const counts = match?.proposedChatCountByUid && typeof match.proposedChatCountByUid === 'object' ? { ...match.proposedChatCountByUid } : {};
         const myPrev = typeof counts?.[uid] === 'number' && Number.isFinite(counts[uid]) ? counts[uid] : 0;
-        if (myPrev >= PROPOSED_CHAT_LIMIT_PER_UID) {
-          const err = new Error('short_message_limit');
-          err.statusCode = 409;
-          throw err;
-        }
         counts[uid] = myPrev + 1;
 
         let total = 0;
@@ -491,24 +373,12 @@ export default async function handler(req, res) {
           patch.dmStarterUid = uid;
           patch.dmStartedAtMs = ts;
         }
-      } else if (!OPEN_CHAT_MODEL && status === 'proposed' && proposedChatPaused) {
-        // Beklemede de starter'ı set edelim (first message bilgisi kalsın)
-        const starterUid = safeStr(match?.dmStarterUid);
-        if (!starterUid) {
-          patch.dmStarterUid = uid;
-          patch.dmStartedAtMs = ts;
-        }
       }
 
       // mutual_interest her zaman kısa mod; mutual_accepted/contact_unlocked da aktif match değilse kısa moda düşer.
       if (!OPEN_CHAT_MODEL && (status === 'mutual_interest' || status === 'mutual_accepted' || status === 'contact_unlocked') && !longChatAllowed) {
         const counts = match?.limitedChatCountByUid && typeof match.limitedChatCountByUid === 'object' ? { ...match.limitedChatCountByUid } : {};
         const myPrev = typeof counts?.[uid] === 'number' && Number.isFinite(counts[uid]) ? counts[uid] : 0;
-        if (myPrev >= LIMITED_CHAT_LIMIT_PER_UID) {
-          const err = new Error('short_message_limit');
-          err.statusCode = 409;
-          throw err;
-        }
         counts[uid] = myPrev + 1;
 
         let total = 0;
@@ -529,16 +399,10 @@ export default async function handler(req, res) {
         // mutual_accepted: backward-compat olarak chat mode'u boşsa set et.
         const currentMode = typeof match?.interactionMode === 'string' ? match.interactionMode : '';
         if (currentMode !== 'chat') {
-          if (!currentMode) {
-            patch.interactionMode = 'chat';
-            patch.interactionChosenAt = FieldValue.serverTimestamp();
-            patch.chatEnabledAt = FieldValue.serverTimestamp();
-            patch.chatEnabledAtMs = ts;
-          } else {
-            const err = new Error('chat_not_enabled');
-            err.statusCode = 400;
-            throw err;
-          }
+          patch.interactionMode = 'chat';
+          patch.interactionChosenAt = FieldValue.serverTimestamp();
+          patch.chatEnabledAt = FieldValue.serverTimestamp();
+          patch.chatEnabledAtMs = ts;
         }
       }
 

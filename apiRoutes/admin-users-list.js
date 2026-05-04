@@ -1,5 +1,8 @@
 import { getAdmin, isAdminEmail, normalizeBody, requireAdmin } from './_firebaseAdmin.js';
 import { hasSubmittedMatchmakingProfileInUserDoc } from './_matchmakingEligibility.js';
+import { maskEmail, maskPhoneLike } from './_pii.js';
+import { isSyntheticTestUserRecord } from './_syntheticTestUser.js';
+import { isPhotoModerationRestricted } from '../src/utils/photoModerationState.js';
 import {
   hasMeaningfulApplicationCache,
   hasMeaningfulProfileCache,
@@ -69,6 +72,18 @@ function pickChildrenCount(details) {
   const i = Math.trunc(n);
   if (i < 0 || i > 20) return null;
   return i;
+}
+
+function pickChildrenLivingSituation(details) {
+  const it = details && typeof details === 'object' ? details : null;
+  if (!it) return null;
+  return (
+    safeStr(it?.childrenLivingSituation) ||
+    safeStr(it?.children_living_situation) ||
+    safeStr(it?.childrenLivingWith) ||
+    safeStr(it?.children_living_with) ||
+    null
+  );
 }
 
 function pickWhatsapp(userDoc, bestApp) {
@@ -185,6 +200,21 @@ function sortAdminUsersByCreatedDesc(users) {
   return list;
 }
 
+async function queryRecentDocs(db, collectionName, field, limit) {
+  try {
+    return await db.collection(collectionName).orderBy(field, 'desc').limit(limit).get();
+  } catch {
+    return null;
+  }
+}
+
+function collectUidCandidate(set, value, excluded = null) {
+  const uid = safeStr(value);
+  if (!uid) return;
+  if (excluded && excluded.has(uid)) return;
+  set.add(uid);
+}
+
 function isMembershipActive(userDoc, now = Date.now()) {
   const m = userDoc?.membership || null;
   if (!m || !m.active) return false;
@@ -202,11 +232,12 @@ function pickPushEnabledAtMs(userDoc) {
 }
 
 function pickPwaInstalled(userDoc) {
-  return userDoc?.pwa?.installed === true;
+  const ms = userDoc?.pwa?.lastStandaloneAtMs;
+  return typeof ms === 'number' && Number.isFinite(ms) && ms > 0;
 }
 
 function pickPwaInstalledAtMs(userDoc) {
-  const ms = userDoc?.pwa?.installedAtMs;
+  const ms = userDoc?.pwa?.lastStandaloneAtMs;
   return typeof ms === 'number' && Number.isFinite(ms) && ms > 0 ? ms : null;
 }
 
@@ -218,6 +249,54 @@ function looksLikeUserCode(q) {
 
 function getUserDocEmail(userDoc) {
   return safeStr(userDoc?.authEmailLower || userDoc?.authEmail).toLowerCase();
+}
+
+async function findSingleUserDocByAnyEmail(db, candidates) {
+  const emails = Array.from(new Set((Array.isArray(candidates) ? candidates : []).map((value) => safeStr(value).toLowerCase()).filter(Boolean)));
+  if (!emails.length) return null;
+
+  const fields = ['authEmailLower', 'emailLower', 'authEmail', 'email'];
+  for (const email of emails) {
+    for (const field of fields) {
+      try {
+        const snap = await db.collection('matchmakingUsers').where(field, '==', email).limit(1).get();
+        if (!snap.empty) {
+          const doc = snap.docs[0];
+          return { uid: safeStr(doc.id), userDoc: doc.data() || null };
+        }
+      } catch {
+        // ignore and continue fallback search
+      }
+    }
+  }
+
+  return null;
+}
+
+async function findBestApplicationByAnyEmail(db, candidates) {
+  const emails = Array.from(new Set((Array.isArray(candidates) ? candidates : []).map((value) => safeStr(value).toLowerCase()).filter(Boolean)));
+  if (!emails.length) return null;
+
+  const fields = ['authEmailLower', 'emailLower', 'authEmail', 'email'];
+  for (const email of emails) {
+    for (const field of fields) {
+      try {
+        const snap = await db.collection('matchmakingApplications').where(field, '==', email).limit(10).get();
+        if (!snap.empty) {
+          const apps = snap.docs.map((doc) => ({ id: doc.id, ...(doc.data() || {}) }));
+          const bestApp = pickBestApp(apps);
+          const resolvedUid = safeStr(bestApp?.userId) || safeStr(bestApp?.uid) || safeStr(bestApp?.userUid) || safeStr(bestApp?.ownerUid);
+          if (resolvedUid) {
+            return { uid: resolvedUid, bestApp };
+          }
+        }
+      } catch {
+        // ignore and continue fallback search
+      }
+    }
+  }
+
+  return null;
 }
 
 function hasEndUserProfileSignals(userDoc) {
@@ -247,6 +326,20 @@ function buildCachedBestApp(userDoc) {
     id: applicationId,
     ...application,
   };
+}
+
+function hasPersistedAuthTrace(userDoc, bestApp = null) {
+  const user = userDoc && typeof userDoc === 'object' ? userDoc : null;
+  const app = bestApp && typeof bestApp === 'object' ? bestApp : null;
+
+  return [
+    user?.authEmailLower,
+    user?.authEmail,
+    user?.authProvider,
+    app?.authEmailLower,
+    app?.authEmail,
+    app?.authProvider,
+  ].some((value) => !!safeStr(value));
 }
 
 function shouldLoadLiveBestApp(userDoc, cachedBestApp = null) {
@@ -337,6 +430,17 @@ async function buildAdminUserEntry({ auth, db, uid, userRecord = null, userDoc =
     }
   }
 
+  if (
+    isSyntheticTestUserRecord({
+      uid: resolvedUid,
+      email: resolvedUserRecord?.email || '',
+      user: resolvedUserDoc,
+      application: resolvedBestApp,
+    })
+  ) {
+    return null;
+  }
+
   const now = Date.now();
   const membershipActive = resolvedUserDoc ? isMembershipActive(resolvedUserDoc, now) : false;
   const untilMs =
@@ -356,6 +460,7 @@ async function buildAdminUserEntry({ auth, db, uid, userRecord = null, userDoc =
   const maritalStatus = pickMaritalStatus(details);
   const hasChildren = pickHasChildren(details);
   const childrenCount = pickChildrenCount(details);
+  const childrenLivingSituation = pickChildrenLivingSituation(details);
   const whatsapp = pickWhatsapp(resolvedUserDoc, resolvedBestApp);
   const authCreatedAtMs = resolvedUserRecord ? dateStringToMs(resolvedUserRecord.metadata?.creationTime) : 0;
   const authLastSignInAtMs = resolvedUserRecord ? dateStringToMs(resolvedUserRecord.metadata?.lastSignInTime) : 0;
@@ -363,14 +468,17 @@ async function buildAdminUserEntry({ auth, db, uid, userRecord = null, userDoc =
   const userUpdatedAtMs = toMs(resolvedUserDoc?.updatedAt) || (typeof resolvedUserDoc?.updatedAtMs === 'number' ? resolvedUserDoc.updatedAtMs : 0);
   const appCreatedAtMs = toMs(resolvedBestApp?.createdAt) || (typeof resolvedBestApp?.createdAtMs === 'number' ? resolvedBestApp.createdAtMs : 0);
   const lastSeenAtMs = toMs(resolvedUserDoc?.lastSeenAt) || (typeof resolvedUserDoc?.lastSeenAtMs === 'number' ? resolvedUserDoc.lastSeenAtMs : 0);
+  const persistedAuthTrace = hasPersistedAuthTrace(resolvedUserDoc, resolvedBestApp);
 
   return {
     uid: resolvedUid,
     hasAuthRecord: !!resolvedUserRecord,
-    email: resolvedUserRecord?.email || null,
+    hasPersistedAuthTrace: persistedAuthTrace,
+    email: resolvedUserRecord?.email ? maskEmail(resolvedUserRecord.email) : null,
     disabled: !!resolvedUserRecord?.disabled,
     createdAtMs: authCreatedAtMs || userCreatedAtMs || userUpdatedAtMs || appCreatedAtMs || null,
     lastSignInAtMs: authLastSignInAtMs || lastSeenAtMs || null,
+    lastSeenAtMs: lastSeenAtMs || null,
     systemUser: !!flags?.systemUser,
     blocked: !!resolvedUserDoc?.blocked,
     membershipActive,
@@ -382,6 +490,7 @@ async function buildAdminUserEntry({ auth, db, uid, userRecord = null, userDoc =
     hasSubmittedProfile,
     applicationState,
     applicationId: effectiveApplicationId || null,
+    photoReviewRequired: isPhotoModerationRestricted(resolvedUserDoc, resolvedBestApp),
     userCode: typeof resolvedUserDoc?.userCode === 'string' ? resolvedUserDoc.userCode : null,
     fullName:
       typeof resolvedUserDoc?.fullName === 'string' && resolvedUserDoc.fullName.trim() ? resolvedUserDoc.fullName.trim() : null,
@@ -410,7 +519,8 @@ async function buildAdminUserEntry({ auth, db, uid, userRecord = null, userDoc =
     maritalStatus,
     hasChildren,
     childrenCount,
-    whatsapp,
+    childrenLivingSituation,
+    whatsapp: whatsapp ? maskPhoneLike(whatsapp) : null,
   };
 }
 
@@ -430,9 +540,94 @@ export default async function handler(req, res) {
     const pageSize = Math.min(Math.max(pageSizeRaw || 50, 1), 200);
     const pageToken = safeStr(body?.pageToken) || undefined;
     const q = safeStr(body?.query);
+    const refreshSinceMs = Math.max(0, parseIntSafe(body?.refreshSinceMs, 0) || 0);
     const includeNonAuth = body?.includeNonAuth === true || body?.includeNonAuth === 'true';
 
     const { auth, db } = getAdmin();
+
+    if (!q && !pageToken && refreshSinceMs > 0 && Date.now() - refreshSinceMs <= 2 * 60 * 60 * 1000) {
+      const candidateUids = new Set();
+      const deletedUidSet = new Set();
+      const recentLimit = Math.max(pageSize * 3, 120);
+
+      const [recentUsersUpdatedSnap, recentUsersCreatedSnap, recentAppsUpdatedSnap, recentAppsCreatedSnap, recentDeletedSnap] = await Promise.all([
+        queryRecentDocs(db, 'matchmakingUsers', 'updatedAt', recentLimit),
+        queryRecentDocs(db, 'matchmakingUsers', 'createdAt', recentLimit),
+        queryRecentDocs(db, 'matchmakingApplications', 'updatedAt', recentLimit),
+        queryRecentDocs(db, 'matchmakingApplications', 'createdAt', recentLimit),
+        queryRecentDocs(db, 'accountDeletionLogs', 'deletedAt', recentLimit),
+      ]);
+
+      recentDeletedSnap?.docs?.forEach((doc) => {
+        const data = doc.data() || {};
+        const deletedAtMs = toMs(data?.deletedAt);
+        if (deletedAtMs <= refreshSinceMs) return;
+        collectUidCandidate(deletedUidSet, data?.uid);
+      });
+
+      recentUsersUpdatedSnap?.docs?.forEach((doc) => {
+        const data = doc.data() || {};
+        const updatedAtMs = toMs(data?.updatedAt);
+        if (updatedAtMs <= refreshSinceMs) return;
+        collectUidCandidate(candidateUids, doc.id, deletedUidSet);
+      });
+
+      recentUsersCreatedSnap?.docs?.forEach((doc) => {
+        const data = doc.data() || {};
+        const createdAtMs = toMs(data?.createdAt) || (typeof data?.createdAtMs === 'number' ? data.createdAtMs : 0);
+        if (createdAtMs <= refreshSinceMs) return;
+        collectUidCandidate(candidateUids, doc.id, deletedUidSet);
+      });
+
+      const collectAppUid = (data) => {
+        collectUidCandidate(candidateUids, data?.userId, deletedUidSet);
+        collectUidCandidate(candidateUids, data?.uid, deletedUidSet);
+        collectUidCandidate(candidateUids, data?.userUid, deletedUidSet);
+        collectUidCandidate(candidateUids, data?.ownerUid, deletedUidSet);
+      };
+
+      recentAppsUpdatedSnap?.docs?.forEach((doc) => {
+        const data = doc.data() || {};
+        const updatedAtMs = toMs(data?.updatedAt);
+        if (updatedAtMs <= refreshSinceMs) return;
+        collectAppUid(data);
+      });
+
+      recentAppsCreatedSnap?.docs?.forEach((doc) => {
+        const data = doc.data() || {};
+        const createdAtMs = toMs(data?.createdAt) || (typeof data?.createdAtMs === 'number' ? data.createdAtMs : 0);
+        if (createdAtMs <= refreshSinceMs) return;
+        collectAppUid(data);
+      });
+
+      const users = (
+        await Promise.all(
+          Array.from(candidateUids)
+            .slice(0, Math.max(pageSize, 100))
+            .map(async (uid) => {
+              try {
+                return await buildAdminUserEntry({ auth, db, uid, userRecord: undefined });
+              } catch {
+                return null;
+              }
+            })
+        )
+      ).filter((entry) => entry && (includeNonAuth || entry.hasAuthRecord));
+
+      res.statusCode = 200;
+      res.setHeader('content-type', 'application/json');
+      res.end(
+        JSON.stringify({
+          ok: true,
+          users: sortAdminUsersByCreatedDesc(users),
+          deletedUids: Array.from(deletedUidSet),
+          nextPageToken: null,
+          syncAtMs: Date.now(),
+          refreshMode: 'delta',
+        })
+      );
+      return;
+    }
 
     // Search mode (email / uid)
     if (q) {
@@ -491,17 +686,37 @@ export default async function handler(req, res) {
         let resolvedUserDoc = null;
         let resolvedBestApp = null;
 
-        for (const candidate of queryCandidates) {
-          try {
-            const userSnap = await db.collection('matchmakingUsers').where('usernameLower', '==', candidate).limit(1).get();
-            if (!userSnap.empty) {
-              const doc = userSnap.docs[0];
-              resolvedUid = safeStr(doc.id);
-              resolvedUserDoc = doc.data() || null;
-              break;
+        if (queryLower.includes('@')) {
+          const emailMatch = await findSingleUserDocByAnyEmail(db, queryCandidates);
+          if (emailMatch?.uid) {
+            resolvedUid = emailMatch.uid;
+            resolvedUserDoc = emailMatch.userDoc || null;
+          }
+        }
+
+        if (!resolvedUid) {
+          for (const candidate of queryCandidates) {
+            try {
+              const userSnap = await db.collection('matchmakingUsers').where('usernameLower', '==', candidate).limit(1).get();
+              if (!userSnap.empty) {
+                const doc = userSnap.docs[0];
+                resolvedUid = safeStr(doc.id);
+                resolvedUserDoc = doc.data() || null;
+                break;
+              }
+            } catch {
+              // ignore
             }
-          } catch {
-            // ignore
+          }
+        }
+
+        if (!resolvedUid) {
+          if (queryLower.includes('@')) {
+            const emailAppMatch = await findBestApplicationByAnyEmail(db, queryCandidates);
+            if (emailAppMatch?.uid) {
+              resolvedUid = emailAppMatch.uid;
+              resolvedBestApp = emailAppMatch.bestApp || null;
+            }
           }
         }
 
@@ -512,7 +727,7 @@ export default async function handler(req, res) {
               if (!appSnap.empty) {
                 const apps = appSnap.docs.map((doc) => ({ id: doc.id, ...(doc.data() || {}) }));
                 resolvedBestApp = pickBestApp(apps);
-                resolvedUid = safeStr(resolvedBestApp?.userId) || safeStr(appSnap.docs[0]?.id);
+                resolvedUid = safeStr(resolvedBestApp?.userId) || safeStr(resolvedBestApp?.uid) || safeStr(resolvedBestApp?.userUid) || safeStr(resolvedBestApp?.ownerUid) || safeStr(appSnap.docs[0]?.id);
                 break;
               }
             } catch {
@@ -557,12 +772,18 @@ export default async function handler(req, res) {
       return;
     }
 
-    const offset = parseOffsetPageToken(pageToken);
-    const records = await listAllAuthUsers(auth);
+    const authPage = await auth.listUsers(pageSize, pageToken);
+    const records = Array.isArray(authPage?.users) ? authPage.users : [];
+    const nextAuthPageToken = safeStr(authPage?.pageToken) || null;
     const uids = records.map((u) => String(u.uid));
     const userDocByUid = await loadDocDataMap(db, 'matchmakingUsers', uids);
     const flagByUid = await loadDocDataMap(db, 'adminUserFlags', uids);
-    const visibleRecords = records.filter((u) => !isAdminOnlyAccount({ userRecord: u, userDoc: userDocByUid.get(String(u.uid)) || null }));
+    const visibleRecords = records.filter((u) => {
+      const uid = String(u.uid || '');
+      const userDoc = userDocByUid.get(uid) || null;
+      if (isSyntheticTestUserRecord({ uid, email: u.email || '', user: userDoc })) return false;
+      return !isAdminOnlyAccount({ userRecord: u, userDoc });
+    });
 
     const now = Date.now();
     const cachedBestAppByUid = new Map();
@@ -603,12 +824,15 @@ export default async function handler(req, res) {
       const maritalStatus = pickMaritalStatus(details);
       const hasChildren = pickHasChildren(details);
       const childrenCount = pickChildrenCount(details);
+      const childrenLivingSituation = pickChildrenLivingSituation(details);
       const whatsapp = pickWhatsapp(userDoc, bestApp);
+      const persistedAuthTrace = hasPersistedAuthTrace(userDoc, bestApp);
 
       return {
         uid,
         hasAuthRecord: true,
-        email: u.email || null,
+        hasPersistedAuthTrace: persistedAuthTrace,
+        email: u.email ? maskEmail(u.email) : null,
         disabled: !!u.disabled,
         createdAtMs: dateStringToMs(u.metadata?.creationTime),
         lastSignInAtMs: dateStringToMs(u.metadata?.lastSignInTime),
@@ -651,16 +875,15 @@ export default async function handler(req, res) {
         maritalStatus,
         hasChildren,
         childrenCount,
+        childrenLivingSituation,
 
-        whatsapp,
+        whatsapp: whatsapp ? maskPhoneLike(whatsapp) : null,
       };
     });
 
-    const sortedUsers = sortAdminUsersByCreatedDesc(users);
-    const pagedUsers = sortedUsers.slice(offset, offset + pageSize);
-    const nextOffset = offset + pageSize < sortedUsers.length ? offset + pageSize : 0;
+    const pagedUsers = sortAdminUsersByCreatedDesc(users);
 
-    if (!pageToken && includeNonAuth) {
+    if (!pageToken) {
       const extraCandidates = new Set();
       const collectUid = (candidate) => {
         const uid = safeStr(candidate);
@@ -691,7 +914,7 @@ export default async function handler(req, res) {
       const extras = (
         await Promise.all(
           Array.from(extraCandidates)
-            .slice(0, Math.min(pageSize, 10))
+            .slice(0, Math.max(pageSize, 50))
             .map(async (uid) => {
               try {
                 return await buildAdminUserEntry({ auth, db, uid, userRecord: undefined });
@@ -700,7 +923,7 @@ export default async function handler(req, res) {
               }
             })
         )
-      ).filter((entry) => entry && !entry.hasAuthRecord && !pagedUsers.some((user) => user.uid === entry.uid));
+      ).filter((entry) => entry && (includeNonAuth || entry.hasAuthRecord) && !pagedUsers.some((user) => user.uid === entry.uid));
 
       if (extras.length) pagedUsers.push(...extras);
     }
@@ -711,7 +934,8 @@ export default async function handler(req, res) {
       JSON.stringify({
         ok: true,
         users: sortAdminUsersByCreatedDesc(pagedUsers),
-        nextPageToken: encodeOffsetPageToken(nextOffset),
+        nextPageToken: nextAuthPageToken,
+        syncAtMs: Date.now(),
       })
     );
   } catch (e) {

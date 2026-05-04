@@ -1,4 +1,5 @@
 import { getAdmin, normalizeBody, requireAdmin } from './_firebaseAdmin.js';
+import { isSyntheticTestUserRecord } from './_syntheticTestUser.js';
 
 function safeStr(v) {
   return typeof v === 'string' ? v.trim() : '';
@@ -65,11 +66,35 @@ export default async function handler(req, res) {
       return;
     }
 
-    const { db } = getAdmin();
+    const { auth, db } = getAdmin();
 
     const userRef = db.collection('matchmakingUsers').doc(userId);
     const userSnap = await userRef.get();
     const user = userSnap.exists ? (userSnap.data() || {}) : {};
+
+    let authEmail = '';
+    try {
+      const authUser = await auth.getUser(userId);
+      authEmail = safeStr(authUser?.email);
+    } catch {
+      authEmail = '';
+    }
+
+    const applicationId = safeStr(user?.applicationId) || `auto_${userId}`;
+    let application = null;
+    try {
+      const appSnap = await db.collection('matchmakingApplications').doc(applicationId).get();
+      application = appSnap.exists ? (appSnap.data() || {}) : null;
+    } catch {
+      application = null;
+    }
+
+    if (isSyntheticTestUserRecord({ uid: userId, email: authEmail, user, application })) {
+      res.statusCode = 404;
+      res.setHeader('content-type', 'application/json');
+      res.end(JSON.stringify({ ok: false, error: 'not_found' }));
+      return;
+    }
 
     const membership = user?.membership || null;
     const membershipActive = isMembershipActive(user);

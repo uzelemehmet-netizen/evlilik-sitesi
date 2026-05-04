@@ -1,15 +1,18 @@
 import React, { useEffect, useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { auth } from '../config/firebaseAuth';
+import { getAdminAccessState } from '../utils/adminAccess';
 
 export default function PrivateRoute({ children }) {
   const [isAuthenticated, setIsAuthenticated] = useState(null);
   const [isAdmin, setIsAdmin] = useState(null);
 
-  const ADMIN_EMAIL = 'uzelemehmet@gmail.com';
-
   useEffect(() => {
-    const unsubscribe = auth.onAuthStateChanged((user) => {
+    let cancelled = false;
+
+    const unsubscribe = auth.onIdTokenChanged(async (user) => {
+      if (cancelled) return;
+
       setIsAuthenticated(!!user);
 
       if (!user) {
@@ -17,11 +20,18 @@ export default function PrivateRoute({ children }) {
         return;
       }
 
-      const email = String(user.email || '').toLowerCase().trim();
-      setIsAdmin(!!email && email === ADMIN_EMAIL);
+      try {
+        const access = await getAdminAccessState(user);
+        if (!cancelled) setIsAdmin(access.isAdmin);
+      } catch {
+        if (!cancelled) setIsAdmin(false);
+      }
     });
 
-    return unsubscribe;
+    return () => {
+      cancelled = true;
+      unsubscribe();
+    };
   }, []);
 
   if (isAuthenticated === null || isAdmin === null) {

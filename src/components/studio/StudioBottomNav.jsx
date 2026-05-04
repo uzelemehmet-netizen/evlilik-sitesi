@@ -86,11 +86,12 @@ export default function StudioBottomNav({ className = '' } = {}) {
   }, [isAuthed, navigate]);
 
   const openProfilePanel = useCallback(
-    (panel) => {
+    (panel, options = {}) => {
       const key = safeStr(panel);
       setActionsOpen(false);
       if (!key) return;
-      navigate(`/profilim?panel=${encodeURIComponent(key)}`);
+      const state = options && typeof options === 'object' ? options.state : null;
+      navigate(`/profilim?panel=${encodeURIComponent(key)}`, state ? { state } : undefined);
     },
     [navigate]
   );
@@ -115,7 +116,12 @@ export default function StudioBottomNav({ className = '' } = {}) {
       { key: 'matches', label: t('studio.profile.myMatches'), icon: Users, onClick: () => goTo('/app/matches') },
       { key: 'partnerPrefs', label: t('studio.profile.partnerPrefsTitle'), icon: Edit, onClick: () => openProfilePanel('partnerPrefs') },
       { key: 'membership', label: t('studio.profile.subscriptionTitle'), icon: Star, onClick: () => openProfilePanel('membership') },
-      { key: 'photoPrivacy', label: t('studio.profile.photoPrivacy.title'), icon: Images, onClick: () => openProfilePanel('photoPrivacy') },
+      {
+        key: 'photoPrivacy',
+        label: t('studio.profile.photoPrivacy.title'),
+        icon: Images,
+        onClick: () => openProfilePanel('photoPrivacy', { state: { openPhotoManager: true } }),
+      },
       { key: 'guidance', label: t('studio.profile.guidance.button'), icon: BookOpen, onClick: () => openProfilePanel('guidance') },
       { key: 'feedback', label: t('studio.feedback.nav'), icon: MessageCircle, onClick: () => goTo('/profilim/destek') },
       { key: 'identity', label: t('studio.profile.identityTitle'), icon: ShieldCheck, onClick: () => openProfilePanel('identity') },
@@ -221,7 +227,7 @@ export default function StudioBottomNav({ className = '' } = {}) {
         role="navigation"
         aria-label={t('studio.common.navigation') || 'Studio navigation'}
       >
-        <div className="mx-auto max-w-4xl px-2 py-2">
+        <div className="mx-auto max-w-4xl px-2 py-1.5">
           <div className="grid grid-cols-5 gap-1">
             {items.map((it) => {
               const Icon = it.icon;
@@ -235,12 +241,12 @@ export default function StudioBottomNav({ className = '' } = {}) {
                   to={it.to}
                   onClick={it.onClick}
                   className={
-                    'relative flex flex-col items-center justify-center rounded-2xl px-2 py-2 text-[11px] font-semibold transition ' +
+                    'relative flex flex-col items-center justify-center rounded-2xl px-2 py-1.5 text-[11px] font-semibold transition ' +
                     (active
-                      ? 'bg-rose-700 text-white shadow-[0_10px_26px_rgba(190,24,93,0.34)]'
+                      ? 'bg-[color:var(--app-action-blue)] text-white shadow-[0_10px_24px_rgba(20,101,156,0.28)]'
                       : hasAlert
-                        ? 'bg-rose-600 text-white shadow-[0_8px_18px_rgba(190,24,93,0.18)] hover:bg-rose-500'
-                        : 'bg-rose-800/90 text-white hover:bg-rose-700 hover:text-white')
+                        ? 'bg-[color:var(--app-action-blue)]/92 text-white shadow-[0_8px_18px_rgba(20,101,156,0.18)] hover:bg-[color:var(--app-action-blue)]'
+                        : 'bg-[color:var(--app-action-blue)]/80 text-white hover:bg-[color:var(--app-action-blue)] hover:text-white')
                   }
                 >
                   <span className="relative">
@@ -251,7 +257,7 @@ export default function StudioBottomNav({ className = '' } = {}) {
                       }
                     />
                     {badge > 0 ? (
-                      <span className={hasAlert ? 'absolute -right-2 -top-1 inline-flex min-w-5 items-center justify-center rounded-full bg-rose-100 px-1.5 py-0.5 text-[10px] font-extrabold text-rose-900 ring-2 ring-rose-900/70' : 'absolute -right-2 -top-1 inline-flex min-w-5 items-center justify-center rounded-full bg-white px-1.5 py-0.5 text-[10px] font-extrabold text-rose-900 ring-2 ring-rose-900/70'}>
+                      <span className={hasAlert ? 'absolute -right-2 -top-1 inline-flex min-w-5 items-center justify-center rounded-full bg-sky-100 px-1.5 py-0.5 text-[10px] font-extrabold text-sky-900 ring-2 ring-sky-900/60' : 'absolute -right-2 -top-1 inline-flex min-w-5 items-center justify-center rounded-full bg-white px-1.5 py-0.5 text-[10px] font-extrabold text-sky-900 ring-2 ring-sky-900/60'}>
                         {badge > 99 ? '99+' : String(badge)}
                       </span>
                     ) : null}

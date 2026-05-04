@@ -1,6 +1,7 @@
 import { getAdmin, normalizeBody, requireAdmin } from './_firebaseAdmin.js';
 import { hasSubmittedMatchmakingProfileInUserDoc } from './_matchmakingEligibility.js';
 import { resolveAdminApplicationState, safeStr } from './_adminMatchmakingProfiles.js';
+import { isSyntheticTestUserRecord } from './_syntheticTestUser.js';
 
 function safeInt(v, fallback) {
   const n = typeof v === 'number' ? v : Number(String(v ?? '').trim());
@@ -108,6 +109,10 @@ export default async function handler(req, res) {
       const users = Array.isArray(result?.users) ? result.users : [];
 
       for (const u of users) {
+        const uid = String(u?.uid || '').trim();
+        const email = String(u?.email || '').trim();
+        if (isSyntheticTestUserRecord({ uid, email })) continue;
+
         scannedTotal += 1;
         const createdAtMs = msFromCreationTime(u?.metadata?.creationTime);
         if (!createdAtMs) continue;
@@ -116,7 +121,7 @@ export default async function handler(req, res) {
           const r = ranges[k];
           if (createdAtMs >= r.startUtcMs && createdAtMs < r.endUtcMs) {
             countsByDay[k] += 1;
-            createdUsers.push({ uid: String(u.uid || '').trim(), dayKey: k });
+            createdUsers.push({ uid, email, dayKey: k });
           }
         }
       }
@@ -183,6 +188,10 @@ export default async function handler(req, res) {
           (userDoc?.application && typeof userDoc.application === 'object'
             ? { id: applicationId || null, ...userDoc.application }
             : null);
+
+        if (isSyntheticTestUserRecord({ uid: item.uid, email: item.email || '', user: userDoc, application: bestApp })) {
+          continue;
+        }
 
         const applicationState = resolveAdminApplicationState(userDoc, bestApp);
         const hasSubmittedProfile =

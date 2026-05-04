@@ -2,7 +2,9 @@ import { getAdmin, normalizeBody, requireIdToken } from './_firebaseAdmin.js';
 import { activateFreeMembershipForUid, isFreeMembershipDisabledByEnv } from './_membershipFree.js';
 import { ensureUserCodeAssigned } from './_matchmakingUserCode.js';
 import { normalizeGender, resolveLookingForGender } from './_matchmakingEligibility.js';
-import { isStubMatchmakingApplication } from '../src/utils/matchmakingProfileCompletion.js';
+import {
+  isStubMatchmakingApplication,
+} from '../src/utils/matchmakingProfileCompletion.js';
 import { buildBilingualProfileText, detectForbiddenContactPII, normalizeProfileLang } from './_matchmakingProfileText.js';
 
 const MAX_TEXT_LEN = 1800;
@@ -23,6 +25,30 @@ function safeStr(value, maxLen) {
   const s = String(value ?? '').trim();
   if (!s) return '';
   return typeof maxLen === 'number' && maxLen > 0 && s.length > maxLen ? s.slice(0, maxLen) : s;
+}
+
+function normalizeLooseIdentity(value) {
+  return safeStr(value)
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '');
+}
+
+function isRecaiEksiDeferredPhotoOneOff(payload, me) {
+  const candidates = [
+    payload?.fullName,
+    payload?.username,
+    me?.fullName,
+    me?.displayName,
+    me?.username,
+    me?.email,
+  ];
+
+  return candidates.some((candidate) => {
+    const normalized = normalizeLooseIdentity(candidate);
+    return normalized === 'recaieksi' || normalized === 'recaieksı';
+  });
 }
 
 function tsToMs(v) {
@@ -67,6 +93,12 @@ function pickBestNonStubApplication(apps) {
     }
   }
   return best;
+}
+
+function isAlreadyExistsError(e) {
+  const code = e?.code;
+  const msg = String(e?.message || '').toLowerCase();
+  return code === 6 || code === 'already-exists' || msg.includes('already_exists') || msg.includes('already-exists') || msg.includes('already exists');
 }
 
 export default async function handler(req, res) {
@@ -246,6 +278,7 @@ export default async function handler(req, res) {
   const coreGender = normalizeGender(payload?.gender);
   const coreLookingForNationality = safeStr(payload?.lookingForNationality, 40);
   const coreLookingForGender = resolveLookingForGender(coreGender, payload?.lookingForGender);
+  const coreWhatsapp = safeStr(payload?.whatsapp, 60);
   const coreDetails = detailsWithTranslations;
   const corePartnerPreferences = asObj(payload?.partnerPreferences);
   const corePhotoUrls = Array.isArray(payload?.photoUrls)
@@ -254,6 +287,13 @@ export default async function handler(req, res) {
   const corePhotoPaths = Array.isArray(payload?.photoPaths)
     ? payload.photoPaths.filter((p) => typeof p === 'string' && p.trim()).slice(0, 5)
     : [];
+  const targetWasStubBeforeSubmit = isStubMatchmakingApplication(existingTargetApp);
+  void targetWasStubBeforeSubmit;
+  const hasSubmittedPhoto = corePhotoUrls.length > 0 || corePhotoPaths.length > 0;
+  const shouldRequireDeferredPhotoForInteraction = !hasSubmittedPhoto && isRecaiEksiDeferredPhotoOneOff(payload, me);
+  const deferredWhatsappRequiredAfterMs = 0;
+  const ensuredCode = await ensureUserCodeAssigned({ db, FieldValue, uid, gender: coreGender, nowMs });
+  const ensuredUserCode = safeStr(ensuredCode?.userCode, 40);
 
   const appData = {
     ...(payload && typeof payload === 'object' ? payload : {}),
@@ -312,6 +352,9 @@ export default async function handler(req, res) {
         translateConfigured: expBi.translateConfigured,
       },
     },
+    deferredPhotoRequiredForInteraction: shouldRequireDeferredPhotoForInteraction,
+    deferredWhatsappRequiredAfterMs,
+    ...(ensuredUserCode ? { userCode: ensuredUserCode } : {}),
     ...(coreGender ? { gender: coreGender } : {}),
     ...(coreLookingForGender ? { lookingForGender: coreLookingForGender } : {}),
   };
@@ -358,8 +401,14 @@ export default async function handler(req, res) {
       ...(coreCountry ? { country: coreCountry } : {}),
       ...(coreNationality ? { nationality: coreNationality } : {}),
       ...(coreGender ? { gender: coreGender } : {}),
+      ...(coreWhatsapp ? { whatsapp: coreWhatsapp } : {}),
       ...(coreLookingForNationality ? { lookingForNationality: coreLookingForNationality } : {}),
       ...(coreLookingForGender ? { lookingForGender: coreLookingForGender } : {}),
+      ...(ensuredUserCode ? { userCode: ensuredUserCode } : {}),
+      deferredPhotoRequiredForInteraction: shouldRequireDeferredPhotoForInteraction,
+      deferredWhatsappRequiredAfterMs,
+      hasSubmittedProfile: true,
+      applicationState: 'real',
 
       // Cache application snapshot to avoid "unknown" when application fetch isn't available.
       application: {
@@ -371,12 +420,16 @@ export default async function handler(req, res) {
         ...(coreCountry ? { country: coreCountry } : {}),
         ...(coreNationality ? { nationality: coreNationality } : {}),
         ...(coreGender ? { gender: coreGender } : {}),
+        ...(coreWhatsapp ? { whatsapp: coreWhatsapp } : {}),
         ...(coreLookingForNationality ? { lookingForNationality: coreLookingForNationality } : {}),
         ...(coreLookingForGender ? { lookingForGender: coreLookingForGender } : {}),
+        ...(ensuredUserCode ? { userCode: ensuredUserCode } : {}),
         ...(corePhotoUrls.length ? { photoUrls: corePhotoUrls } : {}),
         ...(corePhotoPaths.length ? { photoPaths: corePhotoPaths } : {}),
         ...(Object.keys(coreDetails).length ? { details: coreDetails } : {}),
         ...(Object.keys(corePartnerPreferences).length ? { partnerPreferences: corePartnerPreferences } : {}),
+        deferredPhotoRequiredForInteraction: shouldRequireDeferredPhotoForInteraction,
+        deferredWhatsappRequiredAfterMs,
         ...(payload?.profileNo !== undefined ? { profileNo: payload.profileNo } : {}),
         ...(payload?.profileCode ? { profileCode: safeStr(payload.profileCode, 80) } : {}),
       },
@@ -408,6 +461,7 @@ export default async function handler(req, res) {
         ...(coreGender ? { gender: coreGender } : {}),
         ...(coreLookingForNationality ? { lookingForNationality: coreLookingForNationality } : {}),
         ...(coreLookingForGender ? { lookingForGender: coreLookingForGender } : {}),
+        ...(ensuredUserCode ? { userCode: ensuredUserCode } : {}),
         ...(detailsOccupation
           ? {
               occupation: detailsOccupation,
@@ -417,6 +471,8 @@ export default async function handler(req, res) {
           : {}),
         ...(corePhotoUrls.length ? { photoUrls: corePhotoUrls } : {}),
         ...(corePhotoPaths.length ? { photoPaths: corePhotoPaths } : {}),
+        deferredPhotoRequiredForInteraction: shouldRequireDeferredPhotoForInteraction,
+        deferredWhatsappRequiredAfterMs,
         about,
         expectations,
         aboutTr: aboutBi.tr,
@@ -430,23 +486,144 @@ export default async function handler(req, res) {
     { merge: true }
   );
 
-  await batch.commit();
-
   try {
-    const ensuredCode = await ensureUserCodeAssigned({ db, FieldValue, uid, gender: coreGender, nowMs: Date.now() });
-    const userCode = safeStr(ensuredCode?.userCode, 40);
-    if (userCode) {
-      await appRef.set(
-        {
-          userCode,
-          updatedAt: FieldValue.serverTimestamp(),
-          updatedAtMs: Date.now(),
-        },
-        { merge: true },
-      );
+    await batch.commit();
+  } catch (e) {
+    // Rare race: two submits in parallel can both decide to create.
+    // If the doc now exists, verify ownership and retry as update.
+    if (!isUpdate && isAlreadyExistsError(e)) {
+      const snap = await appRef.get();
+      if (snap.exists) {
+        const cur = snap.data() || {};
+        const owner = safeStr(cur?.userId);
+        if (owner && owner !== uid) {
+          res.statusCode = 409;
+          res.setHeader('content-type', 'application/json');
+          res.end(JSON.stringify({ ok: false, error: 'username_taken' }));
+          return;
+        }
+
+        const retryAppData = { ...appData };
+        // Don't overwrite server-created metadata when we are effectively updating.
+        delete retryAppData.createdAt;
+        delete retryAppData.createdAtMs;
+        delete retryAppData.status;
+
+        const batch2 = db.batch();
+        batch2.set(appRef, retryAppData, { merge: true });
+        batch2.set(
+          appRef,
+          {
+            draftProgress: FieldValue.delete(),
+            draftUpdatedAt: FieldValue.delete(),
+            draftUpdatedAtMs: FieldValue.delete(),
+          },
+          { merge: true }
+        );
+        batch2.set(
+          userRef,
+          {
+            // Core fields for UI/admin screens (many places prefer matchmakingUsers cache).
+            applicationId: targetAppId,
+            ...(coreUsername ? { username: coreUsername } : {}),
+            ...(coreUsernameLower ? { usernameLower: coreUsernameLower } : {}),
+            ...(coreFullName ? { fullName: coreFullName } : {}),
+            ...(typeof coreAge === 'number' ? { age: coreAge } : {}),
+            ...(coreCity ? { city: coreCity } : {}),
+            ...(coreCountry ? { country: coreCountry } : {}),
+            ...(coreNationality ? { nationality: coreNationality } : {}),
+            ...(coreGender ? { gender: coreGender } : {}),
+            ...(coreWhatsapp ? { whatsapp: coreWhatsapp } : {}),
+            ...(coreLookingForNationality ? { lookingForNationality: coreLookingForNationality } : {}),
+            ...(coreLookingForGender ? { lookingForGender: coreLookingForGender } : {}),
+            ...(ensuredUserCode ? { userCode: ensuredUserCode } : {}),
+            deferredPhotoRequiredForInteraction: shouldRequireDeferredPhotoForInteraction,
+            deferredWhatsappRequiredAfterMs,
+            hasSubmittedProfile: true,
+            applicationState: 'real',
+
+            application: {
+              ...(coreUsername ? { username: coreUsername } : {}),
+              ...(coreUsernameLower ? { usernameLower: coreUsernameLower } : {}),
+              ...(coreFullName ? { fullName: coreFullName } : {}),
+              ...(typeof coreAge === 'number' ? { age: coreAge } : {}),
+              ...(coreCity ? { city: coreCity } : {}),
+              ...(coreCountry ? { country: coreCountry } : {}),
+              ...(coreNationality ? { nationality: coreNationality } : {}),
+              ...(coreGender ? { gender: coreGender } : {}),
+              ...(coreWhatsapp ? { whatsapp: coreWhatsapp } : {}),
+              ...(coreLookingForNationality ? { lookingForNationality: coreLookingForNationality } : {}),
+              ...(coreLookingForGender ? { lookingForGender: coreLookingForGender } : {}),
+              ...(ensuredUserCode ? { userCode: ensuredUserCode } : {}),
+              ...(corePhotoUrls.length ? { photoUrls: corePhotoUrls } : {}),
+              ...(corePhotoPaths.length ? { photoPaths: corePhotoPaths } : {}),
+              ...(Object.keys(coreDetails).length ? { details: coreDetails } : {}),
+              ...(Object.keys(corePartnerPreferences).length ? { partnerPreferences: corePartnerPreferences } : {}),
+              deferredPhotoRequiredForInteraction: shouldRequireDeferredPhotoForInteraction,
+              deferredWhatsappRequiredAfterMs,
+              ...(payload?.profileNo !== undefined ? { profileNo: payload.profileNo } : {}),
+              ...(payload?.profileCode ? { profileCode: safeStr(payload.profileCode, 80) } : {}),
+            },
+
+            details: {
+              about,
+              bio: about,
+              expectations,
+              ...(detailsOccupation
+                ? {
+                    occupation: detailsOccupation,
+                    occupationTr: occBi.tr,
+                    occupationId: occBi.id,
+                  }
+                : {}),
+              aboutTr: aboutBi.tr,
+              aboutId: aboutBi.id,
+              expectationsTr: expBi.tr,
+              expectationsId: expBi.id,
+            },
+            publicProfile: {
+              ...(coreUsername ? { username: coreUsername } : {}),
+              ...(coreUsernameLower ? { usernameLower: coreUsernameLower } : {}),
+              ...(coreFullName ? { fullName: coreFullName } : {}),
+              ...(typeof coreAge === 'number' ? { age: coreAge } : {}),
+              ...(coreCity ? { city: coreCity } : {}),
+              ...(coreCountry ? { country: coreCountry } : {}),
+              ...(coreNationality ? { nationality: coreNationality } : {}),
+              ...(coreGender ? { gender: coreGender } : {}),
+              ...(coreLookingForNationality ? { lookingForNationality: coreLookingForNationality } : {}),
+              ...(coreLookingForGender ? { lookingForGender: coreLookingForGender } : {}),
+              ...(ensuredUserCode ? { userCode: ensuredUserCode } : {}),
+              ...(detailsOccupation
+                ? {
+                    occupation: detailsOccupation,
+                    occupationTr: occBi.tr,
+                    occupationId: occBi.id,
+                  }
+                : {}),
+              ...(corePhotoUrls.length ? { photoUrls: corePhotoUrls } : {}),
+              ...(corePhotoPaths.length ? { photoPaths: corePhotoPaths } : {}),
+              deferredPhotoRequiredForInteraction: shouldRequireDeferredPhotoForInteraction,
+              deferredWhatsappRequiredAfterMs,
+              about,
+              expectations,
+              aboutTr: aboutBi.tr,
+              aboutId: aboutBi.id,
+              expectationsTr: expBi.tr,
+              expectationsId: expBi.id,
+            },
+            profileTextLang: sourceLang,
+            updatedAt: FieldValue.serverTimestamp(),
+          },
+          { merge: true }
+        );
+
+        await batch2.commit();
+      } else {
+        throw e;
+      }
+    } else {
+      throw e;
     }
-  } catch {
-    // best-effort
   }
 
   // Yeni ürün kararı: Başvuru gönderilince üyelik otomatik aktif olsun.
@@ -472,6 +649,7 @@ export default async function handler(req, res) {
     JSON.stringify({
       ok: true,
       applicationId: targetAppId,
+      deferredPhotoRequiredForInteraction: shouldRequireDeferredPhotoForInteraction,
       updatedExisting: isUpdate,
       membershipAutoActivated,
       membershipStatus,

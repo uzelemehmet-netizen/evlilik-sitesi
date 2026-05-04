@@ -79,3 +79,39 @@ export function redactPII(text) {
 
   return s;
 }
+
+export function maskEmail(raw) {
+  const value = collapseSpaces(safeStr(raw)).toLowerCase();
+  if (!value) return '';
+  const at = value.indexOf('@');
+  if (at <= 0 || at === value.length - 1) return '[EMAIL]';
+
+  const local = value.slice(0, at);
+  const domain = value.slice(at + 1);
+  const domainDot = domain.lastIndexOf('.');
+  const domainName = domainDot > 0 ? domain.slice(0, domainDot) : domain;
+  const domainTld = domainDot > 0 ? domain.slice(domainDot) : '';
+
+  const localMasked =
+    local.length <= 2 ? `${local[0] || '*'}***` : `${local.slice(0, 2)}***${local.slice(-1)}`;
+  const domainMasked =
+    domainName.length <= 2 ? `${domainName[0] || '*'}***` : `${domainName.slice(0, 1)}***${domainName.slice(-1)}`;
+
+  return `${localMasked}@${domainMasked}${domainTld}`;
+}
+
+export function maskPhoneLike(raw) {
+  const value = collapseSpaces(safeStr(raw));
+  if (!value) return '';
+
+  const digits = value.replace(/\D/g, '');
+  if (!digits) return '[PHONE]';
+
+  if (digits.length <= 4) return `${'*'.repeat(Math.max(0, digits.length - 1))}${digits.slice(-1)}`;
+
+  const visibleTail = digits.slice(-2);
+  const maskedDigits = `${'*'.repeat(Math.max(0, digits.length - 2))}${visibleTail}`;
+  let digitIndex = 0;
+
+  return value.replace(/\d/g, () => maskedDigits[digitIndex++] || '*');
+}

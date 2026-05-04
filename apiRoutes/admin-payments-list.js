@@ -1,4 +1,5 @@
 import { getAdmin, normalizeBody, requireAdmin } from './_firebaseAdmin.js';
+import { maskEmail } from './_pii.js';
 
 function safeStr(v) {
   return typeof v === 'string' ? v.trim() : '';
@@ -32,7 +33,7 @@ function pickPayment(docId, data) {
   return {
     id: String(docId || ''),
     userId: safeStr(d.userId) || null,
-    userEmail: safeStr(d.userEmail) || null,
+    userEmail: safeStr(d.userEmail) ? maskEmail(d.userEmail) : null,
     status: safeStr(d.status) || null,
     tier: safeStr(d.tier) || null,
     amount: typeof d.amount === 'number' && Number.isFinite(d.amount) ? d.amount : null,

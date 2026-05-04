@@ -1,5 +1,6 @@
 import crypto from 'node:crypto';
 import { getAdmin, normalizeBody } from './_firebaseAdmin.js';
+import { isSyntheticTestUserRecord } from './_syntheticTestUser.js';
 
 const EMAIL_LIMIT_WINDOW_MS = 15 * 60 * 1000;
 const EMAIL_LIMIT_MAX = 3;
@@ -54,9 +55,8 @@ function getClientIp(req) {
   ).slice(0, 120);
 }
 
-async function consumeRateLimit(tx, ref, nowMs, { windowMs, maxAttempts, meta }) {
-  const snap = await tx.get(ref);
-  const data = snap.exists ? snap.data() || {} : {};
+function buildRateLimitWrite(snap, nowMs, { windowMs, maxAttempts, meta }) {
+  const data = snap?.exists ? snap.data() || {} : {};
   const windowStartedAtMs = typeof data?.windowStartedAtMs === 'number' ? data.windowStartedAtMs : nowMs;
   const count = typeof data?.count === 'number' ? data.count : 0;
   const sameWindow = nowMs - windowStartedAtMs < windowMs;
@@ -68,19 +68,15 @@ async function consumeRateLimit(tx, ref, nowMs, { windowMs, maxAttempts, meta })
     throw err;
   }
 
-  tx.set(
-    ref,
-    {
-      scope: meta?.scope || '',
-      keyHash: meta?.keyHash || '',
-      updatedAtMs: nowMs,
-      windowStartedAtMs: sameWindow ? windowStartedAtMs : nowMs,
-      count: nextCount,
-      ...(meta?.emailHash ? { emailHash: meta.emailHash } : {}),
-      ...(meta?.ipHash ? { ipHash: meta.ipHash } : {}),
-    },
-    { merge: true }
-  );
+  return {
+    scope: meta?.scope || '',
+    keyHash: meta?.keyHash || '',
+    updatedAtMs: nowMs,
+    windowStartedAtMs: sameWindow ? windowStartedAtMs : nowMs,
+    count: nextCount,
+    ...(meta?.emailHash ? { emailHash: meta.emailHash } : {}),
+    ...(meta?.ipHash ? { ipHash: meta.ipHash } : {}),
+  };
 }
 
 function mapSignupError(error) {
@@ -125,30 +121,40 @@ export default async function publicEmailSignup(req, res) {
       return;
     }
 
-    const { auth, db } = getAdmin();
+    const { auth, db, FieldValue } = getAdmin();
     const nowMs = Date.now();
     const emailHash = sha256Short(`email:${email}`);
     const ip = getClientIp(req);
     const ipHash = sha256Short(`ip:${ip}`);
 
     await db.runTransaction(async (tx) => {
+      const refs = [];
       if (emailHash) {
-        const emailRef = db.collection('publicAuthRateLimits').doc(`signup_email_${emailHash}`);
-        await consumeRateLimit(tx, emailRef, nowMs, {
-          windowMs: EMAIL_LIMIT_WINDOW_MS,
-          maxAttempts: EMAIL_LIMIT_MAX,
-          meta: { scope: 'signup_email', keyHash: emailHash, emailHash, ipHash },
+        refs.push({
+          ref: db.collection('publicAuthRateLimits').doc(`signup_email_${emailHash}`),
+          config: {
+            windowMs: EMAIL_LIMIT_WINDOW_MS,
+            maxAttempts: EMAIL_LIMIT_MAX,
+            meta: { scope: 'signup_email', keyHash: emailHash, emailHash, ipHash },
+          },
+        });
+      }
+      if (ipHash) {
+        refs.push({
+          ref: db.collection('publicAuthRateLimits').doc(`signup_ip_${ipHash}`),
+          config: {
+            windowMs: IP_LIMIT_WINDOW_MS,
+            maxAttempts: IP_LIMIT_MAX,
+            meta: { scope: 'signup_ip', keyHash: ipHash, emailHash, ipHash },
+          },
         });
       }
 
-      if (ipHash) {
-        const ipRef = db.collection('publicAuthRateLimits').doc(`signup_ip_${ipHash}`);
-        await consumeRateLimit(tx, ipRef, nowMs, {
-          windowMs: IP_LIMIT_WINDOW_MS,
-          maxAttempts: IP_LIMIT_MAX,
-          meta: { scope: 'signup_ip', keyHash: ipHash, emailHash, ipHash },
-        });
-      }
+      const snaps = await Promise.all(refs.map((entry) => tx.get(entry.ref)));
+      refs.forEach((entry, index) => {
+        const nextData = buildRateLimitWrite(snaps[index], nowMs, entry.config);
+        tx.set(entry.ref, nextData, { merge: true });
+      });
     });
 
     const userRecord = await auth.createUser({
@@ -156,6 +162,23 @@ export default async function publicEmailSignup(req, res) {
       password,
       ...(displayName ? { displayName } : {}),
     });
+
+    if (isSyntheticTestUserRecord({ email })) {
+      await db.collection('matchmakingUsers').doc(userRecord.uid).set(
+        {
+          authEmail: email,
+          authEmailLower: email,
+          email,
+          emailLower: email,
+          isSyntheticTestUser: true,
+          testAccount: true,
+          syntheticSource: 'public_email_signup',
+          updatedAt: FieldValue.serverTimestamp(),
+          updatedAtMs: nowMs,
+        },
+        { merge: true },
+      );
+    }
 
     const customToken = await auth.createCustomToken(userRecord.uid);
 

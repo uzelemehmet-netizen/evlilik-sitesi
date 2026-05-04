@@ -1,4 +1,5 @@
 import { getAdmin, normalizeBody, requireAdmin } from './_firebaseAdmin.js';
+import { havePhotoUrlsChanged, isPhotoModerationRestricted, normalizePhotoUrls } from '../src/utils/photoModerationState.js';
 
 function safeStr(v) {
   return typeof v === 'string' ? v.trim() : '';
@@ -150,6 +151,12 @@ export default async function handler(req, res) {
           throw err;
         }
 
+        const previousUrls = normalizePhotoUrls(
+          app?.photoUrls || userDoc?.application?.photoUrls || userDoc?.publicProfile?.photoUrls || userDoc?.photoUrls,
+          5,
+        );
+        const clearPhotoRestriction = isPhotoModerationRestricted(userDoc, app) && havePhotoUrlsChanged(previousUrls, photoUrls);
+
         tx.set(
           appRef,
           {
@@ -161,6 +168,7 @@ export default async function handler(req, res) {
               decidedBy: admin.uid,
               decidedAt: now,
             },
+            ...(clearPhotoRestriction ? { photoModeration: FieldValue.delete() } : {}),
             updatedAt: now,
           },
           { merge: true }
@@ -182,6 +190,13 @@ export default async function handler(req, res) {
               decidedAt: now,
             },
           },
+          ...(clearPhotoRestriction
+            ? {
+                photoModeration: FieldValue.delete(),
+                'application.photoModeration': FieldValue.delete(),
+                'publicProfile.photoModeration': FieldValue.delete(),
+              }
+            : {}),
           updatedAt: now,
         };
 

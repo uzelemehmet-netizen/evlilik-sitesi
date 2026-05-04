@@ -1,4 +1,5 @@
 import { getAdmin, requireCronSecret } from './_firebaseAdmin.js';
+import { maskEmail } from './_pii.js';
 
 function safeStr(v) {
   return typeof v === 'string' ? v.trim() : '';
@@ -61,7 +62,7 @@ function msFromCreationTime(creationTime) {
 
 function formatLine({ createdAtMs, email, uid, disabled }) {
   const when = createdAtMs ? new Date(createdAtMs).toISOString().replace('T', ' ').slice(0, 16) + 'Z' : '';
-  const e = safeStr(email) || '-';
+  const e = safeStr(email) ? maskEmail(email) : '-';
   const id = safeStr(uid) ? safeStr(uid).slice(0, 8) : '';
   const dis = disabled ? ' (disabled)' : '';
   return `${when} • ${e}${id ? ` • ${id}` : ''}${dis}`;

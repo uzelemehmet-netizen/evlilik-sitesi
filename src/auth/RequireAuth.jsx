@@ -1,10 +1,12 @@
 import React from "react";
 import { Navigate, useLocation } from "react-router-dom";
+import { auth } from "../config/firebaseAuth";
 import { useAuth } from "./AuthProvider";
 
 export default function RequireAuth({ children }) {
   const { user, loading } = useAuth();
   const location = useLocation();
+  const effectiveUser = user || auth?.currentUser || null;
 
   const normalizePath = (pathname) => {
     const rawPath = String(pathname || '/');
@@ -73,14 +75,14 @@ export default function RequireAuth({ children }) {
     );
   };
 
-  if (loading) {
+  if (loading && !effectiveUser) {
     // Eğer RequireAuth yanlışlıkla public sayfalara da uygulanırsa,
     // kullanıcıyı gereksiz yere "loading" ekranında bekletmeyelim.
     if (isPublicPath(location.pathname)) return children;
     return <div className="min-h-screen flex items-center justify-center">Yükleniyor...</div>;
   }
 
-  if (!user || user.isAnonymous) {
+  if (!effectiveUser || effectiveUser.isAnonymous) {
     if (isPublicPath(location.pathname)) return children;
 
     if (isAppShellPath(location.pathname)) {

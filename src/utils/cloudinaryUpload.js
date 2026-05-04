@@ -1,3 +1,110 @@
+import { auth } from '../config/firebaseAuth';
+
+function safeStr(value) {
+  return typeof value === 'string' ? value.trim() : '';
+}
+
+function safeArr(value) {
+  return Array.isArray(value) ? value : [];
+}
+
+function truncate(value, maxLen = 400) {
+  const text = safeStr(value);
+  if (!text) return '';
+  return text.length > maxLen ? text.slice(0, maxLen) : text;
+}
+
+function currentPagePath() {
+  if (typeof window === 'undefined') return '';
+  try {
+    return safeStr(window.location?.pathname || '');
+  } catch {
+    return '';
+  }
+}
+
+function derivePhotoUploadSource({ source = '', folder = '', tags = [] } = {}) {
+  const explicit = safeStr(source);
+  if (explicit) return explicit;
+
+  const folderKey = safeStr(folder).toLowerCase();
+  const tagList = safeArr(tags).map((tag) => safeStr(tag).toLowerCase()).filter(Boolean);
+  const path = currentPagePath().toLowerCase();
+
+  if (tagList.includes('quick_profile') || folderKey.includes('quick-profile')) return 'matchmaking_quick_profile';
+  if (tagList.includes('photo-update')) return 'studio_profile_photo_manager';
+  if (tagList.includes('feedback')) return 'studio_feedback';
+  if (tagList.includes('lead') || folderKey.includes('matchmakingleads')) return 'matchmaking_lead';
+  if (folderKey.includes('matchmakingapplications')) return 'matchmaking_apply';
+  if (path.startsWith('/admin')) return 'admin_panel';
+  if (path.startsWith('/studio')) return 'studio_profile';
+  if (path.startsWith('/login')) return 'login';
+  return 'unknown';
+}
+
+function summarizeAttempt(stage, status, error = null) {
+  const details = error && typeof error?.details === 'object' && error.details ? error.details : null;
+  return {
+    stage: safeStr(stage) || 'unknown',
+    status: safeStr(status) || 'unknown',
+    message: truncate(String(error?.message || ''), 300),
+    code: truncate(
+      String(details?.error || details?.code || details?.reason || details?.cause || details?.message || ''),
+      220
+    ),
+  };
+}
+
+async function getBestEffortAuthHeader() {
+  try {
+    const currentUser = auth?.currentUser || null;
+    if (!currentUser || currentUser.isAnonymous || typeof currentUser.getIdToken !== 'function') return '';
+    const token = await currentUser.getIdToken();
+    return token ? `Bearer ${token}` : '';
+  } catch {
+    return '';
+  }
+}
+
+export async function reportPhotoUploadFailure(
+  file,
+  { folder = '', tags = [], source = '', error = null, attempts = [] } = {}
+) {
+  try {
+    const body = {
+      source: derivePhotoUploadSource({ source, folder, tags }),
+      folder: safeStr(folder),
+      tags: safeArr(tags).map((tag) => safeStr(tag)).filter(Boolean).slice(0, 12),
+      pagePath: currentPagePath(),
+      fileName: safeStr(file?.name),
+      contentType: safeStr(file?.type),
+      fileSize: Number(file?.size) || 0,
+      lastError: truncate(String(error?.message || ''), 500),
+      attempts: safeArr(attempts).map((attempt) => ({
+        stage: safeStr(attempt?.stage),
+        status: safeStr(attempt?.status),
+        message: truncate(safeStr(attempt?.message), 300),
+        code: truncate(safeStr(attempt?.code), 220),
+      })),
+      language: typeof navigator !== 'undefined' ? safeStr(navigator.language || '') : '',
+      userAgent: typeof navigator !== 'undefined' ? truncate(String(navigator.userAgent || ''), 500) : '',
+    };
+
+    const authHeader = await getBestEffortAuthHeader();
+    await fetch('/api/photo-upload-failure-report', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        ...(authHeader ? { authorization: authHeader } : {}),
+      },
+      body: JSON.stringify(body),
+      keepalive: true,
+    });
+  } catch {
+    // ignore
+  }
+}
+
 export function isCloudinaryUnsignedUploadEnabled() {
   const forceSigned = String(import.meta?.env?.VITE_CLOUDINARY_FORCE_SIGNED || '') === '1';
   if (forceSigned) return false;
@@ -178,29 +285,117 @@ export async function uploadImageToCloudinarySigned(file, { folder = '', tags = 
   };
 }
 
-export async function uploadImageToCloudinaryAuto(file, { folder = '', tags = [] } = {}) {
-  const mode = import.meta?.env?.MODE || '';
+async function fileToDataUrl(file) {
+  if (!(file instanceof Blob)) {
+    throw new Error('file_to_data_url_requires_blob');
+  }
 
-  // Varsayılan davranış: önce signed dene.
-  // Bu, Cloudinary hesabında unsigned kapalıysa (signed-only) en doğru akış.
-  // Signed çalışmıyorsa ve client-side preset tanımlıysa (ör. local dev), unsigned'a düş.
+  return await new Promise((resolve, reject) => {
+    try {
+      const reader = new FileReader();
+      reader.onerror = () => reject(reader.error || new Error('file_read_failed'));
+      reader.onload = () => resolve(typeof reader.result === 'string' ? reader.result : '');
+      reader.readAsDataURL(file);
+    } catch (error) {
+      reject(error);
+    }
+  });
+}
+
+export async function uploadImageToCloudinaryServer(file, { folder = '', tags = [] } = {}) {
+  const dataUrl = await fileToDataUrl(file);
+  if (!dataUrl) {
+    throw new Error('cloudinary_server_data_url_missing');
+  }
+
+  let res;
   try {
-    return await uploadImageToCloudinarySigned(file, { folder, tags });
-  } catch (signedErr) {
-    if (!isCloudinaryUnsignedUploadEnabled()) throw signedErr;
+    res = await fetch('/api/cloudinary-upload', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        fileName: typeof file?.name === 'string' ? file.name : 'upload.jpg',
+        contentType: typeof file?.type === 'string' ? file.type : '',
+        dataUrl,
+        folder,
+        tags,
+      }),
+    });
+  } catch (error) {
+    const err = new Error(`Cloudinary server upload request failed: ${String(error?.message || 'network_error')}`);
+    err.details = { cause: String(error?.message || '') };
+    throw err;
+  }
+
+  let data = null;
+  try {
+    data = await res.json();
+  } catch {
+    // ignore
+  }
+
+  if (!res.ok || !data?.ok) {
+    const msg = data?.error ? String(data.error) : `Cloudinary server upload failed (${res.status})`;
+    const err = new Error(msg);
+    err.details = data;
+    throw err;
+  }
+
+  return {
+    secureUrl: data?.secureUrl || '',
+    publicId: data?.publicId || '',
+    bytes: data?.bytes || null,
+    width: data?.width || null,
+    height: data?.height || null,
+    format: data?.format || '',
+    originalFilename: data?.originalFilename || '',
+  };
+}
+
+export async function uploadImageToCloudinaryAuto(file, { folder = '', tags = [], source = '', reportFailure = true } = {}) {
+  const mode = import.meta?.env?.MODE || '';
+  const attempts = [];
+
+  try {
+    const uploaded = await uploadImageToCloudinaryServer(file, { folder, tags });
+    attempts.push(summarizeAttempt('server_relay', 'ok'));
+    return uploaded;
+  } catch (serverErr) {
+    attempts.push(summarizeAttempt('server_relay', 'failed', serverErr));
 
     try {
-      return await uploadImageToCloudinary(file, { folder, tags });
-    } catch (unsignedErr) {
-      // Dev modda iki ihtimal de fail edebileceği için daha anlaşılır bir hata üret.
+      const uploaded = await uploadImageToCloudinarySigned(file, { folder, tags });
+      attempts.push(summarizeAttempt('signed', 'ok'));
+      return uploaded;
+    } catch (signedErr) {
+      attempts.push(summarizeAttempt('signed', 'failed', signedErr));
+      let unsignedErr = null;
+
+      if (isCloudinaryUnsignedUploadEnabled()) {
+        try {
+          const uploaded = await uploadImageToCloudinary(file, { folder, tags });
+          attempts.push(summarizeAttempt('unsigned', 'ok'));
+          return uploaded;
+        } catch (error) {
+          unsignedErr = error;
+          attempts.push(summarizeAttempt('unsigned', 'failed', error));
+        }
+      } else {
+        attempts.push(summarizeAttempt('unsigned', 'skipped'));
+      }
+
       const signedMsg = String(signedErr?.message || 'signed_failed');
-      const unsignedMsg = String(unsignedErr?.message || 'unsigned_failed');
+      const unsignedMsg = String(unsignedErr?.message || 'unsigned_skipped');
+      const serverMsg = String(serverErr?.message || 'server_failed');
       const err = new Error(
         mode === 'development'
-          ? `Cloudinary upload failed (signed then unsigned). Signed: ${signedMsg}. Unsigned: ${unsignedMsg}`
-          : signedMsg
+          ? `Cloudinary upload failed (server relay, signed, unsigned). Server: ${serverMsg}. Signed: ${signedMsg}. Unsigned: ${unsignedMsg}`
+          : serverMsg || signedMsg
       );
-      err.details = { signed: signedErr?.details, unsigned: unsignedErr?.details };
+      err.details = { server: serverErr?.details, signed: signedErr?.details, unsigned: unsignedErr?.details, attempts };
+      if (reportFailure !== false) {
+        void reportPhotoUploadFailure(file, { folder, tags, source, error: err, attempts });
+      }
       throw err;
     }
   }

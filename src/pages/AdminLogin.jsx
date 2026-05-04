@@ -1,19 +1,35 @@
-import { useEffect, useState } from 'react';
-import { fetchSignInMethodsForEmail, onAuthStateChanged, sendPasswordResetEmail, signInWithCustomToken, signOut } from 'firebase/auth';
+import { useEffect, useRef, useState } from 'react';
+import {
+  fetchSignInMethodsForEmail,
+  getMultiFactorResolver,
+  onIdTokenChanged,
+  PhoneAuthProvider,
+  PhoneMultiFactorGenerator,
+  RecaptchaVerifier,
+  sendPasswordResetEmail,
+  signInWithEmailAndPassword,
+  signOut,
+} from 'firebase/auth';
 import { auth } from '../config/firebaseAuth';
+import { clearAdminStepUpToken } from '../utils/adminStepUp.js';
+import { ADMIN_EMAIL, getAdminAccessState, hasAllowedAdminEmail, normalizeAdminEmail } from '../utils/adminAccess';
 import { useNavigate } from 'react-router-dom';
 import { Lock, Mail } from 'lucide-react';
 
 export default function AdminLogin() {
-  const ADMIN_EMAIL = 'uzelemehmet@gmail.com';
   const DEFAULT_ADMIN_EMAIL = ADMIN_EMAIL;
 
   const [email, setEmail] = useState(DEFAULT_ADMIN_EMAIL);
   const [password, setPassword] = useState('');
+  const [mfaCode, setMfaCode] = useState('');
+  const [mfaResolver, setMfaResolver] = useState(null);
+  const [mfaVerificationId, setMfaVerificationId] = useState('');
+  const [mfaHint, setMfaHint] = useState('');
   const [error, setError] = useState('');
   const [debug, setDebug] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const recaptchaRef = useRef(null);
 
   // Güvenlik: Admin panel TEK kullanıcı ile çalışır.
   // Başka email'lerle (custom claim olsa bile) girişe izin vermeyin.
@@ -26,14 +42,6 @@ export default function AdminLogin() {
       return false;
     }
   })();
-
-  const normalizeEmail = (v) => {
-    try {
-      return String(v || '').trim().toLowerCase();
-    } catch {
-      return '';
-    }
-  };
 
   const getActiveFirebaseInfo = () => {
     try {
@@ -62,74 +70,156 @@ export default function AdminLogin() {
     return { ok: true, msg: '', info: { projectId, authDomain } };
   };
 
-  const isAdminEmail = (v) => {
-    const e = normalizeEmail(v);
-    return !!e && e === ADMIN_EMAIL;
-  };
-
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      const email = normalizeEmail(user?.email);
-      if (email && isAdminEmail(email)) {
-        navigate('/admin/dashboard', { replace: true });
+    const unsubscribe = onIdTokenChanged(auth, async (user) => {
+      try {
+        const access = await getAdminAccessState(user);
+        if (access.isAdmin) {
+          navigate('/admin/dashboard', { replace: true });
+        }
+      } catch {
+        // ignore
       }
     });
 
     return unsubscribe;
   }, [navigate]);
 
-  const getIsAdminStrict = async (user) => {
-    if (!user) return false;
+  useEffect(() => {
+    return () => {
+      try {
+        recaptchaRef.current?.clear?.();
+      } catch {
+        // ignore
+      }
+      recaptchaRef.current = null;
+    };
+  }, []);
+
+  const ensureRecaptchaVerifier = () => {
+    if (recaptchaRef.current) return recaptchaRef.current;
+    recaptchaRef.current = new RecaptchaVerifier(auth, 'admin-login-mfa-recaptcha', {
+      size: 'invisible',
+    });
+    return recaptchaRef.current;
+  };
+
+  const getIsAdminStrict = async (user, { forceRefresh = false } = {}) => {
+    if (!user) {
+      return {
+        isAdmin: false,
+        allowedEmail: false,
+        hasAdminClaim: false,
+        requiresMfa: false,
+        hasSecondFactor: false,
+      };
+    }
+
     try {
-      const email = normalizeEmail(user.email);
-      return !!email && isAdminEmail(email);
+      return await getAdminAccessState(user, { forceRefresh });
     } catch {
-      return false;
+      return {
+        isAdmin: false,
+        allowedEmail: false,
+        hasAdminClaim: false,
+        requiresMfa: false,
+        hasSecondFactor: false,
+      };
     }
   };
 
-  const signInWithEmailOnServer = async ({ email: rawEmail, password: rawPassword }) => {
-    const normalizedEmail = normalizeEmail(rawEmail);
-    const normalizedPassword = typeof rawPassword === 'string' ? rawPassword : String(rawPassword ?? '');
+  const resetMfaState = () => {
+    setMfaCode('');
+    setMfaResolver(null);
+    setMfaVerificationId('');
+    setMfaHint('');
+  };
 
-    let response;
-    try {
-      response = await fetch('/api/public-email-login', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({
-          email: normalizedEmail,
-          password: normalizedPassword,
-        }),
-      });
-    } catch {
-      const err = new Error('auth/network-request-failed');
-      err.code = 'auth/network-request-failed';
-      throw err;
+  const maskPhoneDisplay = (value) => {
+    const raw = String(value || '').trim();
+    if (!raw) return 'kayıtlı cihaz';
+    if (raw.length <= 4) return raw;
+    return `${raw.slice(0, 3)}***${raw.slice(-2)}`;
+  };
+
+  const completeAdminLogin = async (userCredential) => {
+    const access = await getIsAdminStrict(userCredential?.user, { forceRefresh: true });
+
+    if (!access.allowedEmail) {
+      try {
+        clearAdminStepUpToken();
+        await signOut(auth);
+      } catch {
+        // ignore
+      }
+      throw new Error('not_allowed_admin_email');
     }
 
-    let data = null;
-    try {
-      data = await response.json();
-    } catch {
-      data = null;
+    if (!access.hasAdminClaim) {
+      try {
+        clearAdminStepUpToken();
+        await signOut(auth);
+      } catch {
+        // ignore
+      }
+      throw new Error('missing_admin_claim');
     }
 
-    if (!response.ok || !data?.ok || !data?.customToken) {
-      const apiError = String(data?.error || `request_failed_${response.status || 0}`);
-      const err = new Error(apiError);
-      err.code = (() => {
-        if (apiError === 'invalid_credentials') return 'auth/invalid-credential';
-        if (apiError === 'rate_limited') return 'auth/too-many-requests';
-        if (apiError === 'user_disabled') return 'auth/user-disabled';
-        if (apiError === 'login_unavailable') return 'auth/internal-error';
-        return 'auth/internal-error';
-      })();
-      err.details = data;
-      throw err;
+    if (access.requiresMfa && !access.hasSecondFactor) {
+      try {
+        clearAdminStepUpToken();
+        await signOut(auth);
+      } catch {
+        // ignore
+      }
+      throw new Error('missing_admin_mfa');
     }
 
-    return signInWithCustomToken(auth, data.customToken);
+    resetMfaState();
+    navigate('/admin/dashboard');
+  };
+
+  const startMfaChallenge = async (err) => {
+    const resolver = getMultiFactorResolver(auth, err);
+    const hint = Array.isArray(resolver?.hints) && resolver.hints.length ? resolver.hints[0] : null;
+    if (!hint) {
+      throw new Error('missing_mfa_hint');
+    }
+
+    const verifier = ensureRecaptchaVerifier();
+    const phoneAuthProvider = new PhoneAuthProvider(auth);
+    const verificationId = await phoneAuthProvider.verifyPhoneNumber(
+      {
+        multiFactorHint: hint,
+        session: resolver.session,
+      },
+      verifier
+    );
+
+    setMfaResolver(resolver);
+    setMfaVerificationId(verificationId);
+    setMfaHint(maskPhoneDisplay(hint?.phoneNumber || hint?.displayName || ''));
+    setMfaCode('');
+    setError('Doğrulama kodu gönderildi. Gelen SMS kodunu girin.');
+  };
+
+  const verifySecondFactor = async () => {
+    if (!mfaResolver || !mfaVerificationId) {
+      setError('İkinci doğrulama oturumu bulunamadı. Tekrar giriş yapın.');
+      resetMfaState();
+      return;
+    }
+
+    const code = String(mfaCode || '').trim();
+    if (!code) {
+      setError('SMS doğrulama kodu gerekli.');
+      return;
+    }
+
+    const credential = PhoneAuthProvider.credential(mfaVerificationId, code);
+    const assertion = PhoneMultiFactorGenerator.assertion(credential);
+    const resolved = await mfaResolver.resolveSignIn(assertion);
+    await completeAdminLogin(resolved);
   };
 
   const handleLogin = async (e) => {
@@ -139,9 +229,19 @@ export default function AdminLogin() {
     setLoading(true);
 
     try {
-      const normalized = normalizeEmail(email);
+      if (mfaResolver) {
+        await verifySecondFactor();
+        return;
+      }
+
+      const normalized = normalizeAdminEmail(email);
       if (!normalized || !password) {
         setError('Email ve şifre gerekli.');
+        return;
+      }
+
+      if (!hasAllowedAdminEmail(normalized)) {
+        setError('Bu email admin allowlist içinde değil.');
         return;
       }
 
@@ -157,22 +257,8 @@ export default function AdminLogin() {
         return;
       }
 
-      const cred = await signInWithEmailOnServer({ email: normalized, password });
-
-      // Login başarılı olsa bile admin yetkisi yoksa kullanıcı hemen /admin'e düşer.
-      // Bu, kullanıcı tarafında "yanlış şifre" gibi algılanabiliyor. Netleştirelim.
-      const adminOk = await getIsAdminStrict(cred?.user);
-      if (!adminOk) {
-        try {
-          await signOut(auth);
-        } catch {
-          // ignore
-        }
-        setError('Bu hesap admin yetkili değil. Sadece uzelemehmet@gmail.com ile giriş yapılabilir.');
-        return;
-      }
-
-      navigate('/admin/dashboard');
+      const cred = await signInWithEmailAndPassword(auth, normalized, password);
+      await completeAdminLogin(cred);
     } catch (err) {
       const code = String(err?.code || '').trim();
       const msg = String(err?.message || '').trim();
@@ -183,6 +269,16 @@ export default function AdminLogin() {
 
       if (code === 'auth/invalid-email') {
         setError('Email formatı geçersiz.');
+        return;
+      }
+
+      if (code === 'auth/multi-factor-auth-required') {
+        try {
+          await startMfaChallenge(err);
+        } catch (mfaErr) {
+          const mfaMsg = String(mfaErr?.message || '').trim();
+          setError(mfaMsg || 'İkinci doğrulama başlatılamadı. Firebase MFA yapılandırmasını kontrol edin.');
+        }
         return;
       }
 
@@ -201,10 +297,25 @@ export default function AdminLogin() {
         return;
       }
 
+      if (msg === 'missing_admin_claim') {
+        setError('Bu hesapta admin claim yok. Önce Firebase custom claim admin=true tanımlayın.');
+        return;
+      }
+
+      if (msg === 'missing_admin_mfa') {
+        setError('Bu admin hesabı için MFA zorunlu ama oturum ikinci faktör taşımıyor. Firebase MFA ile giriş tamamlanmalı.');
+        return;
+      }
+
+      if (msg === 'not_allowed_admin_email') {
+        setError('Bu hesap admin allowlist içinde değil.');
+        return;
+      }
+
       if (code === 'auth/invalid-credential' || code === 'auth/wrong-password' || code === 'auth/user-not-found') {
         // Tanılama (DEV): Bu email bu Firebase projesinde hangi yöntemlerle var?
         // Not: Email Enumeration Protection açıksa methods boş dönebilir.
-        const normalized = normalizeEmail(email);
+        const normalized = normalizeAdminEmail(email);
         if (showDebug && normalized) {
           try {
             const methods = await fetchSignInMethodsForEmail(auth, normalized);
@@ -233,14 +344,14 @@ export default function AdminLogin() {
     setError('');
     setDebug('');
 
-    const normalized = normalizeEmail(email);
+    const normalized = normalizeAdminEmail(email);
     if (!normalized) {
       setError('Email gerekli.');
       return;
     }
 
     // Şifre reseti kötüye kullanılmasın diye sadece allowlist'e izin veriyoruz.
-    if (!isAdminEmail(normalized)) {
+    if (!hasAllowedAdminEmail(normalized)) {
       setError('Bu email admin allowlist içinde değil.');
       return;
     }
@@ -339,19 +450,54 @@ export default function AdminLogin() {
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
                 className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-600"
-                required
+                required={!mfaResolver}
+                disabled={!!mfaResolver}
               />
             </div>
           </div>
+
+          {mfaResolver ? (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                SMS Doğrulama Kodu
+              </label>
+              <input
+                type="text"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                value={mfaCode}
+                onChange={(e) => setMfaCode(e.target.value)}
+                placeholder="123456"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-600"
+                required
+              />
+              <p className="mt-2 text-xs text-slate-500">
+                Kod gönderilen kayıt: {mfaHint || 'telefon numarası gizli'}
+              </p>
+            </div>
+          ) : null}
 
           <button
             type="submit"
             disabled={loading}
             className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-400 text-white font-semibold py-2 rounded-lg transition duration-200 mt-6"
           >
-            {loading ? 'Giriş yapılıyor...' : 'Giriş Yap'}
+            {loading ? 'İşleniyor...' : mfaResolver ? 'Kodu Doğrula' : 'Giriş Yap'}
           </button>
+
+          {mfaResolver ? (
+            <button
+              type="button"
+              onClick={resetMfaState}
+              disabled={loading}
+              className="w-full border border-slate-200 text-slate-700 font-semibold py-2 rounded-lg hover:bg-slate-50 transition duration-200"
+            >
+              Tekrar Başla
+            </button>
+          ) : null}
         </form>
+
+        <div id="admin-login-mfa-recaptcha" className="hidden" />
 
         <button
           type="button"

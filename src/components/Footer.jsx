@@ -242,7 +242,6 @@ export default function Footer() {
                 <p className="text-xs uppercase tracking-wide text-gray-500 mb-1">{t('footer.companyInfo.title')}</p>
                 <p><span className="text-gray-300">{t('footer.companyInfo.labels.legalName')}:</span> {COMPANY.legalName}</p>
                 <p><span className="text-gray-300">{t('footer.companyInfo.labels.address')}:</span> {COMPANY.address}</p>
-                <p><span className="text-gray-300">{t('footer.companyInfo.labels.tax')}:</span> {COMPANY.tax}</p>
                 <p><span className="text-gray-300">{t('footer.companyInfo.labels.nib')}:</span> {COMPANY.nib}</p>
               </div>
               <div className="flex items-center gap-2">

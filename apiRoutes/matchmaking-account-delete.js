@@ -66,6 +66,8 @@ export default async function handler(req, res) {
 
     // Primary docs
     const userRef = db.collection('matchmakingUsers').doc(uid);
+    const userSnap = await userRef.get();
+    const userData = userSnap.exists ? userSnap.data() || {} : {};
 
     // Related collections
     const appsQ = db.collection('matchmakingApplications').where('userId', '==', uid).limit(25);
@@ -143,6 +145,20 @@ export default async function handler(req, res) {
       await userRef.delete();
     } catch {
       // ignore
+    }
+
+    try {
+      await db.collection('accountDeletionLogs').add({
+        uid,
+        email: safeStr(userData?.email) || safeStr(decoded?.email),
+        fullName: safeStr(userData?.fullName),
+        username: safeStr(userData?.username),
+        whatsapp: safeStr(userData?.whatsapp),
+        source: 'self_service',
+        deletedAt: now,
+      });
+    } catch {
+      // Log kaydı başarısız olsa da hesap silme işlemini geri alma.
     }
 
     res.statusCode = 200;

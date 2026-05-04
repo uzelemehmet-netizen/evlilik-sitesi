@@ -442,6 +442,7 @@ export default async function handler(req, res) {
         userCode: '',
         lastSeenAtMs: 0,
         identityVerified: false,
+        profileTextLang: safeStr(cand?.profileTextLang) || safeStr(details?.profileTextLang),
         age: typeof age === 'number' && Number.isFinite(age) ? age : null,
         city: safeStr(cand?.city),
         country: safeStr(cand?.country),
@@ -491,7 +492,11 @@ export default async function handler(req, res) {
       }
 
       snaps.forEach((snap) => {
-        if (!snap || !snap.exists) return;
+        if (!snap || !snap.exists) {
+          const missingUid = safeStr(snap?.id);
+          if (missingUid) hiddenUidSet.add(missingUid);
+          return;
+        }
         const u = snap.data() || {};
         if (isAdminEmail(u?.authEmailLower || u?.authEmail)) {
           hiddenUidSet.add(snap.id);

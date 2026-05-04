@@ -1,17 +1,19 @@
 import Navigation from '../components/Navigation';
 import Footer from '../components/Footer';
+import YouTubeVisitCard from '../components/YouTubeVisitCard';
 import { Link } from 'react-router-dom';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { CheckCircle, MessageCircle, ShieldCheck, UserCheck, Sparkles, Lock, Crown, ArrowRight, LogIn } from 'lucide-react';
+import { UserCheck, Sparkles } from 'lucide-react';
 import { useAuth } from '../auth/AuthProvider';
-import GeminiFAQ from '../components/gemini/GeminiFAQ';
 import FoundersShowcase from '../components/FoundersShowcase';
 import { staticAssetUrl } from '../utils/staticAssetUrl';
 import { tiktokTrack } from '../utils/tiktokPixel';
 import { trackClick } from '../utils/clickTracker';
 import { getSupportCountrySync } from '../utils/supportLine';
-import { getPwaTutorialCopy } from '../utils/pwaTutorialCopy';
+import { APP_INSTALL_PATH } from '../utils/appInstallLink';
+
+const INSTAGRAM_PROFILE_URL = 'https://instagram.com/endonezyakasifi';
 
 let firestoreApiPromise = null;
 async function loadFirestoreApi() {
@@ -62,6 +64,10 @@ function getMatchmakingTrustUi(lang) {
       heroPanelEyebrow: 'Uyelik odasi',
       heroPanelTitle: 'Herkese acik bir vitrin degil, kontrollu bir eslestirme odasi',
       heroPanelBody: 'Fotograflar, detaylar ve iletisim ayni anda ortaya cikmaz. Sistem once uygunlugu, sonra guveni ve sonra temasi acar.',
+      instagramEyebrow: 'Instagram',
+      instagramTitle: 'Guncel paylasimlarimiz icin Instagram hesabimizi takip edin',
+      instagramBody: 'Gundelik paylasimlar, hikayeler ve Endonezya hayatiyla ilgili kisa icerikler icin Instagram hesabimiza da goz atabilirsiniz.',
+      instagramCta: "Instagram'da Ac",
       heroPanelStats: ['Kapali profil akisi', '48 saat + karsilikli onay', 'Insan destekli geri donus'],
       quickFacts: [
         {
@@ -105,6 +111,10 @@ function getMatchmakingTrustUi(lang) {
       heroPanelEyebrow: 'Member room',
       heroPanelTitle: 'Not a public showcase, but a controlled matchmaking room',
       heroPanelBody: 'Photos, details and contact are not exposed at once. The system first checks fit, then trust, then opens contact.',
+      instagramEyebrow: 'Instagram',
+      instagramTitle: 'Follow our Instagram for more current updates',
+      instagramBody: 'You can also check our Instagram for daily updates, stories, and short posts about life in Indonesia.',
+      instagramCta: 'Open Instagram',
       heroPanelStats: ['Closed-profile flow', '48h + mutual approval', 'Human-reviewed feedback'],
       quickFacts: [
         {
@@ -147,6 +157,10 @@ function getMatchmakingTrustUi(lang) {
       heroPanelEyebrow: 'Ruang anggota',
       heroPanelTitle: 'Bukan etalase publik, tetapi ruang matchmaking yang terkontrol',
       heroPanelBody: 'Foto, detail, dan kontak tidak dibuka sekaligus. Sistem memeriksa kecocokan dulu, lalu kepercayaan, lalu kontak.',
+      instagramEyebrow: 'Instagram',
+      instagramTitle: 'Ikuti Instagram kami untuk update terbaru',
+      instagramBody: 'Anda juga bisa melihat Instagram kami untuk update harian, story, dan konten singkat tentang kehidupan di Indonesia.',
+      instagramCta: 'Buka Instagram',
       heroPanelStats: ['Alur profil tertutup', '48 jam + persetujuan dua pihak', 'Umpan balik dengan dukungan manusia'],
       quickFacts: [
         {
@@ -190,13 +204,104 @@ function getMatchmakingTrustUi(lang) {
   return copy[lang] || copy.tr;
 }
 
+function getMatchmakingAppCtaUi(lang) {
+  const copy = {
+    tr: {
+      installLabel: 'Uygulamayi Indir',
+      openLabel: 'Uygulamayi Ac',
+    },
+    en: {
+      installLabel: 'Install the App',
+      openLabel: 'Open the App',
+    },
+    id: {
+      installLabel: 'Pasang Aplikasi',
+      openLabel: 'Buka Aplikasi',
+    },
+  };
+
+  return copy[lang] || copy.tr;
+}
+
+function MatchmakingAppSvgButton({ kind, label }) {
+  const isInstall = kind === 'install';
+  const fontSize = label === 'Install the App' ? 27 : 30;
+
+  return (
+    <svg viewBox="0 0 560 130" xmlns="http://www.w3.org/2000/svg" className="h-auto w-full drop-shadow-[0_18px_12px_rgba(0,0,0,0.30)]">
+      <style>{`
+        .cta-btn { cursor: pointer; transition: all .25s ease; transform-origin: center; }
+        .cta-btn:hover { transform: translateY(-3px) scale(1.02); filter: brightness(1.05); }
+      `}</style>
+
+      <defs>
+        <linearGradient id={isInstall ? 'gradMatchmakingInstall' : 'gradMatchmakingOpen'} x1="0%" y1="0%" x2="100%" y2="100%">
+          {isInstall ? (
+            <>
+              <stop offset="0%" stopColor="#ff5f6d" />
+              <stop offset="100%" stopColor="#ff2e63" />
+            </>
+          ) : (
+            <>
+              <stop offset="0%" stopColor="#4facfe" />
+              <stop offset="100%" stopColor="#3f5efb" />
+            </>
+          )}
+        </linearGradient>
+      </defs>
+
+      <g className="cta-btn">
+        <rect x="5" y="5" rx="65" width="550" height="120" fill={isInstall ? 'url(#gradMatchmakingInstall)' : 'url(#gradMatchmakingOpen)'} />
+        <rect
+          x="15"
+          y="15"
+          rx="55"
+          width="530"
+          height="100"
+          fill={isInstall ? '#f7edf1' : '#edf3ff'}
+          opacity="0.98"
+          stroke={isInstall ? '#f3c1cf' : '#bfd0ff'}
+          strokeWidth="2"
+        />
+
+        <g transform="translate(45,35)">
+          <rect width="60" height="60" rx="18" fill={isInstall ? '#ff2e63' : '#3f5efb'} />
+          {isInstall ? (
+            <path
+              d="M30 18 L30 42 M22 34 L30 42 L38 34"
+              stroke="#ffffff"
+              strokeWidth="3"
+              fill="none"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          ) : (
+            <path
+              d="M20 30 L40 30 M32 22 L40 30 L32 38"
+              stroke="#ffffff"
+              strokeWidth="3"
+              fill="none"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          )}
+        </g>
+
+        <text x="320" y="72" fontSize={fontSize} fontFamily="Arial" fill={isInstall ? '#ff2e63' : '#3f5efb'} textAnchor="middle" fontWeight="bold">
+          {label}
+        </text>
+      </g>
+    </svg>
+  );
+}
+
 export default function MatchmakingHub() {
   const { t, i18n } = useTranslation();
   const { user } = useAuth();
   const BRAND_LOGO_SRC = staticAssetUrl('/brand-logo.webp');
   const langBase = getBaseLang(i18n?.language);
   const trustUi = getMatchmakingTrustUi(langBase);
-  const pwaTutorialUi = getPwaTutorialCopy(t, i18n?.language);
+  const appCtaUi = getMatchmakingAppCtaUi(langBase);
 
   const trafficCountryHint = (() => {
     try {
@@ -216,8 +321,6 @@ export default function MatchmakingHub() {
       return '';
     }
   })();
-
-  const applyTo = '/login?mode=signup';
 
   const youtubeVideos = [
     // YouTube video önizlemeleri (thumbnail + tıklayınca lazy iframe)
@@ -467,11 +570,6 @@ export default function MatchmakingHub() {
     };
   }, []);
 
-  const howSteps = t('matchmakingHub.how.steps', { returnObjects: true });
-  const matchingPoints = t('matchmakingHub.matching.points', { returnObjects: true });
-  const safetyPoints = t('matchmakingHub.safety.points', { returnObjects: true });
-  const faqItems = t('matchmakingHub.faq.items', { returnObjects: true });
-
   const canShowApply = !user || (!checkingApplication && !hasApplication);
 
   return (
@@ -535,50 +633,46 @@ export default function MatchmakingHub() {
                   <div className="mt-6 flex flex-col sm:flex-row gap-3">
                     {!user && (
                       <Link
-                        to="/login?mode=login"
-                        state={{
-                          from: '/profilim',
-                          fromState: {
-                            matchmakingNext: '/profilim',
-                          },
+                        to={APP_INSTALL_PATH}
+                        onClick={() => {
+                          try {
+                            void trackClick('cta_matchmaking_hub_install_app');
+                          } catch {
+                            // ignore
+                          }
                         }}
-                        className="app-btn app-btn-primary-light h-10 px-5"
+                        className="block w-full sm:max-w-[320px]"
                       >
-                        <LogIn size={18} />
-                        {t('matchmakingHub.actions.loginExisting')}
-                        <ArrowRight size={18} />
+                        <MatchmakingAppSvgButton kind="install" label={appCtaUi.installLabel} />
                       </Link>
                     )}
 
                     {!user && canShowApply && (
                       <Link
-                        to={applyTo}
+                        to="/login"
                         state={{
-                          from: '/evlilik/eslestirme-basvuru?w=1',
+                          from: '/login',
                           fromState: {
-                            showMatchmakingIntro: true,
-                            matchmakingNext: '/evlilik/eslestirme-basvuru?w=1',
+                            matchmakingNext: '/login',
                           },
                         }}
                         onClick={() => {
                           preloadLoginChunk();
                           try {
-                            void trackClick('cta_matchmaking_hub_apply');
+                            void trackClick('cta_matchmaking_hub_open_app');
                           } catch {
                             // ignore
                           }
                           tiktokTrack('SignupRedirect', {
-                            source: 'matchmaking_hub_apply',
-                            to: applyTo,
+                            source: 'matchmaking_hub_open_app',
+                            to: '/login',
                           });
                         }}
                         onMouseEnter={preloadLoginChunk}
                         onTouchStart={preloadLoginChunk}
-                        className="app-btn app-btn-primary-light h-10 px-5"
+                        className="block w-full sm:max-w-[320px]"
                       >
-                        <Crown size={18} />
-                        {t('matchmakingHub.actions.apply')}
-                        <ArrowRight size={18} />
+                        <MatchmakingAppSvgButton kind="open" label={appCtaUi.openLabel} />
                       </Link>
                     )}
 
@@ -626,27 +720,37 @@ export default function MatchmakingHub() {
                     </div>
                   ) : null}
 
-                  <div className="mt-7 grid grid-cols-1 sm:grid-cols-3 gap-3">
-                    <div className="rounded-2xl border border-slate-200 bg-white p-4">
-                      <div className="flex items-center gap-2 text-sm font-semibold">
-                        <Lock size={16} className="text-emerald-700" />
-                        {t('matchmakingHub.cards.private.title')}
+                  <YouTubeVisitCard className="mt-5" compact />
+
+                  <div className="mt-4 rounded-[22px] border border-fuchsia-100 bg-[linear-gradient(135deg,rgba(253,242,248,0.98),rgba(255,255,255,0.96))] p-4 text-slate-900 shadow-[0_14px_34px_rgba(15,23,42,0.10)]">
+                    <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                      <div className="min-w-0 max-w-2xl">
+                        <div className="inline-flex items-center gap-2 rounded-full border border-fuchsia-200 bg-white px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-fuchsia-700">
+                          {trustUi.instagramEyebrow}
+                        </div>
+                        <div className="mt-3 text-base font-semibold text-slate-900">
+                          {trustUi.instagramTitle}
+                        </div>
+                        <p className="mt-2 text-sm leading-relaxed text-slate-600">
+                          {trustUi.instagramBody}
+                        </p>
                       </div>
-                      <div className="mt-2 text-xs text-slate-600 leading-relaxed">{t('matchmakingHub.cards.private.desc')}</div>
-                    </div>
-                    <div className="rounded-2xl border border-slate-200 bg-white p-4">
-                      <div className="flex items-center gap-2 text-sm font-semibold">
-                        <ShieldCheck size={16} className="text-emerald-700" />
-                        {t('matchmakingHub.cards.review.title')}
-                      </div>
-                      <div className="mt-2 text-xs text-slate-600 leading-relaxed">{t('matchmakingHub.cards.review.desc')}</div>
-                    </div>
-                    <div className="rounded-2xl border border-slate-200 bg-white p-4">
-                      <div className="flex items-center gap-2 text-sm font-semibold">
-                        <CheckCircle size={16} className="text-emerald-700" />
-                        {t('matchmakingHub.cards.panel.title')}
-                      </div>
-                      <div className="mt-2 text-xs text-slate-600 leading-relaxed">{t('matchmakingHub.cards.panel.desc')}</div>
+
+                      <a
+                        href={INSTAGRAM_PROFILE_URL}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={() => {
+                          try {
+                            void trackClick('cta_matchmaking_hub_instagram');
+                          } catch {
+                            // ignore
+                          }
+                        }}
+                        className="inline-flex items-center justify-center rounded-2xl border border-fuchsia-200 bg-fuchsia-50 px-4 py-2.5 text-sm font-semibold text-fuchsia-700 transition hover:bg-fuchsia-100"
+                      >
+                        {trustUi.instagramCta}
+                      </a>
                     </div>
                   </div>
                 </div>
@@ -695,387 +799,6 @@ export default function MatchmakingHub() {
                     </div>
                   </div>
                 </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <section className="relative max-w-7xl mx-auto px-4 pb-10 md:pb-12">
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-            <div className="lg:col-span-4 rounded-[30px] border border-slate-200 bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(248,250,252,0.94))] p-6 shadow-[0_20px_60px_rgba(15,23,42,0.08)]">
-              <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-emerald-800">{t('matchmakingHub.trust.title')}</div>
-              <div className="mt-3 rounded-[22px] border border-emerald-100 bg-emerald-50/70 p-4 text-sm leading-relaxed text-slate-700">
-                {trustUi.heroPanelBody}
-              </div>
-              <div className="mt-4 space-y-3">
-                {trustUi.quickFacts.map((item) => (
-                  <div key={item.title} className="rounded-[22px] border border-slate-200 bg-white p-4 shadow-[0_12px_30px_rgba(148,163,184,0.08)]">
-                    <div className="text-sm font-semibold text-slate-900">{item.title}</div>
-                    <div className="mt-1 text-sm text-slate-600 leading-relaxed">{item.body}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="lg:col-span-8 rounded-[30px] border border-slate-200 bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(248,250,252,0.94))] p-6 md:p-7 shadow-[0_20px_60px_rgba(15,23,42,0.08)]">
-              <h2 className="text-xl md:text-2xl font-semibold text-slate-950">{trustUi.stepsTitle}</h2>
-              <div className="mt-5 grid grid-cols-1 md:grid-cols-2 gap-4">
-                {trustUi.steps.map((step, idx) => (
-                  <div key={step.title} className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-[0_14px_40px_rgba(148,163,184,0.10)]">
-                    <div className="flex items-start gap-3">
-                      <div className="w-9 h-9 rounded-full bg-emerald-50 border border-emerald-100 text-emerald-900 flex items-center justify-center text-sm font-bold shadow-[0_10px_24px_rgba(16,185,129,0.10)]">
-                        {idx + 1}
-                      </div>
-                      <div>
-                        <div className="font-semibold text-slate-900">{step.title}</div>
-                        <div className="mt-1 text-sm text-slate-600 leading-relaxed">{step.body}</div>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* Panel preview (guest tutorial) */}
-        {!user ? (
-          <section className="relative max-w-7xl mx-auto px-4 pb-10 md:pb-12">
-            <div className="rounded-[26px] border border-slate-200 bg-white p-6 md:p-7">
-              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-                <div className="min-w-0">
-                  {youtubeVideos?.[2] ? (
-                    <div className="mb-4 lg:hidden">
-                      {renderVideoCard(youtubeVideos[2], 2)}
-                    </div>
-                  ) : null}
-
-                  <h2 className="text-lg md:text-xl font-semibold">{t('matchmakingHub.preview.title')}</h2>
-                  <p className="mt-2 text-sm text-slate-600 leading-relaxed">{t('matchmakingHub.preview.subtitle')}</p>
-                </div>
-                {!user ? (
-                  <div className="shrink-0">
-                    <Link
-                      to={applyTo}
-                      state={{
-                        from: '/evlilik/eslestirme-basvuru?w=1',
-                        fromState: {
-                          showMatchmakingIntro: true,
-                          matchmakingNext: '/evlilik/eslestirme-basvuru?w=1',
-                        },
-                      }}
-                      onClick={() => {
-                        try {
-                          void trackClick('cta_matchmaking_home_hero');
-                        } catch {
-                          // ignore
-                        }
-                      }}
-                      className="app-btn app-btn-primary-light h-10 px-5"
-                    >
-                      <Crown size={18} />
-                      {t('matchmakingHub.preview.cta')}
-                      <ArrowRight size={18} />
-                    </Link>
-                  </div>
-                ) : null}
-              </div>
-
-              <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="rounded-[22px] border border-slate-200 bg-gradient-to-b from-white to-slate-50 p-5">
-                  <div className="flex items-center gap-2 text-sm font-semibold text-slate-900">
-                    <UserCheck size={18} className="text-emerald-700" />
-                    {t('matchmakingHub.preview.cards.matches.title')}
-                  </div>
-                  <div className="mt-2 text-sm text-slate-600 leading-relaxed">{t('matchmakingHub.preview.cards.matches.body')}</div>
-                  <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-4">
-                    <div className="text-xs font-semibold text-slate-700">{t('matchmakingHub.preview.cards.matches.mockTitle')}</div>
-                    <div className="mt-2 space-y-2">
-                      <div className="flex items-center justify-between gap-3 rounded-xl bg-slate-50 border border-slate-200 px-3 py-2">
-                        <div className="min-w-0">
-                          <div className="text-sm font-semibold text-slate-900 truncate">{t('matchmakingHub.preview.cards.matches.mockItem1')}</div>
-                          <div className="text-[11px] text-slate-500 truncate">{t('matchmakingHub.preview.cards.matches.mockItem1Sub')}</div>
-                        </div>
-                        <div className="shrink-0 text-[11px] font-semibold text-emerald-800">{t('matchmakingHub.preview.cards.matches.mockTag1')}</div>
-                      </div>
-                      <div className="flex items-center justify-between gap-3 rounded-xl bg-slate-50 border border-slate-200 px-3 py-2">
-                        <div className="min-w-0">
-                          <div className="text-sm font-semibold text-slate-900 truncate">{t('matchmakingHub.preview.cards.matches.mockItem2')}</div>
-                          <div className="text-[11px] text-slate-500 truncate">{t('matchmakingHub.preview.cards.matches.mockItem2Sub')}</div>
-                        </div>
-                        <div className="shrink-0 text-[11px] font-semibold text-slate-700">{t('matchmakingHub.preview.cards.matches.mockTag2')}</div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="rounded-[22px] border border-slate-200 bg-gradient-to-b from-white to-slate-50 p-5">
-                  <div className="flex items-center gap-2 text-sm font-semibold text-slate-900">
-                    <Sparkles size={18} className="text-emerald-700" />
-                    {t('matchmakingHub.preview.cards.pool.title')}
-                  </div>
-                  <div className="mt-2 text-sm text-slate-600 leading-relaxed">{t('matchmakingHub.preview.cards.pool.body')}</div>
-                  <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-4">
-                    <div className="text-xs font-semibold text-slate-700">{t('matchmakingHub.preview.cards.pool.mockTitle')}</div>
-                    <div className="mt-2 space-y-2">
-                      <div className="rounded-xl bg-slate-50 border border-slate-200 px-3 py-2">
-                        <div className="text-sm font-semibold text-slate-900">{t('matchmakingHub.preview.cards.pool.mockItem1')}</div>
-                        <div className="mt-1 text-[11px] text-slate-500">{t('matchmakingHub.preview.cards.pool.mockItem1Sub')}</div>
-                        <div className="mt-2 inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-[11px] font-semibold text-emerald-900">
-                          <CheckCircle size={14} className="text-emerald-700" />
-                          {t('matchmakingHub.preview.cards.pool.mockCta')}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="rounded-[22px] border border-slate-200 bg-gradient-to-b from-white to-slate-50 p-5">
-                  <div className="flex items-center gap-2 text-sm font-semibold text-slate-900">
-                    <MessageCircle size={18} className="text-emerald-700" />
-                    {t('matchmakingHub.preview.cards.chat.title')}
-                  </div>
-                  <div className="mt-2 text-sm text-slate-600 leading-relaxed">{t('matchmakingHub.preview.cards.chat.body')}</div>
-                  <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-4">
-                    <div className="text-xs font-semibold text-slate-700">{t('matchmakingHub.preview.cards.chat.mockTitle')}</div>
-                    <div className="mt-2 space-y-2">
-                      <div className="rounded-xl bg-slate-50 border border-slate-200 px-3 py-2">
-                        <div className="text-[11px] text-slate-500">{t('matchmakingHub.preview.cards.chat.mockSystem')}</div>
-                        <div className="mt-1 text-sm font-semibold text-slate-900">{t('matchmakingHub.preview.cards.chat.mockMsg1')}</div>
-                        <div className="mt-1 text-sm text-slate-700">{t('matchmakingHub.preview.cards.chat.mockMsg2')}</div>
-                      </div>
-                      <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] text-amber-900">
-                        {t('matchmakingHub.preview.cards.chat.mockHint')}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </section>
-        ) : null}
-
-        {/* How it works */}
-        <section className="relative max-w-7xl mx-auto px-4 pb-12 md:pb-16">
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-            <div className="lg:col-span-5">
-              <div className="rounded-[26px] border border-slate-200 bg-white p-6 md:p-7">
-                <h2 className="text-lg md:text-xl font-semibold">{t('matchmakingHub.how.title')}</h2>
-                <p className="mt-2 text-sm text-slate-600 leading-relaxed">{t('matchmakingHub.how.subtitle')}</p>
-
-                <div className="mt-5 space-y-3">
-                  <div className="rounded-2xl border border-slate-200 bg-gradient-to-r from-emerald-50 to-transparent p-4">
-                    <div className="text-xs font-semibold text-emerald-900">{t('matchmakingHub.benefits.b1Title')}</div>
-                    <div className="mt-1 text-sm text-slate-700">{t('matchmakingHub.benefits.b1Body')}</div>
-                  </div>
-                  <div className="rounded-2xl border border-slate-200 bg-gradient-to-r from-emerald-50 to-transparent p-4">
-                    <div className="text-xs font-semibold text-emerald-900">{t('matchmakingHub.benefits.b2Title')}</div>
-                    <div className="mt-1 text-sm text-slate-700">{t('matchmakingHub.benefits.b2Body')}</div>
-                  </div>
-                  <div className="rounded-2xl border border-slate-200 bg-gradient-to-r from-emerald-50 to-transparent p-4">
-                    <div className="text-xs font-semibold text-emerald-900">{t('matchmakingHub.benefits.b3Title')}</div>
-                    <div className="mt-1 text-sm text-slate-700">{t('matchmakingHub.benefits.b3Body')}</div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="lg:col-span-7">
-              <div className="rounded-[26px] border border-slate-200 bg-white p-6 md:p-7">
-                <div className="flex items-center justify-between gap-4">
-                  <h3 className="text-base md:text-lg font-semibold">{t('matchmakingHub.flow.title')}</h3>
-                  <div className="text-xs text-slate-500">{t('matchmakingHub.flow.badge')}</div>
-                </div>
-
-                <div className="mt-5 grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {Array.isArray(howSteps) &&
-                    howSteps.map((step, idx) => (
-                      <div
-                        key={idx}
-                        className="group rounded-[22px] border border-slate-200 bg-gradient-to-b from-white to-slate-50 p-5 hover:bg-slate-50 transition"
-                      >
-                        <div className="flex items-start gap-3">
-                          <div className="w-9 h-9 rounded-full bg-emerald-50 border border-emerald-100 text-emerald-900 flex items-center justify-center text-sm font-bold">
-                            {idx + 1}
-                          </div>
-                          <div>
-                            <div className="font-semibold text-slate-900">{step.title}</div>
-                            <div className="mt-1 text-sm text-slate-600 leading-relaxed">{step.desc}</div>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* How we match */}
-        <section className="relative max-w-7xl mx-auto px-4 pb-14 md:pb-16">
-          <div className="rounded-[28px] border border-slate-200 bg-white p-6 md:p-10">
-            <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-6">
-              <div>
-                <h2 className="text-lg md:text-xl font-semibold">{t('matchmakingHub.matching.title')}</h2>
-                <p className="mt-2 text-sm text-slate-600 max-w-3xl leading-relaxed">{t('matchmakingHub.matching.subtitle')}</p>
-              </div>
-              <div className="inline-flex items-center gap-2 text-xs text-slate-500">
-                <Lock size={16} className="text-emerald-700" />
-                {t('matchmakingHub.matching.badge')}
-              </div>
-            </div>
-
-            <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-3">
-              {Array.isArray(matchingPoints) &&
-                matchingPoints.map((p, idx) => (
-                  <div key={idx} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                    <div className="flex gap-2 items-start">
-                      <CheckCircle size={18} className="mt-0.5 text-emerald-700" />
-                      <span className="text-sm text-slate-700 leading-relaxed">{p}</span>
-                    </div>
-                  </div>
-                ))}
-            </div>
-
-            <p className="mt-6 text-xs text-slate-500 leading-relaxed">{t('matchmakingHub.matching.note')}</p>
-          </div>
-        </section>
-
-        {/* Safety */}
-        <section className="relative max-w-7xl mx-auto px-4 pb-14 md:pb-16">
-          <div className="rounded-[28px] border border-slate-200 bg-white p-6 md:p-10">
-            <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-6">
-              <div>
-                <h2 className="text-lg md:text-xl font-semibold">{t('matchmakingHub.safety.title')}</h2>
-                <p className="mt-2 text-sm text-slate-600 max-w-3xl leading-relaxed">{t('matchmakingHub.safety.subtitle')}</p>
-              </div>
-              <div className="flex items-center gap-2 text-xs text-slate-500">
-                <ShieldCheck size={16} className="text-emerald-700" />
-                {t('matchmakingHub.safety.tagline')}
-              </div>
-            </div>
-
-            <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-3">
-              {Array.isArray(safetyPoints) &&
-                safetyPoints.map((p, idx) => (
-                  <div key={idx} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                    <div className="flex gap-2 items-start">
-                      <span className="mt-0.5 text-emerald-700">•</span>
-                      <span className="text-sm text-slate-700 leading-relaxed">{p}</span>
-                    </div>
-                  </div>
-                ))}
-            </div>
-
-            <div className="mt-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-              <p className="text-xs text-slate-500 max-w-3xl">{t('matchmakingPage.privacyNote')}</p>
-              <Link
-                to="/evlilik"
-                className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-sm font-semibold text-slate-800 shadow-sm transition hover:bg-slate-50"
-              >
-                {t('matchmakingHub.actions.backWedding')}
-                <ArrowRight size={18} />
-              </Link>
-            </div>
-          </div>
-        </section>
-
-        {/* FAQ */}
-        <GeminiFAQ
-          title={t('matchmakingHub.faq.title')}
-          subtitle={t('matchmakingHub.faq.subtitle')}
-          sideNote={t('matchmakingHub.faq.sideNote')}
-          items={faqItems}
-          variant="light"
-        />
-
-        {/* Trust + CTA */}
-        <section className="relative max-w-7xl mx-auto px-4 pb-16">
-          <div className="rounded-[28px] border border-slate-200 bg-white p-6 md:p-10">
-            <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-6">
-              <div>
-                <h2 className="text-lg md:text-xl font-semibold">{t('matchmakingHub.trust.title')}</h2>
-                <p className="mt-2 text-sm text-slate-600 max-w-3xl leading-relaxed">{t('matchmakingHub.trust.subtitle')}</p>
-              </div>
-              <div className="text-xs text-slate-500">{t('matchmakingHub.trust.badge')}</div>
-            </div>
-
-            <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-3">
-              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
-                <div className="flex items-center gap-2 text-sm font-semibold">
-                  <Lock size={16} className="text-emerald-700" />
-                  {t('matchmakingHub.trust.cards.privacy.title')}
-                </div>
-                <div className="mt-2 text-sm text-slate-600 leading-relaxed">{t('matchmakingHub.trust.cards.privacy.desc')}</div>
-              </div>
-              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
-                <div className="flex items-center gap-2 text-sm font-semibold">
-                  <ShieldCheck size={16} className="text-emerald-700" />
-                  {t('matchmakingHub.trust.cards.review.title')}
-                </div>
-                <div className="mt-2 text-sm text-slate-600 leading-relaxed">{t('matchmakingHub.trust.cards.review.desc')}</div>
-              </div>
-              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
-                <div className="flex items-center gap-2 text-sm font-semibold">
-                  <MessageCircle size={16} className="text-emerald-700" />
-                  {t('matchmakingHub.trust.cards.support.title')}
-                </div>
-                <div className="mt-2 text-sm text-slate-600 leading-relaxed">{t('matchmakingHub.trust.cards.support.desc')}</div>
-              </div>
-            </div>
-
-            <div className="mt-8 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
-              <div className="min-w-0">
-                <div className="text-sm font-semibold text-slate-900">{t('matchmakingHub.cta.title')}</div>
-                <div className="mt-1 text-sm text-slate-600">{t('matchmakingHub.cta.subtitle')}</div>
-                <div className="mt-2 text-xs text-slate-500">{trustUi.ctaNote}</div>
-                <div className="mt-2 text-xs text-emerald-700">{pwaTutorialUi.linkBody}</div>
-              </div>
-
-              <div className="flex flex-col sm:flex-row gap-3">
-                <Link
-                  to="/uygulama"
-                  className="app-btn app-btn-soft h-10 px-5"
-                >
-                  <Sparkles size={18} />
-                  {pwaTutorialUi.linkCta}
-                </Link>
-                {canShowApply && (
-                  <>
-                    <Link
-                      to={applyTo}
-                      state={{
-                        from: '/evlilik/eslestirme-basvuru?w=1',
-                        fromState: {
-                          showMatchmakingIntro: true,
-                          matchmakingNext: '/evlilik/eslestirme-basvuru?w=1',
-                        },
-                      }}
-                      onClick={() => {
-                        try {
-                          void trackClick('cta_matchmaking_home_hero');
-                        } catch {
-                          // ignore
-                        }
-                      }}
-                      className="app-btn app-btn-primary-light h-10 px-5"
-                    >
-                      <Crown size={18} />
-                      {t('matchmakingHub.actions.apply')}
-                      <ArrowRight size={18} />
-                    </Link>
-                  </>
-                )}
-
-                {user && (
-                  <Link
-                    to="/profilim"
-                    className="app-btn app-btn-primary-light h-10 px-5"
-                  >
-                    <UserCheck size={18} />
-                    {t('matchmakingHub.actions.goPanel')}
-                  </Link>
-                )}
               </div>
             </div>
           </div>

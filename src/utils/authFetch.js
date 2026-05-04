@@ -1,5 +1,15 @@
 import { auth } from '../config/firebaseAuth';
+import { getValidAdminStepUpToken, notifyAdminStepUpRequired } from './adminStepUp.js';
 import { buildSupportReport, storeSupportReport } from './supportReport.js';
+
+function isAdminApiUrl(url) {
+  return String(url || '').includes('/api/admin');
+}
+
+function isAdminStepUpControlUrl(url) {
+  const s = String(url || '');
+  return s.includes('/api/admin-step-up-status') || s.includes('/api/admin-step-up-verify');
+}
 
 function isDebugApiEnabled() {
   if (typeof window === 'undefined') return false;
@@ -57,12 +67,19 @@ export async function authFetch(url, { headers = {}, ...options } = {}) {
 
   let res;
   try {
+    const nextHeaders = {
+      ...headers,
+      authorization: `Bearer ${token}`,
+    };
+
+    if (isAdminApiUrl(url)) {
+      const stepUpToken = getValidAdminStepUpToken();
+      if (stepUpToken) nextHeaders['x-admin-step-up'] = stepUpToken;
+    }
+
     res = await fetch(url, {
       ...options,
-      headers: {
-        ...headers,
-        authorization: `Bearer ${token}`,
-      },
+      headers: nextHeaders,
     });
   } catch (e) {
     // Best-effort: prepare a report for support (no auto-redirect here).
@@ -109,6 +126,10 @@ export async function authFetch(url, { headers = {}, ...options } = {}) {
     err.status = res.status;
     err.url = url;
     if (!data && rawText) err.responseText = rawText.slice(0, 2000);
+
+    if (!isAdminStepUpControlUrl(url) && (err.message === 'admin_step_up_required' || err.message === 'admin_step_up_invalid')) {
+      notifyAdminStepUpRequired();
+    }
 
     // Prepare a report for support to be shared via Contact.
     try {

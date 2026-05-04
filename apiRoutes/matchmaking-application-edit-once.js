@@ -3,6 +3,7 @@ import { emitMemberFeedEvent } from './_memberFeed.js';
 import { ensureUserCodeAssigned } from './_matchmakingUserCode.js';
 import { normalizeGender, resolveLookingForGender } from './_matchmakingEligibility.js';
 import { buildBilingualProfileText, detectForbiddenContactPII, normalizeProfileLang } from './_matchmakingProfileText.js';
+import { normalizeCompletedStubApplication } from './_matchmakingApplicationActivation.js';
 
 const MAX_TEXT_LEN = 1800;
 function safeStr(value, maxLen) {
@@ -115,6 +116,7 @@ export default async function handler(req, res) {
   const partnerCommunicationMethods = toStringArray(partner?.communicationMethods, { maxItems: 5, maxLen: 40 });
 
   const photoUrls = Array.isArray(payload?.photoUrls) ? payload.photoUrls : null;
+  const nextWhatsapp = safeStr(payload?.whatsapp, 60);
 
   const nextUsername = safeStr(payload?.username, 60);
   const nextUsernameLower = normalizeUsernameLower(payload?.username || payload?.usernameLower);
@@ -131,7 +133,7 @@ export default async function handler(req, res) {
     age: toNumOrNull(payload?.age, { min: 18, max: 99 }),
     city: safeStr(payload?.city, 80),
     country: safeStr(payload?.country, 80),
-    whatsapp: safeStr(payload?.whatsapp, 60),
+    whatsapp: nextWhatsapp,
     instagram: safeStr(payload?.instagram, 80),
     nationality: safeStr(payload?.nationality, 30),
     gender: normalizeGender(payload?.gender),
@@ -201,6 +203,8 @@ export default async function handler(req, res) {
   };
 
   updates.lookingForGender = resolveLookingForGender(updates.gender, payload?.lookingForGender);
+
+  const clearDeferredWhatsappGate = !!nextWhatsapp;
 
   if (photoUrls) {
     updates.photoUrls = toStringArray(photoUrls, { maxItems: 6, maxLen: 400 });
@@ -398,6 +402,7 @@ export default async function handler(req, res) {
         tx.create(desiredRef, {
           ...(cur && typeof cur === 'object' ? cur : {}),
           ...updates,
+          ...(clearDeferredWhatsappGate ? { deferredWhatsappRequiredAfterMs: 0 } : {}),
           migratedFrom: curId,
           migratedAt: FieldValue.serverTimestamp(),
           updatedAt: FieldValue.serverTimestamp(),
@@ -420,6 +425,7 @@ export default async function handler(req, res) {
   } else {
     await docRef.update({
       ...updates,
+      ...(clearDeferredWhatsappGate ? { deferredWhatsappRequiredAfterMs: 0 } : {}),
       updatedAt: FieldValue.serverTimestamp(),
     });
   }
@@ -432,6 +438,7 @@ export default async function handler(req, res) {
       ...(safeStr(updates?.country, 80) ? { country: safeStr(updates.country, 80) } : {}),
       ...(safeStr(updates?.nationality, 40) ? { nationality: safeStr(updates.nationality, 40) } : {}),
       ...(safeStr(updates?.gender, 30) ? { gender: safeStr(updates.gender, 30) } : {}),
+      ...(safeStr(updates?.whatsapp, 60) ? { whatsapp: safeStr(updates.whatsapp, 60) } : {}),
       ...(safeStr(updates?.lookingForNationality, 40) ? { lookingForNationality: safeStr(updates.lookingForNationality, 40) } : {}),
       ...(safeStr(updates?.lookingForGender, 30) ? { lookingForGender: safeStr(updates.lookingForGender, 30) } : {}),
     };
@@ -442,8 +449,10 @@ export default async function handler(req, res) {
       ...(patchCore.country ? { country: patchCore.country } : {}),
       ...(patchCore.nationality ? { nationality: patchCore.nationality } : {}),
       ...(patchCore.gender ? { gender: patchCore.gender } : {}),
+      ...(patchCore.whatsapp ? { whatsapp: patchCore.whatsapp } : {}),
       ...(patchCore.lookingForNationality ? { lookingForNationality: patchCore.lookingForNationality } : {}),
       ...(patchCore.lookingForGender ? { lookingForGender: patchCore.lookingForGender } : {}),
+      ...(clearDeferredWhatsappGate ? { deferredWhatsappRequiredAfterMs: 0 } : {}),
       ...(updates?.details && typeof updates.details === 'object' ? { details: updates.details } : {}),
       ...(updates?.partnerPreferences && typeof updates.partnerPreferences === 'object' ? { partnerPreferences: updates.partnerPreferences } : {}),
     };
@@ -453,11 +462,15 @@ export default async function handler(req, res) {
       ...(updates?.fullName ? { fullName: safeStr(updates.fullName, 120) } : {}),
       ...patchCore,
       ...(finalApplicationId ? { applicationId: finalApplicationId } : {}),
+      hasSubmittedProfile: true,
+      applicationState: 'real',
+      ...(clearDeferredWhatsappGate ? { deferredWhatsappRequiredAfterMs: 0 } : {}),
       ...(Object.keys(appPatch).length ? { application: appPatch } : {}),
       publicProfile: {
         ...(updates?.usernameLower ? { username: safeStr(updates.username, 60), usernameLower: safeStr(updates.usernameLower, 80) } : {}),
         ...(updates?.fullName ? { fullName: safeStr(updates.fullName, 120) } : {}),
         ...patchCore,
+        ...(clearDeferredWhatsappGate ? { deferredWhatsappRequiredAfterMs: 0 } : {}),
       },
       details: {
         ...(updates?.fullName ? { fullName: safeStr(updates.fullName, 120) } : {}),
@@ -466,6 +479,25 @@ export default async function handler(req, res) {
     };
 
     await db.collection('matchmakingUsers').doc(uid).set(userPatch, { merge: true });
+
+    try {
+      const [nextAppSnap, nextUserSnap] = await Promise.all([
+        db.collection('matchmakingApplications').doc(finalApplicationId).get(),
+        db.collection('matchmakingUsers').doc(uid).get(),
+      ]);
+      if (nextAppSnap.exists && nextUserSnap.exists) {
+        await normalizeCompletedStubApplication({
+          db,
+          FieldValue,
+          uid,
+          applicationId: finalApplicationId,
+          app: nextAppSnap.data() || {},
+          userDoc: nextUserSnap.data() || {},
+        });
+      }
+    } catch {
+      // best-effort
+    }
 
     const ensuredCode = await ensureUserCodeAssigned({ db, FieldValue, uid, gender: patchCore.gender, nowMs: Date.now() });
     const ensuredUserCode = safeStr(ensuredCode?.userCode, 40);
@@ -484,7 +516,7 @@ export default async function handler(req, res) {
 
   // Realtime member feed: kullanıcı profil metinlerini ilk kez yazdıysa "profilini tamamladı" event'i.
   // Best-effort; hata olursa akışı bozmayalım.
-  if (writingTextsNow) {
+  if (writingAnyTextNow) {
     try {
       const userSnap = await db.collection('matchmakingUsers').doc(uid).get();
       const userDoc = userSnap.exists ? (userSnap.data() || {}) : {};

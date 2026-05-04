@@ -6,23 +6,6 @@ function safeStr(v) {
   return typeof v === 'string' ? v.trim() : '';
 }
 
-function containsContactLikeText(text) {
-  const s = String(text || '').toLowerCase();
-
-  if (/https?:\/\//i.test(s) || /www\./i.test(s) || /\b[a-z0-9-]+\.(com|net|org|id|tr|me)\b/i.test(s)) return true;
-  if (/(instagram|insta|\big\b|facebook|\bfb\b|telegram|\bt\.me\b|whatsapp|\bwa\.me\b|line\b|tiktok|discord)/i.test(s)) return true;
-  if (/@[a-z0-9_\.]{2,}/i.test(s)) return true;
-
-  const digitsOnly = s.replace(/[^0-9]/g, '');
-  if (digitsOnly.length >= 8) {
-    if (/\+\s*\d{8,}/.test(s)) return true;
-    if (digitsOnly.length >= 10) return true;
-    if (/(\d[\s\-\.\(\)]*){8,}/.test(s)) return true;
-  }
-
-  return false;
-}
-
 function buildFromProfileFromMatchProfile(p) {
   const obj = p && typeof p === 'object' ? p : {};
   const username = safeStr(obj?.username);
@@ -67,13 +50,6 @@ export default async function handler(req, res) {
       res.statusCode = 400;
       res.setHeader('content-type', 'application/json');
       res.end(JSON.stringify({ ok: false, error: 'short_message_too_long' }));
-      return;
-    }
-
-    if (messageText && containsContactLikeText(messageText)) {
-      res.statusCode = 400;
-      res.setHeader('content-type', 'application/json');
-      res.end(JSON.stringify({ ok: false, error: 'filtered' }));
       return;
     }
 

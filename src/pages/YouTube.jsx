@@ -4,7 +4,18 @@ import { Play, Youtube } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { getYouTubeVideosForLang } from "../data/youtube";
 import React from "react";
+import { Link } from "react-router-dom";
 import { staticAssetUrl } from "../utils/staticAssetUrl";
+import { APP_INSTALL_PATH } from "../utils/appInstallLink";
+import { trackClick } from "../utils/clickTracker";
+
+const YOUTUBE_CHANNEL_URL = 'https://www.youtube.com/@endonezyakasifi';
+const YOUTUBE_CHANNEL_VIDEOS_URL = 'https://www.youtube.com/@endonezyakasifi/videos';
+
+function getYouTubeWatchUrl(videoId) {
+  const id = String(videoId || '').trim();
+  return id ? `https://www.youtube.com/watch?v=${id}` : YOUTUBE_CHANNEL_VIDEOS_URL;
+}
 
 const FALLBACK_THUMB_DATA_URL =
   'data:image/svg+xml;charset=utf-8,' +
@@ -60,19 +71,18 @@ function YouTubeThumb({ videoId, title }) {
 export default function YouTube() {
   const { t, i18n } = useTranslation();
   const videos = getYouTubeVideosForLang(i18n.language);
+  const youtubeHeroSrc = staticAssetUrl('/youtube-channel-banner.png');
 
   return (
     <div className="min-h-screen bg-white">
       <Navigation />
 
       {/* Hero Section */}
-      <section className="pt-24 pb-44 px-4 relative overflow-hidden min-h-96" style={{
-  		backgroundImage: 'linear-gradient(180deg, rgba(15,23,42,0.45), rgba(15,23,42,0.75)), url(/ernests-vaga-mzJFI9o5_zc-unsplash.jpg)',
-        backgroundSize: 'cover',
-        backgroundPosition: 'center 112%',
-        backgroundRepeat: 'no-repeat',
-        backgroundAttachment: 'fixed'
-      }}>
+      <section className="pt-24 pb-20 px-4 relative overflow-hidden bg-[linear-gradient(180deg,#0f172a_0%,#111827_100%)]">
+        <div aria-hidden="true" className="absolute inset-0 opacity-70">
+          <div className="absolute -top-24 left-1/2 h-72 w-72 -translate-x-1/2 rounded-full bg-[radial-gradient(circle_at_center,rgba(239,68,68,0.28),rgba(239,68,68,0)_68%)] blur-3xl" />
+          <div className="absolute right-0 top-12 h-80 w-80 rounded-full bg-[radial-gradient(circle_at_center,rgba(59,130,246,0.18),rgba(59,130,246,0)_72%)] blur-3xl" />
+        </div>
         <div className="max-w-7xl mx-auto relative z-10">
           <div className="text-center">
             <div className="flex items-center justify-center mb-6">
@@ -81,6 +91,17 @@ export default function YouTube() {
             <h1 className="text-2xl md:text-3xl font-medium text-white" style={{ textShadow: '0 3px 10px rgba(0,0,0,0.65)' }}>
               {t("youtubePage.hero.title")}
             </h1>
+            <div className="mx-auto mt-8 max-w-5xl overflow-hidden rounded-[28px] border border-white/10 bg-white/6 p-3 shadow-[0_30px_80px_rgba(0,0,0,0.28)] backdrop-blur-sm md:p-4">
+              <div className="flex h-[220px] items-center justify-center overflow-hidden rounded-[22px] bg-[#0f1720] md:h-[320px] lg:h-[380px]">
+                <img
+                  src={youtubeHeroSrc}
+                  alt="Endonezya Kasifi YouTube channel banner"
+                  className="h-full w-full object-contain"
+                  loading="eager"
+                  decoding="async"
+                />
+              </div>
+            </div>
           </div>
         </div>
       </section>
@@ -102,22 +123,30 @@ export default function YouTube() {
         <div className="max-w-6xl mx-auto">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {videos.map((video) => (
-              <div
+              <a
                 key={video.id}
-                className="bg-white rounded-lg overflow-hidden shadow-md hover:shadow-xl transition duration-300 group"
+                href={getYouTubeWatchUrl(video.videoId)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="group block overflow-hidden rounded-lg bg-white shadow-md transition duration-300 hover:shadow-xl"
+                onClick={() => {
+                  const videoId = String(video.videoId || '').trim();
+                  if (!videoId) return;
+                  void trackClick(`youtube_video_watch:${videoId}`, {
+                    page: '/youtube',
+                    trace: true,
+                  });
+                }}
               >
                 {/* Thumbnail - Küçültülmüş */}
                 <div className="relative w-full bg-gray-900 overflow-hidden aspect-video">
                   <YouTubeThumb videoId={video.videoId} title={video.title} />
                   <div className="absolute inset-0 bg-black/40 group-hover:bg-black/60 transition flex items-center justify-center">
-                    <a
-                      href={`https://www.youtube.com/watch?v=${video.videoId}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="bg-red-600 hover:bg-red-700 text-white p-3 rounded-full transition transform group-hover:scale-110"
-                    >
+                    <div className="inline-flex items-center gap-2 rounded-full bg-[#ff0033] px-4 py-2 text-sm font-semibold text-white shadow-[0_10px_24px_rgba(255,0,51,0.35)] transition transform group-hover:scale-110">
+                      <Youtube size={18} fill="currentColor" />
+                      <span>YouTube</span>
                       <Play size={24} fill="currentColor" />
-                    </a>
+                    </div>
                   </div>
                 </div>
 
@@ -130,17 +159,12 @@ export default function YouTube() {
                     {video.description}
                   </p>
 
-                  <a
-                    href={`https://www.youtube.com/watch?v=${video.videoId}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-2 text-red-600 font-medium hover:text-red-700 transition text-xs md:text-sm"
-                  >
-                    <Play size={14} fill="currentColor" />
+                  <div className="inline-flex items-center gap-2 rounded-full bg-[#ff0033] px-3 py-1.5 text-xs font-semibold text-white shadow-[0_10px_24px_rgba(255,0,51,0.22)] md:text-sm">
+                    <Youtube size={15} fill="currentColor" />
                     {t("youtubePage.video.watch")}
-                  </a>
+                  </div>
                 </div>
-              </div>
+              </a>
             ))}
           </div>
         </div>
@@ -161,13 +185,29 @@ export default function YouTube() {
                 <p className="text-gray-600 text-sm md:text-base mb-6">
                   {t("youtubePage.cta.text")}
                 </p>
-                <a
-                  href="#videos"
-                  className="inline-flex items-center gap-2 bg-red-600 text-white px-6 py-2.5 rounded-lg font-medium hover:bg-red-700 transition text-sm md:text-base"
-                >
-                  <Youtube size={20} />
-                  {t("youtubePage.cta.visit")}
-                </a>
+                <div className="flex flex-wrap items-center gap-3">
+                  <a
+                    href={YOUTUBE_CHANNEL_URL}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 rounded-full bg-[#ff0033] px-6 py-3 font-semibold text-white shadow-[0_16px_34px_rgba(255,0,51,0.28)] transition hover:bg-[#e0002d] text-sm md:text-base"
+                    onClick={() => {
+                      void trackClick('youtube_channel_visit:cta', {
+                        page: '/youtube',
+                        trace: true,
+                      });
+                    }}
+                  >
+                    <Youtube size={20} fill="currentColor" />
+                      {t('youtubePage.cta.visit')}
+                  </a>
+                  <Link
+                    to={APP_INSTALL_PATH}
+                    className="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-6 py-2.5 font-medium text-slate-800 transition hover:border-slate-400 hover:bg-slate-50 text-sm md:text-base"
+                  >
+                      {t('youtubePage.cta.installPage')}
+                  </Link>
+                </div>
               </div>
             </div>
           </div>

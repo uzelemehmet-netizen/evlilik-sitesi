@@ -42,6 +42,7 @@ export default function ImageLightbox({ images, currentIndex, onClose }) {
 
   return (
     <div
+      data-testid="image-lightbox"
       className="fixed inset-0 z-[100] bg-black/95 flex items-center justify-center p-4"
       onClick={onClose}
     >

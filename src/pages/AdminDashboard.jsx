@@ -144,6 +144,7 @@ export default function AdminDashboard() {
   const [authDebug, setAuthDebug] = useState({ loading: true, admin: null, email: '', uid: '', projectId: '' });
   const [matchmakingItems, setMatchmakingItems] = useState([]);
   const [matchmakingNewCount, setMatchmakingNewCount] = useState(0);
+  const [reviewNewCount, setReviewNewCount] = useState(0);
   const [geminiAlertItems, setGeminiAlertItems] = useState([]);
   const [geminiAlertNewCount, setGeminiAlertNewCount] = useState(0);
   const [, setIdentityPendingCount] = useState(0);
@@ -410,6 +411,28 @@ export default function AdminDashboard() {
       (error) => {
         if (blockFirestoreIfNeeded(error)) return;
         console.error('Firestore matchmakingSystemAlerts dinleme hatası:', error);
+      }
+    );
+
+    return () => unsub();
+  }, [blockFirestoreIfNeeded, firestoreBlocked]);
+
+  useEffect(() => {
+    if (firestoreBlocked) return;
+
+    const q = query(
+      collection(db, 'matchmakingFeedback'),
+      where('kind', '==', 'review'),
+      where('status', '==', 'new'),
+      limit(200)
+    );
+
+    const unsub = onSnapshot(
+      q,
+      (snap) => setReviewNewCount(snap.size),
+      (error) => {
+        if (blockFirestoreIfNeeded(error)) return;
+        console.error('Firestore review pending count error:', error);
       }
     );
 
@@ -1835,6 +1858,17 @@ export default function AdminDashboard() {
 	  >
 	    Bildirimler
 	  </button>
+    <button
+      onClick={() => navigate('/admin/reviews')}
+      className="px-6 py-3 font-semibold transition whitespace-nowrap text-gray-600 hover:text-gray-800"
+    >
+      Degerlendirmeler
+      {reviewNewCount > 0 && (
+        <span className="ml-2 inline-flex items-center justify-center min-w-6 h-6 px-2 rounded-full bg-emerald-600 text-white text-xs">
+          {reviewNewCount}
+        </span>
+      )}
+    </button>
     <button
       onClick={() => setActiveTab('systemAlerts')}
       className={`px-6 py-3 font-semibold transition whitespace-nowrap ${

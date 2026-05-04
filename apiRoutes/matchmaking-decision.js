@@ -1,6 +1,7 @@
 import { getAdmin, normalizeBody, requireIdToken } from './_firebaseAdmin.js';
 import { assertNotResetIgnoredMatch, getMatchmakingResetAtMs } from './_matchmakingReset.js';
 import { ensureMembershipActiveOrThrow, ensureProfileCompleteOrThrow } from './_matchmakingEligibility.js';
+import { ensureRequesterAllowedByTargetInteractionFilter } from './_matchmakingInteractionFilter.js';
 import { sendPushToUid } from './_push.js';
 
 function normalizeDecision(v) {
@@ -355,6 +356,19 @@ export default async function handler(req, res) {
         const err = new Error('application_not_found');
         err.statusCode = 404;
         throw err;
+      }
+
+      if (decision === 'accept') {
+        const interactionGate = ensureRequesterAllowedByTargetInteractionFilter({
+          targetUserDoc: otherUser,
+          requesterUserDoc: meUser,
+          requesterApp: myApp,
+        });
+        if (!interactionGate.ok) {
+          const err = new Error(interactionGate.reason);
+          err.statusCode = interactionGate.reason === 'interaction_filter_age_required' ? 400 : 403;
+          throw err;
+        }
       }
 
       // Age gating: accept (beğeni) gönderiyorsan, karşı tarafın yaş aralığına uyman gerekir.

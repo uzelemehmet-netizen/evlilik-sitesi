@@ -1,9 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Bell, Download, Info } from 'lucide-react';
+import { useAuth } from '../auth/AuthProvider.jsx';
 import { enablePushForCurrentUser, hasSavedPushToken } from '../utils/pushNotifications';
 import { firebaseWebPushVapidKey } from '../config/firebasePublicConfig';
 import { detectInstalledRelatedAppsAndMark, isPwaInstalled, markPwaInstalled } from '../utils/pwaInstalled';
+import { isPwaNotificationPromptSuppressed, markPwaNotificationPromptSuppressed } from '../utils/pwaNotificationPrompt.js';
+import { APP_INSTALL_PATH } from '../utils/appInstallLink';
 
 function isIos() {
   if (typeof navigator === 'undefined') return false;
@@ -13,6 +16,8 @@ function isIos() {
 
 export default function PwaInstallCard({ variant = 'light', flat = false }) {
   const { t } = useTranslation();
+  const { user } = useAuth();
+  const uid = String(user?.uid || '').trim();
 
   const [deferredPrompt, setDeferredPrompt] = useState(null);
   const [installed, setInstalled] = useState(() => isPwaInstalled());
@@ -21,6 +26,7 @@ export default function PwaInstallCard({ variant = 'light', flat = false }) {
   const [notifyStatus, setNotifyStatus] = useState('');
   const [notifyBusy, setNotifyBusy] = useState(false);
   const [, setPushEnabled] = useState(false);
+  const [notificationPromptDismissed, setNotificationPromptDismissed] = useState(() => isPwaNotificationPromptSuppressed(uid));
 
   const canBrowserNotify = useMemo(() => {
     return typeof window !== 'undefined' && 'Notification' in window;
@@ -124,6 +130,20 @@ export default function PwaInstallCard({ variant = 'light', flat = false }) {
   const enableNotifyBtnClass = `app-btn app-btn-primary w-full sm:w-auto ${darkRingOffset}`.trim();
 
   const installAvailable = !installed && !!deferredPrompt;
+  const installCtaOpensTutorial = !installed && !installAvailable && !isIosDevice;
+  const shouldShowNotificationPrompt = installed && !notificationPromptDismissed && notificationPermission !== 'granted';
+
+  useEffect(() => {
+    setNotificationPromptDismissed(isPwaNotificationPromptSuppressed(uid));
+  }, [uid]);
+
+  const openInstallFlow = () => {
+    try {
+      window.location.assign(APP_INSTALL_PATH);
+    } catch {
+      // ignore
+    }
+  };
 
   const onInstall = async () => {
     if (installed) return;
@@ -172,6 +192,8 @@ export default function PwaInstallCard({ variant = 'light', flat = false }) {
 
   const onEnableNotifications = async () => {
     if (notifyBusy) return;
+    markPwaNotificationPromptSuppressed(uid);
+    setNotificationPromptDismissed(true);
     setNotifyBusy(true);
     setNotifyStatus('');
 
@@ -282,19 +304,21 @@ export default function PwaInstallCard({ variant = 'light', flat = false }) {
       <div className="mt-4 flex flex-col sm:flex-row gap-3">
         <button
           type="button"
-          onClick={onInstall}
+          onClick={installCtaOpensTutorial ? openInstallFlow : onInstall}
           disabled={installed}
           className={installBtnClass}
-          title={installAvailable ? '' : t('pwa.install.installNotAvailableHint')}
+          title={installAvailable || installCtaOpensTutorial ? '' : t('pwa.install.installNotAvailableHint')}
         >
           <Download size={18} />
-          {installed ? t('pwa.install.installed') : t('pwa.install.installButton')}
+          {installed ? t('pwa.install.installed') : installCtaOpensTutorial ? t('pwa.tutorial.linkCta') : t('pwa.install.installButton')}
         </button>
 
-        <button type="button" onClick={onEnableNotifications} className={enableNotifyBtnClass} disabled={notifyBusy}>
-          <Bell size={18} />
-          {notifyBusy ? t('studio.common.processing') : t('pwa.install.notifications.button')}
-        </button>
+        {shouldShowNotificationPrompt ? (
+          <button type="button" onClick={onEnableNotifications} className={enableNotifyBtnClass} disabled={notifyBusy}>
+            <Bell size={18} />
+            {notifyBusy ? t('studio.common.processing') : t('pwa.install.notifications.button')}
+          </button>
+        ) : null}
       </div>
 
       {installStatus ? (
@@ -330,19 +354,21 @@ export default function PwaInstallCard({ variant = 'light', flat = false }) {
         <p className={`mt-3 text-xs ${subtleClass}`}>{t('pwa.install.installNotAvailableHint')}</p>
       )}
 
-      <div className={`mt-4 rounded-xl border ${isDark ? 'border-white/10 bg-white/[0.04]' : 'border-slate-200 bg-slate-50'} p-4`}>
-        <p className={`text-xs font-semibold ${titleClass}`}>{t('pwa.install.notifications.title')}</p>
-        <p className={`mt-1 text-xs ${textClass}`}>{t('pwa.install.notifications.lead')}</p>
-        <ul className={`mt-2 list-disc pl-5 space-y-1 text-xs ${textClass}`}>
-          <li>{t('pwa.install.notifications.items.newMessage')}</li>
-          <li>{t('pwa.install.notifications.items.newLike')}</li>
-          <li>{t('pwa.install.notifications.items.profileAccess')}</li>
-          <li>{t('pwa.install.notifications.items.shortMessage')}</li>
-          <li>{t('pwa.install.notifications.items.activeMatch')}</li>
-          <li>{t('pwa.install.notifications.items.poolCandidates')}</li>
-        </ul>
-        <p className={`mt-2 text-[11px] ${subtleClass}`}>{t('pwa.install.notifications.note')}</p>
-      </div>
+      {installed && (shouldShowNotificationPrompt || !!notifyStatus || notificationPermission === 'granted') ? (
+        <div className={`mt-4 rounded-xl border ${isDark ? 'border-white/10 bg-white/[0.04]' : 'border-slate-200 bg-slate-50'} p-4`}>
+          <p className={`text-xs font-semibold ${titleClass}`}>{t('pwa.install.notifications.title')}</p>
+          <p className={`mt-1 text-xs ${textClass}`}>{t('pwa.install.notifications.lead')}</p>
+          <ul className={`mt-2 list-disc pl-5 space-y-1 text-xs ${textClass}`}>
+            <li>{t('pwa.install.notifications.items.newMessage')}</li>
+            <li>{t('pwa.install.notifications.items.newLike')}</li>
+            <li>{t('pwa.install.notifications.items.profileAccess')}</li>
+            <li>{t('pwa.install.notifications.items.shortMessage')}</li>
+            <li>{t('pwa.install.notifications.items.activeMatch')}</li>
+            <li>{t('pwa.install.notifications.items.poolCandidates')}</li>
+          </ul>
+          <p className={`mt-2 text-[11px] ${subtleClass}`}>{t('pwa.install.notifications.note')}</p>
+        </div>
+      ) : null}
     </section>
   );
 }

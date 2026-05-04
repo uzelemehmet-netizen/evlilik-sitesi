@@ -1,4 +1,5 @@
 import { getAdmin, normalizeBody, requireIdToken } from './_firebaseAdmin.js';
+import { ensureDeferredPhotoInteractionAllowedOrThrow } from './_matchmakingEligibility.js';
 
 function safeStr(v) {
   return typeof v === 'string' ? v.trim() : '';
@@ -31,6 +32,7 @@ export default async function handler(req, res) {
     }
 
     const { db, FieldValue } = getAdmin();
+    await ensureDeferredPhotoInteractionAllowedOrThrow(db, uid);
 
     const inboxRef = db.collection('matchmakingUsers').doc(uid).collection('inboxMessages').doc(messageId);
     const ts = nowMs();

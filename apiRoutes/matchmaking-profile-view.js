@@ -14,6 +14,34 @@ function asObj(v) {
   return v && typeof v === 'object' ? v : {};
 }
 
+function mergeProfileSources({ userDoc, applicationDoc }) {
+  const user = asObj(userDoc);
+  const publicProfile = asObj(user?.publicProfile);
+  const appFromUser = asObj(user?.application);
+  const app = asObj(applicationDoc);
+
+  const merged = {
+    ...publicProfile,
+    ...appFromUser,
+    ...app,
+    ...user,
+    details: {
+      ...asObj(publicProfile?.details),
+      ...asObj(appFromUser?.details),
+      ...asObj(app?.details),
+      ...asObj(user?.details),
+    },
+    partnerPreferences: {
+      ...asObj(publicProfile?.partnerPreferences),
+      ...asObj(appFromUser?.partnerPreferences),
+      ...asObj(app?.partnerPreferences),
+      ...asObj(user?.partnerPreferences),
+    },
+  };
+
+  return merged;
+}
+
 function hasDirectPeopleListAccess(item) {
   const data = item && typeof item === 'object' ? item : {};
   const type = safeStr(data?.type);
@@ -73,6 +101,7 @@ export default async function handler(req, res) {
 
     const body = normalizeBody(req);
     const targetUid = safeStr(body?.targetUid);
+    const silent = body?.silent === true || String(body?.silent || '').trim().toLowerCase() === 'true' || String(body?.silent || '').trim() === '1';
 
     if (!uid || !targetUid || uid === targetUid) {
       res.statusCode = 400;
@@ -81,16 +110,18 @@ export default async function handler(req, res) {
       return;
     }
 
-    const { db, admin } = getAdmin();
-    const { FieldValue } = admin.firestore;
+    const { db, FieldValue } = getAdmin();
 
     const requestId = `${uid}__${targetUid}`;
-    const [grantSnap, peopleListSnap] = await Promise.all([
+    const [grantSnap, peopleListSnap, directInboxSnap, directOutboxSnap] = await Promise.all([
       db.collection('matchmakingUsers').doc(targetUid).collection('profileAccessGranted').doc(uid).get(),
       db.collection('matchmakingUsers').doc(uid).collection('outboxPreMatchRequests').doc(requestId).get(),
+      db.collection('matchmakingUsers').doc(uid).collection('inboxMessages').where('fromUid', '==', targetUid).limit(1).get(),
+      db.collection('matchmakingUsers').doc(uid).collection('outboxMessages').where('toUid', '==', targetUid).limit(1).get(),
     ]);
 
-    const hasAccess = grantSnap.exists || (peopleListSnap.exists && hasDirectPeopleListAccess(peopleListSnap.data() || {}));
+    const hasDirectMessageAccess = !directInboxSnap.empty || !directOutboxSnap.empty;
+    const hasAccess = grantSnap.exists || (peopleListSnap.exists && hasDirectPeopleListAccess(peopleListSnap.data() || {})) || hasDirectMessageAccess;
 
     if (!hasAccess) {
       res.statusCode = 403;
@@ -109,91 +140,99 @@ export default async function handler(req, res) {
       return;
     }
 
-    const details = asObj(app?.details);
-    const partnerPreferences = asObj(app?.partnerPreferences);
-
     let userCode = '';
     let userCodeNo = null;
+    let userDoc = {};
     try {
       const userSnap = await db.collection('matchmakingUsers').doc(targetUid).get();
-      const u = userSnap.exists ? userSnap.data() || {} : {};
-      userCode = safeStr(u?.userCode) || safeStr(u?.publicProfile?.userCode);
-      const n = typeof u?.userCodeNo === 'number' && Number.isFinite(u.userCodeNo)
-        ? u.userCodeNo
-        : (typeof u?.publicProfile?.userCodeNo === 'number' && Number.isFinite(u.publicProfile.userCodeNo)
-            ? u.publicProfile.userCodeNo
+      userDoc = userSnap.exists ? userSnap.data() || {} : {};
+      userCode = safeStr(userDoc?.userCode) || safeStr(userDoc?.publicProfile?.userCode);
+      const n = typeof userDoc?.userCodeNo === 'number' && Number.isFinite(userDoc.userCodeNo)
+        ? userDoc.userCodeNo
+        : (typeof userDoc?.publicProfile?.userCodeNo === 'number' && Number.isFinite(userDoc.publicProfile.userCodeNo)
+            ? userDoc.publicProfile.userCodeNo
             : null);
       userCodeNo = n;
     } catch {
-      // best-effort
+      userDoc = {};
     }
+
+    const merged = mergeProfileSources({ userDoc, applicationDoc: app });
+    const details = asObj(merged?.details);
+    const partnerPreferences = asObj(merged?.partnerPreferences);
+    const photoUrls = Array.isArray(merged?.photoUrls)
+      ? merged.photoUrls.filter((u) => typeof u === 'string' && u.trim()).slice(0, 8)
+      : [];
 
     const profile = {
       uid: targetUid,
       applicationId: safeStr(app?.id),
       userCode,
       userCodeNo,
-      username: safeStr(app?.username),
-      age: asNum(app?.age),
-      city: safeStr(app?.city),
-      country: safeStr(app?.country),
-      nationality: safeStr(app?.nationality),
-      gender: safeStr(app?.gender),
-      lookingForNationality: safeStr(app?.lookingForNationality),
-      lookingForGender: safeStr(app?.lookingForGender),
-      photoUrls: Array.isArray(app?.photoUrls) ? app.photoUrls.filter((u) => typeof u === 'string' && u.trim()).slice(0, 8) : [],
-      about: safeStr(app?.about),
-      aboutTr: safeStr(app?.aboutTr),
-      aboutId: safeStr(app?.aboutId),
-      expectations: safeStr(app?.expectations),
-      expectationsTr: safeStr(app?.expectationsTr),
-      expectationsId: safeStr(app?.expectationsId),
+      username: safeStr(merged?.username),
+      fullName: safeStr(merged?.fullName),
+      age: asNum(merged?.age),
+      city: safeStr(merged?.city),
+      country: safeStr(merged?.country),
+      nationality: safeStr(merged?.nationality),
+      gender: safeStr(merged?.gender),
+      lookingForNationality: safeStr(merged?.lookingForNationality),
+      lookingForGender: safeStr(merged?.lookingForGender),
+      photoUrls,
+      about: safeStr(merged?.about),
+      aboutTr: safeStr(merged?.aboutTr),
+      aboutId: safeStr(merged?.aboutId),
+      expectations: safeStr(merged?.expectations),
+      expectationsTr: safeStr(merged?.expectationsTr),
+      expectationsId: safeStr(merged?.expectationsId),
       details,
       partnerPreferences,
     };
 
-    // Profile view notify (best-effort, throttled per viewer->target).
-    let shouldNotify = false;
-    try {
-      const viewRef = db.collection('matchmakingUsers').doc(targetUid).collection('profileViews').doc(uid);
-      const nowMs = Date.now();
-      const minGapMs = 6 * 60 * 60 * 1000; // 6h
-      await db.runTransaction(async (tx) => {
-        const snap = await tx.get(viewRef);
-        const cur = snap.exists ? snap.data() || {} : {};
-        const lastNotifiedAtMs = typeof cur.lastNotifiedAtMs === 'number' && Number.isFinite(cur.lastNotifiedAtMs) ? cur.lastNotifiedAtMs : 0;
-        const allow = !lastNotifiedAtMs || nowMs - lastNotifiedAtMs >= minGapMs;
-        shouldNotify = allow;
-        tx.set(
-          viewRef,
-          {
-            viewerUid: uid,
-            targetUid,
-            lastViewedAt: FieldValue.serverTimestamp(),
-            lastViewedAtMs: nowMs,
-            ...(allow ? { lastNotifiedAt: FieldValue.serverTimestamp(), lastNotifiedAtMs: nowMs } : {}),
-          },
-          { merge: true }
-        );
-      });
-    } catch {
-      // ignore
-    }
-
-    if (shouldNotify) {
+    if (!silent) {
+      // Profile view notify (best-effort, throttled per viewer->target).
+      let shouldNotify = false;
       try {
-        await sendPushToUid({
-          uid: targetUid,
-          title: 'Profil görüntülendi',
-          body: 'Profilinizi görüntüleyen biri var.',
-          url: '/profilim',
-          type: 'profile_view',
-          data: {
-            fromUid: uid,
-          },
+        const viewRef = db.collection('matchmakingUsers').doc(targetUid).collection('profileViews').doc(uid);
+        const nowMs = Date.now();
+        const minGapMs = 6 * 60 * 60 * 1000; // 6h
+        await db.runTransaction(async (tx) => {
+          const snap = await tx.get(viewRef);
+          const cur = snap.exists ? snap.data() || {} : {};
+          const lastNotifiedAtMs = typeof cur.lastNotifiedAtMs === 'number' && Number.isFinite(cur.lastNotifiedAtMs) ? cur.lastNotifiedAtMs : 0;
+          const allow = !lastNotifiedAtMs || nowMs - lastNotifiedAtMs >= minGapMs;
+          shouldNotify = allow;
+          tx.set(
+            viewRef,
+            {
+              viewerUid: uid,
+              targetUid,
+              lastViewedAt: FieldValue.serverTimestamp(),
+              lastViewedAtMs: nowMs,
+              ...(allow ? { lastNotifiedAt: FieldValue.serverTimestamp(), lastNotifiedAtMs: nowMs } : {}),
+            },
+            { merge: true }
+          );
         });
       } catch {
         // ignore
+      }
+
+      if (shouldNotify) {
+        try {
+          await sendPushToUid({
+            uid: targetUid,
+            title: 'Profil görüntülendi',
+            body: 'Profilinizi görüntüleyen biri var.',
+            url: '/profilim',
+            type: 'profile_view',
+            data: {
+              fromUid: uid,
+            },
+          });
+        } catch {
+          // ignore
+        }
       }
     }
 

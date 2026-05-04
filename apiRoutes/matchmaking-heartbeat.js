@@ -1,6 +1,8 @@
 import { getAdmin, requireIdToken } from './_firebaseAdmin.js';
 import { computeFreeActiveMembershipState, isFreeActiveEnabled } from './_matchmakingEligibility.js';
 import { getMinAgeFromEnv } from './_matchmakingAgePolicy.js';
+import { ensureUserCodeAssigned } from './_matchmakingUserCode.js';
+import { isSyntheticTestUserRecord } from './_syntheticTestUser.js';
 
 async function loadMatchmakingRun() {
   const mod = await import('./matchmaking-run.js');
@@ -76,10 +78,16 @@ function formatUcNo(n) {
   return `UC-${Math.floor(v)}`;
 }
 
+function isSupportedUserCodeNo(no) {
+  const numeric = typeof no === 'number' ? no : Number(no);
+  return Number.isFinite(numeric) && numeric > 0 && numeric < 100000;
+}
+
 function doesUserCodeMatchGender(no, gender) {
   const numeric = typeof no === 'number' ? no : Number(no);
   const genderNorm = normalizeGender(gender);
   if (!Number.isFinite(numeric) || numeric <= 0) return true;
+  if (!isSupportedUserCodeNo(numeric)) return false;
   if (genderNorm === 'female') return numeric >= 1001 && numeric < 2000;
   if (genderNorm === 'male') return numeric >= 2001;
   return true;
@@ -367,70 +375,7 @@ export default async function handler(req, res) {
       const snap = await tx.get(ref);
       const user = snap.exists ? (snap.data() || {}) : {};
 
-      // Kullanıcı kodu (UC-1000/2000 serisi): gender'a göre otomatik atama.
-      // Not: Transaction içinde monotonic sayaç kullanıyoruz.
-      const existingUserCode = safeStr(user?.userCode) || safeStr(user?.publicProfile?.userCode);
-      const existingUserCodeNo =
-        (typeof user?.userCodeNo === 'number' ? user.userCodeNo : 0) ||
-        (typeof user?.publicProfile?.userCodeNo === 'number' ? user.publicProfile.userCodeNo : 0) ||
-        parseUcNo(existingUserCode);
-      const genderNorm = normalizeGender(user?.gender);
-      const storedUserCodeGender = normalizeGender(user?.userCodeGender);
-      const hasBandMismatch =
-        !!existingUserCode &&
-        existingUserCodeNo > 0 &&
-        (genderNorm === 'female' || genderNorm === 'male') &&
-        !doesUserCodeMatchGender(existingUserCodeNo, genderNorm);
-      let userCodePatch = {};
-
-      if ((genderNorm === 'female' || genderNorm === 'male') && (hasBandMismatch || (!existingUserCode && !(existingUserCodeNo > 0)))) {
-        const countersRef = db.collection('matchmakingMeta').doc('userCodeCounters');
-        const countersSnap = await tx.get(countersRef);
-        const counters = countersSnap.exists ? (countersSnap.data() || {}) : {};
-
-        const baseFemale = 1001;
-        const baseMale = 2001;
-
-        const nextFemaleRaw = typeof counters?.nextFemale === 'number' ? counters.nextFemale : parseUcNo(counters?.nextFemaleCode);
-        const nextMaleRaw = typeof counters?.nextMale === 'number' ? counters.nextMale : parseUcNo(counters?.nextMaleCode);
-
-        const nextFemale = Number.isFinite(nextFemaleRaw) && nextFemaleRaw >= baseFemale ? Math.floor(nextFemaleRaw) : baseFemale;
-        const nextMale = Number.isFinite(nextMaleRaw) && nextMaleRaw >= baseMale ? Math.floor(nextMaleRaw) : baseMale;
-
-        const assignedNo = genderNorm === 'female' ? nextFemale : nextMale;
-        const assignedCode = formatUcNo(assignedNo);
-
-        if (assignedCode) {
-          userCodePatch = {
-            userCode: assignedCode,
-            userCodeNo: assignedNo,
-            'publicProfile.userCode': assignedCode,
-            'publicProfile.userCodeNo': assignedNo,
-            userCodeGender: genderNorm,
-            userCodeAssignedAtMs: now,
-            ...(hasBandMismatch && existingUserCode ? { previousUserCode: existingUserCode } : {}),
-            ...(hasBandMismatch && existingUserCodeNo > 0 ? { previousUserCodeNo: existingUserCodeNo } : {}),
-            ...(hasBandMismatch ? { userCodeReassignedAtMs: now } : {}),
-          };
-
-          tx.set(
-            countersRef,
-            {
-              nextFemale: genderNorm === 'female' ? assignedNo + 1 : nextFemale,
-              nextMale: genderNorm === 'male' ? assignedNo + 1 : nextMale,
-              updatedAt: FieldValue.serverTimestamp(),
-              updatedAtMs: now,
-            },
-            { merge: true }
-          );
-        }
-      } else if (existingUserCode || existingUserCodeNo > 0) {
-        userCodePatch = {
-          ...(existingUserCode && safeStr(user?.publicProfile?.userCode) !== existingUserCode ? { 'publicProfile.userCode': existingUserCode } : {}),
-          ...(existingUserCodeNo > 0 && user?.publicProfile?.userCodeNo !== existingUserCodeNo ? { 'publicProfile.userCodeNo': existingUserCodeNo } : {}),
-          ...((genderNorm === 'female' || genderNorm === 'male') && storedUserCodeGender !== genderNorm ? { userCodeGender: genderNorm } : {}),
-        };
-      }
+      const userCodePatch = {};
 
       // Promo ücretsiz üyelik süresi normalize:
       // Daha önce 30 gün olarak yazılmış olanları da cutoff'a sabitle.
@@ -619,6 +564,21 @@ export default async function handler(req, res) {
 
       const meSnap = await ref.get();
       const me = meSnap.exists ? (meSnap.data() || {}) : {};
+
+      try {
+        await ensureUserCodeAssigned({
+          db,
+          FieldValue,
+          uid,
+          gender:
+            normalizeGender(me?.gender) ||
+            normalizeGender(me?.publicProfile?.gender) ||
+            normalizeGender(me?.application?.gender),
+          nowMs: now,
+        });
+      } catch {
+        // ignore
+      }
 
       // Otomatik havuza alma: kullanıcı matchmakingApplications'a düşmemişse (edge-case),
       // profil bilgisi varsa auto_stub başvurusu oluştur.

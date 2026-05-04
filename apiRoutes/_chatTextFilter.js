@@ -6,7 +6,40 @@ function normalize(text) {
   return safeStr(text).toLowerCase();
 }
 
-function looksLikeContact(text) {
+function digitsOnly(text) {
+  return normalize(text).replace(/[^0-9]/g, '');
+}
+
+function isPhoneFragmentCandidate(text) {
+  const raw = safeStr(text).trim();
+  if (!raw) return false;
+
+  const compact = raw.replace(/[\s\-\.\(\)]/g, '');
+  if (!/^\+?\d+$/.test(compact)) return false;
+
+  const digits = digitsOnly(compact);
+  return digits.length >= 5 && digits.length <= 8;
+}
+
+function looksLikeSplitPhone(text, recentTexts = []) {
+  if (!isPhoneFragmentCandidate(text)) return false;
+
+  const candidates = [...(Array.isArray(recentTexts) ? recentTexts : []), text]
+    .map((entry) => safeStr(entry))
+    .filter(Boolean)
+    .slice(-3);
+
+  const fragments = candidates
+    .filter((entry) => isPhoneFragmentCandidate(entry))
+    .map((entry) => digitsOnly(entry));
+
+  if (fragments.length < 2) return false;
+
+  const totalDigits = fragments.reduce((sum, entry) => sum + entry.length, 0);
+  return totalDigits >= 10;
+}
+
+function looksLikeContact(text, recentTexts = []) {
   const s = normalize(text);
 
   // Email
@@ -30,6 +63,8 @@ function looksLikeContact(text) {
     if (/(\d[\s\-\.\(\)]*){8,}/.test(s)) return true;
   }
 
+  if (looksLikeSplitPhone(text, recentTexts)) return true;
+
   return false;
 }
 
@@ -46,10 +81,12 @@ function looksLikeSexualContent(text) {
   return false;
 }
 
-export function detectForbiddenChatText(text) {
+export function detectForbiddenChatText(text, options = {}) {
+  const recentTexts = Array.isArray(options?.recentTexts) ? options.recentTexts : [];
+  const allowContact = options?.allowContact === true;
   const reasons = [];
 
-  if (looksLikeContact(text)) reasons.push('contact');
+  if (!allowContact && looksLikeContact(text, recentTexts)) reasons.push('contact');
   if (looksLikeSexualContent(text)) reasons.push('sexual');
 
   return {

@@ -9,9 +9,26 @@ service cloud.firestore {
       return isSignedIn() && request.auth.token.firebase.sign_in_provider != 'anonymous';
     }
 
-    function isAdmin() {
-      // Güvenlik: Admin yetkisi tek kullanıcıyla sınırlı.
+    function hasAdminEmail() {
       return isNonAnonymous() && request.auth.token.email.lower() == 'uzelemehmet@gmail.com';
+    }
+
+    function hasAdminClaim() {
+      return request.auth.token.admin == true;
+    }
+
+    function requiresAdminSecondFactor() {
+      return request.auth.token.admin_mfa_required == true;
+    }
+
+    function hasAdminSecondFactor() {
+      return !requiresAdminSecondFactor() || request.auth.token.firebase.sign_in_second_factor != null;
+    }
+
+    function isAdmin() {
+      // Güvenlik: admin erişimi hem allowlist email hem custom claim ister.
+      // İsteğe bağlı olarak admin_mfa_required claim'i açıldığında ikinci faktör de zorunlu olur.
+      return hasAdminEmail() && hasAdminClaim() && hasAdminSecondFactor();
     }
 
     // Varsayılan yaklaşım: sadece aşağıdaki matchmaking koleksiyonlarına izin ver.
@@ -206,6 +223,11 @@ service cloud.firestore {
     match /siteSettings/{docId} {
       allow read: if true;
       allow write: if isAdmin();
+    }
+
+    // Admin panelde KUA ofislerine gore belge gereksinimleri ve ornek gorseller saklanir.
+    match /adminKuaOffices/{officeId} {
+      allow read, write: if isAdmin();
     }
 
     // Tours (tur içerikleri)

@@ -14,13 +14,22 @@ function normalizeProfileLang(v) {
   return '';
 }
 
+function getConfiguredProvider(preferredProvider) {
+  const provider = safeStr(preferredProvider || process.env.TRANSLATE_PROVIDER || '').toLowerCase();
+  if (provider === 'deepl' && safeStr(process.env.DEEPL_API_KEY)) return 'deepl';
+  if (provider === 'libretranslate' && safeStr(process.env.LIBRETRANSLATE_URL)) return 'libretranslate';
+  if (provider === 'google' && safeStr(process.env.GOOGLE_TRANSLATE_API_KEY)) return 'google';
+  if (provider === 'gemini' && hasGeminiTranslateApiKey()) return 'gemini';
+
+  if (hasGeminiTranslateApiKey()) return 'gemini';
+  if (safeStr(process.env.DEEPL_API_KEY)) return 'deepl';
+  if (safeStr(process.env.GOOGLE_TRANSLATE_API_KEY)) return 'google';
+  if (safeStr(process.env.LIBRETRANSLATE_URL)) return 'libretranslate';
+  return '';
+}
+
 function isConfigured() {
-  const provider = safeStr(process.env.TRANSLATE_PROVIDER || '').toLowerCase();
-  if (provider === 'deepl') return !!safeStr(process.env.DEEPL_API_KEY);
-  if (provider === 'libretranslate') return !!safeStr(process.env.LIBRETRANSLATE_URL);
-  if (provider === 'google') return !!safeStr(process.env.GOOGLE_TRANSLATE_API_KEY);
-  if (provider === 'gemini') return !!safeStr(process.env.GEMINI_API_KEY || process.env.GOOGLE_GEMINI_API_KEY);
-  return false;
+  return !!getConfiguredProvider();
 }
 
 function deeplTargetLang(lang) {
@@ -173,7 +182,7 @@ import { phrasebookTranslate } from './_phrasebook_tr_id.js';
 import { detectPII } from './_pii.js';
 
 // Gemini provider (free tier) with PII blocking/redaction.
-import { translateWithGemini } from './_geminiTranslate.js';
+import { hasGeminiTranslateApiKey, translateWithGemini } from './_geminiTranslate.js';
 
 export function normalizeChatLang(v) {
   return normalizeLang(v);
@@ -211,7 +220,7 @@ export async function translateText({ text, targetLang, provider }) {
     throw err;
   }
 
-  const p = safeStr(provider || process.env.TRANSLATE_PROVIDER || '').toLowerCase();
+  const p = getConfiguredProvider(provider);
   if (p === 'deepl') return translateWithDeepL(t, lang);
   if (p === 'libretranslate') return translateWithLibreTranslate(t, lang);
   if (p === 'google') return translateWithGoogle(t, lang);
@@ -254,7 +263,7 @@ export async function translateTextProfile({ text, targetLang, provider }) {
     throw err;
   }
 
-  const p = safeStr(provider || process.env.TRANSLATE_PROVIDER || '').toLowerCase();
+  const p = getConfiguredProvider(provider);
   if (p === 'deepl') return translateWithDeepL(t, lang);
   if (p === 'libretranslate') return translateWithLibreTranslate(t, lang);
   if (p === 'google') return translateWithGoogle(t, lang);

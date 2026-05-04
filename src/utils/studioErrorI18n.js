@@ -31,9 +31,26 @@ export function translateStudioApiError(t, raw) {
 
   if (s === 'not_in_their_age_range') return t('studio.errors.notInTheirAgeRange');
   if (s === 'age_required') return t('studio.errors.ageRequired');
+  if (s === 'interaction_filter_verified_required') return t('studio.errors.interactionFilterVerifiedRequired');
+  if (s === 'interaction_filter_photo_required') return t('studio.errors.interactionFilterPhotoRequired');
+  if (s === 'interaction_filter_age_required') return t('studio.errors.interactionFilterAgeRequired');
+  if (s === 'interaction_filter_age_blocked') return t('studio.errors.interactionFilterAgeBlocked');
+  if (s === 'interaction_filter_marital_status_blocked') return t('studio.errors.interactionFilterMaritalStatusBlocked');
 
   if (s === 'profile_incomplete' || s === 'application_required' || s === 'application_not_found') {
     return t('studio.profileGate.body');
+  }
+
+  if (s === 'photo_review_required') {
+    return t('studio.profileGate.photoReviewBody');
+  }
+
+  if (s === 'deferred_photo_required') {
+    return t('studio.profileGate.deferredPhotoBody');
+  }
+
+  if (s === 'deferred_whatsapp_required') {
+    return t('studio.profileGate.deferredWhatsappBody');
   }
 
   if (

@@ -123,7 +123,7 @@ function promptHidden(question) {
 
 function usage(exitCode = 0) {
   // eslint-disable-next-line no-console
-  console.log(`\nKullanım:\n  node scripts/admin-user.mjs --email <mail> --check\n  node scripts/admin-user.mjs --email <mail> --create-if-missing\n  node scripts/admin-user.mjs --email <mail> --set-password <yeniSifre> --create-if-missing\n  node scripts/admin-user.mjs --email <mail> --set-admin-claim\n  node scripts/admin-user.mjs --email <mail> --clear-admin-claim\n\nDavranış:\n- --set-password verilmezse script şifreyi terminalde sorar (maskeli).\n- --set-admin-claim / --clear-admin-claim: Firebase Auth custom claim yazar.\n\nNotlar:\n- .env.local içindeki FIREBASE_SERVICE_ACCOUNT_JSON_FILE / JSON ile admin yetkisi gerekir.\n- Custom claim değişince kullanıcı tekrar giriş yapmalı (token yenilensin).\n`);
+  console.log(`\nKullanım:\n  node scripts/admin-user.mjs --email <mail> --check\n  node scripts/admin-user.mjs --email <mail> --create-if-missing\n  node scripts/admin-user.mjs --email <mail> --set-password <yeniSifre> --create-if-missing\n  node scripts/admin-user.mjs --email <mail> --set-admin-claim\n  node scripts/admin-user.mjs --email <mail> --clear-admin-claim\n  node scripts/admin-user.mjs --email <mail> --set-admin-mfa-required\n  node scripts/admin-user.mjs --email <mail> --clear-admin-mfa-required\n\nDavranış:\n- --set-password verilmezse script şifreyi terminalde sorar (maskeli).\n- --set-admin-claim / --clear-admin-claim: Firebase Auth custom claim yazar.\n- --set-admin-mfa-required / --clear-admin-mfa-required: Firestore/admin erişiminde ikinci faktörü zorunlu kılan claim'i yönetir.\n\nNotlar:\n- .env.local içindeki FIREBASE_SERVICE_ACCOUNT_JSON_FILE / JSON ile admin yetkisi gerekir.\n- Custom claim değişince kullanıcı tekrar giriş yapmalı (token yenilensin).\n`);
   process.exit(exitCode);
 }
 
@@ -135,6 +135,8 @@ if (!email) usage(1);
 const doCheck = hasFlag('--check');
 const setAdminClaim = hasFlag('--set-admin-claim');
 const clearAdminClaim = hasFlag('--clear-admin-claim');
+const setAdminMfaRequired = hasFlag('--set-admin-mfa-required');
+const clearAdminMfaRequired = hasFlag('--clear-admin-mfa-required');
 let newPassword = getArgValue('--set-password');
 const createIfMissing = hasFlag('--create-if-missing');
 
@@ -144,13 +146,19 @@ if (setAdminClaim && clearAdminClaim) {
   process.exit(1);
 }
 
-if ((setAdminClaim || clearAdminClaim) && doCheck) {
+if (setAdminMfaRequired && clearAdminMfaRequired) {
+  // eslint-disable-next-line no-console
+  console.error('Hata: --set-admin-mfa-required ve --clear-admin-mfa-required aynı anda kullanılamaz.');
+  process.exit(1);
+}
+
+if ((setAdminClaim || clearAdminClaim || setAdminMfaRequired || clearAdminMfaRequired) && doCheck) {
   // eslint-disable-next-line no-console
   console.error('Hata: --check ile admin-claim bayraklarını birlikte kullanmayın.');
   process.exit(1);
 }
 
-if (!doCheck && !setAdminClaim && !clearAdminClaim && newPassword === null) {
+if (!doCheck && !setAdminClaim && !clearAdminClaim && !setAdminMfaRequired && !clearAdminMfaRequired && newPassword === null) {
   // password not provided -> prompt
   try {
     newPassword = await promptHidden('Yeni şifre: ');
@@ -198,7 +206,7 @@ if (doCheck) {
   process.exit(0);
 }
 
-if (setAdminClaim || clearAdminClaim) {
+if (setAdminClaim || clearAdminClaim || setAdminMfaRequired || clearAdminMfaRequired) {
   const { user, found } = await getUserByEmailSafe(email);
   if (!found) {
     // eslint-disable-next-line no-console
@@ -210,6 +218,8 @@ if (setAdminClaim || clearAdminClaim) {
   const nextClaims = { ...currentClaims };
   if (setAdminClaim) nextClaims.admin = true;
   if (clearAdminClaim) delete nextClaims.admin;
+  if (setAdminMfaRequired) nextClaims.admin_mfa_required = true;
+  if (clearAdminMfaRequired) delete nextClaims.admin_mfa_required;
 
   await auth.setCustomUserClaims(user.uid, nextClaims);
   const updated = await auth.getUser(user.uid);
@@ -217,7 +227,13 @@ if (setAdminClaim || clearAdminClaim) {
   console.log(
     JSON.stringify(
       {
-        action: setAdminClaim ? 'set_admin_claim' : 'clear_admin_claim',
+        action: setAdminClaim
+          ? 'set_admin_claim'
+          : clearAdminClaim
+            ? 'clear_admin_claim'
+            : setAdminMfaRequired
+              ? 'set_admin_mfa_required'
+              : 'clear_admin_mfa_required',
         email,
         uid: updated.uid,
         customClaims: updated.customClaims || {},

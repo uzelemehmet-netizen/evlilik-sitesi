@@ -2,6 +2,23 @@ function safeStr(value) {
   return typeof value === 'string' ? value.trim() : '';
 }
 
+function hasManualApplicationApproval(userDoc) {
+  if (userDoc === true) return true;
+  const source = userDoc && typeof userDoc === 'object' ? userDoc : {};
+  const direct = source?.applicationManualApproval;
+  const legacy = source?.manualApplicationApproval;
+
+  const isApproved = (value) => {
+    if (value === true) return true;
+    if (!value || typeof value !== 'object') return false;
+    if (value.active === true) return true;
+    const status = safeStr(value.status).toLowerCase();
+    return status === 'approved' || status === 'active';
+  };
+
+  return isApproved(direct) || isApproved(legacy);
+}
+
 function pickFirstNonEmptyStr(...values) {
   for (const value of values) {
     const normalized = safeStr(value);
@@ -82,6 +99,10 @@ function normalizeGender(value) {
     return 'female';
   }
   return '';
+}
+
+function isPhotoOptionalForGender(value) {
+  return normalizeGender(value) === 'female';
 }
 
 function normalizeMaritalStatus(value) {
@@ -400,6 +421,72 @@ function hasAnyMatchmakingPhotoInUserDoc(userDoc) {
   return hasAnyStoredMatchmakingPhotoInApplicationDoc(buildMergedUserProfile(userDoc));
 }
 
+function hasDeferredPhotoInteractionRequirementFlag(source) {
+  const root = source && typeof source === 'object' ? source : {};
+  const candidates = [
+    root?.deferredPhotoRequiredForInteraction,
+    root?.photoRequirement?.deferredUntilUpload,
+    root?.application?.deferredPhotoRequiredForInteraction,
+    root?.application?.photoRequirement?.deferredUntilUpload,
+    root?.publicProfile?.deferredPhotoRequiredForInteraction,
+    root?.publicProfile?.photoRequirement?.deferredUntilUpload,
+  ];
+
+  return candidates.some((value) => value === true || safeStr(value).toLowerCase() === 'true');
+}
+
+function toMsOrZero(value) {
+  if (typeof value === 'number' && Number.isFinite(value) && value > 0) return value;
+  if (typeof value === 'string') {
+    const parsed = Number(value.trim());
+    if (Number.isFinite(parsed) && parsed > 0) return parsed;
+  }
+  return 0;
+}
+
+function getDeferredWhatsappRequiredAfterMs(source) {
+  const root = source && typeof source === 'object' ? source : {};
+  const candidates = [
+    root?.deferredWhatsappRequiredAfterMs,
+    root?.whatsappRequirement?.requiredAfterMs,
+    root?.application?.deferredWhatsappRequiredAfterMs,
+    root?.application?.whatsappRequirement?.requiredAfterMs,
+    root?.publicProfile?.deferredWhatsappRequiredAfterMs,
+    root?.publicProfile?.whatsappRequirement?.requiredAfterMs,
+  ];
+
+  for (const candidate of candidates) {
+    const ms = toMsOrZero(candidate);
+    if (ms > 0) return ms;
+  }
+
+  return 0;
+}
+
+function hasDeferredWhatsappInteractionRequirementFlag(source) {
+  return getDeferredWhatsappRequiredAfterMs(source) > 0;
+}
+
+function isDeferredPhotoInteractionRequiredFromApplication(application) {
+  return hasDeferredPhotoInteractionRequirementFlag(application);
+}
+
+function isDeferredPhotoInteractionRequiredFromUserDoc(userDoc) {
+  return hasDeferredPhotoInteractionRequirementFlag(userDoc);
+}
+
+function isDeferredWhatsappInteractionRequiredFromApplication(application, nowMs = Date.now()) {
+  void application;
+  void nowMs;
+  return false;
+}
+
+function isDeferredWhatsappInteractionRequiredFromUserDoc(userDoc, nowMs = Date.now()) {
+  void userDoc;
+  void nowMs;
+  return false;
+}
+
 function getMinimumMatchmakingProfileMissingFromApp(application) {
   const source = application && typeof application === 'object' ? application : {};
   const details = source?.details && typeof source.details === 'object' ? source.details : {};
@@ -408,7 +495,6 @@ function getMinimumMatchmakingProfileMissingFromApp(application) {
   if (!pickUsername(source, details)) missing.push('username');
   if (!pickFullName(source, details)) missing.push('fullName');
   if (getAge(source) === null) missing.push('age');
-  if (!pickWhatsapp(source, details)) missing.push('whatsapp');
   if (!pickCity(source, details)) missing.push('city');
   if (!pickOccupation(details, source)) missing.push('occupation');
 
@@ -427,7 +513,13 @@ function getMinimumMatchmakingProfileMissingFromApp(application) {
     }
   }
 
-  if (!pickMatchmakingPhotoRefs(source, details).length) missing.push('photo');
+  if (
+    !isPhotoOptionalForGender(source?.gender || details?.gender) &&
+    !isDeferredPhotoInteractionRequiredFromApplication(source) &&
+    !pickMatchmakingPhotoRefs(source, details).length
+  ) {
+    missing.push('photo');
+  }
 
   return missing;
 }
@@ -489,9 +581,17 @@ export {
   hasAnyMatchmakingPhotoInUserDoc,
   hasAnyMatchmakingProfileInApplicationDoc,
   hasAnyMatchmakingProfileInUserDoc,
+  hasDeferredPhotoInteractionRequirementFlag,
+  getDeferredWhatsappRequiredAfterMs,
+  hasDeferredWhatsappInteractionRequirementFlag,
   hasAssignedMatchmakingUserCode,
+  hasManualApplicationApproval,
   hasMinimumMatchmakingProfileInApplicationDoc,
   hasMinimumMatchmakingProfileInUserDoc,
+  isDeferredPhotoInteractionRequiredFromApplication,
+  isDeferredPhotoInteractionRequiredFromUserDoc,
+  isDeferredWhatsappInteractionRequiredFromApplication,
+  isDeferredWhatsappInteractionRequiredFromUserDoc,
   isStubMatchmakingApplication,
   normalizeGender,
   normalizeHasChildren,

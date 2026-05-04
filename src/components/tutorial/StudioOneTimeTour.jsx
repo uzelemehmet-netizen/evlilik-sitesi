@@ -5,14 +5,14 @@ import { useAuth } from '../../auth/AuthProvider.jsx';
 import { setTutorialActive } from '../../utils/tutorialState.js';
 import { enablePushForCurrentUser, hasSavedPushToken } from '../../utils/pushNotifications.js';
 import { isPwaInstalled, markPwaInstalled } from '../../utils/pwaInstalled.js';
+import { isPwaNotificationPromptSuppressed, markPwaNotificationPromptSuppressed } from '../../utils/pwaNotificationPrompt.js';
 import { isLeadApplyPath } from '../../utils/postAuthRedirect.js';
-import { getPwaActionSuccessMessageKey, PWA_ACTION_FEEDBACK_TTL_MS, shouldEnableNotificationsAfterInstallAction } from './pwaNudgeFeedback.js';
+import { getPwaActionSuccessMessageKey, PWA_ACTION_FEEDBACK_TTL_MS } from './pwaNudgeFeedback.js';
 
 const LS_PREFIX = 'uniqah:tour';
 const SS_FORCE_KEY = 'uniqah:tour:force';
 const SS_PWA_ENTRY_UID_KEY = 'uniqah:pwa-nudge:entry:uid';
 const SS_PWA_ENTRY_ID_KEY = 'uniqah:pwa-nudge:entry:id';
-const LS_PWA_NUDGE_SUPPRESSED_PREFIX = 'uniqah:pwa-nudge:suppressed';
 
 function safeSessionGet(key) {
   try {
@@ -60,10 +60,6 @@ function pwaEntryShownKey(uid, entryId) {
   return `${LS_PREFIX}:pwa-install-nudge:${uid}:${entryId}:shown`;
 }
 
-function pwaNudgeSuppressedKey(uid) {
-  return `${LS_PWA_NUDGE_SUPPRESSED_PREFIX}:${uid}`;
-}
-
 function safeUid(user) {
   const uid = String(user?.uid || '').trim();
   return uid || '';
@@ -105,24 +101,6 @@ function incrementShownCount(uid, tourId) {
     return next;
   } catch {
     return getShownCount(uid, tourId);
-  }
-}
-
-function isPwaNudgeSuppressed(uid) {
-  if (!uid) return false;
-  try {
-    return window.localStorage.getItem(pwaNudgeSuppressedKey(uid)) === '1';
-  } catch {
-    return false;
-  }
-}
-
-function markPwaNudgeSuppressed(uid) {
-  if (!uid) return;
-  try {
-    window.localStorage.setItem(pwaNudgeSuppressedKey(uid), '1');
-  } catch {
-    // ignore
   }
 }
 
@@ -412,10 +390,10 @@ export default function StudioOneTimeTour() {
     const pwaNudgeStep = getPwaNudgeStep(t, (() => {
       const installed = isPwaInstalled();
       const pushEnabled = isPushEnabledInBrowser();
-      if (installed && pushEnabled) return 'complete';
-      if (installed && !pushEnabled) return 'notify_only';
-      if (!installed && pushEnabled) return 'install_only';
-      return 'install_and_notify';
+      if (!installed) return 'complete';
+      if (pushEnabled) return 'complete';
+      if (isPwaNotificationPromptSuppressed(uid)) return 'complete';
+      return 'notify_only';
     })());
 
     return [
@@ -555,7 +533,7 @@ export default function StudioOneTimeTour() {
         ],
       },
     ];
-  }, [pwaStatusSeq, t]);
+  }, [pwaStatusSeq, t, uid]);
 
   const refreshPwaStatus = useCallback(() => {
     setPwaStatusSeq((n) => n + 1);
@@ -567,13 +545,12 @@ export default function StudioOneTimeTour() {
   }, []);
 
   const pwaNudgeMode = useMemo(() => {
-    if (isPwaNudgeSuppressed(uid)) return 'complete';
+    if (isPwaNotificationPromptSuppressed(uid)) return 'complete';
     const installed = isPwaInstalled();
     const pushEnabled = isPushEnabledInBrowser();
-    if (installed && pushEnabled) return 'complete';
-    if (installed && !pushEnabled) return 'notify_only';
-    if (!installed && pushEnabled) return 'install_only';
-    return 'install_and_notify';
+    if (!installed) return 'complete';
+    if (pushEnabled) return 'complete';
+    return 'notify_only';
   }, [pwaStatusSeq, uid]);
 
   useEffect(() => {
@@ -677,13 +654,10 @@ export default function StudioOneTimeTour() {
 
     const forcedId = consumeForcedTourId();
     if (!forcedId) return;
+    if (forcedId === 'pwa-install-nudge') return;
 
     const tour = tours.find((x) => x.id === forcedId) || null;
     if (!tour || !Array.isArray(tour.steps) || tour.steps.length === 0) return;
-
-    if (forcedId === 'pwa-install-nudge') {
-      markPwaNudgeShownThisEntry();
-    }
 
     forcedTourJustStartedRef.current = true;
     setActive({ tourId: tour.id, stepIndex: 0 });
@@ -691,33 +665,6 @@ export default function StudioOneTimeTour() {
       navigate(tour.startOnPath);
     }
   }, [active, loading, markPwaNudgeShownThisEntry, navigate, pathname, tours, uid]);
-
-  // Auto nudge: show at most once per auth entry/session, only when online.
-  useEffect(() => {
-    if (loading) return;
-    if (!uid) return;
-    if (active) return;
-    if (!entryId) return;
-    if (pwaNudgeShownForEntry) return;
-    if (!isOnline) return;
-
-    // If a forced tour was started in this cycle, don't override it.
-    if (forcedTourJustStartedRef.current) {
-      forcedTourJustStartedRef.current = false;
-      return;
-    }
-
-    // Do not run tours on non-app routes.
-    if (pathname.startsWith('/admin') || pathname === '/login' || pathname === '/documents' || pathname === '/privacy' || isLeadApplyPath(pathname)) return;
-
-    if (pwaNudgeMode === 'complete') return;
-
-    const tour = tours.find((x) => x.id === 'pwa-install-nudge') || null;
-    if (!tour || !Array.isArray(tour.steps) || tour.steps.length === 0) return;
-
-    markPwaNudgeShownThisEntry();
-    setActive({ tourId: tour.id, stepIndex: 0 });
-  }, [active, entryId, isOnline, loading, markPwaNudgeShownThisEntry, pathname, pwaNudgeMode, pwaNudgeShownForEntry, tours, uid]);
 
   const activeTour = useMemo(() => {
     if (!active?.tourId) return null;
@@ -738,8 +685,11 @@ export default function StudioOneTimeTour() {
 
   const onSkip = () => {
     clearActionFeedback();
-    // This tour should re-appear every entry until completed.
-    if (activeTour.id !== 'pwa-install-nudge') markShown(uid, activeTour.id);
+    if (activeTour.id === 'pwa-install-nudge') {
+      markPwaNotificationPromptSuppressed(uid);
+    } else {
+      markShown(uid, activeTour.id);
+    }
     setActive(null);
   };
 
@@ -808,8 +758,8 @@ export default function StudioOneTimeTour() {
           return;
         }
       } else if (step.actionKey === 'notify_only') {
+        markPwaNotificationPromptSuppressed(uid);
         const pushResult = await enablePushForCurrentUser().catch(() => null);
-        markPwaNudgeSuppressed(uid);
         const successKey = getPwaActionSuccessMessageKey({
           actionKey: step.actionKey,
           installDone: false,
@@ -827,15 +777,11 @@ export default function StudioOneTimeTour() {
       } else if (step.actionKey === 'install_and_notify') {
         const alreadyInstalled = isPwaInstalled();
         const installResult = alreadyInstalled ? { available: true, accepted: true, outcome: 'already_installed' } : await runInstallPrompt();
-        const shouldEnableNotifications = shouldEnableNotificationsAfterInstallAction({
-          alreadyInstalled,
-          installAvailable: installResult.available,
-          installAccepted: installResult.accepted,
-        });
+        const shouldEnableNotifications = alreadyInstalled || installResult.accepted;
         let pushResult = null;
         if (shouldEnableNotifications) {
+          markPwaNotificationPromptSuppressed(uid);
           pushResult = await enablePushForCurrentUser().catch(() => null);
-          markPwaNudgeSuppressed(uid);
         }
         const successKey = getPwaActionSuccessMessageKey({
           actionKey: step.actionKey,

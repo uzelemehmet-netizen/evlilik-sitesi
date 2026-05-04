@@ -8,9 +8,22 @@ function safeObj(v) {
   return v && typeof v === 'object' && !Array.isArray(v) ? v : null;
 }
 
+function reviewOf(item) {
+  return safeObj(item?.review) || {};
+}
+
 function safeInt(v, fallback) {
   const n = Number(v);
   return Number.isFinite(n) ? Math.floor(n) : fallback;
+}
+
+function safeNum(v, fallback = 0) {
+  const n = Number(v);
+  return Number.isFinite(n) ? n : fallback;
+}
+
+function safeBool(v) {
+  return v === true;
 }
 
 function pathFromUrl(raw) {
@@ -158,6 +171,8 @@ function hasFirstPartyRuntimeBreak(item) {
 
 function shouldIncludeConversionRiskItem(item) {
   const kind = safeStr(item?.kind).toLowerCase();
+  if (kind === 'review') return false;
+  if (kind === 'photo_upload_failure') return true;
   const step = safeStr(item?.step).toLowerCase();
   const path = pagePathOf(item);
   const isPublic = isPublicFunnelPath(path);
@@ -241,6 +256,7 @@ export default async function adminFeedbackList(req, res) {
 
   const qLower = qText ? qText.toLowerCase() : '';
   const itemsFiltered = itemsRaw.filter((x) => {
+    const review = reviewOf(x);
     const createdAtMs = safeInt(x?.createdAt, 0);
     if (sinceMs && (!createdAtMs || createdAtMs < sinceMs)) return false;
     if (untilMs && createdAtMs > untilMs) return false;
@@ -248,7 +264,7 @@ export default async function adminFeedbackList(req, res) {
     if (status && safeStr(x?.status).toLowerCase() !== status) return false;
     if (!includeLowSignal && !shouldIncludeConversionRiskItem(x)) return false;
     if (qLower) {
-      const hay = `${safeStr(x?.id)} ${safeStr(x?.matchId)} ${safeStr(x?.userId)} ${safeStr(x?.userEmail)} ${safeStr(x?.step)} ${safeStr(x?.message)} ${safeStr(x?.text)} ${pagePathOf(x)}`.toLowerCase();
+      const hay = `${safeStr(x?.id)} ${safeStr(x?.matchId)} ${safeStr(x?.userId)} ${safeStr(x?.userEmail)} ${safeStr(x?.step)} ${safeStr(x?.message)} ${safeStr(x?.text)} ${safeStr(x?.source)} ${pagePathOf(x)} ${safeStr(x?.context?.uploadSource)} ${safeStr(x?.context?.folder)} ${safeStr(x?.context?.fileName)} ${safeStr(x?.context?.contentType)} ${safeStr(Array.isArray(x?.context?.tags) ? x.context.tags.join(' ') : '')} ${safeStr(review?.reviewerName)} ${safeStr(review?.reviewerDisplayName)} ${safeStr(review?.reviewerUserCode)} ${safeStr(review?.reviewerCity)} ${safeStr(review?.reviewerCountry)} ${safeStr(review?.source)} ${safeStr(review?.openSource)} ${safeStr(review?.adminReply)} ${safeInt(review?.rating, 0)}`.toLowerCase();
       if (!hay.includes(qLower)) return false;
     }
     return true;
@@ -256,7 +272,44 @@ export default async function adminFeedbackList(req, res) {
 
   const items = itemsFiltered.slice(0, limit);
 
+  let reviewStats = null;
+  if (kind === 'review') {
+    const reviewSnap = await ref.where('kind', '==', 'review').get();
+    const reviewItems = reviewSnap.docs.map((d) => {
+      const data = d.data() || {};
+      const review = reviewOf(data);
+      const rating = safeInt(review?.rating, 0);
+      const messageLen = safeStr(data?.message).length;
+      return {
+        rating,
+        skipped: safeBool(review?.skipped),
+        publicVisible: !!review?.publicVisible,
+        hasComment: messageLen > 0,
+      };
+    });
+
+    const ratedItems = reviewItems.filter((item) => !item.skipped && item.rating >= 1 && item.rating <= 5);
+    const skippedCount = reviewItems.filter((item) => item.skipped).length;
+    const commentedCount = ratedItems.filter((item) => item.hasComment).length;
+    const starOnlyCount = Math.max(0, ratedItems.length - commentedCount);
+
+    const ratedCount = ratedItems.length;
+    const totalRating = ratedItems.reduce((sum, item) => sum + safeNum(item.rating, 0), 0);
+    const publicCount = ratedItems.filter((item) => item.publicVisible).length;
+
+    reviewStats = {
+      totalResponses: reviewItems.length,
+      ratedCount,
+      commentedCount,
+      starOnlyCount,
+      skippedCount,
+      averageRating: ratedCount > 0 ? Number((totalRating / ratedCount).toFixed(2)) : 0,
+      publicCount,
+      hiddenCount: Math.max(0, ratedCount - publicCount),
+    };
+  }
+
   res.statusCode = 200;
   res.setHeader('content-type', 'application/json');
-  res.end(JSON.stringify({ ok: true, items }));
+  res.end(JSON.stringify({ ok: true, items, reviewStats }));
 }

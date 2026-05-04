@@ -10,6 +10,7 @@ import 'firebase-admin/auth';
 import 'firebase-admin/firestore';
 import 'firebase-admin/messaging';
 import '../src/utils/matchmakingProfileCompletion.js';
+import '../src/utils/photoModerationState.js';
 
 function findApiRoutesRootDir() {
   const selfFile = fileURLToPath(import.meta.url);
@@ -75,10 +76,23 @@ function defaultLoader(fileName) {
 // Lazy-load: cold start sırasında tüm route dosyalarını import etmeyelim.
 // Bu, Vercel'de FUNCTION_INVOCATION_FAILED (özellikle cold-start / timeout) riskini ciddi azaltır.
 const handlers = {
+  'admin-new-users-list': defaultLoader('admin-new-users-list.js'),
+  'admin-identity-verifications-list': defaultLoader('admin-identity-verifications-list.js'),
+  'admin-kua-offices': defaultLoader('admin-kua-offices.js'),
+  'admin-matchmaking-matches-list': defaultLoader('admin-matchmaking-matches-list.js'),
+  'admin-matchmaking-application-detail': defaultLoader('admin-matchmaking-application-detail.js'),
+  'admin-step-up-status': defaultLoader('admin-step-up-status.js'),
+  'admin-step-up-verify': defaultLoader('admin-step-up-verify.js'),
   'admin-push-incomplete-application-once': defaultLoader('admin-push-incomplete-application-once.js'),
   'admin-lead-delete': defaultLoader('admin-lead-delete.js'),
   'admin-leads-list': defaultLoader('admin-leads-list.js'),
   'admin-leads-update': defaultLoader('admin-leads-update.js'),
+  'admin-mediation-lead-create': defaultLoader('admin-mediation-lead-create.js'),
+  'admin-mediation-match-create': defaultLoader('admin-mediation-match-create.js'),
+  'admin-mediation-match-end': defaultLoader('admin-mediation-match-end.js'),
+  'admin-mediation-matches-list': defaultLoader('admin-mediation-matches-list.js'),
+  'admin-mediation-match-update': defaultLoader('admin-mediation-match-update.js'),
+  'admin-mediation-participant-search': defaultLoader('admin-mediation-participant-search.js'),
   'admin-translate-text': defaultLoader('admin-translate-text.js'),
   'admin-invite-codes-list': defaultLoader('admin-invite-codes-list.js'),
   'admin-user-action': defaultLoader('admin-user-action.js'),
@@ -88,6 +102,7 @@ const handlers = {
   'admin-users-mark-system': defaultLoader('admin-users-mark-system.js'),
   'admin-payments-list': defaultLoader('admin-payments-list.js'),
   'admin-audit-logs-list': defaultLoader('admin-audit-logs-list.js'),
+  'admin-account-deletion-logs-list': defaultLoader('admin-account-deletion-logs-list.js'),
   'admin-daily-activity-summary': defaultLoader('admin-daily-activity-summary.js'),
   'admin-click-stats': defaultLoader('admin-click-stats.js'),
   'admin-click-trace-list': defaultLoader('admin-click-trace-list.js'),
@@ -95,13 +110,16 @@ const handlers = {
   'admin-match-activity-list': defaultLoader('admin-match-activity-list.js'),
   'admin-user-matches-list': defaultLoader('admin-user-matches-list.js'),
   'admin-matchmaking-user-stats': defaultLoader('admin-matchmaking-user-stats.js'),
+  'admin-matchmaking-photo-review-require': defaultLoader('admin-matchmaking-photo-review-require.js'),
   'admin-matchmaking-pool': defaultLoader('admin-matchmaking-pool.js'),
   'admin-matchmaking-run-now': defaultLoader('admin-matchmaking-run-now.js'),
   'admin-matchmaking-rollback-last-run': defaultLoader('admin-matchmaking-rollback-last-run.js'),
   'admin-new-users-whatsapp-notify': defaultLoader('admin-new-users-whatsapp-notify.js'),
   'admin-new-signups-whatsapp-notify': defaultLoader('admin-new-signups-whatsapp-notify.js'),
   'client-ip': defaultLoader('client-ip.js'),
+  'cloudinary-upload': defaultLoader('cloudinary-upload.js'),
   'cloudinary-signature': defaultLoader('cloudinary-signature.js'),
+  'photo-upload-failure-report': defaultLoader('photo-upload-failure-report.js'),
   'google-ads-lead-webhook': defaultLoader('google-ads-lead-webhook.js'),
   'identity-kyc-webhook': defaultLoader('identity-kyc-webhook.js'),
   'matchmaking-admin-approve-payment': defaultLoader('matchmaking-admin-approve-payment.js'),
@@ -161,8 +179,11 @@ const handlers = {
   'matchmaking-inbox-message-mark-read': defaultLoader('matchmaking-inbox-message-mark-read.js'),
   'matchmaking-inbox-summary': defaultLoader('matchmaking-inbox-summary.js'),
   'matchmaking-feedback-submit': defaultLoader('matchmaking-feedback-submit.js'),
+  'matchmaking-feedback-status': defaultLoader('matchmaking-feedback-status.js'),
   'admin-feedback-list': defaultLoader('admin-feedback-list.js'),
   'admin-feedback-update': defaultLoader('admin-feedback-update.js'),
+  'public-reviews-list': defaultLoader('public-reviews-list.js'),
+  'public-review-translate': defaultLoader('public-review-translate.js'),
   'public-join-ping': defaultLoader('public-join-ping.js'),
   'public-error-report': defaultLoader('public-error-report.js'),
   'public-feedback-submit': defaultLoader('public-feedback-submit.js'),
@@ -175,9 +196,13 @@ const handlers = {
   'push-token-upsert': defaultLoader('push-token-upsert.js'),
   'push-send-test': defaultLoader('push-send-test.js'),
   'matchmaking-profile': defaultLoader('matchmaking-profile.js'),
+  'matchmaking-profile-text-backfill': defaultLoader('matchmaking-profile-text-backfill.js'),
+  'matchmaking-profile-text-translate': defaultLoader('matchmaking-profile-text-translate.js'),
+  'matchmaking-profile-text-persist-translate': defaultLoader('matchmaking-profile-text-persist-translate.js'),
   'matchmaking-profile-text-update': defaultLoader('matchmaking-profile-text-update.js'),
   'matchmaking-profile-view': defaultLoader('matchmaking-profile-view.js'),
   'matchmaking-photo-blur-set': defaultLoader('matchmaking-photo-blur-set.js'),
+  'matchmaking-interaction-filter-set': defaultLoader('matchmaking-interaction-filter-set.js'),
   'matchmaking-photo-access-set': defaultLoader('matchmaking-photo-access-set.js'),
   'matchmaking-photo-access-request': defaultLoader('matchmaking-photo-access-request.js'),
   'matchmaking-photo-access-respond': defaultLoader('matchmaking-photo-access-respond.js'),

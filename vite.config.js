@@ -28,7 +28,7 @@ export default defineConfig(({ mode }) => {
       react(),
       VitePWA({
         strategies: 'injectManifest',
-        registerType: 'prompt',
+        registerType: 'autoUpdate',
         injectRegister: null,
         srcDir: 'src',
         filename: 'pwa-sw.js',
@@ -52,7 +52,7 @@ export default defineConfig(({ mode }) => {
           // IMPORTANT: Keep PWA scope limited to the authenticated app area.
           // Broad scope ('/') can cause browsers/OS to show “open in app?” prompts
           // even on marketing/login pages, hurting conversion.
-          start_url: '/app/matches',
+          start_url: '/app/welcome',
           scope: '/app/',
           display: 'standalone',
           background_color: '#0b1220',

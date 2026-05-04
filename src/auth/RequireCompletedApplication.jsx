@@ -6,6 +6,7 @@ import {
   hasAnyStoredMatchmakingPhotoInApplicationDoc,
   hasAnyMatchmakingPhotoInUserDoc,
   hasAnyMatchmakingProfileInApplicationDoc,
+  hasManualApplicationApproval,
   hasAnyMatchmakingProfileInUserDoc,
   hasMinimumMatchmakingProfileInApplicationDoc,
   hasMinimumMatchmakingProfileInUserDoc,
@@ -57,11 +58,12 @@ async function getProfileCompletionState(uid) {
     const uSnap = await getDoc(uRef);
     if (uSnap.exists()) {
       const d = uSnap.data() || {};
+      if (hasManualApplicationApproval(d)) return { ok: true, reason: 'manual_approval' };
       userDocHasProfile = hasAnyMatchmakingProfileInUserDoc(d);
       userDocHasPhoto = hasAnyMatchmakingPhotoInUserDoc(d);
       if (hasMinimumProfileInUserDoc(d)) return { ok: true, reason: 'complete' };
       if (userDocHasProfile && userDocHasPhoto) return { ok: true, reason: 'legacy_complete' };
-      if (userDocHasProfile && !userDocHasPhoto) return { ok: false, reason: 'photo_required' };
+      if (userDocHasProfile && !userDocHasPhoto) return { ok: true, reason: 'legacy_complete' };
     }
   } catch {
     // ignore and fall back
@@ -75,7 +77,7 @@ async function getProfileCompletionState(uid) {
     const docs = [...(s1?.docs || [])];
     if (!docs.length) {
       if (userDocHasProfile && userDocHasPhoto) return { ok: true, reason: 'legacy_complete' };
-      if (userDocHasProfile && !userDocHasPhoto) return { ok: false, reason: 'photo_required' };
+      if (userDocHasProfile && !userDocHasPhoto) return { ok: true, reason: 'legacy_complete' };
       return { ok: false, reason: 'application_required' };
     }
 
@@ -94,11 +96,11 @@ async function getProfileCompletionState(uid) {
     }
 
     if (!hasAnyProfile) return { ok: false, reason: 'application_required' };
-    if (!hasAnyPhoto) return { ok: false, reason: 'photo_required' };
+    if (!hasAnyPhoto) return { ok: true, reason: 'legacy_complete' };
     return { ok: true, reason: 'legacy_complete' };
   } catch {
     if (userDocHasProfile && userDocHasPhoto) return { ok: true, reason: 'legacy_complete' };
-    if (userDocHasProfile && !userDocHasPhoto) return { ok: false, reason: 'photo_required' };
+    if (userDocHasProfile && !userDocHasPhoto) return { ok: true, reason: 'legacy_complete' };
     return { ok: false, reason: 'application_required' };
   }
 }

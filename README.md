@@ -29,6 +29,7 @@ Notlar:
 - Vite dev server, `/api` isteklerini varsayılan olarak `http://localhost:3000` adresine proxy'ler. İsterseniz `VITE_API_PROXY_TARGET` ile değiştirebilirsiniz.
 - Localde tarayıcı konsolunda `/api/matchmaking-... 503 (firebase_admin_not_configured)` görüyorsanız, bu backend'in Firebase Admin ile Firestore/Auth'a bağlanamadığı anlamına gelir. Çözüm:
 	- Firebase Console → Project settings → Service accounts → **Generate new private key**
+	- Vercel/prod için tercihen şu ayrı env'leri kullanın: `FIREBASE_ADMIN_PROJECT_ID`, `FIREBASE_ADMIN_CLIENT_EMAIL`, `FIREBASE_ADMIN_PRIVATE_KEY`
 	- İnen JSON dosyasının yolunu `.env.local` içine yazın:
 		- `FIREBASE_SERVICE_ACCOUNT_JSON_FILE=C:\\path\\to\\service-account.json`
 	- `npm run dev` sürecini yeniden başlatın.
@@ -102,8 +103,12 @@ Gemini entegrasyonu **server-side** çalışır (API key tarayıcıya gitmez). �
 Gerekli env:
 
 ```dotenv
-# Gemini'yi aktif etmek için:
-GEMINI_API_KEY=YOUR_GEMINI_KEY
+# Ceviri icin yeni/dedike Gemini anahtari:
+GEMINI_TRANSLATE_API_KEY=YOUR_GEMINI_TRANSLATE_KEY
+
+# Geriye donuk fallback: ozel key yoksa bunlar da kullanilir
+# GEMINI_API_KEY=YOUR_GEMINI_KEY
+# GOOGLE_GEMINI_API_KEY=YOUR_GEMINI_KEY
 
 # Opsiyonel: model seçimi (uyumsuzsa farklı model deneyin)
 GEMINI_TRANSLATE_MODEL=gemini-3-flash
@@ -124,6 +129,7 @@ DEEPL_API_KEY=YOUR_DEEPL_KEY
 ```
 
 Notlar:
+- Vercel'de Project -> Settings -> Environment Variables altina GEMINI_TRANSLATE_API_KEY ekleyip yeniden deploy edin.
 - "Hazır kütüphane" (TR↔ID sık sorular) yalnızca bazı kalıpları çevirir; her cümlenin çevrilebilmesi için **harici sağlayıcı** (Gemini/DeepL/Google/LibreTranslate) env ile ayarlı olmalıdır.
 - Çeviri bazı mesajlarda özellikle **telefon/e‑posta/URL** gibi kişisel bilgi (PII) algılanırsa güvenlik nedeniyle `pii_blocked` ile bilinçli olarak engellenir.
 - Gemini için dakikada istek limiti (RPM) uygulanır (`GEMINI_TRANSLATE_RPM_LIMIT`); aşılırsa `translate_rate_limited` dönebilir ve fallback sağlayıcı ayarlıysa otomatik düşer.
